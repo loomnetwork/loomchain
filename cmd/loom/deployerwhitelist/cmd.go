@@ -29,6 +29,8 @@ func NewDeployCommand() *cobra.Command {
 		getDeployerCmd(),
 		listDeployersCmd(),
 		removeDeployerCmd(),
+		setDefaultDeployerCmd(),
+		getDefaultDeployerCmd(),
 	)
 	return cmd
 }
@@ -62,7 +64,7 @@ func addDeployerCmd() *cobra.Command {
 					uint32(dw.AllowMigrationFlag),
 				)
 			} else {
-				return fmt.Errorf("Please specify deploy permission (go|evm|any)")
+				return fmt.Errorf("Please specify deploy permission (go|evm|migration|all)")
 			}
 
 			cmd.SilenceUsage = true
@@ -166,6 +168,79 @@ func listDeployersCmd() *cobra.Command {
 			}
 
 			output, err := json.MarshalIndent(deployersInfo, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
+			return nil
+		},
+	}
+}
+
+const setDefaultDeployerCmdExample = `
+loom deployer set-default go evm migration
+`
+
+func setDefaultDeployerCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "set-default <flag1> .. <flagN>",
+		Short:   "Set default deployer permision",
+		Example: setDefaultDeployerCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var flags uint32
+			for _, f := range args {
+				if strings.EqualFold(f, "evm") {
+					flags = dw.PackFlags(flags, uint32(dw.AllowEVMDeployFlag))
+				} else if strings.EqualFold(f, "go") {
+					flags = dw.PackFlags(flags, uint32(dw.AllowGoDeployFlag))
+				} else if strings.EqualFold(f, "migration") {
+					flags = dw.PackFlags(flags, uint32(dw.AllowMigrationFlag))
+				} else if strings.EqualFold(f, "all") {
+					flags = dw.PackFlags(
+						flags,
+						uint32(dw.AllowEVMDeployFlag),
+						uint32(dw.AllowGoDeployFlag),
+						uint32(dw.AllowMigrationFlag),
+					)
+				}
+			}
+
+			cmd.SilenceUsage = true
+
+			req := &dwtypes.SetDefaultDeployerRequest{
+				Flags: flags,
+			}
+
+			return cli.CallContract(dwContractName, "SetDefaultDeployer", req, nil)
+		},
+	}
+}
+
+const getDefaultDeployerCmdExample = `
+loom deployer get-default
+`
+
+func getDefaultDeployerCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "get-default",
+		Short:   "Show current permissions of default deployer",
+		Example: getDeployerCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			var resp dwtypes.GetDefaultDeployerResponse
+			if err := cli.StaticCallContract(
+				dwContractName,
+				"GetDefaultDeployer",
+				&dwtypes.GetDefaultDeployerRequest{},
+				&resp); err != nil {
+				return err
+			}
+
+			deployer := getDeployerInfo(resp.Deployer)
+
+			output, err := json.MarshalIndent(deployer, "", "  ")
 			if err != nil {
 				return err
 			}

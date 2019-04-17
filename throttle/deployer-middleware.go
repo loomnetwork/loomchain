@@ -28,7 +28,6 @@ func NewDeployerWhitelistMiddleware(
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
-
 		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
 			return next(state, txBytes, isCheckTx)
 		}
@@ -81,6 +80,11 @@ func NewDeployerWhitelistMiddleware(
 
 		} else if tx.Id == migrationId {
 			// Process migrationTx, checking for permission to migrate contract
+			var migrationTx vm.MigrationTx
+			if err := proto.Unmarshal(msg.Data, &migrationTx); err != nil {
+				return res, errors.Wrapf(err, "unmarshal migration tx %v", msg.Data)
+			}
+
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
@@ -95,7 +99,22 @@ func NewDeployerWhitelistMiddleware(
 	}), nil
 }
 
+func checkDefaultPermission(ctx contractpb.Context, flag uint32) bool {
+	defaultDeployer, err := dw.GetDefaultDeployer(ctx)
+	if err != nil {
+		return false
+	}
+	if dw.IsFlagSet(uint32(defaultDeployer.Flags), flag) {
+		return true
+	}
+	return false
+}
+
 func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) error {
+	if checkDefaultPermission(ctx, uint32(dw.AllowGoDeployFlag)) {
+		return nil
+	}
+
 	deployer, err := dw.GetDeployer(ctx, deployerAddr)
 	if err != nil {
 		return err
@@ -107,6 +126,10 @@ func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) erro
 }
 
 func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) error {
+	if checkDefaultPermission(ctx, uint32(dw.AllowEVMDeployFlag)) {
+		return nil
+	}
+
 	deployer, err := dw.GetDeployer(ctx, deployerAddr)
 	if err != nil {
 		return err
@@ -118,6 +141,10 @@ func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) err
 }
 
 func isAllowedToMigrate(ctx contractpb.Context, deployerAddr loom.Address) error {
+	if checkDefaultPermission(ctx, uint32(dw.AllowMigrationFlag)) {
+		return nil
+	}
+
 	deployer, err := dw.GetDeployer(ctx, deployerAddr)
 	if err != nil {
 		return err

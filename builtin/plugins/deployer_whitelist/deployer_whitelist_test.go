@@ -1,6 +1,7 @@
 package deployer_whitelist
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -222,4 +223,38 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistFlagUtil() {
 		f := uint32(1) << i
 		require.Equal(true, IsFlagSet(packedFlag, f))
 	}
+}
+
+func (dw *DeployerWhitelistTestSuite) TestDefaultDeployer() {
+	require := dw.Require()
+
+	pctx := plugin.CreateFakeContext(addr1, addr1).WithBlock(loom.BlockHeader{
+		ChainID: chainId,
+		Time:    time.Now().Unix(),
+	})
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	//setup deployer whitelist contract
+	deployerContract := &DeployerWhitelist{}
+	err := deployerContract.Init(ctx, &InitRequest{
+		Owner: addr1.MarshalPB(),
+		Deployers: []*Deployer{
+			&Deployer{
+				Address: addr5.MarshalPB(),
+				Flags:   uint32(AllowEVMDeployFlag),
+			},
+		},
+		Flags: PackFlags(uint32(AllowEVMDeployFlag)),
+	})
+	require.NoError(err)
+
+	// test GetDeployer
+	get, err := deployerContract.GetDefaultDeployer(ctx, &GetDefaultDeployerRequest{})
+	require.NoError(err)
+
+	fmt.Println(formatJSON(get))
+	require.Equal(false, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
+	require.Equal(false, IsFlagSet(get.Deployer.Flags, uint32(AllowMigrationFlag)))
+
 }

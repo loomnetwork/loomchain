@@ -11,16 +11,20 @@ import (
 )
 
 type (
-	InitRequest            = dwtypes.InitRequest
-	ListDeployersRequest   = dwtypes.ListDeployersRequest
-	ListDeployersResponse  = dwtypes.ListDeployersResponse
-	GetDeployerRequest     = dwtypes.GetDeployerRequest
-	GetDeployerResponse    = dwtypes.GetDeployerResponse
-	AddDeployerRequest     = dwtypes.AddDeployerRequest
-	AddDeployerResponse    = dwtypes.AddDeployerResponse
-	RemoveDeployerRequest  = dwtypes.RemoveDeployerRequest
-	RemoveDeployerResponse = dwtypes.RemoveDeployerResponse
-	Deployer               = dwtypes.Deployer
+	InitRequest                = dwtypes.InitRequest
+	ListDeployersRequest       = dwtypes.ListDeployersRequest
+	ListDeployersResponse      = dwtypes.ListDeployersResponse
+	GetDeployerRequest         = dwtypes.GetDeployerRequest
+	GetDeployerResponse        = dwtypes.GetDeployerResponse
+	AddDeployerRequest         = dwtypes.AddDeployerRequest
+	AddDeployerResponse        = dwtypes.AddDeployerResponse
+	RemoveDeployerRequest      = dwtypes.RemoveDeployerRequest
+	RemoveDeployerResponse     = dwtypes.RemoveDeployerResponse
+	SetDefaultDeployerRequest  = dwtypes.SetDefaultDeployerRequest
+	SetDefaultDeployerResponse = dwtypes.SetDefaultDeployerResponse
+	GetDefaultDeployerRequest  = dwtypes.GetDefaultDeployerRequest
+	GetDefaultDeployerResponse = dwtypes.GetDefaultDeployerResponse
+	Deployer                   = dwtypes.Deployer
 )
 
 const (
@@ -54,6 +58,8 @@ const (
 
 var (
 	modifyPerm = []byte("modp")
+	//Default deployer represents based permissions of every deployer
+	defaultDeployerAddr = loom.MustParseAddress("default:0xb18a379ec18d4093666f8f38b11a3071c920207d")
 )
 
 func deployerKey(addr loom.Address) []byte {
@@ -84,6 +90,15 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 		Flags:   flags,
 	}
 	if err := ctx.Set(deployerKey(ownerAddr), deployer); err != nil {
+		return err
+	}
+
+	defaultDeployer := &Deployer{
+		Address: defaultDeployerAddr.MarshalPB(),
+		Flags:   req.Flags,
+	}
+	//add default deployer
+	if err := ctx.Set(deployerKey(defaultDeployerAddr), defaultDeployer); err != nil {
 		return err
 	}
 
@@ -168,11 +183,44 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 		if err := proto.Unmarshal(m.Value, &deployer); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal deployer %x", m.Key)
 		}
+		//exclude default deployer
+		deployerAddr := loom.UnmarshalAddressPB(deployer.Address)
+		if deployerAddr.Compare(defaultDeployerAddr) == 0 {
+			continue
+		}
 		deployers = append(deployers, &deployer)
 	}
 
 	return &ListDeployersResponse{
 		Deployers: deployers,
+	}, nil
+}
+
+func (dw *DeployerWhitelist) SetDefaultDeployer(ctx contract.Context, req *SetDefaultDeployerRequest) (*SetDefaultDeployerResponse, error) {
+	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
+		return nil, ErrNotAuthorized
+	}
+
+	deployer := &Deployer{
+		Address: defaultDeployerAddr.MarshalPB(),
+		Flags:   req.Flags,
+	}
+
+	if err := ctx.Set(deployerKey(defaultDeployerAddr), deployer); err != nil {
+		return nil, err
+	}
+
+	return &SetDefaultDeployerResponse{}, nil
+}
+
+func (dw *DeployerWhitelist) GetDefaultDeployer(ctx contract.StaticContext, req *GetDefaultDeployerRequest) (*GetDefaultDeployerResponse, error) {
+	deployer, err := GetDefaultDeployer(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetDefaultDeployerResponse{
+		Deployer: deployer,
 	}, nil
 }
 
@@ -187,6 +235,10 @@ func GetDeployer(ctx contract.StaticContext, deployerAddr loom.Address) (*Deploy
 		}, nil
 	}
 	return &deployer, err
+}
+
+func GetDefaultDeployer(ctx contract.StaticContext) (*Deployer, error) {
+	return GetDeployer(ctx, defaultDeployerAddr)
 }
 
 func PackFlags(flags ...uint32) uint32 {
