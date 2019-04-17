@@ -17,7 +17,7 @@
   Expected = ['receipts_db']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg add-feature --name receipts:v2 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg add-feature receipts:v2 -k {{index $.NodePrivKeyPathList 0}}"
 
  [[TestCases]]
    RunCmd = "/bin/sleep 3s"
