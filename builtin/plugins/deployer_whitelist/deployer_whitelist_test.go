@@ -1,7 +1,6 @@
 package deployer_whitelist
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -252,9 +251,19 @@ func (dw *DeployerWhitelistTestSuite) TestDefaultDeployer() {
 	get, err := deployerContract.GetDefaultDeployer(ctx, &GetDefaultDeployerRequest{})
 	require.NoError(err)
 
-	fmt.Println(formatJSON(get))
 	require.Equal(false, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
 	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
 	require.Equal(false, IsFlagSet(get.Deployer.Flags, uint32(AllowMigrationFlag)))
 
+	_, err = deployerContract.SetDefaultDeployer(ctx, &SetDefaultDeployerRequest{
+		Flags: PackFlags(uint32(AllowEVMDeployFlag), uint32(AllowGoDeployFlag), uint32(AllowMigrationFlag)),
+	})
+	require.NoError(err)
+
+	get, err = deployerContract.GetDefaultDeployer(ctx, &GetDefaultDeployerRequest{})
+	require.NoError(err)
+
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowMigrationFlag)))
 }

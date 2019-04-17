@@ -20,7 +20,7 @@ func TestContractDeployerWhitelist(t *testing.T) {
 		genFile  string
 		yamlFile string
 	}{
-		//{"deployerwhitelist", "deployerwhitelist.toml", 2, 2, "deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml"},
+		{"deployerwhitelist", "deployerwhitelist.toml", 2, 2, "deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml"},
 		{"default-deployer", "default-deployer.toml", 2, 2, "deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml"},
 	}
 

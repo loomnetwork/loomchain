@@ -69,3 +69,41 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, ownerCtx)
 	require.NoError(t, err)
 }
+
+func TestDeployerWhitelistMiddlewareDefaultPermission(t *testing.T) {
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state.SetFeature(loomchain.DeployerWhitelistFeature, true)
+
+	txSignedPlugin := mockSignedTx(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
+	txSignedEVM := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
+	txSignedMigration := mockSignedTx(t, uint64(3), migrationId, vm.VMType_EVM, contract)
+	//init contract
+	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
+	dwAddr := fakeCtx.CreateContract(dw.Contract)
+	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(dwAddr))
+
+	dwContract := &dw.DeployerWhitelist{}
+	require.NoError(t, dwContract.Init(contractContext, &dwtypes.InitRequest{
+		Owner: owner.MarshalPB(),
+		Flags: dw.PackFlags(uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag), uint32(dw.AllowMigrationFlag)),
+	}))
+
+	guestCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, guest)
+
+	dwMiddleware, err := NewDeployerWhitelistMiddleware(
+		func(state loomchain.State) (contractpb.Context, error) {
+			return contractContext, nil
+		},
+	)
+	require.NoError(t, err)
+
+	// unauthorized deployer (DeployTx Plugin)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedPlugin, guestCtx)
+	require.NoError(t, err)
+	// unauthorized deployer (DeployTx EVM)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, guestCtx)
+	require.NoError(t, err)
+	// unauthorized deployer (MigrationTx)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, guestCtx)
+	require.NoError(t, err)
+}
