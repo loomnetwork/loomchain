@@ -61,7 +61,7 @@ var (
 	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
 	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
 	// ErrFeatureNotSupported inidicates that an enabled feature is not supported in the current build
-	ErrFeatureNotSupported = errors.New("[Chainconfig] feature is not supported in the current build")
+	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
 )
 
 const (
@@ -233,7 +233,7 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 //   feature reaches a certain threshold.
 // - A WAITING feature will become ENABLED after a sufficient number of block confirmations.
 // Returns a list of features whose status has changed from WAITING to ENABLED at the given height.
-func EnableFeatures(ctx contract.Context, blockHeight uint64, buildNumber uint64) ([]*Feature, error) {
+func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Feature, error) {
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
@@ -276,6 +276,9 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64, buildNumber uint64
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
+				// When an unsupported feature has been activated by the rest of the chain panic
+				// to prevent the node from processing any further blocks until it's upgraded to
+				// a new build that supports the feature.
 				if buildNumber < feature.BuildNumber {
 					return nil, ErrFeatureNotSupported
 				}

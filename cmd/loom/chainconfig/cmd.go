@@ -82,6 +82,7 @@ func AddFeatureCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number that supports this feature")
+	cmd.MarkFlagRequired("build")
 	return cmd
 }
 
