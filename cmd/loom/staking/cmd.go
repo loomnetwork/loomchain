@@ -67,7 +67,7 @@ func ListDelegationsCmd() *cobra.Command {
 		Example: listDelegationsCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return err
 			}
@@ -122,7 +122,7 @@ func TotalDelegationCmd() *cobra.Command {
 		Example: totalDelegationCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return err
 			}
@@ -260,7 +260,7 @@ func GetBalanceCmd() *cobra.Command {
 		Example: getBalanceCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return err
 			}
