@@ -10,14 +10,14 @@ import (
 // Remembers which subscribers messages have been published to
 // and does not send repeat messages to any subscribers.
 // Revert resets the memory of the subscribers that have received messages.
-type EthDepreciatedResetHub struct {
+type LegacyEthResetHub struct {
 	mutex    *sync.RWMutex
 	registry map[pubsub.Subscriber]bool
 }
 
 // New returns new hub instance. hub is goroutine safe.
-func NewEthDepreciatedResetHub() (result pubsub.ResetHub) {
-	result = &EthDepreciatedResetHub{
+func NewLegacyEthResetHub() (result pubsub.ResetHub) {
+	result = &LegacyEthResetHub{
 		mutex:    &sync.RWMutex{},
 		registry: map[pubsub.Subscriber]bool{},
 	}
@@ -25,7 +25,7 @@ func NewEthDepreciatedResetHub() (result pubsub.ResetHub) {
 }
 
 // CloseSubscriber removes subscriber from hub
-func (h *EthDepreciatedResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
+func (h *LegacyEthResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 	h.mutex.Lock()
 	delete(h.registry, subscriber)
 	h.mutex.Unlock()
@@ -33,7 +33,7 @@ func (h *EthDepreciatedResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 
 // Publish publishes message to subscribers
 // todo Warning this function can throw an exception
-func (h *EthDepreciatedResetHub) Publish(message pubsub.Message) int {
+func (h *LegacyEthResetHub) Publish(message pubsub.Message) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 
@@ -52,7 +52,7 @@ func (h *EthDepreciatedResetHub) Publish(message pubsub.Message) int {
 }
 
 // Subscribe adds subscription to topics and returns subscriber
-func (h *EthDepreciatedResetHub) Subscribe(topics ...string) pubsub.Subscriber {
+func (h *LegacyEthResetHub) Subscribe(topics ...string) pubsub.Subscriber {
 	var result pubsub.Subscriber
 	if len(topics) > 0 {
 		result = newEthSubscriber(h, topics[0])
@@ -67,7 +67,7 @@ func (h *EthDepreciatedResetHub) Subscribe(topics ...string) pubsub.Subscriber {
 	return result
 }
 
-func (h *EthDepreciatedResetHub) Reset() {
+func (h *LegacyEthResetHub) Reset() {
 	h.mutex.Lock()
 	for sub := range h.registry {
 		h.registry[sub] = true

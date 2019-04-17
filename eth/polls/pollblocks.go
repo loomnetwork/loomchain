@@ -41,22 +41,22 @@ func (p *EthBlockPoll) AllLogs(blockStore store.BlockStore, state loomchain.Read
 	return eth.EncBytesArray(results), err
 }
 
-func getBlockHashes(blockStore store.BlockStore, state loomchain.ReadOnlyState, start uint64) (uint64, [][]byte, error) {
-	result, err := blockStore.GetBlockRangeByHeight(int64(start+1), state.Block().Height)
+func getBlockHashes(blockStore store.BlockStore, state loomchain.ReadOnlyState, lastBlockRead uint64) (uint64, [][]byte, error) {
+	result, err := blockStore.GetBlockRangeByHeight(int64(lastBlockRead+1), state.Block().Height)
 	if err != nil {
-		return start, nil, err
+		return lastBlockRead, nil, err
 	}
 
 	var blockHashes [][]byte
 	for _, meta := range result.BlockMetas {
 		if len(meta.BlockID.Hash) > 0 {
 			blockHashes = append(blockHashes, meta.BlockID.Hash)
-			if start < uint64(meta.Header.Height) {
-				start = uint64(meta.Header.Height)
+			if lastBlockRead < uint64(meta.Header.Height) {
+				lastBlockRead = uint64(meta.Header.Height)
 			}
 		}
 	}
-	return start, blockHashes, nil
+	return lastBlockRead, blockHashes, nil
 }
 
 func (p *EthBlockPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {

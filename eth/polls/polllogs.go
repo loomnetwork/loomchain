@@ -4,6 +4,9 @@ package polls
 
 import (
 	"fmt"
+
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain/store"
 
 	"github.com/gogo/protobuf/proto"
@@ -41,10 +44,14 @@ func (p *EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyS
 		return p, nil, err
 	}
 
+	if start > end {
+		return p, nil, errors.New("Filter FromBlock is greater than ToBlock")
+	}
+
 	if start <= p.lastBlockRead {
 		start = p.lastBlockRead + 1
 		if start > end {
-			return p, nil, fmt.Errorf("filter start after filter end")
+			return p, nil, nil
 		}
 	}
 
@@ -56,7 +63,7 @@ func (p *EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyS
 		filter:        p.filter,
 		lastBlockRead: end,
 	}
-	return newLogPoll, eth.EncLogs(eventLogs), err
+	return newLogPoll, eth.EncLogs(eventLogs), nil
 }
 
 func (p *EthLogPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
@@ -69,14 +76,14 @@ func (p *EthLogPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOn
 		return nil, err
 	}
 	if start > end {
-		return nil, fmt.Errorf("filter start after filter end")
+		return nil, errors.New("Filter FromBlock is greater than ToBlock")
 	}
 
 	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return nil, err
 	}
-	return eth.EncLogs(eventLogs), err
+	return eth.EncLogs(eventLogs), nil
 }
 
 func (p *EthLogPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
