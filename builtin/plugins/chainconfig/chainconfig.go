@@ -276,9 +276,6 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
-				// When an unsupported feature has been activated by the rest of the chain panic
-				// to prevent the node from processing any further blocks until it's upgraded to
-				// a new build that supports the feature.
 				if buildNumber < feature.BuildNumber {
 					return nil, ErrFeatureNotSupported
 				}
