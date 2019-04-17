@@ -68,6 +68,12 @@ builders['linux'] = {
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
           setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux");
+          sh '''
+            cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
+            tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz test-data
+            mkdir -p /tmp/test-data
+            mv ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz /tmp/test-data
+          '''
           slackSend channel: '#blockchain-engineers', color: '#FF0000', message: "${env.JOB_NAME} (LINUX) - #${env.BUILD_NUMBER} Failure after ${currentBuild.durationString.replace(' and counting', '')} (<${env.BUILD_URL}|Open>)"
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
@@ -131,6 +137,12 @@ builders['osx'] = {
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
           setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX");
+          sh '''
+            cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
+            tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz test-data
+            mkdir -p /tmp/test-data
+            mv ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz /tmp/test-data
+          '''
           slackSend channel: '#blockchain-engineers', color: '#FF0000', message: "${env.JOB_NAME} (OSX) - #${env.BUILD_NUMBER} Failure after ${currentBuild.durationString.replace(' and counting', '')} (<${env.BUILD_URL}|Open>)"
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
