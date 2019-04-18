@@ -18,7 +18,6 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -1139,47 +1138,15 @@ func (gw *Gateway) PendingWithdrawalsV2(ctx contract.StaticContext, req *Pending
 			safeAmount = receipt.TokenAmount.Value.Int
 		}
 
-		var hash []byte
-		switch receipt.TokenKind {
-		case TokenKind_ERC721:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(TokenKind_ERC721),
-				ssha.Uint256(safeTokenID),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ERC721X:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(TokenKind_ERC721X),
-				ssha.Uint256(safeTokenID),
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ERC20:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(TokenKind_ERC20),
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ETH:
-			hash = ssha.SoliditySHA3(ssha.Uint256(TokenKind_ETH), ssha.Uint256(safeAmount))
-		case TokenKind_LoomCoin:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(TokenKind_ERC20), // must be signed as an ERC20 for the contract's withdrawal function
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		default:
-			ctx.Logger().Error("[Transfer Gateway] pending withdrawal has an invalid token kind",
-				"tokenKind", receipt.TokenKind,
-			)
-			continue
-		}
-
-		hash = ssha.SoliditySHA3(
-			ssha.Address(common.BytesToAddress(receipt.TokenOwner.Local)),
-			ssha.Uint256(new(big.Int).SetUint64(receipt.WithdrawalNonce)),
-			ssha.Address(mainnetGatewayAddr),
-			hash,
+		hash := client.WithdrawalHash(
+			common.HexToAddress(receipt.TokenOwner.Local.String()),
+			common.HexToAddress(receipt.TokenContract.Local.String()),
+			mainnetGatewayAddr,
+			receipt.TokenKind,
+			safeTokenID,
+			safeAmount,
+			big.NewInt(int64(receipt.WithdrawalNonce)),
+			false,
 		)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
@@ -1232,43 +1199,15 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			safeAmount = receipt.TokenAmount.Value.Int
 		}
 
-		var hash []byte
-		switch receipt.TokenKind {
-		case TokenKind_ERC721:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeTokenID),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ERC721X:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeTokenID),
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ERC20:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ETH:
-			hash = ssha.SoliditySHA3(ssha.Uint256(safeAmount))
-		case TokenKind_LoomCoin:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		default:
-			ctx.Logger().Error("[Transfer Gateway] pending withdrawal has an invalid token kind",
-				"tokenKind", receipt.TokenKind,
-			)
-			continue
-		}
-
-		hash = ssha.SoliditySHA3(
-			ssha.Address(common.BytesToAddress(receipt.TokenOwner.Local)),
-			ssha.Uint256(new(big.Int).SetUint64(receipt.WithdrawalNonce)),
-			ssha.Address(mainnetGatewayAddr),
-			hash,
+		hash := client.WithdrawalHash(
+			common.HexToAddress(receipt.TokenOwner.Local.String()),
+			common.HexToAddress(receipt.TokenContract.Local.String()),
+			mainnetGatewayAddr,
+			receipt.TokenKind,
+			safeTokenID,
+			safeAmount,
+			big.NewInt(int64(receipt.WithdrawalNonce)),
+			true,
 		)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
