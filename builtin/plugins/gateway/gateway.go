@@ -986,7 +986,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			}
 
 			// No signature from trusted validators present
-			if len(valIndexes) == 0 {
+			if len(valIndexes) != len(validatorsAuthConfig.TrustedValidators.Validators) {
 				return ErrNotAuthorized
 			}
 		}
