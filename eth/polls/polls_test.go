@@ -5,6 +5,7 @@ package polls
 import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/loomnetwork/loomchain/events"
@@ -93,15 +94,22 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func TestTxPoll(t *testing.T) {
-	testTxPoll(t, handler.ReceiptHandlerChain)
+	testLegacyTxPoll(t, handler.ReceiptHandlerChain)
 
 	_ = os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
+	testLegacyTxPoll(t, handler.ReceiptHandlerLevelDb)
+
+	testTxPoll(t, handler.ReceiptHandlerChain)
+
+	_ = os.RemoveAll(leveldb.Db_Filename)
+	_, err = os.Stat(leveldb.Db_Filename)
+	require.True(t, os.IsNotExist(err))
 	testTxPoll(t, handler.ReceiptHandlerLevelDb)
 }
 
-func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts)
@@ -135,6 +143,65 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
 	result, err = sub.LegacyPoll(blockStore, state60, id, receiptHandler)
+	require.Error(t, err, "subscription not removed")
+	require.NoError(t, receiptHandler.Close())
+}
+
+func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+	eventDispatcher := events.NewLogEventDispatcher()
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts)
+	require.NoError(t, err)
+
+	sub := NewEthSubscriptions()
+	state := makeMockState(t, receiptHandler)
+	id := sub.AddTxPoll(uint64(5))
+
+	blockStore := store.NewMockBlockStore()
+
+	state27 := common.MockStateAt(state, uint64(27))
+	result, err := sub.Poll(blockStore, state27, id, receiptHandler)
+	require.NoError(t, err)
+	require.NotEqual(t, nil, result)
+	data, ok := result.([]eth.Data)
+	require.True(t, ok)
+	require.Equal(t, 2, len(data), "wrong number of logs returned")
+
+	state50 := common.MockStateAt(state, uint64(50))
+	result, err = sub.Poll(blockStore, state50, id, receiptHandler)
+	require.NoError(t, err)
+	require.NotEqual(t, nil, result)
+	data, ok = result.([]eth.Data)
+	require.True(t, ok)
+	require.Equal(t, 1, len(data), "wrong number of logs returned")
+
+	state105 := common.MockStateAt(state, uint64(105))
+	result, err = sub.Poll(blockStore, state105, id, receiptHandler)
+	require.NoError(t, err)
+	require.NotEqual(t, nil, result)
+	data, ok = result.([]eth.Data)
+	require.True(t, ok)
+	require.Equal(t, 5, len(data), "wrong number of logs returned")
+
+	state115 := common.MockStateAt(state, uint64(115))
+	result, err = sub.Poll(blockStore, state115, id, receiptHandler)
+	require.NoError(t, err)
+	require.NotEqual(t, nil, result)
+	data, ok = result.([]eth.Data)
+	require.True(t, ok)
+	require.Equal(t, 10, len(data), "wrong number of logs returned")
+
+	state140 := common.MockStateAt(state, uint64(140))
+	result, err = sub.Poll(blockStore, state140, id, receiptHandler)
+	require.NoError(t, err)
+	require.NotEqual(t, nil, result)
+	data, ok = result.([]eth.Data)
+	require.True(t, ok)
+	require.Equal(t, 5, len(data), "wrong number of logs returned")
+
+	state220 := common.MockStateAt(state, uint64(220))
+	sub.Remove(id)
+	result, err = sub.Poll(blockStore, state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -246,6 +313,21 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state30, 30))
+
+	for height := 100 ; height < 120 ; height++ {
+		mockEvent := []*types.EventData{
+			{
+				Topics:      []string{"topic1"},
+				EncodedBody: []byte("height" + strconv.Itoa(height)),
+				Address:     contract.MarshalPB(),
+			},
+		}
+		state := common.MockStateAt(state, uint64(height))
+		_, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil)
+		require.NoError(t, err)
+		receiptHandler.CommitCurrentReceipt()
+		require.NoError(t, receiptHandler.CommitBlock(state30, int64(height)))
+	}
 
 	return state
 }
