@@ -477,6 +477,8 @@ func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.
 			localAddr, signer, err = tronSigner(privKeyB64)
 		case "eos":
 			localAddr, signer, err = eosSigner(privKeyB64)
+		case "eos-scatter":
+			localAddr, signer, err = eosScatterSigner(privKeyB64)
 		default:
 			err = fmt.Errorf("unrecognised algorithm %v", algo)
 		}
@@ -547,6 +549,25 @@ func eosSigner(keyFilename string) ([]byte, auth.Signer, error) {
 		return nil, nil, fmt.Errorf("cannot make ecc private key from %s", string(keyString))
 	}
 	signer := &auth.EosSigner{eccKey}
+
+	localAddr, err := lauth.LocalAddressFromEosPublicKey(eccKey.PublicKey())
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot get public key from private key")
+	}
+
+	return localAddr, signer, nil
+}
+
+func eosScatterSigner(keyFilename string) ([]byte, auth.Signer, error) {
+	keyString, err := ioutil.ReadFile(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
+	}
+	eccKey, err := ecc.NewPrivateKey(string(keyString))
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot make ecc private key from %s", string(keyString))
+	}
+	signer := &auth.EosScatterSigner{eccKey}
 
 	localAddr, err := lauth.LocalAddressFromEosPublicKey(eccKey.PublicKey())
 	if err != nil {

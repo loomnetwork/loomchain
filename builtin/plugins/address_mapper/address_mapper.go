@@ -239,4 +239,20 @@ func SignIdentityMappingEos(from, to loom.Address, key ecc.PrivateKey) ([]byte, 
 	return append([]byte{byte(evmcompat.SignatureType_EOS)}, sigBytes...), nil
 }
 
+func SignIdentityMappingScatterEos(from, to loom.Address, key ecc.PrivateKey) ([]byte, error) {
+	hash := ssha.SoliditySHA3(
+		ssha.Address(common.BytesToAddress(from.Local)),
+		ssha.Address(common.BytesToAddress(to.Local)),
+	)
+	sig, err := key.Sign(hash)
+	if err != nil {
+		return nil, err
+	}
+	sigBytes, err := sig.Pack()
+	if err != nil {
+		return nil, err
+	}
+	return append([]byte{byte(evmcompat.SignatureType_EOS)}, sigBytes...), nil
+}
+
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})

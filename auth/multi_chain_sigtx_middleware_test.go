@@ -6,8 +6,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -160,10 +164,50 @@ func TestEosSigning(t *testing.T) {
 	signature := ecc.NewSigNil()
 	_, err = signature.Unpack(tx.Signature)
 	require.NoError(t, err)
-	pubKey, err := signature.PublicKey(hash)
+	pubKey, err := signature.PublicKey(sha3.SoliditySHA3(nonceTx))
 
 	local2, err := LocalAddressFromEosPublicKey(pubKey)
 	require.True(t, bytes.Equal(local, local2))
+}
+
+func TestEosScatterSinging(t *testing.T) {
+	privateKey, err := ecc.NewRandomPrivateKey()
+	publicKey := privateKey.PublicKey()
+	publicKeyPacked, err := publicKey.Pack()
+
+	nonceTx := []byte("nonceTx")
+	var innerTx auth.NonceTx
+	err = proto.Unmarshal(nonceTx, &innerTx)
+
+	txDataHex := strings.ToUpper(hex.EncodeToString(nonceTx))
+	hash_1 := sha256.Sum256([]byte(txDataHex))
+	hash_2 := sha256.Sum256([]byte(strconv.FormatUint(innerTx.Sequence, 10)))
+	scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash_1[:32]) + hex.EncodeToString(hash_2[:32])))
+
+	signedMsg, err := privateKey.Sign(scatterMsgHash[32:])
+	require.NoError(t, err)
+	sigBytes, err := signedMsg.Pack()
+
+	tx := &auth.SignedTx{
+		Inner:     nonceTx,
+		Signature: sigBytes,
+		PublicKey: publicKeyPacked,
+	}
+
+	// Decode
+	signature, err := ecc.NewSignature(string(tx.Signature))
+	var innerTx2 auth.NonceTx
+	err = proto.Unmarshal(nonceTx, &innerTx2)
+
+	txDataHex2 := strings.ToUpper(hex.EncodeToString(tx.Inner))
+	hash_12 := sha256.Sum256([]byte(txDataHex2))
+	hash_22 := sha256.Sum256([]byte(strconv.FormatUint(innerTx2.Sequence, 10)))
+	scatterMsgHash2 := sha256.Sum256([]byte(hex.EncodeToString(hash_12[:32]) + hex.EncodeToString(hash_22[:32])))
+
+	eosPubKey, err := signature.PublicKey(scatterMsgHash2[:32])
+
+	local2, err :=  LocalAddressFromEosPublicKey(eosPubKey)
+	fmt.Println("local2", local2)
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {

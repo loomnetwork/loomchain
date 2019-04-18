@@ -4,12 +4,17 @@ package auth
 
 import (
 	"crypto/ecdsa"
+	"crypto/sha256"
+	"encoding/hex"
+	"strconv"
+	"strings"
 
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/protobuf/proto"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
-
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 )
@@ -47,6 +52,28 @@ func verifyEos(tx SignedTx) ([]byte, error) {
 	return LocalAddressFromEosPublicKey(eosPubKey)
 }
 
+func verifyEosScatter(tx SignedTx) ([]byte, error) {
+	signature, err := ecc.NewSignature(string(tx.Signature))
+	if err != nil {
+		return nil, errors.Wrapf(err, "unpack eos signature %v", tx.Signature)
+	}
+
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(tx.Inner, &nonceTx); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal NonceTx")
+	}
+
+	txDataHex := strings.ToUpper(hex.EncodeToString(tx.Inner))
+	hash_1 := sha256.Sum256([]byte(txDataHex))
+	hash_2 := sha256.Sum256([]byte(strconv.FormatUint(nonceTx.Sequence, 10)))
+	scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash_1[:32]) + hex.EncodeToString(hash_2[:32])))
+
+	eosPubKey, err := signature.PublicKey(scatterMsgHash[:32])
+	if err != nil {
+		return nil, errors.Wrapf(err, "retrieve public key from eos signature %v", tx.Signature)
+	}
+	return LocalAddressFromEosPublicKey(eosPubKey)
+}
 
 func LocalAddressFromEosPublicKey(eccPublicKey ecc.PublicKey) (loom.LocalAddress, error) {
 	btcecPubKey, err := eccPublicKey.Key()
@@ -55,3 +82,44 @@ func LocalAddressFromEosPublicKey(eccPublicKey ecc.PublicKey) (loom.LocalAddress
 	}
 	return loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ecdsa.PublicKey(*btcecPubKey)).Hex())
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
