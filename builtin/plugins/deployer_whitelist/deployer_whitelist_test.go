@@ -224,7 +224,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistFlagUtil() {
 	}
 }
 
-func (dw *DeployerWhitelistTestSuite) TestDefaultDeployer() {
+func (dw *DeployerWhitelistTestSuite) TestOverride() {
 	require := dw.Require()
 
 	pctx := plugin.CreateFakeContext(addr1, addr1).WithBlock(loom.BlockHeader{
@@ -243,27 +243,26 @@ func (dw *DeployerWhitelistTestSuite) TestDefaultDeployer() {
 				Flags:   uint32(AllowEVMDeployFlag),
 			},
 		},
-		Flags: PackFlags(uint32(AllowEVMDeployFlag)),
 	})
 	require.NoError(err)
 
 	// test GetDeployer
-	get, err := deployerContract.GetDefaultDeployer(ctx, &GetDefaultDeployerRequest{})
+	get, err := deployerContract.GetOverride(ctx, &GetOverrideRequest{})
 	require.NoError(err)
 
-	require.Equal(false, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
-	require.Equal(false, IsFlagSet(get.Deployer.Flags, uint32(AllowMigrationFlag)))
+	require.Equal(false, IsFlagSet(get.Override.Flags, uint32(AllowGoDeployFlag)))
+	require.Equal(false, IsFlagSet(get.Override.Flags, uint32(AllowEVMDeployFlag)))
+	require.Equal(false, IsFlagSet(get.Override.Flags, uint32(AllowMigrationFlag)))
 
-	_, err = deployerContract.SetDefaultDeployer(ctx, &SetDefaultDeployerRequest{
+	err = deployerContract.SetOverride(ctx, &SetOverrideRequest{
 		Flags: PackFlags(uint32(AllowEVMDeployFlag), uint32(AllowGoDeployFlag), uint32(AllowMigrationFlag)),
 	})
 	require.NoError(err)
 
-	get, err = deployerContract.GetDefaultDeployer(ctx, &GetDefaultDeployerRequest{})
+	get, err = deployerContract.GetOverride(ctx, &GetOverrideRequest{})
 	require.NoError(err)
 
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowMigrationFlag)))
+	require.Equal(true, IsFlagSet(get.Override.Flags, uint32(AllowGoDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Override.Flags, uint32(AllowEVMDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Override.Flags, uint32(AllowMigrationFlag)))
 }

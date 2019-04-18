@@ -53,7 +53,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deployer override go evm migration -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['']
+  Expected = ['GO|EVM|MIGRATION']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} migration --id 1 -k {{index $.NodePrivKeyPathList 1}}"
@@ -71,6 +71,11 @@
   Expected = ['EVM|MIGRATION']
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer override none -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} deployer status -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
-  Expected = ['EVM|MIGRATION']
+  Expected = ['GO|EVM|MIGRATION']

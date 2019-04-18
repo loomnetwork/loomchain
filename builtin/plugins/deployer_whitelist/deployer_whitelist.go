@@ -21,7 +21,6 @@ type (
 	RemoveDeployerRequest  = dwtypes.RemoveDeployerRequest
 	RemoveDeployerResponse = dwtypes.RemoveDeployerResponse
 	SetOverrideRequest     = dwtypes.SetOverrideRequest
-	SetOverrideResponse    = dwtypes.SetOverrideResponse
 	GetOverrideRequest     = dwtypes.GetOverrideRequest
 	GetOverrideResponse    = dwtypes.GetOverrideResponse
 	Deployer               = dwtypes.Deployer
