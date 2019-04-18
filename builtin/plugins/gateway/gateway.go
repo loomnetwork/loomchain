@@ -1141,24 +1141,28 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 		switch receipt.TokenKind {
 		case TokenKind_ERC721:
 			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC721),
 				ssha.Uint256(safeTokenID),
 				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
 			)
 		case TokenKind_ERC721X:
 			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC721X),
 				ssha.Uint256(safeTokenID),
 				ssha.Uint256(safeAmount),
 				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
 			)
 		case TokenKind_ERC20:
 			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC20),
 				ssha.Uint256(safeAmount),
 				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
 			)
 		case TokenKind_ETH:
-			hash = ssha.SoliditySHA3(ssha.Uint256(safeAmount))
+			hash = ssha.SoliditySHA3(ssha.Uint256(TokenKind_ETH), ssha.Uint256(safeAmount))
 		case TokenKind_LoomCoin:
 			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC20), // must be signed as an ERC20 for the contract's withdrawal function
 				ssha.Uint256(safeAmount),
 				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
 			)
