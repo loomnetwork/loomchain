@@ -174,23 +174,32 @@ func TestEosScatterSinging(t *testing.T) {
 	privateKey, err := ecc.NewRandomPrivateKey()
 	publicKey := privateKey.PublicKey()
 	publicKeyPacked, err := publicKey.Pack()
+	key, err := publicKey.Key()
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ecdsa.PublicKey(*key)).Hex())
+	fmt.Println("first local", local)
 
 	nonceTx := []byte("nonceTx")
 	var innerTx auth.NonceTx
 	err = proto.Unmarshal(nonceTx, &innerTx)
 
+
+	//Encode
 	txDataHex := strings.ToUpper(hex.EncodeToString(nonceTx))
 	hash_1 := sha256.Sum256([]byte(txDataHex))
-	hash_2 := sha256.Sum256([]byte(strconv.FormatUint(innerTx.Sequence, 10)))
+	hash_2 := sha256.Sum256([]byte(strconv.FormatUint(3/*innerTx.Sequence*/, 10)))
 	scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash_1[:32]) + hex.EncodeToString(hash_2[:32])))
+	//fmt.Println("scatterMsgHash   ", string(scatterMsgHash[:]))
+	fmt.Println("scatterMsgHash hex", hex.EncodeToString(scatterMsgHash[:]))
 
 	signedMsg, err := privateKey.Sign(scatterMsgHash[:])
+	fmt.Println("signed msg", signedMsg.String())
 	require.NoError(t, err)
 	sigBytes, err := signedMsg.Pack()
-
+	fmt.Println("sigBytes packed", string(sigBytes))
+	fmt.Println()
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
-		Signature: sigBytes,
+		Signature: []byte(signedMsg.String()),
 		PublicKey: publicKeyPacked,
 	}
 
@@ -201,9 +210,10 @@ func TestEosScatterSinging(t *testing.T) {
 
 	txDataHex2 := strings.ToUpper(hex.EncodeToString(tx.Inner))
 	hash_12 := sha256.Sum256([]byte(txDataHex2))
-	hash_22 := sha256.Sum256([]byte(strconv.FormatUint(innerTx2.Sequence, 10)))
+	hash_22 := sha256.Sum256([]byte(strconv.FormatUint(3/*innerTx2.Sequence*/, 10)))
 	scatterMsgHash2 := sha256.Sum256([]byte(hex.EncodeToString(hash_12[:32]) + hex.EncodeToString(hash_22[:32])))
-
+	//fmt.Println("scatterMsgHash2    ", string(scatterMsgHash2[:]))
+	fmt.Println("scatterMsgHash2 hex", hex.EncodeToString(scatterMsgHash2[:]))
 	eosPubKey, err := signature.PublicKey(scatterMsgHash2[:32])
 
 	local2, err :=  LocalAddressFromEosPublicKey(eosPubKey)
@@ -226,6 +236,10 @@ func TestEthAddressMappingVerification(t *testing.T) {
 		},
 		"eos": {
 			TxType:      EosSignedTxType,
+			AccountType: MappedAccountType,
+		},
+		"eos-scatter": {
+			TxType:      EosScatterSignedTxType,
 			AccountType: MappedAccountType,
 		},
 	}
@@ -256,6 +270,15 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey)
 	require.NoError(t,err)
 	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
+
+	eosScatterKey, err := ecc.NewRandomPrivateKey()
+	require.NoError(t, err)
+	eosScatterLocalAddr, err := LocalAddressFromEosPublicKey(eosScatterKey.PublicKey())
+	require.NoError(t,err)
+	eosScatterPublicAddr := loom.Address{ChainID: "eos", Local: eosScatterLocalAddr}
+	eosScatterSig, err := address_mapper.SignIdentityMappingEos(addr1, eosScatterPublicAddr, *eosScatterKey)
+	require.NoError(t,err)
+	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosScatterSigner{eosScatterKey}, eosScatterPublicAddr, eosScatterSig)
 }
 
 func testEthAddressMappingVerification(
@@ -332,6 +355,10 @@ func TestChainIdVerification(t *testing.T) {
 			TxType:      EosSignedTxType,
 			AccountType: NativeAccountType,
 		},
+		"eos-scatter": {
+			TxType:      EosScatterSignedTxType,
+			AccountType: MappedAccountType,
+		},
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
@@ -373,6 +400,16 @@ func TestChainIdVerification(t *testing.T) {
 	eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	txSigned = mockSignedTx(t, "eos", &auth.EosSigner{eosKey})
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.NoError(t, err)
+
+	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
+	// to contracts will be eos-scatter:xxxxxx, i.e. the eth account is passed through without being mapped
+	// to a DAppChain account.
+	// Don't try this in production.
+	eosScatterKey, err := ecc.NewRandomPrivateKey()
+	require.NoError(t, err)
+	txSigned = mockSignedTx(t, "eos", &auth.EosScatterSigner{eosScatterKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 }
