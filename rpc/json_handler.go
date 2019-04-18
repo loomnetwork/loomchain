@@ -25,6 +25,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 			client.hub.register <- client
 
 			go client.readPump(funcMap, logger)
+			go client.writePump(logger)
 			return
 		}
 
