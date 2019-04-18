@@ -85,8 +85,11 @@ func TestDeployerWhitelistMiddlewareDefaultPermission(t *testing.T) {
 	dwContract := &dw.DeployerWhitelist{}
 	require.NoError(t, dwContract.Init(contractContext, &dwtypes.InitRequest{
 		Owner: owner.MarshalPB(),
-		Flags: dw.PackFlags(uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag), uint32(dw.AllowMigrationFlag)),
 	}))
+	err := dwContract.SetOverride(contractContext, &dw.SetOverrideRequest{
+		Flags: dw.PackFlags(uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag), uint32(dw.AllowMigrationFlag)),
+	})
+	require.NoError(t, err)
 
 	guestCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, guest)
 
@@ -104,4 +107,16 @@ func TestDeployerWhitelistMiddlewareDefaultPermission(t *testing.T) {
 	require.NoError(t, err)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, guestCtx)
 	require.NoError(t, err)
+
+	err = dwContract.SetOverride(contractContext, &dw.SetOverrideRequest{
+		Flags: uint32(0),
+	})
+	require.NoError(t, err)
+
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedPlugin, guestCtx)
+	require.Error(t, err)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, guestCtx)
+	require.Error(t, err)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, guestCtx)
+	require.Error(t, err)
 }
