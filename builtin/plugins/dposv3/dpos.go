@@ -34,17 +34,17 @@ const (
 	TIER_TWO                       = dtypes.LocktimeTier_TIER_TWO
 	TIER_THREE                     = dtypes.LocktimeTier_TIER_THREE
 
-	ElectionEventTopic              = "dposv3:election"
-	SlashEventTopic                 = "dposv3:slash"
-	CandidateRegistersEventTopic    = "dposv3:candidateregisters"
-	CandidateUnregistersEventTopic  = "dposv3:candidateunregisters"
-	CandidateFeeChangeEventTopic    = "dposv3:candidatefeechange"
-	UpdateCandidateInfoEventTopic   = "dposv3:updatecandidateinfo"
-	DelegatorDelegatesEventTopic    = "dposv3:delegatordelegates"
-	DelegatorRedelegatesEventTopic  = "dposv3:delegatorredelegates"
-	DelegatorConsolidatesEventTopic = "dposv3:delegatorconsolidates"
-	DelegatorUnbondsEventTopic      = "dposv3:delegatorunbonds"
-	ReferrerRegistersEventTopic     = "dposv3:referrerregisters"
+	ElectionEventTopic                   = "dposv3:election"
+	SlashEventTopic                      = "dposv3:slash"
+	CandidateRegistersEventTopic         = "dposv3:candidateregisters"
+	CandidateUnregistersEventTopic       = "dposv3:candidateunregisters"
+	CandidateFeeChangeEventTopic         = "dposv3:candidatefeechange"
+	UpdateCandidateInfoEventTopic        = "dposv3:updatecandidateinfo"
+	DelegatorDelegatesEventTopic         = "dposv3:delegatordelegates"
+	DelegatorRedelegatesEventTopic       = "dposv3:delegatorredelegates"
+	DelegatorConsolidatesEventTopic      = "dposv3:delegatorconsolidates"
+	DelegatorUnbondsEventTopic           = "dposv3:delegatorunbonds"
+	ReferrerRegistersEventTopic          = "dposv3:referrerregisters"
 )
 
 var (
@@ -560,11 +560,11 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
 		SetStatistic(ctx, &ValidatorStatistic{
-			Address:         req.CandidateAddress,
-			WhitelistAmount: req.Amount,
-			LocktimeTier:    tierNumber,
-			DelegationTotal: loom.BigZeroPB(),
-			SlashPercentage: loom.BigZeroPB(),
+			Address:           req.CandidateAddress,
+			WhitelistAmount:   req.Amount,
+			LocktimeTier:      tierNumber,
+			DelegationTotal:   loom.BigZeroPB(),
+			SlashPercentage:   loom.BigZeroPB(),
 		})
 	} else if err == nil {
 		// ValidatorStatistic must not yet exist for a particular candidate in order
@@ -942,11 +942,11 @@ func Elect(ctx contract.Context) error {
 			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistic = &ValidatorStatistic{
-					Address:         res.ValidatorAddress.MarshalPB(),
-					PubKey:          candidate.PubKey,
-					DelegationTotal: delegationTotal,
-					SlashPercentage: loom.BigZeroPB(),
-					WhitelistAmount: loom.BigZeroPB(),
+					Address:           res.ValidatorAddress.MarshalPB(),
+					PubKey:            candidate.PubKey,
+					DelegationTotal:   delegationTotal,
+					SlashPercentage:   loom.BigZeroPB(),
+					WhitelistAmount:   loom.BigZeroPB(),
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
@@ -1936,7 +1936,7 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 
 func (c *DPOS) emitReferrerRegistersEvent(ctx contract.Context, name string, address *types.Address) error {
 	marshalled, err := proto.Marshal(&DposReferrerRegistersEvent{
-		Name:    name,
+		Name: name,
 		Address: address,
 	})
 	if err != nil {
