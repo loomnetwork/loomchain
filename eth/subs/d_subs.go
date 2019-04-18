@@ -14,25 +14,26 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 )
 
-type EthDepreciatedSubscriptionSet struct {
+type LegacyEthSubscriptionSet struct {
 	pubsub.ResetHub
 	clients map[string]pubsub.Subscriber
 	callers map[string][]string
 	sync.RWMutex
 }
 
-func NewEthDepreciatedSubscriptionSet() *EthDepreciatedSubscriptionSet {
-	s := &EthDepreciatedSubscriptionSet{
-		ResetHub: NewEthDepreciatedResetHub(),
+func NewLegacyEthSubscriptionSet() *LegacyEthSubscriptionSet {
+	s := &LegacyEthSubscriptionSet{
+		ResetHub: NewLegacyEthResetHub(),
 		// maps ID to subscriber
 		clients: make(map[string]pubsub.Subscriber),
 		// maps remote socket address to list of subscriber IDs
 		callers: make(map[string][]string),
 	}
 	return s
+
 }
 
-func (s *EthDepreciatedSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
+func (s *LegacyEthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 	sub := s.Subscribe("")
 	id := utils.GetId()
 	s.Lock()
@@ -48,7 +49,7 @@ func (s *EthDepreciatedSubscriptionSet) For(caller string) (pubsub.Subscriber, s
 	return s.clients[id], id
 }
 
-func (s *EthDepreciatedSubscriptionSet) AddSubscription(id, method, filter string) error {
+func (s *LegacyEthSubscriptionSet) AddSubscription(id, method, filter string) error {
 	var topics string
 	var err error
 	switch method {
@@ -79,7 +80,7 @@ func (s *EthDepreciatedSubscriptionSet) AddSubscription(id, method, filter strin
 	return err
 }
 
-func (s *EthDepreciatedSubscriptionSet) Purge(caller string) {
+func (s *LegacyEthSubscriptionSet) Purge(caller string) {
 	var subsToClose []pubsub.Subscriber
 	s.Lock()
 	if ids, found := s.callers[caller]; found {
@@ -98,7 +99,7 @@ func (s *EthDepreciatedSubscriptionSet) Purge(caller string) {
 
 }
 
-func (s *EthDepreciatedSubscriptionSet) Remove(id string) (err error) {
+func (s *LegacyEthSubscriptionSet) Remove(id string) (err error) {
 	s.Lock()
 	c, ok := s.clients[id]
 	s.Unlock()
@@ -115,7 +116,7 @@ func (s *EthDepreciatedSubscriptionSet) Remove(id string) (err error) {
 }
 
 // todo reactor this code. Can enter TxHash as parameter now
-func (s *EthDepreciatedSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
+func (s *LegacyEthSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
@@ -150,7 +151,7 @@ func (s *EthDepreciatedSubscriptionSet) EmitTxEvent(data []byte, txType string) 
 	return nil
 }
 
-func (s *EthDepreciatedSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
+func (s *LegacyEthSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
