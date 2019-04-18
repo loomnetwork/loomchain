@@ -9,30 +9,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/pkg/errors"
 )
-
-// Returns all unclaimed tokens for a token contract
-func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
-	result := []loom.Address{}
-	contractKey := unclaimedTokenDepositorsRangePrefix(tokenAddr)
-	for _, entry := range ctx.Range(contractKey) {
-		var addr types.Address
-		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
-			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
-		}
-		result = append(result, loom.UnmarshalAddressPB(&addr))
-	}
-	return result, nil
-}
 
 func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values [][]int64) []*MainnetEvent {
 	if len(values) > 0 && len(values) != len(blocks) {
@@ -254,6 +239,46 @@ func (ec *testETHContract) approve(ctx *plugin.FakeContextWithEVM, spender loom.
 
 func (ec *testETHContract) transfer(ctx *plugin.FakeContextWithEVM, to loom.Address, amount *big.Int) error {
 	return ec.Contract.Transfer(ec.ContractCtx(ctx), &ethcoin.TransferRequest{
+		To:     to.MarshalPB(),
+		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	})
+}
+
+type testLoomCoinContract struct {
+	Contract *coin.Coin
+	Address  loom.Address
+}
+
+func deployLoomCoinContract(ctx *plugin.FakeContextWithEVM) (*testLoomCoinContract, error) {
+	coinContract := &coin.Coin{}
+	contractAddr := ctx.CreateContract(contract.MakePluginContract(coinContract))
+	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
+        err := coinContract.Init(contractCtx, &coin.InitRequest{})
+	return &testLoomCoinContract{
+		Contract: coinContract,
+		Address:  contractAddr,
+	}, err
+}
+
+func (ec *testLoomCoinContract) ContractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
+	return contract.WrapPluginContext(ctx.WithAddress(ec.Address))
+}
+
+func (ec *testLoomCoinContract) mintToGateway(ctx *plugin.FakeContextWithEVM, amount *big.Int) error {
+	return ec.Contract.MintToGateway(ec.ContractCtx(ctx), &coin.MintToGatewayRequest{
+		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	})
+}
+
+func (ec *testLoomCoinContract) approve(ctx *plugin.FakeContextWithEVM, spender loom.Address, amount *big.Int) error {
+	return ec.Contract.Approve(ec.ContractCtx(ctx), &coin.ApproveRequest{
+		Spender: spender.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	})
+}
+
+func (ec *testLoomCoinContract) transfer(ctx *plugin.FakeContextWithEVM, to loom.Address, amount *big.Int) error {
+	return ec.Contract.Transfer(ec.ContractCtx(ctx), &coin.TransferRequest{
 		To:     to.MarshalPB(),
 		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
 	})

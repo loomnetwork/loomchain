@@ -26,6 +26,7 @@ var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr4 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
 
 	dappAccAddr1 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	ethAccAddr1  = loom.MustParseAddress("eth:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
@@ -33,6 +34,7 @@ var (
 	ethTokenAddr  = loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	ethTokenAddr2 = loom.MustParseAddress("eth:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 	ethTokenAddr3 = loom.MustParseAddress("eth:0x5d1ddf5223a412d24901c32d14ef56cb706c0f64")
+	ethTokenAddr4 = loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 )
 
 const (
@@ -43,11 +45,16 @@ type GatewayTestSuite struct {
 	suite.Suite
 	ethKey    *ecdsa.PrivateKey
 	ethKey2   *ecdsa.PrivateKey
+	ethKey3   *ecdsa.PrivateKey
+	ethKey4   *ecdsa.PrivateKey
 	ethAddr   loom.Address
 	ethAddr2  loom.Address
+	ethAddr3  loom.Address
+	ethAddr4  loom.Address
 	dAppAddr  loom.Address
 	dAppAddr2 loom.Address
 	dAppAddr3 loom.Address
+	dAppAddr4 loom.Address
 }
 
 func (ts *GatewayTestSuite) SetupTest() {
@@ -66,6 +73,17 @@ func (ts *GatewayTestSuite) SetupTest() {
 	ts.dAppAddr = loom.Address{ChainID: "chain", Local: addr1.Local}
 	ts.dAppAddr2 = loom.Address{ChainID: "chain", Local: addr2.Local}
 	ts.dAppAddr3 = loom.Address{ChainID: "chain", Local: addr3.Local}
+	var err1 error
+	ts.ethKey3, err1 = crypto.GenerateKey()
+	require.NoError(err1)
+	ethLocalAddr3, err1 := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.ethKey3.PublicKey).Hex())
+	require.NoError(err1)
+	ts.ethAddr3 = loom.Address{ChainID: "eth", Local: ethLocalAddr3}
+	ts.ethKey4, err1 = crypto.GenerateKey()
+	require.NoError(err1)
+	ethLocalAddr4, err1 := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.ethKey4.PublicKey).Hex())
+	require.NoError(err1)
+	ts.ethAddr4 = loom.Address{ChainID: "eth", Local: ethLocalAddr4}
 }
 
 func TestGatewayTestSuite(t *testing.T) {
@@ -989,6 +1007,216 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	require.Equal(0, len(depositors))
 }
 
+func (ts *GatewayTestSuite) TestGetUnclaimedContractTokens() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+	}, false)
+	require.NoError(err)
+
+	LoomCoinGwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+	}, true)
+	require.NoError(err)
+
+	// Deploy token contracts to DAppChain EVM
+	erc721Addr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+	erc20Addr, err := deployTokenContract(fakeCtx, "SampleERC20Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+	erc721xAddr, err := deployTokenContract(fakeCtx, "SampleERC721XToken", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+	loomAddr, err := deployLoomCoinContract(fakeCtx)
+	require.NoError(err)
+	// Don't add the contract mapping between the Mainnet & DAppChain contracts...
+
+	aliceEthAddr := ts.ethAddr
+	aliceDAppAddr := ts.dAppAddr
+	bobEthAddr := ts.ethAddr2
+	bobDAppAddr := ts.dAppAddr2
+	carolEthAddr := ts.ethAddr3
+	carolDAppAddr := ts.dAppAddr3
+	charlieEthAddr := ts.ethAddr4
+	charlieDAppAddr := ts.dAppAddr4
+
+	sig, err := address_mapper.SignIdentityMapping(aliceEthAddr, aliceDAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, aliceEthAddr, aliceDAppAddr, sig))
+	sig, err = address_mapper.SignIdentityMapping(bobEthAddr, bobDAppAddr, ts.ethKey2)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(
+		fakeCtx.WithSender(bobDAppAddr),
+		bobEthAddr, bobDAppAddr, sig,
+	))
+
+	erc721tokensByBlock := [][]int64{
+		[]int64{485, 437, 223},
+		[]int64{643, 234},
+		[]int64{968},
+		[]int64{942},
+	}
+	erc721deposits := genERC721Deposits(
+		ethTokenAddr,
+		aliceEthAddr,
+		[]uint64{5, 9, 11, 13},
+		erc721tokensByBlock,
+	)
+	erc721tokensByBlock2 := [][]int64{
+		[]int64{1485, 1437, 1223},
+		[]int64{2643, 2234},
+		[]int64{3968},
+	}
+	erc721deposits2 := genERC721Deposits(
+		ethTokenAddr,
+		bobEthAddr,
+		[]uint64{15, 19, 23},
+		erc721tokensByBlock2,
+	)
+	erc20amountsByBlock := []int64{150, 238, 580}
+	erc20deposits := genERC20Deposits(
+		ethTokenAddr2,
+		aliceEthAddr,
+		[]uint64{24, 27, 29},
+		erc20amountsByBlock,
+	)
+	erc20amountsByBlock2 := []int64{389}
+	erc20deposits2 := genERC20Deposits(
+		ethTokenAddr2,
+		bobEthAddr,
+		[]uint64{49},
+		erc20amountsByBlock2,
+	)
+	erc721xTokensByBlock := [][]*erc721xToken{
+		[]*erc721xToken{
+			&erc721xToken{ID: 345, Amount: 20},
+			&erc721xToken{ID: 37, Amount: 10},
+			&erc721xToken{ID: 40, Amount: 4},
+			&erc721xToken{ID: 0, Amount: 15},
+		},
+		[]*erc721xToken{
+			&erc721xToken{ID: 40, Amount: 2},
+			&erc721xToken{ID: 345, Amount: 5},
+		},
+		[]*erc721xToken{
+			&erc721xToken{ID: 37, Amount: 3},
+			&erc721xToken{ID: 78, Amount: 300},
+			&erc721xToken{ID: 0, Amount: 15},
+		},
+	}
+	erc721xDeposits, erc721xTotals := genERC721XDeposits(
+		ethTokenAddr3,
+		aliceEthAddr,
+		[]uint64{54, 58, 61},
+		erc721xTokensByBlock,
+	)
+
+	loomamountsByBlock := []int64{160, 239, 581}
+	loomdeposits := genLoomCoinDeposits(
+		loomAddr.Address,
+		carolEthAddr,
+		[]uint64{71, 73, 75},
+		loomamountsByBlock,
+	)
+
+	loomamountsByBlock2 := []int64{390}
+	loomdeposits2 := genLoomCoinDeposits(
+		loomAddr.Address,
+		charlieEthAddr,
+		[]uint64{79},
+		loomamountsByBlock2,
+	)
+
+	// Send tokens to Gateway Go contract...
+	// None of the tokens will be transferred to their owners because the contract mapping
+	// doesn't exist.
+	// Loom Tokens will not be transferred to their owners as identity mapping does not exist, contract mapping does not apply here
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc721deposits}),
+	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc721deposits2}),
+	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc20deposits}),
+	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc20deposits2}),
+	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc721xDeposits}),
+	)
+	require.NoError(LoomCoinGwHelper.Contract.ProcessEventBatch(
+		LoomCoinGwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: loomdeposits}),
+	)
+	require.NoError(LoomCoinGwHelper.Contract.ProcessEventBatch(
+		LoomCoinGwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: loomdeposits2}),
+	)
+
+	// Since the tokens weren't transferred they shouldn't exist on the DAppChain yet
+	erc721 := newERC721StaticContext(gwHelper.ContractCtx(fakeCtx), erc721Addr)
+	for _, tokens := range erc721tokensByBlock {
+		for _, tokenID := range tokens {
+			_, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.Error(err)
+		}
+	}
+	for _, tokens := range erc721tokensByBlock2 {
+		for _, tokenID := range tokens {
+			_, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.Error(err)
+		}
+	}
+
+	erc20 := newERC20StaticContext(gwHelper.ContractCtx(fakeCtx), erc20Addr)
+	bal, err := erc20.balanceOf(aliceDAppAddr)
+	require.NoError(err)
+	require.Equal(int64(0), bal.Int64())
+	bal, err = erc20.balanceOf(bobDAppAddr)
+	require.NoError(err)
+	require.Equal(int64(0), bal.Int64())
+
+	loomcoin := newcoinStaticContext(LoomCoinGwHelper.ContractCtx(fakeCtx))
+	bal, err = loomcoin.balanceOf(carolDAppAddr)
+	require.NoError(err)
+	require.Equal(int64(0), bal.Int64())
+	bal, err = loomcoin.balanceOf(charlieDAppAddr)
+	require.NoError(err)
+	require.Equal(int64(0), bal.Int64())
+
+	erc721x := newERC721XStaticContext(gwHelper.ContractCtx(fakeCtx), erc721xAddr)
+	for _, token := range erc721xTotals {
+		bal, err := erc721x.balanceOf(aliceDAppAddr, big.NewInt(token.ID))
+		require.NoError(err)
+		require.Equal(int64(0), bal.Int64())
+	}
+	resp, err := gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr.MarshalPB()})
+	require.NoError(err)
+	require.Equal(loom.NewBigUIntFromInt(13), &resp.UnclaimedAmount.Value)
+	resp, err = gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr2.MarshalPB()})
+	require.NoError(err)
+	require.Equal(loom.NewBigUIntFromInt(1357), &resp.UnclaimedAmount.Value)
+        resp, err = gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr3.MarshalPB()})
+	require.NoError(err)
+	require.Equal(loom.NewBigUIntFromInt(374), &resp.UnclaimedAmount.Value)
+        resp, err = LoomCoinGwHelper.Contract.GetUnclaimedContractTokens(LoomCoinGwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: loomAddr.Address.MarshalPB()})
+	require.NoError(err)
+	require.Equal(loom.NewBigUIntFromInt(1370), &resp.UnclaimedAmount.Value)
+}
+
 func (ts *GatewayTestSuite) TestGetOracles() {
 	require := ts.Require()
 	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
@@ -1330,7 +1558,6 @@ func (ts *GatewayTestSuite) TestUnclaimedTokenMarshalling() {
 	}
 	bytes, err := proto.Marshal(&original)
 	require.NoError(err)
-
 	unmarshalled := &UnclaimedToken{}
 	require.NoError(proto.Unmarshal(bytes, unmarshalled))
 
