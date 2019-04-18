@@ -11,20 +11,21 @@ import (
 )
 
 type (
-	InitRequest                = dwtypes.InitRequest
-	ListDeployersRequest       = dwtypes.ListDeployersRequest
-	ListDeployersResponse      = dwtypes.ListDeployersResponse
-	GetDeployerRequest         = dwtypes.GetDeployerRequest
-	GetDeployerResponse        = dwtypes.GetDeployerResponse
-	AddDeployerRequest         = dwtypes.AddDeployerRequest
-	AddDeployerResponse        = dwtypes.AddDeployerResponse
-	RemoveDeployerRequest      = dwtypes.RemoveDeployerRequest
-	RemoveDeployerResponse     = dwtypes.RemoveDeployerResponse
-	SetDefaultDeployerRequest  = dwtypes.SetDefaultDeployerRequest
-	SetDefaultDeployerResponse = dwtypes.SetDefaultDeployerResponse
-	GetDefaultDeployerRequest  = dwtypes.GetDefaultDeployerRequest
-	GetDefaultDeployerResponse = dwtypes.GetDefaultDeployerResponse
-	Deployer                   = dwtypes.Deployer
+	InitRequest            = dwtypes.InitRequest
+	ListDeployersRequest   = dwtypes.ListDeployersRequest
+	ListDeployersResponse  = dwtypes.ListDeployersResponse
+	GetDeployerRequest     = dwtypes.GetDeployerRequest
+	GetDeployerResponse    = dwtypes.GetDeployerResponse
+	AddDeployerRequest     = dwtypes.AddDeployerRequest
+	AddDeployerResponse    = dwtypes.AddDeployerResponse
+	RemoveDeployerRequest  = dwtypes.RemoveDeployerRequest
+	RemoveDeployerResponse = dwtypes.RemoveDeployerResponse
+	SetOverrideRequest     = dwtypes.SetOverrideRequest
+	SetOverrideResponse    = dwtypes.SetOverrideResponse
+	GetOverrideRequest     = dwtypes.GetOverrideRequest
+	GetOverrideResponse    = dwtypes.GetOverrideResponse
+	Deployer               = dwtypes.Deployer
+	Override               = dwtypes.Override
 )
 
 const (
@@ -57,9 +58,8 @@ const (
 )
 
 var (
-	modifyPerm = []byte("modp")
-	//Default deployer represents default permissions of every deployer
-	defaultDeployerAddr = loom.MustParseAddress("default:0x0000000000000000000000000000000000000000")
+	modifyPerm  = []byte("modp")
+	overrideKey = []byte("ovrd")
 )
 
 func deployerKey(addr loom.Address) []byte {
@@ -90,15 +90,6 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 		Flags:   flags,
 	}
 	if err := ctx.Set(deployerKey(ownerAddr), deployer); err != nil {
-		return err
-	}
-
-	defaultDeployer := &Deployer{
-		Address: defaultDeployerAddr.MarshalPB(),
-		Flags:   req.Flags,
-	}
-	//add default deployer
-	if err := ctx.Set(deployerKey(defaultDeployerAddr), defaultDeployer); err != nil {
 		return err
 	}
 
@@ -183,11 +174,7 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 		if err := proto.Unmarshal(m.Value, &deployer); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal deployer %x", m.Key)
 		}
-		//exclude default deployer
-		deployerAddr := loom.UnmarshalAddressPB(deployer.Address)
-		if deployerAddr.Compare(defaultDeployerAddr) == 0 {
-			continue
-		}
+
 		deployers = append(deployers, &deployer)
 	}
 
@@ -196,31 +183,30 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 	}, nil
 }
 
-func (dw *DeployerWhitelist) SetDefaultDeployer(ctx contract.Context, req *SetDefaultDeployerRequest) (*SetDefaultDeployerResponse, error) {
+func (dw *DeployerWhitelist) SetOverride(ctx contract.Context, req *SetOverrideRequest) error {
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
-		return nil, ErrNotAuthorized
+		return ErrNotAuthorized
 	}
 
-	deployer := &Deployer{
-		Address: defaultDeployerAddr.MarshalPB(),
-		Flags:   req.Flags,
+	override := &Override{
+		Flags: req.Flags,
 	}
 
-	if err := ctx.Set(deployerKey(defaultDeployerAddr), deployer); err != nil {
-		return nil, err
+	if err := ctx.Set(overrideKey, override); err != nil {
+		return err
 	}
 
-	return &SetDefaultDeployerResponse{}, nil
+	return nil
 }
 
-func (dw *DeployerWhitelist) GetDefaultDeployer(ctx contract.StaticContext, req *GetDefaultDeployerRequest) (*GetDefaultDeployerResponse, error) {
-	deployer, err := GetDefaultDeployer(ctx)
+func (dw *DeployerWhitelist) GetOverride(ctx contract.StaticContext, req *GetOverrideRequest) (*GetOverrideResponse, error) {
+	override, err := GetOverride(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &GetDefaultDeployerResponse{
-		Deployer: deployer,
+	return &GetOverrideResponse{
+		Override: override,
 	}, nil
 }
 
@@ -237,8 +223,16 @@ func GetDeployer(ctx contract.StaticContext, deployerAddr loom.Address) (*Deploy
 	return &deployer, err
 }
 
-func GetDefaultDeployer(ctx contract.StaticContext) (*Deployer, error) {
-	return GetDeployer(ctx, defaultDeployerAddr)
+// GetOverride returns override permission
+func GetOverride(ctx contract.StaticContext) (*Override, error) {
+	var override Override
+	err := ctx.Get(overrideKey, &override)
+	if err == contract.ErrNotFound {
+		return &Override{
+			Flags: uint32(0),
+		}, nil
+	}
+	return &override, err
 }
 
 func PackFlags(flags ...uint32) uint32 {

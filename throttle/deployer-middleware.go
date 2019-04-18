@@ -94,19 +94,19 @@ func NewDeployerWhitelistMiddleware(
 	}), nil
 }
 
-func checkDefaultPermission(ctx contractpb.Context, flag uint32) bool {
-	defaultDeployer, err := dw.GetDefaultDeployer(ctx)
+func isOverrideEnabled(ctx contractpb.Context, flag uint32) bool {
+	override, err := dw.GetOverride(ctx)
 	if err != nil {
 		return false
 	}
-	if dw.IsFlagSet(uint32(defaultDeployer.Flags), flag) {
+	if dw.IsFlagSet(uint32(override.Flags), flag) {
 		return true
 	}
 	return false
 }
 
 func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) error {
-	if checkDefaultPermission(ctx, uint32(dw.AllowGoDeployFlag)) {
+	if isOverrideEnabled(ctx, uint32(dw.AllowGoDeployFlag)) {
 		return nil
 	}
 
@@ -121,7 +121,7 @@ func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) erro
 }
 
 func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) error {
-	if checkDefaultPermission(ctx, uint32(dw.AllowEVMDeployFlag)) {
+	if isOverrideEnabled(ctx, uint32(dw.AllowEVMDeployFlag)) {
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) err
 }
 
 func isAllowedToMigrate(ctx contractpb.Context, deployerAddr loom.Address) error {
-	if checkDefaultPermission(ctx, uint32(dw.AllowMigrationFlag)) {
+	if isOverrideEnabled(ctx, uint32(dw.AllowMigrationFlag)) {
 		return nil
 	}
 

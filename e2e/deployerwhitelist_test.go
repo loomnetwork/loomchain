@@ -21,7 +21,7 @@ func TestContractDeployerWhitelist(t *testing.T) {
 		yamlFile string
 	}{
 		{"deployerwhitelist", "deployerwhitelist.toml", 2, 2, "deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml"},
-		{"default-deployer", "default-deployer.toml", 2, 2, "deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml"},
+		{"deployer-override", "deployer-override.toml", 2, 2, "deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml"},
 	}
 
 	for _, test := range tests {

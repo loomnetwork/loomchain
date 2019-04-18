@@ -12,9 +12,9 @@
   ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer set-default go -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer override go -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['']
+  Expected = ['GO']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"
@@ -33,9 +33,9 @@
   ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer set-default go evm -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer override go evm -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['']
+  Expected = ['GO|EVM']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 1}}"
@@ -51,7 +51,7 @@
   Expected = ['not authorized']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer set-default go evm migration -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer override go evm migration -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
@@ -61,6 +61,16 @@
   Expected = ['Error: migration 1 failed: Function can only be called with oracle address']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer get-default -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deployer override go -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['GO|EVM|MIGRATION']
+  Expected = ['GO']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer status -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['EVM|MIGRATION']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer status -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['EVM|MIGRATION']

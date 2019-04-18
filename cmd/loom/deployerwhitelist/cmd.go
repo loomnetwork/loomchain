@@ -2,6 +2,7 @@ package deployer_whitelist
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,6 +14,11 @@ import (
 
 var (
 	dwContractName = "deployerwhitelist"
+	allFlags       = dw.PackFlags(
+		uint32(dw.AllowEVMDeployFlag),
+		uint32(dw.AllowGoDeployFlag),
+		uint32(dw.AllowMigrationFlag),
+	)
 )
 
 type deployerInfo struct {
@@ -29,8 +35,8 @@ func NewDeployCommand() *cobra.Command {
 		getDeployerCmd(),
 		listDeployersCmd(),
 		removeDeployerCmd(),
-		setDefaultDeployerCmd(),
-		getDefaultDeployerCmd(),
+		setOverrideCmd(),
+		statusCmd(),
 	)
 	return cmd
 }
@@ -59,10 +65,7 @@ func addDeployerCmd() *cobra.Command {
 			} else if strings.EqualFold(args[1], "migration") {
 				flags = uint32(dw.AllowMigrationFlag)
 			} else if strings.EqualFold(args[1], "all") {
-				flags = dw.PackFlags(
-					uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag),
-					uint32(dw.AllowMigrationFlag),
-				)
+				flags = allFlags
 			} else {
 				return fmt.Errorf("Please specify deploy permission (go|evm|migration|all)")
 			}
@@ -177,17 +180,18 @@ func listDeployersCmd() *cobra.Command {
 	}
 }
 
-const setDefaultDeployerCmdExample = `
-loom deployer set-default go evm migration
+const setOverrideCmdExample = `
+loom deployer override go evm migration
 `
 
-func setDefaultDeployerCmd() *cobra.Command {
+func setOverrideCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "set-default <flag1> .. <flagN>",
-		Short:   "Set default deployer permision",
-		Example: setDefaultDeployerCmdExample,
+		Use:     "override",
+		Short:   "Disable whitelist for specific tx types",
+		Example: setOverrideCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags := uint32(0)
+			var flags uint32
 			for _, f := range args {
 				if strings.EqualFold(f, "evm") {
 					flags = dw.PackFlags(flags, uint32(dw.AllowEVMDeployFlag))
@@ -196,54 +200,53 @@ func setDefaultDeployerCmd() *cobra.Command {
 				} else if strings.EqualFold(f, "migration") {
 					flags = dw.PackFlags(flags, uint32(dw.AllowMigrationFlag))
 				} else if strings.EqualFold(f, "all") {
-					flags = dw.PackFlags(
-						flags,
-						uint32(dw.AllowEVMDeployFlag),
-						uint32(dw.AllowGoDeployFlag),
-						uint32(dw.AllowMigrationFlag),
-					)
+					flags = dw.PackFlags(flags, allFlags)
+				} else if strings.EqualFold(f, "none") {
+					flags = uint32(0)
+				} else {
+					return errors.New("Unknown flag " + f)
 				}
 			}
 
 			cmd.SilenceUsage = true
 
-			req := &dwtypes.SetDefaultDeployerRequest{
+			req := &dwtypes.SetOverrideRequest{
 				Flags: flags,
 			}
 
-			return cli.CallContract(dwContractName, "SetDefaultDeployer", req, nil)
+			err := cli.CallContract(dwContractName, "SetOverride", req, nil)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Whitelist disabled for " + flagsToString(flags))
+			return nil
 		},
 	}
 }
 
-const getDefaultDeployerCmdExample = `
-loom deployer get-default
+const statusCmdExample = `
+loom deployers status
 `
 
-func getDefaultDeployerCmd() *cobra.Command {
+func statusCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "get-default",
-		Short:   "Show current permissions of default deployer",
-		Example: getDeployerCmdExample,
+		Use:     "status",
+		Short:   "Show override permissions",
+		Example: statusCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			var resp dwtypes.GetDefaultDeployerResponse
+			var resp dwtypes.GetOverrideResponse
 			if err := cli.StaticCallContract(
 				dwContractName,
-				"GetDefaultDeployer",
-				&dwtypes.GetDefaultDeployerRequest{},
+				"GetOverride",
+				&dwtypes.GetOverrideRequest{},
 				&resp); err != nil {
 				return err
 			}
 
-			deployer := getDeployerInfo(resp.Deployer)
-
-			output, err := json.MarshalIndent(deployer, "", "  ")
-			if err != nil {
-				return err
-			}
-			fmt.Println(string(output))
+			whitelistEnabled := allFlags ^ resp.Override.Flags
+			fmt.Println("Whitelist enabled for " + flagsToString(whitelistEnabled))
 			return nil
 		},
 	}
@@ -261,4 +264,16 @@ func getDeployerInfo(deployer *dwtypes.Deployer) deployerInfo {
 		Flags:   f,
 	}
 	return deployerInfo
+}
+
+func flagsToString(f uint32) string {
+	if f == 0 {
+		return "none"
+	}
+	flagsInt := dw.UnpackFlags(f)
+	flags := []string{}
+	for _, flag := range flagsInt {
+		flags = append(flags, dwtypes.Flags_name[int32(flag)])
+	}
+	return strings.Join(flags, "|")
 }
