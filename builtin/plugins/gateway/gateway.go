@@ -1101,6 +1101,99 @@ func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *Confirm
 
 // PendingWithdrawals will return the token owner & withdrawal hash for all pending withdrawals.
 // The Oracle will call this method periodically and sign all the retrieved hashes.
+func (gw *Gateway) PendingWithdrawalsV2(ctx contract.StaticContext, req *PendingWithdrawalsRequest) (*PendingWithdrawalsResponse, error) {
+	if req.MainnetGateway == nil {
+		return nil, ErrInvalidRequest
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	mainnetGatewayAddr := common.BytesToAddress(req.MainnetGateway.Local)
+	summaries := make([]*PendingWithdrawalSummary, 0, len(state.TokenWithdrawers))
+	for _, ownerAddrPB := range state.TokenWithdrawers {
+		ownerAddr := loom.UnmarshalAddressPB(ownerAddrPB)
+		account, err := loadLocalAccount(ctx, ownerAddr)
+		if err != nil {
+			return nil, err
+		}
+		receipt := account.WithdrawalReceipt
+
+		if receipt == nil {
+			return nil, ErrMissingWithdrawalReceipt
+		}
+		// If the receipt is already signed, skip it
+		if receipt.OracleSignature != nil {
+			continue
+		}
+
+		safeTokenID := big.NewInt(0)
+		if receipt.TokenID != nil {
+			safeTokenID = receipt.TokenID.Value.Int
+		}
+
+		safeAmount := big.NewInt(0)
+		if receipt.TokenAmount != nil {
+			safeAmount = receipt.TokenAmount.Value.Int
+		}
+
+		var hash []byte
+		switch receipt.TokenKind {
+		case TokenKind_ERC721:
+			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC721),
+				ssha.Uint256(safeTokenID),
+				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			)
+		case TokenKind_ERC721X:
+			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC721X),
+				ssha.Uint256(safeTokenID),
+				ssha.Uint256(safeAmount),
+				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			)
+		case TokenKind_ERC20:
+			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC20),
+				ssha.Uint256(safeAmount),
+				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			)
+		case TokenKind_ETH:
+			hash = ssha.SoliditySHA3(ssha.Uint256(TokenKind_ETH), ssha.Uint256(safeAmount))
+		case TokenKind_LoomCoin:
+			hash = ssha.SoliditySHA3(
+				ssha.Uint256(TokenKind_ERC20), // must be signed as an ERC20 for the contract's withdrawal function
+				ssha.Uint256(safeAmount),
+				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			)
+		default:
+			ctx.Logger().Error("[Transfer Gateway] pending withdrawal has an invalid token kind",
+				"tokenKind", receipt.TokenKind,
+			)
+			continue
+		}
+
+		hash = ssha.SoliditySHA3(
+			ssha.Address(common.BytesToAddress(receipt.TokenOwner.Local)),
+			ssha.Uint256(new(big.Int).SetUint64(receipt.WithdrawalNonce)),
+			ssha.Address(mainnetGatewayAddr),
+			hash,
+		)
+
+		summaries = append(summaries, &PendingWithdrawalSummary{
+			TokenOwner: ownerAddrPB,
+			Hash:       hash,
+		})
+	}
+
+	// TODO: should probably enforce an upper bound on the response size
+	return &PendingWithdrawalsResponse{Withdrawals: summaries}, nil
+}
+
+// PendingWithdrawals will return the token owner & withdrawal hash for all pending withdrawals.
+// The Oracle will call this method periodically and sign all the retrieved hashes.
 func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWithdrawalsRequest) (*PendingWithdrawalsResponse, error) {
 	if req.MainnetGateway == nil {
 		return nil, ErrInvalidRequest
