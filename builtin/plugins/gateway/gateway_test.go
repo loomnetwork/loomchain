@@ -1136,7 +1136,7 @@ func (ts *GatewayTestSuite) TestGetUnclaimedContractTokens() {
 	// Send tokens to Gateway Go contract...
 	// None of the tokens will be transferred to their owners because the contract mapping
 	// doesn't exist.
-	// Loom Tokens will not be transferred as identity mapping does not exist
+	// Loom Tokens will not be transferred to their owners as identity mapping does not exist, contract mapping does not apply here
 	require.NoError(gwHelper.Contract.ProcessEventBatch(
 		gwHelper.ContractCtx(fakeCtx),
 		&ProcessEventBatchRequest{Events: erc721deposits}),
