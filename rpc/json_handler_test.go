@@ -142,7 +142,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 			writeMutex.Unlock()
 		} ()
 	}
-	time.Sleep(time.Second)
+	time.Sleep(3*time.Second)
 
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
