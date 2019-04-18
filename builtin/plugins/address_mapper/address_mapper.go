@@ -252,7 +252,7 @@ func SignIdentityMappingScatterEos(from, to loom.Address, key ecc.PrivateKey) ([
 	if err != nil {
 		return nil, err
 	}
-	return append([]byte{byte(evmcompat.SignatureType_EOS)}, sigBytes...), nil
+	return append([]byte{byte(evmcompat.SignatureType_EOS_SCATTER)}, sigBytes...), nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})
