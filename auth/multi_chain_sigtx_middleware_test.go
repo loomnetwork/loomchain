@@ -184,7 +184,7 @@ func TestEosScatterSinging(t *testing.T) {
 	hash_2 := sha256.Sum256([]byte(strconv.FormatUint(innerTx.Sequence, 10)))
 	scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash_1[:32]) + hex.EncodeToString(hash_2[:32])))
 
-	signedMsg, err := privateKey.Sign(scatterMsgHash[32:])
+	signedMsg, err := privateKey.Sign(scatterMsgHash[:])
 	require.NoError(t, err)
 	sigBytes, err := signedMsg.Pack()
 
