@@ -246,7 +246,6 @@ func (dw *DeployerWhitelistTestSuite) TestOverride() {
 	})
 	require.NoError(err)
 
-	// test GetDeployer
 	get, err := deployerContract.GetOverride(ctx, &GetOverrideRequest{})
 	require.NoError(err)
 
