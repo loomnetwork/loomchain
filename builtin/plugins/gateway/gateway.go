@@ -1249,7 +1249,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
 			)
 		case TokenKind_ETH:
-			hash = ssha.SoliditySHA3(ssha.Uint256(TokenKind_ETH), ssha.Uint256(safeAmount))
+			hash = ssha.SoliditySHA3(ssha.Uint256(safeAmount))
 		case TokenKind_LoomCoin:
 			hash = ssha.SoliditySHA3(
 				ssha.Uint256(safeAmount),
