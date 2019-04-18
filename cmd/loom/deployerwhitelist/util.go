@@ -30,7 +30,7 @@ func parseAddress(address string) (loom.Address, error) {
 	}
 	//Resolve address if chainID does not match prefix
 	if addr.ChainID != cli.TxFlags.ChainID {
-		rpcClient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+		rpcClient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 		mapperAddr, err := rpcClient.Resolve("addressmapper")
 		if err != nil {
 			return addr, errors.Wrap(err, "failed to resolve DAppChain Address Mapper address")
