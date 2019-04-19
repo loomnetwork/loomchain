@@ -63,7 +63,7 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter
 	address := auth.Origin(ctx).String()
 	_, ok := t.callLimiterPool[address]
 	if !ok {
-		t.callLimiterPool[address] = t.getNewLimiter(ctx, t.maxCallCount+limit)
+		t.callLimiterPool[address] = t.getNewLimiter(ctx, limit)
 	}
 	if t.callLimiterPool[address].Rate.Limit != limit {
 		delete(t.callLimiterPool, address)
