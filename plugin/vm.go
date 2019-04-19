@@ -77,7 +77,7 @@ func (vm *PluginVM) CreateContractContext(
 	return &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loomchain.StateWithPrefix(loom.DataPrefix(addr), vm.State),
+		State:        vm.State.WithPrefix(loom.DataPrefix(addr)),
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,

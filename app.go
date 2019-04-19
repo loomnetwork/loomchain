@@ -38,6 +38,7 @@ type State interface {
 	SetValidatorPower(pubKey []byte, power int64)
 	Context() context.Context
 	WithContext(ctx context.Context) State
+	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
 }
 
@@ -176,17 +177,18 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 	}
 }
 
-func (s *StoreState) Release() {
-	// noop
+func (s *StoreState) WithPrefix(prefix []byte) State {
+	return &StoreState{
+		store:           store.PrefixKVStore(prefix, s),
+		block:           s.block,
+		ctx:             s.ctx,
+		validators:      s.validators,
+		getValidatorSet: s.getValidatorSet,
+	}
 }
 
-func StateWithPrefix(prefix []byte, state State) State {
-	return &StoreState{
-		store:      store.PrefixKVStore(prefix, state),
-		block:      state.Block(),
-		ctx:        state.Context(),
-		validators: state.ValidatorSet(),
-	}
+func (s *StoreState) Release() {
+	// noop
 }
 
 // StoreStateSnapshot is a read-only snapshot of the app state at particular point in time,
