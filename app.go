@@ -117,6 +117,7 @@ func (s *StoreState) ValidatorSet() loom.ValidatorSet {
 	return s.validators
 }
 
+// This function is deprecated. It is used in DPOSv1.
 func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
 	s.validators.Set(&types.Validator{PubKey: pubKey, Power: power})
 }
@@ -209,7 +210,6 @@ func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
-	//snapShot.Validators() // Create validators list for this snapshot
 	return snapShot
 }
 

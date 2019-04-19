@@ -952,11 +952,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			return loom.NewValidatorSet(validators...), nil
 		}
 
-		// if DPOS contract is not deploy, get validators from genesis file
-		genesisValidators, err := b.Validators()
-		if err != nil {
-			return nil, err
-		}
+		// if DPOS contract is not deployed, get validators from genesis file
+		genesisValidators := b.Validators()
 		return loom.NewValidatorSet(genesisValidators...), nil
 	}
 

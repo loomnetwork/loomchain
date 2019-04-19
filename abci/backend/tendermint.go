@@ -88,7 +88,7 @@ type Backend interface {
 	Destroy() error
 	Start(app abci.Application) error
 	RunForever()
-	Validators() ([]*loom.Validator, error)
+	Validators() []*loom.Validator
 	NodeKey() (string, error)
 	// Returns the tx signer used by this node to sign txs it creates
 	NodeSigner() (auth.Signer, error)
@@ -212,8 +212,8 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 }
 
 // Return validators list from genesis file
-func (b *TendermintBackend) Validators() ([]*loom.Validator, error) {
-	return b.GenesisValidators, nil
+func (b *TendermintBackend) Validators() []*loom.Validator {
+	return b.GenesisValidators
 }
 
 func (b *TendermintBackend) Reset(height uint64) error {
