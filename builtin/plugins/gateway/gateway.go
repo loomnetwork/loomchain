@@ -1146,7 +1146,7 @@ func (gw *Gateway) PendingWithdrawalsV2(ctx contract.StaticContext, req *Pending
 			safeTokenID,
 			safeAmount,
 			big.NewInt(int64(receipt.WithdrawalNonce)),
-			false,
+			true,
 		)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
@@ -1207,7 +1207,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			safeTokenID,
 			safeAmount,
 			big.NewInt(int64(receipt.WithdrawalNonce)),
-			true,
+			false,
 		)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
