@@ -937,6 +937,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
 			dposV3Ctx, err := createDPOSV3Ctx(state)
+			if err != nil {
+				return nil, err
+			}
 			validators, err := dposv3.ValidatorList(dposV3Ctx)
 			if err != nil {
 				return nil, err
@@ -945,6 +948,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		} else if cfg.DPOSVersion == 2 {
 			createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
 			dposV2Ctx, err := createDPOSV2Ctx(state)
+			if err != nil {
+				return nil, err
+			}
 			validators, err := dposv2.ValidatorList(dposV2Ctx)
 			if err != nil {
 				return nil, err

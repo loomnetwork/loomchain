@@ -103,11 +103,7 @@ func (s *StoreState) Validators() []*loom.Validator {
 				panic(err)
 			}
 			s.validators = validatorSet
-			validators := make([]*loom.Validator, 0)
-			for _, v := range validatorSet {
-				validators = append(validators, v)
-			}
-			return validators
+			return s.validators.Slice()
 		}
 	}
 	return s.validators.Slice()
