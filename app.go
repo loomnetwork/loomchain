@@ -174,7 +174,7 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 
 func (s *StoreState) WithPrefix(prefix []byte) State {
 	return &StoreState{
-		store:           store.PrefixKVStore(prefix, s),
+		store:           store.PrefixKVStore(prefix, s.store),
 		block:           s.block,
 		ctx:             s.ctx,
 		validators:      s.validators,
