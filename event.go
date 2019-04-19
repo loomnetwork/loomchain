@@ -23,7 +23,7 @@ type EventHandler interface {
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
-	LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet
+	LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet
 }
 
 type EventDispatcher interface {
@@ -36,7 +36,7 @@ type DefaultEventHandler struct {
 	stash                  *stash
 	subscriptions          *SubscriptionSet
 	ethSubscriptions       *subs.EthSubscriptionSet
-	legacyEthSubscriptions *subs.EthDepreciatedSubscriptionSet
+	legacyEthSubscriptions *subs.LegacyEthSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
@@ -45,7 +45,7 @@ func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 		stash:                  newStash(),
 		subscriptions:          NewSubscriptionSet(),
 		ethSubscriptions:       subs.NewEthSubscriptionSet(),
-		legacyEthSubscriptions: subs.NewEthDepreciatedSubscriptionSet(),
+		legacyEthSubscriptions: subs.NewLegacyEthSubscriptionSet(),
 	}
 }
 
@@ -57,7 +57,7 @@ func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return ed.ethSubscriptions
 }
 
-func (ed *DefaultEventHandler) LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+func (ed *DefaultEventHandler) LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet {
 	return ed.legacyEthSubscriptions
 }
 
@@ -175,7 +175,7 @@ func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet
 	return m.next.EthSubscriptionSet()
 }
 
-func (m InstrumentingEventHandler) LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+func (m InstrumentingEventHandler) LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet {
 	return m.next.LegacyEthSubscriptionSet()
 }
 
@@ -360,7 +360,7 @@ func (s *stash) fetch(height uint64) ([]*EventData, error) {
 	defer s.Unlock()
 	set, ok := s.m[height]
 	if !ok {
-		return nil, fmt.Errorf("stash does not exist")
+		return nil, nil
 	}
 	return set.Values(), nil
 }

@@ -317,8 +317,8 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
-
-	enabledFeatures, err := EnableFeatures(ctx, 20)
+	buildNumber := uint64(1000)
+	enabledFeatures, err := EnableFeatures(ctx, 20, buildNumber)
 	require.NoError(err)
 	require.Equal(0, len(enabledFeatures))
 
@@ -331,7 +331,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
 
-	enabledFeatures, err = EnableFeatures(ctx, 31)
+	enabledFeatures, err = EnableFeatures(ctx, 31, buildNumber)
 	require.NoError(err)
 	require.Equal(1, len(enabledFeatures))
 
@@ -349,4 +349,119 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	})
 
 	fmt.Println(formatJSON(featureEnable))
+}
+
+func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {
+	require := c.Require()
+	featureName := "hardfork"
+	featureName2 := "test-ft"
+	featureName3 := "test2-ft"
+	encoder := base64.StdEncoding
+	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
+	chainID := "default"
+	addr1 := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
+	//setup dposv2 fake contract
+	pctx := plugin.CreateFakeContext(addr1, addr1).WithBlock(loom.BlockHeader{
+		ChainID: chainID,
+		Time:    time.Now().Unix(),
+	})
+
+	//Init fake coin contract
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{},
+	})
+	require.NoError(err)
+
+	//Init fake dposv2 contract
+	dposv2Contract := dposv2.DPOS{}
+	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	pctx = pctx.WithAddress(dposv2Addr)
+	ctx := contractpb.WrapPluginContext(pctx)
+	validators := []*dposv2.Validator{
+		&dposv2.Validator{
+			PubKey: pubKeyB64_1,
+			Power:  10,
+		},
+	}
+	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
+		Params: &dposv2.Params{
+			ValidatorCount: 21,
+		},
+		Validators: validators,
+	})
+	require.NoError(err)
+
+	//setup chainconfig contract
+	chainconfigContract := &ChainConfig{}
+	err = chainconfigContract.Init(ctx, &InitRequest{
+		Owner: addr1.MarshalPB(),
+		Params: &Params{
+			VoteThreshold:         66,
+			NumBlockConfirmations: 10,
+		},
+		Features: []*Feature{
+			&Feature{
+				Name:       featureName2,
+				Status:     FeaturePending,
+				Percentage: 0,
+			},
+			&Feature{
+				Name:       featureName3,
+				Status:     FeatureWaiting,
+				Percentage: 100,
+			},
+		},
+	})
+	require.NoError(err)
+
+	err = chainconfigContract.AddFeature(ctx, &AddFeatureRequest{
+		Names:       []string{featureName},
+		BuildNumber: 1000,
+	})
+	require.NoError(err)
+
+	getFeature, err := chainconfigContract.GetFeature(ctx, &GetFeatureRequest{
+		Name: featureName,
+	})
+	require.NoError(err)
+	require.Equal(featureName, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
+	require.Equal(uint64(0), getFeature.Feature.Percentage)
+
+	getFeature, err = chainconfigContract.GetFeature(ctx, &GetFeatureRequest{
+		Name: featureName2,
+	})
+	require.NoError(err)
+	require.Equal(featureName2, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
+	require.Equal(uint64(0), getFeature.Feature.Percentage)
+
+	getFeature, err = chainconfigContract.GetFeature(ctx, &GetFeatureRequest{
+		Name: featureName3,
+	})
+	require.NoError(err)
+	require.Equal(featureName3, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_WAITING, getFeature.Feature.Status)
+	require.Equal(uint64(100), getFeature.Feature.Percentage)
+
+	listFeatures, err := chainconfigContract.ListFeatures(ctx, &ListFeaturesRequest{})
+	require.NoError(err)
+	require.Equal(3, len(listFeatures.Features))
+
+	err = chainconfigContract.EnableFeature(ctx, &EnableFeatureRequest{
+		Names: []string{featureName},
+	})
+	require.NoError(err)
+
+	buildNumber := uint64(10)
+	_, err = EnableFeatures(ctx, 100, buildNumber)
+	_, err = EnableFeatures(ctx, 1000, buildNumber)
+	require.Equal(ErrFeatureNotSupported, err)
+
+	buildNumber = uint64(2000)
+	_, err = EnableFeatures(ctx, 1000, buildNumber)
+	require.NoError(err)
 }
