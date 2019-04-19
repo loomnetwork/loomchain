@@ -95,7 +95,9 @@ func (s *StoreState) Has(key []byte) bool {
 }
 
 func (s *StoreState) Validators() []*loom.Validator {
-	if s.FeatureEnabled(CtxValidatorsFeature, false) {
+	// Try to get validators from DPOS contract if CtxValidatorsFeature is enabled
+	// and ValidatorSet is empty
+	if s.FeatureEnabled(CtxValidatorsFeature, false) && len(s.validators.Slice()) == 0 {
 		if s.getValidatorSet != nil {
 			validatorSet, err := s.getValidatorSet(s)
 			if err != nil {
