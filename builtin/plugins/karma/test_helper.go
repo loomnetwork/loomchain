@@ -43,6 +43,9 @@ func MockStateWithKarmaAndCoinB(b *testing.B, karmaInit *ktypes.KarmaInitRequest
 
 func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDb db.DB) (loomchain.State, registry.Registry, vm.VM, error) {
 	appStore, err := store.NewIAVLStore(appDb, 0, 0)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	header := abci.Header{}
 	header.Height = int64(1)
 	state := loomchain.NewStoreState(context.Background(), appStore, header, nil, nil)
