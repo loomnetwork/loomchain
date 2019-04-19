@@ -29,7 +29,6 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
-	ValidatorSet() loom.ValidatorSet
 }
 
 type State interface {
@@ -112,10 +111,6 @@ func (s *StoreState) Validators() []*loom.Validator {
 		}
 	}
 	return s.validators.Slice()
-}
-
-func (s *StoreState) ValidatorSet() loom.ValidatorSet {
-	return s.validators
 }
 
 // This function is deprecated. It is used in DPOSv1.
