@@ -29,4 +29,7 @@ const (
 
 	// Enables specific migrations, each migration has an ID that's prefixed by this string.
 	MigrationFeaturePrefix = "migration:"
+
+	// Enables ctx.Validators()
+	CtxValidatorsFeature = "ctx:validators"
 )

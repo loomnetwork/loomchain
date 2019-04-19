@@ -96,17 +96,19 @@ func (s *StoreState) Has(key []byte) bool {
 }
 
 func (s *StoreState) Validators() []*loom.Validator {
-	if s.getValidatorSet != nil {
-		validatorSet, err := s.getValidatorSet(s)
-		if err != nil {
-			return s.validators.Slice()
+	if s.FeatureEnabled(CtxValidatorsFeature, false) {
+		if s.getValidatorSet != nil {
+			validatorSet, err := s.getValidatorSet(s)
+			if err != nil {
+				panic(err)
+			}
+			s.validators = validatorSet
+			validators := make([]*loom.Validator, 0)
+			for _, v := range validatorSet {
+				validators = append(validators, v)
+			}
+			return validators
 		}
-		s.validators = validatorSet
-		validators := make([]*loom.Validator, 0)
-		for _, v := range validatorSet {
-			validators = append(validators, v)
-		}
-		return validators
 	}
 	return s.validators.Slice()
 }
@@ -207,7 +209,7 @@ func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
-	snapShot.Validators() // Create validators list for this snapshot
+	//snapShot.Validators() // Create validators list for this snapshot
 	return snapShot
 }
 
