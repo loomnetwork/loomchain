@@ -230,11 +230,6 @@ type contractContext struct {
 
 var _ lp.Context = &contractContext{}
 
-func (c *contractContext) ValidatorPower(pubKey []byte) int64 {
-	// TODO
-	return 0
-}
-
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
 	return c.VM.Call(c.address, addr, input, loom.NewBigUIntFromInt(0))
 }

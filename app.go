@@ -34,7 +34,6 @@ type ReadOnlyState interface {
 type State interface {
 	ReadOnlyState
 	store.KVWriter
-	SetValidatorPower(pubKey []byte, power int64)
 	Context() context.Context
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
@@ -111,11 +110,6 @@ func (s *StoreState) Validators() []*loom.Validator {
 		}
 	}
 	return s.validators.Slice()
-}
-
-// This function is deprecated. It is used in DPOSv1.
-func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
-	s.validators.Set(&types.Validator{PubKey: pubKey, Power: power})
 }
 
 func (s *StoreState) Set(key, value []byte) {
@@ -208,10 +202,6 @@ func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.
 		storeSnapshot: snap,
 	}
 	return snapShot
-}
-
-func (s *StoreStateSnapshot) SetValidatorPower(pubKey []byte, power int64) {
-	panic("StoreStateSnapshot.SetValidatorPower not implemented")
 }
 
 // Release releases the underlying store snapshot, safe to call multiple times.
