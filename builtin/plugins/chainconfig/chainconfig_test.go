@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -64,11 +65,32 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		ChainID: chainID,
 		Time:    time.Now().Unix(),
 	}).WithValidators(validators)
+	//Init fake coin contract
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{},
+	})
+	require.NoError(err)
+
+	//Init fake dposv2 contract
+	dposv2Contract := dposv2.DPOS{}
+	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
+
+	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
+		Params: &dposv2.Params{
+			ValidatorCount: 21,
+		},
+		Validators: validators,
+	})
+	require.NoError(err)
 
 	//setup chainconfig contract
 	chainconfigContract := &ChainConfig{}
-	err := chainconfigContract.Init(ctx, &InitRequest{
+	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
 		Params: &Params{
 			VoteThreshold:         66,
@@ -164,18 +186,39 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	addr1 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	addr2 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_2)}
 	//setup fake contract
-	varlidators := []*loom.Validator{
+	validators := []*loom.Validator{
 		&loom.Validator{
 			PubKey: pubKeyB64_1,
 			Power:  10,
 		},
 	}
-	pctx := plugin.CreateFakeContext(addr1, addr1).WithValidators(varlidators)
+	pctx := plugin.CreateFakeContext(addr1, addr1).WithValidators(validators)
+	//Init fake coin contract
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{},
+	})
+	require.NoError(err)
+
+	//Init fake dposv2 contract
+	dposv2Contract := dposv2.DPOS{}
+	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
+
+	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
+		Params: &dposv2.Params{
+			ValidatorCount: 21,
+		},
+		Validators: validators,
+	})
+	require.NoError(err)
 
 	//setup chainconfig contract
 	chainconfigContract := &ChainConfig{}
-	err := chainconfigContract.Init(ctx, &InitRequest{
+	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
 		Params: &Params{
 			VoteThreshold:         66,
@@ -254,6 +297,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		},
 	}
 	pctx = pctx.WithValidators(validators)
+
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -263,7 +307,19 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	})
 	require.NoError(err)
 
+	//Init fake dposv2 contract
+	dposv2Contract := dposv2.DPOS{}
+	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
+
+	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
+		Params: &dposv2.Params{
+			ValidatorCount: 21,
+		},
+		Validators: validators,
+	})
+	require.NoError(err)
 
 	chainconfigContract := &ChainConfig{}
 	err = chainconfigContract.Init(ctx, &InitRequest{

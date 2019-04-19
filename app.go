@@ -95,16 +95,13 @@ func (s *StoreState) Has(key []byte) bool {
 }
 
 func (s *StoreState) Validators() []*loom.Validator {
-	// Try to get validators from DPOS contract if ValidatorSet is empty
-	if len(s.validators) == 0 {
-		if s.getValidatorSet != nil {
-			validatorSet, err := s.getValidatorSet(s)
-			if err != nil {
-				panic(err)
-			}
-			s.validators = validatorSet
-			return s.validators.Slice()
+	if (len(s.validators) == 0) && (s.getValidatorSet != nil) {
+		validatorSet, err := s.getValidatorSet(s)
+		if err != nil {
+			panic(err)
 		}
+		// cache the validator set for the current state
+		s.validators = validatorSet
 	}
 	return s.validators.Slice()
 }
@@ -194,11 +191,10 @@ var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
 func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
-	snapShot := &StoreStateSnapshot{
+	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
-	return snapShot
 }
 
 // Release releases the underlying store snapshot, safe to call multiple times.

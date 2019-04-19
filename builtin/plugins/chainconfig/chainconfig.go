@@ -357,8 +357,7 @@ func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, e
 }
 
 func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
-
-	if !ctx.FeatureEnabled(loomchain.CtxValidatorsFeature, false) {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_1, false) {
 		return getCurrentValidatorsFromDPOS(ctx)
 	}
 
