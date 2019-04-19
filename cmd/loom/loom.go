@@ -934,7 +934,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
-		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
 			dposV3Ctx, err := createDPOSV3Ctx(state)
 			validators, err := dposv3.ValidatorList(dposV3Ctx)

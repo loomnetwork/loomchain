@@ -35,6 +35,7 @@ type ReadOnlyState interface {
 type State interface {
 	ReadOnlyState
 	store.KVWriter
+	SetValidatorPower(pubKey []byte, power int64)
 	Context() context.Context
 	WithContext(ctx context.Context) State
 	SetFeature(string, bool)
@@ -112,6 +113,10 @@ func (s *StoreState) Validators() []*loom.Validator {
 
 func (s *StoreState) ValidatorSet() loom.ValidatorSet {
 	return s.validators
+}
+
+func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
+	s.validators.Set(&types.Validator{PubKey: pubKey, Power: power})
 }
 
 func (s *StoreState) Set(key, value []byte) {
@@ -204,6 +209,10 @@ func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.
 	}
 	snapShot.Validators() // Create validators list for this snapshot
 	return snapShot
+}
+
+func (s *StoreStateSnapshot) SetValidatorPower(pubKey []byte, power int64) {
+	panic("StoreStateSnapshot.SetValidatorPower not implemented")
 }
 
 // Release releases the underlying store snapshot, safe to call multiple times.
