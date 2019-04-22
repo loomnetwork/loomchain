@@ -182,7 +182,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/posener/wstest
 
 	# for when you want to reference a different branch of go-loom
-	#cd $(PLUGIN_DIR) && git checkout DPosv2-DPosv3-Commands-Migration-to-Go-loom && git pull origin DPosv2-DPosv3-Commands-Migration-to-Go-loom
+	cd $(PLUGIN_DIR) && git checkout auto-enable-pending-feature && git pull origin auto-enable-pending-feature
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)

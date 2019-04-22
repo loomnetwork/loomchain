@@ -37,6 +37,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
+	chainconfigRoutine "github.com/loomnetwork/loomchain/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
@@ -409,7 +410,12 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startChainConfigRoutine(chainID, cfg.ChainConfig, nodeSigner); err != nil {
+				return err
+			}
+
 			backend.RunForever()
+
 			return nil
 		},
 	}
@@ -447,6 +453,21 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 	return nil
 }
 
+func startChainConfigRoutine(chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer) error {
+	if !cfg.AutoEnableFeatures || !cfg.ContractEnabled {
+		return nil
+	}
+
+	routine, err := chainconfigRoutine.NewChainConfigRoutine(cfg, chainID, nodeSigner)
+	if err != nil {
+		return err
+	}
+
+	go routine.RunWithRecovery()
+
+	return nil
+}
+
 func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
 	plasmaCfg, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
 	if err != nil {
@@ -468,7 +489,12 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	return nil
 }
 
-func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+func startGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
@@ -481,7 +507,12 @@ func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgat
 	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
-func startLoomCoinGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+func startLoomCoinGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
@@ -671,7 +702,13 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	return eventStore, nil
 }
 
-func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
+func loadApp(
+	chainID string,
+	cfg *config.Config,
+	loader plugin.Loader,
+	b backend.Backend,
+	appHeight int64,
+) (*loomchain.Application, error) {
 	logger := log.Root
 
 	appStore, err := loadAppStore(cfg, log.Default, appHeight)

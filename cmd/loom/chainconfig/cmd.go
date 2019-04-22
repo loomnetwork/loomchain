@@ -27,6 +27,7 @@ func NewChainCfgCommand() *cobra.Command {
 		GetParamsCmd(),
 		ListFeaturesCmd(),
 		FeatureEnabledCmd(),
+		RemoveFeatureCmd(),
 	)
 	return cmd
 }
@@ -57,11 +58,12 @@ func EnableFeatureCmd() *cobra.Command {
 }
 
 const addFeatureCmdExample = `
-loom chain-cfg add-feature hardfork multichain --build 866
+loom chain-cfg add-feature hardfork multichain --build 866 --no-auto-enable
 `
 
 func AddFeatureCmd() *cobra.Command {
 	var buildNumber uint64
+	var noAutoEnable bool
 	cmd := &cobra.Command{
 		Use:     "add-feature <feature name 1> ... <feature name N>",
 		Short:   "Add new feature",
@@ -72,7 +74,11 @@ func AddFeatureCmd() *cobra.Command {
 					return fmt.Errorf("Invalid feature name")
 				}
 			}
-			req := &cctype.AddFeatureRequest{Names: args, BuildNumber: buildNumber}
+			req := &cctype.AddFeatureRequest{
+				Names:       args,
+				BuildNumber: buildNumber,
+				AutoEnable:  !noAutoEnable,
+			}
 			err := cli.CallContract(chainConfigContractName, "AddFeature", req, nil)
 			if err != nil {
 				return err
@@ -82,6 +88,12 @@ func AddFeatureCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number that supports this feature")
+	cmdFlags.BoolVar(
+		&noAutoEnable,
+		"no-auto-enable",
+		false,
+		"Not allow validator nodes to automatically vote to enable features they support",
+	)
 	cmd.MarkFlagRequired("build")
 	return cmd
 }
@@ -206,14 +218,55 @@ func FeatureEnabledCmd() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp plugintypes.FeatureEnabledResponse
-			err := cli.StaticCallContract(chainConfigContractName, "FeatureEnabled", &plugintypes.FeatureEnabledRequest{Name: args[0], DefaultVal: false}, &resp)
-			if err != nil {
+			req := &plugintypes.FeatureEnabledRequest{
+				Name:       args[0],
+				DefaultVal: false,
+			}
+			if err := cli.StaticCallContract(
+				chainConfigContractName,
+				"FeatureEnabled",
+				req,
+				&resp,
+			); err != nil {
 				return err
 			}
 			fmt.Println(resp.Value)
 			return nil
 		},
 	}
+}
+
+const removeFeatureCmdExample = `
+loom chain-cfg remove-feature tx:migration migration:1
+`
+
+func RemoveFeatureCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "remove-feature <feature name 1> ... <feature name N>",
+		Short:   "Remove feature by feature name",
+		Example: removeFeatureCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			for _, name := range args {
+				if name == "" {
+					return fmt.Errorf("Invalid feature name")
+				}
+			}
+			var resp cctype.RemoveFeatureRequest
+			if err := cli.CallContract(
+				chainConfigContractName,
+				"RemoveFeature",
+				&cctype.RemoveFeatureRequest{
+					Names: args,
+				},
+				&resp,
+			); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	return cmd
 }
 
 // Utils

@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -168,7 +169,13 @@ type PrometheusPushGatewayConfig struct {
 }
 
 type ChainConfigConfig struct {
-	ContractEnabled bool
+	ContractEnabled       bool
+	DAppChainReadURI      string
+	DAppChainWriteURI     string
+	EnableFeatureInterval int64 // Frequency (in seconds) with which the node should auto-enable features
+	LogLevel              string
+	LogDestination        string
+	AutoEnableFeatures    bool // Allow the node to auto-enable features supported by the current build
 }
 
 type DeployerWhitelistConfig struct {
@@ -207,9 +214,15 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	}
 }
 
-func DefaultChainConfigConfig() *ChainConfigConfig {
+func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 	return &ChainConfigConfig{
-		ContractEnabled: true,
+		ContractEnabled:       true,
+		DAppChainReadURI:      fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
+		DAppChainWriteURI:     fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
+		EnableFeatureInterval: 1800, // ChainConfigRoutine runs every 30 minutes by default
+		LogLevel:              "info",
+		LogDestination:        "file://chainconfig.log",
+		AutoEnableFeatures:    true,
 	}
 }
 
@@ -323,7 +336,7 @@ func DefaultConfig() *Config {
 		UnsafeRPCEnabled:           false,
 		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
 		CreateEmptyBlocks:          true,
-		ContractLoaders:            []string{"static","dynamic"},
+		ContractLoaders:            []string{"static", "dynamic"},
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
 		RegistryVersion:            int32(registry.RegistryV1),
@@ -351,7 +364,7 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
-	cfg.ChainConfig = DefaultChainConfigConfig()
+	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
 	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
@@ -597,6 +610,15 @@ LoomCoinTransferGateway:
 #
 ChainConfig:
   ContractEnabled: {{ .ChainConfig.ContractEnabled }}
+  DAppChainReadURI: {{ .ChainConfig.DAppChainReadURI }}
+  DAppChainWriteURI: {{ .ChainConfig.DAppChainWriteURI }}
+  # Frequency (in seconds) with which the node should auto-enable features
+  EnableFeatureInterval: {{ .ChainConfig.EnableFeatureInterval }}
+  LogLevel: {{ .ChainConfig.LogLevel }}
+  LogDestination: {{ .ChainConfig.LogDestination }}
+  # Allow the node to auto-enable features supported by the current build
+  AutoEnableFeatures: {{ .ChainConfig.AutoEnableFeatures }}
+
 #
 # DeployerWhitelist
 #
