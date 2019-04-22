@@ -746,8 +746,7 @@ func NewDPOSV2Command() *cobra.Command {
 	}
 	var flags cli.ContractCallFlags
 	AddContractCallFlags(cmd.PersistentFlags(), &flags)
-
-	registercmd := RegisterCandidateCmdV2(&flags)
+        registercmd := RegisterCandidateCmdV2(&flags)
 	registercmd.Flags().StringVarP(&candidateName, "name", "", "", "candidate name")
 	registercmd.Flags().StringVarP(&candidateDescription, "description", "", "", "candidate description")
 	registercmd.Flags().StringVarP(&candidateWebsite, "website", "", "", "candidate website")
