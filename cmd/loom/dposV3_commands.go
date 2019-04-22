@@ -729,7 +729,7 @@ func SetSlashingPercentagesCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
 func NewDPOSV3Command() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "call <command>",
+		Use:   "dposV3 <command>",
 		Short: "Methods available in dposv3 contract",
 	}
 	var flags cli.ContractCallFlags

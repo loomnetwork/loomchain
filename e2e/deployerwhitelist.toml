@@ -116,13 +116,13 @@
   Expected = ['Migration ID 1 has been processed successfully']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} call list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} call list_validators_v3"
+  RunCmd = "{{ $.LoomPath }} dposV3 list_validators_v3"
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
