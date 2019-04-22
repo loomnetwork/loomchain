@@ -1225,6 +1225,8 @@ func main() {
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		NewCoinCommand(),
+		NewDPOSV2Command(),
+		NewDPOSV3Command(),
 		karmaCmd,
 		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
