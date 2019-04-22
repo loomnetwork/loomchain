@@ -11,16 +11,15 @@ import (
 
 const billionthsBasisPointRatio = 100000
 
-var plasmaValidators = []string{
-	"0x0e99fc16e32e568971908f2ce54b967a42663a26", // plasma-0
-	"0xac3211caecc45940a6d2ba006ca465a647d8464f", // plasma-1
-	"0x69c48768dbac492908161be787b7a5658192df35", // plasma-2
-	"0x2a3a7c850586d4f80a12ac1952f88b1b69ef48e1", // plasma-3
-	"0x4a1b8b15e50ce63cc6f65603ea79be09206cae70", // plasma-4
-	"0x0ce7b61c97a6d5083356f115288f9266553e191e", // plasma-5
-}
-
 var (
+	plasmaValidators = []loom.Address{
+		loom.MustParseAddress("default:0x0e99fc16e32e568971908f2ce54b967a42663a26"), // plasma-0
+		loom.MustParseAddress("default:0xac3211caecc45940a6d2ba006ca465a647d8464f"), // plasma-1
+		loom.MustParseAddress("default:0x69c48768dbac492908161be787b7a5658192df35"), // plasma-2
+		loom.MustParseAddress("default:0x2a3a7c850586d4f80a12ac1952f88b1b69ef48e1"), // plasma-3
+		loom.MustParseAddress("default:0x4a1b8b15e50ce63cc6f65603ea79be09206cae70"), // plasma-4
+		loom.MustParseAddress("default:0x0ce7b61c97a6d5083356f115288f9266553e191e"), // plasma-5
+	}
 	doubledDelegator = loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
 	doubledValidator = loom.MustParseAddress("default:0xa38c27e8cf4a443e805065065aefb250b1e1cef2")
 	basisPoints      = loom.BigUInt{big.NewInt(1e4)} // do not change
@@ -52,9 +51,8 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 func adjustValidatorIfInPlasmaValidators(delegation Delegation) *types.Address {
 	validator := delegation.Validator
 	for _, plasmaValidator := range plasmaValidators {
-		if validator.Local.String() == plasmaValidator {
-			validator.Local, _ = loom.LocalAddressFromHexString(plasmaValidators[0])
-			break
+		if validator.Local.Compare(plasmaValidator.Local) == 0 {
+			return plasmaValidators[0].MarshalPB()
 		}
 	}
 	return validator
