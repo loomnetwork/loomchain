@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 )
 
 
@@ -37,6 +38,17 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 	TIER_ONE:   loom.BigUInt{big.NewInt(15000)}, // three months
 	TIER_TWO:   loom.BigUInt{big.NewInt(20000)}, // six months
 	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
+}
+
+func adjustDoubledDelegationAmount(delegation Delegation) *types.BigUInt {
+	amount := delegation.Amount.Value
+	validatorMatch := doubledValidator.Local.Compare(delegation.Validator.Local) == 0
+	delegatorMatch := doubledDelegator.Local.Compare(delegation.Delegator.Local) == 0
+	if validatorMatch && delegatorMatch {
+		amount = *common.BigZero()
+		amount.Div(&delegation.Amount.Value, loom.NewBigUIntFromInt(2))
+	}
+	return &types.BigUInt{Value: amount}
 }
 
 // frac is expressed in basis points if granular == false
