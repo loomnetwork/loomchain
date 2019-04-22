@@ -1199,7 +1199,7 @@ func main() {
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
 	dposCmd := cli.ContractCallCommand("dpos")
-	commands.AddDPOSV2(dposCmd)
+	commands.AddDPOS(dposCmd)
 
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
