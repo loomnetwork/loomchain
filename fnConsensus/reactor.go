@@ -402,6 +402,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	votesetPayload := NewFnVotePayload(executionRequest, executionResponse)
 
 	f.stateMtx.Lock()
+	defer f.stateMtx.Unlock()
 
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
@@ -412,7 +413,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		votesetPayload, f.privValidator, currentValidators)
 	if err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to create new voteset", "fnID", fnID, "error", err)
-		f.stateMtx.Unlock()
 		return
 	}
 
@@ -422,7 +422,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		f.safeSubmitMultiSignedMessage(fn, nil,
 			safeCopyBytes(aggregateExecutionResponse.Hash),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures))
-		f.stateMtx.Unlock()
 		return
 	}
 
@@ -430,11 +429,8 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 
 	if err := SaveReactorState(f.db, f.state, true); err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "error", err)
-		f.stateMtx.Unlock()
 		return
 	}
-
-	f.stateMtx.Unlock()
 
 	marshalledBytes, err := voteSet.Marshal()
 	if err != nil {
@@ -457,11 +453,10 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 
 	currentValidators := f.getValidatorSet()
+	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
-
-	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 	currentVoteSet := f.state.CurrentVoteSets[fnID]
 	currentNonce := f.state.CurrentNonces[fnID]
@@ -477,7 +472,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 
 	if !currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
-		f.Logger.Info("No consensus achived", "VoteSet", currentVoteSet)
+		f.Logger.Info("No consensus achived", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response)
 
 		previousConvergedVoteSet := f.state.PreviousMajVoteSets[fnID]
 		if previousConvergedVoteSet != nil {
@@ -509,7 +504,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 		if areWeValidator {
 			majExecutionResponse := currentVoteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 			if majExecutionResponse != nil {
-				f.Logger.Info("Maj-consensus achieved", "VoteSet", currentVoteSet)
+				f.Logger.Info("Maj-consensus achieved", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response)
 				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
 				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
