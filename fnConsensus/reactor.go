@@ -480,7 +480,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 
 	if !currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
-		f.Logger.Info("No consensus achived", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response)
+		f.Logger.Info("No consensus achieved", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response)
 
 		previousConvergedVoteSet := f.state.PreviousMajVoteSets[fnID]
 		if previousConvergedVoteSet != nil {
