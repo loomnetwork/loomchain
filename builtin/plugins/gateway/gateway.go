@@ -954,6 +954,8 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		return err
 	}
 
+	hash := client.ToEthereumSignedMessage(req.WithdrawalHash)
+
 	switch validatorsAuthConfig.AuthStrategy {
 	case tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS:
 		// Convert array of validator to array of address, try to resolve via address mapper
@@ -963,12 +965,12 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			return err
 		}
 
-		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
+		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, hash, ethAddresses)
 		if err != nil {
 			return err
 		}
 
-		// No signature from trusted validators present
+		// Reject if not all trusted validators signed
 		if len(valIndexes) != len(validatorsAuthConfig.TrustedValidators.Validators) {
 			return ErrNotAuthorized
 		}
@@ -989,7 +991,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			return err
 		}
 
-		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
+		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, hash, ethAddresses)
 		if err != nil {
 			return err
 		}
