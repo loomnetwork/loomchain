@@ -20,8 +20,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/pkg/errors"
 
-	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-
 	"github.com/loomnetwork/go-loom/client"
 )
 
@@ -958,41 +956,23 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 
 	switch validatorsAuthConfig.AuthStrategy {
 	case tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS:
-		shouldTrustSender, err := isSenderTrustedValidator(ctx, validatorsAuthConfig.TrustedValidators)
+		// Convert array of validator to array of address, try to resolve via address mapper
+		// Feed the mapped addresses to ParseSigs
+		ethAddresses, err := getMappedEthAddress(ctx, validatorsAuthConfig.TrustedValidators.Validators)
 		if err != nil {
 			return err
 		}
 
-		if !shouldTrustSender {
-			isSenderValidator, err := isSenderValidator(ctx)
-			if err != nil {
-				return err
-			}
+		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
+		if err != nil {
+			return err
+		}
 
-			if !isSenderValidator {
-				return ErrNotAuthorized
-			}
-
-			// Convert array of validator to array of address, try to resolve via address mapper
-			// Feed the mapped addresses to ParseSigs
-
-			ethAddresses, err := getMappedEthAddress(ctx, validatorsAuthConfig.TrustedValidators.Validators)
-			if err != nil {
-				return err
-			}
-
-			_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
-			if err != nil {
-				return err
-			}
-
-			// No signature from trusted validators present
-			if len(valIndexes) != len(validatorsAuthConfig.TrustedValidators.Validators) {
-				return ErrNotAuthorized
-			}
+		// No signature from trusted validators present
+		if len(valIndexes) != len(validatorsAuthConfig.TrustedValidators.Validators) {
+			return ErrNotAuthorized
 		}
 		break
-
 	case tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS:
 		valAddresses, powers, clusterStake, err := getCurrentValidators(ctx)
 		if err != nil {
@@ -1935,47 +1915,6 @@ func getMappedEthAddress(ctx contract.StaticContext, trustedValidators []*types.
 	}
 
 	return validatorEthAddresses, nil
-}
-
-func isSenderValidator(ctx contract.StaticContext) (bool, error) {
-	contractAddr, err := ctx.Resolve("dposV2")
-	if err != nil {
-		return false, err
-	}
-
-	valsreq := &dpostypes.ListValidatorsRequestV2{}
-	var resp dpostypes.ListValidatorsResponseV2
-
-	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", valsreq, &resp)
-	if err != nil {
-		return false, err
-	}
-
-	validators := resp.Statistics
-	sender := ctx.Message().Sender
-
-	var found bool = false
-	for _, v := range validators {
-		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
-			found = true
-			break
-		}
-	}
-
-	return found, nil
-}
-
-func isSenderTrustedValidator(ctx contract.StaticContext, trustedValidators *TrustedValidators) (bool, error) {
-	sender := ctx.Message().Sender
-
-	for _, validator := range trustedValidators.Validators {
-		validatorAddress := loom.UnmarshalAddressPB(validator)
-		if sender.Compare(validatorAddress) == 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 // Returns all unclaimed tokens for an account
