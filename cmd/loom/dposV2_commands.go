@@ -636,7 +636,7 @@ func SetValidatorCountCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetValidatorCount", &dposv2.SetValidatorCountRequestV2{
+			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetValidatorCount2", &dposv2.SetValidatorCountRequestV2{
 				ValidatorCount: int64(validatorCount),
 			}, nil)
 			if err != nil {
