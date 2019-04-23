@@ -51,6 +51,7 @@ func TestSigning(t *testing.T) {
 	pk, err := crypto.GenerateKey()
 	err = crypto.SaveECDSA("newpk", pk)
 	require.NoError(t, err)
+
 	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
 	require.NoError(t, err)
 	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
@@ -71,6 +72,7 @@ func TestSigning(t *testing.T) {
 
 	signature, err := evmcompat.GenerateTypedSig(hash, privateKey, evmcompat.SignatureType_EIP712)
 	require.NoError(t, err)
+
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
 		Signature: signature,
@@ -99,6 +101,7 @@ func TestTronSigning(t *testing.T) {
 	nonceTx := []byte("nonceTx")
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
 	require.NoError(t, err)
+
 	hash := sha3.SoliditySHA3(
 		sha3.Address(common.BytesToAddress(ethLocalAdr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
@@ -108,6 +111,7 @@ func TestTronSigning(t *testing.T) {
 
 	signature, err := crypto.Sign(hash, privateKey)
 	require.NoError(t, err)
+
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
 		Signature: signature,
@@ -127,7 +131,7 @@ func TestTronSigning(t *testing.T) {
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -194,7 +198,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 }
 
 func TestChainIdVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -234,6 +238,7 @@ func TestChainIdVerification(t *testing.T) {
 	// generate eth key
 	ethKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
+
 	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
 	// to contracts will be eth:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.

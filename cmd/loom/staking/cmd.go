@@ -75,7 +75,10 @@ func ListDelegationsCmd() *cobra.Command {
 			}
 
 			var resp dposv2.ListDelegationsResponse
-			err = cli.StaticCallContract(DPOSV2ContractName, "ListDelegations", &dposv2.ListDelegationsRequest{Candidate: addr.MarshalPB()}, &resp)
+			err = cli.StaticCallContract(
+				DPOSV2ContractName, "ListDelegations",
+				&dposv2.ListDelegationsRequest{Candidate: addr.MarshalPB()}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -142,7 +145,10 @@ func TotalDelegationCmd() *cobra.Command {
 			}
 
 			var resp dposv2.TotalDelegationResponse
-			err = cli.StaticCallContract(DPOSV2ContractName, "TotalDelegation", &dposv2.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp)
+			err = cli.StaticCallContract(
+				DPOSV2ContractName, "TotalDelegation",
+				&dposv2.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -176,7 +182,13 @@ func CheckDelegationsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = cli.StaticCallContract(DPOSV2ContractName, "CheckDelegation", &dposv2.CheckDelegationRequestV2{ValidatorAddress: validatorAddress.MarshalPB(), DelegatorAddress: delegatorAddress.MarshalPB()}, &resp)
+			err = cli.StaticCallContract(
+				DPOSV2ContractName, "CheckDelegation",
+				&dposv2.CheckDelegationRequestV2{
+					ValidatorAddress: validatorAddress.MarshalPB(),
+					DelegatorAddress: delegatorAddress.MarshalPB(),
+				}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -211,9 +223,10 @@ func GetMappingCmd() *cobra.Command {
 				return err
 			}
 
-			err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &address_mapper.AddressMapperGetMappingRequest{
-				From: from.MarshalPB(),
-			}, &resp)
+			err = cli.StaticCallContract(
+				commands.AddressMapperContractName, "GetMapping",
+				&address_mapper.AddressMapperGetMappingRequest{From: from.MarshalPB()}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -233,7 +246,10 @@ func ListMappingCmd() *cobra.Command {
 		Short: "List mapping address",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp address_mapper.AddressMapperListMappingResponse
-			err := cli.StaticCallContract(commands.AddressMapperContractName, "ListMapping", &address_mapper.AddressMapperListMappingRequest{}, &resp)
+			err := cli.StaticCallContract(
+				commands.AddressMapperContractName, "ListMapping",
+				&address_mapper.AddressMapperListMappingRequest{}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -329,9 +345,13 @@ func WithdrawalReceiptCmd() *cobra.Command {
 			}
 
 			var resp tgtypes.TransferGatewayWithdrawalReceiptResponse
-			err = cli.StaticCallContract(commands.LoomGatewayName, "WithdrawalReceipt", &tgtypes.TransferGatewayWithdrawalReceiptRequest{
-				Owner: addr.MarshalPB(),
-			}, &resp)
+			err = cli.StaticCallContract(
+				commands.LoomGatewayName, "WithdrawalReceipt",
+				&tgtypes.TransferGatewayWithdrawalReceiptRequest{
+					Owner: addr.MarshalPB(),
+				},
+				&resp,
+			)
 			if err != nil {
 				return err
 			}

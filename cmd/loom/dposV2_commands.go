@@ -19,7 +19,10 @@ func UnregisterCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 		Use:   "unregister_candidateV2",
 		Short: "Unregisters the candidate (only called if previously registered)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cli.CallContractWithFlags(flags, DPOSV2ContractName, "UnregisterCandidate", &dposv2.UnregisterCandidateRequestV2{}, nil)
+			return cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "UnregisterCandidate",
+				&dposv2.UnregisterCandidateRequestV2{}, nil,
+			)
 		},
 	}
 }
@@ -30,7 +33,10 @@ func GetDistributionsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Short: "Gets a list of all rewards for each address",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.GetDistributionsResponse
-			err := cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "GetDistributions", &dposv2.GetDistributionsRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "GetDistributions",
+				&dposv2.GetDistributionsRequest{}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -69,7 +75,10 @@ func ListValidatorsCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 		Short: "List the current validators",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListValidatorsResponseV2
-			err := cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "ListValidators", &dposv2.ListValidatorsRequestV2{}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "ListValidators",
+				&dposv2.ListValidatorsRequestV2{}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -114,7 +123,8 @@ func ChangeFeeCmd(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 			if candidateFee > 10000 {
-				errors.New("candidateFee is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%).")
+				// nolint:lll
+				return errors.New("candidateFee is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%).")
 			}
 			return cli.CallContractWithFlags(flags, DPOSV2ContractName, "ChangeFee", &dposv2.ChangeCandidateFeeRequest{
 				Fee: candidateFee,
@@ -130,12 +140,16 @@ func RegisterCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pubKey, err := base64.StdEncoding.DecodeString(args[0])
+			if err != nil {
+				return err
+			}
 			candidateFee, err := strconv.ParseUint(args[1], 10, 64)
 			if err != nil {
 				return err
 			}
 			if candidateFee > 10000 {
-				errors.New("candidateFee is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%).")
+				// nolint:lll
+				return errors.New("candidateFee is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%).")
 			}
 
 			tier := uint64(0)
@@ -146,7 +160,7 @@ func RegisterCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 				}
 
 				if tier > 3 {
-					errors.New("Tier value must be integer 0 - 4")
+					return errors.New("Tier value must be integer 0 - 4")
 				}
 			}
 
@@ -207,7 +221,7 @@ func DelegateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 				}
 
 				if tier > 3 {
-					errors.New("Tier value must be integer 0 - 4")
+					return errors.New("Tier value must be integer 0 - 4")
 				}
 
 				req.LocktimeTier = tier
@@ -291,9 +305,12 @@ func RemoveWhitelistedCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Comman
 				return err
 			}
 
-			return cli.CallContractWithFlags(flags, DPOSV2ContractName, "RemoveWhitelistedCandidate", &dposv2.RemoveWhitelistedCandidateRequestV2{
-				CandidateAddress: candidateAddress.MarshalPB(),
-			}, nil)
+			return cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "RemoveWhitelistedCandidate",
+				&dposv2.RemoveWhitelistedCandidateRequestV2{
+					CandidateAddress: candidateAddress.MarshalPB(),
+				}, nil,
+			)
 		},
 	}
 }
@@ -315,13 +332,16 @@ func ChangeWhitelistLockTimeTierCmdV2(flags *cli.ContractCallFlags) *cobra.Comma
 			}
 
 			if tier > 3 {
-				errors.New("Tier value must be integer 0 - 4")
+				return errors.New("Tier value must be integer 0 - 4")
 			}
 
-			return cli.CallContractWithFlags(flags, DPOSV2ContractName, "ChangeWhitelistLockTimeTier", &dposv2.ChangeWhitelistLockTimeTierRequestV2{
-				CandidateAddress: candidateAddress.MarshalPB(),
-				LockTimeTier:     tier,
-			}, nil)
+			return cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "ChangeWhitelistLockTimeTier",
+				&dposv2.ChangeWhitelistLockTimeTierRequestV2{
+					CandidateAddress: candidateAddress.MarshalPB(),
+					LockTimeTier:     tier,
+				}, nil,
+			)
 		},
 	}
 }
@@ -365,7 +385,13 @@ func CheckDelegationCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "CheckDelegation", &dposv2.CheckDelegationRequestV2{ValidatorAddress: validatorAddress.MarshalPB(), DelegatorAddress: delegatorAddress.MarshalPB()}, &resp)
+			err = cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "CheckDelegation",
+				&dposv2.CheckDelegationRequestV2{
+					ValidatorAddress: validatorAddress.MarshalPB(),
+					DelegatorAddress: delegatorAddress.MarshalPB(),
+				}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -416,9 +442,12 @@ func ClaimDistributionCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 			}
 
 			var resp dposv2.ClaimDistributionResponseV2
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "ClaimDistribution", &dposv2.ClaimDistributionRequestV2{
-				WithdrawalAddress: addr.MarshalPB(),
-			}, &resp)
+			err = cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "ClaimDistribution",
+				&dposv2.ClaimDistributionRequestV2{
+					WithdrawalAddress: addr.MarshalPB(),
+				}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -439,7 +468,10 @@ func CheckRewardsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.CheckRewardsResponse
-			err := cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "CheckRewards", &dposv2.CheckRewardsRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "CheckRewards",
+				&dposv2.CheckRewardsRequest{}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -465,9 +497,12 @@ func CheckDistributionCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			}
 
 			var resp dposv2.CheckDistributionResponse
-			err = cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "CheckDistribution", &dposv2.CheckDistributionRequest{
-				Address: addr.MarshalPB(),
-			}, &resp)
+			err = cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "CheckDistribution",
+				&dposv2.CheckDistributionRequest{
+					Address: addr.MarshalPB(),
+				}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -493,7 +528,10 @@ func TotalDelegationCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			}
 
 			var resp dposv2.TotalDelegationResponse
-			err = cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "TotalDelegation", &dposv2.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp)
+			err = cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "TotalDelegation",
+				&dposv2.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -519,7 +557,10 @@ func CheckAllDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			}
 
 			var resp dposv2.CheckAllDelegationsResponse
-			err = cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "CheckAllDelegations", &dposv2.CheckAllDelegationsRequest{DelegatorAddress: addr.MarshalPB()}, &resp)
+			err = cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "CheckAllDelegations",
+				&dposv2.CheckAllDelegationsRequest{DelegatorAddress: addr.MarshalPB()}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -540,7 +581,10 @@ func TimeUntilElectionCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.TimeUntilElectionResponse
-			err := cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "TimeUntilElection", &dposv2.TimeUntilElectionRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "TimeUntilElection",
+				&dposv2.TimeUntilElectionRequest{}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -566,7 +610,10 @@ func ListDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			}
 
 			var resp dposv2.ListDelegationsResponse
-			err = cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "ListDelegations", &dposv2.ListDelegationsRequest{Candidate: addr.MarshalPB()}, &resp)
+			err = cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "ListDelegations",
+				&dposv2.ListDelegationsRequest{Candidate: addr.MarshalPB()}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -587,7 +634,10 @@ func ListAllDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListAllDelegationsResponse
-			err := cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "ListAllDelegations", &dposv2.ListAllDelegationsRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				flags, DPOSV2ContractName, "ListAllDelegations",
+				&dposv2.ListAllDelegationsRequest{}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -614,9 +664,12 @@ func SetElectionCycleCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetElectionCycle", &dposv2.SetElectionCycleRequestV2{
-				ElectionCycle: int64(electionCycleDuration),
-			}, nil)
+			err = cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "SetElectionCycle",
+				&dposv2.SetElectionCycleRequestV2{
+					ElectionCycle: int64(electionCycleDuration),
+				}, nil,
+			)
 			if err != nil {
 				return err
 			}
@@ -636,9 +689,12 @@ func SetValidatorCountCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetValidatorCount2", &dposv2.SetValidatorCountRequestV2{
-				ValidatorCount: int64(validatorCount),
-			}, nil)
+			err = cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "SetValidatorCount2",
+				&dposv2.SetValidatorCountRequestV2{
+					ValidatorCount: int64(validatorCount),
+				}, nil,
+			)
 			if err != nil {
 				return err
 			}
@@ -658,11 +714,14 @@ func SetMaxYearlyRewardCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetMaxYearlyReward", &dposv2.SetMaxYearlyRewardRequestV2{
-				MaxYearlyReward: &types.BigUInt{
-					Value: *maxYearlyReward,
-				},
-			}, nil)
+			err = cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "SetMaxYearlyReward",
+				&dposv2.SetMaxYearlyRewardRequestV2{
+					MaxYearlyReward: &types.BigUInt{
+						Value: *maxYearlyReward,
+					},
+				}, nil,
+			)
 			if err != nil {
 				return err
 			}
@@ -682,11 +741,13 @@ func SetRegistrationRequirementCmdV2(flags *cli.ContractCallFlags) *cobra.Comman
 				return err
 			}
 
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetRegistrationRequirement", &dposv2.SetRegistrationRequirementRequestV2{
-				RegistrationRequirement: &types.BigUInt{
-					Value: *registrationRequirement,
-				},
-			}, nil)
+			err = cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "SetRegistrationRequirement",
+				&dposv2.SetRegistrationRequirementRequestV2{
+					RegistrationRequirement: &types.BigUInt{
+						Value: *registrationRequirement,
+					},
+				}, nil)
 			if err != nil {
 				return err
 			}
@@ -705,7 +766,10 @@ func SetOracleAddressCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetOracleAddress", &dposv2.SetOracleAddressRequestV2{OracleAddress: oracleAddress.MarshalPB()}, nil)
+			err = cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "SetOracleAddress",
+				&dposv2.SetOracleAddressRequestV2{OracleAddress: oracleAddress.MarshalPB()}, nil,
+			)
 			if err != nil {
 				return err
 			}
@@ -725,11 +789,14 @@ func SetSlashingPercentagesCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			err = cli.CallContractWithFlags(flags, DPOSV2ContractName, "SetRegistrationRequirement", &dposv2.SetRegistrationRequirementRequestV2{
-				RegistrationRequirement: &types.BigUInt{
-					Value: *registrationRequirement,
-				},
-			}, nil)
+			err = cli.CallContractWithFlags(
+				flags, DPOSV2ContractName, "SetRegistrationRequirement",
+				&dposv2.SetRegistrationRequirementRequestV2{
+					RegistrationRequirement: &types.BigUInt{
+						Value: *registrationRequirement,
+					},
+				}, nil,
+			)
 			if err != nil {
 				return err
 			}
@@ -739,14 +806,13 @@ func SetSlashingPercentagesCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 }
 
 func NewDPOSV2Command() *cobra.Command {
-
 	cmd := &cobra.Command{
 		Use:   "dposV2 <command>",
 		Short: "Methods available in dposv2 contract",
 	}
 	var flags cli.ContractCallFlags
 	AddContractCallFlags(cmd.PersistentFlags(), &flags)
-        registercmd := RegisterCandidateCmdV2(&flags)
+	registercmd := RegisterCandidateCmdV2(&flags)
 	registercmd.Flags().StringVarP(&candidateName, "name", "", "", "candidate name")
 	registercmd.Flags().StringVarP(&candidateDescription, "description", "", "", "candidate description")
 	registercmd.Flags().StringVarP(&candidateWebsite, "website", "", "", "candidate website")
