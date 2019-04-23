@@ -232,13 +232,6 @@ func (s *GRPCAPIServer) Has(ctx context.Context, req *types.HasRequest) (*types.
 	}, nil
 }
 
-func (s *GRPCAPIServer) ValidatorPower(
-	ctx context.Context,
-	req *types.ValidatorPowerRequest,
-) (*types.ValidatorPowerResponse, error) {
-	return nil, nil
-}
-
 func (s *GRPCAPIServer) GetEvmTxReceipt(
 	ctx context.Context,
 	req *types.EvmTxReceiptRequest,
@@ -328,13 +321,6 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 		return nil, err
 	}
 	return &types.CallResponse{Output: ret}, nil
-}
-
-func (s *GRPCAPIServer) SetValidatorPower(
-	ctx context.Context,
-	req *types.SetValidatorPowerRequest,
-) (*types.SetValidatorPowerResponse, error) {
-	return nil, nil
 }
 
 func (s *GRPCAPIServer) ContractRecord(ctx context.Context, req *types.ContractRecordRequest) (*types.ContractRecordResponse, error) {

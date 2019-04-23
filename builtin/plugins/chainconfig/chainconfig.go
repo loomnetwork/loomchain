@@ -5,32 +5,29 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
 
 type (
-	InitRequest          = cctypes.InitRequest
-	ListFeaturesRequest  = cctypes.ListFeaturesRequest
-	ListFeaturesResponse = cctypes.ListFeaturesResponse
-
-	GetFeatureRequest  = cctypes.GetFeatureRequest
-	GetFeatureResponse = cctypes.GetFeatureResponse
-	AddFeatureRequest  = cctypes.AddFeatureRequest
-	AddFeatureResponse = cctypes.AddFeatureResponse
-	SetParamsRequest   = cctypes.SetParamsRequest
-	GetParamsRequest   = cctypes.GetParamsRequest
-	GetParamsResponse  = cctypes.GetParamsResponse
-	Params             = cctypes.Params
-	Feature            = cctypes.Feature
-
-	UpdateFeatureRequest  = cctypes.UpdateFeatureRequest
+	InitRequest           = cctypes.InitRequest
+	ListFeaturesRequest   = cctypes.ListFeaturesRequest
+	ListFeaturesResponse  = cctypes.ListFeaturesResponse
+	GetFeatureRequest     = cctypes.GetFeatureRequest
+	GetFeatureResponse    = cctypes.GetFeatureResponse
+	AddFeatureRequest     = cctypes.AddFeatureRequest
+	AddFeatureResponse    = cctypes.AddFeatureResponse
+	SetParamsRequest      = cctypes.SetParamsRequest
+	GetParamsRequest      = cctypes.GetParamsRequest
+	GetParamsResponse     = cctypes.GetParamsResponse
+	Params                = cctypes.Params
+	Feature               = cctypes.Feature
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 )
@@ -49,7 +46,7 @@ const (
 )
 
 var (
-	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
+	// ErrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
 	ErrNotAuthorized = errors.New("[ChainConfig] not authorized")
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
@@ -57,12 +54,16 @@ var (
 	ErrInvalidRequest = errors.New("[ChainConfig] invalid request")
 	// ErrOwnerNotSpecified returned if init request does not have owner address
 	ErrOwnerNotSpecified = errors.New("[ChainConfig] owner not specified")
-	// ErrFeatureFound returned if an owner try to set an existing feature
+	// ErrFeatureAlreadyExists returned if an owner try to set an existing feature
 	ErrFeatureAlreadyExists = errors.New("[ChainConfig] feature already exists")
 	// ErrInvalidParams returned if parameters are invalid
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
 	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
 	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
+	// ErrEmptyValidatorsList is returned if ctx.Validators() return empty validators list.
+	ErrEmptyValidatorsList = errors.New("[ChainConfig] empty validators list")
+	// ErrFeatureNotSupported inidicates that an enabled feature is not supported in the current build
+	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
 )
 
 const (
@@ -175,7 +176,7 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 		return ErrInvalidRequest
 	}
 	for _, name := range req.Names {
-		if err := addFeature(ctx, name); err != nil {
+		if err := addFeature(ctx, name, req.BuildNumber); err != nil {
 			return err
 		}
 	}
@@ -234,7 +235,7 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 //   feature reaches a certain threshold.
 // - A WAITING feature will become ENABLED after a sufficient number of block confirmations.
 // Returns a list of features whose status has changed from WAITING to ENABLED at the given height.
-func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error) {
+func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Feature, error) {
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
@@ -277,6 +278,9 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
+				if buildNumber < feature.BuildNumber {
+					return nil, ErrFeatureNotSupported
+				}
 				feature.Status = FeatureEnabled
 				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
@@ -292,11 +296,12 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 				)
 			}
 		}
+
 	}
 	return enabledFeatures, nil
 }
 
-func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
+func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
 	// TODO: Replace all this with ctx.Validators() when it's hooked up to DPOSv3 (and ideally DPOSv2)
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 		contractAddr, err := ctx.Resolve("dposV3")
@@ -341,6 +346,33 @@ func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
 		if v != nil {
 			addr := loom.UnmarshalAddressPB(v.Address)
 			validators = append(validators, addr)
+		}
+	}
+
+	if len(validators) == 0 {
+		return nil, ErrEmptyValidatorsList
+	}
+
+	return validators, nil
+}
+
+func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_1, false) {
+		return getCurrentValidatorsFromDPOS(ctx)
+	}
+
+	validatorsList := ctx.Validators()
+	chainID := ctx.Block().ChainID
+
+	if len(validatorsList) == 0 {
+		return nil, ErrEmptyValidatorsList
+	}
+
+	validators := make([]loom.Address, 0, len(validatorsList))
+	for _, v := range validatorsList {
+		if v != nil {
+			address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+			validators = append(validators, address)
 		}
 	}
 	return validators, nil
@@ -448,7 +480,7 @@ func enableFeature(ctx contract.Context, name string) error {
 	return ctx.Set(featureKey(name), &feature)
 }
 
-func addFeature(ctx contract.Context, name string) error {
+func addFeature(ctx contract.Context, name string, buildNumber uint64) error {
 	if name == "" {
 		return ErrInvalidRequest
 	}
@@ -462,8 +494,9 @@ func addFeature(ctx contract.Context, name string) error {
 	}
 
 	feature := Feature{
-		Name:   name,
-		Status: FeaturePending,
+		Name:        name,
+		BuildNumber: buildNumber,
+		Status:      FeaturePending,
 	}
 
 	if err := ctx.Set(featureKey(name), &feature); err != nil {

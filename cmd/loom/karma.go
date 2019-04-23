@@ -43,7 +43,7 @@ func GetUserStateCmd() *cobra.Command {
 		Short: "list the karma sources for user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -69,7 +69,7 @@ func GetUserTotalCmd() *cobra.Command {
 		Short: "Check amount of karma user has, target can be either CALL or DEPLOY",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -103,7 +103,7 @@ func DepositCoinCmd() *cobra.Command {
 		Short: "deposit coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -133,7 +133,7 @@ func WithdrawCoinCmd() *cobra.Command {
 		Short: "withdraw coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -246,7 +246,7 @@ func SetActiveCmd() *cobra.Command {
 		Short: "set contract as active",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			contract, err := cli.ResolveAddress(args[0])
+			contract, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -266,7 +266,7 @@ func SetInactiveCmd() *cobra.Command {
 		Short: "set contract as inactive",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			contract, err := cli.ResolveAddress(args[0])
+			contract, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}

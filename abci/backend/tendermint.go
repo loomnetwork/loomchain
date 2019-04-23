@@ -88,6 +88,7 @@ type Backend interface {
 	Destroy() error
 	Start(app abci.Application) error
 	RunForever()
+	Validators() []*loom.Validator
 	NodeKey() (string, error)
 	// Returns the tx signer used by this node to sign txs it creates
 	NodeSigner() (auth.Signer, error)
@@ -101,8 +102,9 @@ type TendermintBackend struct {
 	node        *node.Node
 	OverrideCfg *OverrideConfig
 	// Unix socket path to serve ABCI app at
-	SocketPath   string
-	socketServer tmcmn.Service
+	SocketPath        string
+	socketServer      tmcmn.Service
+	GenesisValidators []*loom.Validator
 
 	FnRegistry fnConsensus.FnRegistry
 }
@@ -207,6 +209,11 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		PubKey: pubKey[:],
 		Power:  validator.Power,
 	}, nil
+}
+
+// Return validators list from genesis file
+func (b *TendermintBackend) Validators() []*loom.Validator {
+	return b.GenesisValidators
 }
 
 func (b *TendermintBackend) Reset(height uint64) error {
@@ -323,6 +330,21 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	if err != nil {
 		return err
 	}
+
+	//Load genesis validators
+	genDoc, err := types.GenesisDocFromFile(cfg.GenesisFile())
+	if err != nil {
+		return err
+	}
+	validators := make([]*loom.Validator, 0)
+	for _, validator := range genDoc.Validators {
+		pubKey := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
+		validators = append(validators, &loom.Validator{
+			PubKey: pubKey[:],
+			Power:  validator.Power,
+		})
+	}
+	b.GenesisValidators = validators
 
 	if !cmn.FileExists(cfg.NodeKeyFile()) {
 		return errors.New("failed to locate local node p2p key file")

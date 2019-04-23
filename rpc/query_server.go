@@ -100,7 +100,7 @@ type QueryServer struct {
 	Loader                 lcp.Loader
 	Subscriptions          *loomchain.SubscriptionSet
 	EthSubscriptions       *subs.EthSubscriptionSet
-	EthLegacySubscriptions *subs.EthDepreciatedSubscriptionSet
+	EthLegacySubscriptions *subs.LegacyEthSubscriptionSet
 	EthPolls               polls.EthSubscriptions
 	CreateRegistry         registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
@@ -431,7 +431,7 @@ func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*W
 	return &WSEmptyResult{}, nil
 }
 
-func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthDepreciatedSubscriptionSet) pubsub.SubscriberFunc {
+func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.LegacyEthSubscriptionSet) pubsub.SubscriberFunc {
 	clientCtx := ctx
 	log.Debug("Adding handler", "remote", clientCtx.GetRemoteAddr())
 	return func(msg pubsub.Message) {
@@ -688,6 +688,9 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
 	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+	if err != nil {
+		return resp, err
+	}
 
 	if block == "0x1" && blockResult.ParentHash == "0x0" {
 		blockResult.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
