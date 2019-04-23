@@ -1198,9 +1198,6 @@ func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
-	dposCmd := cli.ContractCallCommand("dpos")
-	commands.AddDPOS(dposCmd)
-
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
@@ -1232,7 +1229,6 @@ func main() {
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
-		dposCmd,
 		resolveCmd,
 		unsafeCmd,
 		commands.GetMapping(),
