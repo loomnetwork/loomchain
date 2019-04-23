@@ -1879,6 +1879,29 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 	return saveState(ctx, state)
 }
 
+func (c *DPOS) SetValidatorCount2(ctx contract.Context, req *SetValidatorCountRequest) error {
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		return logDposError(ctx, errContractDisabled, req.String())
+	}
+
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS SetValidatorCount", "sender", sender, "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	state.Params.ValidatorCount = uint64(req.ValidatorCount)
+
+	return saveState(ctx, state)
+}
+
 func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountRequest) error {
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
