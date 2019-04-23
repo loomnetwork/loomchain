@@ -97,6 +97,7 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 			ChainID: s.ChainID,
 		},
 		nil,
+		nil,
 	)
 }
 

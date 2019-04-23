@@ -54,12 +54,17 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
 	chainID := "default"
 	addr1 := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
-	//setup dposv2 fake contract
+	//setup fake contract
+	validators := []*loom.Validator{
+		&loom.Validator{
+			PubKey: pubKeyB64_1,
+			Power:  10,
+		},
+	}
 	pctx := plugin.CreateFakeContext(addr1, addr1).WithBlock(loom.BlockHeader{
 		ChainID: chainID,
 		Time:    time.Now().Unix(),
-	})
-
+	}).WithValidators(validators)
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -74,12 +79,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	dposv2Addr := pctx.CreateContract(dposv2.Contract)
 	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
-	validators := []*dposv2.Validator{
-		&dposv2.Validator{
-			PubKey: pubKeyB64_1,
-			Power:  10,
-		},
-	}
+
 	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
 		Params: &dposv2.Params{
 			ValidatorCount: 21,
@@ -185,9 +185,14 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	pubKeyB64_2, _ := encoder.DecodeString(pubKey2)
 	addr1 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	addr2 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_2)}
-	//setup dposv2 fake contract
-	pctx := plugin.CreateFakeContext(addr1, addr1)
-
+	//setup fake contract
+	validators := []*loom.Validator{
+		&loom.Validator{
+			PubKey: pubKeyB64_1,
+			Power:  10,
+		},
+	}
+	pctx := plugin.CreateFakeContext(addr1, addr1).WithValidators(validators)
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -202,17 +207,12 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	dposv2Addr := pctx.CreateContract(dposv2.Contract)
 	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
-	varlidators := []*dposv2.Validator{
-		&dposv2.Validator{
-			PubKey: pubKeyB64_1,
-			Power:  10,
-		},
-	}
+
 	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
 		Params: &dposv2.Params{
 			ValidatorCount: 21,
 		},
-		Validators: varlidators,
+		Validators: validators,
 	})
 	require.NoError(err)
 
@@ -278,6 +278,26 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	addr4 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_4)}
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
+	validators := []*loom.Validator{
+		&loom.Validator{
+			PubKey: pubKeyB64_1,
+			Power:  10,
+		},
+		&loom.Validator{
+			PubKey: pubKeyB64_2,
+			Power:  10,
+		},
+		&loom.Validator{
+			PubKey: pubKeyB64_3,
+			Power:  10,
+		},
+		&loom.Validator{
+			PubKey: pubKeyB64_4,
+			Power:  10,
+		},
+	}
+	pctx = pctx.WithValidators(validators)
+
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -292,29 +312,12 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	dposv2Addr := pctx.CreateContract(dposv2.Contract)
 	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
-	varlidators := []*dposv2.Validator{
-		&dposv2.Validator{
-			PubKey: pubKeyB64_1,
-			Power:  10,
-		},
-		&dposv2.Validator{
-			PubKey: pubKeyB64_2,
-			Power:  10,
-		},
-		&dposv2.Validator{
-			PubKey: pubKeyB64_3,
-			Power:  10,
-		},
-		&dposv2.Validator{
-			PubKey: pubKeyB64_4,
-			Power:  10,
-		},
-	}
+
 	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
 		Params: &dposv2.Params{
 			ValidatorCount: 21,
 		},
-		Validators: varlidators,
+		Validators: validators,
 	})
 	require.NoError(err)
 

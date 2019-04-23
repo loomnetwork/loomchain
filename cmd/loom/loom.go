@@ -28,8 +28,10 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -931,6 +933,36 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
+	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
+			dposV3Ctx, err := createDPOSV3Ctx(state)
+			if err != nil {
+				return nil, err
+			}
+			validators, err := dposv3.ValidatorList(dposV3Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
+		} else if cfg.DPOSVersion == 2 {
+			createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
+			dposV2Ctx, err := createDPOSV2Ctx(state)
+			if err != nil {
+				return nil, err
+			}
+			validators, err := dposv2.ValidatorList(dposV2Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
+		}
+
+		// if DPOS contract is not deployed, get validators from genesis file
+		genesisValidators := b.Validators()
+		return loom.NewValidatorSet(genesisValidators...), nil
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
 	oracle, err := loom.ParseAddress(cfg.Oracle)
@@ -1032,6 +1064,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		GetValidatorSet:             getValidatorSet,
 	}, nil
 }
 

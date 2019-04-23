@@ -222,11 +222,6 @@ func TestElect(t *testing.T) {
 	assert.Equal(t, 12, int(witnesses[1].VoteTotal))
 	assert.Equal(t, 240, int(witnesses[1].PowerTotal))
 
-	valids := pctx.Validators()
-	require.Len(t, valids, 2)
-	assert.Equal(t, pubKey1, valids[0].PubKey)
-	assert.Equal(t, pubKey2, valids[1].PubKey)
-
 	// Shouldn't be able to elect again for an hour
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: chainID,
@@ -255,11 +250,6 @@ func TestElect(t *testing.T) {
 	assert.Equal(t, pubKey2, witnesses[1].PubKey)
 	assert.Equal(t, 12, int(witnesses[1].VoteTotal))
 	assert.Equal(t, 240, int(witnesses[1].PowerTotal))
-
-	valids = pctx.Validators()
-	require.Len(t, valids, 2)
-	assert.Equal(t, pubKey1, valids[0].PubKey)
-	assert.Equal(t, pubKey2, valids[1].PubKey)
 
 	staticCoin := &ERC20Static{
 		StaticContext:   ctx,
