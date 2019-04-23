@@ -2277,9 +2277,9 @@ func TestPostLocktimeRewards(t *testing.T) {
 func TestDedoublingDelegation(t *testing.T) {
 	originalAmount := loom.NewBigUIntFromInt(100)
 	doubledDelegation := Delegation{
-		Validator:    doubledValidator.MarshalPB(),
-		Delegator:    doubledDelegator.MarshalPB(),
-		Amount:       &types.BigUInt{Value: *originalAmount},
+		Validator: doubledValidator.MarshalPB(),
+		Delegator: doubledDelegator.MarshalPB(),
+		Amount:    &types.BigUInt{Value: *originalAmount},
 	}
 	adjustedAmount := adjustDoubledDelegationAmount(doubledDelegation)
 	expectedAmount := common.BigZero()
@@ -2288,12 +2288,40 @@ func TestDedoublingDelegation(t *testing.T) {
 
 	// test that adjustDoubledDelegationAmount does not halve the amount of a delegation which does not match the doubledDelegator & doubledValidator
 	nonDoubledDelegation := Delegation{
-		Validator:    delegatorAddress1.MarshalPB(),
-		Delegator:    doubledDelegator.MarshalPB(),
-		Amount:       &types.BigUInt{Value: *originalAmount},
+		Validator: delegatorAddress1.MarshalPB(),
+		Delegator: doubledDelegator.MarshalPB(),
+		Amount:    &types.BigUInt{Value: *originalAmount},
 	}
 	adjustedAmount = adjustDoubledDelegationAmount(nonDoubledDelegation)
 	assert.True(t, adjustedAmount.Value.Cmp(originalAmount) == 0)
+}
+
+// after we migrate we want to have all delegations that were in plasma-* nodes, on plasma-0
+func TestPlasmaDelegationMigration(t *testing.T) {
+	expectedValidator := plasmaValidators[0]
+	someDelegator := loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
+	someAmount := types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+
+	// check that all plasma validators get reset to plasma-0
+	for _, v := range plasmaValidators {
+		migratedDelegation := Delegation{
+			Validator: v.MarshalPB(),
+			Delegator: someDelegator.MarshalPB(),
+			Amount:    &someAmount,
+		}
+		migratedValidator := adjustValidatorIfInPlasmaValidators(migratedDelegation)
+		assert.True(t, migratedValidator.Local.Compare(expectedValidator.Local) == 0)
+	}
+
+	// non-plasma validators should be left as they are
+	someValidator := loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c312314589Cb")
+	migratedDelegationWithoutChange := Delegation{
+		Validator: someValidator.MarshalPB(),
+		Delegator: someDelegator.MarshalPB(),
+		Amount:    &someAmount,
+	}
+	migratedValidator := adjustValidatorIfInPlasmaValidators(migratedDelegationWithoutChange)
+	assert.True(t, migratedValidator.Local.Compare(someValidator.Local) == 0)
 }
 
 // UTILITIES
