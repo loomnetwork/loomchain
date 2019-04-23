@@ -241,6 +241,9 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 func (gw *Gateway) GetValidatorAuthStrategy(ctx contract.StaticContext, req *GetValidatorAuthStrategyRequest) (*GetValidatorAuthStrategyResponse, error) {
 	validatorAuthConfig := ValidatorAuthConfig{}
 	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		if err == contract.ErrNotFound {
+			return &GetValidatorAuthStrategyResponse{}, nil
+		}
 		return nil, err
 	}
 
@@ -250,6 +253,9 @@ func (gw *Gateway) GetValidatorAuthStrategy(ctx contract.StaticContext, req *Get
 func (gw *Gateway) GetTrustedValidators(ctx contract.StaticContext, req *TrustedValidatorsRequest) (*TrustedValidatorsResponse, error) {
 	validatorAuthConfig := ValidatorAuthConfig{}
 	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		if err == contract.ErrNotFound {
+			return &TrustedValidatorsResponse{}, nil
+		}
 		return nil, err
 	}
 	return &TrustedValidatorsResponse{TrustedValidators: validatorAuthConfig.TrustedValidators}, nil
@@ -297,7 +303,9 @@ func (gw *Gateway) UpdateValidatorAuthStrategy(ctx contract.Context, req *Update
 
 	validatorAuthConfig := ValidatorAuthConfig{}
 	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
-		return err
+		if err != contract.ErrNotFound {
+			return err
+		}
 	}
 
 	if req.AuthStrategy == tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS && validatorAuthConfig.TrustedValidators == nil {
