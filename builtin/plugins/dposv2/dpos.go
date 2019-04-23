@@ -2141,11 +2141,11 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	var v3Statistics []*dposv3.ValidatorStatistic
 	for _, statistic := range statistics {
 		v3Statistic := &dposv3.ValidatorStatistic{
-			Address:           statistic.Address,
-			PubKey:            statistic.PubKey,
-			WhitelistAmount:   statistic.WhitelistAmount,
-			DelegationTotal:   statistic.DelegationTotal,
-			SlashPercentage:   statistic.SlashPercentage,
+			Address:         statistic.Address,
+			PubKey:          statistic.PubKey,
+			WhitelistAmount: statistic.WhitelistAmount,
+			DelegationTotal: statistic.DelegationTotal,
+			SlashPercentage: statistic.SlashPercentage,
 		}
 		v3Statistics = append(v3Statistics, v3Statistic)
 	}
@@ -2183,10 +2183,11 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		validatorString := delegation.Validator.Local.String()
 		delegatorString := delegation.Delegator.Local.String()
 		delegationKey := validatorString + delegatorString
+		validator := adjustValidatorIfInPlasmaValidators(*delegation)
 		amount := adjustDoubledDelegationAmount(*delegation)
 
 		v3Delegation := &dposv3.Delegation{
-			Validator:    delegation.Validator,
+			Validator:    validator,
 			Delegator:    delegation.Delegator,
 			Index:        dposv3.DELEGATION_START_INDEX + indices[delegationKey],
 			Amount:       amount,
@@ -2224,15 +2225,4 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	}
 
 	return initializationState, nil
-}
-
-func adjustDoubledDelegationAmount(delegation Delegation) *types.BigUInt {
-	amount := delegation.Amount.Value
-	validatorMatch := doubledValidator.Local.Compare(delegation.Validator.Local) == 0
-	delegatorMatch := doubledDelegator.Local.Compare(delegation.Delegator.Local) == 0
-	if validatorMatch && delegatorMatch {
-		amount = *common.BigZero()
-		amount.Div(&delegation.Amount.Value, loom.NewBigUIntFromInt(2))
-	}
-	return &types.BigUInt{Value: amount}
 }
