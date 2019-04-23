@@ -193,6 +193,18 @@ func (f *FnConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	delete(f.connectedPeers, peer.ID())
 }
 
+func (f *FnConsensusReactor) broadcastMsgSync(chID byte, exception *p2p.ID, msgBytes []byte) {
+	f.peerMapMtx.RLock()
+	defer f.peerMapMtx.RUnlock()
+
+	for _, peer := range f.connectedPeers {
+		if exception != nil && (*exception) == peer.ID() {
+			continue
+		}
+		peer.Send(chID, msgBytes)
+	}
+}
+
 func (f *FnConsensusReactor) myAddress() []byte {
 	return f.privValidator.GetPubKey().Address()
 }
@@ -438,11 +450,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	f.peerMapMtx.RLock()
-	for _, peer := range f.connectedPeers {
-		peer.Send(FnVoteSetChannel, marshalledBytes)
-	}
-	f.peerMapMtx.RUnlock()
+	f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytes)
 }
 
 func (f *FnConsensusReactor) commit(fnID string) {
@@ -489,16 +497,12 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			}
 
 			// Propogate your last Maj23, to remedy any issue
-			f.peerMapMtx.RLock()
-			for _, peer := range f.connectedPeers {
-				// TODO: Handle timeout
-				peer.Send(FnMajChannel, marshalledBytesOfPreviousVoteSet)
-			}
+			f.broadcastMsgSync(FnMajChannel, nil, marshalledBytesOfPreviousVoteSet)
+
 			time.Sleep(VoteSetPropogationDelay)
-			for _, peer := range f.connectedPeers {
-				peer.Send(FnVoteSetChannel, marshalledBytesOfCurrentVoteSet)
-			}
-			f.peerMapMtx.RUnlock()
+
+			// Propogate your current voteSet, to get newly joined node to sign it
+			f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytesOfCurrentVoteSet)
 		}
 	} else {
 		if areWeValidator {
@@ -670,13 +674,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	f.peerMapMtx.RLock()
-	for _, peer := range f.connectedPeers {
-		// TODO: Handle timeout
-		peer.Send(FnMajChannel, marshalledBytes)
-	}
-	f.peerMapMtx.RUnlock()
-
+	f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
 }
 
 func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgBytes []byte) {
@@ -794,21 +792,14 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		return
 	}
 
-	f.peerMapMtx.RLock()
-	for peerID, peer := range f.connectedPeers {
-
-		// If we didnt contribute to remote vote, no need to pass it to sender
-		// If this is false, then we must not have achieved Maj23
-		if !didWeContribute {
-			if peerID == sender.ID() {
-				continue
-			}
-		}
-
-		// TODO: Handle timeout
-		peer.Send(FnVoteSetChannel, marshalledBytes)
+	// If we didnt contribute to remote vote, no need to pass it to sender
+	// If this is false, then we must not have achieved Maj23
+	broadCastException := sender.ID()
+	if !didWeContribute {
+		f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, marshalledBytes)
+	} else {
+		f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytes)
 	}
-	f.peerMapMtx.RUnlock()
 }
 
 // Receive is called when msgBytes is received from peer.
