@@ -300,15 +300,6 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		}
 	}
 
-	// first zero out the current validators
-	for _, wit := range state.Witnesses {
-		ctx.SetValidatorPower(wit.PubKey, 0)
-	}
-
-	for _, wit := range sortedWitnesses {
-		ctx.SetValidatorPower(wit.PubKey, 100)
-	}
-
 	state.Witnesses = sortedWitnesses
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)

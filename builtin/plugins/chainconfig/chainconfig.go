@@ -5,12 +5,12 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
@@ -60,6 +60,8 @@ var (
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
 	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
 	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
+	// ErrEmptyValidatorsList is returned if ctx.Validators() return empty validators list.
+	ErrEmptyValidatorsList = errors.New("[ChainConfig] empty validators list")
 	// ErrFeatureNotSupported inidicates that an enabled feature is not supported in the current build
 	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
 )
@@ -299,7 +301,7 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
-func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
+func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
 	// TODO: Replace all this with ctx.Validators() when it's hooked up to DPOSv3 (and ideally DPOSv2)
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 		contractAddr, err := ctx.Resolve("dposV3")
@@ -344,6 +346,33 @@ func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
 		if v != nil {
 			addr := loom.UnmarshalAddressPB(v.Address)
 			validators = append(validators, addr)
+		}
+	}
+
+	if len(validators) == 0 {
+		return nil, ErrEmptyValidatorsList
+	}
+
+	return validators, nil
+}
+
+func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_1, false) {
+		return getCurrentValidatorsFromDPOS(ctx)
+	}
+
+	validatorsList := ctx.Validators()
+	chainID := ctx.Block().ChainID
+
+	if len(validatorsList) == 0 {
+		return nil, ErrEmptyValidatorsList
+	}
+
+	validators := make([]loom.Address, 0, len(validatorsList))
+	for _, v := range validatorsList {
+		if v != nil {
+			address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+			validators = append(validators, address)
 		}
 	}
 	return validators, nil
