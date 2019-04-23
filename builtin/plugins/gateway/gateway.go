@@ -994,24 +994,9 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		break
 
 	case tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS:
-		contractAddr, err := ctx.Resolve("dposV2")
+		valAddresses, powers, clusterStake, err := getCurrentValidators(ctx)
 		if err != nil {
 			return err
-		}
-		valsreq := &dpostypes.ListValidatorsRequestV2{}
-		var resp dpostypes.ListValidatorsResponseV2
-
-		clusterStake := big.NewInt(0)
-
-		err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp)
-		if err != nil {
-			return err
-		}
-
-		valAddresses := make([]*types.Address, len(resp.Statistics))
-		for i, val := range resp.Statistics {
-			valAddresses[i] = val.Address
-			clusterStake.Add(val.DelegationTotal.Value.Int, clusterStake)
 		}
 
 		requiredStakeForMaj23 := big.NewInt(0)
@@ -1043,7 +1028,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			}
 			seenVal[valIndexInt] = true
 
-			signedValStakes.Add(signedValStakes, resp.Statistics[i].DelegationTotal.Value.Int)
+			signedValStakes.Add(signedValStakes, powers[i])
 		}
 
 		if signedValStakes.Cmp(requiredStakeForMaj23) < 0 {
@@ -2019,4 +2004,31 @@ func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr lo
 		result = append(result, loom.UnmarshalAddressPB(&addr))
 	}
 	return result, nil
+}
+
+// taken from https://github.com/loomnetwork/loomchain/blob/2bd54308109c5a53526ae45f7b26a5a7042ffe5f/builtin/plugins/chainconfig/chainconfig.go#L359
+func getCurrentValidators(ctx contract.StaticContext) ([]*types.Address, []*big.Int, *big.Int, error) {
+	validatorsList := ctx.Validators()
+	chainID := ctx.Block().ChainID
+
+	if len(validatorsList) == 0 {
+		return nil, nil, nil, errors.New("Empty validator list")
+	}
+
+	clusterStake := big.NewInt(0)
+	valAddresses := make([]*types.Address, len(validatorsList))
+	powers := make([]*big.Int, len(validatorsList))
+	for i, v := range validatorsList {
+		if v != nil {
+			valAddresses[i] = loom.Address{
+				ChainID: chainID,
+				Local:   loom.LocalAddressFromPublicKey(v.PubKey),
+			}.MarshalPB()
+			powers[i] = big.NewInt(v.Power)
+
+			clusterStake.Add(powers[i], clusterStake)
+		}
+	}
+
+	return valAddresses, powers, clusterStake, nil
 }

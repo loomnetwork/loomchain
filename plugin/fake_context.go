@@ -41,6 +41,14 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 	}
 }
 
+func (c *FakeContextWithEVM) WithValidators(validators []*types.Validator) *FakeContextWithEVM {
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext.WithValidators(validators),
+		State:                    c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
+	}
+}
+
 func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
 		FakeContext:              c.FakeContext.WithBlock(header),
