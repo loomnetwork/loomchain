@@ -949,13 +949,28 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 // and only one Validator will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
 func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+	valAddresses, powers, clusterStake, err := getCurrentValidators(ctx)
+	if err != nil {
+		return err
+	}
+
+	sender := ctx.Message().Sender
+	var found bool = false
+	for _, v := range valAddresses {
+		if sender.Local.Compare(v.Local) == 0 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ErrNotAuthorized
+	}
+
 	validatorsAuthConfig := &ValidatorAuthConfig{}
 	if err := ctx.Get(validatorAuthConfigKey, validatorsAuthConfig); err != nil {
 		return err
 	}
-
 	hash := client.ToEthereumSignedMessage(req.WithdrawalHash)
-
 	switch validatorsAuthConfig.AuthStrategy {
 	case tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS:
 		// Convert array of validator to array of address, try to resolve via address mapper
@@ -976,11 +991,6 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		}
 		break
 	case tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS:
-		valAddresses, powers, clusterStake, err := getCurrentValidators(ctx)
-		if err != nil {
-			return err
-		}
-
 		requiredStakeForMaj23 := big.NewInt(0)
 		requiredStakeForMaj23.Mul(clusterStake, big.NewInt(2))
 		requiredStakeForMaj23.Div(requiredStakeForMaj23, big.NewInt(3))
