@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -24,46 +24,48 @@ import (
 )
 
 type (
-	InitRequest                     = tgtypes.TransferGatewayInitRequest
-	AddOracleRequest                = tgtypes.TransferGatewayAddOracleRequest
-	RemoveOracleRequest             = tgtypes.TransferGatewayRemoveOracleRequest
-	GetOraclesRequest               = tgtypes.TransferGatewayGetOraclesRequest
-	GetOraclesResponse              = tgtypes.TransferGatewayGetOraclesResponse
-	GatewayState                    = tgtypes.TransferGatewayState
-	OracleState                     = tgtypes.TransferGatewayOracleState
-	ProcessEventBatchRequest        = tgtypes.TransferGatewayProcessEventBatchRequest
-	GatewayStateRequest             = tgtypes.TransferGatewayStateRequest
-	GatewayStateResponse            = tgtypes.TransferGatewayStateResponse
-	WithdrawETHRequest              = tgtypes.TransferGatewayWithdrawETHRequest
-	WithdrawTokenRequest            = tgtypes.TransferGatewayWithdrawTokenRequest
-	WithdrawalReceiptRequest        = tgtypes.TransferGatewayWithdrawalReceiptRequest
-	WithdrawalReceiptResponse       = tgtypes.TransferGatewayWithdrawalReceiptResponse
-	ConfirmWithdrawalReceiptRequest = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequest
-	PendingWithdrawalsRequest       = tgtypes.TransferGatewayPendingWithdrawalsRequest
-	PendingWithdrawalsResponse      = tgtypes.TransferGatewayPendingWithdrawalsResponse
-	WithdrawalReceipt               = tgtypes.TransferGatewayWithdrawalReceipt
-	GetUnclaimedTokensRequest       = tgtypes.TransferGatewayGetUnclaimedTokensRequest
-	GetUnclaimedTokensResponse      = tgtypes.TransferGatewayGetUnclaimedTokensResponse
-	UnclaimedToken                  = tgtypes.TransferGatewayUnclaimedToken
-	ReclaimDepositorTokensRequest   = tgtypes.TransferGatewayReclaimDepositorTokensRequest
-	ReclaimContractTokensRequest    = tgtypes.TransferGatewayReclaimContractTokensRequest
-	LocalAccount                    = tgtypes.TransferGatewayLocalAccount
-	ForeignAccount                  = tgtypes.TransferGatewayForeignAccount
-	MainnetTokenDeposited           = tgtypes.TransferGatewayTokenDeposited
-	MainnetTokenWithdrawn           = tgtypes.TransferGatewayTokenWithdrawn
-	MainnetEvent                    = tgtypes.TransferGatewayMainnetEvent
-	MainnetDepositEvent             = tgtypes.TransferGatewayMainnetEvent_Deposit
-	MainnetWithdrawalEvent          = tgtypes.TransferGatewayMainnetEvent_Withdrawal
-	TokenKind                       = tgtypes.TransferGatewayTokenKind
-	PendingWithdrawalSummary        = tgtypes.TransferGatewayPendingWithdrawalSummary
-	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
-	TokenAmount                     = tgtypes.TransferGatewayTokenAmount
-	MainnetProcessEventError        = tgtypes.TransferGatewayProcessMainnetEventError
-	ReclaimError                    = tgtypes.TransferGatewayReclaimError
-	WithdrawETHError                = tgtypes.TransferGatewayWithdrawETHError
-	WithdrawTokenError              = tgtypes.TransferGatewayWithdrawTokenError
-	WithdrawLoomCoinError           = tgtypes.TransferGatewayWithdrawLoomCoinError
-	MainnetEventTxHashInfo          = tgtypes.TransferGatewayMainnetEventTxHashInfo
+	InitRequest                        = tgtypes.TransferGatewayInitRequest
+	AddOracleRequest                   = tgtypes.TransferGatewayAddOracleRequest
+	RemoveOracleRequest                = tgtypes.TransferGatewayRemoveOracleRequest
+	GetOraclesRequest                  = tgtypes.TransferGatewayGetOraclesRequest
+	GetOraclesResponse                 = tgtypes.TransferGatewayGetOraclesResponse
+	GatewayState                       = tgtypes.TransferGatewayState
+	OracleState                        = tgtypes.TransferGatewayOracleState
+	ProcessEventBatchRequest           = tgtypes.TransferGatewayProcessEventBatchRequest
+	GatewayStateRequest                = tgtypes.TransferGatewayStateRequest
+	GatewayStateResponse               = tgtypes.TransferGatewayStateResponse
+	WithdrawETHRequest                 = tgtypes.TransferGatewayWithdrawETHRequest
+	WithdrawTokenRequest               = tgtypes.TransferGatewayWithdrawTokenRequest
+	WithdrawalReceiptRequest           = tgtypes.TransferGatewayWithdrawalReceiptRequest
+	WithdrawalReceiptResponse          = tgtypes.TransferGatewayWithdrawalReceiptResponse
+	ConfirmWithdrawalReceiptRequest    = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequest
+	PendingWithdrawalsRequest          = tgtypes.TransferGatewayPendingWithdrawalsRequest
+	PendingWithdrawalsResponse         = tgtypes.TransferGatewayPendingWithdrawalsResponse
+	WithdrawalReceipt                  = tgtypes.TransferGatewayWithdrawalReceipt
+	GetUnclaimedTokensRequest          = tgtypes.TransferGatewayGetUnclaimedTokensRequest
+	GetUnclaimedTokensResponse         = tgtypes.TransferGatewayGetUnclaimedTokensResponse
+	GetUnclaimedContractTokensRequest  = tgtypes.TransferGatewayGetUnclaimedContractTokensRequest
+	GetUnclaimedContractTokensResponse = tgtypes.TransferGatewayGetUnclaimedContractTokensResponse
+	UnclaimedToken                     = tgtypes.TransferGatewayUnclaimedToken
+	ReclaimDepositorTokensRequest      = tgtypes.TransferGatewayReclaimDepositorTokensRequest
+	ReclaimContractTokensRequest       = tgtypes.TransferGatewayReclaimContractTokensRequest
+	LocalAccount                       = tgtypes.TransferGatewayLocalAccount
+	ForeignAccount                     = tgtypes.TransferGatewayForeignAccount
+	MainnetTokenDeposited              = tgtypes.TransferGatewayTokenDeposited
+	MainnetTokenWithdrawn              = tgtypes.TransferGatewayTokenWithdrawn
+	MainnetEvent                       = tgtypes.TransferGatewayMainnetEvent
+	MainnetDepositEvent                = tgtypes.TransferGatewayMainnetEvent_Deposit
+	MainnetWithdrawalEvent             = tgtypes.TransferGatewayMainnetEvent_Withdrawal
+	TokenKind                          = tgtypes.TransferGatewayTokenKind
+	PendingWithdrawalSummary           = tgtypes.TransferGatewayPendingWithdrawalSummary
+	TokenWithdrawalSigned              = tgtypes.TransferGatewayTokenWithdrawalSigned
+	TokenAmount                        = tgtypes.TransferGatewayTokenAmount
+	MainnetProcessEventError           = tgtypes.TransferGatewayProcessMainnetEventError
+	ReclaimError                       = tgtypes.TransferGatewayReclaimError
+	WithdrawETHError                   = tgtypes.TransferGatewayWithdrawETHError
+	WithdrawTokenError                 = tgtypes.TransferGatewayWithdrawTokenError
+	WithdrawLoomCoinError              = tgtypes.TransferGatewayWithdrawLoomCoinError
+	MainnetEventTxHashInfo             = tgtypes.TransferGatewayMainnetEventTxHashInfo
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
 )
@@ -1082,6 +1084,47 @@ func (gw *Gateway) GetUnclaimedTokens(ctx contract.StaticContext, req *GetUnclai
 	}, nil
 }
 
+func (gw *Gateway) GetUnclaimedContractTokens(
+	ctx contract.StaticContext, req *GetUnclaimedContractTokensRequest,
+) (*GetUnclaimedContractTokensResponse, error) {
+	if req.TokenAddress == nil {
+		return nil, ErrInvalidRequest
+	}
+	ethTokenAddress := loom.UnmarshalAddressPB(req.TokenAddress)
+	depositors, err := unclaimedTokenDepositorsByContract(ctx, ethTokenAddress)
+	if err != nil {
+		return nil, err
+	}
+	unclaimedAmount := loom.NewBigUIntFromInt(0)
+	var unclaimedToken UnclaimedToken
+	amount := loom.NewBigUIntFromInt(0)
+	for _, address := range depositors {
+		tokenKey := unclaimedTokenKey(address, ethTokenAddress)
+		err := ctx.Get(tokenKey, &unclaimedToken)
+		if err != nil && err != contract.ErrNotFound {
+			return nil, errors.Wrapf(err, "failed to load unclaimed token for %v", address)
+		}
+		switch unclaimedToken.TokenKind {
+		case TokenKind_ERC721:
+			unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, loom.NewBigUIntFromInt(int64(len(unclaimedToken.Amounts))))
+		case TokenKind_ERC721X:
+			for _, a := range unclaimedToken.Amounts {
+				unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, loom.NewBigUInt(a.TokenAmount.Value.Int))
+
+			}
+		case TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
+			if len(unclaimedToken.Amounts) == 1 {
+				amount = loom.NewBigUInt(unclaimedToken.Amounts[0].TokenAmount.Value.Int)
+			}
+			unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, amount)
+
+		}
+	}
+	return &GetUnclaimedContractTokensResponse{
+		UnclaimedAmount: &types.BigUInt{Value: *unclaimedAmount},
+	}, nil
+}
+
 // ReclaimContractTokens will attempt to transfer tokens that originated from the specified Mainnet
 // contract, and that have been deposited to the Mainnet Gateway, but haven't yet been received by
 // the depositors on the DAppChain because of a missing identity or contract mapping. This function
@@ -1704,6 +1747,20 @@ func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) 
 			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
 		}
 		result = append(result, &unclaimedToken)
+	}
+	return result, nil
+}
+
+// Returns all unclaimed tokens for a token contract
+func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
+	result := []loom.Address{}
+	contractKey := unclaimedTokenDepositorsRangePrefix(tokenAddr)
+	for _, entry := range ctx.Range(contractKey) {
+		var addr types.Address
+		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
+			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		result = append(result, loom.UnmarshalAddressPB(&addr))
 	}
 	return result, nil
 }

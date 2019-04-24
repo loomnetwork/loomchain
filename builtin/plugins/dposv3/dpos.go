@@ -34,17 +34,17 @@ const (
 	TIER_TWO                       = dtypes.LocktimeTier_TIER_TWO
 	TIER_THREE                     = dtypes.LocktimeTier_TIER_THREE
 
-	ElectionEventTopic                   = "dposv3:election"
-	SlashEventTopic                      = "dposv3:slash"
-	CandidateRegistersEventTopic         = "dposv3:candidateregisters"
-	CandidateUnregistersEventTopic       = "dposv3:candidateunregisters"
-	CandidateFeeChangeEventTopic         = "dposv3:candidatefeechange"
-	UpdateCandidateInfoEventTopic        = "dposv3:updatecandidateinfo"
-	DelegatorDelegatesEventTopic         = "dposv3:delegatordelegates"
-	DelegatorRedelegatesEventTopic       = "dposv3:delegatorredelegates"
-	DelegatorConsolidatesEventTopic      = "dposv3:delegatorconsolidates"
-	DelegatorUnbondsEventTopic           = "dposv3:delegatorunbonds"
-	ReferrerRegistersEventTopic          = "dposv3:referrerregisters"
+	ElectionEventTopic              = "dposv3:election"
+	SlashEventTopic                 = "dposv3:slash"
+	CandidateRegistersEventTopic    = "dposv3:candidateregisters"
+	CandidateUnregistersEventTopic  = "dposv3:candidateunregisters"
+	CandidateFeeChangeEventTopic    = "dposv3:candidatefeechange"
+	UpdateCandidateInfoEventTopic   = "dposv3:updatecandidateinfo"
+	DelegatorDelegatesEventTopic    = "dposv3:delegatordelegates"
+	DelegatorRedelegatesEventTopic  = "dposv3:delegatorredelegates"
+	DelegatorConsolidatesEventTopic = "dposv3:delegatorconsolidates"
+	DelegatorUnbondsEventTopic      = "dposv3:delegatorunbonds"
+	ReferrerRegistersEventTopic     = "dposv3:referrerregisters"
 )
 
 var (
@@ -205,7 +205,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
-		msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %u, Fee: %u", cand.MaxReferralPercentage, defaultReferrerFee.Uint64())
+		msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", cand.MaxReferralPercentage, defaultReferrerFee.Uint64())
 		return logDposError(ctx, errors.New(msg), req.String())
 	}
 
@@ -286,7 +286,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
-			msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %u, Fee: %u", candidate.MaxReferralPercentage, defaultReferrerFee.Uint64())
+			msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", candidate.MaxReferralPercentage, defaultReferrerFee.Uint64())
 			return logDposError(ctx, errors.New(msg), req.String())
 		}
 	}
@@ -560,11 +560,11 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
 		SetStatistic(ctx, &ValidatorStatistic{
-			Address:           req.CandidateAddress,
-			WhitelistAmount:   req.Amount,
-			LocktimeTier:      tierNumber,
-			DelegationTotal:   loom.BigZeroPB(),
-			SlashPercentage:   loom.BigZeroPB(),
+			Address:         req.CandidateAddress,
+			WhitelistAmount: req.Amount,
+			LocktimeTier:    tierNumber,
+			DelegationTotal: loom.BigZeroPB(),
+			SlashPercentage: loom.BigZeroPB(),
 		})
 	} else if err == nil {
 		// ValidatorStatistic must not yet exist for a particular candidate in order
@@ -942,11 +942,11 @@ func Elect(ctx contract.Context) error {
 			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistic = &ValidatorStatistic{
-					Address:           res.ValidatorAddress.MarshalPB(),
-					PubKey:            candidate.PubKey,
-					DelegationTotal:   delegationTotal,
-					SlashPercentage:   loom.BigZeroPB(),
-					WhitelistAmount:   loom.BigZeroPB(),
+					Address:         res.ValidatorAddress.MarshalPB(),
+					PubKey:          candidate.PubKey,
+					DelegationTotal: delegationTotal,
+					SlashPercentage: loom.BigZeroPB(),
+					WhitelistAmount: loom.BigZeroPB(),
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
@@ -1936,7 +1936,7 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 
 func (c *DPOS) emitReferrerRegistersEvent(ctx contract.Context, name string, address *types.Address) error {
 	marshalled, err := proto.Marshal(&DposReferrerRegistersEvent{
-		Name: name,
+		Name:    name,
 		Address: address,
 	})
 	if err != nil {

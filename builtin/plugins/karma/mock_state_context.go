@@ -21,7 +21,7 @@ func CreateFakeStateContext(state loomchain.State, reg registry.Registry, caller
 	fakeContext := plugin.CreateFakeContext(caller, address)
 	return &FakeStateContext{
 		FakeContext: *fakeContext,
-		state:       loomchain.StateWithPrefix(loom.DataPrefix(address), state),
+		state:       state.WithPrefix(loom.DataPrefix(address)),
 		registry:    reg,
 		VM:          pluginVm,
 	}

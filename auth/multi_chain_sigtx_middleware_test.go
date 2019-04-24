@@ -57,8 +57,9 @@ var (
 func TestSigning(t *testing.T) {
 	pk, err := crypto.GenerateKey()
 	err = crypto.SaveECDSA("newpk", pk)
-
+	require.NoError(t, err)
 	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	require.NoError(t, err)
 	require.NotEqual(t, nil, privateKey)
 	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 	require.NoError(t, err)
@@ -68,6 +69,7 @@ func TestSigning(t *testing.T) {
 	// Encode
 	nonceTx := []byte("nonceTx")
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	require.NoError(t, err)
 	hash := sha3.SoliditySHA3(
 		sha3.Address(common.BytesToAddress(ethLocalAdr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
@@ -76,7 +78,7 @@ func TestSigning(t *testing.T) {
 	)
 
 	signature, err := evmcompat.GenerateTypedSig(hash, privateKey, evmcompat.SignatureType_EIP712)
-
+	require.NoError(t, err)
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
 		Signature: signature,
@@ -85,6 +87,7 @@ func TestSigning(t *testing.T) {
 
 	// Decode
 	recoverdAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, tx.Signature)
+	require.NoError(t, err)
 	require.NotEqual(t, nil, recoverdAddr)
 	require.True(t, bytes.Equal(recoverdAddr.Bytes(), ethLocalAdr))
 
@@ -95,6 +98,7 @@ func TestSigning(t *testing.T) {
 
 func TestTronSigning(t *testing.T) {
 	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	require.NoError(t, err)
 	require.NotEqual(t, nil, privateKey)
 	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 	require.NoError(t, err)
@@ -104,7 +108,7 @@ func TestTronSigning(t *testing.T) {
 	// Encode
 	nonceTx := []byte("nonceTx")
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
-
+	require.NoError(t, err)
 	hash := sha3.SoliditySHA3(
 		sha3.Address(common.BytesToAddress(ethLocalAdr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
@@ -113,7 +117,7 @@ func TestTronSigning(t *testing.T) {
 	)
 
 	signature, err := crypto.Sign(hash, privateKey)
-
+	require.NoError(t, err)
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
 		Signature: signature,
@@ -133,6 +137,7 @@ func TestTronSigning(t *testing.T) {
 
 func TestEosSigning(t *testing.T) {
 	privateKey, err := ecc.NewRandomPrivateKey()
+	require.NoError(t, err)
 	require.NotEqual(t, nil, privateKey)
 	keyString := privateKey.String()
 	pk, err := ecc.NewPrivateKey(keyString)
@@ -172,6 +177,7 @@ func TestEosSigning(t *testing.T) {
 
 func TestEosScatterSinging(t *testing.T) {
 	privateKey, err := ecc.NewRandomPrivateKey()
+	require.NoError(t, err)
 	publicKey := privateKey.PublicKey()
 	publicKeyPacked, err := publicKey.Pack()
 	key, err := publicKey.Key()
@@ -192,6 +198,7 @@ func TestEosScatterSinging(t *testing.T) {
 	fmt.Println("scatterMsgHash hex", hex.EncodeToString(scatterMsgHash[:]))
 
 	signedMsg, err := privateKey.Sign(scatterMsgHash[:])
+	require.NoError(t, err)
 	fmt.Println("signed msg", signedMsg.String())
 	require.NoError(t, err)
 	sigBytes, err := signedMsg.Pack()
@@ -289,7 +296,7 @@ func testEthAddressMappingVerification(
 	foreignAddr loom.Address,
 	amSignature []byte,
 ) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -332,7 +339,7 @@ func testEthAddressMappingVerification(
 }
 
 func TestChainIdVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))

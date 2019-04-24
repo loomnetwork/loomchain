@@ -29,4 +29,7 @@ const (
 
 	// Enables specific migrations, each migration has an ID that's prefixed by this string.
 	MigrationFeaturePrefix = "migration:"
+
+	// Enables usage of ctx.Validators() in ChainConfig contract.
+	ChainCfgVersion1_1 = "chaincfg:v1.1"
 )
