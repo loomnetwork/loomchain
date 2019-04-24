@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -14,7 +13,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-
+	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
 
@@ -757,7 +756,7 @@ func (c *DPOS) RegisterCandidate2(ctx contract.Context, req *RegisterCandidateRe
 		return err
 	}
 
-	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
+	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey.PubKey)
 	if candidateAddress.Local.Compare(checkAddr) != 0 {
 		return logDposError(ctx, errors.New("Public key does not match address."), req.String())
 	}
@@ -861,7 +860,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
-	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
+	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey.PubKey)
 	if candidateAddress.Local.Compare(checkAddr) != 0 {
 		return logDposError(ctx, errors.New("Public key does not match address."), req.String())
 	}
@@ -1186,7 +1185,7 @@ func Elect(ctx contract.Context) error {
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
 			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			validators = append(validators, &Validator{
-				PubKey: candidate.PubKey,
+				PubKey: candidate.PubKey.PubKey,
 				Power:  validatorPower,
 			})
 
@@ -1262,7 +1261,7 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		stat := statistics.Get(address)
 		if stat == nil {
 			stat = &ValidatorStatistic{
-				PubKey:  validator.PubKey,
+				PubKey: &dtypes.PubKeyV2{PubKey:validator.PubKey},
 				Address: address.MarshalPB(),
 			}
 		}
@@ -1291,7 +1290,7 @@ func (c *DPOS) ListValidatorsSimple(
 			Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
 		}
 		stat := &ValidatorStatistic{
-			PubKey:  validator.PubKey,
+			PubKey:  &dtypes.PubKeyV2{PubKey:validator.PubKey},
 			Address: address.MarshalPB(),
 		}
 		displayStatistics = append(displayStatistics, stat)
@@ -2119,7 +2118,7 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	for _, candidate := range candidates {
 		v3Candidate := &dposv3.Candidate{
 			Address: candidate.Address,
-			PubKey:  candidate.PubKey,
+			PubKey:  &d3types.PubKeyV3{PubKey:candidate.PubKey.PubKey},
 			Fee:     candidate.Fee,
 			NewFee:  candidate.NewFee,
 			// Any candidate mid-fee change during migration will have to call
@@ -2142,7 +2141,7 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	for _, statistic := range statistics {
 		v3Statistic := &dposv3.ValidatorStatistic{
 			Address:         statistic.Address,
-			PubKey:          statistic.PubKey,
+			PubKey:          &d3types.PubKeyV3{PubKey:statistic.PubKey.PubKey},
 			WhitelistAmount: statistic.WhitelistAmount,
 			DelegationTotal: statistic.DelegationTotal,
 			SlashPercentage: statistic.SlashPercentage,

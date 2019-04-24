@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-
+	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -642,7 +642,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
-	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
+	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey.PubKey)
 	if candidateAddress.Local.Compare(checkAddr) != 0 {
 		return logDposError(ctx, errors.New("Public key does not match address."), req.String())
 	}
@@ -935,7 +935,7 @@ func Elect(ctx contract.Context) error {
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
 			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			validators = append(validators, &Validator{
-				PubKey: candidate.PubKey,
+				PubKey: candidate.PubKey.PubKey,
 				Power:  validatorPower,
 			})
 
@@ -1063,7 +1063,7 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		stat, _ := GetStatistic(ctx, address)
 		if stat == nil {
 			stat = &ValidatorStatistic{
-				PubKey:  validator.PubKey,
+				PubKey:  &d3types.PubKeyV3{PubKey:validator.PubKey},
 				Address: address.MarshalPB(),
 			}
 		}
