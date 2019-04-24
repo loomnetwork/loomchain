@@ -266,12 +266,11 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
 type Application struct {
-	lastBlockHeader  abci.Header
-	curBlockHeader   abci.Header
-	curBlockHash     []byte
-	validatorUpdates []types.Validator
-	Store            store.VersionedKVStore
-	Init             func(State) error
+	lastBlockHeader abci.Header
+	curBlockHeader  abci.Header
+	curBlockHash    []byte
+	Store           store.VersionedKVStore
+	Init            func(State) error
 	TxHandler
 	QueryHandler
 	EventHandler
