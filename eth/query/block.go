@@ -7,14 +7,14 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 var (
@@ -103,14 +103,7 @@ func GetNumEvmTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState
 	if err != nil {
 		return 0, errors.Wrapf(err, "results for block %v", height)
 	}
-
-	numEvmTx := uint64(0)
-	for _, deliverTx := range blockResults.Results.DeliverTx {
-		if deliverTx.Info == utils.DeployEvm || deliverTx.Info == utils.CallEVM {
-			numEvmTx++
-		}
-	}
-	return numEvmTx, nil
+	return uint64(len(blockResults.Results.DeliverTx)), nil
 }
 
 // todo find better method of doing this. Maybe use a blockhash index.

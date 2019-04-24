@@ -50,7 +50,7 @@ func GetTxByBlockAndIndex(
 	if err != nil {
 		return txObj, errors.Wrapf(err, "results for block %v", height)
 	}
-	if len(blockResults.Results.DeliverTx) < int(index) {
+	if len(blockResults.Results.DeliverTx) < int(index)+1 {
 		return txObj, errors.Errorf("index %v exceeds size of result array %v", index, len(blockResults.Results.DeliverTx))
 	}
 
