@@ -330,8 +330,10 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	} else {
 		// if less than the full amount is being redelegated, create a new
 		// delegation for new validator and unbond from former validator
-		priorDelegation.State = UNBONDING
-		priorDelegation.UpdateAmount = req.Amount
+		priorDelegation.State = REDELEGATING
+		priorDelegation.UpdateAmount.Value.Add(&priorDelegation.UpdateAmount.Value, &req.Amount.Value)
+		priorDelegation.UpdateValidator = priorDelegation.Validator
+
 		index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *priorDelegation.Delegator)
 		if err != nil {
 			return err
