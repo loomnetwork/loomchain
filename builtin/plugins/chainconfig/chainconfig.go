@@ -4,13 +4,11 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
-	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
@@ -301,66 +299,7 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
-func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
-	// TODO: Replace all this with ctx.Validators() when it's hooked up to DPOSv3 (and ideally DPOSv2)
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
-		contractAddr, err := ctx.Resolve("dposV3")
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to resolve address of DPOSv3 contract")
-		}
-
-		req := &dposv3.ListValidatorsRequest{}
-		var resp dposv3.ListValidatorsResponse
-		if err := contract.StaticCallMethod(ctx, contractAddr, "ListValidators", req, &resp); err != nil {
-			return nil, errors.Wrap(err, "failed to call ListValidators")
-		}
-
-		validators := make([]loom.Address, 0, len(resp.Statistics))
-		for _, v := range resp.Statistics {
-			if v != nil {
-				addr := loom.UnmarshalAddressPB(v.Address)
-				validators = append(validators, addr)
-			}
-		}
-		return validators, nil
-	}
-
-	// Fallback to DPOSv2 if DPOSv3 isn't enabled
-	contractAddr, err := ctx.Resolve("dposV2")
-	if err != nil {
-		// No DPOSv2 either? Fine, then features can only be enabled via the contract genesis!
-		if err == registry.ErrNotFound {
-			return nil, nil
-		}
-		return nil, errors.Wrap(err, "failed to resolve address of DPOS contract")
-	}
-
-	req := &dpostypes.ListValidatorsRequestV2{}
-	var resp dpostypes.ListValidatorsResponseV2
-	if err := contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", req, &resp); err != nil {
-		return nil, errors.Wrap(err, "failed to call ListValidators")
-	}
-
-	validators := make([]loom.Address, 0, len(resp.Statistics))
-	for _, v := range resp.Statistics {
-		if v != nil {
-			addr := loom.UnmarshalAddressPB(v.Address)
-			validators = append(validators, addr)
-		}
-	}
-
-	if len(validators) == 0 {
-		return nil, ErrEmptyValidatorsList
-	}
-
-	return validators, nil
-}
-
 func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_1, false) {
-		return getCurrentValidatorsFromDPOS(ctx)
-	}
-
 	validatorsList := ctx.Validators()
 	chainID := ctx.Block().ChainID
 
