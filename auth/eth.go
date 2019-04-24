@@ -42,7 +42,7 @@ func verifyTron(tx SignedTx) ([]byte, error) {
 
 func verifyEos(tx SignedTx) ([]byte, error) {
 	signature := ecc.NewSigNil()
-	if _, err := signature.Unpack(tx.Signature); err != nil {
+	if _, err := signature.Unpack(tx.Signature[1:]); err != nil {
 		return nil, errors.Wrapf(err, "unpack eos signature %v", tx.Signature)
 	}
 	eosPubKey, err := signature.PublicKey(sha3.SoliditySHA3(tx.Inner))
@@ -53,7 +53,7 @@ func verifyEos(tx SignedTx) ([]byte, error) {
 }
 
 func verifyEosScatter(tx SignedTx) ([]byte, error) {
-	signature, err := ecc.NewSignature(string(tx.Signature))
+	signature, err := ecc.NewSignature(string(tx.Signature[1:]))
 	if err != nil {
 		return nil, errors.Wrapf(err, "unpack eos signature %v", tx.Signature)
 	}
