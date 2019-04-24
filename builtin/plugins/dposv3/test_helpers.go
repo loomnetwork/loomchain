@@ -108,6 +108,19 @@ func (dpos *testDPOSContract) CheckRewards(ctx *plugin.FakeContext) (*common.Big
 	return &resp.TotalRewardDistribution.Value, err
 }
 
+func (dpos *testDPOSContract) CheckRewardDelegation(ctx *plugin.FakeContext, validator *loom.Address) (*Delegation, error) {
+	resp, err := dpos.Contract.CheckRewardDelegation(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&CheckRewardDelegationRequest{
+			ValidatorAddress: validator.MarshalPB(),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Delegation, nil
+}
+
 func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator *loom.Address, delegator *loom.Address) ([]*Delegation, *common.BigUInt, *common.BigUInt, error) {
 	resp, err := dpos.Contract.CheckDelegation(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
