@@ -965,7 +965,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 	sender := ctx.Message().Sender
 	var found bool = false
 	for _, v := range valAddresses {
-		if sender.Local.Compare(v.Local) == 0 {
+		if sender.Compare(loom.UnmarshalAddressPB(v)) == 0 {
 			found = true
 			break
 		}
