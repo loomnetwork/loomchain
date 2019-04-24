@@ -625,9 +625,23 @@ func TestRedelegate(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	delegations, _, _, err := dpos.CheckDelegation(pctx, &addr3, &delegatorAddress2)
+	balanceBefore, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
-	// assert.True(t, delegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	balanceAfter, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	require.True(t, balanceBefore.Balance.Value.Cmp(&balanceAfter.Balance.Value) == 0)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	delegations, _, _, err := dpos.CheckDelegation(pctx, &addr3, &delegatorAddress2)
 	assert.Equal(t, delegations[len(delegations)-1].LocktimeTier, TIER_THREE)
 
 	// checking that all 3 candidates have been elected validators
