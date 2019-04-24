@@ -78,16 +78,11 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 		},
 	})
 
-	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dpos, err := deployDPOSContract(pctx, 21, 0, &coinAddr, nil, nil, nil, nil, &oracleAddr)
+	require.Nil(t, err)
+	dposAddr := dpos.Address
 	dposCtx := pctx.WithAddress(dposAddr)
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
-		Params: &Params{
-			ValidatorCount: 21,
-			OracleAddress:  oracleAddr.MarshalPB(),
-		},
-	})
-	require.NoError(t, err)
+	dposContract := dpos.Contract
 
 	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
@@ -173,8 +168,6 @@ func TestChangeFee(t *testing.T) {
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
 	}
 
-	dposContract := &DPOS{}
-
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey),
@@ -185,42 +178,20 @@ func TestChangeFee(t *testing.T) {
 	coinContract := &coin.Coin{}
 	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
 
-	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
-		Params: &Params{
-			ValidatorCount: 21,
-			OracleAddress:  oracleAddr.MarshalPB(),
-		},
-	})
+	dpos, err := deployDPOSContract(pctx, 21, 0, nil, nil, nil, nil, nil, &oracleAddr)
 	require.Nil(t, err)
 
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LocktimeTier:     0,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 1,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	amount := big.NewInt(1000000000000)
+	err = dpos.WhitelistCandidate(pctx.WithSender(oracleAddr), addr, amount, 0)
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
-		PubKey: pubKey,
-		Fee:    oldFee,
-	})
+	err = dpos.RegisterCandidate(pctx.WithSender(addr), pubKey, &oldFee, nil, nil, nil)
 	require.Nil(t, err)
 
-	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
+	candidates, err := dpos.ListCandidates(pctx)
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, oldFee, candidates[0].Candidate.Fee)
+	assert.Equal(t, oldFee, candidates[0].Candidate.NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -228,33 +199,31 @@ func TestChangeFee(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
+	candidates, err = dpos.ListCandidates(pctx)
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, oldFee, candidates[0].Candidate.Fee)
+	assert.Equal(t, oldFee, candidates[0].Candidate.NewFee)
 
-	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &dtypes.ChangeCandidateFeeRequest{
-		Fee: newFee,
-	})
+	err = dpos.ChangeFee(pctx.WithSender(addr), newFee)
 	require.Nil(t, err)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
+	candidates, err = dpos.ListCandidates(pctx)
 	require.Nil(t, err)
 	// Fee should not reset after only a single election
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, oldFee, candidates[0].Candidate.Fee)
+	assert.Equal(t, newFee, candidates[0].Candidate.NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
+	candidates, err = dpos.ListCandidates(pctx)
 	require.Nil(t, err)
 	// Fee should reset after two elections
-	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, newFee, candidates[0].Candidate.Fee)
+	assert.Equal(t, newFee, candidates[0].Candidate.NewFee)
 }
 
 func TestDelegate(t *testing.T) {
@@ -1380,20 +1349,12 @@ func TestReferrerRewards(t *testing.T) {
 	})
 
 	// create dpos contract
-	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
-	dposCtx := pctx.WithAddress(dposAddr)
-
-	// Init the dpos contract
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
-		Params: &Params{
-			CoinContractAddress: coinAddr.MarshalPB(),
-			ValidatorCount:      10,
-			ElectionCycleLength: 0,
-			OracleAddress:  addr1.MarshalPB(),
-		},
-	})
+	dpos, err := deployDPOSContract(pctx, 10, 0, &coinAddr, nil, nil, nil, nil, &addr1)
 	require.Nil(t, err)
+
+	dposAddr := dpos.Address
+	dposCtx := pctx.WithAddress(dposAddr)
+	dposContract := dpos.Contract
 
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 
