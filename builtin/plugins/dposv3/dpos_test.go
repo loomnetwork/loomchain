@@ -552,7 +552,6 @@ func TestElectWhitelists(t *testing.T) {
 	require.Nil(t, err)
 	dposAddr := dpos.Address
 	dposCtx := pctx.WithAddress(dposAddr)
-	dposContract := dpos.Contract
 
 	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
 	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
@@ -566,104 +565,34 @@ func TestElectWhitelists(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
+	whitelistAmount := big.NewInt(1000000000000)
 
 	// Whitelist with locktime tier 0, which should use 5% of rewards
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr1.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LocktimeTier:     0,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 1,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
 	require.Nil(t, err)
 
 	// Whitelist with locktime tier 1, which should use 7.5% of rewards
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr2.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LocktimeTier:     1,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 2,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr2, whitelistAmount, 1)
 	require.Nil(t, err)
 
 	// Whitelist with locktime tier 2, which should use 10% of rewards
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr3.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LocktimeTier:     2,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 3,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr3, whitelistAmount, 2)
 	require.Nil(t, err)
 
 	// Whitelist with locktime tier 3, which should use 20% of rewards
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr4.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LocktimeTier:     3,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 4,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr4, whitelistAmount, 3)
+
+	// Register the 4 validators
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	// Register the 5 validators
-
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
-		PubKey: pubKey1,
-	})
+	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
-		PubKey: pubKey2,
-	})
+	err = dpos.RegisterCandidate(pctx.WithSender(addr3), pubKey3, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
-		PubKey: pubKey3,
-	})
-	require.Nil(t, err)
-
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr4)), &RegisterCandidateRequest{
-		PubKey: pubKey4,
-	})
+	err = dpos.RegisterCandidate(pctx.WithSender(addr4), pubKey4, nil, nil, nil, nil)
 	require.Nil(t, err)
 
 	// Check that they were registered properly
@@ -671,75 +600,56 @@ func TestElectWhitelists(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(candidates), 4)
 
-	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	validators, err := dpos.ListValidators(pctx)
 	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
+	assert.Equal(t, len(validators), 0)
 
 	// Elect them
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 4)
+	assert.Equal(t, len(validators), 4)
 
 	// Do a bunch of elections that correspond to 1/100th of a year
 	for i := int64(0); i < yearSeconds/100; i = i + cycleLengthSeconds {
 		require.NoError(t, elect(pctx, dpos.Address))
-		dposCtx.SetTime(dposCtx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
+		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
 	}
 
-	checkResponse, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckRewardDelegationRequest{ValidatorAddress: addr1.MarshalPB()})
+	rewards1, err := dpos.CheckRewardDelegation(pctx.WithSender(addr1), &addr1)
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 0.5% of delegation after one year
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(490000000)}), 1)
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(510000000)}), -1)
+	assert.Equal(t, rewards1.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(490000000)}), 1)
+	assert.Equal(t, rewards1.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(510000000)}), -1)
 
-	checkResponse, err = dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &CheckRewardDelegationRequest{ValidatorAddress: addr2.MarshalPB()})
+	rewards2, err := dpos.CheckRewardDelegation(pctx.WithSender(addr2), &addr2)
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 0.75% of delegation after one year
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(740000000)}), 1)
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(760000000)}), -1)
+	assert.Equal(t, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(740000000)}), 1)
+	assert.Equal(t, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(760000000)}), -1)
 
-	checkResponse, err = dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &CheckRewardDelegationRequest{ValidatorAddress: addr3.MarshalPB()})
+	rewards3, err := dpos.CheckRewardDelegation(pctx.WithSender(addr3), &addr3)
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 1% of delegation after one year
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(990000000)}), 1)
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), -1)
+	assert.Equal(t, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(990000000)}), 1)
+	assert.Equal(t, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), -1)
 
-	checkResponse, err = dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr4)), &CheckRewardDelegationRequest{ValidatorAddress: addr4.MarshalPB()})
+	rewards4, err := dpos.CheckRewardDelegation(pctx.WithSender(addr4), &addr4)
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 2% of delegation after one year
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1990000000)}), 1)
-	assert.Equal(t, checkResponse.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), -1)
+	assert.Equal(t, rewards4.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1990000000)}), 1)
+	assert.Equal(t, rewards4.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), -1)
 
 	// Let's withdraw rewards and see how the balances change.
 
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           loom.BigZeroPB(),
-		Index:            REWARD_DELEGATION_INDEX,
-	})
-
+	err = dpos.Unbond(pctx.WithSender(addr1), &addr1, big.NewInt(0), REWARD_DELEGATION_INDEX)
 	require.Nil(t, err)
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &UnbondRequest{
-		ValidatorAddress: addr2.MarshalPB(),
-		Amount:           loom.BigZeroPB(),
-		Index:            REWARD_DELEGATION_INDEX,
-	})
+	err = dpos.Unbond(pctx.WithSender(addr2), &addr2, big.NewInt(0), REWARD_DELEGATION_INDEX)
 	require.Nil(t, err)
-
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &UnbondRequest{
-		ValidatorAddress: addr3.MarshalPB(),
-		Amount:           loom.BigZeroPB(),
-		Index:            REWARD_DELEGATION_INDEX,
-	})
-
+	err = dpos.Unbond(pctx.WithSender(addr3), &addr3, big.NewInt(0), REWARD_DELEGATION_INDEX)
 	require.Nil(t, err)
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr4)), &UnbondRequest{
-		ValidatorAddress: addr4.MarshalPB(),
-		Amount:           loom.BigZeroPB(),
-		Index:            REWARD_DELEGATION_INDEX,
-	})
+	err = dpos.Unbond(pctx.WithSender(addr4), &addr4, big.NewInt(0), REWARD_DELEGATION_INDEX)
 	require.Nil(t, err)
 
 	require.NoError(t, elect(pctx, dpos.Address))
