@@ -128,7 +128,7 @@ func (sl ValidatorStatisticList) Get(address loom.Address) *ValidatorStatistic {
 
 func (sl ValidatorStatisticList) GetV2(address []byte) *ValidatorStatistic {
 	for _, stat := range sl {
-		statAddress := loom.LocalAddressFromPublicKeyV2(stat.PubKey)
+		statAddress := loom.LocalAddressFromPublicKeyV2(stat.PubKey.PubKey)
 		if bytes.Compare(statAddress, address) == 0 {
 			return stat
 		}
@@ -257,7 +257,7 @@ func (c CandidateList) Get(addr loom.Address) *Candidate {
 
 func (c CandidateList) GetByPubKey(pubkey []byte) *Candidate {
 	for _, cand := range c {
-		if bytes.Compare(cand.PubKey, pubkey) == 0 {
+		if bytes.Compare(cand.PubKey.PubKey, pubkey) == 0 {
 			return cand
 		}
 	}

@@ -301,7 +301,7 @@ func GetCandidateByPubKey(ctx contract.StaticContext, pubkey []byte) *Candidate 
 	}
 
 	for _, cand := range c {
-		if bytes.Compare(cand.PubKey, pubkey) == 0 {
+		if bytes.Compare(cand.PubKey.PubKey, pubkey) == 0 {
 			return cand
 		}
 	}
