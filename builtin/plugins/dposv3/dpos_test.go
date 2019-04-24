@@ -26,32 +26,32 @@ var (
 	validatorPubKeyHex3 = "e4008e26428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
 	validatorPubKeyHex4 = "21908210428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
 
-	delegatorAddress1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	delegatorAddress2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
-	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	delegatorAddress4 = loom.MustParseAddress("chain:0x000000000000000000000000e3edf03b825e01e0")
-	delegatorAddress5 = loom.MustParseAddress("chain:0x020000000000000000000000e3edf03b825e0288")
-	delegatorAddress6 = loom.MustParseAddress("chain:0x000000000000000000040400e3edf03b825e0398")
-	chainID = "default"
-	startTime int64 = 100000
+	delegatorAddress1       = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	delegatorAddress2       = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	delegatorAddress3       = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	delegatorAddress4       = loom.MustParseAddress("chain:0x000000000000000000000000e3edf03b825e01e0")
+	delegatorAddress5       = loom.MustParseAddress("chain:0x020000000000000000000000e3edf03b825e0288")
+	delegatorAddress6       = loom.MustParseAddress("chain:0x000000000000000000040400e3edf03b825e0398")
+	chainID                 = "default"
+	startTime         int64 = 100000
 
 	pubKey1, _ = hex.DecodeString(validatorPubKeyHex1)
-	addr1 = loom.Address{
+	addr1      = loom.Address{
 		ChainID: chainID,
-		Local: loom.LocalAddressFromPublicKey(pubKey1),
+		Local:   loom.LocalAddressFromPublicKey(pubKey1),
 	}
 	pubKey2, _ = hex.DecodeString(validatorPubKeyHex2)
-	addr2 = loom.Address{
+	addr2      = loom.Address{
 		ChainID: chainID,
-		Local: loom.LocalAddressFromPublicKey(pubKey2),
+		Local:   loom.LocalAddressFromPublicKey(pubKey2),
 	}
 	pubKey3, _ = hex.DecodeString(validatorPubKeyHex3)
-	addr3 = loom.Address{
+	addr3      = loom.Address{
 		ChainID: chainID,
-		Local: loom.LocalAddressFromPublicKey(pubKey3),
+		Local:   loom.LocalAddressFromPublicKey(pubKey3),
 	}
 	pubKey4, _ = hex.DecodeString(validatorPubKeyHex4)
-	addr4 = loom.Address{
+	addr4      = loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey4),
 	}
@@ -1365,8 +1365,8 @@ func TestReferrerRewards(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
-		PubKey: pubKey1,
-		Fee: 2000,
+		PubKey:                pubKey1,
+		Fee:                   2000,
 		MaxReferralPercentage: 10000,
 	})
 	require.Nil(t, err)
@@ -1388,13 +1388,13 @@ func TestReferrerRewards(t *testing.T) {
 	del1Name := "del1"
 	// Register two referrers
 	err = dposContract.RegisterReferrer(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterReferrerRequest{
-		Name: del1Name,
+		Name:    del1Name,
 		Address: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
 
 	err = dposContract.RegisterReferrer(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterReferrerRequest{
-		Name: "del2",
+		Name:    "del2",
 		Address: delegatorAddress2.MarshalPB(),
 	})
 	require.Nil(t, err)
