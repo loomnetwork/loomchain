@@ -190,6 +190,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 		Id:   id,
 		Data: messageTx,
 	})
+	require.NoError(t, err)
 	nonceTx, err := proto.Marshal(&auth.NonceTx{
 		Inner:    tx,
 		Sequence: sequence,
