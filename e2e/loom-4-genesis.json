@@ -40,6 +40,10 @@
             {
               "name":"auth:sigtx:default",
               "status":"WAITING"
+            },
+            {
+              "name":"auth:sigtx:eos",
+              "status":"WAITING"
             }
           ]
       }

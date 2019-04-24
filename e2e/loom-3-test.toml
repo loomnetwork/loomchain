@@ -67,7 +67,7 @@
 
 # eos
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore3 --algo eos --caller-chain eos -k eccPrivateKey"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore3 --algo eos --caller-chain eos -k eccPrivateKey"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -76,7 +76,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore3 --algo eos --caller-chain eos  -k eccPrivateKey"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore3 --algo eos --caller-chain eos  -k eccPrivateKey"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [
@@ -85,7 +85,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom static-call-evm -i inputGet.bin -n SimpleStore3"
+  RunCmd = "{{ $.LoomPath }} static-call-evm -i inputGet.bin -n SimpleStore3"
   Condition = "contains"
   Expected = [ "Call response: ", "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]" ]
   Datafiles = [ { Filename = "inputGet.bin", Contents = "6d4ce63c" } ]

@@ -192,9 +192,9 @@ func TestEosScatterSinging(t *testing.T) {
 	//Encode
 	txDataHex := strings.ToUpper(hex.EncodeToString(nonceTx))
 	hash_1 := sha256.Sum256([]byte(txDataHex))
-	hash_2 := sha256.Sum256([]byte(strconv.FormatUint(3/*innerTx.Sequence*/, 10)))
+	hash_2 := sha256.Sum256([]byte(strconv.FormatUint(innerTx.Sequence, 10)))
 	scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash_1[:32]) + hex.EncodeToString(hash_2[:32])))
-	//fmt.Println("scatterMsgHash   ", string(scatterMsgHash[:]))
+
 	fmt.Println("scatterMsgHash hex", hex.EncodeToString(scatterMsgHash[:]))
 
 	signedMsg, err := privateKey.Sign(scatterMsgHash[:])
@@ -217,9 +217,8 @@ func TestEosScatterSinging(t *testing.T) {
 
 	txDataHex2 := strings.ToUpper(hex.EncodeToString(tx.Inner))
 	hash_12 := sha256.Sum256([]byte(txDataHex2))
-	hash_22 := sha256.Sum256([]byte(strconv.FormatUint(3/*innerTx2.Sequence*/, 10)))
+	hash_22 := sha256.Sum256([]byte(strconv.FormatUint(innerTx2.Sequence, 10)))
 	scatterMsgHash2 := sha256.Sum256([]byte(hex.EncodeToString(hash_12[:32]) + hex.EncodeToString(hash_22[:32])))
-	//fmt.Println("scatterMsgHash2    ", string(scatterMsgHash2[:]))
 	fmt.Println("scatterMsgHash2 hex", hex.EncodeToString(scatterMsgHash2[:]))
 	eosPubKey, err := signature.PublicKey(scatterMsgHash2[:32])
 
