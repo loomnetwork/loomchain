@@ -13,3 +13,5 @@ Auth:
       TxType: "tron"
     eos:
       TxType: "eos"
+    eos-scatter:
+      TxType: "eos-scatter"

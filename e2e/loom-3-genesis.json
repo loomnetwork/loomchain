@@ -23,16 +23,20 @@
               },
               "features": [
                 {
-                  "name":"auth:sigtx:eth",
-                  "status":"WAITING"
+                    "name":"auth:sigtx:eth",
+                    "status":"WAITING"
                 },
                 {
-                  "name":"auth:sigtx:tron",
-                  "status":"WAITING"
+                    "name":"auth:sigtx:tron",
+                    "status":"WAITING"
                 },
                 {
-                  "name":"auth:sigtx:eos",
-                  "status":"WAITING"
+                    "name":"auth:sigtx:eos",
+                    "status":"WAITING"
+                },
+                {
+                    "name":"auth:sigtx:eos-scatter",
+                    "status":"WAITING"
                 }
               ]
           }

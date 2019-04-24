@@ -98,7 +98,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings mapped-chain-id tron -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings mapped-chain-id eos -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [ "mappings", '"chainId": "eos"' ]
 
