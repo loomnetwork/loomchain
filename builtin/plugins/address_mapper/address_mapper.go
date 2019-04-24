@@ -204,23 +204,14 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 
 	if chainID == "eos-scatter" {
 		sig = append([]byte{byte(evmcompat.SignatureType_EOS_SCATTER)}, sig...)
-
 		nonceSha := sha256.Sum256([]byte("0"))
 		hash_1 := sha256.Sum256([]byte("0x" + hex.EncodeToString(hash)))
 		hash_2 := sha256.Sum256([]byte(hex.EncodeToString(nonceSha[:6])))
 		scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash_1[:]) + hex.EncodeToString(hash_2[:])))
-
 		signerAddr, err = evmcompat.RecoverAddressFromTypedSig(scatterMsgHash[:], sig)
-		if err != nil {
-			return err
-		}
 	} else if chainID == "eos" {
 		sig = append([]byte{byte(evmcompat.SignatureType_EOS)}, sig...)
 		signerAddr, err = evmcompat.RecoverAddressFromTypedSig(hash, sig)
-		if err != nil {
-			return err
-		}
-
 	} else {
 		signerAddr, err = evmcompat.RecoverAddressFromTypedSig(hash, sig)
 	}
