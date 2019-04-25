@@ -314,7 +314,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state30, 30))
 
-	for height := 100 ; height < 120 ; height++ {
+	for height := 100; height < 120; height++ {
 		mockEvent := []*types.EventData{
 			{
 				Topics:      []string{"topic1"},

@@ -10,8 +10,8 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 type LegacyEthSubscriptionSet struct {

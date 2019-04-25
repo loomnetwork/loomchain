@@ -445,4 +445,3 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 	cmdFlags.StringVar(&loomGatewayAddressEth, "loom-eth-gateway-addr", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "LOOM Ethereum Gateway Address")
 	return cmd
 }
-
