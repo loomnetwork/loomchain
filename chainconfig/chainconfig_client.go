@@ -32,6 +32,7 @@ const (
 	FeatureDisabled = cctypes.Feature_DISABLED
 )
 
+// ChainConfigClient is used to enable pending features in the ChainConfig contract.
 type ChainConfigClient struct {
 	Address  goloom.Address
 	contract *client.Contract

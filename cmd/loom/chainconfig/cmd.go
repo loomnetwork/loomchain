@@ -92,7 +92,7 @@ func AddFeatureCmd() *cobra.Command {
 		&noAutoEnable,
 		"no-auto-enable",
 		false,
-		"Not allow validator nodes to automatically vote to enable features they support",
+		"Don't allow validator nodes to auto-enable this feature (operator will have to do so manually)",
 	)
 	cmd.MarkFlagRequired("build")
 	return cmd

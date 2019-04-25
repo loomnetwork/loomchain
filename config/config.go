@@ -169,13 +169,20 @@ type PrometheusPushGatewayConfig struct {
 }
 
 type ChainConfigConfig struct {
-	ContractEnabled       bool
-	DAppChainReadURI      string
-	DAppChainWriteURI     string
-	EnableFeatureInterval int64 // Frequency (in seconds) with which the node should auto-enable features
-	LogLevel              string
-	LogDestination        string
-	AutoEnableFeatures    bool // Allow the node to auto-enable features supported by the current build
+	// Allow deployment of the ChainConfig contract
+	ContractEnabled bool
+	// Allow a validator node to auto-enable features supported by the current build
+	AutoEnableFeatures bool
+	// Frequency (in seconds) with which the node should auto-enable features
+	EnableFeatureInterval int64
+	// DAppChain URI feature auto-enabler should use to query the chain
+	DAppChainReadURI string
+	// DAppChain URI feature auto-enabler should use to submit txs to the chain
+	DAppChainWriteURI string
+	// Log level for feature auto-enabler
+	LogLevel string
+	// Log destination for feature auto-enabler
+	LogDestination string
 }
 
 type DeployerWhitelistConfig struct {
@@ -222,7 +229,7 @@ func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 		EnableFeatureInterval: 1800, // ChainConfigRoutine runs every 30 minutes by default
 		LogLevel:              "info",
 		LogDestination:        "file://chainconfig.log",
-		AutoEnableFeatures:    true,
+		AutoEnableFeatures:    false,
 	}
 }
 
@@ -605,19 +612,23 @@ LoomCoinTransferGateway:
     MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
   {{end}}
+
 #
 # ChainConfig
 #
 ChainConfig:
+  # Allow deployment of the ChainConfig contract
   ContractEnabled: {{ .ChainConfig.ContractEnabled }}
-  DAppChainReadURI: {{ .ChainConfig.DAppChainReadURI }}
-  DAppChainWriteURI: {{ .ChainConfig.DAppChainWriteURI }}
+  # Allow a validator node to auto-enable features supported by the current build
+  AutoEnableFeatures: {{ .ChainConfig.AutoEnableFeatures }}
   # Frequency (in seconds) with which the node should auto-enable features
   EnableFeatureInterval: {{ .ChainConfig.EnableFeatureInterval }}
+  DAppChainReadURI: {{ .ChainConfig.DAppChainReadURI }}
+  DAppChainWriteURI: {{ .ChainConfig.DAppChainWriteURI }}
+  # Log level for feature auto-enabler
   LogLevel: {{ .ChainConfig.LogLevel }}
+  # Log destination for feature auto-enabler
   LogDestination: {{ .ChainConfig.LogDestination }}
-  # Allow the node to auto-enable features supported by the current build
-  AutoEnableFeatures: {{ .ChainConfig.AutoEnableFeatures }}
 
 #
 # DeployerWhitelist
