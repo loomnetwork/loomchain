@@ -174,7 +174,8 @@ func (dpos *testDPOSContract) ChangeFee(ctx *plugin.FakeContext, candidateFee ui
 
 func (dpos *testDPOSContract) RegisterCandidate(
 	ctx *plugin.FakeContext,
-	pubKey []byte, // TODO: add tier
+	pubKey []byte,
+	tier *uint64,
 	candidateFee *uint64,
 	candidateName *string,
 	candidateDescription *string,
@@ -182,6 +183,10 @@ func (dpos *testDPOSContract) RegisterCandidate(
 ) error {
 	req := RegisterCandidateRequest{
 		PubKey: pubKey,
+	}
+
+	if tier != nil {
+		req.LocktimeTier = *tier
 	}
 
 	if candidateFee != nil {
