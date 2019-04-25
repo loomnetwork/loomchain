@@ -186,7 +186,8 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 	return nil
 }
 
-// RemoveFeature should be called by the contract owner to remove features
+// RemoveFeature should be called by the contract owner to remove features.
+// NOTE: Features can only be removed before they're activated by the chain.
 func (c *ChainConfig) RemoveFeature(ctx contract.Context, req *RemoveFeatureRequest) error {
 	if len(req.Names) == 0 {
 		return ErrInvalidRequest

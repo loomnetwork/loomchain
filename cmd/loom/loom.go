@@ -37,8 +37,8 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
-	chainconfigRoutine "github.com/loomnetwork/loomchain/chainconfig"
-	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
+	"github.com/loomnetwork/loomchain/chainconfig"
+	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
@@ -410,7 +410,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startChainConfigRoutine(chainID, cfg.ChainConfig, nodeSigner); err != nil {
+			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner); err != nil {
 				return err
 			}
 
@@ -453,12 +453,12 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 	return nil
 }
 
-func startChainConfigRoutine(chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer) error {
+func startFeatureAutoEnabler(chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer) error {
 	if !cfg.AutoEnableFeatures || !cfg.ContractEnabled {
 		return nil
 	}
 
-	routine, err := chainconfigRoutine.NewChainConfigRoutine(cfg, chainID, nodeSigner)
+	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner)
 	if err != nil {
 		return err
 	}
@@ -1304,7 +1304,7 @@ func main() {
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
-		chainconfig.NewChainCfgCommand(),
+		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)

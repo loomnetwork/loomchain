@@ -12,6 +12,8 @@ import (
 	"github.com/loomnetwork/loomchain/config"
 )
 
+// ChainConfigRoutine periodically checks for pending features in the ChainConfig contract and
+// automatically votes to enable those features.
 type ChainConfigRoutine struct {
 	cfg         *config.ChainConfigConfig
 	chainID     string
@@ -21,6 +23,7 @@ type ChainConfigRoutine struct {
 	buildNumber uint64
 }
 
+// NewChainConfigRoutine returns a new instance of ChainConfigRoutine
 func NewChainConfigRoutine(
 	cfg *config.ChainConfigConfig,
 	chainID string,
@@ -44,6 +47,8 @@ func NewChainConfigRoutine(
 	}, nil
 }
 
+// RunWithRecovery should be run as a go-routine, it will auto-restart on panic unless it hits
+// a runtime error.
 func (cc *ChainConfigRoutine) RunWithRecovery() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -57,10 +62,10 @@ func (cc *ChainConfigRoutine) RunWithRecovery() {
 		}
 	}()
 
-	cc.Run()
+	cc.run()
 }
 
-func (cc *ChainConfigRoutine) Run() {
+func (cc *ChainConfigRoutine) run() {
 	for {
 		dappClient := client.NewDAppChainRPCClient(cc.chainID, cc.cfg.DAppChainWriteURI, cc.cfg.DAppChainReadURI)
 		chainConfigClient, err := NewChainConfigClient(dappClient, cc.address, cc.signer, cc.logger)
