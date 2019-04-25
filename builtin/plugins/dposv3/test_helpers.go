@@ -121,7 +121,7 @@ func (dpos *testDPOSContract) CheckRewardDelegation(ctx *plugin.FakeContext, val
 	return resp.Delegation, nil
 }
 
-func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator *loom.Address, delegator *loom.Address) ([]*Delegation, *common.BigUInt, *common.BigUInt, error) {
+func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator *loom.Address, delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
 	resp, err := dpos.Contract.CheckDelegation(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&CheckDelegationRequest{
@@ -132,7 +132,7 @@ func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return resp.Delegations, &resp.Amount.Value, &resp.WeightedAmount.Value, nil
+	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
 }
 
 func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candidate loom.Address, amount *big.Int, tier LocktimeTier) error {
@@ -143,6 +143,21 @@ func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candid
 			Amount:           &types.BigUInt{Value: *loom.NewBigUInt(amount)},
 			LocktimeTier:     tier,
 		},
+	)
+	return err
+}
+
+func (dpos *testDPOSContract) ChangeWhitelistInfo(ctx *plugin.FakeContext, candidate *loom.Address, amount *big.Int, tier *LocktimeTier) error {
+	req := &ChangeWhitelistInfoRequest{
+		CandidateAddress: candidate.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	}
+	if tier != nil {
+		req.LocktimeTier = *tier
+	}
+	err := dpos.Contract.ChangeWhitelistInfo(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		req,
 	)
 	return err
 }
@@ -159,7 +174,7 @@ func (dpos *testDPOSContract) ChangeFee(ctx *plugin.FakeContext, candidateFee ui
 
 func (dpos *testDPOSContract) RegisterCandidate(
 	ctx *plugin.FakeContext,
-	pubKey []byte,
+	pubKey []byte, // TODO: add tier
 	candidateFee *uint64,
 	candidateName *string,
 	candidateDescription *string,

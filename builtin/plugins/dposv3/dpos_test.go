@@ -17,8 +17,6 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 )
 
 var (
@@ -273,7 +271,7 @@ func TestDelegate(t *testing.T) {
 
 	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr2)
 	require.Nil(t, err)
-	assert.True(t, delegatedAmount.Cmp(common.BigZero()) == 0)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
@@ -288,7 +286,7 @@ func TestDelegate(t *testing.T) {
 	// delegaiton being returned
 	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &addr2)
 	require.Nil(t, err)
-	assert.True(t, delegatedAmount.Cmp(common.BigZero()) == 0)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
@@ -328,11 +326,11 @@ func TestDelegate(t *testing.T) {
 
 	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
 	require.Nil(t, err)
-	assert.True(t, delegatedAmount.Cmp(common.BigZero()) == 0)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
 
 	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &limboValidatorAddress, &delegatorAddress1)
 	require.Nil(t, err)
-	assert.True(t, delegatedAmount.Int.Cmp(delegationAmount) == 0)
+	assert.True(t, delegatedAmount.Cmp(delegationAmount) == 0)
 }
 
 func TestRedelegate(t *testing.T) {
@@ -707,7 +705,6 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	dposAddr := dpos.Address
 	dposCtx := pctx.WithAddress(dposAddr)
-	dposContract := dpos.Contract
 
 	// transfer coins to reward fund
 	amount := big.NewInt(10)
@@ -719,129 +716,71 @@ func TestElect(t *testing.T) {
 		},
 	})
 
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr1.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LocktimeTier:     0,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 1,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	whitelistAmount := big.NewInt(1000000000000)
+
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
 	require.Nil(t, err)
 
-	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
-
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr2.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LocktimeTier:     0,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 2,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr2, whitelistAmount, 0)
 	require.Nil(t, err)
 
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*dtypes.BatchRequest{
-			&dtypes.BatchRequest{
-				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr3.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LocktimeTier:     0,
-				}},
-				Meta: &dtypes.BatchRequestMeta{
-					BlockNumber: 3,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr3, whitelistAmount, 0)
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
-		PubKey: pubKey1,
-	})
+	// Register the 4 validators
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
-		PubKey: pubKey2,
-	})
+	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
-		PubKey: pubKey3,
-	})
+	err = dpos.RegisterCandidate(pctx.WithSender(addr3), pubKey3, nil, nil, nil, nil)
 	require.Nil(t, err)
 
 	candidates, err := dpos.ListCandidates(dposCtx)
 	require.Nil(t, err)
 	assert.Equal(t, len(candidates), 3)
 
-	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	validators, err := dpos.ListValidators(pctx)
 	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
+	assert.Equal(t, len(validators), 0)
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
+	assert.Equal(t, len(validators), 2)
 
-	oldRewardsValue := *common.BigZero()
+	oldRewardsValue := big.NewInt(0)
 	for i := 0; i < 10; i++ {
 		require.NoError(t, elect(pctx, dpos.Address))
-		checkDelegation, _ := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
-			ValidatorAddress: addr1.MarshalPB(),
-			DelegatorAddress: addr1.MarshalPB(),
-		})
+		delegations, amount, _, err := dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &addr1)
+		require.NoError(t, err)
 		// get rewards delegaiton which is always at index 0
-		delegation := checkDelegation.Delegations[REWARD_DELEGATION_INDEX]
-		assert.Equal(t, delegation.Amount.Value.Cmp(&oldRewardsValue), 1)
-		oldRewardsValue = delegation.Amount.Value
+		delegation := delegations[REWARD_DELEGATION_INDEX]
+		assert.True(t, delegation.Amount.Value.Int.Cmp(oldRewardsValue) == 1)
+		oldRewardsValue = amount
 	}
 
 	// Change WhitelistAmount and verify that it got changed correctly
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
-	validator := listValidatorsResponse.Statistics[0]
-	assert.Equal(t, whitelistAmount, validator.WhitelistAmount.Value)
+	validator := validators[0]
+	assert.Equal(t, whitelistAmount, validator.WhitelistAmount.Value.Int)
 
-	newWhitelistAmount := loom.BigUInt{big.NewInt(2000000000000)}
+	newWhitelistAmount := big.NewInt(2000000000000)
 
 	// only oracle
-	err = dposContract.ChangeWhitelistInfo(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ChangeWhitelistInfoRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: newWhitelistAmount},
-	})
+	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr2), &addr1, newWhitelistAmount, nil)
 	require.Error(t, err)
 
-	err = dposContract.ChangeWhitelistInfo(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ChangeWhitelistInfoRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: newWhitelistAmount},
-	})
+	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr1), &addr1, newWhitelistAmount, nil)
 	require.Nil(t, err)
 
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
-	validator = listValidatorsResponse.Statistics[0]
-	assert.Equal(t, newWhitelistAmount, validator.WhitelistAmount.Value)
+	validator = validators[0]
+	assert.Equal(t, newWhitelistAmount, validator.WhitelistAmount.Value.Int)
 }
 
 func TestValidatorRewards(t *testing.T) {
