@@ -410,7 +410,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend); err != nil {
+			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend, log.Default); err != nil {
 				return err
 			}
 
@@ -455,12 +455,13 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 
 func startFeatureAutoEnabler(
 	chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer, node backend.Backend,
+	logger *loom.Logger,
 ) error {
 	if !cfg.AutoEnableFeatures || !cfg.ContractEnabled {
 		return nil
 	}
 
-	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner, node)
+	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner, node, logger)
 	if err != nil {
 		return err
 	}
