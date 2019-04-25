@@ -65,4 +65,3 @@ func NewErrorf(code ErrorCode, message, format string, args ...interface{}) *Err
 func (e *Error) Error() string {
 	return e.Message
 }
-

@@ -59,7 +59,7 @@ func TestJsonRpcHandler(t *testing.T) {
 }
 
 func testHttpJsonHandler(t *testing.T) {
-	qs :=  &MockQueryService{}
+	qs := &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, nil)
 
 	for _, test := range tests {
@@ -73,14 +73,14 @@ func testHttpJsonHandler(t *testing.T) {
 }
 
 func testBatchHttpJsonHandler(t *testing.T) {
-	qs :=  &MockQueryService{}
+	qs := &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, nil)
 
 	blockPayload := "["
 	first := true
 	for _, test := range tests {
 		if !first {
-			blockPayload+=","
+			blockPayload += ","
 		}
 		blockPayload += `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 		first = false
@@ -98,7 +98,7 @@ func testBatchHttpJsonHandler(t *testing.T) {
 func testMultipleWebsocketConnections(t *testing.T) {
 	hub := newHub()
 	go hub.run()
-	qs :=  &MockQueryService{}
+	qs := &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
 
 	for _, test := range tests {
@@ -111,7 +111,7 @@ func testMultipleWebsocketConnections(t *testing.T) {
 
 		require.NoError(t, conn.Close())
 	}
-	time.Sleep(2*time.Second)
+	time.Sleep(2 * time.Second)
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -128,7 +128,7 @@ func testMultipleWebsocketConnections(t *testing.T) {
 func testSingleWebsocketConnections(t *testing.T) {
 	hub := newHub()
 	go hub.run()
-	qs :=  &MockQueryService{}
+	qs := &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
 	dialer := wstest.NewDialer(handler)
 	conn, _, err := dialer.Dial("ws://localhost/eth", nil)
@@ -143,7 +143,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 			writeMutex.Lock()
 			require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
 			writeMutex.Unlock()
-		} ()
+		}()
 	}
 	wg.Wait()
 	time.Sleep(time.Second)
