@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -355,17 +354,13 @@ func TestRedelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	// Registering 3 candidates
-	err = dpos.RegisterCandidate(pctx.WithAddress(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	// -- TODO: This fails with:
-	//  Error Trace:    dpos_test.go:369
-	// Error:          Expected nil, but got: &errors.errorString{s:"Public key does not match address."}
-	// Why? ctx.Message().Sender is addr1 when making this call, why isn't WithAddress working? same happens with addr3. This happens only in this test.
-	err = dpos.RegisterCandidate(pctx.WithAddress(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
+	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	err = dpos.RegisterCandidate(pctx.WithAddress(addr3), pubKey3, nil, nil, nil, nil, nil, nil)
+	err = dpos.RegisterCandidate(pctx.WithSender(addr3), pubKey3, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 
 	candidates, err := dpos.ListCandidates(pctx)
@@ -381,7 +376,6 @@ func TestRedelegate(t *testing.T) {
 
 	delegationAmount := big.NewInt(10000000)
 	smallDelegationAmount := big.NewInt(1000000)
-	partialSplitAmount := big.NewInt(900000)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
@@ -389,7 +383,6 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	fmt.Println("asdf")
 	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
 
@@ -407,7 +400,7 @@ func TestRedelegate(t *testing.T) {
 
 	// redelegating sole delegation to validator addr2
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr1, &addr2, delegationAmount, 1, nil, nil)
-	require.NotNil(t, err)
+	require.Nil(t, err)
 
 	// Redelegation takes effect within a single election period
 	require.NoError(t, elect(pctx, dpos.Address))
@@ -420,7 +413,7 @@ func TestRedelegate(t *testing.T) {
 
 	// redelegating sole delegation to validator addr3
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr2, &addr3, delegationAmount, 1, nil, nil)
-	require.NotNil(t, err)
+	require.Nil(t, err)
 
 	// Redelegation takes effect within a single election period
 	require.NoError(t, elect(pctx, dpos.Address))
@@ -475,7 +468,7 @@ func TestRedelegate(t *testing.T) {
 	// partially splitting delegator2's delegation to 3rd validator
 	// this also tests that redelegate is able to set a new tier
 	tier := uint64(3)
-	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, partialSplitAmount, 1, &tier, nil)
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, delegationAmount, 1, &tier, nil)
 	require.Nil(t, err)
 
 	balanceBefore, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
