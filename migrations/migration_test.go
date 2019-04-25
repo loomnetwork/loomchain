@@ -101,7 +101,7 @@ func TestMigration(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposv2Contract.RegisterCandidate(contractpb.WrapPluginContext(dposv2Ctx.WithSender(addr1)), &dposv2.RegisterCandidateRequest{
-		PubKey: pubKey1,
+		PubKey: &d2types.PubKeyV2{PubKey:pubKey1},
 	})
 	require.Nil(t, err)
 
