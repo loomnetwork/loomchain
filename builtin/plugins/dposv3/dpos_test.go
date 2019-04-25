@@ -465,10 +465,10 @@ func TestRedelegate(t *testing.T) {
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr2, smallDelegationAmount, 1, nil, nil)
 	require.Nil(t, err)
 
-	// partially splitting delegator2's delegation to 3rd validator
+	// splitting delegator2's delegation to 3rd validator
 	// this also tests that redelegate is able to set a new tier
 	tier := uint64(3)
-	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, delegationAmount, 1, &tier, nil)
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, smallDelegationAmount, 1, &tier, nil)
 	require.Nil(t, err)
 
 	balanceBefore, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
