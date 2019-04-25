@@ -298,3 +298,7 @@ func blockMetaKey(height int64) string {
 func blockResultKey(height int64) string {
 	return "R" + strconv.FormatInt(height, 10)
 }
+
+func txHashKey(hash []byte) string {
+	return "H" + string(hash)
+}

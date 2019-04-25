@@ -114,7 +114,18 @@ func (s *LRUBlockStoreCache) GetBlockResults(height *int64) (*ctypes.ResultBlock
 	return blockinfo, nil
 }
 
-// todo implement
-func (s *LRUBlockStoreCache) GetTxResult(_ []byte)  (*ctypes.ResultTx, error) {
-	return nil, nil
+func (s *LRUBlockStoreCache) GetTxResult(txHash []byte)  (*ctypes.ResultTx, error) {
+	var txResult *ctypes.ResultTx
+	cacheData, ok := s.Cache.Get(txHashKey(txHash))
+	if ok {
+		txResult = cacheData.(*ctypes.ResultTx)
+	} else {
+		var err error
+		txResult, err = s.CachedBlockStore.GetTxResult(txHash)
+		if err != nil {
+			return nil, err
+		}
+		s.Cache.Add(txHashKey(txResult.Hash), txResult)
+	}
+	return txResult, nil
 }
