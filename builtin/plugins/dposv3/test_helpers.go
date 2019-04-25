@@ -75,6 +75,18 @@ func deployDPOSContract(
 	}, err
 }
 
+func (dpos *testDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*ListDelegationsResponse, error) {
+	resp, err := dpos.Contract.ListAllDelegations(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&ListAllDelegationsRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.ListResponses, err
+}
+
 func (dpos *testDPOSContract) ListCandidates(ctx *plugin.FakeContext) ([]*CandidateStatistic, error) {
 	resp, err := dpos.Contract.ListCandidates(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
