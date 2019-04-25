@@ -471,20 +471,6 @@ func TestRedelegate(t *testing.T) {
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, smallDelegationAmount, 1, &tier, nil)
 	require.Nil(t, err)
 
-	balanceBefore, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
-		Owner: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-
-	require.NoError(t, elect(pctx, dpos.Address))
-
-	balanceAfter, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
-		Owner: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-
-	require.True(t, balanceBefore.Balance.Value.Cmp(&balanceAfter.Balance.Value) == 0)
-
 	require.NoError(t, elect(pctx, dpos.Address))
 
 	delegations, _, _, err := dpos.CheckDelegation(pctx, &addr3, &delegatorAddress2)
