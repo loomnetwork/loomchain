@@ -1,0 +1,114 @@
+package chainconfig
+
+import (
+	"strings"
+
+	"github.com/loomnetwork/go-loom"
+	goloom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+	"github.com/loomnetwork/go-loom/client"
+	"github.com/pkg/errors"
+)
+
+type (
+	ListFeaturesRequest   = cctypes.ListFeaturesRequest
+	ListFeaturesResponse  = cctypes.ListFeaturesResponse
+	Feature               = cctypes.Feature
+	EnableFeatureRequest  = cctypes.EnableFeatureRequest
+	EnableFeatureResponse = cctypes.EnableFeatureResponse
+)
+
+const (
+	// FeaturePending status indicates a feature hasn't been enabled by majority of validators yet.
+	FeaturePending = cctypes.Feature_PENDING
+	// FeatureWaiting status indicates a feature has been enabled by majority of validators, but
+	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
+	FeatureWaiting = cctypes.Feature_WAITING
+	// FeatureEnabled status indicates a feature has been enabled by majority of validators, and
+	// has been activated on the chain.
+	FeatureEnabled = cctypes.Feature_ENABLED
+	// FeatureDisabled is not currently used.
+	FeatureDisabled = cctypes.Feature_DISABLED
+)
+
+// ChainConfigClient is used to enable pending features in the ChainConfig contract.
+type ChainConfigClient struct {
+	Address  goloom.Address
+	contract *client.Contract
+	caller   goloom.Address
+	logger   *goloom.Logger
+	signer   auth.Signer
+}
+
+// NewChainConfigClient returns ChainConfigClient instance
+func NewChainConfigClient(
+	loomClient *client.DAppChainRPCClient,
+	caller goloom.Address,
+	signer auth.Signer,
+	logger *goloom.Logger,
+) (*ChainConfigClient, error) {
+	chainConfigAddr, err := loomClient.Resolve("chainconfig")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve ChainConfig contract address")
+	}
+	return &ChainConfigClient{
+		Address:  chainConfigAddr,
+		contract: client.NewContract(loomClient, chainConfigAddr.Local),
+		caller:   caller,
+		signer:   signer,
+		logger:   logger,
+	}, nil
+}
+
+// VoteToEnablePendingFeature is called periodically by ChainConfigRoutine
+// to enable pending feature if it's supported in this current build
+func (cc *ChainConfigClient) VoteToEnablePendingFeatures(buildNumber uint64) error {
+	var resp ListFeaturesResponse
+	if _, err := cc.contract.StaticCall(
+		"ListFeatures",
+		&ListFeaturesRequest{},
+		cc.caller,
+		&resp,
+	); err != nil {
+		cc.logger.Error("failed to retrieve features from ChainConfig contract", "err", err)
+		return err
+	}
+
+	features := resp.Features
+	featureNames := make([]string, 0)
+	for _, feature := range features {
+		if feature.Status == FeaturePending &&
+			feature.BuildNumber <= buildNumber &&
+			feature.AutoEnable &&
+			!cc.hasVoted(feature) {
+			featureNames = append(featureNames, feature.Name)
+		}
+	}
+
+	if len(featureNames) > 0 {
+		var resp EnableFeatureResponse
+		if _, err := cc.contract.Call(
+			"EnableFeature",
+			&EnableFeatureRequest{Names: featureNames},
+			cc.signer,
+			&resp,
+		); err != nil {
+			cc.logger.Error("failed to enable features", strings.Join(featureNames, ","), "err", err)
+			return err
+		}
+
+	}
+	return nil
+}
+
+// Check if this validator has already voted to enable this feature
+func (cc *ChainConfigClient) hasVoted(feature *Feature) bool {
+	for _, v := range feature.Validators {
+		validator := loom.UnmarshalAddressPB(v)
+		if validator.Compare(cc.caller) == 0 {
+			return true
+		}
+	}
+	return false
+}
