@@ -4,6 +4,9 @@ package query
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
@@ -12,9 +15,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
-	abci "github.com/tendermint/tendermint/abci/types"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
@@ -63,31 +63,32 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 }
 
 func GetTxByBlockAndIndex(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, height, index uint64,
+	blockStore store.BlockStore,
+	state loomchain.ReadOnlyState,
+	height,
+	index uint64,
 	readReceipts loomchain.ReadReceiptHandler,
 ) (txObj eth.JsonTxObject, err error) {
-	params := map[string]interface{}{}
-	params["heightPtr"] = &height
-	var blockResults *ctypes.ResultBlockResults
 	iHeight := int64(height)
-	blockResults, err = blockStore.GetBlockResults(&iHeight)
-	if err != nil {
-		return txObj, errors.Wrapf(err, "results for block %v", height)
+
+	blockResult, err := blockStore.GetBlockByHeight(&iHeight)
+	if blockResult == nil || blockResult.Block == nil {
+		return txObj, errors.Errorf("no block results fond at height %v", height)
 	}
-	if len(blockResults.Results.DeliverTx) < int(index)+1 {
-		return txObj, errors.Errorf("index %v exceeds size of result array %v", index, len(blockResults.Results.DeliverTx))
+	if len(blockResult.Block.Data.Txs) <= int(index) {
+		return txObj, errors.Errorf("index %v exceeds size of result array %v", index, len(blockResult.Block.Data.Txs))
 	}
 
-	i := uint64(0)
-	for _, result := range blockResults.Results.DeliverTx {
-		if result.Info == utils.DeployEvm || result.Info == utils.CallEVM {
-			if i == index {
-				return getTxFromTxResponse(state, *result, readReceipts)
-			}
-			i++
-		}
+	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
+	if err != nil {
+		return txObj, errors.Errorf("no tx with hash %v", blockResult.Block.Data.Txs[index].Hash())
 	}
-	return txObj, errors.Errorf("index %v exceeds number of evm transactions %v", index, i)
+	txObj, err = getTxFromTxResponse(state, txResult, blockResult,  readReceipts)
+	if err != nil {
+		return txObj, err
+	}
+	txObj.TransactionIndex = eth.EncInt(int64(index))
+	return txObj, nil
 }
 
 func GetNumEvmTxs(blockStore store.BlockStore, state loomchain.ReadOnlyState, height uint64) (uint64, error) {
@@ -109,25 +110,38 @@ func GetNumEvmTxs(blockStore store.BlockStore, state loomchain.ReadOnlyState, he
 	return count, nil
 }
 
-func getTxFromTxResponse(state loomchain.ReadOnlyState, result abci.ResponseDeliverTx, readReceipts loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
-	var txHash []byte
-	switch result.Info {
+func getTxFromTxResponse(state loomchain.ReadOnlyState, txResult *ctypes.ResultTx, blockResult *ctypes.ResultBlock, readReceipts loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
+	switch txResult.TxResult.Info {
 	case utils.DeployEvm:
 		dr := vm.DeployResponse{}
-		if err := proto.Unmarshal(result.Data, &dr); err != nil {
+		if err := proto.Unmarshal(txResult.TxResult.Data, &dr); err != nil {
 			return txObj, errors.Wrap(err, "deploy response does not unmarshal")
 		}
 		drd := vm.DeployResponseData{}
 		if err := proto.Unmarshal(dr.Output, &drd); err != nil {
 			return txObj, errors.Wrap(err, "deploy response data does not unmarshal")
 		}
-		txHash = drd.TxHash
+		return GetTxByHash(state, drd.TxHash, readReceipts)
 	case utils.CallEVM:
-		txHash = result.Data
+		return GetTxByHash(state, txResult.TxResult.Data, readReceipts)
+	case utils.CallPlugin:
+		fallthrough
+	case utils.DeployPlugin:
+		return eth.JsonTxObject{
+			Nonce:                  eth.ZeroedQuantity,
+			Hash:                   eth.EncBytes(txResult.Hash),
+			BlockHash:              eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+			BlockNumber:            eth.EncInt(txResult.Height),
+			From:                   eth.ZeroedData20Bytes,
+			To:                     eth.ZeroedData20Bytes,
+			Gas:                    eth.EncInt(txResult.TxResult.GasWanted),
+			GasPrice:               eth.EncInt(txResult.TxResult.GasUsed),
+			Input:                  eth.EncBytes(txResult.Tx),
+			Value:                  eth.EncInt(0),
+		}, nil
 	default:
-		return txObj, errors.Errorf("not an EVM transaction")
+		return txObj, errors.Errorf("unknown transaction type %v", txResult.TxResult.Info)
 	}
-	return GetTxByHash(state, txHash, readReceipts)
 }
 
 func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {

@@ -746,7 +746,7 @@ func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount 
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumEvmTxBlock(s.BlockStore, snapshot, height)
+	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, height)
 	if err != nil {
 		return txCount, err
 	}
@@ -762,7 +762,7 @@ func (s *QueryServer) EthGetBlockTransactionCountByNumber(block eth.BlockHeight)
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumEvmTxBlock(s.BlockStore, snapshot, int64(height))
+	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, int64(height))
 	if err != nil {
 		return txCount, err
 	}
