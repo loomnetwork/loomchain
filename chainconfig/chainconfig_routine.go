@@ -31,6 +31,7 @@ func NewChainConfigRoutine(
 	chainID string,
 	nodeSigner auth.Signer,
 	node backend.Backend,
+	logger *goloom.Logger,
 ) (*ChainConfigRoutine, error) {
 	address := goloom.Address{
 		ChainID: chainID,
@@ -45,7 +46,7 @@ func NewChainConfigRoutine(
 		chainID:     chainID,
 		signer:      nodeSigner,
 		address:     address,
-		logger:      goloom.NewLoomLogger(cfg.LogLevel, cfg.LogDestination),
+		logger:      logger,
 		buildNumber: build,
 		node:        node,
 	}, nil
