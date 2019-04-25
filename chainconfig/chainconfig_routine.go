@@ -66,6 +66,11 @@ func (cc *ChainConfigRoutine) RunWithRecovery() {
 		}
 	}()
 
+	// Give the node a bit of time to spin up
+	if cc.cfg.EnableFeatureStartupDelay > 0 {
+		time.Sleep(time.Duration(cc.cfg.EnableFeatureStartupDelay) * time.Second)
+	}
+
 	cc.run()
 }
 

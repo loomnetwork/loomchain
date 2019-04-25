@@ -173,6 +173,8 @@ type ChainConfigConfig struct {
 	ContractEnabled bool
 	// Allow a validator node to auto-enable features supported by the current build
 	AutoEnableFeatures bool
+	// How long to wait (in seconds) after the node starts before attempting to auto-enable features
+	EnableFeatureStartupDelay int64
 	// Frequency (in seconds) with which the node should auto-enable features
 	EnableFeatureInterval int64
 	// DAppChain URI feature auto-enabler should use to query the chain
@@ -223,13 +225,14 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 
 func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 	return &ChainConfigConfig{
-		ContractEnabled:       true,
-		AutoEnableFeatures:    true,
-		EnableFeatureInterval: 1800, // ChainConfigRoutine runs every 30 minutes by default
-		DAppChainReadURI:      fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
-		DAppChainWriteURI:     fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
-		LogLevel:              "info",
-		LogDestination:        "file://chainconfig.log",
+		ContractEnabled:           true,
+		AutoEnableFeatures:        true,
+		EnableFeatureStartupDelay: 5 * 60,  // wait 5 mins after startup before auto-enabling features
+		EnableFeatureInterval:     15 * 60, // auto-enable features every 15 minutes
+		DAppChainReadURI:          fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
+		DAppChainWriteURI:         fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
+		LogLevel:                  "info",
+		LogDestination:            "file://chainconfig.log",
 	}
 }
 
@@ -621,6 +624,8 @@ ChainConfig:
   ContractEnabled: {{ .ChainConfig.ContractEnabled }}
   # Allow a validator node to auto-enable features supported by the current build
   AutoEnableFeatures: {{ .ChainConfig.AutoEnableFeatures }}
+  # How long to wait (in seconds) after the node starts before attempting to auto-enable features
+  EnableFeatureStartupDelay: {{ .ChainConfig.EnableFeatureStartupDelay }}
   # Frequency (in seconds) with which the node should auto-enable features
   EnableFeatureInterval: {{ .ChainConfig.EnableFeatureInterval }}
   DAppChainReadURI: {{ .ChainConfig.DAppChainReadURI }}
