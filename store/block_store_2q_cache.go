@@ -115,3 +115,8 @@ func (s *TwoQueueBlockStoreCache) GetBlockResults(height *int64) (*ctypes.Result
 	}
 	return blockinfo, nil
 }
+
+// todo implment
+func (s *TwoQueueBlockStoreCache) GetTxResult(_ []byte)  (*ctypes.ResultTx, error) {
+	return nil, nil
+}

@@ -31,6 +31,8 @@ type BlockStore interface {
 	// GetBlockResults retrieves the results of the txs committed to the block at the specified height,
 	// specify nil to retrieve results from the latest block.
 	GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error)
+	// Get Transaction Results from Tendermint Tx Hash
+	GetTxResult(txHash []byte)  (*ctypes.ResultTx, error)
 }
 
 type MockBlockStore struct {
@@ -111,6 +113,10 @@ func (s *MockBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResu
 	}, nil
 }
 
+func (s *MockBlockStore) GetTxResult(_ []byte)  (*ctypes.ResultTx, error) {
+	return nil, nil
+}
+
 func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
 	if heightPtr != nil {
 		height := *heightPtr
@@ -150,7 +156,7 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 	return min, max, nil
 }
 
-func filterMinMaxforCache(min, max, limit int64) (int64, int64, error) {
+func filterMinMaxforCache(min, max, _ int64) (int64, int64, error) {
 	// filter negatives
 	if min < 0 || max < 0 {
 		return min, max, fmt.Errorf("heights must be non-negative")
@@ -224,11 +230,23 @@ func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBl
 	}
 	block := types.Block{
 		Header: header,
+		Data:   blockResult.Block.Data,
 	}
 	resultBlock := ctypes.ResultBlock{
 		BlockMeta: &blockMeta,
 		Block:     &block,
 	}
+
+	txs := []*ctypes.ResultTx{}
+	for _, txHash := range block.Data.Txs {
+		txResult, err := core.Tx(txHash.Hash(), true)
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, txResult)
+	}
+	txs = txs
+
 	return &resultBlock, nil
 }
 
@@ -245,6 +263,11 @@ func (s *TendermintBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64)
 }
 
 func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+	resultBlock, err := core.Block(height)
+	if err != nil {
+		return nil, err
+	}
+	resultBlock = resultBlock
 	blockResult, err := core.BlockResults(height)
 	if err != nil {
 		return nil, err
@@ -256,6 +279,15 @@ func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlo
 		Results: &ABCIResponses,
 	}
 	return &blockchaininfo, nil
+}
+
+func (s *TendermintBlockStore) GetTxResult(txHash []byte)  (*ctypes.ResultTx, error) {
+	txResult, err := core.Tx(txHash, false)
+	if err != nil {
+		return nil, err
+	}
+	results := txResult
+	return results, nil
 }
 
 func blockMetaKey(height int64) string {

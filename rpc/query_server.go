@@ -807,7 +807,15 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 	if err != nil {
 		return resp, err
 	}
-	return query.GetTxByHash(snapshot, txHash, r)
+	txObj, err := query.GetTxByHash(snapshot, txHash, r)
+	if err != nil {
+		var err2 error
+		txObj, err2 = query.GetTxByTendermintHash(s.BlockStore, txHash)
+		if err2 != nil {
+			return resp, errors.Wrapf(err, "cannot get tx from hash %v", err2)
+		}
+	}
+	return txObj, nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblockHashAndIndex
@@ -930,6 +938,9 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	}
 
 	if filter, err := s.EthSubscriptions.GetFilter(string(id)); filter != nil || err != nil {
+		if filter == nil {
+			return nil, fmt.Errorf("nil filter %v", err)
+		}
 		logs, err := query.QueryChain(s.BlockStore, state, *filter, r)
 		if err != nil {
 			return nil, err

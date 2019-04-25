@@ -12,6 +12,7 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -84,6 +85,34 @@ func GetBlockByNumber(
 		}
 	}
 
+	for i, tx := range blockResult.Block.Data.Txs {
+		txResult, err := blockStore.GetTxResult(tx.Hash())
+		if err != nil {
+			return resp, errors.Wrapf(err, "cant find result for tx %v", tx)
+		}
+		if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info  == utils.DeployEvm {
+			continue
+		}
+
+		if full {
+			blockInfo.Transactions = append(blockInfo.Transactions, eth.JsonTxObject{
+				Nonce:                  eth.ZeroedQuantity,
+				Hash:                   eth.EncBytes(txResult.Hash),
+				BlockHash:              eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+				BlockNumber:            eth.EncInt(txResult.Height),
+				TransactionIndex:       eth.EncInt(int64(i)),
+				From:                   eth.ZeroedData20Bytes,
+				To:                     eth.ZeroedData20Bytes,
+				Gas:                    eth.EncInt(txResult.TxResult.GasWanted),
+				GasPrice:               eth.EncInt(txResult.TxResult.GasUsed),
+				Input:                  eth.EncBytes(txResult.Tx),
+				Value:                  eth.EncInt(0),
+			})
+		} else {
+			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
+		}
+	}
+
 	if len(blockInfo.Transactions) == 0 {
 		blockInfo.Transactions = make([]interface{}, 0)
 	}
@@ -123,9 +152,6 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 			return 0, err
 		}
 
-		if err != nil {
-			return 0, err
-		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
 				return info.BlockMetas[i].Header.Height, nil //    int64(int(end) + i), nil
@@ -233,9 +259,6 @@ func DeprecatedGetBlockByHash(
 			return nil, err
 		}
 
-		if err != nil {
-			return nil, err
-		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
 				return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)

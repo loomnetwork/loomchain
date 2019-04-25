@@ -113,3 +113,8 @@ func (s *LRUBlockStoreCache) GetBlockResults(height *int64) (*ctypes.ResultBlock
 	}
 	return blockinfo, nil
 }
+
+// todo implement
+func (s *LRUBlockStoreCache) GetTxResult(_ []byte)  (*ctypes.ResultTx, error) {
+	return nil, nil
+}
