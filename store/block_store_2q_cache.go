@@ -117,6 +117,18 @@ func (s *TwoQueueBlockStoreCache) GetBlockResults(height *int64) (*ctypes.Result
 }
 
 // todo implment
-func (s *TwoQueueBlockStoreCache) GetTxResult(_ []byte)  (*ctypes.ResultTx, error) {
-	return nil, nil
+func (s *TwoQueueBlockStoreCache) GetTxResult(txHash []byte)  (*ctypes.ResultTx, error) {
+	var txResult *ctypes.ResultTx
+	cacheData, ok := s.TwoQueueCache.Get(txHashKey(txHash))
+	if ok {
+		txResult = cacheData.(*ctypes.ResultTx)
+	} else {
+		var err error
+		txResult, err = s.CachedBlockStore.GetTxResult(txHash)
+		if err != nil {
+			return nil, err
+		}
+		s.TwoQueueCache.Add(txHashKey(txResult.Hash), txResult)
+	}
+	return txResult, nil
 }
