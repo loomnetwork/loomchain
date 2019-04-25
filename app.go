@@ -3,7 +3,6 @@ package loomchain
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -492,7 +491,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	ok := abci.ResponseCheckTx{Code: abci.CodeTypeOK}
-	log.Error(fmt.Sprintf("CheckTx: txBytes %s", hex.EncodeToString(txBytes)))
+
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
