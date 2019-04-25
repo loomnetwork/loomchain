@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -237,16 +238,6 @@ func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBl
 		Block:     &block,
 	}
 
-	txs := []*ctypes.ResultTx{}
-	for _, txHash := range block.Data.Txs {
-		txResult, err := core.Tx(txHash.Hash(), true)
-		if err != nil {
-			return nil, err
-		}
-		txs = append(txs, txResult)
-	}
-	txs = txs
-
 	return &resultBlock, nil
 }
 
@@ -286,7 +277,17 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte)  (*ctypes.ResultTx, er
 	if err != nil {
 		return nil, err
 	}
-	results := txResult
+	results := &ctypes.ResultTx{
+		Hash:           txResult.Hash,
+		Height:         txResult.Height,
+		Index:          txResult.Index,
+		TxResult:       abci.ResponseDeliverTx{
+			Data:           txResult.TxResult.Data,
+			Info:           txResult.TxResult.Info,
+			GasWanted:      txResult.TxResult.GasWanted,
+			GasUsed:        txResult.TxResult.GasUsed,
+		},
+	}
 	return results, nil
 }
 
