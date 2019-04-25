@@ -116,7 +116,6 @@ func (s *TwoQueueBlockStoreCache) GetBlockResults(height *int64) (*ctypes.Result
 	return blockinfo, nil
 }
 
-// todo implment
 func (s *TwoQueueBlockStoreCache) GetTxResult(txHash []byte)  (*ctypes.ResultTx, error) {
 	var txResult *ctypes.ResultTx
 	cacheData, ok := s.TwoQueueCache.Get(txHashKey(txHash))
