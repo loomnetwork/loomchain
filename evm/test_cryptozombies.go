@@ -75,7 +75,7 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 		Local:   []byte("myMotherKat"),
 	}
 	manager := lvm.NewManager()
-	manager.Register(lvm.VMType_PLUGIN, LoomVmFactory)
+	//manager.Register(lvm.VMType_PLUGIN, LoomVmFactory)
 
 	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
 	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")

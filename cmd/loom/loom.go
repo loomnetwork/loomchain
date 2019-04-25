@@ -659,7 +659,9 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
 	eventStoreCfg := cfg.EventStore
 	db, err := cdb.LoadDB(
-		eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath(),
+		eventStoreCfg.DBBackend,
+		eventStoreCfg.DBName,
+		cfg.RootPath(),
 		20, //TODO do we want a separate cache config for eventstore?,
 		cfg.Metrics.Database,
 	)
@@ -669,6 +671,28 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 
 	eventStore := store.NewKVEventStore(db)
 	return eventStore, nil
+}
+
+func loadEVMStore(cfg *config.Config, logger *loom.Logger) (store.EVMStore, error) {
+	evmStoreCfg := cfg.EVMStore
+	db, err := cdb.LoadDB(
+		evmStoreCfg.DBBackend,
+		evmStoreCfg.DBName,
+		cfg.RootPath(),
+		20,
+		cfg.Metrics.Database,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	logContext := &store.EVMStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: loom.Address{},
+		CallerAddr:   loom.Address{},
+	}
+	evmStore := store.NewKVEVMStore(db, logContext)
+	return evmStore, nil
 }
 
 func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
@@ -765,6 +789,11 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	if evm.EVMEnabled {
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
+			var evmStore store.EVMStore
+			evmStore, err = loadEVMStore(cfg, log.Default)
+			if err != nil {
+				return nil, err
+			}
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
 			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
@@ -793,7 +822,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, evmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -1196,6 +1225,7 @@ func initQueryService(
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
+		EVMStore:               app.EVMStore,
 		AuthCfg:                cfg.Auth,
 	}
 	bus := &rpc.QueryEventBus{

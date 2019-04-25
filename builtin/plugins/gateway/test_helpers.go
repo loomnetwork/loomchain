@@ -17,6 +17,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/store"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values [][]int64) []*MainnetEvent {
@@ -253,7 +255,7 @@ func deployLoomCoinContract(ctx *plugin.FakeContextWithEVM) (*testLoomCoinContra
 	coinContract := &coin.Coin{}
 	contractAddr := ctx.CreateContract(contract.MakePluginContract(coinContract))
 	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
-        err := coinContract.Init(contractCtx, &coin.InitRequest{})
+	err := coinContract.Init(contractCtx, &coin.InitRequest{})
 	return &testLoomCoinContract{
 		Contract: coinContract,
 		Address:  contractAddr,
@@ -306,7 +308,13 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 	}
 	byteCode = append(byteCode, input...)
 
-	vm := levm.NewLoomVm(ctx.State, nil, nil, nil, false)
+	logContext := &store.EVMStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: caller,
+		CallerAddr:   caller,
+	}
+	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	vm := levm.NewLoomVm(ctx.State, evmStore, nil, nil, nil, false)
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err

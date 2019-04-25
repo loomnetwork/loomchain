@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/go-loom"
@@ -19,6 +20,7 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -193,7 +195,13 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
+	logContext := &store.EVMStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: addr,
+		CallerAddr:   addr,
+	}
+	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -206,7 +214,13 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
+	logContext := &store.EVMStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: addr,
+		CallerAddr:   addr,
+	}
+	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 

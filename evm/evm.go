@@ -199,6 +199,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 }
 
 func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+	fmt.Println("EVMCall")
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {

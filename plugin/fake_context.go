@@ -11,7 +11,9 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 // Contract context for tests that need both Go & EVM contracts.
@@ -95,7 +97,13 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
+	logContext := &store.EVMStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: addr,
+		CallerAddr:   addr,
+	}
+	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	vm := levm.NewLoomVm(c.State, evmStore, nil, nil, createABM, false)
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
 
@@ -104,7 +112,13 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
+	logContext := &store.EVMStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: addr,
+		CallerAddr:   addr,
+	}
+	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	vm := levm.NewLoomVm(c.State, evmStore, nil, nil, createABM, false)
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }
 

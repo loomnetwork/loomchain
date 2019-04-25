@@ -283,6 +283,7 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
+	EVMStore                    store.EVMStore
 }
 
 var _ abci.Application = &Application{}

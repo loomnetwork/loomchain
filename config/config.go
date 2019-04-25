@@ -14,6 +14,7 @@ import (
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
@@ -122,6 +123,9 @@ type Config struct {
 	// Event store
 	EventStore      *events.EventStoreConfig
 	EventDispatcher *events.EventDispatcherConfig
+
+	// EVM store
+	EVMStore *evm.EVMStoreConfig
 
 	FnConsensus *FnConsensusConfig
 
@@ -323,7 +327,7 @@ func DefaultConfig() *Config {
 		UnsafeRPCEnabled:           false,
 		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
 		CreateEmptyBlocks:          true,
-		ContractLoaders:            []string{"static","dynamic"},
+		ContractLoaders:            []string{"static", "dynamic"},
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
 		RegistryVersion:            int32(registry.RegistryV1),
@@ -357,6 +361,7 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+	cfg.EVMStore = evm.DefaultEVMStoreConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -725,6 +730,14 @@ AppStore:
 EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
+{{end}}
+{{if .EVMStore -}}
+#
+# EVMStore
+#
+EVMStore:
+  DBName: {{.EVMStore.DBName}}
+  DBBackend: {{.EVMStore.DBBackend}}
 {{end}}
 # 
 #  FnConsensus reactor on/off switch + config

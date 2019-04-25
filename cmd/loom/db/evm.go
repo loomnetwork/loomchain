@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
@@ -119,7 +120,17 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			evmDB, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
+			if err != nil {
+				return err
+			}
+			logContext := &store.EVMStoreLogContext{
+				BlockHeight:  0,
+				ContractAddr: loom.Address{},
+				CallerAddr:   loom.Address{},
+			}
+			evmStore := store.NewKVEVMStore(evmDB, logContext)
+			vm, err := evm.NewLoomEvm(state, evmStore, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}
