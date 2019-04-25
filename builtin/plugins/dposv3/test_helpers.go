@@ -19,50 +19,11 @@ type testDPOSContract struct {
 
 func deployDPOSContract(
 	ctx *plugin.FakeContext,
-	validatorCount uint64,
-	electionCycleLength *int64,
-	coinAddr *loom.Address,
-	_maxYearlyReward *loom.BigUInt,
-	_registrationRequirement *loom.BigUInt,
-	_crashSlashingPercentage *loom.BigUInt,
-	_byzantineSlashingPercentage *loom.BigUInt,
-	oracleAddr *loom.Address,
+	params *Params,
 ) (*testDPOSContract, error) {
 	dposContract := &DPOS{}
 	contractAddr := ctx.CreateContract(contract.MakePluginContract(dposContract))
 	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
-
-	params := &Params{
-		ValidatorCount: validatorCount,
-	}
-
-	if electionCycleLength != nil {
-		params.ElectionCycleLength = *electionCycleLength
-	}
-
-	if oracleAddr != nil {
-		params.OracleAddress = oracleAddr.MarshalPB()
-	}
-
-	if coinAddr != nil {
-		params.CoinContractAddress = coinAddr.MarshalPB()
-	}
-
-	if _crashSlashingPercentage != nil {
-		params.CrashSlashingPercentage = &types.BigUInt{Value: *_crashSlashingPercentage}
-	}
-
-	if _byzantineSlashingPercentage != nil {
-		params.ByzantineSlashingPercentage = &types.BigUInt{Value: *_byzantineSlashingPercentage}
-	}
-
-	if _registrationRequirement != nil {
-		params.RegistrationRequirement = &types.BigUInt{Value: *_registrationRequirement}
-	}
-
-	if _maxYearlyReward != nil {
-		params.MaxYearlyReward = &types.BigUInt{Value: *_maxYearlyReward}
-	}
 
 	err := dposContract.Init(contractCtx, &InitRequest{
 		Params: params,

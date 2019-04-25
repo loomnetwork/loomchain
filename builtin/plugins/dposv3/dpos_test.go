@@ -76,7 +76,11 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 		},
 	})
 
-	dpos, err := deployDPOSContract(pctx, 21, nil, &coinAddr, nil, nil, nil, nil, &oracleAddr)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      21,
+		CoinContractAddress: coinAddr.MarshalPB(),
+		OracleAddress:       oracleAddr.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	whitelistAmount := big.NewInt(1000000000000)
@@ -146,7 +150,10 @@ func TestChangeFee(t *testing.T) {
 	coinContract := &coin.Coin{}
 	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
 
-	dpos, err := deployDPOSContract(pctx, 21, nil, nil, nil, nil, nil, nil, &oracleAddr)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount: 21,
+		OracleAddress:  oracleAddr.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	amount := big.NewInt(1000000000000)
@@ -211,7 +218,10 @@ func TestDelegate(t *testing.T) {
 		},
 	})
 
-	dpos, err := deployDPOSContract(pctx, 21, nil, nil, nil, nil, nil, nil, &oracleAddr)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount: 21,
+		OracleAddress:  oracleAddr.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	whitelistAmount := big.NewInt(1000000000000)
@@ -350,7 +360,10 @@ func TestRedelegate(t *testing.T) {
 	})
 
 	registrationFee := loom.BigZeroPB()
-	dpos, err := deployDPOSContract(pctx, 21, nil, nil, nil, &registrationFee.Value, nil, nil, nil)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          21,
+		RegistrationRequirement: registrationFee,
+	})
 	require.Nil(t, err)
 
 	// Registering 3 candidates
@@ -528,7 +541,13 @@ func TestElectWhitelists(t *testing.T) {
 	cycleLengthSeconds := int64(100)
 	maxYearlyReward := scientificNotation(defaultMaxYearlyReward, tokenDecimals)
 	// Init the dpos contract
-	dpos, err := deployDPOSContract(pctx, 5, &cycleLengthSeconds, &coinAddr, maxYearlyReward, nil, nil, nil, &addr1)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      5,
+		ElectionCycleLength: cycleLengthSeconds,
+		CoinContractAddress: coinAddr.MarshalPB(),
+		MaxYearlyReward:     &types.BigUInt{Value: *maxYearlyReward},
+		OracleAddress:       addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
 	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
@@ -681,7 +700,11 @@ func TestElect(t *testing.T) {
 	})
 
 	// create dpos contract
-	dpos, err := deployDPOSContract(pctx, 2, nil, &coinAddr, nil, nil, nil, nil, &addr1)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      2,
+		CoinContractAddress: coinAddr.MarshalPB(),
+		OracleAddress:       addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	// transfer coins to reward fund
@@ -782,7 +805,10 @@ func TestValidatorRewards(t *testing.T) {
 	})
 
 	// create dpos contract
-	dpos, err := deployDPOSContract(pctx, 10, nil, &coinAddr, nil, nil, nil, nil, nil)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      10,
+		CoinContractAddress: coinAddr.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	// transfer coins to reward fund
@@ -933,7 +959,11 @@ func TestReferrerRewards(t *testing.T) {
 	})
 
 	// create dpos contract
-	dpos, err := deployDPOSContract(pctx, 10, nil, &coinAddr, nil, nil, nil, nil, &addr1)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      10,
+		CoinContractAddress: coinAddr.MarshalPB(),
+		OracleAddress:       addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
@@ -1015,7 +1045,10 @@ func TestRewardTiers(t *testing.T) {
 	})
 
 	// Init the dpos contract
-	dpos, err := deployDPOSContract(pctx, 10, nil, &coinAddr, nil, nil, nil, nil, nil)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      10,
+		CoinContractAddress: coinAddr.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	// transfer coins to reward fund
@@ -1230,7 +1263,12 @@ func TestRewardCap(t *testing.T) {
 
 	// Init the dpos contract
 	maxReward := scientificNotation(100, tokenDecimals)
-	dpos, err := deployDPOSContract(pctx, 10, nil, &coinAddr, maxReward, loom.NewBigUIntFromInt(0), nil, nil, nil)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          10,
+		CoinContractAddress:     coinAddr.MarshalPB(),
+		MaxYearlyReward:         &types.BigUInt{Value: *maxReward},
+		RegistrationRequirement: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+	})
 	require.Nil(t, err)
 
 	// transfer coins to reward fund
@@ -1358,7 +1396,10 @@ func TestMultiDelegate(t *testing.T) {
 		},
 	})
 
-	dpos, err := deployDPOSContract(pctx, 21, nil, nil, nil, loom.NewBigUIntFromInt(0), nil, nil, nil)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          21,
+		RegistrationRequirement: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+	})
 	require.Nil(t, err)
 
 	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
@@ -1456,7 +1497,10 @@ func TestLockup(t *testing.T) {
 		},
 	})
 
-	dpos, err := deployDPOSContract(pctx, 21, nil, nil, nil, loom.NewBigUIntFromInt(0), nil, nil, nil)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          21,
+		RegistrationRequirement: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+	})
 	require.Nil(t, err)
 
 	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
