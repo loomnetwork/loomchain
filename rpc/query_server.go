@@ -709,7 +709,14 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
 	if err != nil {
-		return resp, err
+		if !strings.Contains(err.Error(), "Tx receipt not found") {
+			return resp, err
+		}
+		txObj, err := query.GetTxByTendermintHash(s.BlockStore, txHash)
+		if err != nil {
+			return resp, err
+		}
+		return eth.TxObjToReceipt(txObj), nil
 	}
 
 	// accessing the TM block store might take a while and we don't need the snapshot anymore
