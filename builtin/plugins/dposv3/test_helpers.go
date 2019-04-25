@@ -135,6 +135,30 @@ func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator
 	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
 }
 
+func (dpos *testDPOSContract) CheckAllDelegations(ctx *plugin.FakeContext, delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
+	resp, err := dpos.Contract.CheckAllDelegations(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&CheckAllDelegationsRequest{
+			DelegatorAddress: delegator.MarshalPB(),
+		},
+	)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
+}
+
+func (dpos *testDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer loom.Address, name string) error {
+	err := dpos.Contract.RegisterReferrer(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&RegisterReferrerRequest{
+			Name:    name,
+			Address: referrer.MarshalPB(),
+		},
+	)
+	return err
+}
+
 func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candidate loom.Address, amount *big.Int, tier LocktimeTier) error {
 	err := dpos.Contract.WhitelistCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -177,12 +201,17 @@ func (dpos *testDPOSContract) RegisterCandidate(
 	pubKey []byte,
 	tier *uint64,
 	candidateFee *uint64,
+	maxReferralPercentage *uint64,
 	candidateName *string,
 	candidateDescription *string,
 	candidateWebsite *string,
 ) error {
 	req := RegisterCandidateRequest{
 		PubKey: pubKey,
+	}
+
+	if maxReferralPercentage != nil {
+		req.MaxReferralPercentage = *maxReferralPercentage
 	}
 
 	if tier != nil {
