@@ -309,7 +309,7 @@ func TestChainIdVerification(t *testing.T) {
 		},
 		"eos-scatter": {
 			TxType:      EosScatterSignedTxType,
-			AccountType: MappedAccountType,
+			AccountType: NativeAccountType,
 		},
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
@@ -359,11 +359,11 @@ func TestChainIdVerification(t *testing.T) {
 	// to contracts will be eos-scatter:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
 	// Don't try this in production.
-	/*eosScatterKey, err := ecc.NewRandomPrivateKey()
+	eosScatterKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
-	txSigned = mockSignedTx(t, "eos", &auth.EosScatterSigner{eosScatterKey})
+	txSigned = mockSignedTx(t, "eos-scatter", &auth.EosScatterSigner{eosScatterKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
-	require.NoError(t, err)*/
+	require.NoError(t, err)
 }
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
