@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/config"
 )
 
@@ -21,6 +22,7 @@ type ChainConfigRoutine struct {
 	address     goloom.Address
 	logger      *goloom.Logger
 	buildNumber uint64
+	node        backend.Backend
 }
 
 // NewChainConfigRoutine returns a new instance of ChainConfigRoutine
@@ -28,6 +30,7 @@ func NewChainConfigRoutine(
 	cfg *config.ChainConfigConfig,
 	chainID string,
 	nodeSigner auth.Signer,
+	node backend.Backend,
 ) (*ChainConfigRoutine, error) {
 	address := goloom.Address{
 		ChainID: chainID,
@@ -44,6 +47,7 @@ func NewChainConfigRoutine(
 		address:     address,
 		logger:      goloom.NewLoomLogger(cfg.LogLevel, cfg.LogDestination),
 		buildNumber: build,
+		node:        node,
 	}, nil
 }
 
@@ -67,13 +71,14 @@ func (cc *ChainConfigRoutine) RunWithRecovery() {
 
 func (cc *ChainConfigRoutine) run() {
 	for {
-		dappClient := client.NewDAppChainRPCClient(cc.chainID, cc.cfg.DAppChainWriteURI, cc.cfg.DAppChainReadURI)
-		chainConfigClient, err := NewChainConfigClient(dappClient, cc.address, cc.signer, cc.logger)
-		if err != nil {
-			cc.logger.Error("Failed to create ChainConfigClient", "err", err)
-		} else {
-			if err := chainConfigClient.VoteToEnablePendingFeatures(cc.buildNumber); err != nil {
-				cc.logger.Error("Failed to auto-enable features", "err", err)
+		if cc.node.IsValidator() {
+			dappClient := client.NewDAppChainRPCClient(cc.chainID, cc.cfg.DAppChainWriteURI, cc.cfg.DAppChainReadURI)
+			chainConfigClient, err := NewChainConfigClient(dappClient, cc.address, cc.signer, cc.logger)
+			if err != nil {
+				cc.logger.Error("Failed to create ChainConfigClient", "err", err)
+			} else {
+				// NOTE: errors are logged by the client, no need to log again
+				_ = chainConfigClient.VoteToEnablePendingFeatures(cc.buildNumber)
 			}
 		}
 		time.Sleep(time.Duration(cc.cfg.EnableFeatureInterval) * time.Second)

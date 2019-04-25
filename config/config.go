@@ -224,12 +224,12 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 	return &ChainConfigConfig{
 		ContractEnabled:       true,
+		AutoEnableFeatures:    true,
+		EnableFeatureInterval: 1800, // ChainConfigRoutine runs every 30 minutes by default
 		DAppChainReadURI:      fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
 		DAppChainWriteURI:     fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
-		EnableFeatureInterval: 1800, // ChainConfigRoutine runs every 30 minutes by default
 		LogLevel:              "info",
 		LogDestination:        "file://chainconfig.log",
-		AutoEnableFeatures:    false,
 	}
 }
 
