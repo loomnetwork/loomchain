@@ -1209,10 +1209,10 @@ func (ts *GatewayTestSuite) TestGetUnclaimedContractTokens() {
 	resp, err = gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr2.MarshalPB()})
 	require.NoError(err)
 	require.Equal(loom.NewBigUIntFromInt(1357), &resp.UnclaimedAmount.Value)
-        resp, err = gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr3.MarshalPB()})
+	resp, err = gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr3.MarshalPB()})
 	require.NoError(err)
 	require.Equal(loom.NewBigUIntFromInt(374), &resp.UnclaimedAmount.Value)
-        resp, err = LoomCoinGwHelper.Contract.GetUnclaimedContractTokens(LoomCoinGwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: loomAddr.Address.MarshalPB()})
+	resp, err = LoomCoinGwHelper.Contract.GetUnclaimedContractTokens(LoomCoinGwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: loomAddr.Address.MarshalPB()})
 	require.NoError(err)
 	require.Equal(loom.NewBigUIntFromInt(1370), &resp.UnclaimedAmount.Value)
 }

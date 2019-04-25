@@ -32,4 +32,3 @@ func (r *ReceiptHandler) GetEventsFromLogs(logs []*eth_types.Log, blockHeight in
 	}
 	return events
 }
-
