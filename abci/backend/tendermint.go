@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -89,6 +90,8 @@ type Backend interface {
 	Start(app abci.Application) error
 	RunForever()
 	Validators() []*loom.Validator
+	// IsValidator checks if this node is currently a validator.
+	IsValidator() bool
 	NodeKey() (string, error)
 	// Returns the tx signer used by this node to sign txs it creates
 	NodeSigner() (auth.Signer, error)
@@ -214,6 +217,29 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 // Return validators list from genesis file
 func (b *TendermintBackend) Validators() []*loom.Validator {
 	return b.GenesisValidators
+}
+
+// IsValidator checks if the node is currently a validator.
+func (b *TendermintBackend) IsValidator() bool {
+	privVal := b.node.PrivValidator()
+	if privVal == nil {
+		return false
+	}
+
+	// consensus state may be unavailable while the node is catching up
+	cs := b.node.ConsensusState()
+	if cs == nil {
+		return false
+	}
+
+	privValAddr := privVal.GetPubKey().Address()
+	_, validators := cs.GetValidators()
+	for _, validator := range validators {
+		if bytes.Equal(privValAddr, validator.Address) {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *TendermintBackend) Reset(height uint64) error {
