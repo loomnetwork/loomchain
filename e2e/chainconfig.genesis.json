@@ -18,7 +18,7 @@
                     "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
                 },
                 "params": {
-                    "voteThreshold":"67",
+                    "voteThreshold":"100",
                     "numBlockConfirmations":"1"
                 },
                 "features": [
