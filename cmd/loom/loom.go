@@ -998,8 +998,7 @@ func loadApp(
 		}
 
 		// if DPOS contract is not deployed, get validators from genesis file
-		genesisValidators := b.Validators()
-		return loom.NewValidatorSet(genesisValidators...), nil
+		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
