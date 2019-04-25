@@ -2,6 +2,7 @@ ReceiptsVersion: 2
 DPOSVersion: 2
 ChainConfig: 
   ContractEnabled: true
-  EnableFeatureInterval: 20
+  EnableFeatureStartupDelay: 5
+  EnableFeatureInterval: 15
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
