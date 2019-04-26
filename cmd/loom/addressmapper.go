@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -57,6 +58,32 @@ func AddIdentityMappingCmd() *cobra.Command {
 	return cmd
 }
 
+func GetMapping() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get-mapping",
+		Short: "Get mapping address",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp amtypes.AddressMapperGetMappingResponse
+			from, err := cli.ParseAddress(args[0])
+			if err != nil {
+				return err
+			}
+			err = cli.StaticCallContract(AddressMapperName, "GetMapping", &amtypes.AddressMapperGetMappingRequest{
+				From: from.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
 func ListMappingCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-mappings",
@@ -84,6 +111,7 @@ func ListMappingCmd() *cobra.Command {
 func AddAddressMappingMethods(addressMappingCmd *cobra.Command) {
 	addressMappingCmd.AddCommand(
 		AddIdentityMappingCmd(),
+		GetMapping(),
 		ListMappingCmd(),
 	)
 }
