@@ -87,6 +87,7 @@ func mockMessageTx(t *testing.T, id uint32, to loom.Address, from loom.Address) 
 		To:   to.MarshalPB(),
 		From: from.MarshalPB(),
 	})
+	require.NoError(t, err)
 
 	return messageTx
 }
