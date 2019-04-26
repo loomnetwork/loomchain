@@ -5,6 +5,8 @@ package address_mapper
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -196,6 +198,11 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
+
+	if evmcompat.SignatureType(sig[0]) == evmcompat.SignatureType_EOS_SCATTER {
+		eosHash := sha256.Sum256([]byte("0x" + hex.EncodeToString(hash)))
+		hash = eosHash[:]
+	}
 
 	signerAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig)
 
