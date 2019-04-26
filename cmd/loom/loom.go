@@ -1303,8 +1303,6 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		resolveCmd,
 		unsafeCmd,
-		commands.GetMapping(),
-		commands.ListMapping(),
 		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
