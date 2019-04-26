@@ -21,6 +21,8 @@ func TestEthJSONRPC2(t *testing.T) {
 		{"getBlockByNumber", "eth-3-test.toml", 1, 1, "empty-genesis.json", "eth-test-2-loom.yaml"},
 		{"getBlockTransactionCountByNumber", "eth-4-test.toml", 1, 1, "empty-genesis.json", "eth-test-1-loom.yaml"},
 		{"getLogs", "eth-5-test.toml", 1, 4, "empty-genesis.json", "eth-test-2-loom.yaml"},
+		{"go-getBlockByNumber", "eth-6-test.toml", 1, 3, "coin.genesis.json", "eth-test-2-loom.yaml"},
+		//{"go-getBlockTransactionCountByNumber", "eth-4-test.toml", 1, 3, "coin.genesis.json", "eth-test-1-loom.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
