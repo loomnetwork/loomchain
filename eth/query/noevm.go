@@ -60,3 +60,11 @@ func QueryChain(
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }
+
+func GetTxByTendermintHash(_ store.BlockStore, _ []byte) (eth.JsonTxObject, error) {
+	return eth.JsonTxObject{}, nil
+}
+
+func GetNumTxBlock(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64) (uint64, error) {
+	return 0, nil
+}
