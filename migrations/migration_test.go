@@ -112,7 +112,7 @@ func TestMigration(t *testing.T) {
 	err = dposv2.Elect(contractpb.WrapPluginContext(dposv2Ctx))
 	require.Nil(t, err)
 
-	//DPOSv3Migration(dposv2Ctx)
+	// DPOSv3Migration(dposv2Ctx)
 
 	// // create dposv3 contract
 	// dposv3Contract := &dposv3.DPOS{}
