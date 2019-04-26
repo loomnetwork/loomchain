@@ -15,7 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const DPOSV2ContractName = "dposV2"
+
+const (
+	DPOSV2ContractName = "dposV2"
+	AddressMapperContractName = "addressmapper"
+)
 
 func NewStakingCommand() *cobra.Command {
 	cmd := cli.ContractCallCommand("staking")
@@ -137,7 +141,7 @@ func TotalDelegationCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContract(AddressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
@@ -224,7 +228,7 @@ func GetMappingCmd() *cobra.Command {
 			}
 
 			err = cli.StaticCallContract(
-				commands.AddressMapperContractName, "GetMapping",
+				AddressMapperContractName, "GetMapping",
 				&address_mapper.AddressMapperGetMappingRequest{From: from.MarshalPB()}, &resp,
 			)
 			if err != nil {
@@ -247,7 +251,7 @@ func ListMappingCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp address_mapper.AddressMapperListMappingResponse
 			err := cli.StaticCallContract(
-				commands.AddressMapperContractName, "ListMapping",
+				AddressMapperContractName, "ListMapping",
 				&address_mapper.AddressMapperListMappingRequest{}, &resp,
 			)
 			if err != nil {
@@ -288,7 +292,7 @@ func GetBalanceCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContract(AddressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
@@ -337,7 +341,7 @@ func WithdrawalReceiptCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContract(AddressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
@@ -390,7 +394,7 @@ func CheckAllDelegationsCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContract(AddressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
