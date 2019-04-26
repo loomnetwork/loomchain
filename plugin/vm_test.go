@@ -143,7 +143,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	}
 	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
 
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
+	vm := NewPluginVM(loader, state, evmStore, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
 	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)
 
 	// Deploy contracts
@@ -174,7 +174,6 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	fc1.NextContractExpectedCaller = goContractAddr1
 	require.NoError(t, callGoContractMethod(vm, vmAddr1, goContractAddr1, "CheckTxCaller", &testdata.CallArgs{}))
 	require.NoError(t, staticCallGoContractMethod(vm, vmAddr1, goContractAddr1, "CheckQueryCaller", &testdata.StaticCallArgs{}))
-
 	fc1.reset()
 	fc2.reset()
 	fc3.reset()
@@ -220,7 +219,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, receiptHandler.CommitBlock(state, 1))
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	vm := NewPluginVM(NewStaticLoader(), state20, nil, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
@@ -245,7 +244,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	vm := NewPluginVM(NewStaticLoader(), state20, nil, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)

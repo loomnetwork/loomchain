@@ -818,6 +818,7 @@ func loadApp(
 		return plugin.NewPluginVM(
 			loader,
 			state,
+			nil,
 			createRegistry(state),
 			eventHandler,
 			log.Default,
@@ -827,9 +828,9 @@ func loadApp(
 		), nil
 	})
 
-	var EvmStore store.EvmStore
+	var evmStore store.EvmStore
 	if evm.EVMEnabled {
-		EvmStore, err = loadEvmStore(cfg, log.Default, appHeight)
+		evmStore, err = loadEvmStore(cfg, log.Default, appHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -850,6 +851,7 @@ func loadApp(
 				pvm := plugin.NewPluginVM(
 					loader,
 					state,
+					evmStore,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -863,7 +865,7 @@ func loadApp(
 				}
 			}
 
-			return evm.NewLoomVm(state, EvmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, evmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -1133,7 +1135,7 @@ func loadApp(
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
-		EvmStore:                    EvmStore,
+		EvmStore:                    evmStore,
 		GetValidatorSet:             getValidatorSet,
 	}, nil
 }

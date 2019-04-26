@@ -193,6 +193,7 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 	vm := lcp.NewPluginVM(
 		s.Loader,
 		snapshot,
+		nil,
 		s.CreateRegistry(snapshot),
 		nil,
 		log.Default,
@@ -236,6 +237,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 		pvm := lcp.NewPluginVM(
 			s.Loader,
 			snapshot,
+			s.EvmStore,
 			s.CreateRegistry(snapshot),
 			nil,
 			log.Default,
@@ -312,6 +314,7 @@ func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.
 	vm := lcp.NewPluginVM(
 		s.Loader,
 		state,
+		s.EvmStore,
 		s.CreateRegistry(state),
 		nil, // event handler
 		log.Default,

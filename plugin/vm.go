@@ -9,7 +9,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
-	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/go-loom"
@@ -38,6 +37,7 @@ var (
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
+	evmStore     store.EvmStore
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
@@ -50,6 +50,7 @@ type PluginVM struct {
 func NewPluginVM(
 	loader Loader,
 	state loomchain.State,
+	evmStore store.EvmStore,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
@@ -63,6 +64,7 @@ func NewPluginVM(
 		Registry:      registry,
 		EventHandler:  eventHandler,
 		logger:        logger,
+		evmStore:      evmStore,
 		newABMFactory: newABMFactory,
 		receiptWriter: receiptWriter,
 		receiptReader: receiptReader,
@@ -195,13 +197,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  0,
-		ContractAddr: addr,
-		CallerAddr:   caller,
-	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
-	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -214,13 +210,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  0,
-		ContractAddr: addr,
-		CallerAddr:   caller,
-	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
-	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 

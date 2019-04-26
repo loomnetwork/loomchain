@@ -97,12 +97,23 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 				newABMFactory = plugin.NewAccountBalanceManagerFactory
 			}
+			evmDB, err := dbm.NewGoLevelDB(cfg.EventStore.DBName, cfg.RootPath())
+			if err != nil {
+				return err
+			}
+			logContext := &store.EvmStoreLogContext{
+				BlockHeight:  appHeight,
+				ContractAddr: loom.Address{},
+				CallerAddr:   loom.Address{},
+			}
+			evmStore := store.NewKVEvmStore(evmDB, logContext)
 
 			var accountBalanceManager evm.AccountBalanceManager
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					common.NewDefaultContractsLoader(cfg),
 					state,
+					evmStore,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -120,17 +131,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			evmDB, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
-			if err != nil {
-				return err
-			}
-			logContext := &store.EvmStoreLogContext{
-				BlockHeight:  0,
-				ContractAddr: loom.Address{},
-				CallerAddr:   loom.Address{},
-			}
-			EvmStore := store.NewKVEvmStore(evmDB, logContext)
-			vm, err := evm.NewLoomEvm(state, EvmStore, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, evmStore, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}
