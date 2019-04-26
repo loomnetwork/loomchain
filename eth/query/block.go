@@ -73,43 +73,46 @@ func GetBlockByNumber(
 	if err != nil {
 		return resp, errors.Wrapf(err, "get tx hash list at height %v", height)
 	}
-	for _, hash := range txHashList {
-		if full {
-			txObj, err := GetTxByHash(state, hash, readReceipts)
-			if err != nil {
-				return resp, errors.Wrapf(err, "txObj for hash %v", hash)
-			}
-			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
-		} else {
-			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(hash))
-		}
-	}
-
+	evmIndex := 0
 	for i, tx := range blockResult.Block.Data.Txs {
 		txResult, err := blockStore.GetTxResult(tx.Hash())
 		if err != nil {
 			return resp, errors.Wrapf(err, "cant find result for tx %v", tx)
 		}
 		if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info  == utils.DeployEvm {
-			continue
-		}
-
-		if full {
-			blockInfo.Transactions = append(blockInfo.Transactions, eth.JsonTxObject{
-				Nonce:                  eth.ZeroedQuantity,
-				Hash:                   eth.EncBytes(txResult.Hash),
-				BlockHash:              eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
-				BlockNumber:            eth.EncInt(txResult.Height),
-				TransactionIndex:       eth.EncInt(int64(i)),
-				From:                   eth.ZeroedData20Bytes,
-				To:                     eth.ZeroedData20Bytes,
-				Gas:                    eth.EncInt(txResult.TxResult.GasWanted),
-				GasPrice:               eth.EncInt(txResult.TxResult.GasUsed),
-				Input:                  eth.EncBytes(txResult.Tx),
-				Value:                  eth.EncInt(0),
-			})
-		} else {
-			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
+			if evmIndex >= len(txHashList) {
+				return resp, errors.New("transaction count mismatch")
+			}
+			hash := txHashList[evmIndex]
+			if full {
+				txObj, err := GetTxByHash(state, hash, readReceipts)
+				if err != nil {
+					return resp, errors.Wrapf(err, "txObj for hash %v", hash)
+				}
+				txObj.Input = eth.EncBytes(tx)
+				blockInfo.Transactions = append(blockInfo.Transactions, txObj)
+			} else {
+				blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(hash))
+			}
+			evmIndex++
+		} else if txResult.TxResult.Info == utils.CallPlugin || txResult.TxResult.Info  == utils.DeployPlugin {
+			if full {
+				blockInfo.Transactions = append(blockInfo.Transactions, eth.JsonTxObject{
+					Nonce:                  eth.ZeroedQuantity,
+					Hash:                   eth.EncBytes(txResult.Hash),
+					BlockHash:              eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+					BlockNumber:            eth.EncInt(txResult.Height),
+					TransactionIndex:       eth.EncInt(int64(i)),
+					From:                   eth.ZeroedData20Bytes,
+					To:                     eth.ZeroedData20Bytes,
+					Gas:                    eth.EncInt(txResult.TxResult.GasWanted),
+					GasPrice:               eth.EncInt(txResult.TxResult.GasUsed),
+					Input:                  eth.EncBytes(tx),
+					Value:                  eth.EncInt(0),
+				})
+			} else {
+				blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
+			}
 		}
 	}
 
