@@ -410,7 +410,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner); err != nil {
+			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend, log.Default); err != nil {
 				return err
 			}
 
@@ -453,12 +453,15 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 	return nil
 }
 
-func startFeatureAutoEnabler(chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer) error {
+func startFeatureAutoEnabler(
+	chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer, node backend.Backend,
+	logger *loom.Logger,
+) error {
 	if !cfg.AutoEnableFeatures || !cfg.ContractEnabled {
 		return nil
 	}
 
-	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner)
+	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner, node, logger)
 	if err != nil {
 		return err
 	}
@@ -996,8 +999,7 @@ func loadApp(
 		}
 
 		// if DPOS contract is not deployed, get validators from genesis file
-		genesisValidators := b.Validators()
-		return loom.NewValidatorSet(genesisValidators...), nil
+		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)

@@ -61,7 +61,7 @@ func NewChainConfigClient(
 	}, nil
 }
 
-// VoteToEnablePendingFeature is called periodically by ChainConfigRoutine
+// VoteToEnablePendingFeatures is called periodically by ChainConfigRoutine
 // to enable pending feature if it's supported in this current build
 func (cc *ChainConfigClient) VoteToEnablePendingFeatures(buildNumber uint64) error {
 	var resp ListFeaturesResponse
@@ -71,7 +71,7 @@ func (cc *ChainConfigClient) VoteToEnablePendingFeatures(buildNumber uint64) err
 		cc.caller,
 		&resp,
 	); err != nil {
-		cc.logger.Error("failed to retrieve features from ChainConfig contract", "err", err)
+		cc.logger.Error("Failed to retrieve features from ChainConfig contract", "err", err)
 		return err
 	}
 
@@ -94,10 +94,13 @@ func (cc *ChainConfigClient) VoteToEnablePendingFeatures(buildNumber uint64) err
 			cc.signer,
 			&resp,
 		); err != nil {
-			cc.logger.Error("failed to enable features", strings.Join(featureNames, ","), "err", err)
+			cc.logger.Error(
+				"Encountered an error while trying to auto-enable features",
+				"features", strings.Join(featureNames, ","), "err", err,
+			)
 			return err
 		}
-
+		cc.logger.Info("Auto-enabled features", "features", strings.Join(featureNames, ","))
 	}
 	return nil
 }
