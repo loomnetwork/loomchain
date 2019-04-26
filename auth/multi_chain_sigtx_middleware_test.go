@@ -170,7 +170,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	tronSig, err := address_mapper.SignIdentityMapping(addr1, tronPublicAddr, tronKey)
 	require.NoError(t,err)
 	testEthAddressMappingVerification(t, chains, "tron",  &auth.TronSigner{tronKey}, tronPublicAddr, tronSig)
-
+	/* todo
 	eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	eosLocalAddr, err := LocalAddressFromEosPublicKey(eosKey.PublicKey())
@@ -179,7 +179,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey)
 	require.NoError(t,err)
 	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
-/*
+
 	eosScatterKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	eosScatterLocalAddr, err := LocalAddressFromEosPublicKey(eosScatterKey.PublicKey())
@@ -302,11 +302,12 @@ func TestChainIdVerification(t *testing.T) {
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
+	// todo
 	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
 	// to contracts will be eos:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
 	// Don't try this in production.
-	eosKey, err := ecc.NewRandomPrivateKey()
+	/*eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	txSigned = mockSignedTx(t, "eos", &auth.EosSigner{eosKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
@@ -316,7 +317,7 @@ func TestChainIdVerification(t *testing.T) {
 	// to contracts will be eos-scatter:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
 	// Don't try this in production.
-	/*eosScatterKey, err := ecc.NewRandomPrivateKey()
+	eosScatterKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	txSigned = mockSignedTx(t, "eos", &auth.EosScatterSigner{eosScatterKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
