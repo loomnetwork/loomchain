@@ -2,7 +2,7 @@ package dposv3
 
 import (
 	"math/big"
-
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	loom "github.com/loomnetwork/go-loom"
 	common "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -180,7 +180,7 @@ func (dpos *testDPOSContract) RegisterCandidate(
 	candidateWebsite *string,
 ) error {
 	req := RegisterCandidateRequest{
-		PubKey: pubKey,
+		PubKey: &dtypes.PubKeyV3{PubKey:pubKey},
 	}
 
 	if maxReferralPercentage != nil {

@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -1063,7 +1062,7 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		stat, _ := GetStatistic(ctx, address)
 		if stat == nil {
 			stat = &ValidatorStatistic{
-				PubKey:  &d3types.PubKeyV3{PubKey:validator.PubKey},
+				PubKey:  &dtypes.PubKeyV3{PubKey:validator.PubKey},
 				Address: address.MarshalPB(),
 			}
 		}
