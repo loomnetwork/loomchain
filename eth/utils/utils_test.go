@@ -22,4 +22,3 @@ func TestEthUnmarshal(t *testing.T) {
 	_, err = UnmarshalEthFilter([]byte(test1))
 	require.NoError(t, err, "un-marshalling test filter")
 }
-

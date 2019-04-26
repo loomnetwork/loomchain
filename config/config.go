@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -168,7 +169,22 @@ type PrometheusPushGatewayConfig struct {
 }
 
 type ChainConfigConfig struct {
+	// Allow deployment of the ChainConfig contract
 	ContractEnabled bool
+	// Allow a validator node to auto-enable features supported by the current build
+	AutoEnableFeatures bool
+	// How long to wait (in seconds) after the node starts before attempting to auto-enable features
+	EnableFeatureStartupDelay int64
+	// Frequency (in seconds) with which the node should auto-enable features
+	EnableFeatureInterval int64
+	// DAppChain URI feature auto-enabler should use to query the chain
+	DAppChainReadURI string
+	// DAppChain URI feature auto-enabler should use to submit txs to the chain
+	DAppChainWriteURI string
+	// Log level for feature auto-enabler
+	LogLevel string
+	// Log destination for feature auto-enabler
+	LogDestination string
 }
 
 type DeployerWhitelistConfig struct {
@@ -207,9 +223,16 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	}
 }
 
-func DefaultChainConfigConfig() *ChainConfigConfig {
+func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 	return &ChainConfigConfig{
-		ContractEnabled: true,
+		ContractEnabled:           true,
+		AutoEnableFeatures:        true,
+		EnableFeatureStartupDelay: 5 * 60,  // wait 5 mins after startup before auto-enabling features
+		EnableFeatureInterval:     15 * 60, // auto-enable features every 15 minutes
+		DAppChainReadURI:          fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
+		DAppChainWriteURI:         fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
+		LogLevel:                  "info",
+		LogDestination:            "file://chainconfig.log",
 	}
 }
 
@@ -323,7 +346,7 @@ func DefaultConfig() *Config {
 		UnsafeRPCEnabled:           false,
 		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
 		CreateEmptyBlocks:          true,
-		ContractLoaders:            []string{"static","dynamic"},
+		ContractLoaders:            []string{"static", "dynamic"},
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
 		RegistryVersion:            int32(registry.RegistryV1),
@@ -351,7 +374,7 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
-	cfg.ChainConfig = DefaultChainConfigConfig()
+	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
 	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
@@ -592,11 +615,26 @@ LoomCoinTransferGateway:
     MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
   {{end}}
+
 #
 # ChainConfig
 #
 ChainConfig:
+  # Allow deployment of the ChainConfig contract
   ContractEnabled: {{ .ChainConfig.ContractEnabled }}
+  # Allow a validator node to auto-enable features supported by the current build
+  AutoEnableFeatures: {{ .ChainConfig.AutoEnableFeatures }}
+  # How long to wait (in seconds) after the node starts before attempting to auto-enable features
+  EnableFeatureStartupDelay: {{ .ChainConfig.EnableFeatureStartupDelay }}
+  # Frequency (in seconds) with which the node should auto-enable features
+  EnableFeatureInterval: {{ .ChainConfig.EnableFeatureInterval }}
+  DAppChainReadURI: {{ .ChainConfig.DAppChainReadURI }}
+  DAppChainWriteURI: {{ .ChainConfig.DAppChainWriteURI }}
+  # Log level for feature auto-enabler
+  LogLevel: {{ .ChainConfig.LogLevel }}
+  # Log destination for feature auto-enabler
+  LogDestination: {{ .ChainConfig.LogDestination }}
+
 #
 # DeployerWhitelist
 #

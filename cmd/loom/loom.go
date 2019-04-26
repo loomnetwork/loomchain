@@ -37,7 +37,8 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
+	"github.com/loomnetwork/loomchain/chainconfig"
+	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
@@ -409,7 +410,12 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend, log.Default); err != nil {
+				return err
+			}
+
 			backend.RunForever()
+
 			return nil
 		},
 	}
@@ -447,6 +453,24 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 	return nil
 }
 
+func startFeatureAutoEnabler(
+	chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer, node backend.Backend,
+	logger *loom.Logger,
+) error {
+	if !cfg.AutoEnableFeatures || !cfg.ContractEnabled {
+		return nil
+	}
+
+	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner, node, logger)
+	if err != nil {
+		return err
+	}
+
+	go routine.RunWithRecovery()
+
+	return nil
+}
+
 func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
 	plasmaCfg, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
 	if err != nil {
@@ -468,7 +492,12 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	return nil
 }
 
-func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+func startGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
@@ -481,7 +510,12 @@ func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgat
 	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
-func startLoomCoinGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+func startLoomCoinGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
@@ -671,7 +705,13 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	return eventStore, nil
 }
 
-func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
+func loadApp(
+	chainID string,
+	cfg *config.Config,
+	loader plugin.Loader,
+	b backend.Backend,
+	appHeight int64,
+) (*loomchain.Application, error) {
 	logger := log.Root
 
 	appStore, err := loadAppStore(cfg, log.Default, appHeight)
@@ -959,8 +999,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		}
 
 		// if DPOS contract is not deployed, get validators from genesis file
-		genesisValidators := b.Validators()
-		return loom.NewValidatorSet(genesisValidators...), nil
+		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
@@ -1231,9 +1270,6 @@ func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
-	dposCmd := cli.ContractCallCommand("dpos")
-	commands.AddDPOSV2(dposCmd)
-
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
@@ -1258,18 +1294,19 @@ func main() {
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		NewCoinCommand(),
+		NewDPOSV2Command(),
+		NewDPOSV3Command(),
 		karmaCmd,
 		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
-		dposCmd,
 		resolveCmd,
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
-		chainconfig.NewChainCfgCommand(),
+		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)

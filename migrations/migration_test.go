@@ -119,7 +119,6 @@ func TestMigration(t *testing.T) {
 	// dposv3Addr := pctx.CreateContract(contractpb.MakePluginContract(dposv3Contract))
 	// // dposv3Ctx := pctx.WithAddress(dposv3Addr)
 
-
 	// listValidatorsResponse, err := dposv3Contract.ListValidators(contractpb.WrapPluginContext(dposv3Ctx), &dposv3.ListValidatorsRequest{})
 	// require.Nil(t, err)
 	// assert.Equal(t, len(listValidatorsResponse.Statistics), 1)

@@ -6,16 +6,24 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 )
-
 
 const billionthsBasisPointRatio = 100000
 
 var (
+	plasmaValidators = []loom.Address{
+		loom.MustParseAddress("default:0x0e99fc16e32e568971908f2ce54b967a42663a26"), // plasma-0
+		loom.MustParseAddress("default:0xac3211caecc45940a6d2ba006ca465a647d8464f"), // plasma-1
+		loom.MustParseAddress("default:0x69c48768dbac492908161be787b7a5658192df35"), // plasma-2
+		loom.MustParseAddress("default:0x2a3a7c850586d4f80a12ac1952f88b1b69ef48e1"), // plasma-3
+		loom.MustParseAddress("default:0x4a1b8b15e50ce63cc6f65603ea79be09206cae70"), // plasma-4
+		loom.MustParseAddress("default:0x0ce7b61c97a6d5083356f115288f9266553e191e"), // plasma-5
+	}
 	doubledDelegator = loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
 	doubledValidator = loom.MustParseAddress("default:0xa38c27e8cf4a443e805065065aefb250b1e1cef2")
-	basisPoints = loom.BigUInt{big.NewInt(1e4)} // do not change
-	billionth   = loom.BigUInt{big.NewInt(1e9)}
+	basisPoints      = loom.BigUInt{big.NewInt(1e4)} // do not change
+	billionth        = loom.BigUInt{big.NewInt(1e9)}
 )
 
 var TierMap = map[uint64]LocktimeTier{
@@ -37,6 +45,28 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 	TIER_ONE:   loom.BigUInt{big.NewInt(15000)}, // three months
 	TIER_TWO:   loom.BigUInt{big.NewInt(20000)}, // six months
 	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
+}
+
+/// If the validator is one of the plasma nodes, it sets it to plasma-0
+func adjustValidatorIfInPlasmaValidators(delegation Delegation) *types.Address {
+	validator := delegation.Validator
+	for _, plasmaValidator := range plasmaValidators {
+		if validator.Local.Compare(plasmaValidator.Local) == 0 {
+			return plasmaValidators[0].MarshalPB()
+		}
+	}
+	return validator
+}
+
+func adjustDoubledDelegationAmount(delegation Delegation) *types.BigUInt {
+	amount := delegation.Amount.Value
+	validatorMatch := doubledValidator.Local.Compare(delegation.Validator.Local) == 0
+	delegatorMatch := doubledDelegator.Local.Compare(delegation.Delegator.Local) == 0
+	if validatorMatch && delegatorMatch {
+		amount = *common.BigZero()
+		amount.Div(&delegation.Amount.Value, loom.NewBigUIntFromInt(2))
+	}
+	return &types.BigUInt{Value: amount}
 }
 
 // frac is expressed in basis points if granular == false
