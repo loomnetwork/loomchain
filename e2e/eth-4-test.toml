@@ -56,5 +56,5 @@
   Condition = "contains"
   Expected = [
               '"error"',
-              '"data": "loom error: index 1 exceeds number of evm transactions 1"'
+              '"data": "loom error: index 1 exceeds size of result array 1"'
              ]

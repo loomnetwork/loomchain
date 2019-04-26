@@ -2,7 +2,7 @@
 # pending block not implemented yet
 # "latest" as block number input should fail as there is no latest block.
 
-# Perform a transaction
+# Perform a go-transaction
 [[TestCases]]
   Dir = ""
   RunCmd = "{{ $.LoomPath }} coin transfer {{index $.AccountAddressList 1}} 20000000 -k {{index $.AccountPrivKeyPathList 2}}"
@@ -21,6 +21,9 @@
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x3",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "excludes"
-  Expected = [
-    '"transactions": [],'
-  ]
+  Expected = [ '"transactions": [],' ]
+
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["0x3"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  Condition = "contains"
+  Expected = [ '"result": "0x1",'  ]
