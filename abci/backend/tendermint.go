@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -54,7 +55,6 @@ func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnReg
 }
 
 func CreateNewCachedDBProvider(config *cfg.Config) (node.DBProvider, error) {
-
 	// Let's not intefere with other db's creation, unless required
 	dbsNeedToCache := []string{
 		"state",
@@ -88,7 +88,9 @@ type Backend interface {
 	Destroy() error
 	Start(app abci.Application) error
 	RunForever()
-	Validators() []*loom.Validator
+	GenesisValidators() []*loom.Validator
+	// IsValidator checks if this node is currently a validator.
+	IsValidator() bool
 	NodeKey() (string, error)
 	// Returns the tx signer used by this node to sign txs it creates
 	NodeSigner() (auth.Signer, error)
@@ -104,7 +106,7 @@ type TendermintBackend struct {
 	// Unix socket path to serve ABCI app at
 	SocketPath        string
 	socketServer      tmcmn.Service
-	GenesisValidators []*loom.Validator
+	genesisValidators []*loom.Validator
 
 	FnRegistry fnConsensus.FnRegistry
 }
@@ -212,8 +214,31 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 }
 
 // Return validators list from genesis file
-func (b *TendermintBackend) Validators() []*loom.Validator {
-	return b.GenesisValidators
+func (b *TendermintBackend) GenesisValidators() []*loom.Validator {
+	return b.genesisValidators
+}
+
+// IsValidator checks if the node is currently a validator.
+func (b *TendermintBackend) IsValidator() bool {
+	privVal := b.node.PrivValidator()
+	if privVal == nil {
+		return false
+	}
+
+	// consensus state may be unavailable while the node is catching up
+	cs := b.node.ConsensusState()
+	if cs == nil {
+		return false
+	}
+
+	privValAddr := privVal.GetPubKey().Address()
+	_, validators := cs.GetValidators()
+	for _, validator := range validators {
+		if bytes.Equal(privValAddr, validator.Address) {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *TendermintBackend) Reset(height uint64) error {
@@ -344,7 +369,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			Power:  validator.Power,
 		})
 	}
-	b.GenesisValidators = validators
+	b.genesisValidators = validators
 
 	if !cmn.FileExists(cfg.NodeKeyFile()) {
 		return errors.New("failed to locate local node p2p key file")

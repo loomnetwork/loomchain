@@ -35,7 +35,6 @@ var (
 	}
 )
 
-
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
 	hub *Hub
@@ -113,7 +112,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 				logger.Error("error setting write deadline", "err", err)
 			}
 
-			if err := c.conn.WriteMessage(websocket.TextMessage, message); err!= nil {
+			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				logger.Error("error writing message to websocket", "err", err)
 				return
 			}
@@ -122,7 +121,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				msg := <-c.send
-				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err!= nil {
+				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 					logger.Error("error writing message to websocket", "err", err)
 					return
 				}
