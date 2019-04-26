@@ -197,6 +197,7 @@ var (
 	ErrOracleStateSaveFailed     = errors.New("TG011: failed to save oracle state")
 	ErrContractMappingExists     = errors.New("TG012: contract mapping already exists")
 	ErrFailedToReclaimToken      = errors.New("TG013: failed to reclaim token")
+	ErrNotEnoughSignatures       = errors.New("TG014: failed to recover enough signatures from trusted validators")
 )
 
 type Gateway struct {
@@ -995,7 +996,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 
 		// Reject if not all trusted validators signed
 		if len(valIndexes) != len(validatorsAuthConfig.TrustedValidators.Validators) {
-			return ErrNotAuthorized
+			return ErrNotEnoughSignatures
 		}
 		break
 	case tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS:

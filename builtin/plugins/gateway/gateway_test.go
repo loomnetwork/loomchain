@@ -412,25 +412,6 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 	_, err = deployDPOSV2Contract(fakeCtx, dposValidators)
 	require.NoError(err)
 
-	require.NoError(gwHelper.Contract.UpdateTrustedValidators(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
-		TrustedValidators: trustedValidators,
-	}))
-
-	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
-		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
-	}))
-
-	// If sender is trusted validator, request should pass validation check
-	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
-		TokenOwner:      trustedValidators.Validators[0],
-		OracleSignature: make([]byte, 5),
-		WithdrawalHash:  make([]byte, 5),
-	}), ErrMissingWithdrawalReceipt.Error())
-
-	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
-		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS,
-	}))
-
 	validators := make([]*loom.Validator, len(ts.validatorsDetails))
 	for i, _ := range validators {
 		validators[i] = &loom.Validator{
@@ -439,10 +420,29 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		}
 	}
 	fakeCtx = fakeCtx.WithValidators(validators)
-
-	// After changing auth strategy, this should stop working
 	sig, _ := hex.DecodeString("cd7f07b4f35d2d2dee86bde44d765aef81673745aab5d5aaf4422dc73938237d2cbc5105bc0ceddbf4037b62003159903d35b834496a622ba4d9117008c164401c")
 	hash, _ := hex.DecodeString("9be6cc490c68327498647b5a846b34565b4358a806d8b7e25a64058cfec744a0")
+
+	require.NoError(gwHelper.Contract.UpdateTrustedValidators(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
+		TrustedValidators: trustedValidators,
+	}))
+
+	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
+		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
+	}))
+
+	// If sender is trusted validator, request should pass validation check and fail at the signatures (because we gave it a wrong sig)
+	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
+		TokenOwner:      trustedValidators.Validators[0],
+		OracleSignature: sig,
+		WithdrawalHash:  hash,
+	}), ErrNotEnoughSignatures.Error())
+
+	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
+		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS,
+	}))
+
+	// After changing auth strategy, this should stop working
 	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
 		TokenOwner:      trustedValidators.Validators[0],
 		OracleSignature: sig,
