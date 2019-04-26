@@ -102,7 +102,7 @@ var (
 	signWithdrawalsPerm = []byte("sign-withdrawals")
 	verifyCreatorsPerm  = []byte("verify-creators")
 
-	validatorAuthConfigKey = []byte("validator-auth-config-key")
+	validatorAuthConfigKey = []byte("validator-authcfg")
 )
 
 const (
@@ -1124,8 +1124,8 @@ func (gw *Gateway) PendingWithdrawalsV2(ctx contract.StaticContext, req *Pending
 		}
 
 		hash := client.WithdrawalHash(
-			common.HexToAddress(receipt.TokenOwner.Local.String()),
-			common.HexToAddress(receipt.TokenContract.Local.String()),
+			common.BytesToAddress(receipt.TokenOwner.Local),
+			common.BytesToAddress(receipt.TokenContract.Local),
 			mainnetGatewayAddr,
 			receipt.TokenKind,
 			safeTokenID,
@@ -1185,8 +1185,8 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 		}
 
 		hash := client.WithdrawalHash(
-			common.HexToAddress(receipt.TokenOwner.Local.String()),
-			common.HexToAddress(receipt.TokenContract.Local.String()),
+			common.BytesToAddress(receipt.TokenOwner.Local),
+			common.BytesToAddress(receipt.TokenContract.Local),
 			mainnetGatewayAddr,
 			receipt.TokenKind,
 			safeTokenID,
