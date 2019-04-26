@@ -138,7 +138,7 @@ func (b *batch) Delete(key []byte) error {
 	return nil
 }
 
-func (b *batch) Dump(logger log.Logger) {
+func (b *batch) Dump(logger *log.Logger) {
 	b.parentStore.lock.Lock()
 	defer b.parentStore.lock.Unlock()
 	logger.Print("\n---- BATCH DUMP ----\n")
@@ -162,9 +162,8 @@ type EVMLogParams struct {
 }
 
 type LogBatch struct {
-	batch      batch
-	params     EVMLogParams
-	logContext *EvmStoreLogContext
+	batch  batch
+	params EVMLogParams
 }
 
 const batchHeaderWithContext = `
@@ -238,7 +237,7 @@ func (b *LogBatch) Put(key, value []byte) error {
 	}
 	err := b.batch.Put(key, value)
 	if b.params.LogPutDump {
-		b.batch.Dump(logger)
+		b.batch.Dump(&logger)
 	}
 	return err
 }
@@ -257,12 +256,12 @@ func (b *LogBatch) Write() error {
 	}
 	if b.params.LogBeforeWriteDump {
 		logger.Println("Write, before : ")
-		b.batch.Dump(logger)
+		b.batch.Dump(&logger)
 	}
 	err := b.batch.Write()
 	if b.params.LogWriteDump {
 		logger.Println("Write, after : ")
-		b.batch.Dump(logger)
+		b.batch.Dump(&logger)
 	}
 	return err
 }
@@ -272,24 +271,4 @@ func (b *LogBatch) Reset() {
 		logger.Println("Reset batch")
 	}
 	b.batch.Reset()
-}
-
-// sortKeys sorts prefixed keys, it will sort the postfix of the key in ascending lexographical order
-func sortKeys(prefix []byte, kvs []kvPair) []kvPair {
-	var unsorted, sorted []int
-	var tmpKv []kvPair
-	for i, kv := range kvs {
-		if 0 == bytes.Compare(prefix, kv.key[:len(prefix)]) {
-			unsorted = append(unsorted, i)
-			sorted = append(sorted, i)
-		}
-		tmpKv = append(tmpKv, kv)
-	}
-	sort.Slice(sorted, func(j, k int) bool {
-		return bytes.Compare(kvs[sorted[j]].key, kvs[sorted[k]].key) < 0
-	})
-	for index := 0; index < len(sorted); index++ {
-		kvs[unsorted[index]] = tmpKv[sorted[index]]
-	}
-	return kvs
 }
