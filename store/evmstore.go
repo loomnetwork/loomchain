@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	LogEVMStoreBatch = true
+	LogEvmStoreBatch = true
 	logger           log.Logger
 	loggerStarted    = false
 )
 
-type EVMStore interface {
+type EvmStore interface {
 	Delete([]byte) error
 	Put([]byte, []byte) error
 	Get([]byte) ([]byte, error)
@@ -28,55 +28,55 @@ type EVMStore interface {
 	NewBatch() ethdb.Batch
 }
 
-var _ EVMStore = &KVEVMStore{}
+var _ EvmStore = &KVEvmStore{}
 
-type KVEVMStore struct {
+type KVEvmStore struct {
 	dbm.DB
 	sync.Mutex
 	lock       sync.RWMutex
-	logContext *EVMStoreLogContext
+	logContext *EvmStoreLogContext
 }
 
-type EVMStoreLogContext struct {
+type EvmStoreLogContext struct {
 	BlockHeight  int64
 	ContractAddr loom.Address
 	CallerAddr   loom.Address
 }
 
-func NewKVEVMStore(db dbm.DB, logContext *EVMStoreLogContext) *KVEVMStore {
-	return &KVEVMStore{
+func NewKVEvmStore(db dbm.DB, logContext *EvmStoreLogContext) *KVEvmStore {
+	return &KVEvmStore{
 		DB:         db,
 		logContext: logContext,
 	}
 }
 
-func (evmStore *KVEVMStore) Delete(key []byte) error {
-	evmStore.DB.Delete(key)
+func (EvmStore *KVEvmStore) Delete(key []byte) error {
+	EvmStore.DB.Delete(key)
 	return nil
 }
 
-func (evmStore *KVEVMStore) Put(key []byte, value []byte) error {
-	evmStore.DB.Set(key, value)
+func (EvmStore *KVEvmStore) Put(key []byte, value []byte) error {
+	EvmStore.DB.Set(key, value)
 	return nil
 }
 
-func (evmStore *KVEVMStore) Get(key []byte) ([]byte, error) {
-	return evmStore.DB.Get(key), nil
+func (EvmStore *KVEvmStore) Get(key []byte) ([]byte, error) {
+	return EvmStore.DB.Get(key), nil
 }
 
-func (evmStore *KVEVMStore) Has(key []byte) (bool, error) {
-	return evmStore.DB.Has(key), nil
+func (EvmStore *KVEvmStore) Has(key []byte) (bool, error) {
+	return EvmStore.DB.Has(key), nil
 }
 
-func (evmStore *KVEVMStore) Close() {
+func (EvmStore *KVEvmStore) Close() {
 }
 
-func (evmStore *KVEVMStore) NewBatch() ethdb.Batch {
-	if LogEVMStoreBatch {
-		return evmStore.NewLogBatch(evmStore.logContext)
+func (EvmStore *KVEvmStore) NewBatch() ethdb.Batch {
+	if LogEvmStoreBatch {
+		return EvmStore.NewLogBatch(EvmStore.logContext)
 	} else {
 		newBatch := new(batch)
-		newBatch.parentStore = evmStore
+		newBatch.parentStore = EvmStore
 		newBatch.Reset()
 		return newBatch
 	}
@@ -90,7 +90,7 @@ type kvPair struct {
 
 type batch struct {
 	cache       []kvPair
-	parentStore *KVEVMStore
+	parentStore *KVEvmStore
 	size        int
 }
 
@@ -164,7 +164,7 @@ type EVMLogParams struct {
 type LogBatch struct {
 	batch      batch
 	params     EVMLogParams
-	logContext *EVMStoreLogContext
+	logContext *EvmStoreLogContext
 }
 
 const batchHeaderWithContext = `
@@ -186,10 +186,10 @@ const batchHeader = `
 
 `
 
-func (evmStore *KVEVMStore) NewLogBatch(logContext *EVMStoreLogContext) ethdb.Batch {
+func (EvmStore *KVEvmStore) NewLogBatch(logContext *EvmStoreLogContext) ethdb.Batch {
 	b := new(LogBatch)
 	b.batch = *new(batch)
-	b.batch.parentStore = evmStore
+	b.batch.parentStore = EvmStore
 	b.batch.Reset()
 	b.params = EVMLogParams{
 		LogFilename:        "ethdb-batch.log",

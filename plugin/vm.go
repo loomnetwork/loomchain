@@ -195,12 +195,12 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	logContext := &store.EVMStoreLogContext{
+	logContext := &store.EvmStoreLogContext{
 		BlockHeight:  0,
 		ContractAddr: addr,
-		CallerAddr:   addr,
+		CallerAddr:   caller,
 	}
-	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
 	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
@@ -214,12 +214,12 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	logContext := &store.EVMStoreLogContext{
+	logContext := &store.EvmStoreLogContext{
 		BlockHeight:  0,
 		ContractAddr: addr,
-		CallerAddr:   addr,
+		CallerAddr:   caller,
 	}
-	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
 	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }

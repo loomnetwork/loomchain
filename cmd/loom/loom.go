@@ -673,8 +673,8 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	return eventStore, nil
 }
 
-func loadEVMStore(cfg *config.Config, logger *loom.Logger) (store.EVMStore, error) {
-	evmStoreCfg := cfg.EVMStore
+func loadEvmStore(cfg *config.Config, logger *loom.Logger, appHeight int64) (store.EvmStore, error) {
+	evmStoreCfg := cfg.EvmStore
 	db, err := cdb.LoadDB(
 		evmStoreCfg.DBBackend,
 		evmStoreCfg.DBName,
@@ -686,12 +686,12 @@ func loadEVMStore(cfg *config.Config, logger *loom.Logger) (store.EVMStore, erro
 		return nil, err
 	}
 
-	logContext := &store.EVMStoreLogContext{
-		BlockHeight:  0,
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  appHeight,
 		ContractAddr: loom.Address{},
 		CallerAddr:   loom.Address{},
 	}
-	evmStore := store.NewKVEVMStore(db, logContext)
+	evmStore := store.NewKVEvmStore(db, logContext)
 	return evmStore, nil
 }
 
@@ -787,13 +787,13 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		), nil
 	})
 
+	var EvmStore store.EvmStore
 	if evm.EVMEnabled {
+		EvmStore, err = loadEvmStore(cfg, log.Default, appHeight)
+		if err != nil {
+			return nil, err
+		}
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
-			var evmStore store.EVMStore
-			evmStore, err = loadEVMStore(cfg, log.Default)
-			if err != nil {
-				return nil, err
-			}
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
 			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
@@ -822,7 +822,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, evmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+
+			return evm.NewLoomVm(state, EvmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -1093,6 +1094,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		EvmStore:                    EvmStore,
 		GetValidatorSet:             getValidatorSet,
 	}, nil
 }
@@ -1225,7 +1227,7 @@ func initQueryService(
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
-		EVMStore:               app.EVMStore,
+		EvmStore:               app.EvmStore,
 		AuthCfg:                cfg.Auth,
 	}
 	bus := &rpc.QueryEventBus{

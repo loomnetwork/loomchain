@@ -125,7 +125,7 @@ type Config struct {
 	EventDispatcher *events.EventDispatcherConfig
 
 	// EVM store
-	EVMStore *evm.EVMStoreConfig
+	EvmStore *evm.EvmStoreConfig
 
 	FnConsensus *FnConsensusConfig
 
@@ -361,7 +361,7 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
-	cfg.EVMStore = evm.DefaultEVMStoreConfig()
+	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -731,13 +731,13 @@ EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
-{{if .EVMStore -}}
+{{if .EvmStore -}}
 #
-# EVMStore
+# EvmStore
 #
-EVMStore:
-  DBName: {{.EVMStore.DBName}}
-  DBBackend: {{.EVMStore.DBBackend}}
+EvmStore:
+  DBName: {{.EvmStore.DBName}}
+  DBBackend: {{.EvmStore.DBBackend}}
 {{end}}
 # 
 #  FnConsensus reactor on/off switch + config

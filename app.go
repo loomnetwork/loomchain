@@ -283,7 +283,7 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
-	EVMStore                    store.EVMStore
+	EvmStore                    store.EvmStore
 }
 
 var _ abci.Application = &Application{}
@@ -560,7 +560,6 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	if err != nil {
 		panic(err)
 	}
-
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()

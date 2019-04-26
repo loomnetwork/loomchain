@@ -29,6 +29,7 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -135,8 +136,15 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: loom.Address{},
+		CallerAddr:   loom.Address{},
+	}
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+
 	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	evm := levm.NewLoomVm(state, nil, nil, nil, false)
+	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")

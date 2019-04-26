@@ -14,9 +14,13 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -47,13 +51,13 @@ type LoomEvm struct {
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
 	loomState loomchain.State,
-	evmStore store.EVMStore,
+	EvmStore store.EvmStore,
 	accountBalanceManager AccountBalanceManager,
-	logContext *store.EVMStoreLogContext,
+	logContext *store.EvmStoreLogContext,
 	debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
-	p.db = evmStore
+	p.db = EvmStore
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
 		return nil, err
@@ -97,28 +101,37 @@ func (levm LoomEvm) RawDump() []byte {
 	return output
 }
 
-// var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-// 	//TODO , debug bool, We should be able to pass in config
-// 	debug := false
-// 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-// 	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
-// 		eventHandler,
-// 		func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-// 			return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
-// 		},
-// 	)
-// 	receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
-// }
+// LoomVmFactory is used in tests only
+var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
+	//TODO , debug bool, We should be able to pass in config
+	debug := false
+	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
+		eventHandler,
+		func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
+			return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
+		},
+	)
+	receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	if err != nil {
+		return nil, err
+	}
+
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: loom.Address{},
+		CallerAddr:   loom.Address{},
+	}
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+
+	return NewLoomVm(state, evmStore, eventHandler, receiptHandler, nil, debug), nil
+}
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
 // TODO: rename to LoomEVM
 type LoomVm struct {
 	state          loomchain.State
-	evmStore       store.EVMStore
+	evmStore       store.EvmStore
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
@@ -126,7 +139,7 @@ type LoomVm struct {
 
 func NewLoomVm(
 	loomState loomchain.State,
-	evmStore store.EVMStore,
+	evmStore store.EvmStore,
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
@@ -149,7 +162,7 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
-	logContext := &store.EVMStoreLogContext{
+	logContext := &store.EvmStoreLogContext{
 		BlockHeight:  lvm.state.Block().Height,
 		ContractAddr: loom.Address{},
 		CallerAddr:   caller,
@@ -194,7 +207,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	logContext := &store.EVMStoreLogContext{
+	logContext := &store.EvmStoreLogContext{
 		BlockHeight:  lvm.state.Block().Height,
 		ContractAddr: addr,
 		CallerAddr:   caller,

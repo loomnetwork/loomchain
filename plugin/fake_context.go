@@ -21,6 +21,7 @@ type FakeContextWithEVM struct {
 	*plugin.FakeContext
 	State                    loomchain.State
 	useAccountBalanceManager bool
+	caller                   loom.Address
 }
 
 func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM {
@@ -40,6 +41,7 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state,
+		caller:      caller,
 	}
 }
 
@@ -97,12 +99,12 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	logContext := &store.EVMStoreLogContext{
+	logContext := &store.EvmStoreLogContext{
 		BlockHeight:  0,
 		ContractAddr: addr,
-		CallerAddr:   addr,
+		CallerAddr:   c.caller,
 	}
-	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
 	vm := levm.NewLoomVm(c.State, evmStore, nil, nil, createABM, false)
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
@@ -112,12 +114,12 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	logContext := &store.EVMStoreLogContext{
+	logContext := &store.EvmStoreLogContext{
 		BlockHeight:  0,
 		ContractAddr: addr,
-		CallerAddr:   addr,
+		CallerAddr:   c.caller,
 	}
-	evmStore := store.NewKVEVMStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
 	vm := levm.NewLoomVm(c.State, evmStore, nil, nil, createABM, false)
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }

@@ -124,13 +124,13 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			logContext := &store.EVMStoreLogContext{
+			logContext := &store.EvmStoreLogContext{
 				BlockHeight:  0,
 				ContractAddr: loom.Address{},
 				CallerAddr:   loom.Address{},
 			}
-			evmStore := store.NewKVEVMStore(evmDB, logContext)
-			vm, err := evm.NewLoomEvm(state, evmStore, accountBalanceManager, nil, false)
+			EvmStore := store.NewKVEvmStore(evmDB, logContext)
+			vm, err := evm.NewLoomEvm(state, EvmStore, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}

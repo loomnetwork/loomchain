@@ -15,8 +15,10 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func TestEthCoinEvmIntegration(t *testing.T) {
@@ -205,7 +207,15 @@ func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, m
 	if err != nil {
 		return err
 	}
-	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false)
+
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: loom.Address{},
+		CallerAddr:   c.Address,
+	}
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+
+	vm := evm.NewLoomVm(ctx.State, evmStore, nil, nil, ctx.AccountBalanceManager, false)
 	_, err = vm.Call(ctx.Message().Sender, c.Address, input, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return err
@@ -218,7 +228,14 @@ func (c *ethCoinIntegrationTestHelper) staticCallEVM(ctx *plugin.FakeContextWith
 	if err != nil {
 		return err
 	}
-	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false)
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: loom.Address{},
+		CallerAddr:   c.Address,
+	}
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+
+	vm := evm.NewLoomVm(ctx.State, evmStore, nil, nil, ctx.AccountBalanceManager, false)
 	output, err := vm.StaticCall(ctx.Message().Sender, c.Address, input)
 	if err != nil {
 		return err
@@ -234,7 +251,14 @@ func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller
 	}
 	byteCode := common.FromHex(string(hexByteCode))
 
-	vm := evm.NewLoomVm(ctx.State, nil, nil, nil, false)
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: caller,
+		CallerAddr:   caller,
+	}
+	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+
+	vm := evm.NewLoomVm(ctx.State, evmStore, nil, nil, nil, false)
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err
