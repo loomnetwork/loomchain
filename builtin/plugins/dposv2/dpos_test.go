@@ -79,7 +79,7 @@ func TestChangeParams(t *testing.T) {
 	err = dposContract.SetValidatorCount(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetValidatorCountRequest{
 		ValidatorCount: 3,
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dposContract.SetValidatorCount(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetValidatorCountRequest{
 		ValidatorCount: 3,
@@ -95,7 +95,7 @@ func TestChangeParams(t *testing.T) {
 	err = dposContract.SetValidatorCount2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetValidatorCountRequest{
 		ValidatorCount: 3,
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dposContract.SetValidatorCount2(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetValidatorCountRequest{
 		ValidatorCount: 3,
@@ -114,7 +114,7 @@ func TestChangeParams(t *testing.T) {
 		CrashSlashingPercentage:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 		ByzantineSlashingPercentage: &types.BigUInt{Value: *loom.NewBigUIntFromInt(50)},
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dposContract.SetSlashingPercentages(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetSlashingPercentagesRequest{
 		CrashSlashingPercentage:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
@@ -132,7 +132,7 @@ func TestChangeParams(t *testing.T) {
 	err = dposContract.SetRegistrationRequirement(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetRegistrationRequirementRequest{
 		RegistrationRequirement: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dposContract.SetRegistrationRequirement(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetRegistrationRequirementRequest{
 		RegistrationRequirement: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
@@ -148,7 +148,7 @@ func TestChangeParams(t *testing.T) {
 	err = dposContract.SetMaxYearlyReward(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetMaxYearlyRewardRequest{
 		MaxYearlyReward: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dposContract.SetMaxYearlyReward(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetMaxYearlyRewardRequest{
 		MaxYearlyReward: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
@@ -164,7 +164,7 @@ func TestChangeParams(t *testing.T) {
 	err = dposContract.SetElectionCycle(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetElectionCycleRequest{
 		ElectionCycle: int64(100),
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dposContract.SetElectionCycle(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetElectionCycleRequest{
 		ElectionCycle: int64(100),
@@ -603,7 +603,7 @@ func TestDelegate(t *testing.T) {
 			},
 		},
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Error(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
@@ -1511,7 +1511,7 @@ func TestElect(t *testing.T) {
 		CandidateAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: newWhitelistAmount},
 	})
-	require.Equal(errOnlyOracle, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dposContract.ChangeWhitelistAmount(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ChangeWhitelistAmountRequest{
 		CandidateAddress: addr1.MarshalPB(),
