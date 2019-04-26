@@ -254,11 +254,6 @@ func (s *TendermintBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64)
 }
 
 func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
-	resultBlock, err := core.Block(height)
-	if err != nil {
-		return nil, err
-	}
-	resultBlock = resultBlock
 	blockResult, err := core.BlockResults(height)
 	if err != nil {
 		return nil, err
