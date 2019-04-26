@@ -1759,6 +1759,8 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
+	state.Params.ValidatorCount = uint64(req.ValidatorCount)
+
 	return saveState(ctx, state)
 }
 
