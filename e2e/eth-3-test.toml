@@ -39,6 +39,7 @@
                     '"from"',
                     '"to"'
              ]
+
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest",false],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
@@ -75,3 +76,11 @@
                   '"message": "Server error"',
                   '"data": "loom error: parse block height: strconv.ParseUint: parsing \"nonsese\": invalid syntax"',
               ]
+
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x2",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  Condition = "contains"
+  Expected = [
+    "transactionIndex",
+    "input"
+  ]
