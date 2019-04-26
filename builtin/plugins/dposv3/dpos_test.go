@@ -55,6 +55,133 @@ var (
 	}
 )
 
+func TestChangeParams(t *testing.T) {
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey),
+	}
+
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex3)
+	addr2 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey2),
+	}
+
+	pctx := plugin.CreateFakeContext(addr, addr)
+
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr2, 2000000000000000000),
+		},
+	})
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
+		Params: &Params{
+			ValidatorCount: 21,
+			OracleAddress:  oracleAddr.MarshalPB(),
+		},
+	})
+	require.NoError(t, err)
+
+	// set validator count function
+
+	// fails because not oracle
+	err = dposContract.SetValidatorCount(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetValidatorCountRequest{
+		ValidatorCount: 3,
+	})
+	require.Equal(t, errOnlyOracle, err)
+
+	err = dposContract.SetValidatorCount(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetValidatorCountRequest{
+		ValidatorCount: 3,
+	})
+	require.NoError(t, err)
+
+	stateResponse, err := dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
+	assert.Equal(t, stateResponse.State.Params.ValidatorCount, uint64(3))
+
+	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
+	assert.Equal(t, stateResponse.State.Params.ValidatorCount, uint64(3))
+	assert.Equal(t, stateResponse.State.Params.CrashSlashingPercentage.Value.Int64(), int64(100))
+	assert.Equal(t, stateResponse.State.Params.ByzantineSlashingPercentage.Value.Int64(), int64(500))
+
+	// set slashing percentages
+
+	// fails because not oracle
+	err = dposContract.SetSlashingPercentages(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetSlashingPercentagesRequest{
+		CrashSlashingPercentage:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
+		ByzantineSlashingPercentage: &types.BigUInt{Value: *loom.NewBigUIntFromInt(50)},
+	})
+	require.Equal(t, errOnlyOracle, err)
+
+	err = dposContract.SetSlashingPercentages(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetSlashingPercentagesRequest{
+		CrashSlashingPercentage:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
+		ByzantineSlashingPercentage: &types.BigUInt{Value: *loom.NewBigUIntFromInt(50)},
+	})
+	require.NoError(t, err)
+
+	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
+	assert.Equal(t, stateResponse.State.Params.CrashSlashingPercentage.Value.Int64(), int64(200))
+	assert.Equal(t, stateResponse.State.Params.ByzantineSlashingPercentage.Value.Int64(), int64(50))
+
+	// set registration requirement
+
+	// fails because not oracle
+	err = dposContract.SetRegistrationRequirement(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetRegistrationRequirementRequest{
+		RegistrationRequirement: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+	})
+	require.Equal(t, errOnlyOracle, err)
+
+	err = dposContract.SetRegistrationRequirement(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetRegistrationRequirementRequest{
+		RegistrationRequirement: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+	})
+	require.NoError(t, err)
+
+	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
+	assert.Equal(t, stateResponse.State.Params.RegistrationRequirement.Value.Int64(), int64(100))
+
+	// set max yearly reward
+
+	// fails because not oracle
+	err = dposContract.SetMaxYearlyReward(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetMaxYearlyRewardRequest{
+		MaxYearlyReward: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+	})
+	require.Equal(t, errOnlyOracle, err)
+
+	err = dposContract.SetMaxYearlyReward(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetMaxYearlyRewardRequest{
+		MaxYearlyReward: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+	})
+	require.NoError(t, err)
+
+	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
+	assert.Equal(t, stateResponse.State.Params.MaxYearlyReward.Value.Int64(), int64(100))
+
+	// set election cycle length
+
+	// fails because not oracle
+	err = dposContract.SetElectionCycle(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetElectionCycleRequest{
+		ElectionCycle: int64(100),
+	})
+	require.Equal(t, errOnlyOracle, err)
+
+	err = dposContract.SetElectionCycle(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetElectionCycleRequest{
+		ElectionCycle: int64(100),
+	})
+	require.NoError(t, err)
+
+	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
+	assert.Equal(t, stateResponse.State.Params.ElectionCycleLength, int64(100))
+}
+
 func TestRegisterWhitelistedCandidate(t *testing.T) {
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
 	oracleAddr := loom.Address{
@@ -227,7 +354,7 @@ func TestDelegate(t *testing.T) {
 	whitelistAmount := big.NewInt(1000000000000)
 	// should fail from non-oracle
 	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
-	require.Error(t, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dpos.WhitelistCandidate(pctx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
 	require.Nil(t, err)
@@ -772,7 +899,7 @@ func TestElect(t *testing.T) {
 
 	// only oracle
 	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr2), &addr1, newWhitelistAmount, nil)
-	require.Error(t, err)
+	require.Equal(t, errOnlyOracle, err)
 
 	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr1), &addr1, newWhitelistAmount, nil)
 	require.Nil(t, err)
