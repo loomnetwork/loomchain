@@ -369,15 +369,25 @@ func TestAddAndSortDelegationList(t *testing.T) {
 		t.Fatal("delegation list is not sorted")
 	}
 
-	// add another entry
-	SetDelegation(ctx, &Delegation{
-		Validator: address3,
-		Delegator: address3,
+	// add another entry with same (validator, delegator) pair as first set
+	// delegation
+	highIndexDelegation := &Delegation{
+		Validator: address2,
+		Delegator: address2,
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
-	})
+		Index:     3,
+	}
+	SetDelegation(ctx, highIndexDelegation)
 
 	sort.Sort(byValidatorAndDelegator(dl))
 	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))
+
+	DeleteDelegation(ctx, highIndexDelegation)
+
+	delegationResult, err := GetDelegation(ctx, 0, *address2, *address2)
+	assert.NotNil(t, delegationResult)
+	delegationResult, err = GetDelegation(ctx, 3, *address2, *address2)
+	assert.Nil(t, delegationResult)
 }
 
 func TestGetSetReferrer(t *testing.T) {
