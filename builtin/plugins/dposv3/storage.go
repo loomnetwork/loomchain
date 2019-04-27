@@ -150,7 +150,7 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 	}
 
 	for i, d := range delegations {
-		if delegation.Validator.Local.Compare(d.Validator.Local) == 0 && delegation.Delegator.Local.Compare(d.Delegator.Local) == 0 {
+		if delegation.Validator.Local.Compare(d.Validator.Local) == 0 && delegation.Delegator.Local.Compare(d.Delegator.Local) == 0 && delegation.Index == d.Index {
 			copy(delegations[i:], delegations[i+1:])
 			delegations = delegations[:len(delegations)-1]
 			break
