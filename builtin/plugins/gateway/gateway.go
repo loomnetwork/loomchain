@@ -10,8 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
-	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	loom "github.com/loomnetwork/go-loom"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -19,8 +18,9 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/go-loom/client"
 )
 
 type (
@@ -68,6 +68,20 @@ type (
 	MainnetEventTxHashInfo             = tgtypes.TransferGatewayMainnetEventTxHashInfo
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
+
+	TrustedValidatorsRequest  = tgtypes.TransferGatewayTrustedValidatorsRequest
+	TrustedValidatorsResponse = tgtypes.TransferGatewayTrustedValidatorsResponse
+
+	UpdateTrustedValidatorsRequest = tgtypes.TransferGatewayUpdateTrustedValidatorsRequest
+
+	TrustedValidators = tgtypes.TransferGatewayTrustedValidators
+
+	ValidatorAuthConfig = tgtypes.TransferGatewayValidatorAuthConfig
+
+	GetValidatorAuthStrategyRequest  = tgtypes.TransferGatewayGetValidatorAuthStrategyRequest
+	GetValidatorAuthStrategyResponse = tgtypes.TransferGatewayGetValidatorAuthStrategyResponse
+
+	UpdateValidatorAuthStrategyRequest = tgtypes.TransferGatewayUpdateValidatorAuthStrategyRequest
 )
 
 var (
@@ -87,6 +101,8 @@ var (
 	submitEventsPerm    = []byte("submit-events")
 	signWithdrawalsPerm = []byte("sign-withdrawals")
 	verifyCreatorsPerm  = []byte("verify-creators")
+
+	validatorAuthConfigKey = []byte("validator-authcfg")
 )
 
 const (
@@ -181,6 +197,7 @@ var (
 	ErrOracleStateSaveFailed     = errors.New("TG011: failed to save oracle state")
 	ErrContractMappingExists     = errors.New("TG012: contract mapping already exists")
 	ErrFailedToReclaimToken      = errors.New("TG013: failed to reclaim token")
+	ErrNotEnoughSignatures       = errors.New("TG014: failed to recover enough signatures from trusted validators")
 )
 
 type Gateway struct {
@@ -220,6 +237,85 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
+}
+
+func (gw *Gateway) GetValidatorAuthStrategy(ctx contract.StaticContext, req *GetValidatorAuthStrategyRequest) (*GetValidatorAuthStrategyResponse, error) {
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		if err == contract.ErrNotFound {
+			return &GetValidatorAuthStrategyResponse{}, nil
+		}
+		return nil, err
+	}
+
+	return &GetValidatorAuthStrategyResponse{AuthStrategy: validatorAuthConfig.AuthStrategy}, nil
+}
+
+func (gw *Gateway) GetTrustedValidators(ctx contract.StaticContext, req *TrustedValidatorsRequest) (*TrustedValidatorsResponse, error) {
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		if err == contract.ErrNotFound {
+			return &TrustedValidatorsResponse{}, nil
+		}
+		return nil, err
+	}
+	return &TrustedValidatorsResponse{TrustedValidators: validatorAuthConfig.TrustedValidators}, nil
+}
+
+func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrustedValidatorsRequest) error {
+	if req.TrustedValidators == nil {
+		return ErrInvalidRequest
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
+		return ErrNotAuthorized
+	}
+
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		if err != contract.ErrNotFound {
+			return err
+		}
+	}
+
+	validatorAuthConfig.TrustedValidators = req.TrustedValidators
+	return ctx.Set(validatorAuthConfigKey, &validatorAuthConfig)
+
+}
+
+func (gw *Gateway) UpdateValidatorAuthStrategy(ctx contract.Context, req *UpdateValidatorAuthStrategyRequest) error {
+	if req.AuthStrategy != tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS && req.AuthStrategy != tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS {
+		return ErrInvalidRequest
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
+		return ErrNotAuthorized
+	}
+
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		if err != contract.ErrNotFound {
+			return err
+		}
+	}
+
+	if req.AuthStrategy == tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS && validatorAuthConfig.TrustedValidators == nil {
+		return ErrInvalidRequest
+	}
+
+	validatorAuthConfig.AuthStrategy = req.AuthStrategy
+
+	return ctx.Set(validatorAuthConfigKey, &validatorAuthConfig)
 }
 
 func (gw *Gateway) AddOracle(ctx contract.Context, req *AddOracleRequest) error {
@@ -862,34 +958,85 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 // and only one Validator will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
 func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
-	contractAddr, err := ctx.Resolve("dposV2")
-	if err != nil {
-		return err
-	}
-	valsreq := &dpostypes.ListValidatorsRequestV2{}
-	var resp dpostypes.ListValidatorsResponseV2
-	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", valsreq, &resp)
+	valAddresses, powers, clusterStake, err := getCurrentValidators(ctx)
 	if err != nil {
 		return err
 	}
 
-	validators := resp.Statistics
 	sender := ctx.Message().Sender
-
 	var found bool = false
-	for _, v := range validators {
-		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
+	for _, v := range valAddresses {
+		if sender.Compare(loom.UnmarshalAddressPB(v)) == 0 {
 			found = true
 			break
 		}
 	}
-
 	if !found {
 		return ErrNotAuthorized
 	}
 
-	if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
-		return ErrNotAuthorized
+	validatorsAuthConfig := &ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, validatorsAuthConfig); err != nil {
+		return err
+	}
+	hash := client.ToEthereumSignedMessage(req.WithdrawalHash)
+	switch validatorsAuthConfig.AuthStrategy {
+	case tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS:
+		// Convert array of validator to array of address, try to resolve via address mapper
+		// Feed the mapped addresses to ParseSigs
+		ethAddresses, err := getMappedEthAddress(ctx, validatorsAuthConfig.TrustedValidators.Validators)
+		if err != nil {
+			return err
+		}
+
+		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, hash, ethAddresses)
+		if err != nil {
+			return err
+		}
+
+		// Reject if not all trusted validators signed
+		if len(valIndexes) != len(validatorsAuthConfig.TrustedValidators.Validators) {
+			return ErrNotEnoughSignatures
+		}
+		break
+	case tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS:
+		requiredStakeForMaj23 := big.NewInt(0)
+		requiredStakeForMaj23.Mul(clusterStake, big.NewInt(2))
+		requiredStakeForMaj23.Div(requiredStakeForMaj23, big.NewInt(3))
+		requiredStakeForMaj23.Add(requiredStakeForMaj23, big.NewInt(1))
+
+		ethAddresses, err := getMappedEthAddress(ctx, valAddresses)
+		if err != nil {
+			return err
+		}
+
+		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, hash, ethAddresses)
+		if err != nil {
+			return err
+		}
+
+		signedValStakes := big.NewInt(0)
+
+		// Map to store, whether we already seen this validator
+		seenVal := make(map[int]bool)
+
+		for i, valIndex := range valIndexes {
+			valIndexInt := int(valIndex.Int64())
+
+			// Prevents double counting distribution total
+			if seenVal[valIndexInt] {
+				continue
+			}
+			seenVal[valIndexInt] = true
+
+			signedValStakes.Add(signedValStakes, powers[i])
+		}
+
+		if signedValStakes.Cmp(requiredStakeForMaj23) < 0 {
+			return ErrNotAuthorized
+		}
+
+		break
 	}
 
 	return gw.doConfirmWithdrawalReceipt(ctx, req)
@@ -939,6 +1086,67 @@ func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *Confirm
 
 // PendingWithdrawals will return the token owner & withdrawal hash for all pending withdrawals.
 // The Oracle will call this method periodically and sign all the retrieved hashes.
+func (gw *Gateway) PendingWithdrawalsV2(ctx contract.StaticContext, req *PendingWithdrawalsRequest) (*PendingWithdrawalsResponse, error) {
+	if req.MainnetGateway == nil {
+		return nil, ErrInvalidRequest
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	mainnetGatewayAddr := common.BytesToAddress(req.MainnetGateway.Local)
+	summaries := make([]*PendingWithdrawalSummary, 0, len(state.TokenWithdrawers))
+	for _, ownerAddrPB := range state.TokenWithdrawers {
+		ownerAddr := loom.UnmarshalAddressPB(ownerAddrPB)
+		account, err := loadLocalAccount(ctx, ownerAddr)
+		if err != nil {
+			return nil, err
+		}
+		receipt := account.WithdrawalReceipt
+
+		if receipt == nil {
+			return nil, ErrMissingWithdrawalReceipt
+		}
+		// If the receipt is already signed, skip it
+		if receipt.OracleSignature != nil {
+			continue
+		}
+
+		safeTokenID := big.NewInt(0)
+		if receipt.TokenID != nil {
+			safeTokenID = receipt.TokenID.Value.Int
+		}
+
+		safeAmount := big.NewInt(0)
+		if receipt.TokenAmount != nil {
+			safeAmount = receipt.TokenAmount.Value.Int
+		}
+
+		hash := client.WithdrawalHash(
+			common.BytesToAddress(receipt.TokenOwner.Local),
+			common.BytesToAddress(receipt.TokenContract.Local),
+			mainnetGatewayAddr,
+			receipt.TokenKind,
+			safeTokenID,
+			safeAmount,
+			big.NewInt(int64(receipt.WithdrawalNonce)),
+			true,
+		)
+
+		summaries = append(summaries, &PendingWithdrawalSummary{
+			TokenOwner: ownerAddrPB,
+			Hash:       hash,
+		})
+	}
+
+	// TODO: should probably enforce an upper bound on the response size
+	return &PendingWithdrawalsResponse{Withdrawals: summaries}, nil
+}
+
+// PendingWithdrawals will return the token owner & withdrawal hash for all pending withdrawals.
+// The Oracle will call this method periodically and sign all the retrieved hashes.
 func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWithdrawalsRequest) (*PendingWithdrawalsResponse, error) {
 	if req.MainnetGateway == nil {
 		return nil, ErrInvalidRequest
@@ -977,43 +1185,15 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			safeAmount = receipt.TokenAmount.Value.Int
 		}
 
-		var hash []byte
-		switch receipt.TokenKind {
-		case TokenKind_ERC721:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeTokenID),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ERC721X:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeTokenID),
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ERC20:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		case TokenKind_ETH:
-			hash = ssha.SoliditySHA3(ssha.Uint256(safeAmount))
-		case TokenKind_LoomCoin:
-			hash = ssha.SoliditySHA3(
-				ssha.Uint256(safeAmount),
-				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-			)
-		default:
-			ctx.Logger().Error("[Transfer Gateway] pending withdrawal has an invalid token kind",
-				"tokenKind", receipt.TokenKind,
-			)
-			continue
-		}
-
-		hash = ssha.SoliditySHA3(
-			ssha.Address(common.BytesToAddress(receipt.TokenOwner.Local)),
-			ssha.Uint256(new(big.Int).SetUint64(receipt.WithdrawalNonce)),
-			ssha.Address(mainnetGatewayAddr),
-			hash,
+		hash := client.WithdrawalHash(
+			common.BytesToAddress(receipt.TokenOwner.Local),
+			common.BytesToAddress(receipt.TokenContract.Local),
+			mainnetGatewayAddr,
+			receipt.TokenKind,
+			safeTokenID,
+			safeAmount,
+			big.NewInt(int64(receipt.WithdrawalNonce)),
+			false,
 		)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
@@ -1737,6 +1917,27 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 	return nil
 }
 
+func getMappedEthAddress(ctx contract.StaticContext, trustedValidators []*types.Address) ([]common.Address, error) {
+	validatorEthAddresses := make([]common.Address, len(trustedValidators))
+
+	addressMapper, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return nil, err
+	}
+
+	for i, validator := range trustedValidators {
+		validatorAddress := loom.UnmarshalAddressPB(validator)
+		ethAddress, err := resolveToEthAddr(ctx, addressMapper, validatorAddress)
+		if err != nil {
+			return nil, err
+		}
+
+		validatorEthAddresses[i] = common.BytesToAddress(ethAddress.Local)
+	}
+
+	return validatorEthAddresses, nil
+}
+
 // Returns all unclaimed tokens for an account
 func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) ([]*UnclaimedToken, error) {
 	result := []*UnclaimedToken{}
@@ -1763,4 +1964,31 @@ func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr lo
 		result = append(result, loom.UnmarshalAddressPB(&addr))
 	}
 	return result, nil
+}
+
+// taken from https://github.com/loomnetwork/loomchain/blob/2bd54308109c5a53526ae45f7b26a5a7042ffe5f/builtin/plugins/chainconfig/chainconfig.go#L359
+func getCurrentValidators(ctx contract.StaticContext) ([]*types.Address, []*big.Int, *big.Int, error) {
+	validatorsList := ctx.Validators()
+	chainID := ctx.Block().ChainID
+
+	if len(validatorsList) == 0 {
+		return nil, nil, nil, errors.New("Empty validator list")
+	}
+
+	clusterStake := big.NewInt(0)
+	valAddresses := make([]*types.Address, len(validatorsList))
+	powers := make([]*big.Int, len(validatorsList))
+	for i, v := range validatorsList {
+		if v != nil {
+			valAddresses[i] = loom.Address{
+				ChainID: chainID,
+				Local:   loom.LocalAddressFromPublicKey(v.PubKey),
+			}.MarshalPB()
+			powers[i] = big.NewInt(v.Power)
+
+			clusterStake.Add(powers[i], clusterStake)
+		}
+	}
+
+	return valAddresses, powers, clusterStake, nil
 }

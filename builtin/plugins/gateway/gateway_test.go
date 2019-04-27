@@ -4,8 +4,11 @@ package gateway
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"math/big"
 	"testing"
+
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,6 +23,8 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
+
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 )
 
 var (
@@ -41,20 +46,28 @@ const (
 	coinDecimals = 18
 )
 
+type testValidator struct {
+	DAppPrivKey ed25519.PrivKeyEd25519
+	EthPrivKey  *ecdsa.PrivateKey
+	EthAddress  loom.Address
+	DAppAddress loom.Address
+}
+
 type GatewayTestSuite struct {
 	suite.Suite
-	ethKey    *ecdsa.PrivateKey
-	ethKey2   *ecdsa.PrivateKey
-	ethKey3   *ecdsa.PrivateKey
-	ethKey4   *ecdsa.PrivateKey
-	ethAddr   loom.Address
-	ethAddr2  loom.Address
-	ethAddr3  loom.Address
-	ethAddr4  loom.Address
-	dAppAddr  loom.Address
-	dAppAddr2 loom.Address
-	dAppAddr3 loom.Address
-	dAppAddr4 loom.Address
+	ethKey            *ecdsa.PrivateKey
+	ethKey2           *ecdsa.PrivateKey
+	ethKey3           *ecdsa.PrivateKey
+	ethKey4           *ecdsa.PrivateKey
+	ethAddr           loom.Address
+	ethAddr2          loom.Address
+	ethAddr3          loom.Address
+	ethAddr4          loom.Address
+	dAppAddr          loom.Address
+	dAppAddr2         loom.Address
+	dAppAddr3         loom.Address
+	dAppAddr4         loom.Address
+	validatorsDetails []*testValidator
 }
 
 func (ts *GatewayTestSuite) SetupTest() {
@@ -84,6 +97,25 @@ func (ts *GatewayTestSuite) SetupTest() {
 	ethLocalAddr4, err1 := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.ethKey4.PublicKey).Hex())
 	require.NoError(err1)
 	ts.ethAddr4 = loom.Address{ChainID: "eth", Local: ethLocalAddr4}
+
+	ts.validatorsDetails = make([]*testValidator, 5)
+	for i, _ := range ts.validatorsDetails {
+		ts.validatorsDetails[i] = &testValidator{}
+		ts.validatorsDetails[i].DAppPrivKey = ed25519.GenPrivKey()
+
+		ts.validatorsDetails[i].EthPrivKey, err = crypto.GenerateKey()
+		require.NoError(err)
+
+		ts.validatorsDetails[i].EthAddress = loom.Address{
+			ChainID: "eth",
+			Local:   crypto.PubkeyToAddress(ts.validatorsDetails[i].EthPrivKey.PublicKey).Bytes(),
+		}
+
+		ts.validatorsDetails[i].DAppAddress = loom.Address{
+			ChainID: "chain",
+			Local:   loom.LocalAddressFromPublicKey(ts.validatorsDetails[i].DAppPrivKey.PubKey().Bytes()),
+		}
+	}
 }
 
 func TestGatewayTestSuite(t *testing.T) {
@@ -335,6 +367,89 @@ func TestOldEventBatchProcessing(t *testing.T) {
 	assert.True(t, coinBal.Cmp(coinBal2) == 0, "gateway account balance should not have changed")
 }
 */
+
+func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
+	require := ts.Require()
+
+	oracleAddr := ts.dAppAddr
+	ownerAddr := ts.dAppAddr2
+
+	fakeCtx := plugin.CreateFakeContextWithEVM(ownerAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	}, false)
+	require.NoError(err)
+
+	for i, _ := range ts.validatorsDetails {
+		var sig []byte
+
+		sig, err = address_mapper.SignIdentityMapping(ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, ts.validatorsDetails[i].EthPrivKey)
+		require.NoError(err)
+
+		require.NoError(addressMapper.AddIdentityMapping(fakeCtx.WithSender(ts.validatorsDetails[i].DAppAddress), ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, sig))
+	}
+
+	trustedValidators := &TrustedValidators{
+		Validators: make([]*types.Address, len(ts.validatorsDetails)),
+	}
+	for i, validatorDetails := range ts.validatorsDetails {
+		trustedValidators.Validators[i] = validatorDetails.DAppAddress.MarshalPB()
+	}
+
+	dposValidators := make([]*types.Validator, len(ts.validatorsDetails))
+	for i, _ := range dposValidators {
+		dposValidators[i] = &types.Validator{
+			PubKey: ts.validatorsDetails[i].DAppPrivKey.PubKey().Bytes(),
+			Power:  10,
+		}
+	}
+
+	_, err = deployDPOSV2Contract(fakeCtx, dposValidators)
+	require.NoError(err)
+
+	validators := make([]*loom.Validator, len(ts.validatorsDetails))
+	for i, _ := range validators {
+		validators[i] = &loom.Validator{
+			PubKey: ts.validatorsDetails[i].DAppPrivKey.PubKey().Bytes(),
+			Power:  10,
+		}
+	}
+	fakeCtx = fakeCtx.WithValidators(validators)
+	sig, _ := hex.DecodeString("cd7f07b4f35d2d2dee86bde44d765aef81673745aab5d5aaf4422dc73938237d2cbc5105bc0ceddbf4037b62003159903d35b834496a622ba4d9117008c164401c")
+	hash, _ := hex.DecodeString("9be6cc490c68327498647b5a846b34565b4358a806d8b7e25a64058cfec744a0")
+
+	require.NoError(gwHelper.Contract.UpdateTrustedValidators(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
+		TrustedValidators: trustedValidators,
+	}))
+
+	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
+		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
+	}))
+
+	// If sender is trusted validator, request should pass validation check and fail at the signatures (because we gave it a wrong sig)
+	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
+		TokenOwner:      trustedValidators.Validators[0],
+		OracleSignature: sig,
+		WithdrawalHash:  hash,
+	}), ErrNotEnoughSignatures.Error())
+
+	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
+		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS,
+	}))
+
+	// After changing auth strategy, this should stop working
+	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
+		TokenOwner:      trustedValidators.Validators[0],
+		OracleSignature: sig,
+		WithdrawalHash:  hash,
+	}), ErrNotAuthorized.Error())
+
+}
 
 func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	require := ts.Require()

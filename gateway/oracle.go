@@ -431,7 +431,13 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		orc.updateStatus()
 	}(time.Now())
 
-	withdrawals, err := orc.goGateway.PendingWithdrawals(orc.mainnetGatewayAddress)
+	var withdrawals []*PendingWithdrawalSummary
+	if orc.withdrawalSig == UnprefixedWithdrawalSigType { // old gateway
+		withdrawals, err = orc.goGateway.PendingWithdrawals(orc.mainnetGatewayAddress)
+	} else { // new gateway
+		withdrawals, err = orc.goGateway.PendingWithdrawalsV2(orc.mainnetGatewayAddress)
+	}
+
 	if err != nil {
 		return err
 	}
