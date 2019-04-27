@@ -3,8 +3,11 @@
 package gateway
 
 import (
+	"bufio"
+	"encoding/base64"
 	"encoding/hex"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,6 +19,7 @@ import (
 	"strings"
 
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	"github.com/loomnetwork/go-loom/types"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
@@ -146,6 +150,84 @@ func newRemoveOracleCommand() *cobra.Command {
 			}
 
 			_, err = gateway.Call("RemoveOracle", req, signer, nil)
+			return err
+		},
+	}
+	return cmd
+}
+
+func newUpdateTrustedValidatorsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update-trusted-validators <trusted-validators-file> <gateway-name>",
+		Short:   "Updates the trusted validators which can submit signatures to the gateway",
+		Example: "loom gateway update-trusted-validators /path/to/trusted_validators_file loomcoin-gateway",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			file, err := os.Open(args[0])
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			var validators []*loom.Address
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				pubKey, err := base64.StdEncoding.DecodeString(scanner.Text())
+				if err != nil {
+					return err
+				}
+
+				validators = append(
+					validators,
+					&loom.Address{
+						ChainID: gatewayCmdFlags.ChainID,
+						Local:   loom.LocalAddressFromPublicKey(pubKey),
+					},
+				)
+			}
+
+			if err := scanner.Err(); err != nil {
+				return err
+			}
+
+			var name string
+			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
+				name = GatewayName
+			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
+				name = LoomGatewayName
+			} else {
+				return errors.New("Invalid gateway name")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			trustedVals := make([]*types.Address, len(validators))
+			for i, v := range validators {
+				trustedVals[i] = v.MarshalPB()
+			}
+
+			trustedValidators := tgtypes.TransferGatewayTrustedValidators{
+				Validators: trustedVals,
+			}
+
+			req := &tgtypes.TransferGatewayUpdateTrustedValidatorsRequest{
+				TrustedValidators: &trustedValidators,
+			}
+
+			_, err = gateway.Call("UpdateTrustedValidators", req, signer, nil)
 			return err
 		},
 	}
