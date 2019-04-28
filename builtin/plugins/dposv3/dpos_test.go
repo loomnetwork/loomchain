@@ -466,6 +466,19 @@ func TestDelegate(t *testing.T) {
 	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &limboValidatorAddress, &delegatorAddress1)
 	require.Nil(t, err)
 	assert.True(t, delegatedAmount.Cmp(delegationAmount) == 0)
+
+	// Check that delegation to an unregistering candidate fails
+	err = dpos.UnregisterCandidate(pctx.WithSender(addr1))
+	require.Nil(t, err)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.NotNil(t, err)
 }
 
 func TestRedelegate(t *testing.T) {
