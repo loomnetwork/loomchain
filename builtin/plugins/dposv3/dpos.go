@@ -57,7 +57,8 @@ var (
 	limboValidatorAddress         = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
-	errCandidateAlreadyRegistered = errors.New("candidate already registered")
+	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
+	errCandidateUnregistering     = errors.New("Candidate is currently unregistering.")
 	errValidatorNotFound          = errors.New("Validator record not found.")
 	errDistributionNotFound       = errors.New("Distribution record not found.")
 	errOnlyOracle                 = errors.New("Function can only be called with oracle address.")
@@ -199,7 +200,10 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	// Delegations can only be made to existing candidates
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
+	} else if cand.State == UNREGISTERING {
+		return logDposError(ctx, errCandidateUnregistering, req.String())
 	}
+
 	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
 		return logDposError(ctx, errors.New("Must Delegate a positive number of tokens."), req.String())
 	}
@@ -286,6 +290,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
 			return logDposError(ctx, errCandidateNotFound, req.String())
+		} else if candidate.State == UNREGISTERING {
+			return logDposError(ctx, errCandidateUnregistering, req.String())
 		}
 
 		// Ensure that referrer value is meaningful
