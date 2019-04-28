@@ -163,6 +163,7 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 		store:           s.store,
 		block:           s.block,
 		ctx:             ctx,
+		evmStore:        s.evmStore,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
 	}
@@ -173,6 +174,7 @@ func (s *StoreState) WithPrefix(prefix []byte) State {
 		store:           store.PrefixKVStore(prefix, s.store),
 		block:           s.block,
 		ctx:             s.ctx,
+		evmStore:        s.evmStore,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
 	}
@@ -552,7 +554,6 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
 	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-
 	state := NewStoreState(
 		context.Background(),
 		storeTx,

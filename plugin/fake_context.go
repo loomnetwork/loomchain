@@ -105,7 +105,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, c.State.EvmStore(), nil, nil, createABM, false)
+	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
 
@@ -114,7 +114,7 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, c.State.EvmStore(), nil, nil, createABM, false)
+	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }
 

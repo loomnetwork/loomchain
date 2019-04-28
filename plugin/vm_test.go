@@ -132,19 +132,21 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), nil, block, nil, nil)
-	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
-	require.NoError(t, err)
-
 	logContext := &store.EvmStoreLogContext{
 		BlockHeight:  0,
 		ContractAddr: loom.Address{},
 		CallerAddr:   loom.Address{},
 	}
 	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
+	state := loomchain.NewStoreState(
+		context.Background(),
+		store.NewMemStore(),
+		evmStore, block, nil, nil)
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
 
-	vm := NewPluginVM(loader, state, evmStore, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
+	evm := levm.NewLoomVm(state, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
@@ -219,7 +221,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, receiptHandler.CommitBlock(state, 1))
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, nil, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
@@ -244,7 +246,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, nil, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)

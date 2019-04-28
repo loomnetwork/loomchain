@@ -19,7 +19,6 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -37,7 +36,6 @@ var (
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
-	evmStore     store.EvmStore
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
@@ -50,7 +48,6 @@ type PluginVM struct {
 func NewPluginVM(
 	loader Loader,
 	state loomchain.State,
-	evmStore store.EvmStore,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
@@ -64,7 +61,6 @@ func NewPluginVM(
 		Registry:      registry,
 		EventHandler:  eventHandler,
 		logger:        logger,
-		evmStore:      evmStore,
 		newABMFactory: newABMFactory,
 		receiptWriter: receiptWriter,
 		receiptReader: receiptReader,
@@ -197,7 +193,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -210,7 +206,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 

@@ -818,7 +818,6 @@ func loadApp(
 		return plugin.NewPluginVM(
 			loader,
 			state,
-			nil,
 			createRegistry(state),
 			eventHandler,
 			log.Default,
@@ -851,7 +850,6 @@ func loadApp(
 				pvm := plugin.NewPluginVM(
 					loader,
 					state,
-					evmStore,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -864,8 +862,7 @@ func loadApp(
 					return nil, err
 				}
 			}
-
-			return evm.NewLoomVm(state, evmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch

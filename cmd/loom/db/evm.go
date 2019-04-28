@@ -72,10 +72,22 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
+			evmDB, err := dbm.NewGoLevelDB(cfg.EvmStore.DBName, cfg.RootPath())
+			if err != nil {
+				return err
+			}
+			logContext := &store.EvmStoreLogContext{
+				BlockHeight:  appHeight,
+				ContractAddr: loom.Address{},
+				CallerAddr:   loom.Address{},
+			}
+
+			evmStore := store.NewEvmStore(evmDB, logContext)
+
 			state := loomchain.NewStoreState(
 				context.Background(),
 				storeTx,
-				nil,
+				evmStore,
 				abci.Header{
 					Height: appStore.Version(),
 				},
@@ -98,23 +110,12 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 				newABMFactory = plugin.NewAccountBalanceManagerFactory
 			}
-			evmDB, err := dbm.NewGoLevelDB(cfg.EvmStore.DBName, cfg.RootPath())
-			if err != nil {
-				return err
-			}
-			logContext := &store.EvmStoreLogContext{
-				BlockHeight:  appHeight,
-				ContractAddr: loom.Address{},
-				CallerAddr:   loom.Address{},
-			}
-			evmStore := store.NewEvmStore(evmDB, logContext)
 
 			var accountBalanceManager evm.AccountBalanceManager
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					common.NewDefaultContractsLoader(cfg),
 					state,
-					evmStore,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -132,7 +133,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, evmStore, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}
