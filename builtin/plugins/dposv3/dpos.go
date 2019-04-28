@@ -57,7 +57,8 @@ var (
 	limboValidatorAddress         = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
-	errCandidateAlreadyRegistered = errors.New("candidate already registered")
+	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
+	errCandidateUnregistering     = errors.New("Candidate is currently unregistering.")
 	errValidatorNotFound          = errors.New("Validator record not found.")
 	errDistributionNotFound       = errors.New("Distribution record not found.")
 	errOnlyOracle                 = errors.New("Function can only be called with oracle address.")
@@ -191,11 +192,18 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 Delegate", "delegator", delegator, "request", req)
 
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Delegate called with req.ValidatorAddress == nil"), req.String())
+	}
+
 	cand := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 	// Delegations can only be made to existing candidates
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
+	} else if cand.State == UNREGISTERING {
+		return logDposError(ctx, errCandidateUnregistering, req.String())
 	}
+
 	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
 		return logDposError(ctx, errors.New("Must Delegate a positive number of tokens."), req.String())
 	}
@@ -205,6 +213,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
+		// NOTE: any referral made while a MaxReferralPercentage > ReferrerFee is
+		// grandfathered in (i.e. valid) even after a candidate lowers their
+		// MaxReferralPercentage
 		msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", cand.MaxReferralPercentage, defaultReferrerFee.Uint64())
 		return logDposError(ctx, errors.New(msg), req.String())
 	}
@@ -265,6 +276,9 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 Redelegate", "delegator", delegator, "request", req)
 
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
+	}
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return logDposError(ctx, errors.New("Redelegating self-delegations is not permitted."), req.String())
 	}
@@ -279,6 +293,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
 			return logDposError(ctx, errCandidateNotFound, req.String())
+		} else if candidate.State == UNREGISTERING {
+			return logDposError(ctx, errCandidateUnregistering, req.String())
 		}
 
 		// Ensure that referrer value is meaningful
@@ -383,6 +399,10 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 }
 
 // returns the number of delegations which were not consolidated in the event there is no error
+// NOTE: Consolidate delegations is supposed to clear referrer field. If
+// a delegator redelegates (to increase locktime reward, for example), this
+// redelegation will likely be done via a wallet and thus a wallet can still
+// insert its referrer id into the referrer field during redelegation.
 func consolidateDelegations(ctx contract.Context, validator, delegator *types.Address) (int, error) {
 	// cycle through all delegations and delete those which are BONDED and
 	// unlocked while accumulating their amounts
