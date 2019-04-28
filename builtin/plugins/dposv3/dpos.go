@@ -213,6 +213,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
+		// NOTE: any referral made while a MaxReferralPercentage > ReferrerFee is
+		// grandfathered in (i.e. valid) even after a candidate lowers their
+		// MaxReferralPercentage
 		msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", cand.MaxReferralPercentage, defaultReferrerFee.Uint64())
 		return logDposError(ctx, errors.New(msg), req.String())
 	}
@@ -396,6 +399,10 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 }
 
 // returns the number of delegations which were not consolidated in the event there is no error
+// NOTE: Consolidate delegations is supposed to clear referrer field. If
+// a delegator redelegates (to increase locktime reward, for example), this
+// redelegation will likely be done via a wallet and thus a wallet can still
+// insert its referrer id into the referrer field during redelegation.
 func consolidateDelegations(ctx contract.Context, validator, delegator *types.Address) (int, error) {
 	// cycle through all delegations and delete those which are BONDED and
 	// unlocked while accumulating their amounts
