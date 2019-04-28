@@ -27,8 +27,8 @@ func testCryptoZombies(t *testing.T, vm lvm.VM, caller loom.Address) {
 	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")
 
 	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
-	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
 
+	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
 	checkKitty(t, vm, caller, kittyAddr, kittyData)
 
 	makeZombie(t, vm, caller, zOwnershipAddr, zOwnershipData, "EEK")
@@ -75,22 +75,22 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 		Local:   []byte("myMotherKat"),
 	}
 	manager := lvm.NewManager()
-	manager.Register(lvm.VMType_PLUGIN, LoomVmFactory)
+	manager.Register(lvm.VMType_EVM, LoomVmFactory)
 
 	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
 	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")
 
-	vm, _ := manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
 	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
 
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	checkKitty(t, vm, caller, kittyAddr, kittyData)
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	makeZombie(t, vm, caller, zOwnershipAddr, zOwnershipData, "EEK")
 
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	greedyZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 0)
 	// greedy zombie should look like:
 	//{
@@ -106,13 +106,11 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 		fmt.Println("new zombie data: ", greedyZombie)
 		t.Error("Wrong dna for greedy zombie")
 	}
-
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	setKittyAddress(t, vm, caller, kittyAddr, zOwnershipAddr, zOwnershipData)
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	zombieFeed(t, vm, caller, zOwnershipAddr, zOwnershipData, 0, 67)
-
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	newZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 1)
 	// New zombie should look like
 	//{

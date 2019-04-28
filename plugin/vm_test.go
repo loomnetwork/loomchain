@@ -132,7 +132,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), nil, block, nil, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 
@@ -141,7 +141,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		ContractAddr: loom.Address{},
 		CallerAddr:   loom.Address{},
 	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 
 	vm := NewPluginVM(loader, state, evmStore, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
 	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)

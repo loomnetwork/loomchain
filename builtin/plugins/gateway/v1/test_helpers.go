@@ -201,7 +201,7 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 		ContractAddr: loom.Address{},
 		CallerAddr:   caller,
 	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 
 	vm := levm.NewLoomVm(ctx.State, evmStore, nil, nil, nil, false)
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))

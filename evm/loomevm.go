@@ -20,7 +20,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -51,13 +50,13 @@ type LoomEvm struct {
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
 	loomState loomchain.State,
-	EvmStore store.EvmStore,
+	evmStore store.EvmStore,
 	accountBalanceManager AccountBalanceManager,
 	logContext *store.EvmStoreLogContext,
 	debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
-	p.db = EvmStore
+	p.db = evmStore
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
 		return nil, err
@@ -69,7 +68,9 @@ func NewLoomEvm(
 		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), state.NewDatabase(p.db))
 	} else {
 		p.sdb, err = state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -117,14 +118,7 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 		return nil, err
 	}
 
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  0,
-		ContractAddr: loom.Address{},
-		CallerAddr:   loom.Address{},
-	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
-
-	return NewLoomVm(state, evmStore, eventHandler, receiptHandler, nil, debug), nil
+	return NewLoomVm(state, state.EvmStore(), eventHandler, receiptHandler, nil, debug), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.

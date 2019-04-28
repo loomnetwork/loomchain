@@ -131,7 +131,7 @@ func TestTronSigning(t *testing.T) {
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), nil, abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -198,7 +198,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 }
 
 func TestChainIdVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), nil, abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))

@@ -213,7 +213,7 @@ func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, m
 		ContractAddr: loom.Address{},
 		CallerAddr:   c.Address,
 	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 
 	vm := evm.NewLoomVm(ctx.State, evmStore, nil, nil, ctx.AccountBalanceManager, false)
 	_, err = vm.Call(ctx.Message().Sender, c.Address, input, loom.NewBigUIntFromInt(0))
@@ -233,7 +233,7 @@ func (c *ethCoinIntegrationTestHelper) staticCallEVM(ctx *plugin.FakeContextWith
 		ContractAddr: loom.Address{},
 		CallerAddr:   c.Address,
 	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 
 	vm := evm.NewLoomVm(ctx.State, evmStore, nil, nil, ctx.AccountBalanceManager, false)
 	output, err := vm.StaticCall(ctx.Message().Sender, c.Address, input)
@@ -256,7 +256,7 @@ func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller
 		ContractAddr: caller,
 		CallerAddr:   caller,
 	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 
 	vm := evm.NewLoomVm(ctx.State, evmStore, nil, nil, nil, false)
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))

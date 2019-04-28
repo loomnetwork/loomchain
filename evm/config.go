@@ -16,10 +16,10 @@ func DefaultEvmStoreConfig() *EvmStoreConfig {
 }
 
 // Clone returns a deep clone of the config.
-func (EvmStore *EvmStoreConfig) Clone() *EvmStoreConfig {
-	if EvmStore == nil {
+func (cfg *EvmStoreConfig) Clone() *EvmStoreConfig {
+	if cfg == nil {
 		return nil
 	}
-	clone := *EvmStore
+	clone := *cfg
 	return &clone
 }

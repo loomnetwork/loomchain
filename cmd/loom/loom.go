@@ -725,7 +725,7 @@ func loadEvmStore(cfg *config.Config, logger *loom.Logger, appHeight int64) (sto
 		ContractAddr: loom.Address{},
 		CallerAddr:   loom.Address{},
 	}
-	evmStore := store.NewKVEvmStore(db, logContext)
+	evmStore := store.NewEvmStore(db, logContext)
 	return evmStore, nil
 }
 

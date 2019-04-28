@@ -21,6 +21,7 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 const (
@@ -38,7 +39,13 @@ func mockState() loomchain.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  BlockHeight,
+		ContractAddr: loom.Address{},
+		CallerAddr:   loom.Address{},
+	}
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), evmStore, header, nil, nil)
 }
 
 func TestProcessDeployTx(t *testing.T) {
@@ -53,8 +60,8 @@ func TestProcessDeployTx(t *testing.T) {
 
 	// Test the case where all the transaction are done using one VM
 	manager := lvm.NewManager()
-	manager.Register(lvm.VMType_PLUGIN, LoomVmFactory)
-	loomvm, err := manager.InitVM(lvm.VMType_PLUGIN, mockState())
+	manager.Register(lvm.VMType_EVM, LoomVmFactory)
+	loomvm, err := manager.InitVM(lvm.VMType_EVM, mockState())
 	require.Nil(t, err)
 	testCryptoZombies(t, loomvm, caller)
 	testLoomTokens(t, loomvm, caller)

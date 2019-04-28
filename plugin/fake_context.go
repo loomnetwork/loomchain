@@ -37,7 +37,7 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 			Time:    block.Time.Unix(),
 		},
 	)
-	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
+	state := loomchain.NewStoreState(context.Background(), ctx, nil, block, nil, nil)
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state,
@@ -104,7 +104,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 		ContractAddr: addr,
 		CallerAddr:   c.caller,
 	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 	vm := levm.NewLoomVm(c.State, evmStore, nil, nil, createABM, false)
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
@@ -119,7 +119,7 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 		ContractAddr: addr,
 		CallerAddr:   c.caller,
 	}
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), logContext)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 	vm := levm.NewLoomVm(c.State, evmStore, nil, nil, createABM, false)
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }

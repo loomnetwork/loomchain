@@ -46,8 +46,8 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	appStore, err := store.NewIAVLStore(appDb, 0, 0)
 	header := abci.Header{}
 	header.Height = int64(1)
-	state := loomchain.NewStoreState(context.Background(), appStore, header, nil, nil)
-	evmStore := store.NewKVEvmStore(dbm.NewMemDB(), nil)
+	state := loomchain.NewStoreState(context.Background(), appStore, nil, header, nil, nil)
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
 
 	vmManager := vm.NewManager()
 	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
