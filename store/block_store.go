@@ -157,7 +157,7 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 	return min, max, nil
 }
 
-func filterMinMaxforCache(min, max, _ int64) (int64, int64, error) {
+func filterMinMaxforCache(min, max int64) (int64, int64, error) {
 	// filter negatives
 	if min < 0 || max < 0 {
 		return min, max, fmt.Errorf("heights must be non-negative")

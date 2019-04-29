@@ -73,15 +73,15 @@ func GetTxByBlockAndIndex(
 
 	blockResult, err := blockStore.GetBlockByHeight(&iHeight)
 	if blockResult == nil || blockResult.Block == nil {
-		return txObj, errors.Errorf("no block results fond at height %v", height)
+		return txObj, errors.Errorf("no block results found at height %v", height)
 	}
 	if len(blockResult.Block.Data.Txs) <= int(index) {
-		return txObj, errors.Errorf("index %v exceeds size of result array %v", index, len(blockResult.Block.Data.Txs))
+		return txObj, errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
 	}
 
 	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
 	if err != nil {
-		return txObj, errors.Errorf("no tx with hash %v", blockResult.Block.Data.Txs[index].Hash())
+		return txObj, errors.Errorf("no tx with hash %v found in block %v", blockResult.Block.Data.Txs[index].Hash(), height)
 	}
 	txObj, err = getTxFromTxResponse(state, txResult, blockResult,  readReceipts)
 	if err != nil {

@@ -51,7 +51,7 @@ func (s *LRUBlockStoreCache) GetBlockRangeByHeight(minHeight, maxHeight int64) (
 	const limit int64 = 20
 	var err error
 	//Get filterMinMax added to emulate error handling covered in tendermint blockstore
-	minHeight, maxHeight, err = filterMinMaxforCache(minHeight, maxHeight, limit)
+	minHeight, maxHeight, err = filterMinMaxforCache(minHeight, maxHeight)
 	if err != nil {
 		return nil, err
 	}
