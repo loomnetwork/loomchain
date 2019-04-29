@@ -112,7 +112,7 @@ func ListMappingCmd(flags *cli.ContractCallFlags) *cobra.Command {
 func NewAddressMapperCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "addressmapper <command>",
-		Short: "Methods available in coin contract",
+		Short: "Methods available in addressmapper contract",
 	}
 	var flags cli.ContractCallFlags
 	AddContractCallFlags(cmd.PersistentFlags(), &flags)
