@@ -23,6 +23,7 @@ type (
 	GetFeatureResponse    = cctypes.GetFeatureResponse
 	AddFeatureRequest     = cctypes.AddFeatureRequest
 	AddFeatureResponse    = cctypes.AddFeatureResponse
+	RemoveFeatureRequest  = cctypes.RemoveFeatureRequest
 	SetParamsRequest      = cctypes.SetParamsRequest
 	GetParamsRequest      = cctypes.GetParamsRequest
 	GetParamsResponse     = cctypes.GetParamsResponse
@@ -64,6 +65,8 @@ var (
 	ErrEmptyValidatorsList = errors.New("[ChainConfig] empty validators list")
 	// ErrFeatureNotSupported inidicates that an enabled feature is not supported in the current build
 	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
+	// ErrFeatureNotFound indicates that a feature does not exist
+	ErrFeatureNotFound = errors.New("[ChainConfig] feature not found")
 )
 
 const (
@@ -170,13 +173,27 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 	return nil
 }
 
-// AddFeature should be called by the contract owner to add a new feature the validators can enable.
+// AddFeature should be called by the contract owner to add new features the validators can enable.
 func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
 	if len(req.Names) == 0 {
 		return ErrInvalidRequest
 	}
 	for _, name := range req.Names {
-		if err := addFeature(ctx, name, req.BuildNumber); err != nil {
+		if err := addFeature(ctx, name, req.BuildNumber, req.AutoEnable); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RemoveFeature should be called by the contract owner to remove features.
+// NOTE: Features can only be removed before they're activated by the chain.
+func (c *ChainConfig) RemoveFeature(ctx contract.Context, req *RemoveFeatureRequest) error {
+	if len(req.Names) == 0 {
+		return ErrInvalidRequest
+	}
+	for _, name := range req.Names {
+		if err := removeFeature(ctx, name); err != nil {
 			return err
 		}
 	}
@@ -480,7 +497,7 @@ func enableFeature(ctx contract.Context, name string) error {
 	return ctx.Set(featureKey(name), &feature)
 }
 
-func addFeature(ctx contract.Context, name string, buildNumber uint64) error {
+func addFeature(ctx contract.Context, name string, buildNumber uint64, autoEnable bool) error {
 	if name == "" {
 		return ErrInvalidRequest
 	}
@@ -497,12 +514,30 @@ func addFeature(ctx contract.Context, name string, buildNumber uint64) error {
 		Name:        name,
 		BuildNumber: buildNumber,
 		Status:      FeaturePending,
+		AutoEnable:  autoEnable,
 	}
 
 	if err := ctx.Set(featureKey(name), &feature); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func removeFeature(ctx contract.Context, name string) error {
+	if name == "" {
+		return ErrInvalidRequest
+	}
+	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+	if found := ctx.Has(featureKey(name)); !found {
+		return ErrFeatureNotFound
+	}
+	if ctx.FeatureEnabled(name, false) {
+		return ErrFeatureAlreadyEnabled
+	}
+	ctx.Delete(featureKey(name))
 	return nil
 }
 

@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	pub1  = []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k=")
+	pub1     = []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k=")
 	address1 = loom.MustParseAddress("default:0x27690aE5F91C620B13266dA9044b8c0F35CeFbdC")
-	pub2  = []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dddSlxe6Hd30ZuuYWgps")
+	pub2     = []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dddSlxe6Hd30ZuuYWgps")
 	address2 = loom.MustParseAddress("default:0x7278ec96B05B44c643c07005577e9F060dAef4EF")
-	pub3  = []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU=")
+	pub3     = []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU=")
 	address3 = loom.MustParseAddress("default:0x8364d3A808D586b908b6B18Fc726ff134408fbfE")
-	pub4  = []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A=")
+	pub4     = []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A=")
 	address4 = loom.MustParseAddress("default:0x9c285B0CE29E29C557a06Ca3a27cf1F550a96f38")
 )
 
@@ -369,15 +369,25 @@ func TestAddAndSortDelegationList(t *testing.T) {
 		t.Fatal("delegation list is not sorted")
 	}
 
-	// add another entry
-	SetDelegation(ctx, &Delegation{
-		Validator: address3,
-		Delegator: address3,
+	// add another entry with same (validator, delegator) pair as first set
+	// delegation
+	highIndexDelegation := &Delegation{
+		Validator: address2,
+		Delegator: address2,
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
-	})
+		Index:     3,
+	}
+	SetDelegation(ctx, highIndexDelegation)
 
 	sort.Sort(byValidatorAndDelegator(dl))
 	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))
+
+	DeleteDelegation(ctx, highIndexDelegation)
+
+	delegationResult, err := GetDelegation(ctx, 0, *address2, *address2)
+	assert.NotNil(t, delegationResult)
+	delegationResult, err = GetDelegation(ctx, 3, *address2, *address2)
+	assert.Nil(t, delegationResult)
 }
 
 func TestGetSetReferrer(t *testing.T) {

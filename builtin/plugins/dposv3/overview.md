@@ -220,6 +220,10 @@ a particular delegation. If a validator earns 100 tokens in an election period
 from a particular delegation & the referrer of that delegation charges a 3%
 fee, the referrer receives 3 tokens and the validator 97.
 
+Note that any referral made while a MaxReferralPercentage > ReferrerFee is
+grandfathered in (i.e. valid) even after a candidate lowers their
+MaxReferralPercentage
+
 ### Delegator Rewards Distribution
 
 After a Validator's fee has been removed from the total rewards and the

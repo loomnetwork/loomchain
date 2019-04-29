@@ -149,8 +149,13 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 		return err
 	}
 
+	validator := loom.UnmarshalAddressPB(delegation.Validator)
+	delegator := loom.UnmarshalAddressPB(delegation.Delegator)
+
 	for i, d := range delegations {
-		if delegation.Validator.Local.Compare(d.Validator.Local) == 0 && delegation.Delegator.Local.Compare(d.Delegator.Local) == 0 {
+		otherValidator := loom.UnmarshalAddressPB(d.Validator)
+		otherDelegator := loom.UnmarshalAddressPB(d.Delegator)
+		if validator.Compare(otherValidator) == 0 && delegator.Compare(otherDelegator) == 0 && delegation.Index == d.Index {
 			copy(delegations[i:], delegations[i+1:])
 			delegations = delegations[:len(delegations)-1]
 			break
@@ -273,7 +278,8 @@ type CandidateList []*Candidate
 
 func (c CandidateList) Get(addr loom.Address) *Candidate {
 	for _, cand := range c {
-		if cand.Address.Local.Compare(addr.Local) == 0 {
+		candidate := loom.UnmarshalAddressPB(cand.Address)
+		if candidate.Compare(addr) == 0 {
 			return cand
 		}
 	}
@@ -287,7 +293,8 @@ func GetCandidate(ctx contract.StaticContext, addr loom.Address) *Candidate {
 	}
 
 	for _, cand := range c {
-		if cand.Address.Local.Compare(addr.Local) == 0 {
+		candidate := loom.UnmarshalAddressPB(cand.Address)
+		if candidate.Compare(addr) == 0 {
 			return cand
 		}
 	}
@@ -313,7 +320,7 @@ func (c *CandidateList) Set(cand *Candidate) {
 	candAddr := loom.UnmarshalAddressPB(cand.Address)
 	for _, candidate := range *c {
 		addr := loom.UnmarshalAddressPB(candidate.Address)
-		if candAddr.Local.Compare(addr.Local) == 0 {
+		if candAddr.Compare(addr) == 0 {
 			candidate = cand
 			found = true
 			break
@@ -328,7 +335,7 @@ func (c *CandidateList) Delete(addr loom.Address) {
 	newcl := *c
 	for i, cand := range newcl {
 		candAddr := loom.UnmarshalAddressPB(cand.Address)
-		if candAddr.Local.Compare(addr.Local) == 0 {
+		if candAddr.Compare(addr) == 0 {
 			copy(newcl[i:], newcl[i+1:])
 			newcl = newcl[:len(newcl)-1]
 			break
@@ -382,7 +389,7 @@ func (s byAddress) Swap(i, j int) {
 func (s byAddress) Less(i, j int) bool {
 	vaddr1 := loom.UnmarshalAddressPB(s[i].Address)
 	vaddr2 := loom.UnmarshalAddressPB(s[j].Address)
-	diff := vaddr1.Local.Compare(vaddr2.Local)
+	diff := vaddr1.Compare(vaddr2)
 	return diff < 0
 }
 
