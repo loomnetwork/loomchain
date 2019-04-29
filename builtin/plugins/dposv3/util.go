@@ -2,6 +2,7 @@ package dposv3
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -103,4 +104,12 @@ func logDposError(ctx contract.Context, err error, req string) error {
 func logStaticDposError(ctx contract.StaticContext, err error, req string) error {
 	ctx.Logger().Error("DPOS static error", "error", err, "sender", ctx.Message().Sender, "req", req)
 	return err
+}
+
+// LIMBO VALIDATOR
+
+func limboValidatorAddress(ctx contract.StaticContext) loom.Address {
+	chainId := ctx.Block().ChainID
+	addr := fmt.Sprintf("%s:0x0000000000000000000000000000000000000000", chainId)
+	return loom.MustParseAddress(addr)
 }

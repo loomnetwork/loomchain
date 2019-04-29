@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"sort"
 
@@ -54,7 +53,6 @@ var (
 	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
-	limboValidatorAddress         = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
 	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
@@ -283,7 +281,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
 	}
-	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 && req.ValidatorAddress.ChainId != ctx.Block().ChainID {
+	if req.ValidatorAddress.Local.Compare(limboValidatorAddress(ctx).Local) != 0 && req.ValidatorAddress.ChainId != ctx.Block().ChainID {
 		return logDposError(ctx, errors.New("Redelegate called with invalid chainId for req.ValidatorAddress"), req.String())
 	}
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
@@ -295,7 +293,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 	// Unless redelegation is to the limbo validator check that the new
 	// validator address corresponds to one of the registered candidates
-	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+	if req.ValidatorAddress.Local.Compare(limboValidatorAddress(ctx).Local) != 0 {
 		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
@@ -389,7 +387,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 
 	// Unless considation is for the limbo validator, check that the new
 	// validator address corresponds to one of the registered candidates
-	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+	if req.ValidatorAddress.Local.Compare(limboValidatorAddress(ctx).Local) != 0 {
 		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
@@ -1316,7 +1314,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
 
 						// referrer fees are delegater to limbo validator
-						IncreaseRewardDelegation(ctx, limboValidatorAddress.MarshalPB(), referrerAddress, referrerReward)
+						IncreaseRewardDelegation(ctx, limboValidatorAddress(ctx).MarshalPB(), referrerAddress, referrerReward)
 
 						// any referrer bonus amount is subtracted from the validatorShare
 						validatorShare.Sub(&validatorShare, &referrerReward)
@@ -1475,7 +1473,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do not distribute rewards to delegators of the Limbo validator
-		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+		if delegation.Validator.Local.Compare(limboValidatorAddress(ctx).Local) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
 			delegationTotal := formerValidatorTotals[validatorKey]
@@ -1531,7 +1529,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 		// Calculate delegation totals for all validators except the Limbo
 		// validator
-		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+		if delegation.Validator.Local.Compare(limboValidatorAddress(ctx).Local) != 0 {
 			newTotal := common.BigZero()
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
 			newTotal.Add(newTotal, &weightedDelegation)
