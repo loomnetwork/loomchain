@@ -25,6 +25,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -709,13 +710,13 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, err
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
+	if err != nil && errors.Cause(err) != common.Error_TxReciptNotFound {
+		return resp, err
+	}
 	if err != nil {
-		if !strings.Contains(err.Error(), "Tx receipt not found") {
-			return resp, err
-		}
 		txObj, err := query.GetTxByTendermintHash(s.BlockStore, txHash)
 		if err != nil {
-			return resp, err
+			return resp, errors.Wrapf(err, "cannot find tx hash %v", txHash)
 		}
 		return eth.TxObjToReceipt(txObj), nil
 	}
@@ -816,6 +817,9 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 		return resp, err
 	}
 	txObj, err := query.GetTxByHash(snapshot, txHash, r)
+	if err != nil && errors.Cause(err) != common.Error_TxReciptNotFound {
+		return resp, err
+	}
 	if err != nil {
 		txObj, err = query.GetTxByTendermintHash(s.BlockStore, txHash)
 		if err != nil {
