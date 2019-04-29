@@ -47,7 +47,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	header := abci.Header{}
 	header.Height = int64(1)
 	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
-	state := loomchain.NewStoreState(context.Background(), appStore, evmStore, header, nil, nil)
+	state := loomchain.NewStoreState(context.Background(), appStore, header, nil, nil)
 
 	vmManager := vm.NewManager()
 	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
@@ -57,7 +57,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	}
 	loader := plugin.NewStaticLoader(Contract, coin.Contract)
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
+		return plugin.NewPluginVM(loader, state, evmStore, reg, nil, log.Default, nil, nil, nil), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 	if err != nil {

@@ -6,12 +6,15 @@ type EvmStoreConfig struct {
 	// DBBackend defines backend EVM store type
 	// available backend types are 'goleveldb', or 'cleveldb'
 	DBBackend string
+	// CacheSizeMegs defines cache size (in megabytes) of EVM store
+	CacheSizeMegs int
 }
 
 func DefaultEvmStoreConfig() *EvmStoreConfig {
 	return &EvmStoreConfig{
-		DBName:    "evm",
-		DBBackend: "goleveldb",
+		DBName:        "evm",
+		DBBackend:     "goleveldb",
+		CacheSizeMegs: 20,
 	}
 }
 

@@ -38,7 +38,6 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	EvmStore() store.EvmStore
 }
 
 type StoreState struct {
@@ -69,7 +68,6 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 func NewStoreState(
 	ctx context.Context,
 	store store.KVStore,
-	evmStore store.EvmStore,
 	block abci.Header,
 	curBlockHash []byte,
 	getValidatorSet GetValidatorSet,
@@ -79,7 +77,6 @@ func NewStoreState(
 	return &StoreState{
 		ctx:             ctx,
 		store:           store,
-		evmStore:        evmStore,
 		block:           blockHeader,
 		validators:      loom.NewValidatorSet(),
 		getValidatorSet: getValidatorSet,
@@ -200,9 +197,9 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, evmStore store.EvmStore, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
-		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, evmStore, block, curBlockHash, getValidatorSet),
+		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
 }
@@ -362,7 +359,6 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 	state := NewStoreState(
 		context.Background(),
 		a.Store,
-		a.EvmStore,
 		abci.Header{},
 		nil,
 		a.GetValidatorSet,
@@ -391,7 +387,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		upkeepState := NewStoreState(
 			context.Background(),
 			upkeepStoreTx,
-			a.EvmStore,
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
@@ -414,7 +409,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
-		a.EvmStore,
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
@@ -457,7 +451,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
-		a.EvmStore,
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
@@ -478,7 +471,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	state = NewStoreState(
 		context.Background(),
 		storeTx,
-		a.EvmStore,
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
@@ -557,7 +549,6 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
-		a.EvmStore,
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
@@ -674,7 +665,6 @@ func (a *Application) ReadOnlyState() State {
 	return NewStoreStateSnapshot(
 		nil,
 		readOnlyStore,
-		a.EvmStore,
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,

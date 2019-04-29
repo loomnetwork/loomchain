@@ -779,6 +779,8 @@ EvmStore:
   # DBBackend defines backend EVM store type
   # available backend types are 'goleveldb', or 'cleveldb'
   DBBackend: {{.EvmStore.DBBackend}}
+  # CacheSizeMegs defines cache size (in megabytes) of EVM store
+  CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
 {{end}}
 # 
 #  FnConsensus reactor on/off switch + config

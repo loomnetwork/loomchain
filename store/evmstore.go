@@ -1,10 +1,8 @@
 package store
 
 import (
-	"bytes"
 	"log"
 	"os"
-	"sort"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -89,9 +87,9 @@ type kvPair struct {
 }
 
 type batch struct {
-	cache       []kvPair
-	parentStore *evmDB
-	size        int
+	cache []kvPair
+	db    *evmDB
+	size  int
 }
 
 func (b *batch) Put(key, value []byte) error {
@@ -108,18 +106,14 @@ func (b *batch) ValueSize() int {
 }
 
 func (b *batch) Write() error {
-	b.parentStore.lock.Lock()
-	defer b.parentStore.lock.Unlock()
-
-	sort.Slice(b.cache, func(j, k int) bool {
-		return bytes.Compare(b.cache[j].key, b.cache[k].key) < 0
-	})
+	b.db.lock.Lock()
+	defer b.db.lock.Unlock()
 
 	for _, kv := range b.cache {
 		if kv.value == nil {
-			b.parentStore.Delete(kv.key)
+			b.db.Delete(kv.key)
 		} else {
-			b.parentStore.Put(kv.key, kv.value)
+			b.db.Put(kv.key, kv.value)
 		}
 	}
 	return nil
@@ -139,8 +133,8 @@ func (b *batch) Delete(key []byte) error {
 }
 
 func (b *batch) Dump(logger *log.Logger) {
-	b.parentStore.lock.Lock()
-	defer b.parentStore.lock.Unlock()
+	b.db.lock.Lock()
+	defer b.db.lock.Unlock()
 	logger.Print("\n---- BATCH DUMP ----\n")
 	for i, kv := range b.cache {
 		logger.Printf("IDX %d, KEY %s\n", i, kv.key)
@@ -188,7 +182,7 @@ const batchHeader = `
 func (evmDB *evmDB) NewLogBatch(logContext *EvmStoreLogContext) ethdb.Batch {
 	b := new(LogBatch)
 	b.batch = *new(batch)
-	b.batch.parentStore = evmDB
+	b.batch.db = evmDB
 	b.batch.Reset()
 	b.params = EVMLogParams{
 		LogFilename:        "ethdb-batch.log",

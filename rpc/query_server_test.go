@@ -93,7 +93,6 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 	return loomchain.NewStoreState(
 		nil,
 		store.NewMemStore(),
-		nil,
 		abci.Header{
 			ChainID: s.ChainID,
 		},

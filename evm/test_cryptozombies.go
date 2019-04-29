@@ -16,9 +16,11 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func testCryptoZombies(t *testing.T, vm lvm.VM, caller loom.Address) {
@@ -263,5 +265,11 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 		return nil, err
 	}
 
-	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
+	logContext := &store.EvmStoreLogContext{
+		BlockHeight:  0,
+		ContractAddr: loom.Address{},
+		CallerAddr:   loom.Address{},
+	}
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
+	return NewLoomVm(state, evmStore, eventHandler, receiptHandler, nil, debug), nil
 }

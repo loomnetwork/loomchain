@@ -707,13 +707,13 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	return eventStore, nil
 }
 
-func loadEvmStore(cfg *config.Config, logger *loom.Logger, appHeight int64) (store.EvmStore, error) {
+func loadEvmStore(cfg *config.Config, appHeight int64) (store.EvmStore, error) {
 	evmStoreCfg := cfg.EvmStore
 	db, err := cdb.LoadDB(
 		evmStoreCfg.DBBackend,
 		evmStoreCfg.DBName,
 		cfg.RootPath(),
-		20,
+		evmStoreCfg.CacheSizeMegs,
 		cfg.Metrics.Database,
 	)
 	if err != nil {
@@ -742,7 +742,7 @@ func loadApp(
 	if err != nil {
 		return nil, err
 	}
-
+	var evmStore store.EvmStore
 	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
 	switch cfg.EventDispatcher.Dispatcher {
@@ -818,6 +818,7 @@ func loadApp(
 		return plugin.NewPluginVM(
 			loader,
 			state,
+			evmStore,
 			createRegistry(state),
 			eventHandler,
 			log.Default,
@@ -827,9 +828,8 @@ func loadApp(
 		), nil
 	})
 
-	var evmStore store.EvmStore
 	if evm.EVMEnabled {
-		evmStore, err = loadEvmStore(cfg, log.Default, appHeight)
+		evmStore, err = loadEvmStore(cfg, appHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -850,6 +850,7 @@ func loadApp(
 				pvm := plugin.NewPluginVM(
 					loader,
 					state,
+					evmStore,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -862,7 +863,7 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, evmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch

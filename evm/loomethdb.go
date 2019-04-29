@@ -278,11 +278,3 @@ func sortKeys(prefix []byte, kvs []kvPair) []kvPair {
 	}
 	return kvs
 }
-
-func EvmStoreLogContextEthDbLogContext(evmStoreLogContext *store.EvmStoreLogContext) *ethdbLogContext {
-	return &ethdbLogContext{
-		blockHeight:  evmStoreLogContext.BlockHeight,
-		contractAddr: evmStoreLogContext.ContractAddr,
-		callerAddr:   evmStoreLogContext.ContractAddr,
-	}
-}

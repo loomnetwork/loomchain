@@ -80,7 +80,6 @@ func newDumpEVMStateCommand() *cobra.Command {
 			state := loomchain.NewStoreState(
 				context.Background(),
 				storeTx,
-				evmStore,
 				abci.Header{
 					Height: appStore.Version(),
 				},
@@ -109,6 +108,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				pvm := plugin.NewPluginVM(
 					common.NewDefaultContractsLoader(cfg),
 					state,
+					evmStore,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -126,7 +126,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, evmStore, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}

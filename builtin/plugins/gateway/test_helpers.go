@@ -306,7 +306,7 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 	}
 	byteCode = append(byteCode, input...)
 
-	vm := levm.NewLoomVm(ctx.State, nil, nil, nil, false)
+	vm := levm.NewLoomVm(ctx.State, ctx.EvmStore, nil, nil, nil, false)
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err

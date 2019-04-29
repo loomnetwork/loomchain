@@ -21,7 +21,6 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 const (
@@ -39,13 +38,7 @@ func mockState() loomchain.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  BlockHeight,
-		ContractAddr: loom.Address{},
-		CallerAddr:   loom.Address{},
-	}
-	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), evmStore, header, nil, nil)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 }
 
 func TestProcessDeployTx(t *testing.T) {
