@@ -255,10 +255,10 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dposV3 check_all_delegations_v3 {{index $.AccountAddressList 1}}"
   Condition = "contains"
-  Expected = ["chainId\": \"limbo"]
+  Expected = ["chainId\": \"default"]
 
 # referrer "acct2" should have a non-negative reward distribution
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dposV3 check_all_delegations_v3 {{index $.AccountAddressList 2}}"
   Condition = "contains"
-  Expected = ["chainId\": \"limbo"]
+  Expected = ["chainId\": \"default"]
