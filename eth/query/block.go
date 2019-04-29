@@ -9,13 +9,20 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ttypes "github.com/tendermint/tendermint/types"
 
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
+)
+const (
+	deployId    = uint32(1)
+	callId      = uint32(2)
 )
 
 var (
@@ -85,11 +92,16 @@ func GetBlockByNumber(
 			}
 			hash := txHashList[evmIndex]
 			if full {
+				txInput, err := getInputFromTx(tx)
+				if err != nil {
+					return resp, errors.Wrapf(err, "cant determine input from tx data %v", tx)
+				}
 				txObj, err := GetTxByHash(state, hash, readReceipts)
 				if err != nil {
 					return resp, errors.Wrapf(err, "txObj for hash %v", hash)
 				}
-				txObj.Input = eth.EncBytes(tx)
+				txObj.TransactionIndex = eth.EncInt(int64(i))
+				txObj.Input = eth.EncBytes(txInput)
 				blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 			} else {
 				blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(hash))
@@ -97,6 +109,10 @@ func GetBlockByNumber(
 			evmIndex++
 		} else if txResult.TxResult.Info == utils.CallPlugin || txResult.TxResult.Info  == utils.DeployPlugin {
 			if full {
+				txInput, err := getInputFromTx(tx)
+				if err != nil {
+					return resp, errors.Wrapf(err, "cant determine input from tx data %v", tx)
+				}
 				blockInfo.Transactions = append(blockInfo.Transactions, eth.JsonTxObject{
 					Nonce:                  eth.ZeroedQuantity,
 					Hash:                   eth.EncBytes(txResult.Hash),
@@ -107,7 +123,7 @@ func GetBlockByNumber(
 					To:                     eth.ZeroedData20Bytes,
 					Gas:                    eth.EncInt(txResult.TxResult.GasWanted),
 					GasPrice:               eth.EncInt(txResult.TxResult.GasUsed),
-					Input:                  eth.EncBytes(tx),
+					Input:                  eth.EncBytes(txInput),
 					Value:                  eth.EncInt(0),
 				})
 			} else {
@@ -121,6 +137,46 @@ func GetBlockByNumber(
 	}
 
 	return blockInfo, nil
+}
+
+func getInputFromTx(tx ttypes.Tx) ([]byte, error) {
+	var signedTx auth.SignedTx
+	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
+		return nil, err
+	}
+
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return nil, err
+	}
+
+	var txTx loomchain.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
+		return nil, err
+	}
+
+	var msg vm.MessageTx
+	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
+		return nil, err
+	}
+
+	if txTx.Id == deployId {
+		var deployTx vm.DeployTx
+		if err := proto.Unmarshal(msg.Data, &deployTx);  err != nil {
+			return nil, err
+		}
+		return deployTx.Code, nil
+	}
+
+	if txTx.Id == callId {
+		var callTx vm.CallTx
+		if err := proto.Unmarshal(msg.Data, &callTx);  err != nil {
+			return nil, err
+		}
+		return callTx.Input, nil
+	}
+
+	return nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 }
 
 func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {

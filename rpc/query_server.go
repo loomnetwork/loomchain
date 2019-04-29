@@ -662,6 +662,7 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 	return query.DeprecatedGetTxByHash(snapshot, txHash, r)
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
 func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
 	if block == "0x0" {
 		return eth.GetBlockZero(), nil
