@@ -278,6 +278,10 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
 	}
+	if req.FormerValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Redelegate called with req.FormerValidatorAddress == nil"), req.String())
+	}
+
 	if loom.UnmarshalAddressPB(req.FormerValidatorAddress).Compare(loom.UnmarshalAddressPB(req.ValidatorAddress)) == 0 {
 		return logDposError(ctx, errors.New("Redelegating self-delegations is not permitted."), req.String())
 	}
