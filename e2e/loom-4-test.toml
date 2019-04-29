@@ -88,9 +88,9 @@
   Expected = [ "Call response: ", "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]" ]
   Datafiles = [ { Filename = "inputGet.bin", Contents = "6d4ce63c" } ]
 
-# eos
+# eos-scatter
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} addressmapper add-identity-mapping default:{{index $.AccountAddressList 2}} eccPrivateKey -t eos -c eos -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} addressmapper add-identity-mapping default:{{index $.AccountAddressList 2}} eccPrivateKey -t eos-scatter -c eos-scatter -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [ "mapping successful" ]
   Datafiles = [
@@ -98,12 +98,12 @@
   ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings mapped-chain-id eos -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings mapped-chain-id eos-scatter -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
-  Expected = [ "mappings", '"chainId": "eos"' ]
+  Expected = [ "mappings", '"chainId": "eos-scatter"' ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStoreEos --algo eos --chain default --caller-chain eos -k eccPrivateKey"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStoreEos --algo eos-scatter --chain default --caller-chain eos-scatter -k eccPrivateKey"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -112,7 +112,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStoreEos --algo eos --chain default --caller-chain eos -k eccPrivateKey"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStoreEos --algo eos-scatter --chain default --caller-chain eos-scatter -k eccPrivateKey"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [

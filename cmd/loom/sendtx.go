@@ -475,7 +475,7 @@ func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.
 		case "tron":
 			localAddr, signer, err = tronSigner(privKeyB64)
 		case "eos":
-			localAddr, signer, err = eosSigner(privKeyB64)
+			err = fmt.Errorf("eos siging not supported yet")
 		case "eos-scatter":
 			localAddr, signer, err = eosScatterSigner(privKeyB64)
 		default:

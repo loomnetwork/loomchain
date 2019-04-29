@@ -8,18 +8,20 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
+	ssha "github.com/miguelmota/go-solidity-sha3"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
-	ssha "github.com/miguelmota/go-solidity-sha3"
-	"github.com/pkg/errors"
 )
 
 type (
@@ -199,11 +201,6 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
 
-	if evmcompat.SignatureType(sig[0]) == evmcompat.SignatureType_EOS_SCATTER {
-		eosHash := sha256.Sum256([]byte("0x" + hex.EncodeToString(hash)))
-		hash = eosHash[:]
-	}
-
 	signerAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig)
 
 	if err != nil {
@@ -252,15 +249,20 @@ func SignIdentityMappingScatterEos(from, to loom.Address, key ecc.PrivateKey) ([
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
-	sig, err := key.Sign(hash)
+
+	typedSignature := []byte{byte(evmcompat.SignatureType_EOS_SCATTER)}
+	nonceBytes := []byte(strconv.FormatUint(0, 10))[:6]
+	typedSignature = append(typedSignature, nonceBytes...)
+	nonceHash := sha256.Sum256([]byte(hex.EncodeToString(nonceBytes)))
+	scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash[:]) + hex.EncodeToString(nonceHash[:])))
+
+	signature, err := key.Sign(scatterMsgHash[:])
 	if err != nil {
 		return nil, err
 	}
-	sigBytes, err := sig.Pack()
-	if err != nil {
-		return nil, err
-	}
-	return append([]byte{byte(evmcompat.SignatureType_EOS_SCATTER)}, sigBytes...), nil
+	typedSignature = append(typedSignature, []byte(signature.String())...)
+
+	return typedSignature, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})
