@@ -909,18 +909,22 @@ func TestElect(t *testing.T) {
 	assert.Equal(t, whitelistAmount, validator.WhitelistAmount.Value.Int)
 
 	newWhitelistAmount := big.NewInt(2000000000000)
+	newTier := TIER_THREE
 
 	// only oracle
 	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr2), &addr1, newWhitelistAmount, nil)
 	require.Equal(t, errOnlyOracle, err)
 
-	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr1), &addr1, newWhitelistAmount, nil)
+	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr1), &addr1, newWhitelistAmount, &newTier)
 	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
 
 	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
 	validator = validators[0]
 	assert.Equal(t, newWhitelistAmount, validator.WhitelistAmount.Value.Int)
+	assert.Equal(t, newTier, validator.LocktimeTier)
 }
 
 func TestValidatorRewards(t *testing.T) {

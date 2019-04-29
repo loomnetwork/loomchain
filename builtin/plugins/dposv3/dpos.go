@@ -619,7 +619,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
-	statistic.WhitelistAmount = loom.BigZeroPB()
+	statistic.UpdateWhitelistAmount = loom.BigZeroPB()
 	return SetStatistic(ctx, statistic)
 }
 
@@ -637,6 +637,10 @@ func (c *DPOS) ChangeWhitelistInfo(ctx contract.Context, req *ChangeWhitelistInf
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
+	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
+		return logDposError(ctx, errors.New("Whitelist amount must be a positive number of tokens."), req.String())
+	}
+
 	tierNumber := req.GetLocktimeTier()
 	if tierNumber > 3 {
 		return logDposError(ctx, errors.New("Invalid whitelist tier"), req.String())
@@ -647,8 +651,8 @@ func (c *DPOS) ChangeWhitelistInfo(ctx contract.Context, req *ChangeWhitelistInf
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
 
-	statistic.WhitelistAmount = req.Amount
-	statistic.LocktimeTier = tierNumber
+	statistic.UpdateWhitelistAmount = req.Amount
+	statistic.UpdateLocktimeTier = tierNumber
 
 	return SetStatistic(ctx, statistic)
 }
@@ -821,7 +825,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
+	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress, "request", req)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -972,6 +976,12 @@ func Elect(ctx contract.Context) error {
 				statistic.DelegationTotal = delegationTotal
 				// Needed in case pubkey was not set during whitelisting
 				statistic.PubKey = candidate.PubKey
+
+				if statistic.UpdateWhitelistAmount != nil {
+					statistic.WhitelistAmount = statistic.UpdateWhitelistAmount
+					statistic.LocktimeTier = statistic.UpdateLocktimeTier
+					statistic.UpdateWhitelistAmount = nil
+				}
 			}
 
 			if err = SetStatistic(ctx, statistic); err != nil {
