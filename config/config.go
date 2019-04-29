@@ -774,7 +774,10 @@ EventStore:
 # EvmStore
 #
 EvmStore:
+  # DBName defines evm database file name
   DBName: {{.EvmStore.DBName}}
+  # DBBackend defines backend EVM store type
+  # available backend types are 'goleveldb', or 'cleveldb'
   DBBackend: {{.EvmStore.DBBackend}}
 {{end}}
 # 

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
@@ -76,13 +75,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			logContext := &store.EvmStoreLogContext{
-				BlockHeight:  appHeight,
-				ContractAddr: loom.Address{},
-				CallerAddr:   loom.Address{},
-			}
-
-			evmStore := store.NewEvmStore(evmDB, logContext)
+			evmStore := store.NewEvmStore(evmDB, nil)
 
 			state := loomchain.NewStoreState(
 				context.Background(),

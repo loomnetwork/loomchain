@@ -11,14 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/loomnetwork/go-loom"
 	dbm "github.com/tendermint/tendermint/libs/db"
-
-	"github.com/loomnetwork/go-loom/util"
 )
 
 var (
-	LogEvmStoreBatch = true
-	logger           log.Logger
-	loggerStarted    = false
+	logger        log.Logger
+	loggerStarted = false
 )
 
 type EvmStore interface {
@@ -28,6 +25,7 @@ type EvmStore interface {
 	Has([]byte) (bool, error)
 	Close()
 	NewBatch() ethdb.Batch
+	WithLogContext(*EvmStoreLogContext) EvmStore
 }
 
 var _ EvmStore = &evmDB{}
@@ -37,17 +35,12 @@ type evmDB struct {
 	sync.Mutex
 	lock       sync.RWMutex
 	logContext *EvmStoreLogContext
-	prefix     []byte
 }
 
 type EvmStoreLogContext struct {
 	BlockHeight  int64
 	ContractAddr loom.Address
 	CallerAddr   loom.Address
-}
-
-func evmDbKey(prefix, key []byte) []byte {
-	return util.PrefixKey([]byte(prefix), []byte(key))
 }
 
 func NewEvmStore(db dbm.DB, logContext *EvmStoreLogContext) EvmStore {
@@ -57,35 +50,35 @@ func NewEvmStore(db dbm.DB, logContext *EvmStoreLogContext) EvmStore {
 	}
 }
 
-func (evmDB *evmDB) Delete(key []byte) error {
-	evmDB.DB.Delete(evmDbKey(evmDB.prefix, key))
+func (db *evmDB) Delete(key []byte) error {
+	db.DB.Delete(key)
 	return nil
 }
 
-func (evmDB *evmDB) Put(key []byte, value []byte) error {
-	evmDB.DB.Set(evmDbKey(evmDB.prefix, key), value)
+func (db *evmDB) Put(key []byte, value []byte) error {
+	db.DB.Set(key, value)
 	return nil
 }
 
-func (evmDB *evmDB) Get(key []byte) ([]byte, error) {
-	return evmDB.DB.Get(evmDbKey(evmDB.prefix, key)), nil
+func (db *evmDB) Get(key []byte) ([]byte, error) {
+	return db.DB.Get(key), nil
 }
 
-func (evmDB *evmDB) Has(key []byte) (bool, error) {
-	return evmDB.DB.Has(evmDbKey(evmDB.prefix, key)), nil
+func (db *evmDB) Has(key []byte) (bool, error) {
+	return db.DB.Has(key), nil
 }
 
-func (evmDB *evmDB) Close() {
+func (db *evmDB) Close() {
 }
 
-func (evmDB *evmDB) NewBatch() ethdb.Batch {
-	if LogEvmStoreBatch {
-		return evmDB.NewLogBatch(evmDB.logContext)
-	} else {
-		newBatch := new(batch)
-		newBatch.parentStore = evmDB
-		newBatch.Reset()
-		return newBatch
+func (db *evmDB) NewBatch() ethdb.Batch {
+	return db.NewLogBatch(db.logContext)
+}
+
+func (db *evmDB) WithLogContext(logContext *EvmStoreLogContext) EvmStore {
+	return &evmDB{
+		DB:         db.DB,
+		logContext: logContext,
 	}
 }
 
@@ -220,6 +213,7 @@ func (evmDB *evmDB) NewLogBatch(logContext *EvmStoreLogContext) ethdb.Batch {
 		logger.Println("Created ethdb batch logger")
 		loggerStarted = true
 	}
+
 	if logContext != nil {
 		logger.Printf(batchHeaderWithContext, logContext.BlockHeight, logContext.ContractAddr, logContext.CallerAddr)
 	} else {

@@ -13,6 +13,10 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/vm"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -241,4 +245,23 @@ func setKittyAddress(t *testing.T, vm lvm.VM, caller, kittyAddr, contractAddr lo
 		t.Error("Error on setting kitty address")
 	}
 	return res
+}
+
+// LoomVmFactory is used in tests only
+var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
+	//TODO , debug bool, We should be able to pass in config
+	debug := false
+	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
+		eventHandler,
+		func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
+			return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
+		},
+	)
+	receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	if err != nil {
+		return nil, err
+	}
+
+	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
 }

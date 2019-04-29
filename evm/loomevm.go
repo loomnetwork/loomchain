@@ -14,9 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
@@ -55,7 +52,12 @@ func NewLoomEvm(
 	debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
-	p.db = loomState.EvmStore()
+
+	evmStore := loomState.EvmStore()
+	if evmStore != nil {
+		p.db = evmStore.WithLogContext(logContext)
+	}
+
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
 		return nil, err
@@ -99,25 +101,6 @@ func (levm LoomEvm) RawDump() []byte {
 		panic(err)
 	}
 	return output
-}
-
-// LoomVmFactory is used in tests only
-var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	//TODO , debug bool, We should be able to pass in config
-	debug := false
-	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
-		eventHandler,
-		func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-			return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
-		},
-	)
-	receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		return nil, err
-	}
-
-	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
@@ -243,4 +226,12 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 		return nil, err
 	}
 	return levm.GetCode(addr), nil
+}
+
+func EvmStoreLogContextToEthDbLogContext(evmStoreLogContext *store.EvmStoreLogContext) *ethdbLogContext {
+	return &ethdbLogContext{
+		blockHeight:  evmStoreLogContext.BlockHeight,
+		contractAddr: evmStoreLogContext.ContractAddr,
+		callerAddr:   evmStoreLogContext.ContractAddr,
+	}
 }
