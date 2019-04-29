@@ -46,12 +46,12 @@
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dpos 1250000 -k {{index $.NodePrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 3}}"
   Condition = "excludes"
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dpos 200000 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 200000 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = ""
 
 [[TestCases]]
