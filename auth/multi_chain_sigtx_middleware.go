@@ -20,11 +20,11 @@ import (
 type SignedTxType string
 
 const (
-	LoomSignedTxType        SignedTxType = "loom"
-	EthereumSignedTxType    SignedTxType = "eth"
-	TronSignedTxType        SignedTxType = "tron"
-	EosSignedTxType         SignedTxType = "eos"
-	EosScatterSignedTxType  SignedTxType = "eos-scatter"
+	LoomSignedTxType       SignedTxType = "loom"
+	EthereumSignedTxType   SignedTxType = "eth"
+	TronSignedTxType       SignedTxType = "tron"
+	EosSignedTxType        SignedTxType = "eos"
+	EosScatterSignedTxType SignedTxType = "eos-scatter"
 )
 
 // AccountType is used to specify which address should be used on-chain to identify a tx sender.

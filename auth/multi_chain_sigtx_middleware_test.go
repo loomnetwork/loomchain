@@ -11,10 +11,8 @@ import (
 	"testing"
 
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
-	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -22,7 +20,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
-	"github.com/loomnetwork/go-loom/common/evmcompat"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/vm"
@@ -51,125 +48,85 @@ var (
 )
 
 func TestSigning(t *testing.T) {
-	pk, err := crypto.GenerateKey()
-	err = crypto.SaveECDSA("newpk", pk)
+	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
 	require.NoError(t, err)
-	require.NotEqual(t, nil, privateKey)
-	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
-	require.NoError(t, err)
-	to := contract
-	nonce := uint64(7)
 
-	// Encode
-	nonceTx := []byte("nonceTx")
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	signer := &auth.EthSigner66Byte{privateKey}
+	nonceTxBytes, err := proto.Marshal(&auth.NonceTx{
+		Inner:    []byte("innerTx"),
+		Sequence: 3,
+	})
+	signedTx := auth.SignTx(signer, nonceTxBytes)
+
+	verifyer := originRecoveryFuncs[EthereumSignedTxType]
+	localRetrived, err := verifyer(*signedTx)
 	require.NoError(t, err)
-	hash := sha3.SoliditySHA3(
-		sha3.Address(common.BytesToAddress(ethLocalAdr)),
-		sha3.Address(common.BytesToAddress(to.Local)),
-		sha3.Uint64(nonce),
-		nonceTx,
-	)
-
-	signature, err := evmcompat.GenerateTypedSig(hash, privateKey, evmcompat.SignatureType_EIP712)
-	require.NoError(t, err)
-	tx := &auth.SignedTx{
-		Inner:     nonceTx,
-		Signature: signature,
-		PublicKey: publicKey,
-	}
-
-	// Decode
-	recoverdAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, tx.Signature)
-	require.NoError(t, err)
-	require.NotEqual(t, nil, recoverdAddr)
-	require.True(t, bytes.Equal(recoverdAddr.Bytes(), ethLocalAdr))
-
-	signatureNoRecoverID := signature[1 : len(tx.Signature)-1] // remove recovery ID
-	require.True(t, crypto.VerifySignature(tx.PublicKey, hash, signatureNoRecoverID))
-
+	require.Equal(t, 0, bytes.Compare(local, localRetrived))
 }
 
 func TestTronSigning(t *testing.T) {
-	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	require.NotEqual(t, nil, privateKey)
-	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
-	require.NoError(t, err)
-	to := contract
-	nonce := uint64(7)
-
-	// Encode
-	nonceTx := []byte("nonceTx")
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
-	require.NoError(t, err)
-	hash := sha3.SoliditySHA3(
-		sha3.Address(common.BytesToAddress(ethLocalAdr)),
-		sha3.Address(common.BytesToAddress(to.Local)),
-		sha3.Uint64(nonce),
-		nonceTx,
-	)
-
-	signature, err := crypto.Sign(hash, privateKey)
-	require.NoError(t, err)
-	tx := &auth.SignedTx{
-		Inner:     nonceTx,
-		Signature: signature,
-		PublicKey: publicKey,
-	}
-
-	// Decode
-	pubAddr, err := crypto.Ecrecover(hash, tx.Signature)
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
 	require.NoError(t, err)
 
-	UnmarshalPubkey, err := crypto.UnmarshalPubkey(pubAddr)
-	require.NoError(t, err)
+	signer := &auth.TronSigner{privateKey}
+	nonceTxBytes, err := proto.Marshal(&auth.NonceTx{
+		Inner:    []byte("innerTx"),
+		Sequence: 3,
+	})
+	signedTx := auth.SignTx(signer, nonceTxBytes)
 
-	ethLocalAdr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*UnmarshalPubkey).Hex())
-	require.True(t, bytes.Equal(ethLocalAdr, ethLocalAdr2))
+	verifyer := originRecoveryFuncs[TronSignedTxType]
+	localRetrived, err := verifyer(*signedTx)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare(local, localRetrived))
 }
 
 func TestEosSigning(t *testing.T) {
 	privateKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
-	require.NotEqual(t, nil, privateKey)
-	keyString := privateKey.String()
-	pk, err := ecc.NewPrivateKey(keyString)
-	pk = pk
 
+	key, err := privateKey.PublicKey().Key()
 	require.NoError(t, err)
-	publicKey := privateKey.PublicKey()
-	publicKeyPacked, err := publicKey.Pack()
-
-	key, err := publicKey.Key()
-	require.NoError(t, err)
-	require.NotEqual(t, nil, key)
 	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ecdsa.PublicKey(*key)).Hex())
-
-	// Encode
-	nonceTx := []byte("nonceTx")
-	hash := sha3.SoliditySHA3(nonceTx)
-	signedMsg, err := privateKey.Sign(hash)
 	require.NoError(t, err)
-	sigBytes, err := signedMsg.Pack()
 
+	signer := &auth.EosSigner{privateKey}
+	nonceTxBytes, err := proto.Marshal(&auth.NonceTx{
+		Inner:    []byte("innerTx"),
+		Sequence: 3,
+	})
+	signedTx := auth.SignTx(signer, nonceTxBytes)
 
-	tx := &auth.SignedTx{
-		Inner:     nonceTx,
-		Signature: sigBytes,
-		PublicKey: publicKeyPacked,
-	}
-
-	// Decode
-	signature := ecc.NewSigNil()
-	_, err = signature.Unpack(tx.Signature)
+	verifyer := originRecoveryFuncs[EosSignedTxType]
+	localRetrived, err := verifyer(*signedTx)
 	require.NoError(t, err)
-	pubKey, err := signature.PublicKey(sha3.SoliditySHA3(nonceTx))
+	require.Equal(t, 0, bytes.Compare(local, localRetrived))
+}
 
-	local2, err := LocalAddressFromEosPublicKey(pubKey)
-	require.True(t, bytes.Equal(local, local2))
+func TestEosScatterSigning(t *testing.T) {
+	privateKey, err := ecc.NewRandomPrivateKey()
+	require.NoError(t, err)
+
+	key, err := privateKey.PublicKey().Key()
+	require.NoError(t, err)
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ecdsa.PublicKey(*key)).Hex())
+	require.NoError(t, err)
+
+	signer := &auth.EosScatterSigner{privateKey}
+	nonceTxBytes, err := proto.Marshal(&auth.NonceTx{
+		Inner:    []byte("innerTx"),
+		Sequence: 3,
+	})
+	signedTx := auth.SignTx(signer, nonceTxBytes)
+
+	verifyer := originRecoveryFuncs[EosScatterSignedTxType]
+	localRetrived, err := verifyer(*signedTx)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare(local, localRetrived))
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
@@ -213,7 +170,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	tronSig, err := address_mapper.SignIdentityMapping(addr1, tronPublicAddr, tronKey)
 	require.NoError(t,err)
 	testEthAddressMappingVerification(t, chains, "tron",  &auth.TronSigner{tronKey}, tronPublicAddr, tronSig)
-
+	/* todo
 	eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	eosLocalAddr, err := LocalAddressFromEosPublicKey(eosKey.PublicKey())
@@ -222,7 +179,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey)
 	require.NoError(t,err)
 	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
-/*
+
 	eosScatterKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	eosScatterLocalAddr, err := LocalAddressFromEosPublicKey(eosScatterKey.PublicKey())
@@ -345,11 +302,12 @@ func TestChainIdVerification(t *testing.T) {
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
+	// todo
 	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
 	// to contracts will be eos:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
 	// Don't try this in production.
-	eosKey, err := ecc.NewRandomPrivateKey()
+	/*eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	txSigned = mockSignedTx(t, "eos", &auth.EosSigner{eosKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
