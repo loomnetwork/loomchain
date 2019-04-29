@@ -917,6 +917,8 @@ func TestElect(t *testing.T) {
 	err = dpos.ChangeWhitelistInfo(pctx.WithSender(addr1), &addr1, newWhitelistAmount, nil)
 	require.Nil(t, err)
 
+	require.NoError(t, elect(pctx, dpos.Address))
+
 	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
 	validator = validators[0]
