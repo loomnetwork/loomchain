@@ -665,8 +665,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
-	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
-	if candidateAddress.Local.Compare(checkAddr) != 0 {
+	checkAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(req.PubKey)}
+	if candidateAddress.Compare(checkAddr) != 0 {
 		return logDposError(ctx, errors.New("Public key does not match address."), req.String())
 	}
 
@@ -1558,9 +1558,14 @@ func returnMatchingDelegations(ctx contract.StaticContext, validator, delegator 
 		return nil, err
 	}
 
+	ourDelegator := loom.UnmarshalAddressPB(delegator)
+	ourValidator := loom.UnmarshalAddressPB(validator)
+
 	var matchingDelegations []*Delegation
 	for _, d := range delegations {
-		if d.Delegator.Local.Compare(delegator.Local) != 0 || d.Validator.Local.Compare(validator.Local) != 0 {
+		dValidator := loom.UnmarshalAddressPB(d.Validator)
+		dDelegator := loom.UnmarshalAddressPB(d.Delegator)
+		if dDelegator.Compare(ourDelegator) != 0 || dValidator.Compare(ourValidator) != 0 {
 			continue
 		}
 
