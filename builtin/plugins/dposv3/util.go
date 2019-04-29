@@ -104,3 +104,9 @@ func logStaticDposError(ctx contract.StaticContext, err error, req string) error
 	ctx.Logger().Error("DPOS static error", "error", err, "sender", ctx.Message().Sender, "req", req)
 	return err
 }
+
+// LIMBO VALIDATOR
+
+func limboValidatorAddress(ctx contract.StaticContext) loom.Address {
+	return loom.RootAddress(ctx.Block().ChainID)
+}

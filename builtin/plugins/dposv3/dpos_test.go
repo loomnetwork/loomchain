@@ -24,12 +24,12 @@ var (
 	validatorPubKeyHex3 = "e4008e26428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
 	validatorPubKeyHex4 = "21908210428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
 
-	delegatorAddress1       = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	delegatorAddress2       = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
-	delegatorAddress3       = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	delegatorAddress4       = loom.MustParseAddress("chain:0x000000000000000000000000e3edf03b825e01e0")
-	delegatorAddress5       = loom.MustParseAddress("chain:0x020000000000000000000000e3edf03b825e0288")
-	delegatorAddress6       = loom.MustParseAddress("chain:0x000000000000000000040400e3edf03b825e0398")
+	delegatorAddress1       = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	delegatorAddress2       = loom.MustParseAddress("default:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	delegatorAddress3       = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	delegatorAddress4       = loom.MustParseAddress("default:0x000000000000000000000000e3edf03b825e01e0")
+	delegatorAddress5       = loom.MustParseAddress("default:0x020000000000000000000000e3edf03b825e0288")
+	delegatorAddress6       = loom.MustParseAddress("default:0x000000000000000000040400e3edf03b825e0398")
 	chainID                 = "default"
 	startTime         int64 = 100000
 
@@ -61,18 +61,13 @@ func TestChangeParams(t *testing.T) {
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
 	}
 
-	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
-	addr := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey),
-	}
-
 	pubKey2, _ := hex.DecodeString(validatorPubKeyHex3)
 	addr2 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey2),
 	}
 
-	pctx := plugin.CreateFakeContext(addr, addr)
+	pctx := createCtx()
 
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -190,9 +185,10 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey),
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey),
 	}
-	pctx := plugin.CreateFakeContext(addr, addr)
+	pctx := createCtx()
 
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -269,9 +265,10 @@ func TestChangeFee(t *testing.T) {
 
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey),
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey),
 	}
-	pctx := plugin.CreateFakeContext(addr, addr)
+	pctx := createCtx()
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
@@ -325,7 +322,8 @@ func TestChangeFee(t *testing.T) {
 }
 
 func TestDelegate(t *testing.T) {
-	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx := createCtx()
+	limboValidatorAddress := limboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
 
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
 	oracleAddr := loom.Address{
@@ -482,7 +480,8 @@ func TestDelegate(t *testing.T) {
 }
 
 func TestRedelegate(t *testing.T) {
-	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx := createCtx()
+	limboValidatorAddress := limboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
@@ -662,10 +661,7 @@ func TestReward(t *testing.T) {
 
 func TestElectWhitelists(t *testing.T) {
 	// Init the coin balances
-	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime,
-	})
+	pctx := createCtx()
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
@@ -822,10 +818,7 @@ func TestElectWhitelists(t *testing.T) {
 }
 
 func TestElect(t *testing.T) {
-	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime,
-	})
+	pctx := createCtx()
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
@@ -929,10 +922,7 @@ func TestElect(t *testing.T) {
 
 func TestValidatorRewards(t *testing.T) {
 	// Init the coin balances
-	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime,
-	})
+	pctx := createCtx()
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
@@ -1085,10 +1075,8 @@ func TestValidatorRewards(t *testing.T) {
 
 func TestReferrerRewards(t *testing.T) {
 	// Init the coin balances
-	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime,
-	})
+	pctx := createCtx()
+	limboValidatorAddress := limboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
@@ -1166,10 +1154,7 @@ func TestReferrerRewards(t *testing.T) {
 
 func TestRewardTiers(t *testing.T) {
 	// Init the coin balances
-	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime,
-	})
+	pctx := createCtx()
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
@@ -1386,10 +1371,7 @@ func TestRewardTiers(t *testing.T) {
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
 func TestRewardCap(t *testing.T) {
 	// Init the coin balances
-	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime,
-	})
+	pctx := createCtx()
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
@@ -1527,7 +1509,7 @@ func TestRewardCap(t *testing.T) {
 }
 
 func TestMultiDelegate(t *testing.T) {
-	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx := createCtx()
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
@@ -1625,7 +1607,7 @@ func TestMultiDelegate(t *testing.T) {
 }
 
 func TestLockup(t *testing.T) {
-	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx := createCtx()
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
@@ -1764,4 +1746,11 @@ func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
 
 func elect(pctx *plugin.FakeContext, dposAddress loom.Address) error {
 	return Elect(contractpb.WrapPluginContext(pctx.WithAddress(dposAddress)))
+}
+
+func createCtx() *plugin.FakeContext {
+	return plugin.CreateFakeContext(loom.Address{}, loom.Address{}).WithBlock(loom.BlockHeader{
+		ChainID: chainID,
+		Time:    startTime,
+	})
 }
