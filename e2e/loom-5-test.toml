@@ -10,7 +10,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validators"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
@@ -18,7 +18,7 @@
   RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidate {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
   RunCmd = "check_validators"
@@ -26,7 +26,7 @@
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validators"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
@@ -46,12 +46,12 @@
   Expected = ["1250020000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validators"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   Condition = "excludes"
   Excluded = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 check_delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
   Expected = ["BONDED"]
 
@@ -66,7 +66,7 @@
   Expected = [ "Error: migration ID 1 has already been processed" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validators"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
@@ -76,30 +76,30 @@
   Expected = ["1250020000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 list_validators"
+  RunCmd = "{{ $.LoomPath }} dposV3 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 list_candidates"
+  RunCmd = "{{ $.LoomPath }} dposV3 list-candidates"
   Condition = "contains"
   Excluded = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 list_validators"
+  RunCmd = "{{ $.LoomPath }} dposV3 list-validators"
   Condition = "excludes"
   Excludes = ["{{index $.NodePubKeyList 0}}"]
 
 # The validatorCount is only set to a non-zero value in dposV3.Initialize so if
 # the value is 14, it implies the v2 state was successfully transferred to v3
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 get_dpos_state"
+  RunCmd = "{{ $.LoomPath }} dposV3 get-dpos-state"
   Condition = "contains"
   Expected = ["\"validatorCount\": \"14\""]
 
 # Check that delegation was properly migrated
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 check_delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  RunCmd = "{{ $.LoomPath }} dposV3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
   Expected = ["2000000000000000000"]
 
@@ -109,19 +109,20 @@
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 check_delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
   Expected = ["BONDED"]
 
 # Checking that Node 1 got a reward distribution in v2
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 check_distribution {{index $.NodeAddressList 1}} -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 check-distribution {{index $.NodeAddressList 1}} -k {{index $.NodePrivKeyPathList
+   0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
 # Checking that Node1's distribution is transfered to a delegation in v3
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 check_delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
+  RunCmd = "{{ $.LoomPath }} dposV3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["\"lockTime\": \"0\""]
 
