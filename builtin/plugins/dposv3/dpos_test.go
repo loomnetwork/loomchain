@@ -185,7 +185,8 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey),
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey),
 	}
 	pctx := createCtx()
 
@@ -264,7 +265,8 @@ func TestChangeFee(t *testing.T) {
 
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey),
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey),
 	}
 	pctx := createCtx()
 
