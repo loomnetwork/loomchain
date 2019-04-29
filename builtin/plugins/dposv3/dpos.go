@@ -196,6 +196,10 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return logDposError(ctx, errors.New("Delegate called with req.ValidatorAddress == nil"), req.String())
 	}
 
+	if req.ValidatorAddress.ChainId != ctx.Block().ChainID {
+		return logDposError(ctx, errors.New("Delegate called with invalid chainId for req.ValidatorAddress"), req.String())
+	}
+
 	cand := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 	// Delegations can only be made to existing candidates
 	if cand == nil {
@@ -278,6 +282,9 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
+	}
+	if req.ValidatorAddress.ChainId != ctx.Block().ChainID {
+		return logDposError(ctx, errors.New("Redelegate called with invalid chainId for req.ValidatorAddress"), req.String())
 	}
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return logDposError(ctx, errors.New("Redelegating self-delegations is not permitted."), req.String())
