@@ -1624,7 +1624,6 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
 	}, false)
 	require.NoError(err)
-
 	// Deploy ERC721 Solidity contract to DAppChain EVM
 	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
