@@ -17,19 +17,19 @@
 ############ Registering candidates  ############
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 0}} 100 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 0}} 100 -k {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 1}} 100 -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 1}} 100 -k {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 2}} 100 -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 2}} 100 -k {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 3}} 100 -k {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 3}} 100 -k {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_candidatesV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-candidates"
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]
 
@@ -71,27 +71,27 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}", "{{index $.NodePubKeyList 6}}", "{{index $.NodePubKeyList 7}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 0}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 0}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 0}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 0}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 1}} 20 -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 1}} 20 -k {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 0}} 1 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 0}} 1 -k {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 2}} 19 -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 2}} 19 -k {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 3}} 21 -k {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 3}} 21 -k {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
   RunCmd = "checkapphash"
@@ -103,7 +103,7 @@
   Delay = 1000
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]
@@ -167,37 +167,37 @@
 ############ Preparing for the second election ############
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 2}} 100 -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 2}} 100 -k {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 3}} 100 -k {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 3}} 100 -k {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 4}} 100 -k {{index $.AccountPrivKeyPathList 4}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 4}} 100 -k {{index $.AccountPrivKeyPathList 4}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.AccountPubKeyList 5}} 100 -k {{index $.AccountPrivKeyPathList 5}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 register-candidate {{index $.AccountPubKeyList 5}} 100 -k {{index $.AccountPrivKeyPathList 5}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_candidatesV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-candidates"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}","{{index $.AccountPubKeyList 4}}","{{index $.AccountPubKeyList 5}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 2}} 21 -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 2}} 21 -k {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 3}} 21 -k {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 3}} 21 -k {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 4}} 21 -k {{index $.AccountPrivKeyPathList 5}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 4}} 21 -k {{index $.AccountPrivKeyPathList 5}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 5}} 21 -k {{index $.AccountPrivKeyPathList 4}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 5}} 21 -k {{index $.AccountPrivKeyPathList 4}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 3}} 21000000 -k {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 3}} 21000000 -k {{index $.AccountPrivKeyPathList 3}}"
   Condition = "contains"
   Expected = ["amount is over spender's limit"]
 
@@ -208,7 +208,7 @@
 ############ Checking the second election result  ############
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 2}}","{{index $.AccountPubKeyList 3}}", "{{index $.AccountPubKeyList 4}}", "{{index $.AccountPubKeyList 5}}"]
@@ -244,21 +244,21 @@
 ############ Running the third election  ############
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 0}} 21000000 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 0}} 21000000 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount is over spender's limit"]
 
 ## TODO should this even fail? rework after block reward mechanism is in place
 ## Failed election since the dpos balance is too low after paying out witnesses
 #[[TestCases]]
-#  RunCmd = "{{ $.LoomPath }} dposV2 elect_delegationV2 -k {{index $.AccountPrivKeyPathList 0}}"
+#  RunCmd = "{{ $.LoomPath }} dposV2 elect-delegationV2 -k {{index $.AccountPrivKeyPathList 0}}"
 #  Condition = "contains"
 #  Expected = ["sender balance is too low"]
 
 ############ Voting for candidates  ############
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.AccountAddressList 4}} 21 -k {{index $.AccountPrivKeyPathList 6}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 delegate {{index $.AccountAddressList 4}} 21 -k {{index $.AccountPrivKeyPathList 6}}"
 
 ############ Running the fourth election  ############
 
@@ -272,10 +272,10 @@
 #  Expected = ["70000000000000000000"]
 
 # [[TestCases]]
-#   RunCmd = "{{ $.LoomPath }} dposV2 elect_delegationV2 -k {{index $.AccountPrivKeyPathList 3}}"
+#   RunCmd = "{{ $.LoomPath }} dposV2 elect-delegationV2 -k {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list-validators"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 4}}"]
