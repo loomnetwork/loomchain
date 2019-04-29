@@ -277,9 +277,6 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
 	}
-	if req.ValidatorAddress.Local.Compare(limboValidatorAddress(ctx).Local) != 0 && req.ValidatorAddress.ChainId != ctx.Block().ChainID {
-		return logDposError(ctx, errors.New("Redelegate called with invalid chainId for req.ValidatorAddress"), req.String())
-	}
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return logDposError(ctx, errors.New("Redelegating self-delegations is not permitted."), req.String())
 	}
