@@ -146,7 +146,10 @@ func (vm *PluginVM) run(
 
 func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	var nonceBuf bytes.Buffer
-	binary.Write(&nonceBuf, binary.BigEndian, nonce)
+	err := binary.Write(&nonceBuf, binary.BigEndian, nonce)
+	if err != nil {
+		panic(err)
+	}
 	data := util.PrefixKey(parent.Bytes(), nonceBuf.Bytes())
 	hash := sha3.Sum256(data)
 	return loom.Address{
