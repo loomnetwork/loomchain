@@ -60,7 +60,7 @@ func adjustValidatorIfInPlasmaValidators(delegation Delegation) *types.Address {
 	return validator
 }
 
-func adjustValidatorIfLimboValidator(ctx contract.Context, validator *types.Address) *types.Address {
+func adjustValidatorIfLimboValidator(ctx contract.StaticContext, validator *types.Address) *types.Address {
 	if validator.Local.Compare(limboValidatorAddress.Local) == 0 {
 		return dposv3.LimboValidatorAddress(ctx).MarshalPB()
 	}
