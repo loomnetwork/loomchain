@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	flag "github.com/spf13/pflag"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
@@ -16,20 +16,8 @@ const (
 	AddressMapperName = "addressmapper"
 )
 
-
-func addContractCallFlags(flagSet *flag.FlagSet, callFlags *cli.ContractCallFlags) {
-	flagSet.StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
-	flagSet.StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
-	flagSet.StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
-	flagSet.StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
-	flagSet.StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
-	flagSet.StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
-	flagSet.StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
-	flagSet.StringVar(&callFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
-}
-
-func AddIdentityMappingCmd(flags *cli.ContractCallFlags) *cobra.Command {
-	var chainId string
+func AddIdentityMappingCmd() *cobra.Command {
+	var uri, mainnetURI, contractAddr, chainId, chainID, privFile, hsmConfigFile, algo, callerChainID string
 	cmd := &cobra.Command{
 		Use:   "add-identity-mapping <loom-addr> <eth-key-file>",
 		Short: "Adds a mapping between a DAppChain account and a Mainnet account.",
@@ -57,7 +45,7 @@ func AddIdentityMappingCmd(flags *cli.ContractCallFlags) *cobra.Command {
 				return errors.Wrap(err, "sigining mapping with ethereum key")
 			}
 
-			err = cli.CallContractWithFlags(flags,AddressMapperName, "AddIdentityMapping", &mapping, nil)
+			err = cli.CallContract(AddressMapperName, "AddIdentityMapping", &mapping, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			} else {
@@ -66,12 +54,21 @@ func AddIdentityMappingCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVarP(&uri, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmd.Flags().StringVarP(&mainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
+	cmd.Flags().StringVar(&contractAddr, "contract", "", "contract address")
+	cmd.Flags().StringVarP(&chainID, "chain", "", "default", "chain ID")
+	cmd.Flags().StringVarP(&privFile, "key", "k", "", "private key file")
+	cmd.Flags().StringVar(&hsmConfigFile, "hsm", "", "hsm config file")
+	cmd.Flags().StringVar(&algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
+	cmd.Flags().StringVar(&callerChainID, "caller-chain", "", "Overrides chain ID of caller")
 	cmd.Flags().StringVarP(&chainId, "mapped-chain-id", "c", "eth", "ethereum chain id")
 	return cmd
 }
 
-func GetMapping(flags *cli.ContractCallFlags) *cobra.Command {
-	return &cobra.Command{
+func GetMapping() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:   "get-mapping",
 		Short: "Get mapping address",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,10 +77,10 @@ func GetMapping(flags *cli.ContractCallFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = cli.StaticCallContractWithFlags(flags,AddressMapperName, "GetMapping",
+			err = cli.StaticCallContractWithFlags(&flags, AddressMapperName, "GetMapping",
 				&amtypes.AddressMapperGetMappingRequest{
-				From: from.MarshalPB(),
-			}, &resp)
+					From: from.MarshalPB(),
+				}, &resp)
 			if err != nil {
 				return err
 			}
@@ -95,17 +92,23 @@ func GetMapping(flags *cli.ContractCallFlags) *cobra.Command {
 			return nil
 		},
 	}
+
+	AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
-func ListMappingCmd(flags *cli.ContractCallFlags) *cobra.Command {
-	return &cobra.Command{
+func ListMappingCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:   "list-mappings",
 		Short: "list user account mappings",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var flags cli.ContractCallFlags
+			AddContractCallFlags(cmd.Flags(), &flags)
 			var resp address_mapper.ListMappingResponse
 
-			err := cli.StaticCallContractWithFlags(flags,AddressMapperName, "ListMapping",
+			err := cli.StaticCallContractWithFlags(&flags, AddressMapperName, "ListMapping",
 				&address_mapper.ListMappingRequest{}, &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
@@ -118,21 +121,21 @@ func ListMappingCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			return nil
 		},
 	}
-}
 
+	AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+
+}
 
 func NewAddressMapperCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "addressmapper <command>",
 		Short: "Methods available in addressmapper contract",
 	}
-	var flags cli.ContractCallFlags
-	addContractCallFlags(cmd.PersistentFlags(), &flags)
-
 	cmd.AddCommand(
-		AddIdentityMappingCmd(&flags),
-		GetMapping(&flags),
-		ListMappingCmd(&flags),
+		AddIdentityMappingCmd(),
+		GetMapping(),
+		ListMappingCmd(),
 	)
 	return cmd
 }
