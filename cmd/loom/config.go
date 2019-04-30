@@ -173,7 +173,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 				NumBlockConfirmations: 10,
 			},
 			Features: []*cctypes.Feature{
-				&cctypes.Feature{
+				{
 					Name:   "test",
 					Status: chainconfig.FeatureWaiting,
 				},

@@ -538,6 +538,7 @@ func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 	return localAddr, signer, nil
 }
 
+/*
 func eosSigner(keyFilename string) ([]byte, auth.Signer, error) {
 	keyString, err := ioutil.ReadFile(keyFilename)
 	if err != nil {
@@ -547,7 +548,7 @@ func eosSigner(keyFilename string) ([]byte, auth.Signer, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot make ecc private key from %s", string(keyString))
 	}
-	signer := &auth.EosSigner{eccKey}
+	signer := &auth.EosSigner{ PrivateKey: eccKey }
 
 	localAddr, err := lauth.LocalAddressFromEosPublicKey(eccKey.PublicKey())
 	if err != nil {
@@ -555,7 +556,7 @@ func eosSigner(keyFilename string) ([]byte, auth.Signer, error) {
 	}
 
 	return localAddr, signer, nil
-}
+}*/
 
 func eosScatterSigner(keyFilename string) ([]byte, auth.Signer, error) {
 	keyString, err := ioutil.ReadFile(keyFilename)
@@ -566,7 +567,7 @@ func eosScatterSigner(keyFilename string) ([]byte, auth.Signer, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot make ecc private key from %s", string(keyString))
 	}
-	signer := &auth.EosScatterSigner{eccKey}
+	signer := &auth.EosScatterSigner{PrivateKey: eccKey}
 
 	localAddr, err := lauth.LocalAddressFromEosPublicKey(eccKey.PublicKey())
 	if err != nil {
