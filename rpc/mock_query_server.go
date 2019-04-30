@@ -96,12 +96,16 @@ func (m *MockQueryService) EthGetBlockTransactionCountByNumber(block eth.BlockHe
 	return "", nil
 }
 
-func (m *MockQueryService) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (eth.JsonTxObject, error) {
+func (m *MockQueryService) EthGetTransactionByBlockHashAndIndex(
+	hash eth.Data, index eth.Quantity,
+) (eth.JsonTxObject, error) {
 	m.MethodsCalled = append([]string{"EthGetTransactionByBlockHashAndIndex"}, m.MethodsCalled...)
 	return eth.JsonTxObject{}, nil
 }
 
-func (m *MockQueryService) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (eth.JsonTxObject, error) {
+func (m *MockQueryService) EthGetTransactionByBlockNumberAndIndex(
+	block eth.BlockHeight, index eth.Quantity,
+) (eth.JsonTxObject, error) {
 	m.MethodsCalled = append([]string{"EthGetTransactionByBlockNumberAndIndex"}, m.MethodsCalled...)
 	return eth.JsonTxObject{}, nil
 }
@@ -136,7 +140,9 @@ func (m *MockQueryService) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, er
 	return "", nil
 }
 
-func (m *MockQueryService) EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error) {
+func (m *MockQueryService) EthSubscribe(
+	conn *websocket.Conn, method eth.Data, filter eth.JsonFilter,
+) (id eth.Data, err error) {
 	m.MethodsCalled = append([]string{"EthSubscribe"}, m.MethodsCalled...)
 	return "", nil
 }
@@ -176,7 +182,9 @@ func (m *MockQueryService) EthAccounts() ([]eth.Data, error) {
 	return nil, nil
 }
 
-func (m *MockQueryService) ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error) {
+func (m *MockQueryService) ContractEvents(
+	fromBlock uint64, toBlock uint64, contract string,
+) (*types.ContractEventsResult, error) {
 	m.MethodsCalled = append([]string{"ContractEvents"}, m.MethodsCalled...)
 	return nil, nil
 }

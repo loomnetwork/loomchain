@@ -21,7 +21,9 @@ type InstrumentingMiddleware struct {
 }
 
 // NewInstrumentingMiddleWare return a new pointer to the struct
-func NewInstrumentingMiddleWare(reqCount metrics.Counter, reqLatency metrics.Histogram, next QueryService) *InstrumentingMiddleware {
+func NewInstrumentingMiddleWare(
+	reqCount metrics.Counter, reqLatency metrics.Histogram, next QueryService,
+) *InstrumentingMiddleware {
 	return &InstrumentingMiddleware{
 		requestCount:   reqCount,
 		requestLatency: reqLatency,
@@ -30,7 +32,9 @@ func NewInstrumentingMiddleWare(reqCount metrics.Counter, reqLatency metrics.His
 }
 
 // Query calls service Query and captures metrics
-func (m InstrumentingMiddleware) Query(caller, contract string, query []byte, vmType vm.VMType) (resp []byte, err error) {
+func (m InstrumentingMiddleware) Query(
+	caller, contract string, query []byte, vmType vm.VMType,
+) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Query", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -95,7 +99,9 @@ func (m InstrumentingMiddleware) EvmTxReceipt(txHash []byte) (resp []byte, err e
 	return
 }
 
-func (m InstrumentingMiddleware) ContractEvents(fromBlock uint64, toBlock uint64, contractName string) (result *types.ContractEventsResult, err error) {
+func (m InstrumentingMiddleware) ContractEvents(
+	fromBlock uint64, toBlock uint64, contractName string,
+) (result *types.ContractEventsResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "ContractEvents", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -215,7 +221,9 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetBlockByNumber(number eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
+func (m InstrumentingMiddleware) EthGetBlockByNumber(
+	number eth.BlockHeight, full bool,
+) (resp eth.JsonBlockObject, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetBlockByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -318,7 +326,9 @@ func (m InstrumentingMiddleware) EthGetBlockTransactionCountByHash(hash eth.Data
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (resp eth.Quantity, err error) {
+func (m InstrumentingMiddleware) EthGetBlockTransactionCountByNumber(
+	block eth.BlockHeight,
+) (resp eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetBlockTransactionCountByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -329,7 +339,9 @@ func (m InstrumentingMiddleware) EthGetBlockTransactionCountByNumber(block eth.B
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (resp eth.JsonTxObject, err error) {
+func (m InstrumentingMiddleware) EthGetTransactionByBlockHashAndIndex(
+	hash eth.Data, index eth.Quantity,
+) (resp eth.JsonTxObject, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetTransactionByBlockHashAndIndex", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -340,7 +352,9 @@ func (m InstrumentingMiddleware) EthGetTransactionByBlockHashAndIndex(hash eth.D
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (resp eth.JsonTxObject, err error) {
+func (m InstrumentingMiddleware) EthGetTransactionByBlockNumberAndIndex(
+	block eth.BlockHeight, index eth.Quantity,
+) (resp eth.JsonTxObject, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetTransactionByBlockNumberAndIndex", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -439,7 +453,9 @@ func (m InstrumentingMiddleware) EthNewFilter(filter eth.JsonFilter) (resp eth.Q
 	return
 }
 
-func (m InstrumentingMiddleware) EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (resp eth.Data, err error) {
+func (m InstrumentingMiddleware) EthSubscribe(
+	conn *websocket.Conn, method eth.Data, filter eth.JsonFilter,
+) (resp eth.Data, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthSubscribe", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -516,7 +532,9 @@ func (m InstrumentingMiddleware) EthAccounts() (resp []eth.Data, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (resp eth.Quantity, err error) {
+func (m InstrumentingMiddleware) EthGetTransactionCount(
+	local eth.Data, block eth.BlockHeight,
+) (resp eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetTransactionCount", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
