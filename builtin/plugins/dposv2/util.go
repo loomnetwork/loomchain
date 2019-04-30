@@ -7,6 +7,8 @@ import (
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
 
 const billionthsBasisPointRatio = 100000
@@ -54,6 +56,13 @@ func adjustValidatorIfInPlasmaValidators(delegation Delegation) *types.Address {
 		if validator.Local.Compare(plasmaValidator.Local) == 0 {
 			return plasmaValidators[0].MarshalPB()
 		}
+	}
+	return validator
+}
+
+func adjustValidatorIfLimboValidator(ctx contract.Context, validator *types.Address) *types.Address {
+	if validator.Local.Compare(limboValidatorAddress.Local) == 0 {
+		return dposv3.LimboValidatorAddress(ctx).MarshalPB()
 	}
 	return validator
 }
