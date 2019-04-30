@@ -35,7 +35,7 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := types.EvmTxReceipt{}
 	if txReceiptProto == nil {
-		return txReceipt, common.Error_TxReciptNotFound
+		return txReceipt, common.ErrTxReceiptNotFound
 	}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
 	return txReceipt, err

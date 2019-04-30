@@ -417,13 +417,11 @@ func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*
 	if !existed {
 		sub.Do(writer(wsCtx, s.Subscriptions))
 	}
-	s.Subscriptions.AddSubscription(caller, topics)
-	return &WSEmptyResult{}, nil
+	return &WSEmptyResult{}, s.Subscriptions.AddSubscription(caller, topics)
 }
 
 func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error) {
-	s.Subscriptions.Remove(wsCtx.GetRemoteAddr(), topic)
-	return &WSEmptyResult{}, nil
+	return &WSEmptyResult{}, s.Subscriptions.Remove(wsCtx.GetRemoteAddr(), topic)
 }
 
 func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.LegacyEthSubscriptionSet) pubsub.SubscriberFunc {
@@ -464,8 +462,7 @@ func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter s
 }
 
 func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
-	s.EthLegacySubscriptions.Remove(id)
-	return true, nil
+	return true, s.EthLegacySubscriptions.Remove(id)
 }
 
 func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
@@ -676,14 +673,11 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	if err != nil {
 		return resp, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		return resp, err
-	}
+
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full)
 	if err != nil {
 		return resp, err
 	}
@@ -710,7 +704,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, err
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
-	if err != nil && errors.Cause(err) != common.Error_TxReciptNotFound {
+	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
 		return resp, err
 	}
 	if err != nil {
@@ -795,11 +789,7 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 	if err != nil {
 		return resp, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		return resp, err
-	}
-	return query.GetBlockByNumber(s.BlockStore, snapshot, height, full, r)
+	return query.GetBlockByNumber(s.BlockStore, snapshot, height, full)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -817,10 +807,11 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 		return resp, err
 	}
 	txObj, err := query.GetTxByHash(snapshot, txHash, r)
-	if err != nil && errors.Cause(err) != common.Error_TxReciptNotFound {
-		return resp, err
-	}
 	if err != nil {
+		if errors.Cause(err) != common.ErrTxReceiptNotFound {
+			return resp, err
+		}
+
 		txObj, err = query.GetTxByTendermintHash(s.BlockStore, txHash)
 		if err != nil {
 			return resp, errors.Wrapf(err, "cannot get tx from hash")

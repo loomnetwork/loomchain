@@ -62,7 +62,7 @@ func (sr *StateDBReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []by
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := types.EvmTxReceipt{}
 	if txReceiptProto == nil {
-		return txReceipt, common.Error_TxReciptNotFound
+		return txReceipt, common.ErrTxReceiptNotFound
 	}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
 	return txReceipt, err

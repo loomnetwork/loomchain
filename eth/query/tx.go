@@ -47,19 +47,7 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	if err != nil {
 		return eth.JsonTxObject{}, err
 	}
-	return eth.JsonTxObject{
-		Nonce:                  eth.ZeroedQuantity,
-		Hash:                   eth.EncBytes(hash),
-		BlockHash:              eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
-		BlockNumber:            eth.EncInt(txResults.Height),
-		TransactionIndex:       "0x0",
-		From:                   eth.ZeroedData20Bytes,
-		To:                     eth.ZeroedData20Bytes,
-		Gas:                    eth.EncInt(txResults.TxResult.GasWanted),
-		GasPrice:               eth.EncInt(txResults.TxResult.GasUsed),
-		Input:                  eth.EncBytes(txResults.Tx),
-		Value:                  eth.EncInt(0),
-	}, nil
+	return GetTxObjectFromTxResult(txResults, blockResult.BlockMeta.BlockID.Hash)
 }
 
 func GetTxByBlockAndIndex(
@@ -89,25 +77,6 @@ func GetTxByBlockAndIndex(
 	}
 	txObj.TransactionIndex = eth.EncInt(int64(index))
 	return txObj, nil
-}
-
-func GetNumEvmTxs(blockStore store.BlockStore, state loomchain.ReadOnlyState, height uint64) (uint64, error) {
-	params := map[string]interface{}{}
-	params["heightPtr"] = &height
-	var blockResults *ctypes.ResultBlockResults
-	iHeight := int64(height)
-	blockResults, err := blockStore.GetBlockResults(&iHeight)
-	if err != nil {
-		return 0, errors.Wrapf(err, "results for block %v", height)
-	}
-
-	count := uint64(0)
-	for _, result := range blockResults.Results.DeliverTx {
-		if result.Info == utils.DeployEvm || result.Info == utils.CallEVM {
-			count++
-		}
-	}
-	return count, nil
 }
 
 func getTxFromTxResponse(state loomchain.ReadOnlyState, txResult *ctypes.ResultTx, blockResult *ctypes.ResultBlock, readReceipts loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
