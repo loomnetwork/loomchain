@@ -20,13 +20,17 @@ information:
 `Candidate address`: the address which the `Candidate` is uniquly identified
 
 `Fee`: the commission, experessed as a percentage in basis points, that the
-`Candidate` will take of the rewards he recieves for participating in consensus.
+`Candidate` will take of the rewards he receives for participating in consensus.
 
 `Name`: the `Candidate`'s human-readable name, a secondary identifier
 
 `Description`: Short piece of information about the `Candidate`
 
 `Website`: URL where additional information about the `Candidate` can be found
+
+`Maximum Referral Fee`: The maximum referral fee the candidate is willing to
+accept. The referral fee is a percentage of the validator's fee. Any
+delegations made via a referrer with too high a fee will be rejected.
 
 #### Registration Parameters
 
@@ -45,7 +49,7 @@ A delegation is a 5-tuple of `(Delegator, Validator, Amount, UpdateAmount, State
 Delegations can exist in three distinct states:
 
 `BONDED`: A token delegation has been made from `Delegator` to `Validator`; the
-tokens have been transfered to the dPoS contract and the token amount counts
+tokens have been transferred to the dPoS contract and the token amount counts
 towards `Validator`'s `DelegationTotal` and thus earns rewards for the validator
 and all of his delegators. The token delegation is liable to be slashed in case
 of faulty behavior from `Validator`. Only when a delegation is the `BONDED`
@@ -62,7 +66,7 @@ of slashing.
 `UNBONDING`: A request to withdraw tokens has been submitted by a delegator but
 the tokens have not yet been released. The tokens continue to earn rewards for
 the delegator and are liable to be slashed until the next valdiator election
-when they are automatically transfered to an address which the delegator specifies.
+when they are automatically transferred to an address which the delegator specifies.
 
 `REDELEGATING`: A redelegation request has been made within the last election
 period. During the next election, the `delegation.Validator` value will be set
@@ -155,18 +159,81 @@ a year.
 
 `maxYearlyRewards`: No election can result in the distribution of more than
 (max_yearly_rewards * (election_cycle / year)). This value is set manually by
-the oracle
+the oracle.
+
+#### Reward Cap adjustments
+
+TODO
+
+-------
+
+All rewards begin by being awarded to a Validator who participated in consensus.
+This initial bulk reward is calculated in dpos.go's func rewardValidator. We now
+assume we have not hit a rewards cap but are generating a fraction of the
+Validator's DelegationTotal as rewards.
+
+`reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)`,
+where currently, blockRewardPercentatge is 5%. Then we scale the reward to the
+appropriate reward period:
+
+```
+reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
+reward.Div(&reward, &secondsInYear)
+```
+
+Once this scaling is applied, a delegator is given rewards according to their
+share of the Validator's DelegationTotal minus the Validator's fee. If we assume
+a 0% fee, we can simply calculate the total rewards a Delegator earns by the
+following abbreviated formula:
+
+```
+(0.05) * delegationAmount * electionPeriodLength / secondsInYear
+```
+
+If we assume an election period of 10s, the formula becomes
+
+```
+electionCycleReward = 1.5854895991882296e-8 * delegationAmount
+```
+
+So even at this short election period setting, a delegation of 1 token (10^18
+fractional units) should generate 1.5854895991882296e10 fractional tokens in
+rewards. These calculations are carried out with integer arithmetic only, but
+the discrepancy in the calculations should be minimal.
+
+dpos.go's func `distributeDelegatorRewards` is where a Validator's earned
+rewards are distributed to his delegators.
+
+### Validator Rewards Distribution
+
+A validator takes a fixed percentage of the rewards earned from a delegation.
+If, using the calculation above, the total reward for a delegation is 1000
+tokens and a validator chares a 10% fee, he recieves 100 tokens as a reward.
+
+#### Referrer Rewards Distribution
+
+NOTE: **Brand new feature**, certain behaviours aren't well-defined.
+
+Referrals fees are currently all 3% by default. These referral fee percentage
+are taken from the validotar fee that is taken from the rewards earned on from
+a particular delegation. If a validator earns 100 tokens in an election period
+from a particular delegation & the referrer of that delegation charges a 3%
+fee, the referrer receives 3 tokens and the validator 97.
+
+Note that any referral made while a MaxReferralPercentage > ReferrerFee is
+grandfathered in (i.e. valid) even after a candidate lowers their
+MaxReferralPercentage
 
 ### Delegator Rewards Distribution
 
 After a Validator's fee has been removed from the total rewards and the
-validator distirbution is created, the rest of the rewards are distributed to
+validator distribution is created, the rest of the rewards are distributed to
 the delegators based on what fraction of a validator's `DelegationTotal`
 a delegator's `Delegation` represents.
 
 The rewards distributions are calculated during every eleciton. Delegators and
 Validators both claim their rewards identically, by calling the
-`ClaimDistribution` function. A validator cannot withold rewards from delegators
+`ClaimDistribution` function. A validator cannot withhold rewards from delegators
 because distribution happens in-protocol.
 
 ## The role of `plugin/validators_manager.go`

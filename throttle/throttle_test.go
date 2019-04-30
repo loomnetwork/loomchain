@@ -59,7 +59,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -101,7 +101,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -148,7 +148,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 	require.Nil(t, err)
 
 	var messageTx []byte
-	require.True(t, id == callId || id == deployId)
+	require.True(t, id == callId || id == deployId || id == migrationId)
 	if id == callId {
 		callTx, err := proto.Marshal(&vm.CallTx{
 			VmType: vmType,
@@ -160,7 +160,8 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			Data: callTx,
 			To:   to.MarshalPB(),
 		})
-	} else {
+		require.NoError(t, err)
+	} else if id == deployId {
 		deployTX, err := proto.Marshal(&vm.DeployTx{
 			VmType: vmType,
 			Code:   origBytes,
@@ -171,12 +172,25 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			Data: deployTX,
 			To:   to.MarshalPB(),
 		})
+		require.NoError(t, err)
+	} else if id == migrationId {
+		migrationTx, err := proto.Marshal(&vm.MigrationTx{
+			ID: 1,
+		})
+		require.NoError(t, err)
+
+		messageTx, err = proto.Marshal(&vm.MessageTx{
+			Data: migrationTx,
+			To:   to.MarshalPB(),
+		})
+		require.NoError(t, err)
 	}
 
 	tx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   id,
 		Data: messageTx,
 	})
+	require.NoError(t, err)
 	nonceTx, err := proto.Marshal(&auth.NonceTx{
 		Inner:    tx,
 		Sequence: sequence,
@@ -186,6 +200,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTx := auth.SignTx(signer, nonceTx)
 	signedTxBytes, err := proto.Marshal(signedTx)
+	require.Nil(t, err)
 	var txSigned auth.SignedTx
 	err = proto.Unmarshal(signedTxBytes, &txSigned)
 	require.Nil(t, err)

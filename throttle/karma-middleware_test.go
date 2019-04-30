@@ -33,19 +33,13 @@ var (
 		{Name: "award1", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 	}
-
-	userStateDeploy = ktypes.KarmaState{ //types.BigUInt
-		SourceStates:     sourceStatesDeploy,
-		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10 + 1*maxDeployCount)},
-		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
-	}
 )
 
 func TestKarmaMiddleWare(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -101,7 +95,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)

@@ -29,7 +29,7 @@ func TestE2eKarma(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts,0)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -37,23 +37,6 @@ func TestE2eKarma(t *testing.T) {
 			binary, err := exec.LookPath("go")
 			if err != nil {
 				t.Fatal(err)
-			}
-			// required binaries
-			cmdLoom := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{
-					binary,
-					"build",
-					"-tags",
-					"evm",
-					"-o",
-					"loom",
-					"github.com/loomnetwork/loomchain/cmd/loom",
-				},
-			}
-			if err := cmdLoom.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmdLoom.Args, " "), err))
 			}
 
 			if test.name == "coin" {

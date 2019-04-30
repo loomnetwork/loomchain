@@ -7,9 +7,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// FIXME: this is just a copy of parseConfig() from loom.go, need to clean this up so there's only
-//        copy
-
 // Loads loom.yml from ./ or ./config
 func ParseConfig() (*config.Config, error) {
 	v := viper.New()

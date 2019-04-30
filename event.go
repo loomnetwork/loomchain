@@ -23,6 +23,7 @@ type EventHandler interface {
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
+	LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet
 }
 
 type EventDispatcher interface {
@@ -31,18 +32,20 @@ type EventDispatcher interface {
 }
 
 type DefaultEventHandler struct {
-	dispatcher       EventDispatcher
-	stash            *stash
-	subscriptions    *SubscriptionSet
-	ethSubscriptions *subs.EthSubscriptionSet
+	dispatcher             EventDispatcher
+	stash                  *stash
+	subscriptions          *SubscriptionSet
+	ethSubscriptions       *subs.EthSubscriptionSet
+	legacyEthSubscriptions *subs.LegacyEthSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
-		dispatcher:       dispatcher,
-		stash:            newStash(),
-		subscriptions:    NewSubscriptionSet(),
-		ethSubscriptions: subs.NewEthSubscriptionSet(),
+		dispatcher:             dispatcher,
+		stash:                  newStash(),
+		subscriptions:          NewSubscriptionSet(),
+		ethSubscriptions:       subs.NewEthSubscriptionSet(),
+		legacyEthSubscriptions: subs.NewLegacyEthSubscriptionSet(),
 	}
 }
 
@@ -52,6 +55,10 @@ func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 
 func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return ed.ethSubscriptions
+}
+
+func (ed *DefaultEventHandler) LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet {
+	return ed.legacyEthSubscriptions
 }
 
 func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
@@ -75,6 +82,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		return err
 	}
 
+	ed.legacyEthSubscriptions.Reset()
 	ed.ethSubscriptions.Reset()
 	// Timestamp added here rather than being stored in the event itself so
 	// as to avoid altering the data saved to the app-store.
@@ -84,21 +92,24 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		msg.BlockTime = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
-			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
+			log.Default.Error("Error in event marshalling for event", "message", emitMsg)
 		}
 		eventData := types.EventData(*msg)
 		ethMsg, err := proto.Marshal(&eventData)
 		if err != nil {
-			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
+			log.Default.Error("Error in event marshalling for event", "message", emitMsg)
 		}
 
 		log.Debug("sending event:", "height", height, "contract", msg.PluginName)
 		if err := ed.dispatcher.Send(height, i, emitMsg); err != nil {
-			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
+			log.Default.Error("Failed to dispatch event", "err", err, "height", height, "msg", msg)
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
-		ed.ethSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
+		if err := ed.ethSubscriptions.EmitEvent(eventData); err != nil {
+			log.Error("Failed to emit subscription event", "err", err, "height", height, "msg", msg)
+		}
+		ed.legacyEthSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)
@@ -164,6 +175,10 @@ func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet
 	return m.next.EthSubscriptionSet()
 }
 
+func (m InstrumentingEventHandler) LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet {
+	return m.next.LegacyEthSubscriptionSet()
+}
+
 // TODO: remove? It's just a wrapper of []*EventData
 // events set implementation
 type eventSet struct {
@@ -191,6 +206,7 @@ type Subscription struct {
 	contracts []string
 }
 
+//nolint:deadcode
 func newSubscription() *Subscription {
 	return &Subscription{
 		ch:        make(chan *EventData),
@@ -344,7 +360,7 @@ func (s *stash) fetch(height uint64) ([]*EventData, error) {
 	defer s.Unlock()
 	set, ok := s.m[height]
 	if !ok {
-		return nil, fmt.Errorf("stash does not exist")
+		return nil, nil
 	}
 	return set.Values(), nil
 }

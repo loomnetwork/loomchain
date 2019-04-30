@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -87,13 +86,17 @@ func (l *queryableContractLoader) LoadContract(name string, blockHeight int64) (
 func (l *queryableContractLoader) UnloadContracts() {}
 
 type stateProvider struct {
+	ChainID string
 }
 
 func (s *stateProvider) ReadOnlyState() loomchain.State {
 	return loomchain.NewStoreState(
 		nil,
 		store.NewMemStore(),
-		abci.Header{},
+		abci.Header{
+			ChainID: s.ChainID,
+		},
+		nil,
 		nil,
 	)
 }
@@ -119,10 +122,11 @@ func testQueryServerContractQuery(t *testing.T) {
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
+		AuthCfg:        auth.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewLegacyEthSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
@@ -168,14 +172,16 @@ func testQueryServerContractQuery(t *testing.T) {
 
 func testQueryServerNonce(t *testing.T) {
 	var qs QueryService = &QueryServer{
-		ChainID:       "default",
-		StateProvider: &stateProvider{},
-		BlockStore:    store.NewMockBlockStore(),
-		AuthCfg:       auth.DefaultConfig(),
+		ChainID: "default",
+		StateProvider: &stateProvider{
+			ChainID: "default",
+		},
+		BlockStore: store.NewMockBlockStore(),
+		AuthCfg:    auth.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewLegacyEthSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
@@ -232,8 +238,10 @@ func testQueryMetric(t *testing.T) {
 	require.NoError(t, err)
 	// create query service
 	var qs QueryService = &QueryServer{
-		ChainID:        "default",
-		StateProvider:  &stateProvider{},
+		ChainID: "default",
+		StateProvider: &stateProvider{
+			ChainID: "default",
+		},
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
@@ -242,7 +250,7 @@ func testQueryMetric(t *testing.T) {
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewLegacyEthSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
@@ -262,7 +270,9 @@ func testQueryMetric(t *testing.T) {
 	var result uint64
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	_, err = rpcClient.Call("nonce", params, &result)
-
+	if err != nil {
+		t.Fatal(err)
+	}
 	var rawResult []byte
 	// HTTP
 	httpClient := rpcclient.NewURIClient(ts.URL)
@@ -288,13 +298,9 @@ func testQueryMetric(t *testing.T) {
 	data, _ := ioutil.ReadAll(resp.Body)
 
 	wkey := `loomchain_query_service_request_count{error="false",method="Nonce"} 2`
-	if !strings.Contains(string(data), wkey) {
-		t.Errorf("want metric '%s', got none", wkey)
-	}
+	require.Contains(t, string(data), wkey, "want metric got none")
 	wkey = `loomchain_query_service_request_count{error="true",method="Query"} 2`
-	if !strings.Contains(string(data), wkey) {
-		t.Errorf("want metric '%s', got none", wkey)
-	}
+	require.Contains(t, string(data), wkey, "want metric got none")
 }
 
 func testQueryServerContractEvents(t *testing.T) {
@@ -323,7 +329,7 @@ func testQueryServerContractEvents(t *testing.T) {
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewLegacyEthSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
@@ -410,7 +416,7 @@ func testQueryServerContractEventsNoEventStore(t *testing.T) {
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewLegacyEthSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)

@@ -43,11 +43,6 @@ var (
 	}
 
 	emptySourceStates = []*ktypes.KarmaSource{}
-
-	users = []*ktypes.KarmaAddressSource{
-		{User: user1, Sources: emptySourceStates},
-		{User: user2, Sources: emptySourceStates},
-	}
 )
 
 func TestAwardUpkeep(t *testing.T) {

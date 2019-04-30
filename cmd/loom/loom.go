@@ -10,14 +10,16 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/prometheus/client_golang/prometheus/push"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -26,25 +28,34 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
+	"github.com/loomnetwork/loomchain/chainconfig"
+	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
+	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/core"
+	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/migrations"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
@@ -53,13 +64,14 @@ import (
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ed25519"
 
-	cdb "github.com/loomnetwork/loomchain/db"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var RootCmd = &cobra.Command{
@@ -67,15 +79,10 @@ var RootCmd = &cobra.Command{
 	Short: "Loom DAppChain",
 }
 
-var codeLoaders map[string]ContractCodeLoader
+var codeLoaders map[string]core.ContractCodeLoader
 
 func init() {
-	codeLoaders = map[string]ContractCodeLoader{
-		"plugin":   &PluginCodeLoader{},
-		"truffle":  &TruffleCodeLoader{},
-		"solidity": &SolidityCodeLoader{},
-		"hex":      &HexCodeLoader{},
-	}
+	codeLoaders = core.GetDefaultCodeLoaders()
 }
 
 func newVersionCommand() *cobra.Command {
@@ -108,7 +115,7 @@ func newEnvCommand() *cobra.Command {
 		Use:   "env",
 		Short: "Show loom config settings",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := parseConfig()
+			cfg, err := common.ParseConfig()
 			if err != nil {
 				return err
 			}
@@ -166,9 +173,9 @@ func newGenKeyCommand() *cobra.Command {
 }
 
 type yubiHsmFlags struct {
-	HsmNewKey  bool   `json:newkey`
-	HsmLoadKey bool   `json:loadkey`
-	HsmConfig  string `json:config`
+	HsmNewKey  bool   `json:"newkey"`
+	HsmLoadKey bool   `json:"loadkey"`
+	HsmConfig  string `json:"config"`
 }
 
 func newYubiHsmCommand() *cobra.Command {
@@ -221,11 +228,11 @@ func newInitCommand() *cobra.Command {
 		Use:   "init",
 		Short: "Initialize configs and data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := parseConfig()
+			cfg, err := common.ParseConfig()
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil)
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -259,12 +266,12 @@ func newResetCommand() *cobra.Command {
 		Use:   "reset",
 		Short: "Reset the app and blockchain state only",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := parseConfig()
+			cfg, err := common.ParseConfig()
 			if err != nil {
 				return err
 			}
 
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil)
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -288,11 +295,11 @@ func newNodeKeyCommand() *cobra.Command {
 		Use:   "nodekey",
 		Short: "Show node key",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := parseConfig()
+			cfg, err := common.ParseConfig()
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil)
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -308,7 +315,7 @@ func newRunCommand() *cobra.Command {
 	var abciServerAddr string
 	var appHeight int64
 
-	cfg, err := parseConfig()
+	cfg, err := common.ParseConfig()
 
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
@@ -318,13 +325,33 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-			backend := initBackend(cfg, abciServerAddr)
-			loader := plugin.NewMultiLoader(
-				plugin.NewManager(cfg.PluginsPath()),
-				plugin.NewExternalLoader(cfg.PluginsPath()),
-				common.NewDefaultContractsLoader(cfg),
-			)
-
+			logger := log.Default
+			if cfg.PrometheusPushGateway.Enabled {
+				host, err := os.Hostname()
+				if err != nil {
+					log.Error("Error in reporting Hostname by kernel", "Error", err)
+					host = ""
+				}
+				go startPushGatewayMonitoring(cfg.PrometheusPushGateway, logger, host)
+			}
+			var fnRegistry fnConsensus.FnRegistry
+			if cfg.FnConsensus.Enabled {
+				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
+			}
+			var loaders []plugin.Loader
+			for _, loader := range cfg.ContractLoaders {
+				if strings.EqualFold("static", loader) {
+					loaders = append(loaders, common.NewDefaultContractsLoader(cfg))
+				}
+				if strings.EqualFold("dynamic", loader) {
+					loaders = append(loaders, plugin.NewManager(cfg.PluginsPath()))
+				}
+				if strings.EqualFold("external", loader) {
+					loaders = append(loaders, plugin.NewExternalLoader(cfg.PluginsPath()))
+				}
+			}
+			backend := initBackend(cfg, abciServerAddr, fnRegistry)
+			loader := plugin.NewMultiLoader(loaders...)
 			termChan := make(chan os.Signal)
 			go func(c <-chan os.Signal, l plugin.Loader) {
 				<-c
@@ -349,6 +376,12 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
+
+			nodeSigner, err := backend.NodeSigner()
+			if err != nil {
+				return err
+			}
+
 			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
 				return err
 			}
@@ -357,7 +390,15 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
+				return err
+			}
+
 			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
+				return err
+			}
+
+			if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
 				return err
 			}
 
@@ -369,7 +410,12 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend, log.Default); err != nil {
+				return err
+			}
+
 			backend.RunForever()
+
 			return nil
 		},
 	}
@@ -380,6 +426,7 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
+//nolint:deadcode
 func recovery() {
 	if r := recover(); r != nil {
 		log.Error("caught RPC proxy exception, exiting", r)
@@ -406,6 +453,24 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 	return nil
 }
 
+func startFeatureAutoEnabler(
+	chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer, node backend.Backend,
+	logger *loom.Logger,
+) error {
+	if !cfg.AutoEnableFeatures || !cfg.ContractEnabled {
+		return nil
+	}
+
+	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner, node, logger)
+	if err != nil {
+		return err
+	}
+
+	go routine.RunWithRecovery()
+
+	return nil
+}
+
 func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
 	plasmaCfg, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
 	if err != nil {
@@ -425,6 +490,42 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	oracle.Run()
 
 	return nil
+}
+
+func startGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
+	if !cfg.BatchSignFnConfig.Enabled {
+		return nil
+	}
+
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, fnRegistry, cfg, nodeSigner)
+	if err != nil {
+		return err
+	}
+
+	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
+}
+
+func startLoomCoinGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
+	if !cfg.BatchSignFnConfig.Enabled {
+		return nil
+	}
+
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
+	if err != nil {
+		return err
+	}
+
+	return fnRegistry.Set("loomcoin:batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
 func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
@@ -593,19 +694,24 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	eventStoreCfg := cfg.EventStore
 	db, err := cdb.LoadDB(
 		eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath(),
-		20, //TODO do we want a seperate cache config for eventstore?,
+		20, //TODO do we want a separate cache config for eventstore?,
 		cfg.Metrics.Database,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	var eventStore store.EventStore
-	eventStore = store.NewKVEventStore(db)
+	eventStore := store.NewKVEventStore(db)
 	return eventStore, nil
 }
 
-func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
+func loadApp(
+	chainID string,
+	cfg *config.Config,
+	loader plugin.Loader,
+	b backend.Backend,
+	appHeight int64,
+) (*loomchain.Application, error) {
 	logger := log.Root
 
 	appStore, err := loadAppStore(cfg, log.Default, appHeight)
@@ -655,10 +761,16 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64) (handler.ReceiptHandlerVersion, uint64, error) {
-		receiptVer, err := handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-		if err != nil {
-			return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
+		var receiptVer handler.ReceiptHandlerVersion
+		if v2Feature {
+			receiptVer = handler.ReceiptHandlerLevelDb
+		} else {
+			var err error
+			receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
+			if err != nil {
+				return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+			}
 		}
 		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
 	})
@@ -670,11 +782,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+		v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
+		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
 		if err != nil {
 			return nil, err
 		}
-		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
 		if err != nil {
 			return nil, err
 		}
@@ -694,12 +807,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
-
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
+			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
 			if err != nil {
 				return nil, err
 			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
 			if err != nil {
 				return nil, err
 			}
@@ -734,6 +847,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		Manager: vmManager,
 	}
 
+	migrationTxHandler := &tx_handler.MigrationTxHandler{
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
+		Migrations: map[int32]tx_handler.MigrationFunc{
+			1: migrations.DPOSv3Migration,
+		},
+	}
+
 	gen, err := config.ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
@@ -754,7 +875,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				i,
 			)
 			if err != nil {
-				return errors.Wrap(err, "deploying contract")
+				return errors.Wrapf(err, "deploying contract: %s", contractCfg.Name)
 			}
 		}
 		return nil
@@ -788,6 +909,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				return false
 			}
 			return tx.VmType == vm.VMType_EVM
+		case 3:
+			return false
 		default:
 			return false
 		}
@@ -795,24 +918,22 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
+	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
 
 	// TODO: Write this in more elegant way
 	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
 	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
+	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if len(cfg.Auth.Chains) > 0 {
-		txMiddleWare = append(txMiddleWare, auth.NewMultiChainSignatureTxMiddleware(
-			cfg.Auth.Chains,
-			getContractCtx("addressmapper", vmManager),
-		))
-	} else {
-		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
-	}
+	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
+		cfg.Auth,
+		getContractCtx("addressmapper", vmManager),
+	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
@@ -823,6 +944,15 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			cfg.Karma.SessionDuration,
 			createKarmaContractCtx,
 		))
+	}
+
+	if cfg.DeployerWhitelist.ContractEnabled {
+		contextFactory := getContractCtx("deployerwhitelist", vmManager)
+		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
+		if err != nil {
+			return nil, err
+		}
+		txMiddleWare = append(txMiddleWare, dwMiddleware)
 	}
 
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
@@ -841,6 +971,35 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			return nil, err
 		}
 		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
+	}
+
+	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
+			dposV3Ctx, err := createDPOSV3Ctx(state)
+			if err != nil {
+				return nil, err
+			}
+			validators, err := dposv3.ValidatorList(dposV3Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
+		} else if cfg.DPOSVersion == 2 {
+			createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
+			dposV2Ctx, err := createDPOSV2Ctx(state)
+			if err != nil {
+				return nil, err
+			}
+			validators, err := dposv2.ValidatorList(dposV2Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
+		}
+
+		// if DPOS contract is not deployed, get validators from genesis file
+		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
@@ -887,14 +1046,18 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
-		if cfg.DPOSVersion != 2 {
-			return plugin.NewNoopValidatorsManager(), nil
-		}
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+		// DPOSv3 can only be enabled via feature flag or if it's enabled via the loom.yml
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
+		} else if cfg.DPOSVersion == 2 {
+			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+		}
+
+		return plugin.NewNoopValidatorsManager(), nil
 	}
 
 	createChainConfigManager := func(state loomchain.State) (loomchain.ChainConfigManager, error) {
@@ -905,7 +1068,16 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
+
+		m, err := plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
+		if err != nil {
+			// This feature will remain disabled until the ChainConfig contract is deployed
+			if err == plugin.ErrChainConfigContractNotFound {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return m, nil
 	}
 
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
@@ -931,7 +1103,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
-		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
+		GetValidatorSet:             getValidatorSet,
 	}, nil
 }
 
@@ -991,21 +1163,23 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	}
 }
 
-func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsensus.FnRegistry) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:          cfg.BlockchainLogLevel,
-		Peers:             cfg.Peers,
-		PersistentPeers:   cfg.PersistentPeers,
-		ChainID:           cfg.ChainID,
-		RPCListenAddress:  cfg.RPCListenAddress,
-		RPCProxyPort:      cfg.RPCProxyPort,
-		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
-		HsmConfig:         cfg.HsmConfig,
+		LogLevel:                 cfg.BlockchainLogLevel,
+		Peers:                    cfg.Peers,
+		PersistentPeers:          cfg.PersistentPeers,
+		ChainID:                  cfg.ChainID,
+		RPCListenAddress:         cfg.RPCListenAddress,
+		RPCProxyPort:             cfg.RPCProxyPort,
+		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
+		HsmConfig:                cfg.HsmConfig,
+		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
 		SocketPath:  abciServerAddr,
+		FnRegistry:  fnRegistry,
 	}
 }
 
@@ -1048,24 +1222,24 @@ func initQueryService(
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:           app,
-		ChainID:                 chainID,
-		Loader:                  loader,
-		Subscriptions:           app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:        app.EventHandler.EthSubscriptionSet(),
-		EthPolls:                *polls.NewEthSubscriptions(),
-		CreateRegistry:          createRegistry,
-		NewABMFactory:           newABMFactory,
-		ReceiptHandlerProvider:  receiptHandlerProvider,
-		RPCListenAddress:        cfg.RPCListenAddress,
-		BlockStore:              blockstore,
-		EventStore:              app.EventStore,
-		AuthCfg:                 cfg.Auth,
-		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
+		StateProvider:          app,
+		ChainID:                chainID,
+		Loader:                 loader,
+		Subscriptions:          app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
+		EthPolls:               *polls.NewEthSubscriptions(),
+		CreateRegistry:         createRegistry,
+		NewABMFactory:          newABMFactory,
+		ReceiptHandlerProvider: receiptHandlerProvider,
+		RPCListenAddress:       cfg.RPCListenAddress,
+		BlockStore:             blockstore,
+		EventStore:             app.EventStore,
+		AuthCfg:                cfg.Auth,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
-		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
 	// query service
 	var qsvc rpc.QueryService
@@ -1082,13 +1256,20 @@ func initQueryService(
 	return nil
 }
 
+func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
+	for {
+		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
+		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
+		if err != nil {
+			log.Error("Error in pushing to Prometheus Push Gateway ", "Error", err)
+		}
+	}
+}
+
 func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
-	dposCmd := cli.ContractCallCommand("dpos")
-	commands.AddDPOSV2(dposCmd)
-
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
@@ -1105,29 +1286,32 @@ func main() {
 		newSpinCommand(),
 		newDeployCommand(),
 		newDeployGoCommand(),
+		newMigrationCommand(),
 		callCommand,
 		newGenKeyCommand(),
 		newYubiHsmCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
+		NewCoinCommand(),
+		NewDPOSV2Command(),
+		NewDPOSV3Command(),
 		karmaCmd,
 		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
-		dposCmd,
 		resolveCmd,
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
-		chainconfig.NewChainCfgCommand(),
+		chaincfgcmd.NewChainCfgCommand(),
+		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 	AddAddressMappingMethods(addressMappingCmd)
-
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

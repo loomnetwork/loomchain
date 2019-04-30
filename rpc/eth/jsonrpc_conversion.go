@@ -19,6 +19,16 @@ type Quantity string
 type Data string
 type BlockHeight string
 
+const (
+	ZeroedQuantity     Quantity = "0x0"
+	ZeroedData         Data     = "0x0"
+	ZeroedData8Bytes   Data     = "0x0000000000000000"
+	ZeroedData20Bytes  Data     = "0x0000000000000000000000000000000000000000"
+	ZeroedData32Bytes  Data     = "0x0000000000000000000000000000000000000000000000000000000000000000"
+	ZeroedData64bytes  Data     = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	ZeroedData256Bytes Data     = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+)
+
 type JsonLog struct {
 	Removed          bool     `json:"removed,omitempty"`
 	LogIndex         Quantity `json:"logIndex,omitempty"`
@@ -33,17 +43,17 @@ type JsonLog struct {
 }
 
 type JsonTxReceipt struct {
+	TxHash            Data      `json:"transactionHash,omitempty"`
 	TransactionIndex  Quantity  `json:"transactionIndex,omitempty"`
 	BlockHash         Data      `json:"blockHash,omitempty"`
 	BlockNumber       Quantity  `json:"blockNumber,omitempty"`
+	CallerAddress     Data      `json:"from,omitempty"`
 	CumulativeGasUsed Quantity  `json:"cumulativeGasUsed,omitempty"`
 	GasUsed           Quantity  `json:"gasUsed,omitempty"`
-	ContractAddress   Data      `json:"to,omitempty"`
-	Logs              []JsonLog `json:"logs,omitempty"`
+	ContractAddress   Data      `json:"contractAddress,omitempty"`
+	Logs              []JsonLog `json:"logs"`
 	LogsBloom         Data      `json:"logsBloom,omitempty"`
 	Status            Quantity  `json:"status,omitempty"`
-	TxHash            Data      `json:"transactionHash,omitempty"`
-	CallerAddress     Data      `json:"from,omitempty"`
 }
 
 type JsonTxObject struct {
@@ -78,8 +88,8 @@ type JsonBlockObject struct {
 	GasLimit         Quantity      `json:"gasLimit,omitempty"`
 	GasUsed          Quantity      `json:"gasUsed,omitempty"`
 	Timestamp        Quantity      `json:"timestamp,omitempty"`
-	Transactions     []interface{} `json:"transactions,omitempty"` // Data or []Data
-	Uncles           []Data        `json:"uncles,omitempty"`
+	Transactions     []interface{} `json:"transactions"` // Data or []Data
+	Uncles           []Data        `json:"uncles"`
 }
 
 type JsonTxCallObject struct {
@@ -89,6 +99,7 @@ type JsonTxCallObject struct {
 	GasPrice Quantity `json:"gasPrice,omitempty"`
 	Value    Quantity `json:"value,omitempty"`
 	Data     Data     `json:"data,omitempty"`
+	Nonce    Quantity `json:"nonce.omitempty"`
 }
 
 type JsonFilter struct {
@@ -118,24 +129,34 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 }
 
 func EncEvents(logs []*types.EventData) []JsonLog {
-	var jLogs []JsonLog
+
+	jLogs := make([]JsonLog, 0, len(logs))
 	for i, log := range logs {
 		jLog := EncEvent(*log)
 		jLog.LogIndex = EncInt(int64(i))
 		jLogs = append(jLogs, jLog)
 	}
+
+	if len(jLogs) == 0 {
+		return make([]JsonLog, 0)
+	}
+
 	return jLogs
 }
 
 func EncEvent(log types.EventData) JsonLog {
+	data := ZeroedData64bytes
+	if len(log.EncodedBody) > 0 {
+		data = EncBytes(log.EncodedBody)
+	}
+
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),
 		Address:          EncAddress(log.Caller),
-		Data:             EncBytes(log.EncodedBody),
+		Data:             data,
 		TransactionIndex: EncInt(int64(log.TransactionIndex)),
 		BlockHash:        EncBytes(log.BlockHash),
-		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
@@ -145,7 +166,8 @@ func EncEvent(log types.EventData) JsonLog {
 }
 
 func EncLogs(logs []*types.EthFilterLog) []JsonLog {
-	var jLogs []JsonLog
+
+	jLogs := make([]JsonLog, 0, len(logs))
 	for _, log := range logs {
 		jLogs = append(jLogs, EncLog(*log))
 	}
@@ -250,7 +272,7 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 		}
 	}
 
-	var topicsList [][]string
+	topicsList := [][]string{}
 	for _, topicInterface := range filter.Topics {
 		topics := []string{}
 		if topicInterface != nil {
@@ -371,4 +393,32 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 		}
 		return height, nil
 	}
+}
+
+func GetBlockZero() JsonBlockObject {
+	blockInfo := JsonBlockObject{
+		Number:           ZeroedQuantity,
+		Hash:             "0x0000000000000000000000000000000000000000000000000000000000000001",
+		ParentHash:       ZeroedData32Bytes,
+		Timestamp:        "0x5af97a40", // TODO get the right timestamp, maybe the timestamp for block 0x1
+		GasLimit:         ZeroedQuantity,
+		GasUsed:          ZeroedQuantity,
+		Size:             ZeroedQuantity,
+		Transactions:     nil,
+		Nonce:            ZeroedData8Bytes,
+		Sha3Uncles:       ZeroedData32Bytes,
+		TransactionsRoot: ZeroedData32Bytes,
+		StateRoot:        ZeroedData32Bytes,
+		ReceiptsRoot:     ZeroedData32Bytes,
+		Miner:            ZeroedData20Bytes,
+		Difficulty:       ZeroedQuantity,
+		TotalDifficulty:  ZeroedQuantity,
+		ExtraData:        ZeroedData,
+		Uncles:           []Data{},
+		LogsBloom:        ZeroedData,
+	}
+
+	blockInfo.Transactions = make([]interface{}, 0)
+
+	return blockInfo
 }

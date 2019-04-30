@@ -4,6 +4,7 @@ package handler
 
 import (
 	eth_types "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 )

@@ -72,7 +72,7 @@ func (m *MultiLoader) UnloadContracts() {
 
 // ContractOverride specifies a contract that should be loaded instead of another contract.
 // The override kicks in at a particular block height, and remains in force from that height
-// onwards. An override can itself be overriden by another override with a higher block height.
+// onwards. An override can itself be overridden by another override with a higher block height.
 type ContractOverride struct {
 	plugin.Contract
 	// Height at which the override should take effect

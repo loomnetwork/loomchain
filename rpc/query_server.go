@@ -3,8 +3,11 @@ package rpc
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -26,6 +29,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
+	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -90,20 +94,20 @@ type StateProvider interface {
 // - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
 	StateProvider
-	ChainID          string
-	Loader           lcp.Loader
-	Subscriptions    *loomchain.SubscriptionSet
-	EthSubscriptions *subs.EthSubscriptionSet
-	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
+	ChainID                string
+	Loader                 lcp.Loader
+	Subscriptions          *loomchain.SubscriptionSet
+	EthSubscriptions       *subs.EthSubscriptionSet
+	EthLegacySubscriptions *subs.LegacyEthSubscriptionSet
+	EthPolls               polls.EthSubscriptions
+	CreateRegistry         registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	EventStore              store.EventStore
-	AuthCfg                 *auth.Config
-	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
+	EventStore store.EventStore
+	AuthCfg    *auth.Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -132,9 +136,9 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 	}
 
 	if vmType == lvm.VMType_PLUGIN {
-		return s.QueryPlugin(callerAddr, contractAddr, query)
+		return s.queryPlugin(callerAddr, contractAddr, query)
 	} else {
-		return s.QueryEvm(callerAddr, contractAddr, query)
+		return s.queryEvm(callerAddr, contractAddr, query)
 	}
 }
 
@@ -177,9 +181,14 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 	return &envInfo, err
 }
 
-func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
+func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
+
+	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
 
 	vm := lcp.NewPluginVM(
 		s.Loader,
@@ -201,7 +210,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 		return nil, err
 	}
 
-	respBytes, err := vm.StaticCall(caller, contract, reqBytes)
+	respBytes, err := vm.StaticCall(callerAddr, contract, reqBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -213,12 +222,16 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 	return resp.Body, nil
 }
 
-func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
+func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
+	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
+
 	var createABM levm.AccountBalanceManagerFactoryFunc
-	var err error
 	if s.NewABMFactory != nil {
 		pvm := lcp.NewPluginVM(
 			s.Loader,
@@ -236,7 +249,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 		}
 	}
 	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false)
-	return vm.StaticCall(caller, contract, query)
+	return vm.StaticCall(callerAddr, contract, query)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
@@ -256,7 +269,7 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 	if err != nil {
 		return resp, err
 	}
-	bytes, err := s.QueryEvm(caller, contract, data)
+	bytes, err := s.queryEvm(caller, contract, data)
 	return eth.EncBytes(bytes), err
 }
 
@@ -294,7 +307,27 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	return eth.EncBytes(code), nil
 }
 
-// Nonce returns the nonce of the last commited tx sent by the given account.
+// Attempts to construct the context of the Address Mapper contract.
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
+	vm := lcp.NewPluginVM(
+		s.Loader,
+		state,
+		s.CreateRegistry(state),
+		nil, // event handler
+		log.Default,
+		s.NewABMFactory,
+		nil, // receipt writer
+		nil, // receipt reader
+	)
+
+	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+	}
+	return ctx, nil
+}
+
+// Nonce returns the nonce of the last committed tx sent by the given account.
 // NOTE: Either the key or the account must be provided. The account (if not empty) is used in
 //       preference to the key.
 func (s *QueryServer) Nonce(key, account string) (uint64, error) {
@@ -319,37 +352,15 @@ func (s *QueryServer) Nonce(key, account string) (uint64, error) {
 		return 0, errors.New("no key or account specified")
 	}
 
-	chain := auth.ChainConfig{
-		TxType:      auth.LoomSignedTxType,
-		AccountType: auth.NativeAccountType,
-	}
-
-	if len(s.AuthCfg.Chains) > 0 {
-		var found bool
-		chain, found = s.AuthCfg.Chains[addr.ChainID]
-		if !found {
-			return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
-		}
-	} else if s.ChainID != addr.ChainID {
-		return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
-	}
-
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	if chain.AccountType == auth.MappedAccountType {
-		var err error
-		addr, err = auth.GetActiveAddress(
-			snapshot,
-			addr,
-			s.CreateAddressMappingCtx,
-		)
-		if err != nil {
-			return 0, err
-		}
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to resolve account address")
 	}
 
-	return auth.Nonce(snapshot, addr), nil
+	return auth.Nonce(snapshot, resolvedAddr), nil
 }
 
 func (s *QueryServer) Resolve(name string) (string, error) {
@@ -415,7 +426,7 @@ func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*W
 	return &WSEmptyResult{}, nil
 }
 
-func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthSubscriptionSet) pubsub.SubscriberFunc {
+func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.LegacyEthSubscriptionSet) pubsub.SubscriberFunc {
 	clientCtx := ctx
 	log.Debug("Adding handler", "remote", clientCtx.GetRemoteAddr())
 	return func(msg pubsub.Message) {
@@ -443,9 +454,9 @@ func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthSubscriptionSet) pubsub.
 
 func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error) {
 	caller := wsCtx.GetRemoteAddr()
-	sub, id := s.EthSubscriptions.For(caller)
-	sub.Do(ethWriter(wsCtx, s.EthSubscriptions))
-	err := s.EthSubscriptions.AddSubscription(id, method, filter)
+	sub, id := s.EthLegacySubscriptions.For(caller)
+	sub.Do(ethWriter(wsCtx, s.EthLegacySubscriptions))
+	err := s.EthLegacySubscriptions.AddSubscription(id, method, filter)
 	if err != nil {
 		return "", err
 	}
@@ -453,7 +464,7 @@ func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter s
 }
 
 func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
-	s.EthSubscriptions.Remove(id)
+	s.EthLegacySubscriptions.Remove(id)
 	return true, nil
 }
 
@@ -461,7 +472,7 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +545,7 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +558,7 @@ func (s *QueryServer) NewEvmFilter(filter string) (string, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	return s.EthPolls.AddLogPoll(filter, uint64(snapshot.Block().Height))
+	return s.EthPolls.LegacyAddLogPoll(filter, uint64(snapshot.Block().Height))
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
@@ -572,14 +583,14 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return nil, err
 	}
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	return s.EthPolls.Poll(s.BlockStore, snapshot, id, r)
+	return s.EthPolls.LegacyPoll(s.BlockStore, snapshot, id, r)
 }
 
 // Forget the filter.
@@ -610,7 +621,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return nil, err
 	}
@@ -633,7 +644,7 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return nil, err
 	}
@@ -645,7 +656,7 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return resp, err
 	}
@@ -653,6 +664,10 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 }
 
 func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
+	if block == "0x0" {
+		return eth.GetBlockZero(), nil
+	}
+
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -660,14 +675,23 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	if err != nil {
 		return resp, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return resp, err
 	}
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+	if err != nil {
+		return resp, err
+	}
+
+	if block == "0x1" && blockResult.ParentHash == "0x0" {
+		blockResult.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
+	}
+
+	return blockResult, err
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
@@ -680,7 +704,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return resp, err
 	}
@@ -763,7 +787,7 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 	if err != nil {
 		return resp, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return resp, err
 	}
@@ -780,7 +804,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return resp, err
 	}
@@ -805,7 +829,7 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index 
 	if err != nil {
 		return txObj, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return txObj, err
 	}
@@ -828,7 +852,7 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeig
 	if err != nil {
 		return txObj, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return txObj, err
 	}
@@ -848,7 +872,7 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return resp, err
 	}
@@ -860,4 +884,135 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 		return resp, err
 	}
 	return eth.EncLogs(logs), err
+}
+
+// todo add EthNewBlockFilter EthNewPendingTransactionFilter EthUninstallFilter EthGetFilterChanges and EthGetFilterLogs
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
+func (s QueryServer) EthNewBlockFilter() (eth.Quantity, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return eth.Quantity(s.EthPolls.AddBlockPoll(uint64(state.Block().Height))), nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
+func (s QueryServer) EthNewPendingTransactionFilter() (eth.Quantity, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return eth.Quantity(s.EthPolls.AddTxPoll(uint64(state.Block().Height))), nil
+}
+
+// Forget the filter.
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
+func (s *QueryServer) EthUninstallFilter(id eth.Quantity) (bool, error) {
+	s.EthPolls.Remove(string(id))
+	return true, nil
+}
+
+// Get the logs since last poll
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
+func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	if err != nil {
+		return nil, err
+	}
+
+	state := s.StateProvider.ReadOnlyState()
+	return s.EthPolls.Poll(s.BlockStore, state, string(id), r)
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
+func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
+	state := s.StateProvider.ReadOnlyState()
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	if err != nil {
+		return nil, err
+	}
+
+	if filter, err := s.EthSubscriptions.GetFilter(string(id)); filter != nil || err != nil {
+		logs, err := query.QueryChain(s.BlockStore, state, *filter, r)
+		if err != nil {
+			return nil, err
+		}
+		return eth.EncLogs(logs), err
+	} else {
+		return s.EthPolls.AllLogs(s.BlockStore, state, string(id), r)
+	}
+}
+
+// Sets up new filter for polling
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
+func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) {
+	state := s.StateProvider.ReadOnlyState()
+	ethFilter, err := eth.DecLogFilter(filter)
+	if err != nil {
+		return "", errors.Wrap(err, "could decode log filter")
+	}
+	id, err := s.EthPolls.AddLogPoll(ethFilter, uint64(state.Block().Height))
+	return eth.Quantity(id), err
+}
+
+func (s *QueryServer) EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (eth.Data, error) {
+	f, err := eth.DecLogFilter(filter)
+	if err != nil {
+		return "", errors.Wrapf(err, "decode filter")
+	}
+	id, err := s.EthSubscriptions.AddSubscription(string(method), f, conn)
+	if err != nil {
+		return "", errors.Wrapf(err, "add subscription")
+	}
+	return eth.Data(id), nil
+}
+
+func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error) {
+	s.EthSubscriptions.Remove(string(id))
+	return true, nil
+}
+
+func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+
+	if height != uint64(snapshot.Block().Height) {
+		return eth.Quantity("0x0"), fmt.Errorf("transaction count only implemted for the latest block %v, block %v requested", snapshot.Block().Height, height)
+	}
+	address, err := eth.DecDataToAddress(s.ChainID, local)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+	nonce, err := s.Nonce("", address.String())
+	if err != nil {
+		return eth.Quantity("0x0"), errors.Wrap(err, "requesting transaction count")
+	}
+
+	return eth.EncUint(nonce), nil
+}
+
+func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+	return eth.Quantity("0x0"), nil
+}
+
+func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
+	return eth.Quantity("0x0"), nil
+}
+
+func (s *QueryServer) EthGasPrice() (eth.Quantity, error) {
+	return eth.Quantity("0x0"), nil
+}
+
+func (s *QueryServer) EthNetVersion() (string, error) {
+	hash := sha3.SoliditySHA3(sha3.String(s.ChainID))
+	versionBigInt := new(big.Int)
+	versionBigInt.SetString(hex.EncodeToString(hash)[0:13], 16)
+	return versionBigInt.String(), nil
+}
+
+func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
+	return []eth.Data{}, nil
 }

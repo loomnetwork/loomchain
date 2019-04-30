@@ -46,7 +46,7 @@ make test
 make no-evm-tests
 make test-app-store-race
 
-# setup & run truffle tests
+#setup & run truffle tests
 #cd e2e/tests/truffle
 #yarn
 

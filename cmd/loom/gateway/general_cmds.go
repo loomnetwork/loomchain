@@ -3,11 +3,15 @@
 package gateway
 
 import (
+	"bufio"
+	"encoding/base64"
 	"encoding/hex"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 
@@ -15,6 +19,7 @@ import (
 	"strings"
 
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	"github.com/loomnetwork/go-loom/types"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
@@ -33,41 +38,43 @@ const GatewayName = "gateway"
 const LoomGatewayName = "loomcoin-gateway"
 
 const getOraclesCmdExample = `
-./loom gateway get-oracles gateway --key file://path/to/loom_priv.key
+./loom gateway get-oracles gateway --key path/to/loom_priv.key
 `
 
 const getStateCmdExample = `
-./loom gateway get-state gateway --key file://path/to/loom_priv.key
+./loom gateway get-state gateway --key path/to/loom_priv.key
 `
 
 const addOracleCmdExample = `
-./loom gateway add-oracle <owner hex address> gateway --key file://path/to/loom_priv.key
+./loom gateway add-oracle <owner hex address> gateway --key path/to/loom_priv.key
 `
 
 const removeOracleCmdExample = `
-./loom gateway remove-oracle <owner hex address> gateway --key file://path/to/loom_priv.key
+./loom gateway remove-oracle <owner hex address> gateway --key path/to/loom_priv.key
 `
 
 const replaceOwnerCmdExample = `
-./loom gateway replace-owner <owner hex address> gateway --key file://path/to/loom_priv.key
+./loom gateway replace-owner <owner hex address> gateway --key path/to/loom_priv.key
 `
 
-const withdrawRewardsCmdExample = `
-./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --key file://path/to/loom_priv.key OR
-./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --hsm file://path/to/hsm.json
+const withdrawFundsCmdExample = `
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key path/to/loom_priv.key OR
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "replace-owner <new-owner> <gateway-name>",
 		Short:   "Replaces gateway owner. Only callable by current gateway owner",
 		Example: replaceOwnerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator DAppChain key")
+				return err
 			}
 
 			newOwner, err := hexToLoomAddress(args[0])
@@ -99,23 +106,22 @@ func newReplaceOwnerCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newRemoveOracleCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "remove-oracle <oracle-address> <gateway-name>",
 		Short:   "Removes an oracle. Only callable by current gateway owner",
 		Example: removeOracleCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator DAppChain key")
+				return err
 			}
 
 			oracleAddress, err := hexToLoomAddress(args[0])
@@ -147,23 +153,100 @@ func newRemoveOracleCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
+	return cmd
+}
+
+func newUpdateTrustedValidatorsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update-trusted-validators <trusted-validators-file> <gateway-name>",
+		Short:   "Updates the trusted validators which can submit signatures to the gateway",
+		Example: "loom gateway update-trusted-validators /path/to/trusted_validators_file loomcoin-gateway",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			file, err := os.Open(args[0])
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			var validators []*loom.Address
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				pubKey, err := base64.StdEncoding.DecodeString(scanner.Text())
+				if err != nil {
+					return err
+				}
+
+				validators = append(
+					validators,
+					&loom.Address{
+						ChainID: gatewayCmdFlags.ChainID,
+						Local:   loom.LocalAddressFromPublicKey(pubKey),
+					},
+				)
+			}
+
+			if err := scanner.Err(); err != nil {
+				return err
+			}
+
+			var name string
+			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
+				name = GatewayName
+			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
+				name = LoomGatewayName
+			} else {
+				return errors.New("Invalid gateway name")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			trustedVals := make([]*types.Address, len(validators))
+			for i, v := range validators {
+				trustedVals[i] = v.MarshalPB()
+			}
+
+			trustedValidators := tgtypes.TransferGatewayTrustedValidators{
+				Validators: trustedVals,
+			}
+
+			req := &tgtypes.TransferGatewayUpdateTrustedValidatorsRequest{
+				TrustedValidators: &trustedValidators,
+			}
+
+			_, err = gateway.Call("UpdateTrustedValidators", req, signer, nil)
+			return err
+		},
+	}
 	return cmd
 }
 
 func newAddOracleCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "add-oracle <oracle-address> <gateway-name>",
 		Short:   "Adds an oracle. Only callable by current gateway owner",
 		Example: addOracleCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator DAppChain key")
+				return err
 			}
 
 			oracleAddress, err := hexToLoomAddress(args[0])
@@ -195,14 +278,10 @@ func newAddOracleCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newGetStateCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "get-state <gateway-name>",
 		Short:   "Queries the gateway's state",
@@ -232,14 +311,10 @@ func newGetStateCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newGetOraclesCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "get-oracles <gateway-name>",
 		Short:   "Queries the gateway's state",
@@ -272,17 +347,15 @@ func newGetOraclesCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
-func newWithdrawRewardsToMainnetCommand() *cobra.Command {
+func newWithdrawFundsToMainnetCommand() *cobra.Command {
+	var onlyRewards bool
 	cmd := &cobra.Command{
-		Use:     "withdraw-rewards",
+		Use:     "withdraw-funds",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
-		Example: withdrawRewardsCmdExample,
+		Example: withdrawFundsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			/**
@@ -296,22 +369,24 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			 * 8. Create unsigned transaction and print it. GG:)
 			 */
 
-			cmdFlags := cmd.Flags()
-
 			mainnetLoomAddress := "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
 			mainnetGatewayAddress := "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570"
 			ethereumUri := "https://mainnet.infura.io/"
-			privateKeyPath, _ := cmdFlags.GetString("key")
-			hsmPath, _ := cmdFlags.GetString("hsm")
-			algo, _ := cmdFlags.GetString("algo")
+			privateKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
 
 			signer, err := cli.GetSigner(privateKeyPath, hsmPath, algo)
 			if err != nil {
 				return err
 			}
 
-			// Create identity with nil mainnet key since we're going to use ledger
-			id, err := client.CreateIdentity(nil, signer, "default")
+			// Create identity with an ephemeral mainnet key since we're going to use ledger
+			ephemKey, err := crypto.GenerateKey()
+			if err != nil {
+				return err
+			}
+			id, err := client.CreateIdentity(ephemKey, signer, "default")
 			if err != nil {
 				return err
 			}
@@ -348,6 +423,12 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
+			// Prompt the user to withdraw from a specific account:
+			ethAddr, err := addressMapper.GetMappedAccount(id.LoomAddr)
+			if err != nil {
+				return err
+			}
+
 			balanceBefore, err := loomcoin.BalanceOf(id)
 			if err != nil {
 				return err
@@ -358,11 +439,10 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			fmt.Println("Unclaimed rewards:", unclaimedRewards)
 
 			balanceAfter := balanceBefore
-			if unclaimedRewards.Cmp(big.NewInt(0)) != 0 {
+			if unclaimedRewards != nil {
 				resp, err := dpos.ClaimRewards(id, id.LoomAddr)
 				if err != nil {
 					return err
@@ -387,22 +467,28 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			}
 
 			if receipt == nil {
+				var amount *big.Int
+				if onlyRewards {
+					amount = unclaimedRewards
+				} else {
+					amount = balanceAfter
+				}
 				fmt.Println("No pending withdrwal found...")
 				// Approve
-				err = loomcoin.Approve(id, gatewayAddr, balanceAfter)
+				err = loomcoin.Approve(id, gatewayAddr, amount)
 				if err != nil {
 					return err
 				}
 
-				fmt.Println("Approved deposit on dappchain...")
+				fmt.Println("Approved deposit on dappchain for ...", amount)
 
 				// Get the loom tokens to the gateway
-				err = gateway.WithdrawLoom(id, balanceAfter, common.HexToAddress(mainnetLoomAddress))
+				err = gateway.WithdrawLoom(id, amount, common.HexToAddress(mainnetLoomAddress))
 				if err != nil {
 					return err
 				}
 
-				fmt.Println("Withdrawal initiated...")
+				fmt.Println("Withdrawal initiated for...", amount)
 			}
 
 			for {
@@ -412,15 +498,20 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 					return err
 				}
 
-				if receipt != nil {
+				if receipt != nil && receipt.OracleSignature != nil {
 					break
 				}
 
-				time.Sleep(2000)
 				fmt.Println("Waiting for receipt...")
+				time.Sleep(2 * time.Second)
+
 			}
 
 			fmt.Println("\nGot withdrawal receipt!")
+			receipt, err = gateway.WithdrawalReceipt(id) // need to get the receipt again
+			if err != nil {
+				return err
+			}
 			fmt.Println("Receipt owner:", receipt.TokenOwner.Local.String())
 			fmt.Println("Token Contract:", receipt.TokenContract.Local.String())
 			fmt.Println("Token Kind:", receipt.TokenKind)
@@ -430,12 +521,6 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			sig := receipt.OracleSignature
 
 			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
-			if err != nil {
-				return err
-			}
-
-			// Prompt the user to withdraw from a specific account:
-			ethAddr, err := addressMapper.GetMappedAccount(id.LoomAddr)
 			if err != nil {
 				return err
 			}
@@ -450,6 +535,8 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 
 		},
 	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
 	return cmd
 }
 

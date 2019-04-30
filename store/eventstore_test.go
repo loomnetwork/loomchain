@@ -15,8 +15,7 @@ func TestEventStoreSetMemDB(t *testing.T) {
 	var eventStore EventStore = NewKVEventStore(memdb)
 
 	// set pluginname
-	var contractID uint64 = 1
-	contractID = eventStore.GetContractID("plugin1")
+	contractID := eventStore.GetContractID("plugin1")
 	require.EqualValues(t, 1, contractID)
 	val := memdb.Get(prefixPluginName("plugin1"))
 	require.EqualValues(t, contractID, bytesToUint64(val))

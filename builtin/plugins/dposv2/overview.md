@@ -20,7 +20,7 @@ information:
 `Candidate address`: the address which the `Candidate` is uniquly identified
 
 `Fee`: the commission, experessed as a percentage in basis points, that the
-`Candidate` will take of the rewards he recieves for participating in consensus.
+`Candidate` will take of the rewards he receives for participating in consensus.
 
 `Name`: the `Candidate`'s human-readable name, a secondary identifier
 
@@ -45,7 +45,7 @@ A delegation is a 5-tuple of `(Delegator, Validator, Amount, UpdateAmount, State
 Delegations can exist in three distinct states:
 
 `BONDED`: A token delegation has been made from `Delegator` to `Validator`; the
-tokens have been transfered to the dPoS contract and the token amount counts
+tokens have been transferred to the dPoS contract and the token amount counts
 towards `Validator`'s `DelegationTotal` and thus earns rewards for the validator
 and all of his delegators. The token delegation is liable to be slashed in case
 of faulty behavior from `Validator`. Only when a delegation is the `BONDED`
@@ -62,7 +62,7 @@ of slashing.
 `UNBONDING`: A request to withdraw tokens has been submitted by a delegator but
 the tokens have not yet been released. The tokens continue to earn rewards for
 the delegator and are liable to be slashed until the next valdiator election
-when they are automatically transfered to an address which the delegator specifies.
+when they are automatically transferred to an address which the delegator specifies.
 
 `REDELEGATING`: A redelegation request has been made within the last election
 period. During the next election, the `delegation.Validator` value will be set
@@ -146,13 +146,13 @@ the oracle
 ### Delegator Rewards Distribution
 
 After a Validator's fee has been removed from the total rewards and the
-validator distirbution is created, the rest of the rewards are distributed to
+validator distribution is created, the rest of the rewards are distributed to
 the delegators based on what fraction of a validator's `DelegationTotal`
 a delegator's `Delegation` represents.
 
 The rewards distributions are calculated during every eleciton. Delegators and
 Validators both claim their rewards identically, by calling the
-`ClaimDistribution` function. A validator cannot withold rewards from delegators
+`ClaimDistribution` function. A validator cannot withhold rewards from delegators
 because distribution happens in-protocol.
 
 ## The role of `plugin/validators_manager.go`

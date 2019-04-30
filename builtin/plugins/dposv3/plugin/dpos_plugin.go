@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
 
-var Contract = dposv2.Contract
+var Contract = dposv3.Contract
 
 func main() {
 	plugin.Serve(Contract)

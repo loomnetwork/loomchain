@@ -3,6 +3,15 @@ package rpc
 import (
 	"net/http"
 
+	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/libs/pubsub"
+	rpccore "github.com/tendermint/tendermint/rpc/core"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+	"golang.org/x/net/context"
+
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
@@ -10,16 +19,9 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amino "github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/libs/pubsub"
-	rpccore "github.com/tendermint/tendermint/rpc/core"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
-	"golang.org/x/net/context"
 )
 
-// QueryService provides neccesary methods for the client to query appication states
+// QueryService provides necessary methods for the client to query application states
 type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
@@ -34,22 +36,29 @@ type QueryService interface {
 	EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error)
 	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
 	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
-
 	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
 	EthGetLogs(filter eth.JsonFilter) ([]eth.JsonLog, error)
-
 	EthGetBlockTransactionCountByHash(hash eth.Data) (eth.Quantity, error)
 	EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (eth.Quantity, error)
 	EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (eth.JsonTxObject, error)
 	EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (eth.JsonTxObject, error)
-	// todo EthNewBlockFilter() (eth.Quantity, error)
-	// todo EthNewPendingTransactionFilter() (eth.Quantity, error)
-	// todo EthUninstallFilter(id eth.Quantity) (bool, error)
-	// todo EthGetFilterChanges(id eth.Quantity) (interface{}, error)
-	// todo EthGetFilterLogs(id eth.Quantity) (interface{}, error)
-	// todo EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
-	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
-	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
+
+	EthNewBlockFilter() (eth.Quantity, error)
+	EthNewPendingTransactionFilter() (eth.Quantity, error)
+	EthUninstallFilter(id eth.Quantity) (bool, error)
+	EthGetFilterChanges(id eth.Quantity) (interface{}, error)
+	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
+
+	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
+	EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error)
+	EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error)
+
+	EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error)
+	EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error)
+	EthGasPrice() (eth.Quantity, error)
+	EthNetVersion() (string, error)
+	EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error)
+	EthAccounts() ([]eth.Data, error)
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 
@@ -72,7 +81,7 @@ type QueryService interface {
 
 type QueryEventBus struct {
 	Subs    loomchain.SubscriptionSet
-	EthSubs subs.EthSubscriptionSet
+	EthSubs subs.LegacyEthSubscriptionSet
 }
 
 func (b *QueryEventBus) Subscribe(ctx context.Context,
@@ -141,9 +150,9 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 }
 
 // makeQueryServiceHandler returns a http handler mapping to query service
-func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger, hub *Hub) http.Handler {
 	wsmux := http.NewServeMux()
-	routesJson := map[string]*eth.RPCFunc{}
+	routesJson := map[string]eth.RPCFunc{}
 	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
 	routesJson["eth_getBlockByNumber"] = eth.NewRPCFunc(svc.EthGetBlockByNumber, "block,full")
 	routesJson["eth_getBlockByHash"] = eth.NewRPCFunc(svc.EthGetBlockByHash, "hash,full")
@@ -157,7 +166,25 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
 	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
 
-	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
+	routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
+	routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
+	routesJson["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
+	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
+	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
+
+	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
+	routesJson["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "conn,method,filter")
+	routesJson["eth_unsubscribe"] = eth.NewRPCFunc(svc.EthUnsubscribe, "id")
+
+	routesJson["eth_accounts"] = eth.NewRPCFunc(svc.EthAccounts, "")
+	routesJson["eth_getBalance"] = eth.NewRPCFunc(svc.EthGetBalance, "address,block")
+	routesJson["eth_estimateGas"] = eth.NewRPCFunc(svc.EthEstimateGas, "query")
+	routesJson["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
+	routesJson["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
+	routesJson["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
+
+	routesJson["eth_sendRawTransaction"] = eth.NewTendermintRPCFunc("eth_sendRawTransaction")
+	RegisterRPCFuncs(wsmux, routesJson, logger, hub)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {

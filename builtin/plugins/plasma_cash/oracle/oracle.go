@@ -282,7 +282,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return nil
 	}
 
-	// We need to retreive all events first, and then apply them in correct order
+	// We need to retrieve all events first, and then apply them in correct order
 	// to make sure, we apply events in proper order to dappchain
 
 	depositEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)

@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +18,7 @@ func TestContractDPOS(t *testing.T) {
 		yamlFile string
 	}{
 		// {"dpos-downtime", "dpos-downtime.toml", 4, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-v3", "dposv3-delegation.toml", 4, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},
 		{"dpos-delegation", "dpos-delegation.toml", 4, 10, "dpos-delegation.genesis.json", "dpos-test-loom.yaml"},
 		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
 		{"dpos-2-r2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
@@ -30,25 +28,14 @@ func TestContractDPOS(t *testing.T) {
 		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "dpos-test-loom.yaml"},
 	}
 
+	common.LoomPath = "../loom"
+	common.ContractDir = "../contracts"
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts,0)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			binary, err := exec.LookPath("go")
-			if err != nil {
-				t.Fatal(err)
-			}
-			// required binary
-			cmd := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
-			}
-			if err := cmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
 			}
 
 			if err := common.DoRun(*config); err != nil {

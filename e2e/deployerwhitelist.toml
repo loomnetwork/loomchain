@@ -1,0 +1,128 @@
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer list"
+  Condition = "contains"
+  Expected = ['"Flags": "GO|EVM|MIGRATION"','"Flags": "EVM"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['deployer already exists']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5 evm -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c5 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5cECD1F7261e1f4C684E297bE3EDF03B825E01C5','"Flags": "EVM"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c6 migration -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c6 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5CeCD1F7261E1f4C684e297bE3EdF03B825E01c6','"Flags": "MIGRATION"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7 all -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c7 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5CECD1F7261e1F4C684E297be3eDF03b825E01c7','"Flags": "GO|EVM|MIGRATION"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer list"
+  Condition = "contains"
+  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer remove 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer remove 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['"Flags": ""']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer list"
+  Condition = "contains"
+  Expected = ['"Flags": "GO|EVM|MIGRATION"', '"Flags": "EVM"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+  Datafiles = [
+    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['1 contract(s) successfully deployed']
+  Datafiles = [
+    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+  Datafiles = [
+    { Filename = "simple_sol.bin", Contents = "608060405234801561001057600080fd5b5060bd8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c146062575b600080fd5b606060048036036020811015604b57600080fd5b8101908080359060200190929190505050607e565b005b60686088565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058205df5fd0119476c8d9e72cba533fd6dcf4cd6f498344d4350bee12be12b2472170029" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['New contract deployed with address']
+  Datafiles = [
+    { Filename = "simple_sol.bin", Contents = "608060405234801561001057600080fd5b5060bd8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c146062575b600080fd5b606060048036036020811015604b57600080fd5b8101908080359060200190929190505050607e565b005b60686088565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058205df5fd0119476c8d9e72cba533fd6dcf4cd6f498344d4350bee12be12b2472170029" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['Migration ID 1 has been processed successfully']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
+  All = true
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dposV3 list_validators_v3"
+  All = true
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}"]

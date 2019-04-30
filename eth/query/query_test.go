@@ -96,6 +96,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
 
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(allFilter))
+	require.NoError(t, err)
 	filterLogs, err := QueryChain(blockStore, state30, ethFilter, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
 	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")

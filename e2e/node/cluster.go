@@ -13,7 +13,9 @@ import (
 	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -142,7 +144,17 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		node.Config.LogDestination = node.LogDestination
 		node.Config.RPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
 		node.Config.RPCBindAddress = fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
-		node.Config.Oracle = "default:" + account[0].Address
+		if len(account) > 0 {
+			node.Config.Oracle = "default:" + account[0].Address
+		}
+
+		node.Config.LoomCoinTransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
+		node.Config.LoomCoinTransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
+		node.Config.TransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
+		node.Config.TransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
+
+		node.Config.ChainConfig.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
+		node.Config.ChainConfig.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
 
 		loomYamlPath := path.Join(node.Dir, "loom.yaml")
 		if err := node.Config.WriteToFile(loomYamlPath); err != nil {
@@ -156,6 +168,20 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		for _, contract := range genesis.Contracts {
 			if contract.Name == "dposV2" {
 				var init dtypes.DPOSInitRequestV2
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				if len(init.Validators) > 0 {
+					idToValidator[node.ID] = init.Validators[0]
+				}
+			}
+			if contract.Name == "dposV3" {
+				var init d3types.DPOSInitRequest
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
 					return err
@@ -193,6 +219,28 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		var newContracts []contractConfig
 		for _, contract := range gens.Contracts {
 			switch contract.Name {
+			case "dposV3":
+				var init d3types.DPOSInitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set new validators
+				init.Validators = validators
+				oracleAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Params.OracleAddress = &types.Address{
+					ChainId: "default",
+					Local:   oracleAddr,
+				}
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
 			case "dposV2":
 				var init dtypes.DPOSInitRequestV2
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
@@ -291,6 +339,27 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 					return err
 				}
 				contract.Init = jsonInit
+			case "deployerwhitelist":
+				var init dwtypes.InitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set contract owner
+				ownerAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Owner = &types.Address{
+					ChainId: "default",
+					Local:   ownerAddr,
+				}
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
 			// in case we need to define custom setups for a new contract, insert
 			// a new case here
 			default:
@@ -318,7 +387,8 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 	if err != nil {
 		return err
 	}
-	var newContracts []contractConfig
+
+	newContracts := make([]contractConfig, 0, len(gens.Contracts))
 	for _, contract := range gens.Contracts {
 		switch contract.Name {
 		case "coin":

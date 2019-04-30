@@ -6,4 +6,3 @@ var (
 	CallEVM      = "call.evm"
 	CallPlugin   = "call"
 )
-

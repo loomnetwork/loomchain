@@ -15,6 +15,7 @@ import (
 	"time"
 
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
@@ -142,6 +143,42 @@ func (n *Node) Init(accounts []*Account) error {
 					return err
 				}
 				contract.Init = jsonInit
+			case "dposV3":
+				var init d3types.DPOSInitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+
+				// copy other settings from generated genesis file
+				for _, c := range gens.Contracts {
+					switch c.Name {
+					case "dposV3":
+						var dposinit d3types.DPOSInitRequest
+						unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+						if err != nil {
+							return err
+						}
+						buf := bytes.NewBuffer(c.Init)
+						if err := unmarshaler.Unmarshal(buf, &dposinit); err != nil {
+							return err
+						}
+						// set new validators
+						init.Validators = dposinit.Validators
+					default:
+					}
+				}
+
+				// set init to contract
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
 			}
 
 			newContracts = append(newContracts, contract)
@@ -174,6 +211,9 @@ func (n *Node) Init(accounts []*Account) error {
 	// create private key file
 	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
 	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
+	if err != nil {
+		return errors.Wrapf(err, "fail to read node key Data")
+	}
 	var objmap map[string]*json.RawMessage
 	_ = json.Unmarshal(nodeKeyData, &objmap)
 	var objmap2 map[string]*json.RawMessage

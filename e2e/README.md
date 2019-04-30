@@ -17,7 +17,7 @@ go test -v ./e2e
 
 ## Stand Alone Tests Using Validator Tool
 
-You have to get `validators-tool` binary. Run `make validators-tool` in loomchain root directy to build one.
+You have to get `validators-tool` binary. Run `make validators-tool` in loomchain root directly to build one.
 
 to create a cluster of n nodes with new k accounts, run:
 ```
@@ -69,7 +69,7 @@ Open a new terminal and run:
 
 #### Create a cluster
 
-To create a cluster of 4 validators and 10 generated keys in the intergration-test directory, run:
+To create a cluster of 4 validators and 10 generated keys in the integration-test directory, run:
 ```
 ./validators-tool new --name=dpos --contract-dir=../contracts --loom-path ../loom --log-level error -n 4 -k 10 -f
 ```

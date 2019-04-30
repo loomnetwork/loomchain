@@ -32,12 +32,48 @@ type deployTxFlags struct {
 }
 
 func setChainFlags(fs *pflag.FlagSet) {
-	fs.StringVarP(&cli.TxFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
-	fs.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
+	fs.StringVarP(&cli.TxFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
 	fs.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
 	fs.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
 	fs.StringVar(&cli.TxFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
 	fs.StringVar(&cli.TxFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
+}
+
+func newMigrationCommand() *cobra.Command {
+	var Id uint32
+	migrationCmd := &cobra.Command{
+		Use:   "migration",
+		Short: "Run a migration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			callerChainID := cli.TxFlags.CallerChainID
+			if callerChainID == "" {
+				callerChainID = cli.TxFlags.ChainID
+			}
+			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
+		},
+	}
+	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
+	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(migrationCmd.Flags())
+	return migrationCmd
+}
+
+func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error {
+	clientAddr, signer, err := caller(privFile, "", algo, callerChainID)
+	if err != nil {
+		return errors.Wrapf(err, "initialization failed")
+	}
+	if signer == nil {
+		return fmt.Errorf("invalid private key")
+	}
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
+
+	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Migration ID %d has been processed successfully\n", migrationId)
+	return nil
 }
 
 func newDeployGoCommand() *cobra.Command {
@@ -78,7 +114,7 @@ func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
 		return fmt.Errorf("no contracts in file %s", initFile)
 	}
 	fmt.Printf("Attempting to deploy %v contracts\n", len(gen.Contracts))
-	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 
 	numDeployed := 0
 	for _, contract := range gen.Contracts {
@@ -88,7 +124,7 @@ func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
 			fmt.Printf("Contract %s already registered. Skipping\n", contract.Name)
 			continue
 		} else if !strings.Contains(err.Error(), registry.ErrNotFound.Error()) {
-			fmt.Printf("Could not confirm contract %s regestration status, error %v. Skipping\n", contract.Name, err)
+			fmt.Printf("Could not confirm contract %s registration status, error %v. Skipping\n", contract.Name, err)
 			continue
 		}
 
@@ -117,7 +153,7 @@ func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
 		addr := loom.UnmarshalAddressPB(response.Contract)
 		fmt.Printf("Contract %s deplyed to address %s\n", contract.Name, addr.String())
 	}
-	fmt.Printf("%v contract(s) succesfully deployed\n", numDeployed)
+	fmt.Printf("%v contract(s) successfully deployed\n", numDeployed)
 	return nil
 }
 
@@ -140,7 +176,7 @@ func newDeployCommand() *cobra.Command {
 			}
 			fmt.Println("New contract deployed with address: ", addr)
 			fmt.Println("Runtime bytecode: ", runBytecode)
-			fmt.Println("Transaction receipt: ", txReceipt)
+			fmt.Println("Transaction receipt: ", hex.EncodeToString(txReceipt))
 			return nil
 		},
 	}
@@ -173,7 +209,7 @@ func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID string) (loom
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "decoding the data in deployment file")
 	}
 
-	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
@@ -191,7 +227,7 @@ func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID string) (loom
 }
 
 func staticCallTx(addr, name, input, privFile, publicFile, algo, callerChainID string) ([]byte, error) {
-	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 	var contractLocalAddr loom.LocalAddress
 	var err error
 	if addr != "" {
@@ -290,6 +326,7 @@ func newCallEvmCommand() *cobra.Command {
 				return err
 			}
 			fmt.Println("Call response: ", resp)
+			fmt.Println("Transaction receipt: ", hex.EncodeToString(resp))
 			return nil
 		},
 	}
@@ -302,7 +339,7 @@ func newCallEvmCommand() *cobra.Command {
 	return callCmd
 }
 func callTx(addr, name, input, privFile, publicFile, algo, callerChainID string) ([]byte, error) {
-	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 	var contractAddr loom.Address
 	var err error
 	if addr != "" {
@@ -373,7 +410,7 @@ func newGetBlocksByNumber() *cobra.Command {
 }
 
 func getBlockByNumber(number, start, end string, full bool) error {
-	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 	if len(number) > 0 {
 		resp, err := rpcclient.GetEvmBlockByNumber(number, full)
 		if err != nil {
@@ -419,9 +456,7 @@ func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.
 		addr, err := ioutil.ReadFile(publicKeyB64)
 		if err == nil {
 			addr, err = base64.StdEncoding.DecodeString(string(addr))
-			if err != nil {
-				addr = []byte{}
-			} else {
+			if err == nil {
 				localAddr = loom.LocalAddressFromPublicKey(addr)
 			}
 		}
@@ -486,7 +521,7 @@ func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
 	}
 
-	signer := &auth.EthSigner66Byte{key}
+	signer := &auth.EthSigner66Byte{PrivateKey: key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 	if err != nil {
@@ -502,7 +537,7 @@ func tronSigner(keyFilename string) ([]byte, auth.Signer, error) {
 		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
 	}
 
-	signer := &auth.TronSigner{key}
+	signer := &auth.TronSigner{PrivateKey: key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 	if err != nil {

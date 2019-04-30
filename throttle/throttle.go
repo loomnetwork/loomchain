@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	deployId = uint32(1)
-	callId   = uint32(2)
+	deployId    = uint32(1)
+	callId      = uint32(2)
+	migrationId = uint32(3)
 )
 
 type Throttle struct {
@@ -62,7 +63,7 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter
 	address := auth.Origin(ctx).String()
 	_, ok := t.callLimiterPool[address]
 	if !ok {
-		t.callLimiterPool[address] = t.getNewLimiter(ctx, t.maxCallCount+limit)
+		t.callLimiterPool[address] = t.getNewLimiter(ctx, limit)
 	}
 	if t.callLimiterPool[address].Rate.Limit != limit {
 		delete(t.callLimiterPool, address)
@@ -117,6 +118,6 @@ func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, o
 }
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
-	contractState := loomchain.StateWithPrefix(loom.DataPrefix(t.karmaContractAddress), chainState)
+	contractState := chainState.WithPrefix(loom.DataPrefix(t.karmaContractAddress))
 	return contractState, nil
 }

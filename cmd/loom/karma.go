@@ -43,7 +43,7 @@ func GetUserStateCmd() *cobra.Command {
 		Short: "list the karma sources for user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -69,7 +69,7 @@ func GetUserTotalCmd() *cobra.Command {
 		Short: "Check amount of karma user has, target can be either CALL or DEPLOY",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -103,18 +103,18 @@ func DepositCoinCmd() *cobra.Command {
 		Short: "deposit coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			amount, err := strconv.ParseInt(args[1], 10, 64)
+			amount, err := cli.ParseAmount(args[1])
 			if err != nil {
 				return errors.Wrap(err, "parse amount arg")
 			}
 
 			depositAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
-				Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(amount)},
+				Amount: &types.BigUInt{Value: *amount},
 			}
 
 			err = cli.CallContract(KarmaContractName, "DepositCoin", &depositAmount, nil)
@@ -133,18 +133,18 @@ func WithdrawCoinCmd() *cobra.Command {
 		Short: "withdraw coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			amount, err := strconv.ParseInt(args[1], 10, 64)
+			amount, err := cli.ParseAmount(args[1])
 			if err != nil {
 				return errors.Wrap(err, "parse amount arg")
 			}
 
 			withdrawAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
-				Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(amount)},
+				Amount: &types.BigUInt{Value: *amount},
 			}
 
 			err = cli.CallContract(KarmaContractName, "WithdrawCoin", &withdrawAmount, nil)
@@ -246,7 +246,7 @@ func SetActiveCmd() *cobra.Command {
 		Short: "set contract as active",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			contract, err := cli.ResolveAddress(args[0])
+			contract, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -266,7 +266,7 @@ func SetInactiveCmd() *cobra.Command {
 		Short: "set contract as inactive",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			contract, err := cli.ResolveAddress(args[0])
+			contract, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -355,7 +355,6 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		},
 	}
 }
-
 
 func ResetSourcesCmd() *cobra.Command {
 	return &cobra.Command{

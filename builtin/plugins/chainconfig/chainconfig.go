@@ -9,25 +9,26 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
 
 type (
-	InitRequest          = cctypes.InitRequest
-	ListFeaturesRequest  = cctypes.ListFeaturesRequest
-	ListFeaturesResponse = cctypes.ListFeaturesResponse
-
-	GetFeatureRequest  = cctypes.GetFeatureRequest
-	GetFeatureResponse = cctypes.GetFeatureResponse
-	AddFeatureRequest  = cctypes.AddFeatureRequest
-	AddFeatureResponse = cctypes.AddFeatureResponse
-	SetParamsRequest   = cctypes.SetParamsRequest
-	GetParamsRequest   = cctypes.GetParamsRequest
-	GetParamsResponse  = cctypes.GetParamsResponse
-	Params             = cctypes.Params
-	Feature            = cctypes.Feature
-
-	UpdateFeatureRequest  = cctypes.UpdateFeatureRequest
+	InitRequest           = cctypes.InitRequest
+	ListFeaturesRequest   = cctypes.ListFeaturesRequest
+	ListFeaturesResponse  = cctypes.ListFeaturesResponse
+	GetFeatureRequest     = cctypes.GetFeatureRequest
+	GetFeatureResponse    = cctypes.GetFeatureResponse
+	AddFeatureRequest     = cctypes.AddFeatureRequest
+	AddFeatureResponse    = cctypes.AddFeatureResponse
+	RemoveFeatureRequest  = cctypes.RemoveFeatureRequest
+	SetParamsRequest      = cctypes.SetParamsRequest
+	GetParamsRequest      = cctypes.GetParamsRequest
+	GetParamsResponse     = cctypes.GetParamsResponse
+	Params                = cctypes.Params
+	Feature               = cctypes.Feature
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 )
@@ -36,7 +37,7 @@ const (
 	// FeaturePending status indicates a feature hasn't been enabled by majority of validators yet.
 	FeaturePending = cctypes.Feature_PENDING
 	// FeatureWaiting status indicates a feature has been enabled by majority of validators, but
-	// hasn't been activated yet because not enough blocks confirmations have occured yet.
+	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
 	FeatureWaiting = cctypes.Feature_WAITING
 	// FeatureEnabled status indicates a feature has been enabled by majority of validators, and
 	// has been activated on the chain.
@@ -46,7 +47,7 @@ const (
 )
 
 var (
-	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
+	// ErrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
 	ErrNotAuthorized = errors.New("[ChainConfig] not authorized")
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
@@ -54,12 +55,18 @@ var (
 	ErrInvalidRequest = errors.New("[ChainConfig] invalid request")
 	// ErrOwnerNotSpecified returned if init request does not have owner address
 	ErrOwnerNotSpecified = errors.New("[ChainConfig] owner not specified")
-	// ErrFeatureFound returned if an owner try to set an existing feature
+	// ErrFeatureAlreadyExists returned if an owner try to set an existing feature
 	ErrFeatureAlreadyExists = errors.New("[ChainConfig] feature already exists")
 	// ErrInvalidParams returned if parameters are invalid
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
 	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
 	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
+	// ErrEmptyValidatorsList is returned if ctx.Validators() return empty validators list.
+	ErrEmptyValidatorsList = errors.New("[ChainConfig] empty validators list")
+	// ErrFeatureNotSupported inidicates that an enabled feature is not supported in the current build
+	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
+	// ErrFeatureNotFound indicates that a feature does not exist
+	ErrFeatureNotFound = errors.New("[ChainConfig] feature not found")
 )
 
 const (
@@ -95,6 +102,16 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
 	ctx.GrantPermissionTo(ownerAddr, setParamsPerm, ownerRole)
 	ctx.GrantPermissionTo(ownerAddr, addFeaturePerm, ownerRole)
+
+	for _, feature := range req.Features {
+		if feature.Status != FeaturePending && feature.Status != FeatureWaiting {
+			return ErrInvalidRequest
+		}
+		if found := ctx.Has(featureKey(feature.Name)); found {
+			return ErrFeatureAlreadyExists
+		}
+		ctx.Set(featureKey(feature.Name), feature)
+	}
 
 	if req.Params != nil {
 		if err := setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations); err != nil {
@@ -145,73 +162,41 @@ func (c *ChainConfig) FeatureEnabled(
 // The feature won't actually become active until the majority of the validators have indicated
 // they're ready.
 func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequest) error {
-	if req.Name == "" {
+	if len(req.Names) == 0 {
 		return ErrInvalidRequest
 	}
-
-	// check if this is a called from validator
-	curValidators, err := getCurrentValidators(ctx)
-	if err != nil {
-		return err
-	}
-	sender := ctx.Message().Sender
-
-	found := false
-	for _, v := range curValidators {
-		if sender.Compare(v) == 0 {
-			found = true
-			break
+	for _, name := range req.Names {
+		if err := enableFeature(ctx, name); err != nil {
+			return err
 		}
 	}
-	if !found {
-		return ErrNotAuthorized
-	}
-
-	// record the fact that the validator is ready to enable the feature
-	var feature Feature
-	if err := ctx.Get(featureKey(req.Name), &feature); err != nil {
-		return errors.Wrapf(err, "feature '%s' not found", req.Name)
-	}
-
-	// if the feature has already been activated there's no point in recording additional votes
-	if feature.Status == FeatureEnabled {
-		return ErrFeatureAlreadyEnabled
-	}
-
-	for _, v := range feature.Validators {
-		if sender.Compare(loom.UnmarshalAddressPB(v)) == 0 {
-			return ErrFeatureAlreadyEnabled
-		}
-	}
-
-	feature.Validators = append(feature.Validators, sender.MarshalPB())
-
-	return ctx.Set(featureKey(req.Name), &feature)
+	return nil
 }
 
-// AddFeature should be called by the contract owner to add a new feature the validators can enable.
+// AddFeature should be called by the contract owner to add new features the validators can enable.
 func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
-	if req.Name == "" {
+	if len(req.Names) == 0 {
 		return ErrInvalidRequest
 	}
-
-	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
+	for _, name := range req.Names {
+		if err := addFeature(ctx, name, req.BuildNumber, req.AutoEnable); err != nil {
+			return err
+		}
 	}
+	return nil
+}
 
-	if found := ctx.Has(featureKey(req.Name)); found {
-		return ErrFeatureAlreadyExists
+// RemoveFeature should be called by the contract owner to remove features.
+// NOTE: Features can only be removed before they're activated by the chain.
+func (c *ChainConfig) RemoveFeature(ctx contract.Context, req *RemoveFeatureRequest) error {
+	if len(req.Names) == 0 {
+		return ErrInvalidRequest
 	}
-
-	feature := Feature{
-		Name:   req.Name,
-		Status: FeaturePending,
+	for _, name := range req.Names {
+		if err := removeFeature(ctx, name); err != nil {
+			return err
+		}
 	}
-
-	if err := ctx.Set(featureKey(req.Name), &feature); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -266,9 +251,8 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 // - A PENDING feature will become WAITING once the percentage of validators that have enabled the
 //   feature reaches a certain threshold.
 // - A WAITING feature will become ENABLED after a sufficient number of block confirmations.
-//
 // Returns a list of features whose status has changed from WAITING to ENABLED at the given height.
-func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error) {
+func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Feature, error) {
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
@@ -300,25 +284,74 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
 				}
+				ctx.Logger().Info(
+					"[Feature status changed]",
+					"name", feature.Name,
+					"from", FeaturePending,
+					"to", FeatureWaiting,
+					"block_height", blockHeight,
+					"percentage", feature.Percentage,
+				)
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
+				if buildNumber < feature.BuildNumber {
+					return nil, ErrFeatureNotSupported
+				}
 				feature.Status = FeatureEnabled
 				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
 				}
 				enabledFeatures = append(enabledFeatures, feature)
+				ctx.Logger().Info(
+					"[Feature status changed]",
+					"name", feature.Name,
+					"from", FeatureWaiting,
+					"to", FeatureEnabled,
+					"block_height", blockHeight,
+					"percentage", feature.Percentage,
+				)
 			}
 		}
+
 	}
 	return enabledFeatures, nil
 }
 
-func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
+func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
+	// TODO: Replace all this with ctx.Validators() when it's hooked up to DPOSv3 (and ideally DPOSv2)
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		contractAddr, err := ctx.Resolve("dposV3")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to resolve address of DPOSv3 contract")
+		}
+
+		req := &dposv3.ListValidatorsRequest{}
+		var resp dposv3.ListValidatorsResponse
+		if err := contract.StaticCallMethod(ctx, contractAddr, "ListValidators", req, &resp); err != nil {
+			return nil, errors.Wrap(err, "failed to call ListValidators")
+		}
+
+		validators := make([]loom.Address, 0, len(resp.Statistics))
+		for _, v := range resp.Statistics {
+			if v != nil {
+				addr := loom.UnmarshalAddressPB(v.Address)
+				validators = append(validators, addr)
+			}
+		}
+		return validators, nil
+	}
+
+	// Fallback to DPOSv2 if DPOSv3 isn't enabled
 	contractAddr, err := ctx.Resolve("dposV2")
 	if err != nil {
+		// No DPOSv2 either? Fine, then features can only be enabled via the contract genesis!
+		if err == registry.ErrNotFound {
+			return nil, nil
+		}
 		return nil, errors.Wrap(err, "failed to resolve address of DPOS contract")
 	}
+
 	req := &dpostypes.ListValidatorsRequestV2{}
 	var resp dpostypes.ListValidatorsResponseV2
 	if err := contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", req, &resp); err != nil {
@@ -330,6 +363,33 @@ func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
 		if v != nil {
 			addr := loom.UnmarshalAddressPB(v.Address)
 			validators = append(validators, addr)
+		}
+	}
+
+	if len(validators) == 0 {
+		return nil, ErrEmptyValidatorsList
+	}
+
+	return validators, nil
+}
+
+func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_1, false) {
+		return getCurrentValidatorsFromDPOS(ctx)
+	}
+
+	validatorsList := ctx.Validators()
+	chainID := ctx.Block().ChainID
+
+	if len(validatorsList) == 0 {
+		return nil, ErrEmptyValidatorsList
+	}
+
+	validators := make([]loom.Address, 0, len(validatorsList))
+	for _, v := range validatorsList {
+		if v != nil {
+			address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+			validators = append(validators, address)
 		}
 	}
 	return validators, nil
@@ -360,8 +420,9 @@ func getFeature(ctx contract.StaticContext, name string, curValidators []loom.Ad
 			enabledValidatorsCount++
 		}
 	}
-
-	feature.Percentage = uint64((enabledValidatorsCount * 100) / len(curValidators))
+	if len(curValidators) > 0 {
+		feature.Percentage = uint64((enabledValidatorsCount * 100) / len(curValidators))
+	}
 	return &feature, nil
 }
 
@@ -389,6 +450,95 @@ func setParams(ctx contract.Context, voteThreshold, numBlockConfirmations uint64
 		params.NumBlockConfirmations = numBlockConfirmations
 	}
 	return ctx.Set(paramsKey, params)
+}
+
+func enableFeature(ctx contract.Context, name string) error {
+	if name == "" {
+		return ErrInvalidRequest
+	}
+
+	// check if this is a called from validator
+	curValidators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+
+	found := false
+	for _, v := range curValidators {
+		if sender.Compare(v) == 0 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ErrNotAuthorized
+	}
+
+	// record the fact that the validator is ready to enable the feature
+	var feature Feature
+	if err := ctx.Get(featureKey(name), &feature); err != nil {
+		return errors.Wrapf(err, "feature '%s' not found", name)
+	}
+
+	// if the feature has already been activated there's no point in recording additional votes
+	if feature.Status == FeatureEnabled {
+		return ErrFeatureAlreadyEnabled
+	}
+
+	for _, v := range feature.Validators {
+		if sender.Compare(loom.UnmarshalAddressPB(v)) == 0 {
+			return ErrFeatureAlreadyEnabled
+		}
+	}
+
+	feature.Validators = append(feature.Validators, sender.MarshalPB())
+
+	return ctx.Set(featureKey(name), &feature)
+}
+
+func addFeature(ctx contract.Context, name string, buildNumber uint64, autoEnable bool) error {
+	if name == "" {
+		return ErrInvalidRequest
+	}
+
+	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	if found := ctx.Has(featureKey(name)); found {
+		return ErrFeatureAlreadyExists
+	}
+
+	feature := Feature{
+		Name:        name,
+		BuildNumber: buildNumber,
+		Status:      FeaturePending,
+		AutoEnable:  autoEnable,
+	}
+
+	if err := ctx.Set(featureKey(name), &feature); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func removeFeature(ctx contract.Context, name string) error {
+	if name == "" {
+		return ErrInvalidRequest
+	}
+	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+	if found := ctx.Has(featureKey(name)); !found {
+		return ErrFeatureNotFound
+	}
+	if ctx.FeatureEnabled(name, false) {
+		return ErrFeatureAlreadyEnabled
+	}
+	ctx.Delete(featureKey(name))
+	return nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})

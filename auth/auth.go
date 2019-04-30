@@ -123,7 +123,7 @@ func (n *NonceHandler) Nonce(
 		return r, err
 	}
 
-	//TODO nonce cache is temporary until we have a seperate atomic state for the entire checktx flow
+	//TODO nonce cache is temporary until we have a separate atomic state for the entire checktx flow
 	cacheSeq := n.nonceCache[origin.String()]
 	//If we have a client send multiple transactions in a single block we can run into this problem
 	if cacheSeq != 0 && isCheckTx { //only run this code during checktx
@@ -134,7 +134,7 @@ func (n *NonceHandler) Nonce(
 
 	if tx.Sequence != seq {
 		nonceErrorCount.Add(1)
-		return r, errors.New(fmt.Sprintf("sequence number does not match expected %d got %d", seq, tx.Sequence))
+		return r, fmt.Errorf("sequence number does not match expected %d got %d", seq, tx.Sequence)
 	}
 
 	return next(state, tx.Inner, isCheckTx)
@@ -151,7 +151,7 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 	}
 
 	//We only increment the nonce if the transaction is successful
-	//There are situations in checktx where we may not have commited the transaction to the statestore yet
+	//There are situations in checktx where we may not have committed the transaction to the statestore yet
 	n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
 	return nil
 }

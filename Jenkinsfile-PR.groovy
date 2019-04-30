@@ -29,8 +29,10 @@ builders['linux'] = {
                 fastForwardMode: 'FF',
                 mergeRemote: 'origin',
                 mergeTarget: 'master'
-                ]
-              ]],
+                ]],
+              [$class: 'CleanBeforeCheckout'],
+              [$class: 'PruneStaleBranch']
+              ],
             submoduleCfg: [],
             userRemoteConfigs:
             [[
@@ -54,6 +56,12 @@ builders['linux'] = {
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
           setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux");
+          sh '''
+            cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
+            find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz -T -
+            mkdir -p /tmp/test-data
+            mv ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz /tmp/test-data
+          '''
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
           setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux");
@@ -81,8 +89,10 @@ disabled['windows'] = {
                 fastForwardMode: 'FF',
                 mergeRemote: 'origin',
                 mergeTarget: 'master'
-                ]
-              ]],
+                ]],
+              [$class: 'CleanBeforeCheckout'],
+              [$class: 'PruneStaleBranch']
+              ],
             submoduleCfg: [],
             userRemoteConfigs:
             [[
@@ -133,8 +143,10 @@ builders['osx'] = {
                 fastForwardMode: 'FF',
                 mergeRemote: 'origin',
                 mergeTarget: 'master'
-                ]
-              ]],
+                ]],
+              [$class: 'CleanBeforeCheckout'],
+              [$class: 'PruneStaleBranch']
+              ],
             submoduleCfg: [],
             userRemoteConfigs:
             [[
@@ -158,6 +170,12 @@ builders['osx'] = {
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
           setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX");
+          sh '''
+            cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
+            find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz -T -
+            mkdir -p /tmp/test-data
+            mv ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz /tmp/test-data
+          '''
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
           setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX");

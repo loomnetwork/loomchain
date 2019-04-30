@@ -1,7 +1,7 @@
 [[TestCases]]
   Dir = ""
   All = true
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = [
     "Internal error: name is not registered"
@@ -9,13 +9,13 @@
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
     "Attempting to deploy 2 contracts",
     "Contract coin deplyed to address",
     "Contract dpos deplyed to address",
-    "2 contract(s) succesfully deployed"
+    "2 contract(s) successfully deployed"
   ]
   # Default genesis.json file including coin and dpos contracts.
   Datafiles = [
@@ -26,7 +26,7 @@
 [[TestCases]]
   Dir = ""
   All = true
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = [
      "\"balance\": {",
@@ -37,13 +37,13 @@
 [[TestCases]]
   Dir = ""
   All = true
-  RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
     "Attempting to deploy 2 contracts",
     "Contract coin already registered. Skipping",
     "Contract dpos already registered. Skipping",
-    "0 contract(s) succesfully deployed"
+    "0 contract(s) successfully deployed"
   ]
   # Default genesis.json file including coin and dpos contracts.
   Datafiles = [

@@ -6,7 +6,6 @@ import (
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	lplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,7 +60,7 @@ func TestContractActivation(t *testing.T) {
 	require.NoError(t, karmaContract.Init(ctx, &karmaInit))
 
 	// Mock Evm deploy Transaction
-	evmContract := plugin.CreateAddress(addr1, 1)
+	evmContract := fakeCtx.CreateContract(nil)
 	require.NoError(t, AddOwnedContract(ctx, addr1, evmContract))
 
 	// Contract should've been activated when it was deployed

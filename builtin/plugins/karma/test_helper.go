@@ -23,6 +23,10 @@ import (
 	"github.com/tendermint/tendermint/libs/db"
 )
 
+// TODO: This duplicates a lot of the contract loading & deployment code, it should just use the
+//       mock context, or if that's not sufficient the contract loading code may need to be
+//       refactored to make it possible to eliminate these helpers.
+
 func MockStateWithKarmaAndCoinT(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest) (loomchain.State, registry.Registry, vm.VM) {
 	appDb := db.NewMemDB()
 	state, reg, pluginVm, err := MockStateWithKarmaAndCoin(karmaInit, coinInit, appDb)
@@ -39,9 +43,12 @@ func MockStateWithKarmaAndCoinB(b *testing.B, karmaInit *ktypes.KarmaInitRequest
 
 func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDb db.DB) (loomchain.State, registry.Registry, vm.VM, error) {
 	appStore, err := store.NewIAVLStore(appDb, 0, 0)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	header := abci.Header{}
 	header.Height = int64(1)
-	state := loomchain.NewStoreState(context.Background(), appStore, header, nil)
+	state := loomchain.NewStoreState(context.Background(), appStore, header, nil, nil)
 
 	vmManager := vm.NewManager()
 	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)

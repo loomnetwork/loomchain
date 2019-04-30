@@ -6,9 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
 
 const (
@@ -39,7 +39,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 			}
 			ethAddr := loom.Address{ChainID: chainId, Local: ethLocalAddr}
 			mapping.To = ethAddr.MarshalPB()
-			mapping.Signature, err =  address_mapper.SignIdentityMapping(user, ethAddr, ethKey)
+			mapping.Signature, err = address_mapper.SignIdentityMapping(user, ethAddr, ethKey)
 			if err != nil {
 				return errors.Wrap(err, "sigining mapping with ethereum key")
 			}
@@ -48,7 +48,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			} else {
-				fmt.Println("mapping successfull")
+				fmt.Println("mapping successful")
 			}
 			return nil
 		},
@@ -87,6 +87,3 @@ func AddAddressMappingMethods(addressMappingCmd *cobra.Command) {
 		ListMappingCmd(),
 	)
 }
-
-
-
