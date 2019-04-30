@@ -133,8 +133,6 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 	)
 }
 
-var testlog llog.TMLogger
-
 func TestQueryServer(t *testing.T) {
 	llog.Setup("debug", "file://-")
 	testlog = llog.Root.With("module", "query-server")

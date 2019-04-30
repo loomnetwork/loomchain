@@ -46,6 +46,7 @@ var (
 		{"eth_getTransactionCount", "EthGetTransactionCount", ``},
 		{"eth_accounts", "EthAccounts", ``},
 	}
+	testlog log.TMLogger
 )
 
 func TestJsonRpcHandler(t *testing.T) {
