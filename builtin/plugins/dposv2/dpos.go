@@ -2255,7 +2255,7 @@ func populateInitializationState(ctx contract.StaticContext, state *State) (*dpo
 
 	for _, distribution := range distributions {
 		v3Delegation := &dposv3.Delegation{
-			Validator:    limboValidatorAddress.MarshalPB(),
+			Validator:    dposv3.LimboValidatorAddress(ctx).MarshalPB(),
 			Delegator:    distribution.Address,
 			Index:        dposv3.REWARD_DELEGATION_INDEX,
 			Amount:       distribution.Amount,
