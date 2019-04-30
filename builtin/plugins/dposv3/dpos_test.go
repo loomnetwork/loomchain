@@ -323,7 +323,7 @@ func TestChangeFee(t *testing.T) {
 
 func TestDelegate(t *testing.T) {
 	pctx := createCtx()
-	limboValidatorAddress := limboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
+	limboValidatorAddress := LimboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
 
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
 	oracleAddr := loom.Address{
@@ -481,7 +481,7 @@ func TestDelegate(t *testing.T) {
 
 func TestRedelegate(t *testing.T) {
 	pctx := createCtx()
-	limboValidatorAddress := limboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
+	limboValidatorAddress := LimboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
@@ -1076,7 +1076,7 @@ func TestValidatorRewards(t *testing.T) {
 func TestReferrerRewards(t *testing.T) {
 	// Init the coin balances
 	pctx := createCtx()
-	limboValidatorAddress := limboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
+	limboValidatorAddress := LimboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
