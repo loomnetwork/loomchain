@@ -59,8 +59,8 @@ func TestSigning(t *testing.T) {
 	})
 	signedTx := auth.SignTx(signer, nonceTxBytes)
 
-	verifyer := originRecoveryFuncs[EthereumSignedTxType]
-	localRetrived, err := verifyer(*signedTx)
+	verifier := originRecoveryFuncs[EthereumSignedTxType]
+	localRetrived, err := verifier(*signedTx)
 	require.NoError(t, err)
 	require.Equal(t, 0, bytes.Compare(local, localRetrived))
 }
@@ -78,8 +78,8 @@ func TestTronSigning(t *testing.T) {
 	})
 	signedTx := auth.SignTx(signer, nonceTxBytes)
 
-	verifyer := originRecoveryFuncs[TronSignedTxType]
-	localRetrived, err := verifyer(*signedTx)
+	verifier := originRecoveryFuncs[TronSignedTxType]
+	localRetrived, err := verifier(*signedTx)
 	require.NoError(t, err)
 	require.Equal(t, 0, bytes.Compare(local, localRetrived))
 }
@@ -101,8 +101,8 @@ func TestEosSigning(t *testing.T) {
 	})
 	signedTx := auth.SignTx(signer, nonceTxBytes)
 
-	verifyer := originRecoveryFuncs[EosSignedTxType]
-	localRetrived, err := verifyer(*signedTx)
+	verifier := originRecoveryFuncs[EosSignedTxType]
+	localRetrived, err := verifier(*signedTx)
 	require.NoError(t, err)
 	require.Equal(t, 0, bytes.Compare(local, localRetrived))
 }
@@ -123,8 +123,8 @@ func TestEosScatterSigning(t *testing.T) {
 	})
 	signedTx := auth.SignTx(signer, nonceTxBytes)
 
-	verifyer := originRecoveryFuncs[EosScatterSignedTxType]
-	localRetrived, err := verifyer(*signedTx)
+	verifier := originRecoveryFuncs[EosScatterSignedTxType]
+	localRetrived, err := verifier(*signedTx)
 	require.NoError(t, err)
 	require.Equal(t, 0, bytes.Compare(local, localRetrived))
 }
