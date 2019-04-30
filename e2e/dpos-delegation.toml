@@ -31,6 +31,11 @@
   Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dposV2 view_state_dump"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV2 10 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "excludes"
   Excluded = ["Error"]
@@ -238,3 +243,8 @@
   RunCmd = "{{ $.LoomPath }} dposV2 get_distributions"
   Condition = "contains"
   Expected = ["Value"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dposV2 view_state_dump"
+  Condition = "excludes"
+  Excluded = ["Error"]

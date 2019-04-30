@@ -107,9 +107,12 @@ type (
 	ValidatorStatistic                = dtypes.ValidatorStatisticV2
 	Validator                         = types.Validator
 	State                             = dtypes.StateV2
+	StateDump                         = dtypes.StateDumpV2
 	Params                            = dtypes.ParamsV2
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	ViewStateDumpRequest              = dtypes.ViewStateDumpRequest
+	ViewStateDumpResponse             = dtypes.ViewStateDumpResponse
 	GetDistributionsRequest           = dtypes.GetDistributionsRequest
 	GetDistributionsResponse          = dtypes.GetDistributionsResponse
 
@@ -2113,6 +2116,76 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		return nil, logDposError(ctx, errOnlyOracle, "DPOSv2 Dump")
 	}
 
+	initializationState, err := populateInitializationState(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+
+	staticCoin := loadStaticCoin(ctx, state.Params)
+	dposv2Addr := ctx.ContractAddress()
+	// send all dposv2 funds to dposv3 (representing unpaid rewards & delegations)
+	balanceResponse, err := staticCoin.BalanceOf(dposv2Addr)
+	if err != nil {
+		return nil, err
+	}
+
+	coin := loadCoin(ctx, state.Params)
+	err = coin.Transfer(dposv3Address, balanceResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return initializationState, nil
+}
+
+func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpRequest) (*ViewStateDumpResponse, error) {
+	ctx.Logger().Debug("DPOS ViewStateDump", "request", req)
+
+	// load v2 state and pack it into v3 state
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentV2State := &StateDump{
+		State: state,
+		Candidates: candidates,
+		Delegations: delegations,
+		Distributions: distributions,
+		Statistics: statistics,
+	}
+
+	initializationState, err := populateInitializationState(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &ViewStateDumpResponse{
+		OldState: currentV2State,
+		NewState: initializationState,
+	}
+
+	return resp, nil
+}
+
+func populateInitializationState(ctx contract.StaticContext, state *State) (*dposv3.InitializationState, error) {
 	v3Params := &dposv3.Params{
 		ValidatorCount:              state.Params.ValidatorCount,
 		ElectionCycleLength:         state.Params.ElectionCycleLength,
@@ -2231,20 +2304,6 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		Candidates:  v3Candidates,
 		Statistics:  v3Statistics,
 		Delegations: v3Delegations,
-	}
-
-	staticCoin := loadStaticCoin(ctx, state.Params)
-	dposv2Addr := ctx.ContractAddress()
-	// send all dposv2 funds to dposv3 (representing unpaid rewards & delegations)
-	balanceResponse, err := staticCoin.BalanceOf(dposv2Addr)
-	if err != nil {
-		return nil, err
-	}
-
-	coin := loadCoin(ctx, state.Params)
-	err = coin.Transfer(dposv3Address, balanceResponse)
-	if err != nil {
-		return nil, err
 	}
 
 	return initializationState, nil
