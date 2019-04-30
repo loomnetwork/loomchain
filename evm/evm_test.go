@@ -17,10 +17,15 @@ import (
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/vm"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 const (
@@ -53,6 +58,8 @@ func TestProcessDeployTx(t *testing.T) {
 
 	// Test the case where all the transaction are done using one VM
 	manager := lvm.NewManager()
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
+	LoomVmFactory := CreateLoomVmFactory(evmStore)
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
 	loomvm, err := manager.InitVM(lvm.VMType_EVM, mockState())
 	require.Nil(t, err)
@@ -73,6 +80,8 @@ func TestPrecompiles(t *testing.T) {
 	}
 
 	manager := lvm.NewManager()
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
+	LoomVmFactory := CreateLoomVmFactory(evmStore)
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
 	state := mockState()
 	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
@@ -122,6 +131,8 @@ func TestPrecompilesAssembly(t *testing.T) {
 	}
 
 	manager := lvm.NewManager()
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
+	LoomVmFactory := CreateLoomVmFactory(evmStore)
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
 	state := mockState()
 	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
@@ -161,6 +172,9 @@ func TestGlobals(t *testing.T) {
 	}
 
 	manager := lvm.NewManager()
+	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
+
+	LoomVmFactory := CreateLoomVmFactory(evmStore)
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
 	state := mockState()
 	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
@@ -267,4 +281,24 @@ func deploySolContract(t *testing.T, caller loom.Address, filename string, vm lv
 	ethAbi, err := abi.JSON(strings.NewReader(string(simpleStoreData)))
 	require.NoError(t, err, "reading abi")
 	return ethAbi, addr
+}
+
+func CreateLoomVmFactory(evmStore store.EvmStore) vm.Factory {
+	return func(state loomchain.State) (lvm.VM, error) {
+		//TODO , debug bool, We should be able to pass in config
+		debug := false
+		eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
+		receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
+			eventHandler,
+			func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
+				return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
+			},
+		)
+		receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+		if err != nil {
+			return nil, err
+		}
+
+		return NewLoomVm(state, evmStore, eventHandler, receiptHandler, nil, debug), nil
+	}
 }
