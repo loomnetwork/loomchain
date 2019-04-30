@@ -24,6 +24,11 @@ TxLimiter:
     - "default:0x2Ff9aB3aBDbC79efD22e3AC79787d8f9B5F99B40"
 CallSessionDuration: 5
 
+ContractLoaders:
+  - "static"
+  - "dynamic"
+  - "external"
+
 Karma:
   Enabled: true
   UpkeepEnabled: true

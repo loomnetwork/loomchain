@@ -22,7 +22,7 @@ var (
 )
 
 func TestMigrationTxHandler(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(loomchain.MigrationTxFeature, true)
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
@@ -87,6 +87,7 @@ func mockMessageTx(t *testing.T, id uint32, to loom.Address, from loom.Address) 
 		To:   to.MarshalPB(),
 		From: from.MarshalPB(),
 	})
+	require.NoError(t, err)
 
 	return messageTx
 }

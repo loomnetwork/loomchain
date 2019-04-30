@@ -37,7 +37,7 @@ func CalculateFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 
 // frac is expressed in billionths
 func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
-	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount := *common.BigZero()
 	updatedAmount.Mul(&total, &frac)
 	updatedAmount.Div(&updatedAmount, &billionth)
 	return updatedAmount
@@ -59,9 +59,22 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 	return ret
 }
 
+// Locktime Tiers are enforced to be 0-3 for 5-20% rewards. Any other number is reset to 5%. We add the check just in case somehow the variable gets misset.
 func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
-	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
+	bonusPercentage, found := TierBonusMap[delegation.LocktimeTier]
+	if !found {
+		bonusPercentage = TierBonusMap[TIER_ZERO]
+	}
 	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
+}
+
+// Locktime Tiers are enforced to be 0-3 for 5-20% rewards. Any other number is reset to 5%. We add the check just in case somehow the variable gets misset.
+func calculateWeightedWhitelistAmount(statistic ValidatorStatistic) loom.BigUInt {
+	bonusPercentage, found := TierBonusMap[statistic.LocktimeTier]
+	if !found {
+		bonusPercentage = TierBonusMap[TIER_ZERO]
+	}
+	return CalculateFraction(bonusPercentage, statistic.WhitelistAmount.Value)
 }
 
 func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
@@ -90,4 +103,10 @@ func logDposError(ctx contract.Context, err error, req string) error {
 func logStaticDposError(ctx contract.StaticContext, err error, req string) error {
 	ctx.Logger().Error("DPOS static error", "error", err, "sender", ctx.Message().Sender, "req", req)
 	return err
+}
+
+// LIMBO VALIDATOR
+
+func LimboValidatorAddress(ctx contract.StaticContext) loom.Address {
+	return loom.RootAddress(ctx.Block().ChainID)
 }

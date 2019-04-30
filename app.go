@@ -34,17 +34,18 @@ type ReadOnlyState interface {
 type State interface {
 	ReadOnlyState
 	store.KVWriter
-	SetValidatorPower(pubKey []byte, power int64)
 	Context() context.Context
 	WithContext(ctx context.Context) State
+	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
 }
 
 type StoreState struct {
-	ctx        context.Context
-	store      store.KVStore
-	block      types.BlockHeader
-	validators loom.ValidatorSet
+	ctx             context.Context
+	store           store.KVStore
+	block           types.BlockHeader
+	validators      loom.ValidatorSet
+	getValidatorSet GetValidatorSet
 }
 
 var _ = State(&StoreState{})
@@ -63,14 +64,21 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 	}
 }
 
-func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header, curBlockHash []byte) *StoreState {
+func NewStoreState(
+	ctx context.Context,
+	store store.KVStore,
+	block abci.Header,
+	curBlockHash []byte,
+	getValidatorSet GetValidatorSet,
+) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
 	return &StoreState{
-		ctx:        ctx,
-		store:      store,
-		block:      blockHeader,
-		validators: loom.NewValidatorSet(),
+		ctx:             ctx,
+		store:           store,
+		block:           blockHeader,
+		validators:      loom.NewValidatorSet(),
+		getValidatorSet: getValidatorSet,
 	}
 }
 
@@ -87,6 +95,14 @@ func (s *StoreState) Has(key []byte) bool {
 }
 
 func (s *StoreState) Validators() []*loom.Validator {
+	if (len(s.validators) == 0) && (s.getValidatorSet != nil) {
+		validatorSet, err := s.getValidatorSet(s)
+		if err != nil {
+			panic(err)
+		}
+		// cache the validator set for the current state
+		s.validators = validatorSet
+	}
 	return s.validators.Slice()
 }
 
@@ -132,7 +148,7 @@ func (s *StoreState) FeatureEnabled(name string, val bool) bool {
 
 func (s *StoreState) SetFeature(name string, val bool) {
 	data := []byte{0}
-	if val == true {
+	if val {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
@@ -140,24 +156,26 @@ func (s *StoreState) SetFeature(name string, val bool) {
 
 func (s *StoreState) WithContext(ctx context.Context) State {
 	return &StoreState{
-		store:      s.store,
-		block:      s.block,
-		ctx:        ctx,
-		validators: s.validators,
+		store:           s.store,
+		block:           s.block,
+		ctx:             ctx,
+		validators:      s.validators,
+		getValidatorSet: s.getValidatorSet,
+	}
+}
+
+func (s *StoreState) WithPrefix(prefix []byte) State {
+	return &StoreState{
+		store:           store.PrefixKVStore(prefix, s.store),
+		block:           s.block,
+		ctx:             s.ctx,
+		validators:      s.validators,
+		getValidatorSet: s.getValidatorSet,
 	}
 }
 
 func (s *StoreState) Release() {
 	// noop
-}
-
-func StateWithPrefix(prefix []byte, state State) State {
-	return &StoreState{
-		store:      store.PrefixKVStore(prefix, state),
-		block:      state.Block(),
-		ctx:        state.Context(),
-		validators: loom.NewValidatorSet(state.Validators()...),
-	}
 }
 
 // StoreStateSnapshot is a read-only snapshot of the app state at particular point in time,
@@ -176,15 +194,11 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte) *StoreStateSnapshot {
+func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
-		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash),
+		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
-}
-
-func (s *StoreStateSnapshot) SetValidatorPower(pubKey []byte, power int64) {
-	panic("StoreStateSnapshot.SetValidatorPower not implemented")
 }
 
 // Release releases the underlying store snapshot, safe to call multiple times.
@@ -249,17 +263,18 @@ type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 }
 
+type GetValidatorSet func(state State) (loom.ValidatorSet, error)
+
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
 type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
 type Application struct {
-	lastBlockHeader  abci.Header
-	curBlockHeader   abci.Header
-	curBlockHash     []byte
-	validatorUpdates []types.Validator
-	Store            store.VersionedKVStore
-	Init             func(State) error
+	lastBlockHeader abci.Header
+	curBlockHeader  abci.Header
+	curBlockHash    []byte
+	Store           store.VersionedKVStore
+	Init            func(State) error
 	TxHandler
 	QueryHandler
 	EventHandler
@@ -270,6 +285,7 @@ type Application struct {
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
 	CreateContractUpkeepHandler func(State, loom.Address) (KarmaHandler, error)
+	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
 }
 
@@ -341,6 +357,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		a.Store,
 		abci.Header{},
 		nil,
+		a.GetValidatorSet,
 	)
 
 	if a.Init != nil {
@@ -368,6 +385,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			upkeepStoreTx,
 			a.curBlockHeader,
 			a.curBlockHash,
+			a.GetValidatorSet,
 		)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState, loom.RootAddress(a.curBlockHeader.ChainID))
 		if err != nil {
@@ -389,6 +407,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		storeTx,
 		a.curBlockHeader,
 		nil,
+		a.GetValidatorSet,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -430,6 +449,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx,
 		a.curBlockHeader,
 		nil,
+		a.GetValidatorSet,
 	)
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
@@ -449,6 +469,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx,
 		a.curBlockHeader,
 		nil,
+		a.GetValidatorSet,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -527,6 +548,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		storeTx,
 		a.curBlockHeader,
 		a.curBlockHash,
+		a.GetValidatorSet,
 	)
 
 	if isCheckTx {
@@ -552,9 +574,19 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	if !isCheckTx {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			if err != nil {
 				log.Error("Emit Tx Event error", "err", err)
+			}
+			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
+			if err != nil {
+				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
+			} else {
+				if reader.GetCurrentReceipt() != nil {
+					if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+						log.Error("failed to load receipt", "err", err)
+					}
+				}
 			}
 			receiptHandler.CommitCurrentReceipt()
 		}
@@ -578,16 +610,15 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
-		err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time)
-		if err != nil {
-			log.Error("Emit Block Tx error", "err", err)
-		}
-
-		err = a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader)
-		if err != nil {
+		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
 			log.Error("Emit Block Event error", "err", err)
 		}
-
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
+		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
 	}(height, a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 
@@ -634,5 +665,6 @@ func (a *Application) ReadOnlyState() State {
 		readOnlyStore,
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
+		a.GetValidatorSet,
 	)
 }

@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,14 +28,17 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
+	"github.com/loomnetwork/loomchain/chainconfig"
+	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
@@ -169,9 +173,9 @@ func newGenKeyCommand() *cobra.Command {
 }
 
 type yubiHsmFlags struct {
-	HsmNewKey  bool   `json:newkey`
-	HsmLoadKey bool   `json:loadkey`
-	HsmConfig  string `json:config`
+	HsmNewKey  bool   `json:"newkey"`
+	HsmLoadKey bool   `json:"loadkey"`
+	HsmConfig  string `json:"config"`
 }
 
 func newYubiHsmCommand() *cobra.Command {
@@ -334,14 +338,20 @@ func newRunCommand() *cobra.Command {
 			if cfg.FnConsensus.Enabled {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
-
+			var loaders []plugin.Loader
+			for _, loader := range cfg.ContractLoaders {
+				if strings.EqualFold("static", loader) {
+					loaders = append(loaders, common.NewDefaultContractsLoader(cfg))
+				}
+				if strings.EqualFold("dynamic", loader) {
+					loaders = append(loaders, plugin.NewManager(cfg.PluginsPath()))
+				}
+				if strings.EqualFold("external", loader) {
+					loaders = append(loaders, plugin.NewExternalLoader(cfg.PluginsPath()))
+				}
+			}
 			backend := initBackend(cfg, abciServerAddr, fnRegistry)
-			loader := plugin.NewMultiLoader(
-				plugin.NewManager(cfg.PluginsPath()),
-				plugin.NewExternalLoader(cfg.PluginsPath()),
-				common.NewDefaultContractsLoader(cfg),
-			)
-
+			loader := plugin.NewMultiLoader(loaders...)
 			termChan := make(chan os.Signal)
 			go func(c <-chan os.Signal, l plugin.Loader) {
 				<-c
@@ -400,7 +410,12 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend, log.Default); err != nil {
+				return err
+			}
+
 			backend.RunForever()
+
 			return nil
 		},
 	}
@@ -438,6 +453,24 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 	return nil
 }
 
+func startFeatureAutoEnabler(
+	chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer, node backend.Backend,
+	logger *loom.Logger,
+) error {
+	if !cfg.AutoEnableFeatures || !cfg.ContractEnabled {
+		return nil
+	}
+
+	routine, err := chainconfig.NewChainConfigRoutine(cfg, chainID, nodeSigner, node, logger)
+	if err != nil {
+		return err
+	}
+
+	go routine.RunWithRecovery()
+
+	return nil
+}
+
 func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
 	plasmaCfg, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
 	if err != nil {
@@ -459,7 +492,12 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	return nil
 }
 
-func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+func startGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
@@ -472,7 +510,12 @@ func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgat
 	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
-func startLoomCoinGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+func startLoomCoinGatewayFn(
+	chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
@@ -658,12 +701,17 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 		return nil, err
 	}
 
-	var eventStore store.EventStore
-	eventStore = store.NewKVEventStore(db)
+	eventStore := store.NewKVEventStore(db)
 	return eventStore, nil
 }
 
-func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
+func loadApp(
+	chainID string,
+	cfg *config.Config,
+	loader plugin.Loader,
+	b backend.Backend,
+	appHeight int64,
+) (*loomchain.Application, error) {
 	logger := log.Root
 
 	appStore, err := loadAppStore(cfg, log.Default, appHeight)
@@ -926,6 +974,35 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
+	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
+			dposV3Ctx, err := createDPOSV3Ctx(state)
+			if err != nil {
+				return nil, err
+			}
+			validators, err := dposv3.ValidatorList(dposV3Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
+		} else if cfg.DPOSVersion == 2 {
+			createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
+			dposV2Ctx, err := createDPOSV2Ctx(state)
+			if err != nil {
+				return nil, err
+			}
+			validators, err := dposv2.ValidatorList(dposV2Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
+		}
+
+		// if DPOS contract is not deployed, get validators from genesis file
+		return loom.NewValidatorSet(b.GenesisValidators()...), nil
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
 	oracle, err := loom.ParseAddress(cfg.Oracle)
@@ -974,8 +1051,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if err != nil {
 			return nil, err
 		}
-		// DPOSv3 can only be enabled via feature flag
-		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		// DPOSv3 can only be enabled via feature flag or if it's enabled via the loom.yml
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {
 			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
@@ -1027,6 +1104,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		GetValidatorSet:             getValidatorSet,
 	}, nil
 }
 
@@ -1150,6 +1228,7 @@ func initQueryService(
 		Loader:                 loader,
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
 		EthPolls:               *polls.NewEthSubscriptions(),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
@@ -1161,7 +1240,7 @@ func initQueryService(
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
-		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
 	// query service
 	var qsvc rpc.QueryService
@@ -1179,7 +1258,7 @@ func initQueryService(
 }
 
 func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
-	for true {
+	for {
 		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
 		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
 		if err != nil {
@@ -1192,9 +1271,6 @@ func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
-	dposCmd := cli.ContractCallCommand("dpos")
-	commands.AddDPOSV2(dposCmd)
-
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
@@ -1218,24 +1294,25 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
+		NewCoinCommand(),
+		NewDPOSV2Command(),
+		NewDPOSV3Command(),
 		karmaCmd,
 		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
-		dposCmd,
 		resolveCmd,
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
-		chainconfig.NewChainCfgCommand(),
+		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 	AddAddressMappingMethods(addressMappingCmd)
-
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

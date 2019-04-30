@@ -59,7 +59,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -101,7 +101,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -190,6 +190,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 		Id:   id,
 		Data: messageTx,
 	})
+	require.NoError(t, err)
 	nonceTx, err := proto.Marshal(&auth.NonceTx{
 		Inner:    tx,
 		Sequence: sequence,

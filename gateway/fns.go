@@ -88,7 +88,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 }
 
 func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []byte, error) {
-	pendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
+	pendingWithdrawals, err := b.goGateway.PendingWithdrawalsV2(b.mainnetGatewayAddress)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -34,7 +34,6 @@ import (
 var (
 	vmAddr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	vmAddr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
-	vmAddr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
 // Implements loomchain.EventHandler interface
@@ -54,6 +53,10 @@ func (eh *fakeEventHandler) SubscriptionSet() *loomchain.SubscriptionSet {
 }
 
 func (eh *fakeEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+	return nil
+}
+
+func (eh *fakeEventHandler) LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet {
 	return nil
 }
 
@@ -128,7 +131,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil)
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 

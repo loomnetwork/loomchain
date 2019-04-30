@@ -3,17 +3,13 @@
 package gateway
 
 import (
-	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/cli"
@@ -27,9 +23,9 @@ import (
 const mapContractsCmdExample = `
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
-	--eth-key file://path/to/eth_priv.key \
+	--eth-key path/to/eth_priv.key \
 	--eth-tx 0x3fee8c220416862ec836e055d8261f62cd874fdfbf29b3ccba29d271c047f96c \
-	--key file://path/to/loom_priv.key
+	--key path/to/loom_priv.key
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
 	--key <base64-encoded-private-key-of-gateway-owner>
@@ -39,7 +35,7 @@ const mapContractsCmdExample = `
 const prefixedSigLength uint64 = 66
 
 func newMapContractsCommand() *cobra.Command {
-	var loomKeyStr, ethKeyStr, txHashStr string
+	var txHashStr string
 	var authorized bool
 	cmd := &cobra.Command{
 		Use:     "map-contracts <local-contract-addr> <foreign-contract-addr>",
@@ -47,9 +43,13 @@ func newMapContractsCommand() *cobra.Command {
 		Example: mapContractsCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			ethKeyPath := gatewayCmdFlags.EthPrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load DAppChain key")
+				return err
 			}
 
 			localContractAddr, err := hexToLoomAddress(args[0])
@@ -82,7 +82,7 @@ func newMapContractsCommand() *cobra.Command {
 				return err
 			}
 
-			creatorKey, err := getEthereumPrivateKey(ethKeyStr)
+			creatorKey, err := crypto.LoadECDSA(ethKeyPath)
 			if err != nil {
 				return errors.Wrap(err, "failed to load creator Ethereum key")
 			}
@@ -118,14 +118,12 @@ func newMapContractsCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
-	cmdFlags.StringVar(&ethKeyStr, "eth-key", "", "Ethereum private key of contract creator")
 	cmdFlags.StringVar(&txHashStr, "eth-tx", "", "Ethereum hash of contract creation tx")
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator, or Gateway owner (if authorized flag is specified)")
 	return cmd
 }
 
 const mapAccountsCmdExample = `
-./loom gateway map-accounts	--key path/to/loom_priv.key --eth-key file://path/to/eth_priv.key OR
+./loom gateway map-accounts	--key path/to/loom_priv.key --eth-key path/to/eth_priv.key OR
 ./loom gateway map-accounts --interactive --key path/to/loom_priv.key --eth-address <your-eth-address>
 `
 
@@ -136,7 +134,7 @@ Are you sure? [y/n]
 `
 
 func newMapAccountsCommand() *cobra.Command {
-	var ethKeyPath, ethAddressStr string
+	var ethAddressStr string
 	var silent, interactive bool
 	cmd := &cobra.Command{
 		Use:     "map-accounts",
@@ -144,6 +142,7 @@ func newMapAccountsCommand() *cobra.Command {
 		Example: mapAccountsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			ethKeyPath := gatewayCmdFlags.EthPrivKeyPath
 			hsmPath := gatewayCmdFlags.HSMConfigPath
 			algo := gatewayCmdFlags.Algo
 			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
@@ -167,27 +166,11 @@ func newMapAccountsCommand() *cobra.Command {
 				return fmt.Errorf("Account %v is already mapped to %v", localOwnerAddr, mappedAccount)
 			}
 
-			if !silent {
-				fmt.Printf(mapAccountsConfirmationMsg, localOwnerAddr, ethAddressStr)
-				var input string
-				n, err := fmt.Scan(&input)
-				if err != nil {
-					return err
-				}
-				if n != 1 {
-					return errors.New("expected y/n")
-				}
-				if strings.ToLower(input) != "y" && strings.ToLower(input) != "yes" {
-					return nil
-				}
-			}
-
-			// Get foreign owner address
 			var foreignOwnerAddr loom.Address
 			req := &amtypes.AddressMapperAddIdentityMappingRequest{}
 			if !interactive {
 				// get it from the key
-				ethOwnerKey, err := getEthereumPrivateKey(ethKeyPath)
+				ethOwnerKey, err := crypto.LoadECDSA(ethKeyPath)
 				if err != nil {
 					return errors.Wrap(err, "failed to load owner Ethereum key")
 				}
@@ -208,13 +191,13 @@ func newMapAccountsCommand() *cobra.Command {
 					return errors.Wrap(err, "failed to generate foreign owner signature")
 				}
 
-				// todo: do a local sig recovery
-
 				req = &amtypes.AddressMapperAddIdentityMappingRequest{
 					From:      localOwnerAddr.MarshalPB(),
 					To:        foreignOwnerAddr.MarshalPB(),
 					Signature: sign,
 				}
+
+				ethAddressStr = crypto.PubkeyToAddress(ethOwnerKey.PublicKey).String()
 			} else {
 				addr, err := loom.LocalAddressFromHexString(ethAddressStr)
 				if err != nil {
@@ -246,6 +229,21 @@ func newMapAccountsCommand() *cobra.Command {
 				}
 			}
 
+			if !silent {
+				fmt.Printf(mapAccountsConfirmationMsg, localOwnerAddr, ethAddressStr)
+				var input string
+				n, err := fmt.Scan(&input)
+				if err != nil {
+					return err
+				}
+				if n != 1 {
+					return errors.New("expected y/n")
+				}
+				if strings.ToLower(input) != "y" && strings.ToLower(input) != "yes" {
+					return nil
+				}
+			}
+
 			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
 
 			if err == nil {
@@ -256,7 +254,6 @@ func newMapAccountsCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
-	cmdFlags.StringVar(&ethKeyPath, "eth-key", "", "Path to Ethereum private key of account owner")
 	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
 	cmdFlags.BoolVar(&interactive, "interactive", false, "Make the mapping of an account interactive by requiring the signature to be provided by the user instead of signing inside the client.")
 	return cmd
@@ -307,45 +304,6 @@ func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Addre
 		return loom.Address{}, err
 	}
 	return loom.UnmarshalAddressPB(resp.To), nil
-}
-
-// Loads the given Ethereum private key.
-// privateKeyPath can either be a hex-encoded string representing the key, or the path to a file
-// containing the hex-encoded key, in the latter case the path must be prefixed by file://
-// (e.g. file://path/to/some.key)
-func getEthereumPrivateKey(privateKeyPath string) (*ecdsa.PrivateKey, error) {
-	keyStr := privateKeyPath
-	if strings.HasPrefix(privateKeyPath, "file://") {
-		hexStr, err := ioutil.ReadFile(strings.TrimPrefix(privateKeyPath, "file://"))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to load key file")
-		}
-		keyStr = string(hexStr)
-	}
-
-	return crypto.HexToECDSA(strings.TrimPrefix(keyStr, "0x"))
-}
-
-// Loads the given DAppChain private key.
-// privateKeyPath can either be a base64-encoded string representing the key, or the path to a file
-// containing the base64-encoded key, in the latter case the path must be prefixed by file://
-// (e.g. file://path/to/some.key)
-func getDAppChainSigner(privateKeyPath string) (auth.Signer, error) {
-	keyStr := privateKeyPath
-	if strings.HasPrefix(privateKeyPath, "file://") {
-		b64, err := ioutil.ReadFile(strings.TrimPrefix(privateKeyPath, "file://"))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to load key file")
-		}
-		keyStr = string(b64)
-	}
-
-	keyBytes, err := base64.StdEncoding.DecodeString(keyStr)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode base64 key file")
-	}
-	signer := auth.NewEd25519Signer(keyBytes)
-	return signer, nil
 }
 
 func getDAppChainClient() *client.DAppChainRPCClient {

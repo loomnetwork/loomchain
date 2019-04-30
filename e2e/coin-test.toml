@@ -7,193 +7,193 @@
 # 2. Default coin in each wallet is 100.
 #
 # Steps:
-# 1. Call balance from all the nodes.
+# 1. call balance from all the nodes.
 # 2. Transfer from account 0 to account 1.
-# 3. Call balance on account 0 from all the nodes.
-# 4. Call balance on account 1 from all the nodes.
+# 3. call balance on account 0 from all the nodes.
+# 4. call balance on account 1 from all the nodes.
 ################
 
 # Check account 0
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 0}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 0}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 1}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 1}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 2}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 2}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 3}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 3}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 4}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 4}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 5}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 5}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 6}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 6}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 7}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 7}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 # Check account 1
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 0}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 0}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 1}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 1}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 2}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 2}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 3}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 3}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 4}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 4}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 5}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 5}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 6}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 6}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 7}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 7}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 # Transfer from account 0 to account 1
 [[TestCases]]
-  RunCmd = "example-cli call transfer {{index $.AccountAddressList 1}} 20000000 -k {{index $.AccountPrivKeyPathList 0}} -r {{index $.NodeRPCAddressList 0}}/query -w {{index $.NodeRPCAddressList 0}}/rpc"
+  RunCmd = "{{ $.LoomPath }} coin transfer {{index $.AccountAddressList 1}} 20000000 -k {{index $.AccountPrivKeyPathList 0}} -u {{index $.NodeRPCAddressList 0}}"
   Condition = ""
 
 # Check account 0
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 0}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 0}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 1}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 1}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 2}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 2}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 3}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 3}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 4}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 4}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 5}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 5}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 6}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 6}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}} -r {{index $.NodeRPCAddressList 7}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}} -u {{index $.NodeRPCAddressList 7}}"
   Condition = "contains"
   Expected = ["120000000000000000000"]
   Delay = 500
 
 # Check account 1
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 0}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 0}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 1}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 1}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 2}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 2}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 3}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 3}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 4}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 4}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 5}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 5}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 6}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 6}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}} -r {{index $.NodeRPCAddressList 7}}/query"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}} -u {{index $.NodeRPCAddressList 7}}"
   Condition = "contains"
   Expected = ["80000000000000000000"]
   Delay = 500

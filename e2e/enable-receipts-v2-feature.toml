@@ -1,5 +1,5 @@
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed" ]
   Datafiles = [
@@ -7,7 +7,7 @@
   ]
 
 [[TestCases]]
-   RunCmd = "loom chain-cfg list-features"
+   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
    Condition = "excludes"
    Expected = ['receipts:v2']
 
@@ -17,18 +17,18 @@
   Expected = ['receipts_db']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature receipts:v2 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg add-feature --build 0 receipts:v2 -k {{index $.NodePrivKeyPathList 0}}"
 
  [[TestCases]]
    RunCmd = "/bin/sleep 3s"
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg list-features"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = [ 'receipts:v2' ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed" ]
   Datafiles = [

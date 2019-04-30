@@ -41,6 +41,9 @@ const (
 	ProposeIntervalInSeconds int64 = 10
 	CommitIntervalInSeconds  int64 = 5
 
+	// Delay between propogating votesets to make other peers up to date.
+	VoteSetPropogationDelay = 1 * time.Second
+
 	// FnVoteSet cannot be modified beyond this interval
 	// but can be used to let behind nodes catch up on nonce
 	ExpiresInForSync = 40 * time.Second
@@ -180,8 +183,6 @@ func (f *FnConsensusReactor) AddPeer(peer p2p.Peer) {
 	f.peerMapMtx.Lock()
 	f.connectedPeers[peer.ID()] = peer
 	f.peerMapMtx.Unlock()
-
-	go f.gossipVotes(peer)
 }
 
 // RemovePeer is called by the switch when the peer is stopped (due to error
@@ -190,6 +191,18 @@ func (f *FnConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	f.peerMapMtx.Lock()
 	defer f.peerMapMtx.Unlock()
 	delete(f.connectedPeers, peer.ID())
+}
+
+func (f *FnConsensusReactor) broadcastMsgSync(chID byte, exception *p2p.ID, msgBytes []byte) {
+	f.peerMapMtx.RLock()
+	defer f.peerMapMtx.RUnlock()
+
+	for _, peer := range f.connectedPeers {
+		if exception != nil && (*exception) == peer.ID() {
+			continue
+		}
+		peer.Send(chID, msgBytes)
+	}
 }
 
 func (f *FnConsensusReactor) myAddress() []byte {
@@ -319,40 +332,6 @@ OUTER_LOOP:
 	}
 }
 
-func (f *FnConsensusReactor) gossipVotes(peer p2p.Peer) {
-	time.Sleep(10 * time.Millisecond)
-
-	currentValidators := f.getValidatorSet()
-	f.stateMtx.Lock()
-	for _, previousMajVoteSet := range f.state.PreviousMajVoteSets {
-		marshalledBytes, err := previousMajVoteSet.Marshal()
-		if err != nil {
-			f.Logger.Error("FnConsensusReactor: unable to marshal voteset", "Nonce", previousMajVoteSet.Nonce)
-			continue
-		}
-
-		go func() {
-			peer.Send(FnMajChannel, marshalledBytes)
-		}()
-	}
-	for _, currentVoteSet := range f.state.CurrentVoteSets {
-		if currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
-			continue
-		}
-
-		marshalledBytes, err := currentVoteSet.Marshal()
-		if err != nil {
-			f.Logger.Error("FnConsensusReactor: unable to marshal voteset", "Nonce", currentVoteSet.Nonce)
-			continue
-		}
-
-		go func() {
-			peer.Send(FnVoteSetChannel, marshalledBytes)
-		}()
-	}
-	f.stateMtx.Unlock()
-}
-
 func (f *FnConsensusReactor) voteRoutine() {
 	currentValidators := f.getValidatorSet()
 
@@ -435,6 +414,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	votesetPayload := NewFnVotePayload(executionRequest, executionResponse)
 
 	f.stateMtx.Lock()
+	defer f.stateMtx.Unlock()
 
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
@@ -445,7 +425,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		votesetPayload, f.privValidator, currentValidators)
 	if err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to create new voteset", "fnID", fnID, "error", err)
-		f.stateMtx.Unlock()
 		return
 	}
 
@@ -455,7 +434,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		f.safeSubmitMultiSignedMessage(fn, nil,
 			safeCopyBytes(aggregateExecutionResponse.Hash),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures))
-		f.stateMtx.Unlock()
 		return
 	}
 
@@ -463,11 +441,8 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 
 	if err := SaveReactorState(f.db, f.state, true); err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "error", err)
-		f.stateMtx.Unlock()
 		return
 	}
-
-	f.stateMtx.Unlock()
 
 	marshalledBytes, err := voteSet.Marshal()
 	if err != nil {
@@ -475,11 +450,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	f.peerMapMtx.RLock()
-	for _, peer := range f.connectedPeers {
-		peer.Send(FnVoteSetChannel, marshalledBytes)
-	}
-	f.peerMapMtx.RUnlock()
+	f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytes)
 }
 
 func (f *FnConsensusReactor) commit(fnID string) {
@@ -490,11 +461,10 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 
 	currentValidators := f.getValidatorSet()
+	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
-
-	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 	currentVoteSet := f.state.CurrentVoteSets[fnID]
 	currentNonce := f.state.CurrentNonces[fnID]
@@ -510,32 +480,39 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 
 	if !currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
-		f.Logger.Info("No consensus achived", "VoteSet", currentVoteSet)
+		f.Logger.Info("No consensus achieved", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response)
 
 		previousConvergedVoteSet := f.state.PreviousMajVoteSets[fnID]
 		if previousConvergedVoteSet != nil {
-			marshalledBytes, err := previousConvergedVoteSet.Marshal()
+			marshalledBytesOfPreviousVoteSet, err := previousConvergedVoteSet.Marshal()
 			if err != nil {
 				f.Logger.Error("unable to marshal PreviousMajVoteSet", "error", err, "fnIDToMonitor", fnID)
 				return
 			}
 
-			// Propogate your last Maj23, to remedy any issue
-			f.peerMapMtx.RLock()
-			for _, peer := range f.connectedPeers {
-				// TODO: Handle timeout
-				peer.Send(FnMajChannel, marshalledBytes)
+			marshalledBytesOfCurrentVoteSet, err := currentVoteSet.Marshal()
+			if err != nil {
+				f.Logger.Error("unable to marshal Current Vote set", "error", err, "fnIDToMonitor", fnID)
+				return
 			}
-			f.peerMapMtx.RUnlock()
+
+			// Propogate your last Maj23, to remedy any issue
+			f.broadcastMsgSync(FnMajChannel, nil, marshalledBytesOfPreviousVoteSet)
+
+			time.Sleep(VoteSetPropogationDelay)
+
+			// Propogate your current voteSet, to get newly joined node to sign it
+			f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytesOfCurrentVoteSet)
 		}
 	} else {
 		if areWeValidator {
 			majExecutionResponse := currentVoteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 			if majExecutionResponse != nil {
-				f.Logger.Info("Maj-consensus achieved", "VoteSet", currentVoteSet)
+				f.Logger.Info("Maj-consensus achieved", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response)
 				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
 				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
+					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(fn, nil, safeCopyBytes(majExecutionResponse.Hash),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures))
 				}
@@ -697,13 +674,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	f.peerMapMtx.RLock()
-	for _, peer := range f.connectedPeers {
-		// TODO: Handle timeout
-		peer.Send(FnMajChannel, marshalledBytes)
-	}
-	f.peerMapMtx.RUnlock()
-
+	f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
 }
 
 func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgBytes []byte) {
@@ -821,21 +792,14 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		return
 	}
 
-	f.peerMapMtx.RLock()
-	for peerID, peer := range f.connectedPeers {
-
-		// If we didnt contribute to remote vote, no need to pass it to sender
-		// If this is false, then we must not have achieved Maj23
-		if !didWeContribute {
-			if peerID == sender.ID() {
-				continue
-			}
-		}
-
-		// TODO: Handle timeout
-		peer.Send(FnVoteSetChannel, marshalledBytes)
+	// If we didnt contribute to remote vote, no need to pass it to sender
+	// If this is false, then we must not have achieved Maj23
+	broadCastException := sender.ID()
+	if !didWeContribute {
+		f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, marshalledBytes)
+	} else {
+		f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytes)
 	}
-	f.peerMapMtx.RUnlock()
 }
 
 // Receive is called when msgBytes is received from peer.

@@ -94,7 +94,7 @@ type LevelDbReceipts struct {
 func NewLevelDbReceipts(maxReceipts uint64) (*LevelDbReceipts, error) {
 	db, err := leveldb.OpenFile(Db_Filename, nil)
 	if err != nil {
-		return nil, errors.New("opening leveldb")
+		return nil, errors.Wrapf(err, "opening %s", Db_Filename)
 	}
 	return &LevelDbReceipts{
 		MaxDbSize: maxReceipts,

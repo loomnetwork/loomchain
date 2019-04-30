@@ -1,55 +1,85 @@
 [[TestCases]]
-  RunCmd = "loom deployer list"
+  RunCmd = "{{ $.LoomPath }} deployer list"
   Condition = "contains"
   Expected = ['"Flags": "GO|EVM|MIGRATION"','"Flags": "EVM"']
 
 [[TestCases]]
-  RunCmd = "loom deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "loom deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['deployer already exists']
 
 [[TestCases]]
-  RunCmd = "loom deployer list"
-  Condition = "contains"
-  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
-
-[[TestCases]]
-  RunCmd = "loom deployer add 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['not authorized']
-
-[[TestCases]]
-  RunCmd = "loom deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
-
-[[TestCases]]
-  RunCmd = "loom deployer remove 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['not authorized']
-
-[[TestCases]]
-  RunCmd = "loom deployer remove 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5 evm -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "loom deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c5 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5cECD1F7261e1f4C684E297bE3EDF03B825E01C5','"Flags": "EVM"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c6 migration -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c6 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5CeCD1F7261E1f4C684e297bE3EdF03B825E01c6','"Flags": "MIGRATION"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7 all -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c7 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5CECD1F7261e1F4C684E297be3eDF03b825E01c7','"Flags": "GO|EVM|MIGRATION"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer list"
+  Condition = "contains"
+  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer add 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer remove 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer remove 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['"Flags": ""']
 
 [[TestCases]]
-  RunCmd = "loom deployer list"
+  RunCmd = "{{ $.LoomPath }} deployer list"
   Condition = "contains"
   Expected = ['"Flags": "GO|EVM|MIGRATION"', '"Flags": "EVM"']
 
 [[TestCases]]
-  RunCmd = "loom deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ['not authorized']
   Datafiles = [
@@ -57,7 +87,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom deploy-go -b new.json -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['1 contract(s) successfully deployed']
   Datafiles = [
@@ -65,7 +95,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ['not authorized']
   Datafiles = [
@@ -73,7 +103,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['New contract deployed with address']
   Datafiles = [
@@ -81,18 +111,18 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['Migration ID 1 has been processed successfully']
 
 [[TestCases]]
-  RunCmd = "example-cli call list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call list_validators_v3"
+  RunCmd = "{{ $.LoomPath }} dposV3 list_validators_v3"
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]

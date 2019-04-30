@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	allFilter  = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
-	testFilter = "{\"address\":\"0x8888F1F195AfA192cFee860698584C030f4c9Db1\",\"topics\":[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",null,[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",\"0x0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc\"]]}"
-	noneFilter = "{\"address\":\"\",\"topics\":[]}"
+	allFilter = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
+	// testFilter = "{\"address\":\"0x8888F1F195AfA192cFee860698584C030f4c9Db1\",\"topics\":[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",null,[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",\"0x0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc\"]]}"
+	// noneFilter = "{\"address\":\"\",\"topics\":[]}"
 )
 
 var (
@@ -37,7 +37,7 @@ var (
 )
 
 func TestUnSubscribe(t *testing.T) {
-	ethSubSet := NewEthSubscriptionSet()
+	ethSubSet := NewLegacyEthSubscriptionSet()
 	conn := mockConnection{
 		caller:    "myCaller",
 		connected: true,
@@ -46,7 +46,7 @@ func TestUnSubscribe(t *testing.T) {
 	var sub pubsub.Subscriber
 	sub, subId = ethSubSet.For(conn.caller)
 	sub.Do(testEthWriter(t, &conn, subId, ethSubSet))
-	ethSubSet.AddSubscription(subId, "logs", allFilter)
+	require.NoError(t, ethSubSet.AddSubscription(subId, "logs", allFilter))
 
 	currentIndex = 1
 	currentTopic = topics[currentIndex]
@@ -59,14 +59,14 @@ func TestUnSubscribe(t *testing.T) {
 	require.True(t, messageSent)
 	messageSent = false
 
-	ethSubSet.Remove(subId)
+	require.NoError(t, ethSubSet.Remove(subId))
 	ethSubSet.Publish(pubsub.NewMessage(string(message), message))
 	require.False(t, messageSent)
 	messageSent = false
 }
 
 func TestSubscribe(t *testing.T) {
-	ethSubSet := NewEthSubscriptionSet()
+	ethSubSet := NewLegacyEthSubscriptionSet()
 	conn := mockConnection{
 		caller:    "myCaller",
 		connected: true,
@@ -75,7 +75,7 @@ func TestSubscribe(t *testing.T) {
 	var sub pubsub.Subscriber
 	sub, subId = ethSubSet.For(conn.caller)
 	sub.Do(testEthWriter(t, &conn, subId, ethSubSet))
-	ethSubSet.AddSubscription(subId, "logs", allFilter)
+	require.NoError(t, ethSubSet.AddSubscription(subId, "logs", allFilter))
 
 	for currentIndex, currentTopic = range topics {
 		eventData := ptypes.EventData{
@@ -119,7 +119,7 @@ func TestSubscribe(t *testing.T) {
 	// require.False(t, messageSent)
 }
 
-func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubscriptionSet) pubsub.SubscriberFunc {
+func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *LegacyEthSubscriptionSet) pubsub.SubscriberFunc {
 	return func(msg pubsub.Message) {
 		defer func() {
 			if r := recover(); r != nil {

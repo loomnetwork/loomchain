@@ -29,10 +29,10 @@ const (
 	UNREGISTERING                  = dtypes.Candidate_UNREGISTERING
 	ABOUT_TO_CHANGE_FEE            = dtypes.Candidate_ABOUT_TO_CHANGE_FEE
 	CHANGING_FEE                   = dtypes.Candidate_CHANGING_FEE
-	TIER_ZERO                      = dtypes.Delegation_TIER_ZERO
-	TIER_ONE                       = dtypes.Delegation_TIER_ONE
-	TIER_TWO                       = dtypes.Delegation_TIER_TWO
-	TIER_THREE                     = dtypes.Delegation_TIER_THREE
+	TIER_ZERO                      = dtypes.LocktimeTier_TIER_ZERO
+	TIER_ONE                       = dtypes.LocktimeTier_TIER_ONE
+	TIER_TWO                       = dtypes.LocktimeTier_TIER_TWO
+	TIER_THREE                     = dtypes.LocktimeTier_TIER_THREE
 
 	ElectionEventTopic              = "dposv3:election"
 	SlashEventTopic                 = "dposv3:slash"
@@ -44,6 +44,7 @@ const (
 	DelegatorRedelegatesEventTopic  = "dposv3:delegatorredelegates"
 	DelegatorConsolidatesEventTopic = "dposv3:delegatorconsolidates"
 	DelegatorUnbondsEventTopic      = "dposv3:delegatorunbonds"
+	ReferrerRegistersEventTopic     = "dposv3:referrerregisters"
 )
 
 var (
@@ -53,10 +54,10 @@ var (
 	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
-	limboValidatorAddress         = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
-	errCandidateAlreadyRegistered = errors.New("candidate already registered")
+	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
+	errCandidateUnregistering     = errors.New("Candidate is currently unregistering.")
 	errValidatorNotFound          = errors.New("Validator record not found.")
 	errDistributionNotFound       = errors.New("Distribution record not found.")
 	errOnlyOracle                 = errors.New("Function can only be called with oracle address.")
@@ -68,9 +69,9 @@ type (
 	RedelegateRequest                 = dtypes.RedelegateRequest
 	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequest
 	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequest
-	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequest
+	ChangeWhitelistInfoRequest        = dtypes.ChangeWhitelistInfoRequest
 	DelegationState                   = dtypes.Delegation_DelegationState
-	LocktimeTier                      = dtypes.Delegation_LocktimeTier
+	LocktimeTier                      = dtypes.LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
 	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
@@ -97,6 +98,7 @@ type (
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
+	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
@@ -125,6 +127,7 @@ type (
 	DposDelegatorRedelegatesEvent  = dtypes.DposDelegatorRedelegatesEvent
 	DposDelegatorConsolidatesEvent = dtypes.DposDelegatorConsolidatesEvent
 	DposDelegatorUnbondsEvent      = dtypes.DposDelegatorUnbondsEvent
+	DposReferrerRegistersEvent     = dtypes.DposReferrerRegistersEvent
 
 	RequestBatch                = dtypes.RequestBatch
 	RequestBatchTally           = dtypes.RequestBatchTally
@@ -188,13 +191,32 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 Delegate", "delegator", delegator, "request", req)
 
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Delegate called with req.ValidatorAddress == nil"), req.String())
+	}
+
 	cand := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 	// Delegations can only be made to existing candidates
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
+	} else if cand.State == UNREGISTERING {
+		return logDposError(ctx, errCandidateUnregistering, req.String())
 	}
+
 	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
 		return logDposError(ctx, errors.New("Must Delegate a positive number of tokens."), req.String())
+	}
+
+	// Ensure that referrer value is meaningful
+	referrerAddress := GetReferrer(ctx, req.Referrer)
+	if req.Referrer != "" && referrerAddress == nil {
+		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
+	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
+		// NOTE: any referral made while a MaxReferralPercentage > ReferrerFee is
+		// grandfathered in (i.e. valid) even after a candidate lowers their
+		// MaxReferralPercentage
+		msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", cand.MaxReferralPercentage, defaultReferrerFee.Uint64())
+		return logDposError(ctx, errors.New(msg), req.String())
 	}
 
 	coin, err := loadCoin(ctx)
@@ -253,7 +275,14 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 Redelegate", "delegator", delegator, "request", req)
 
-	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
+	}
+	if req.FormerValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Redelegate called with req.FormerValidatorAddress == nil"), req.String())
+	}
+
+	if loom.UnmarshalAddressPB(req.FormerValidatorAddress).Compare(loom.UnmarshalAddressPB(req.ValidatorAddress)) == 0 {
 		return logDposError(ctx, errors.New("Redelegating self-delegations is not permitted."), req.String())
 	}
 	if req.Amount != nil && !common.IsPositive(req.Amount.Value) {
@@ -262,11 +291,22 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 	// Unless redelegation is to the limbo validator check that the new
 	// validator address corresponds to one of the registered candidates
-	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(LimboValidatorAddress(ctx)) != 0 {
 		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
 			return logDposError(ctx, errCandidateNotFound, req.String())
+		} else if candidate.State == UNREGISTERING {
+			return logDposError(ctx, errCandidateUnregistering, req.String())
+		}
+
+		// Ensure that referrer value is meaningful
+		referrerAddress := GetReferrer(ctx, req.Referrer)
+		if req.Referrer != "" && referrerAddress == nil {
+			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
+		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
+			msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", candidate.MaxReferralPercentage, defaultReferrerFee.Uint64())
+			return logDposError(ctx, errors.New(msg), req.String())
 		}
 	}
 
@@ -345,7 +385,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 
 	// Unless considation is for the limbo validator, check that the new
 	// validator address corresponds to one of the registered candidates
-	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(LimboValidatorAddress(ctx)) != 0 {
 		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
@@ -362,6 +402,10 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 }
 
 // returns the number of delegations which were not consolidated in the event there is no error
+// NOTE: Consolidate delegations is supposed to clear referrer field. If
+// a delegator redelegates (to increase locktime reward, for example), this
+// redelegation will likely be done via a wallet and thus a wallet can still
+// insert its referrer id into the referrer field during redelegation.
 func consolidateDelegations(ctx contract.Context, validator, delegator *types.Address) (int, error) {
 	// cycle through all delegations and delete those which are BONDED and
 	// unlocked while accumulating their amounts
@@ -486,7 +530,7 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 	totalWeightedDelegationAmount := common.BigZero()
 	var delegatorDelegations []*Delegation
 	for _, d := range delegations {
-		if d.Delegator.Local.Compare(req.DelegatorAddress.Local) != 0 {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(loom.UnmarshalAddressPB(req.DelegatorAddress)) != 0 {
 			continue
 		}
 
@@ -520,7 +564,7 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
@@ -529,15 +573,21 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 
 func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistCandidateRequest) error {
 	_, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
+
+	tierNumber := req.GetLocktimeTier()
+	if tierNumber > 3 {
+		return logDposError(ctx, errors.New("Invalid whitelist tier"), req.String())
+	}
+
 	if err == contract.ErrNotFound {
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
 		SetStatistic(ctx, &ValidatorStatistic{
-			Address:           req.CandidateAddress,
-			WhitelistAmount:   req.Amount,
-			DistributionTotal: loom.BigZeroPB(),
-			DelegationTotal:   loom.BigZeroPB(),
-			SlashPercentage:   loom.BigZeroPB(),
+			Address:         req.CandidateAddress,
+			WhitelistAmount: req.Amount,
+			LocktimeTier:    tierNumber,
+			DelegationTotal: loom.BigZeroPB(),
+			SlashPercentage: loom.BigZeroPB(),
 		})
 	} else if err == nil {
 		// ValidatorStatistic must not yet exist for a particular candidate in order
@@ -560,7 +610,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
@@ -572,13 +622,13 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
-	statistic.WhitelistAmount = loom.BigZeroPB()
+	statistic.UpdateWhitelistAmount = loom.BigZeroPB()
 	return SetStatistic(ctx, statistic)
 }
 
-func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistAmountRequest) error {
+func (c *DPOS) ChangeWhitelistInfo(ctx contract.Context, req *ChangeWhitelistInfoRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3", "ChangeWhitelistAmount", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOSv3", "ChangeWhitelistInfo", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -586,9 +636,17 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
+	}
 
+	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
+		return logDposError(ctx, errors.New("Whitelist amount must be a positive number of tokens."), req.String())
+	}
+
+	tierNumber := req.GetLocktimeTier()
+	if tierNumber > 3 {
+		return logDposError(ctx, errors.New("Invalid whitelist tier"), req.String())
 	}
 
 	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
@@ -596,7 +654,8 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
 
-	statistic.WhitelistAmount = req.Amount
+	statistic.UpdateWhitelistAmount = req.Amount
+	statistic.UpdateLocktimeTier = tierNumber
 
 	return SetStatistic(ctx, statistic)
 }
@@ -610,8 +669,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
-	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
-	if candidateAddress.Local.Compare(checkAddr) != 0 {
+	checkAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(req.PubKey)}
+	if candidateAddress.Compare(checkAddr) != 0 {
 		return logDposError(ctx, errors.New("Public key does not match address."), req.String())
 	}
 
@@ -769,7 +828,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
+	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress, "request", req)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -910,17 +969,22 @@ func Elect(ctx contract.Context) error {
 			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistic = &ValidatorStatistic{
-					Address:           res.ValidatorAddress.MarshalPB(),
-					PubKey:            candidate.PubKey,
-					DistributionTotal: loom.BigZeroPB(),
-					DelegationTotal:   delegationTotal,
-					SlashPercentage:   loom.BigZeroPB(),
-					WhitelistAmount:   loom.BigZeroPB(),
+					Address:         res.ValidatorAddress.MarshalPB(),
+					PubKey:          candidate.PubKey,
+					DelegationTotal: delegationTotal,
+					SlashPercentage: loom.BigZeroPB(),
+					WhitelistAmount: loom.BigZeroPB(),
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
 				// Needed in case pubkey was not set during whitelisting
 				statistic.PubKey = candidate.PubKey
+
+				if statistic.UpdateWhitelistAmount != nil {
+					statistic.WhitelistAmount = statistic.UpdateWhitelistAmount
+					statistic.LocktimeTier = statistic.UpdateLocktimeTier
+					statistic.UpdateWhitelistAmount = nil
+				}
 			}
 
 			if err = SetStatistic(ctx, statistic); err != nil {
@@ -1068,7 +1132,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	total := common.BigZero()
 	candidateDelegations := make([]*Delegation, 0)
 	for _, d := range delegations {
-		if d.Validator.Local.Compare(req.Candidate.Local) != 0 {
+		if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(req.Candidate)) != 0 {
 			continue
 		}
 
@@ -1193,6 +1257,12 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, error) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, validator := range state.Validators {
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
@@ -1212,35 +1282,68 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
-				rewardValidator(statistic, state.Params, state.TotalValidatorDelegations.Value)
+				distributionTotal := calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
 
-				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+				// The validator share, equal to validator_fee * total_validotor_reward
+				// is to be split between the referrers and the validator
+				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, distributionTotal)
+				// Distribute rewards to referrers
+				for _, d := range delegations {
+					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 {
+						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+						// if the delegation is not found OR if the delegation
+						// has no referrer, we do not need to attempt to
+						// distribute the referrer rewards
+						if err == contract.ErrNotFound || len(delegation.Referrer) == 0 {
+							continue
+						} else if err != nil {
+							return nil, err
+						}
+
+						// if referrer is not found, do not distribute the reward
+						referrerAddress := GetReferrer(ctx, delegation.Referrer)
+						if referrerAddress == nil {
+							continue
+						}
+
+						// calculate referrerReward
+						referrerReward := calculateRewards(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
+						referrerReward = CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, referrerReward)
+						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
+
+						// referrer fees are delegater to limbo validator
+						IncreaseRewardDelegation(ctx, LimboValidatorAddress(ctx).MarshalPB(), referrerAddress, referrerReward)
+
+						// any referrer bonus amount is subtracted from the validatorShare
+						validatorShare.Sub(&validatorShare, &referrerReward)
+					}
+				}
 
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
 				// delegatorsShare is what fraction of the total rewards will be
 				// distributed to delegators
 				delegatorsShare := common.BigZero()
-				delegatorsShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
+				delegatorsShare.Sub(&distributionTotal, &validatorShare)
 				delegatorRewards[validatorKey] = delegatorsShare
 
 				// If a validator has some non-zero WhitelistAmount,
 				// calculate the validator's reward based on whitelist amount
 				if !common.IsZero(statistic.WhitelistAmount.Value) {
-					whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
+					amount := calculateWeightedWhitelistAmount(*statistic)
+					whitelistDistribution := calculateShare(amount, statistic.DelegationTotal.Value, *delegatorsShare)
 					// increase a delegator's distribution
 					IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, whitelistDistribution)
 				}
+
+				// Keeping track of cumulative distributed rewards by adding
+				// every validator's total rewards to
+				// state.TotalRewardDistribution
+				state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
 			} else {
 				slashValidatorDelegations(ctx, statistic, candidateAddress)
 			}
 
-			// Zeroing out validator's distribution total since it will be transferred
-			// to the distributions storage during this `Elect` call.
-			// Validators and Delegators both can claim their rewards in the
-			// same way when this is true.
-			state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &statistic.DistributionTotal.Value)
-			statistic.DistributionTotal = loom.BigZeroPB()
 			formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
 		}
 	}
@@ -1262,12 +1365,12 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	return delegationResults, nil
 }
 
-// Updates a Validator's ValidatorStatistic.DistributionTotal to record the full
+// returns a Validator's distributionTotal to record the full
 // reward amount to be distributed to the validator himself, the delegators and
 // the referrers
-func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
+func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidatorDelegations loom.BigUInt) loom.BigUInt {
 	cycleSeconds := params.ElectionCycleLength
-	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
+	reward := CalculateFraction(blockRewardPercentage, delegationTotal)
 
 	// If totalValidator Delegations are high enough to make simple reward
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
@@ -1285,10 +1388,7 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
 	reward.Div(&reward, &secondsInYear)
 
-	updatedAmount := common.BigZero()
-	updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
-	statistic.DistributionTotal = &types.BigUInt{Value: *updatedAmount}
-	return
+	return reward
 }
 
 func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
@@ -1305,7 +1405,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 			return err
 		}
 
-		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(validatorAddress) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
@@ -1350,9 +1450,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 		if statistic != nil && statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
-			// WhitelistAmount is not weighted because it is assumed Oracle
-			// added appropriate bonus during registration
-			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
+			amount := calculateWeightedWhitelistAmount(*statistic)
+			newDelegationTotals[validatorKey] = &amount
 		}
 	}
 
@@ -1372,7 +1471,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do not distribute rewards to delegators of the Limbo validator
-		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
 			delegationTotal := formerValidatorTotals[validatorKey]
@@ -1428,7 +1527,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 		// Calculate delegation totals for all validators except the Limbo
 		// validator
-		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			newTotal := common.BigZero()
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
 			newTotal.Add(newTotal, &weightedDelegation)
@@ -1463,9 +1562,14 @@ func returnMatchingDelegations(ctx contract.StaticContext, validator, delegator 
 		return nil, err
 	}
 
+	ourDelegator := loom.UnmarshalAddressPB(delegator)
+	ourValidator := loom.UnmarshalAddressPB(validator)
+
 	var matchingDelegations []*Delegation
 	for _, d := range delegations {
-		if d.Delegator.Local.Compare(delegator.Local) != 0 || d.Validator.Local.Compare(validator.Local) != 0 {
+		dValidator := loom.UnmarshalAddressPB(d.Validator)
+		dDelegator := loom.UnmarshalAddressPB(d.Delegator)
+		if dDelegator.Compare(ourDelegator) != 0 || dValidator.Compare(ourValidator) != 0 {
 			continue
 		}
 
@@ -1526,6 +1630,25 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 // ORACLE METHODS
 // *************************
 
+func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 RegisterReferrer", "sender", sender, "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	SetReferrer(ctx, req.Name, req.Address)
+
+	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
+}
+
 func (c *DPOS) GetRequestBatchTally(ctx contract.StaticContext, req *GetRequestBatchTallyRequest) (*RequestBatchTally, error) {
 	return loadRequestBatchTally(ctx)
 }
@@ -1554,7 +1677,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 	}
 
 	sender := ctx.Message().Sender
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errors.New("[ProcessRequestBatch] only oracle is authorized to call ProcessRequestBatch"), req.String())
 	}
 
@@ -1613,7 +1736,7 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
@@ -1632,7 +1755,7 @@ func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardR
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
@@ -1651,7 +1774,7 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
@@ -1670,9 +1793,11 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
+
+	state.Params.ValidatorCount = uint64(req.ValidatorCount)
 
 	return saveState(ctx, state)
 }
@@ -1687,7 +1812,7 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
@@ -1706,7 +1831,7 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 	}
 
 	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
@@ -1846,6 +1971,19 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 	}
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitReferrerRegistersEvent(ctx contract.Context, name string, address *types.Address) error {
+	marshalled, err := proto.Marshal(&DposReferrerRegistersEvent{
+		Name:    name,
+		Address: address,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, ReferrerRegistersEventTopic)
 	return nil
 }
 

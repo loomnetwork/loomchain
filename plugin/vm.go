@@ -8,6 +8,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/go-loom"
@@ -76,7 +77,7 @@ func (vm *PluginVM) CreateContractContext(
 	return &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loomchain.StateWithPrefix(loom.DataPrefix(addr), vm.State),
+		State:        vm.State.WithPrefix(loom.DataPrefix(addr)),
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,
@@ -145,7 +146,10 @@ func (vm *PluginVM) run(
 
 func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	var nonceBuf bytes.Buffer
-	binary.Write(&nonceBuf, binary.BigEndian, nonce)
+	err := binary.Write(&nonceBuf, binary.BigEndian, nonce)
+	if err != nil {
+		panic(err)
+	}
 	data := util.PrefixKey(parent.Bytes(), nonceBuf.Bytes())
 	hash := sha3.Sum256(data)
 	return loom.Address{
@@ -229,11 +233,6 @@ type contractContext struct {
 
 var _ lp.Context = &contractContext{}
 
-func (c *contractContext) ValidatorPower(pubKey []byte) int64 {
-	// TODO
-	return 0
-}
-
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
 	return c.VM.Call(c.address, addr, input, loom.NewBigUIntFromInt(0))
 }
@@ -262,6 +261,10 @@ func (c *contractContext) Message() lp.Message {
 
 func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
+}
+
+func (c *contractContext) Validators() []*ltypes.Validator {
+	return c.VM.State.Validators()
 }
 
 //TODO don't like how we have to check 3 places, need to clean this up

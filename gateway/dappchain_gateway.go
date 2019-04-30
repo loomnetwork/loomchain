@@ -125,6 +125,19 @@ func (gw *DAppChainGateway) PendingWithdrawals(mainnetGatewayAddr loom.Address) 
 	return resp.Withdrawals, nil
 }
 
+func (gw *DAppChainGateway) PendingWithdrawalsV2(mainnetGatewayAddr loom.Address) ([]*PendingWithdrawalSummary, error) {
+	req := &PendingWithdrawalsRequest{
+		MainnetGateway: mainnetGatewayAddr.MarshalPB(),
+	}
+	resp := PendingWithdrawalsResponse{}
+	if _, err := gw.contract.StaticCall("PendingWithdrawalsV2", req, gw.caller, &resp); err != nil {
+		gw.logger.Error("failed to fetch pending withdrawals from DAppChain", "err", err)
+		return nil, err
+	}
+	gw.LastResponseTime = time.Now()
+	return resp.Withdrawals, nil
+}
+
 func (gw *DAppChainGateway) ConfirmWithdrawalReceipt(req *ConfirmWithdrawalReceiptRequest) error {
 	_, err := gw.contract.Call("ConfirmWithdrawalReceipt", req, gw.signer, nil)
 	if err != nil {

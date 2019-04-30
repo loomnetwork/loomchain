@@ -144,12 +144,17 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		node.Config.LogDestination = node.LogDestination
 		node.Config.RPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
 		node.Config.RPCBindAddress = fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
-		node.Config.Oracle = "default:" + account[0].Address
+		if len(account) > 0 {
+			node.Config.Oracle = "default:" + account[0].Address
+		}
 
 		node.Config.LoomCoinTransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
 		node.Config.LoomCoinTransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
 		node.Config.TransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
 		node.Config.TransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
+
+		node.Config.ChainConfig.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
+		node.Config.ChainConfig.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
 
 		loomYamlPath := path.Join(node.Dir, "loom.yaml")
 		if err := node.Config.WriteToFile(loomYamlPath); err != nil {

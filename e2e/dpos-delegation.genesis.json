@@ -12,7 +12,7 @@
             "vm": "plugin",
             "format": "plugin",
             "name": "dposV2",
-            "location": "dpos:2.0.0",
+            "location": "dposV2:2.0.0",
             "init": {
                 "params": {
                     "validatorCount": "2",
