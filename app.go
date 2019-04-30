@@ -3,6 +3,7 @@ package loomchain
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -125,11 +126,20 @@ func (s *StoreState) Context() context.Context {
 }
 
 var (
-	featurePrefix = "feature"
+	featurePrefix       = "feature"
+	evmRootMapperPrefix = "evmdbmapper"
+	evmRootKey          = "vmroot"
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+// EvmDBMapperKey returns the root of Patricia tree at specific block height
+func EvmDBMapperKey(blockHeight int64) []byte {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(blockHeight))
+	return util.PrefixKey([]byte(evmRootMapperPrefix), b)
 }
 
 func (s *StoreState) FeatureEnabled(name string, val bool) bool {
@@ -600,8 +610,12 @@ func (a *Application) Commit() abci.ResponseCommit {
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
+
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
+		// Rollback evm.db by setting Patricia tree root to previous block
+		previousBlockRoot := a.Store.Get(EvmDBMapperKey(a.curBlockHeader.Height - 1))
+		a.Store.Set([]byte(evmRootKey), previousBlockRoot)
 		panic(err)
 	}
 

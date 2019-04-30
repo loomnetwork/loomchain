@@ -20,9 +20,8 @@ import (
 )
 
 var (
-	vmPrefix   = []byte("vm")
-	rootKey    = []byte("vmroot")
-	evmRootKey = []byte("evmroot")
+	vmPrefix = []byte("vm")
+	rootKey  = []byte("vmroot")
 )
 
 type StateDB interface {
@@ -55,6 +54,7 @@ func NewLoomEvm(
 	debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
+	p.loomState = loomState
 
 	// If EvmDBFeature is enabled, read from and write to evm.db
 	// otherwise write to both evm.db and app.db but read from app.db
@@ -75,12 +75,11 @@ func NewLoomEvm(
 
 	p.db = NewMultiWriterDB(evmDB, loomEthDB, logContext, config)
 
-	oldRoot, err := p.db.Get(rootKey)
-	if err != nil {
-		return nil, err
-	}
+	// Get current EVM Patricia root from IAVL tree (app.db)
+	oldRoot := loomState.Get(rootKey)
 
 	var abm *evmAccountBalanceManager
+	var err error
 	if accountBalanceManager != nil {
 		abm = newEVMAccountBalanceManager(accountBalanceManager, loomState.Block().ChainID)
 		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), state.NewDatabase(p.db))
@@ -108,8 +107,11 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	if err := levm.db.Put(rootKey, root[:]); err != nil {
 		return root, err
 	}
-	// Save root of EVM Patricia tree in IAVL tree
-	// levm.loomState.Set(evmRootKey, root[:])
+
+	// Track the current root of Patricia tree
+	levm.loomState.Set(rootKey, root[:])
+	// Save the root of Patricia tree in app.db so that we can rollback evm.db
+	levm.loomState.Set(loomchain.EvmDBMapperKey(levm.loomState.Block().Height), root[:])
 
 	return root, err
 }
