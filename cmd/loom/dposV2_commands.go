@@ -16,7 +16,7 @@ const DPOSV2ContractName = "dposV2"
 
 func UnregisterCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "unregister-candidate",
+		Use:   "unregister_candidateV2",
 		Short: "Unregisters the candidate (only called if previously registered)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cli.CallContractWithFlags(
@@ -29,7 +29,7 @@ func UnregisterCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func GetDistributionsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-distributions",
+		Use:   "get_distributions",
 		Short: "Gets a list of all rewards for each address",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.GetDistributionsResponse
@@ -52,7 +52,7 @@ func GetDistributionsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func GetStateCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-dpos-state",
+		Use:   "get_dpos_state",
 		Short: "Gets dpos state",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.GetStateResponse
@@ -69,9 +69,30 @@ func GetStateCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		},
 	}
 }
+
+func ViewStateDumpCmd(flags *cli.ContractCallFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "view_state_dump",
+		Short: "View full dposV2 state & migrated dposV3 state",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv2.ViewStateDumpResponse
+			err := cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "ViewStateDump", &dposv2.ViewStateDumpRequest{}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
 func ListValidatorsCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list-validators",
+		Use:   "list_validatorsV2",
 		Short: "List the current validators",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListValidatorsResponseV2
@@ -94,7 +115,7 @@ func ListValidatorsCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func ListCandidatesCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list-candidates",
+		Use:   "list_candidatesV2",
 		Short: "List the registered candidates",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListCandidateResponseV2
@@ -114,7 +135,7 @@ func ListCandidatesCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func ChangeFeeCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "change-fee [new validator fee (in basis points)]",
+		Use:   "change_fee [new validator fee (in basis points)]",
 		Short: "Changes a validator's fee after (with a 2 election delay)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -135,7 +156,7 @@ func ChangeFeeCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func RegisterCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "register-candidate [public key] [validator fee (in basis points)] [locktime tier]",
+		Use:   "register_candidateV2 [public key] [validator fee (in basis points)] [locktime tier]",
 		Short: "Register a candidate for validator",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -178,7 +199,7 @@ func RegisterCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func UpdateCandidateInfoCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "update-candidate-info [name] [description] [website]",
+		Use:   "update_candidate_info [name] [description] [website]",
 		Short: "Update candidate information for a validator",
 		Args:  cobra.MinimumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -197,7 +218,7 @@ func UpdateCandidateInfoCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func DelegateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delegate [validator address] [amount] [locktime tier]",
+		Use:   "delegateV2 [validator address] [amount] [locktime tier]",
 		Short: "delegate tokens to a validator",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -234,7 +255,7 @@ func DelegateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func RedelegateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "redelegate [new validator address] [former validator address] [amount]",
+		Use:   "redelegateV2 [new validator address] [former validator address] [amount]",
 		Short: "Redelegate tokens from one validator to another",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -266,7 +287,7 @@ func RedelegateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func WhitelistCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "whitelist-candidate [candidate address] [amount] [lock time]",
+		Use:   "whitelist_candidate [candidate address] [amount] [lock time]",
 		Short: "Whitelist candidate & credit candidate's self delegation without token deposit",
 		Args:  cobra.MinimumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -296,7 +317,7 @@ func WhitelistCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func RemoveWhitelistedCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "remove-whitelisted-candidate [candidate address]",
+		Use:   "remove_whitelisted_candidate [candidate address]",
 		Short: "remove a candidate's whitelist entry",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -317,7 +338,7 @@ func RemoveWhitelistedCandidateCmdV2(flags *cli.ContractCallFlags) *cobra.Comman
 
 func ChangeWhitelistLockTimeTierCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "change-whitelist-locktime-tier [candidate address] [amount]",
+		Use:   "change_whitelist_locktime_tier [candidate address] [amount]",
 		Short: "Changes a whitelisted candidate's whitelist lock time tier",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -348,7 +369,7 @@ func ChangeWhitelistLockTimeTierCmdV2(flags *cli.ContractCallFlags) *cobra.Comma
 
 func ChangeWhitelistAmountCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "change-whitelist-amount [candidate address] [amount]",
+		Use:   "change_whitelist_amount [candidate address] [amount]",
 		Short: "Changes a whitelisted candidate's whitelist amount",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -372,7 +393,7 @@ func ChangeWhitelistAmountCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func CheckDelegationCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "check-delegation [validator address] [delegator address]",
+		Use:   "check_delegationV2 [validator address] [delegator address]",
 		Short: "check delegation to a particular validator",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -407,7 +428,7 @@ func CheckDelegationCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func UnbondCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "unbond [validator address] [amount]",
+		Use:   "unbondV2 [validator address] [amount]",
 		Short: "De-allocate tokens from a validator",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -432,7 +453,7 @@ func UnbondCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func ClaimDistributionCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "claim-distribution [withdrawal address]",
+		Use:   "claim_distributionV2 [withdrawal address]",
 		Short: "claim dpos distributions due to a validator or delegator",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -463,7 +484,7 @@ func ClaimDistributionCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func CheckRewardsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "check-rewards",
+		Use:   "check_rewards",
 		Short: "check rewards statistics",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -487,7 +508,7 @@ func CheckRewardsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func CheckDistributionCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "check-distribution [address]",
+		Use:   "check_distribution [address]",
 		Short: "check rewards distribution",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -518,7 +539,7 @@ func CheckDistributionCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func TotalDelegationCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "total-delegation [delegator]",
+		Use:   "total_delegation [delegator]",
 		Short: "check how much a delegator has delegated in total (to all validators)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -547,7 +568,7 @@ func TotalDelegationCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func CheckAllDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "check-all-delegations [delegator]",
+		Use:   "check_all_delegations [delegator]",
 		Short: "display all of a particular delegator's delegations",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -576,7 +597,7 @@ func CheckAllDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func TimeUntilElectionCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "time-until-election",
+		Use:   "time_until_election",
 		Short: "check how many seconds remain until the next election",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -600,7 +621,7 @@ func TimeUntilElectionCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func ListDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list-delegations",
+		Use:   "list_delegations",
 		Short: "list a candidate's delegations & delegation total",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -629,7 +650,7 @@ func ListDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func ListAllDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list-all-delegations",
+		Use:   "list_all_delegations",
 		Short: "display the results of calling list_delegations for all candidates",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -655,7 +676,7 @@ func ListAllDelegationsCmd(flags *cli.ContractCallFlags) *cobra.Command {
 
 func SetElectionCycleCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-election-cycle [election duration]",
+		Use:   "set_election_cycle [election duration]",
 		Short: "Set election cycle duration (in seconds)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -680,7 +701,7 @@ func SetElectionCycleCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func SetValidatorCountCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-validator-count [validator count]",
+		Use:   "set_validator_count [validator count]",
 		Short: "Set maximum number of validators",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -705,7 +726,7 @@ func SetValidatorCountCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func SetMaxYearlyRewardCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-max-yearly-reward [max yearly rewward amount]",
+		Use:   "set_max_yearly_reward [max yearly rewward amount]",
 		Short: "Set maximum yearly reward",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -732,7 +753,7 @@ func SetMaxYearlyRewardCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func SetRegistrationRequirementCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-registration-requirement [registration_requirement]",
+		Use:   "set_registration_requirement [registration_requirement]",
 		Short: "Set minimum self-delegation required of a new Candidate",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -758,7 +779,7 @@ func SetRegistrationRequirementCmdV2(flags *cli.ContractCallFlags) *cobra.Comman
 
 func SetOracleAddressCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-oracle-address [oracle address]",
+		Use:   "set_oracle_address [oracle address]",
 		Short: "Set oracle address",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -780,7 +801,7 @@ func SetOracleAddressCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 
 func SetSlashingPercentagesCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-slashing-percentages [crash fault slashing percentage] [byzantine fault slashing percentage",
+		Use:   "set_slashing_percentages [crash fault slashing percentage] [byzantine fault slashing percentage",
 		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -847,6 +868,7 @@ func NewDPOSV2Command() *cobra.Command {
 		TimeUntilElectionCmd(&flags),
 		TotalDelegationCmd(&flags),
 		GetStateCmd(&flags),
+		ViewStateDumpCmd(&flags),
 		GetDistributionsCmd(&flags),
 	)
 	return cmd
