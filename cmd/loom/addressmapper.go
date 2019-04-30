@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-
+	flag "github.com/spf13/pflag"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
@@ -15,6 +15,18 @@ import (
 const (
 	AddressMapperName = "addressmapper"
 )
+
+
+func addContractCallFlags(flagSet *flag.FlagSet, callFlags *cli.ContractCallFlags) {
+	flagSet.StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	flagSet.StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
+	flagSet.StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
+	flagSet.StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
+	flagSet.StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
+	flagSet.StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
+	flagSet.StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
+	flagSet.StringVar(&callFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
+}
 
 func AddIdentityMappingCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	var chainId string
@@ -115,7 +127,7 @@ func NewAddressMapperCommand() *cobra.Command {
 		Short: "Methods available in addressmapper contract",
 	}
 	var flags cli.ContractCallFlags
-	AddContractCallFlags(cmd.PersistentFlags(), &flags)
+	addContractCallFlags(cmd.PersistentFlags(), &flags)
 
 	cmd.AddCommand(
 		AddIdentityMappingCmd(&flags),
