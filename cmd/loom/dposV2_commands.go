@@ -868,6 +868,7 @@ func NewDPOSV2Command() *cobra.Command {
 		TimeUntilElectionCmd(&flags),
 		TotalDelegationCmd(&flags),
 		GetStateCmd(&flags),
+		ViewStateDumpCmd(&flags),
 		GetDistributionsCmd(&flags),
 	)
 	return cmd

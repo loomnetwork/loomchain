@@ -2138,7 +2138,7 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	return initializationState, nil
 }
 
-func ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpRequest) (*ViewStateDumpResponse, error) {
+func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpRequest) (*ViewStateDumpResponse, error) {
 	ctx.Logger().Debug("DPOS ViewStateDump", "request", req)
 
 	// load v2 state and pack it into v3 state
