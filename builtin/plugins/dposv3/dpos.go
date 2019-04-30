@@ -291,7 +291,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 	// Unless redelegation is to the limbo validator check that the new
 	// validator address corresponds to one of the registered candidates
-	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(limboValidatorAddress(ctx)) != 0 {
+	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(LimboValidatorAddress(ctx)) != 0 {
 		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
@@ -385,7 +385,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 
 	// Unless considation is for the limbo validator, check that the new
 	// validator address corresponds to one of the registered candidates
-	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(limboValidatorAddress(ctx)) != 0 {
+	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(LimboValidatorAddress(ctx)) != 0 {
 		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
@@ -1312,7 +1312,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
 
 						// referrer fees are delegater to limbo validator
-						IncreaseRewardDelegation(ctx, limboValidatorAddress(ctx).MarshalPB(), referrerAddress, referrerReward)
+						IncreaseRewardDelegation(ctx, LimboValidatorAddress(ctx).MarshalPB(), referrerAddress, referrerReward)
 
 						// any referrer bonus amount is subtracted from the validatorShare
 						validatorShare.Sub(&validatorShare, &referrerReward)
@@ -1471,7 +1471,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do not distribute rewards to delegators of the Limbo validator
-		if loom.UnmarshalAddressPB(delegation.Validator).Compare(limboValidatorAddress(ctx)) != 0 {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
 			delegationTotal := formerValidatorTotals[validatorKey]
@@ -1527,7 +1527,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 		// Calculate delegation totals for all validators except the Limbo
 		// validator
-		if loom.UnmarshalAddressPB(delegation.Validator).Compare(limboValidatorAddress(ctx)) != 0 {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			newTotal := common.BigZero()
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
 			newTotal.Add(newTotal, &weightedDelegation)

@@ -2210,7 +2210,7 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		amount := adjustDoubledDelegationAmount(*delegation)
 
 		v3Delegation := &dposv3.Delegation{
-			Validator:    validator,
+			Validator:    adjustValidatorIfLimboValidator(ctx, validator),
 			Delegator:    delegation.Delegator,
 			Index:        dposv3.DELEGATION_START_INDEX + indices[delegationKey],
 			Amount:       amount,
