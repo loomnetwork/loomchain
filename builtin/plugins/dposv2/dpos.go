@@ -2147,15 +2147,30 @@ func ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpRequest) (*View
 		return nil, err
 	}
 
-	// load v2 Candidates and pack them into v3 Candidates
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return nil, err
 	}
-	currentV2State := &StateDump{
-		Candidates: candidates,
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return nil, err
 	}
 
+	currentV2State := &StateDump{
+		State: state,
+		Candidates: candidates,
+		Delegations: delegations,
+		Distributions: distributions,
+		Statistics: statistics,
+	}
 
 	initializationState, err := populateInitializationState(ctx, state)
 	if err != nil {

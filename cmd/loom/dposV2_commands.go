@@ -69,6 +69,27 @@ func GetStateCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		},
 	}
 }
+
+func ViewStateDumpCmd(flags *cli.ContractCallFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "view_state_dump",
+		Short: "View full dposV2 state & migrated dposV3 state",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv2.ViewStateDumpResponse
+			err := cli.StaticCallContractWithFlags(flags, DPOSV2ContractName, "ViewStateDump", &dposv2.ViewStateDumpRequest{}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
 func ListValidatorsCmdV2(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list_validatorsV2",
