@@ -132,12 +132,6 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  0,
-		ContractAddr: loom.Address{},
-		CallerAddr:   loom.Address{},
-	}
-	evmStore := store.NewEvmStore(dbm.NewMemDB(), logContext)
 	state := loomchain.NewStoreState(
 		context.Background(),
 		store.NewMemStore(),
@@ -145,8 +139,9 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 
-	vm := NewPluginVM(loader, state, evmStore, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)
+	evmDB := dbm.NewMemDB()
+	vm := NewPluginVM(loader, state, evmDB, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
+	evm := levm.NewLoomVm(state, evmDB, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
@@ -215,14 +210,14 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
+	evmDB := dbm.NewMemDB()
 	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state, 1))
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, evmStore, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	vm := NewPluginVM(NewStaticLoader(), state20, evmDB, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
@@ -247,8 +242,8 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)
-	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
-	vm := NewPluginVM(NewStaticLoader(), state20, evmStore, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	evmDB := dbm.NewMemDB()
+	vm := NewPluginVM(NewStaticLoader(), state20, evmDB, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)

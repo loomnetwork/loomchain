@@ -4,8 +4,8 @@ package evm
 
 import (
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -17,7 +17,7 @@ const EVMEnabled = false
 
 func NewLoomVm(
 	loomState loomchain.State,
-	evmStore store.EvmStore,
+	evmDB dbm.DB,
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,

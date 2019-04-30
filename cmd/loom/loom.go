@@ -72,6 +72,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var RootCmd = &cobra.Command{
@@ -707,26 +708,19 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	return eventStore, nil
 }
 
-func loadEvmStore(cfg *config.Config, appHeight int64) (store.EvmStore, error) {
-	evmStoreCfg := cfg.EvmStore
+func loadEvmDB(cfg *config.Config, appHeight int64) (dbm.DB, error) {
+	evmDBCfg := cfg.EvmDB
 	db, err := cdb.LoadDB(
-		evmStoreCfg.DBBackend,
-		evmStoreCfg.DBName,
+		evmDBCfg.DBBackend,
+		evmDBCfg.DBName,
 		cfg.RootPath(),
-		evmStoreCfg.CacheSizeMegs,
+		evmDBCfg.CacheSizeMegs,
 		cfg.Metrics.Database,
 	)
 	if err != nil {
 		return nil, err
 	}
-
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  appHeight,
-		ContractAddr: loom.Address{},
-		CallerAddr:   loom.Address{},
-	}
-	evmStore := store.NewEvmStore(db, logContext)
-	return evmStore, nil
+	return db, nil
 }
 
 func loadApp(
@@ -742,7 +736,7 @@ func loadApp(
 	if err != nil {
 		return nil, err
 	}
-	var evmStore store.EvmStore
+	var evmDB dbm.DB
 	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
 	switch cfg.EventDispatcher.Dispatcher {
@@ -818,7 +812,7 @@ func loadApp(
 		return plugin.NewPluginVM(
 			loader,
 			state,
-			evmStore,
+			evmDB,
 			createRegistry(state),
 			eventHandler,
 			log.Default,
@@ -829,7 +823,7 @@ func loadApp(
 	})
 
 	if evm.EVMEnabled {
-		evmStore, err = loadEvmStore(cfg, appHeight)
+		evmDB, err = loadEvmDB(cfg, appHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -850,7 +844,7 @@ func loadApp(
 				pvm := plugin.NewPluginVM(
 					loader,
 					state,
-					evmStore,
+					evmDB,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -863,7 +857,7 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, evmStore, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, evmDB, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -1133,7 +1127,7 @@ func loadApp(
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
-		EvmStore:                    evmStore,
+		EvmDB:                       evmDB,
 		GetValidatorSet:             getValidatorSet,
 	}, nil
 }
@@ -1266,7 +1260,7 @@ func initQueryService(
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
-		EvmStore:               app.EvmStore,
+		EvmDB:                  app.EvmDB,
 		AuthCfg:                cfg.Auth,
 	}
 	bus := &rpc.QueryEventBus{

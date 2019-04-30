@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/go-loom"
@@ -19,7 +20,6 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -37,7 +37,7 @@ var (
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
-	EvmStore     store.EvmStore
+	EvmDB        dbm.DB
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
@@ -50,7 +50,7 @@ type PluginVM struct {
 func NewPluginVM(
 	loader Loader,
 	state loomchain.State,
-	evmStore store.EvmStore,
+	evmDB dbm.DB,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
@@ -61,7 +61,7 @@ func NewPluginVM(
 	return &PluginVM{
 		Loader:        loader,
 		State:         state,
-		EvmStore:      evmStore,
+		EvmDB:         evmDB,
 		Registry:      registry,
 		EventHandler:  eventHandler,
 		logger:        logger,
@@ -82,7 +82,7 @@ func (vm *PluginVM) CreateContractContext(
 		caller:       caller,
 		address:      addr,
 		State:        vm.State.WithPrefix(loom.DataPrefix(addr)),
-		EvmStore:     vm.EvmStore,
+		EvmDB:        vm.EvmDB,
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,
@@ -198,13 +198,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  vm.State.Block().Height,
-		CallerAddr:   caller,
-		ContractAddr: addr,
-	}
-	evmStore := vm.EvmStore.WithLogContext(logContext)
-	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EvmDB, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -217,13 +211,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  vm.State.Block().Height,
-		CallerAddr:   caller,
-		ContractAddr: addr,
-	}
-	evmStore := vm.EvmStore.WithLogContext(logContext)
-	evm := levm.NewLoomVm(vm.State, evmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EvmDB, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 
@@ -236,8 +224,8 @@ type contractContext struct {
 	caller  loom.Address
 	address loom.Address
 	loomchain.State
-	EvmStore store.EvmStore
-	VM       *PluginVM
+	EvmDB dbm.DB
+	VM    *PluginVM
 	registry.Registry
 	eventHandler loomchain.EventHandler
 	readOnly     bool

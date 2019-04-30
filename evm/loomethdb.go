@@ -22,41 +22,40 @@ var (
 )
 
 // implements ethdb.Database
-type LoomEthdb struct {
+type LoomEthDB struct {
 	state      store.KVStore
 	lock       sync.RWMutex
 	logContext *ethdbLogContext
 }
 
-func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
-	p := new(LoomEthdb)
+func NewLoomEthDB(_state loomchain.State, logContext *ethdbLogContext) *LoomEthDB {
+	p := new(LoomEthDB)
 	p.state = store.PrefixKVStore(vmPrefix, _state)
 	p.logContext = logContext
 	return p
 }
 
-func (s *LoomEthdb) Put(key []byte, value []byte) error {
+func (s *LoomEthDB) Put(key []byte, value []byte) error {
 	s.state.Set(key, value)
 	return nil
 }
 
-func (s *LoomEthdb) Get(key []byte) ([]byte, error) {
+func (s *LoomEthDB) Get(key []byte) ([]byte, error) {
 	return s.state.Get(key), nil
 }
 
-func (s *LoomEthdb) Has(key []byte) (bool, error) {
+func (s *LoomEthDB) Has(key []byte) (bool, error) {
 	return s.state.Has(key), nil
 }
 
-func (s *LoomEthdb) Delete(key []byte) error {
+func (s *LoomEthDB) Delete(key []byte) {
 	s.state.Delete(key)
-	return nil
 }
 
-func (s *LoomEthdb) Close() {
+func (s *LoomEthDB) Close() {
 }
 
-func (s *LoomEthdb) NewBatch() ethdb.Batch {
+func (s *LoomEthDB) NewBatch() ethdb.Batch {
 	if LogEthDbBatch {
 		return s.NewLogBatch(s.logContext)
 	} else {
@@ -75,7 +74,7 @@ type kvPair struct {
 
 type batch struct {
 	cache       []kvPair
-	parentStore *LoomEthdb
+	parentStore *LoomEthDB
 	size        int
 }
 
@@ -171,7 +170,7 @@ const batchHeader = `
 
 `
 
-func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
+func (s *LoomEthDB) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
 	b := new(LogBatch)
 	b.batch = *new(batch)
 	b.batch.parentStore = s

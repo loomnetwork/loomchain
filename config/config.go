@@ -125,8 +125,8 @@ type Config struct {
 	EventStore      *events.EventStoreConfig
 	EventDispatcher *events.EventDispatcherConfig
 
-	// EVM store
-	EvmStore *evm.EvmStoreConfig
+	// EVM DB
+	EvmDB *evm.EvmDBConfig
 
 	FnConsensus *FnConsensusConfig
 
@@ -384,7 +384,7 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
-	cfg.EvmStore = evm.DefaultEvmStoreConfig()
+	cfg.EvmDB = evm.DefaultEvmDBConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -769,18 +769,18 @@ EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
-{{if .EvmStore -}}
+{{if .EvmDB -}}
 #
-# EvmStore
+# EvmDB
 #
-EvmStore:
+EvmDB:
   # DBName defines evm database file name
-  DBName: {{.EvmStore.DBName}}
+  DBName: {{.EvmDB.DBName}}
   # DBBackend defines backend EVM store type
   # available backend types are 'goleveldb', or 'cleveldb'
-  DBBackend: {{.EvmStore.DBBackend}}
+  DBBackend: {{.EvmDB.DBBackend}}
   # CacheSizeMegs defines cache size (in megabytes) of EVM store
-  CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
+  CacheSizeMegs: {{.EvmDB.CacheSizeMegs}}
 {{end}}
 # 
 #  FnConsensus reactor on/off switch + config

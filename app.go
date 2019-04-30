@@ -20,6 +20,8 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 type ReadOnlyState interface {
@@ -43,7 +45,6 @@ type State interface {
 type StoreState struct {
 	ctx             context.Context
 	store           store.KVStore
-	evmStore        store.EvmStore
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
@@ -123,10 +124,6 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-func (s *StoreState) EvmStore() store.EvmStore {
-	return s.evmStore
-}
-
 var (
 	featurePrefix = "feature"
 )
@@ -160,7 +157,6 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 		store:           s.store,
 		block:           s.block,
 		ctx:             ctx,
-		evmStore:        s.evmStore,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
 	}
@@ -171,7 +167,6 @@ func (s *StoreState) WithPrefix(prefix []byte) State {
 		store:           store.PrefixKVStore(prefix, s.store),
 		block:           s.block,
 		ctx:             s.ctx,
-		evmStore:        s.evmStore,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
 	}
@@ -290,7 +285,7 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
-	EvmStore                    store.EvmStore
+	EvmDB                       dbm.DB
 }
 
 var _ abci.Application = &Application{}

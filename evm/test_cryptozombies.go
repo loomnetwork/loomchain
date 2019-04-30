@@ -13,7 +13,10 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/vm"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 
@@ -78,8 +81,7 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 		Local:   []byte("myMotherKat"),
 	}
 	manager := lvm.NewManager()
-	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
-	LoomVmFactory := CreateLoomVmFactory(evmStore)
+	LoomVmFactory := CreateLoomVmFactory(dbm.NewMemDB())
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
 
 	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
@@ -246,4 +248,24 @@ func setKittyAddress(t *testing.T, vm lvm.VM, caller, kittyAddr, contractAddr lo
 		t.Error("Error on setting kitty address")
 	}
 	return res
+}
+
+func CreateLoomVmFactory(evmDB dbm.DB) vm.Factory {
+	return func(state loomchain.State) (lvm.VM, error) {
+		//TODO , debug bool, We should be able to pass in config
+		debug := false
+		eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
+		receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
+			eventHandler,
+			func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
+				return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
+			},
+		)
+		receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+		if err != nil {
+			return nil, err
+		}
+
+		return NewLoomVm(state, evmDB, eventHandler, receiptHandler, nil, debug), nil
+	}
 }

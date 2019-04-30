@@ -71,11 +71,10 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
-			evmDB, err := dbm.NewGoLevelDB(cfg.EvmStore.DBName, cfg.RootPath())
+			evmDB, err := dbm.NewGoLevelDB(cfg.EvmDB.DBName, cfg.RootPath())
 			if err != nil {
 				return err
 			}
-			evmStore := store.NewEvmStore(evmDB, nil)
 
 			state := loomchain.NewStoreState(
 				context.Background(),
@@ -108,7 +107,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				pvm := plugin.NewPluginVM(
 					common.NewDefaultContractsLoader(cfg),
 					state,
-					evmStore,
+					evmDB,
 					createRegistry(state),
 					eventHandler,
 					log.Default,
@@ -126,7 +125,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, evmStore, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, evmDB, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}

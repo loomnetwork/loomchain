@@ -1,6 +1,6 @@
 package evm
 
-type EvmStoreConfig struct {
+type EvmDBConfig struct {
 	// DBName defines database file name
 	DBName string
 	// DBBackend defines backend EVM store type
@@ -10,8 +10,8 @@ type EvmStoreConfig struct {
 	CacheSizeMegs int
 }
 
-func DefaultEvmStoreConfig() *EvmStoreConfig {
-	return &EvmStoreConfig{
+func DefaultEvmDBConfig() *EvmDBConfig {
+	return &EvmDBConfig{
 		DBName:        "evm",
 		DBBackend:     "goleveldb",
 		CacheSizeMegs: 20,
@@ -19,7 +19,7 @@ func DefaultEvmStoreConfig() *EvmStoreConfig {
 }
 
 // Clone returns a deep clone of the config.
-func (cfg *EvmStoreConfig) Clone() *EvmStoreConfig {
+func (cfg *EvmDBConfig) Clone() *EvmDBConfig {
 	if cfg == nil {
 		return nil
 	}

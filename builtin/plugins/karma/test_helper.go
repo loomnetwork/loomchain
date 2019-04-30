@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/db"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 // TODO: This duplicates a lot of the contract loading & deployment code, it should just use the
@@ -46,7 +45,6 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	appStore, err := store.NewIAVLStore(appDb, 0, 0)
 	header := abci.Header{}
 	header.Height = int64(1)
-	evmStore := store.NewEvmStore(dbm.NewMemDB(), nil)
 	state := loomchain.NewStoreState(context.Background(), appStore, header, nil, nil)
 
 	vmManager := vm.NewManager()
@@ -57,7 +55,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	}
 	loader := plugin.NewStaticLoader(Contract, coin.Contract)
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		return plugin.NewPluginVM(loader, state, evmStore, reg, nil, log.Default, nil, nil, nil), nil
+		return plugin.NewPluginVM(loader, state, db.NewMemDB(), reg, nil, log.Default, nil, nil, nil), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 	if err != nil {

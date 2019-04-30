@@ -34,5 +34,5 @@ const (
 	ChainCfgVersion1_1 = "chaincfg:v1.1"
 
 	// Enables storing evm Patricia tree directly into Goleveldb (evm.db) instead of IAVL tree (app.db)
-	EvmStoreFeature = "store:evm"
+	EvmDBFeature = "db:evm"
 )

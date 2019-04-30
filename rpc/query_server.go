@@ -32,6 +32,7 @@ import (
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -107,7 +108,7 @@ type QueryServer struct {
 	RPCListenAddress string
 	store.BlockStore
 	EventStore store.EventStore
-	EvmStore   store.EvmStore
+	EvmDB      dbm.DB
 	AuthCfg    *auth.Config
 }
 
@@ -193,7 +194,7 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 	vm := lcp.NewPluginVM(
 		s.Loader,
 		snapshot,
-		s.EvmStore,
+		s.EvmDB,
 		s.CreateRegistry(snapshot),
 		nil,
 		log.Default,
@@ -237,7 +238,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 		pvm := lcp.NewPluginVM(
 			s.Loader,
 			snapshot,
-			s.EvmStore,
+			s.EvmDB,
 			s.CreateRegistry(snapshot),
 			nil,
 			log.Default,
@@ -250,7 +251,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(snapshot, s.EvmStore, nil, nil, createABM, false)
+	vm := levm.NewLoomVm(snapshot, s.EvmDB, nil, nil, createABM, false)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
@@ -288,7 +289,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	vm := levm.NewLoomVm(snapshot, s.EvmStore, nil, nil, nil, false)
+	vm := levm.NewLoomVm(snapshot, s.EvmDB, nil, nil, nil, false)
 	return vm.GetCode(contractAddr)
 }
 
@@ -301,7 +302,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	evm := levm.NewLoomVm(snapshot, s.EvmStore, nil, nil, nil, false)
+	evm := levm.NewLoomVm(snapshot, s.EvmDB, nil, nil, nil, false)
 	code, err := evm.GetCode(addr)
 	if err != nil {
 		return "", err
@@ -314,7 +315,7 @@ func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.
 	vm := lcp.NewPluginVM(
 		s.Loader,
 		state,
-		s.EvmStore,
+		s.EvmDB,
 		s.CreateRegistry(state),
 		nil, // event handler
 		log.Default,

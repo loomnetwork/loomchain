@@ -14,9 +14,9 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -49,18 +49,31 @@ type LoomEvm struct {
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
 	loomState loomchain.State,
-	evmStore store.EvmStore,
+	evmDB dbm.DB,
 	accountBalanceManager AccountBalanceManager,
-	logContext *store.EvmStoreLogContext,
+	logContext *MultiWriterDBLogContext,
 	debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
 
-	if loomState.FeatureEnabled(loomchain.EvmStoreFeature, true) {
-		p.db = evmStore
+	// If EvmDBFeature is enabled, read from and write to evm.db
+	// otherwise write to both evm.db and app.db but read from app.db
+	var config MultiWriterDBConfig
+	var loomEthDB *LoomEthDB
+	if loomState.FeatureEnabled(loomchain.EvmDBFeature, true) {
+		config = MultiWriterDBConfig{
+			Read:  EVM_DB,
+			Write: EVM_DB,
+		}
 	} else {
-		p.db = NewLoomEthdb(loomState, EvmStoreLogContextToEthDbLogContext(logContext))
+		loomEthDB = NewLoomEthDB(loomState, MultiWriterDBLogContextToEthDbLogContext(logContext))
+		config = MultiWriterDBConfig{
+			Read:  LOOM_ETH_DB,
+			Write: BOTH_DB,
+		}
 	}
+
+	p.db = NewMultiWriterDB(evmDB, loomEthDB, logContext, config)
 
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
@@ -114,7 +127,7 @@ func (levm LoomEvm) RawDump() []byte {
 // TODO: rename to LoomEVM
 type LoomVm struct {
 	state          loomchain.State
-	evmStore       store.EvmStore
+	evmDB          dbm.DB
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
@@ -122,7 +135,7 @@ type LoomVm struct {
 
 func NewLoomVm(
 	loomState loomchain.State,
-	evmStore store.EvmStore,
+	evmDB dbm.DB,
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
@@ -130,7 +143,7 @@ func NewLoomVm(
 ) vm.VM {
 	return &LoomVm{
 		state:          loomState,
-		evmStore:       evmStore,
+		evmDB:          evmDB,
 		receiptHandler: receiptHandler,
 		createABM:      createABM,
 		debug:          debug,
@@ -145,13 +158,12 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
-	logContext := &store.EvmStoreLogContext{
+	logContext := &MultiWriterDBLogContext{
 		BlockHeight:  lvm.state.Block().Height,
 		ContractAddr: loom.Address{},
 		CallerAddr:   caller,
 	}
-	evmStore := lvm.evmStore.WithLogContext(logContext)
-	levm, err := NewLoomEvm(lvm.state, evmStore, lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.evmDB, lvm.accountBalanceManager(false), logContext, lvm.debug)
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
@@ -191,13 +203,12 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	logContext := &store.EvmStoreLogContext{
+	logContext := &MultiWriterDBLogContext{
 		BlockHeight:  lvm.state.Block().Height,
 		ContractAddr: addr,
 		CallerAddr:   caller,
 	}
-	evmStore := lvm.evmStore.WithLogContext(logContext)
-	levm, err := NewLoomEvm(lvm.state, evmStore, lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.evmDB, lvm.accountBalanceManager(false), logContext, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
@@ -225,13 +236,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  lvm.state.Block().Height,
-		ContractAddr: addr,
-		CallerAddr:   caller,
-	}
-	evmStore := lvm.evmStore.WithLogContext(logContext)
-	levm, err := NewLoomEvm(lvm.state, evmStore, lvm.accountBalanceManager(true), nil, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.evmDB, lvm.accountBalanceManager(true), nil, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
@@ -239,26 +244,20 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
-	logContext := &store.EvmStoreLogContext{
-		BlockHeight:  lvm.state.Block().Height,
-		ContractAddr: addr,
-		CallerAddr:   loom.Address{},
-	}
-	evmStore := lvm.evmStore.WithLogContext(logContext)
-	levm, err := NewLoomEvm(lvm.state, evmStore, nil, nil, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.evmDB, nil, nil, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
 	return levm.GetCode(addr), nil
 }
 
-func EvmStoreLogContextToEthDbLogContext(evmStoreLogContext *store.EvmStoreLogContext) *ethdbLogContext {
+func MultiWriterDBLogContextToEthDbLogContext(multiWriterLogContext *MultiWriterDBLogContext) *ethdbLogContext {
 	var logContext *ethdbLogContext
-	if evmStoreLogContext != nil {
+	if multiWriterLogContext != nil {
 		logContext = &ethdbLogContext{
-			blockHeight:  evmStoreLogContext.BlockHeight,
-			contractAddr: evmStoreLogContext.ContractAddr,
-			callerAddr:   evmStoreLogContext.ContractAddr,
+			blockHeight:  multiWriterLogContext.BlockHeight,
+			contractAddr: multiWriterLogContext.ContractAddr,
+			callerAddr:   multiWriterLogContext.ContractAddr,
 		}
 	}
 	return logContext
