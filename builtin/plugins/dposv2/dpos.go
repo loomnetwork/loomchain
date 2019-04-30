@@ -107,9 +107,12 @@ type (
 	ValidatorStatistic                = dtypes.ValidatorStatisticV2
 	Validator                         = types.Validator
 	State                             = dtypes.StateV2
+	StateDump                         = dtypes.StateDumpV2
 	Params                            = dtypes.ParamsV2
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	ViewStateDumpRequest              = dtypes.ViewStateDumpRequest
+	ViewStateDumpResponse             = dtypes.ViewStateDumpResponse
 	GetDistributionsRequest           = dtypes.GetDistributionsRequest
 	GetDistributionsResponse          = dtypes.GetDistributionsResponse
 
@@ -2133,6 +2136,38 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	}
 
 	return initializationState, nil
+}
+
+func ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpRequest) (*ViewStateDumpResponse, error) {
+	ctx.Logger().Debug("DPOS ViewStateDump", "request", req)
+
+	// load v2 state and pack it into v3 state
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// load v2 Candidates and pack them into v3 Candidates
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	currentV2State := &StateDump{
+		Candidates: candidates,
+	}
+
+
+	initializationState, err := populateInitializationState(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &ViewStateDumpResponse{
+		OldState: currentV2State,
+		NewState: initializationState,
+	}
+
+	return resp, nil
 }
 
 func populateInitializationState(ctx contract.StaticContext, state *State) (*dposv3.InitializationState, error) {
