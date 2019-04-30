@@ -2113,6 +2113,29 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		return nil, logDposError(ctx, errOnlyOracle, "DPOSv2 Dump")
 	}
 
+	initializationState, err := populateInitializationState(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+
+	staticCoin := loadStaticCoin(ctx, state.Params)
+	dposv2Addr := ctx.ContractAddress()
+	// send all dposv2 funds to dposv3 (representing unpaid rewards & delegations)
+	balanceResponse, err := staticCoin.BalanceOf(dposv2Addr)
+	if err != nil {
+		return nil, err
+	}
+
+	coin := loadCoin(ctx, state.Params)
+	err = coin.Transfer(dposv3Address, balanceResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return initializationState, nil
+}
+
+func populateInitializationState(ctx contract.StaticContext, state *State) (*dposv3.InitializationState, error) {
 	v3Params := &dposv3.Params{
 		ValidatorCount:              state.Params.ValidatorCount,
 		ElectionCycleLength:         state.Params.ElectionCycleLength,
@@ -2231,20 +2254,6 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		Candidates:  v3Candidates,
 		Statistics:  v3Statistics,
 		Delegations: v3Delegations,
-	}
-
-	staticCoin := loadStaticCoin(ctx, state.Params)
-	dposv2Addr := ctx.ContractAddress()
-	// send all dposv2 funds to dposv3 (representing unpaid rewards & delegations)
-	balanceResponse, err := staticCoin.BalanceOf(dposv2Addr)
-	if err != nil {
-		return nil, err
-	}
-
-	coin := loadCoin(ctx, state.Params)
-	err = coin.Transfer(dposv3Address, balanceResponse)
-	if err != nil {
-		return nil, err
 	}
 
 	return initializationState, nil
