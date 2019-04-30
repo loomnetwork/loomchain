@@ -204,7 +204,7 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 	var qs QueryService = &querySever
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewLegacyEthSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 
@@ -261,15 +261,11 @@ func seedMapedAddress(
 		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-
+	require.NoError(t, err)
 	_, amAddr, err := pluginVm.Create(plugin.CreateAddress(loom.RootAddress(chainId), uint64(0)), amInitCode, loom.NewBigUIntFromInt(0))
-	if err != nil {
-		return
-	}
+	require.NoError(t, err)
 	err = reg.Register("addressmapper", amAddr, amAddr)
-	if err != nil {
-		return
-	}
+	require.NoError(t, err)
 
 	ctx, err := querySever.createAddressMapperCtx(state, native)
 	require.NoError(t, err)
@@ -490,7 +486,7 @@ func testQueryServerContractEvents(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", 1, i)),
 		}
-		eventStore.SaveEvent(contractID, 1, uint16(i), &event)
+		require.NoError(t, eventStore.SaveEvent(contractID, 1, uint16(i), &event))
 		eventData = append(eventData, &event)
 	}
 

@@ -977,7 +977,7 @@ func loadApp(
 	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
 		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
-			dposV3Ctx, err := createDPOSV3Ctx(state)
+			dposV3Ctx, err := createDPOSV3Ctx(state, loom.Address{})
 			if err != nil {
 				return nil, err
 			}
@@ -988,7 +988,7 @@ func loadApp(
 			return loom.NewValidatorSet(validators...), nil
 		} else if cfg.DPOSVersion == 2 {
 			createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
-			dposV2Ctx, err := createDPOSV2Ctx(state)
+			dposV2Ctx, err := createDPOSV2Ctx(state, loom.Address{})
 			if err != nil {
 				return nil, err
 			}
