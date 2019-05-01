@@ -2177,6 +2177,19 @@ func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpReque
 		return nil, err
 	}
 
+	// Testing invariants to ensure migration is valid
+	if len(candidates) != len(initializationState.Candidates) {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of Candidates."), req.String())
+	}
+
+	if (len(delegations) + len(distributions)) != len(initializationState.Delegations) {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in len(v2Delegations + v2Distributions) != len(v3Delegations)."), req.String())
+	}
+
+	if len(statistics) != len(initializationState.Statistics) {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of ValidatorStatistics."), req.String())
+	}
+
 	resp := &ViewStateDumpResponse{
 		OldState: currentV2State,
 		NewState: initializationState,
