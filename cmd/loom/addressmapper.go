@@ -58,7 +58,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
 	cmd.Flags().StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
 	cmd.Flags().StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
-	cmd.Flags().StringVarP(&callFlags.ChainID, "chain", "c", "default", "chain ID")
+	cmd.Flags().StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
 	cmd.Flags().StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
 	cmd.Flags().StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
 	cmd.Flags().StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
@@ -105,10 +105,7 @@ func ListMappingCmd() *cobra.Command {
 		Short: "list user account mappings",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var flags cli.ContractCallFlags
-			AddContractCallFlags(cmd.Flags(), &flags)
 			var resp address_mapper.ListMappingResponse
-
 			err := cli.StaticCallContractWithFlags(&flags, AddressMapperName, "ListMapping",
 				&address_mapper.ListMappingRequest{}, &resp)
 			if err != nil {
