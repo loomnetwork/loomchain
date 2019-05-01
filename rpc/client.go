@@ -35,7 +35,6 @@ var (
 	}
 )
 
-
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
 	hub *Hub
@@ -96,8 +95,8 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 func (c *Client) writePump(logger log.TMLogger) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		if r:= recover(); r != nil {
-			logger.Error("Websocket write panicked","err", r)
+		if r := recover(); r != nil {
+			logger.Error("Websocket write panicked", "err", r)
 		}
 		ticker.Stop()
 		_ = c.conn.Close()
@@ -116,7 +115,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 				logger.Error("error setting write deadline", "err", err)
 			}
 
-			if err := c.conn.WriteMessage(websocket.TextMessage, message); err!= nil {
+			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				logger.Error("error writing message to websocket", "err", err)
 				return
 			}
@@ -125,7 +124,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				msg := <-c.send
-				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err!= nil {
+				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 					logger.Error("error writing message to websocket", "err", err)
 					return
 				}
