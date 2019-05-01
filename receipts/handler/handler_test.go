@@ -117,23 +117,23 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	var txHashList [][]byte
 
 	// mock block
-	for nonce := 0; nonce < 20; nonce++ {
+	for nonce := 1; nonce < 21; nonce++ {
 		var txError error
 		var resp abci.ResponseDeliverTx
 		loomchain.NewSequence(util.PrefixKey([]byte("nonce"), addr1.Bytes())).Next(state)
 		var txHash []byte
 
-		if nonce%2 == 0 { // mock EVM transaction
+		if nonce%2 == 1 { // mock EVM transaction
 			stateI := common.MockStateTx(state, height, uint64(nonce))
 			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
-			if nonce == 18 { // mock error
+			if nonce == 19 { // mock error
 				receiptHandler.SetFailStatusCurrentReceipt()
 				txError = errors.New("Some EVM error")
 			}
-			if nonce == 0 { // mock deploy transaction
+			if nonce == 1 { // mock deploy transaction
 				resp.Data = []byte("proto with contract address and tx hash")
 				resp.Info = utils.DeployEvm
 			} else { // mock call transaction
@@ -170,7 +170,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		require.NoError(t, err)
 		require.EqualValues(t, 0, bytes.Compare(hash, receipt.TxHash))
 		require.EqualValues(t, int64(index*2+1), receipt.Nonce)
-		require.EqualValues(t, index, receipt.TransactionIndex)
+		require.EqualValues(t, 2*index, receipt.TransactionIndex)
 		require.EqualValues(t, common.StatusTxSuccess, receipt.Status)
 	}
 
@@ -185,7 +185,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		require.NoError(t, err)
 		require.EqualValues(t, 0, bytes.Compare(txHash, txReceipt.TxHash))
 		require.EqualValues(t, index*2+1, txReceipt.Nonce)
-		require.EqualValues(t, index, txReceipt.TransactionIndex)
+		require.EqualValues(t, 2*index, txReceipt.TransactionIndex)
 		require.EqualValues(t, common.StatusTxSuccess, txReceipt.Status)
 	}
 
