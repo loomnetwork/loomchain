@@ -2177,18 +2177,40 @@ func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpReque
 		return nil, err
 	}
 
-	// Testing invariants to ensure migration is valid
+	// Checking that number of Candidates does not change
 	if len(candidates) != len(initializationState.Candidates) {
 		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of Candidates."), req.String())
 	}
 
+	// Checking that number of Delagations/Distributions does not change
 	if (len(delegations) + len(distributions)) != len(initializationState.Delegations) {
 		return nil, logStaticDposError(ctx, errors.New("Migration resulted in len(v2Delegations + v2Distributions) != len(v3Delegations)."), req.String())
 	}
 
+	// Chekcing that number of statistics does not change
 	if len(statistics) != len(initializationState.Statistics) {
 		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of ValidatorStatistics."), req.String())
 	}
+
+	// Checking that whitelist totals & weighted totals do not change
+	// Note: there is no weighting in V2 statistics so so checking total is enough
+	whitelistTotalV2 := common.BigZero()
+	for _, statistic := range statistics {
+		whitelistTotalV2.Add(whitelistTotalV2, &statistic.WhitelistAmount.Value)
+	}
+
+	whitelistTotalV3 := common.BigZero()
+	for _, statistic := range initializationState.Statistics {
+		whitelistTotalV3.Add(whitelistTotalV3, &statistic.WhitelistAmount.Value)
+	}
+
+	if whitelistTotalV2.Cmp(whitelistTotalV3) != 0 {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in inconsistent whitelist amounts."), req.String())
+	}
+
+	// Checking that (non-zero index) delegation sum does not change
+
+	// Checking that distributions / zero-index delegations sum does not change
 
 	resp := &ViewStateDumpResponse{
 		OldState: currentV2State,
