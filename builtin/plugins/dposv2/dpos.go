@@ -2209,8 +2209,34 @@ func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpReque
 	}
 
 	// Checking that (non-zero index) delegation sum does not change
+	delegationTotalV2 := common.BigZero()
+	for _, delegation := range delegations {
+		delegationTotalV2.Add(delegationTotalV2, &delegation.Amount.Value)
+	}
+
+	delegationTotalV3 := common.BigZero()
+	distributionTotalV3 := common.BigZero()
+	for _, delegation := range initializationState.Delegations {
+		if delegation.Index != 0 {
+			delegationTotalV3.Add(delegationTotalV3, &delegation.Amount.Value)
+		} else {
+			distributionTotalV3.Add(distributionTotalV3, &delegation.Amount.Value)
+		}
+	}
+
+	if delegationTotalV2.Cmp(delegationTotalV3) != 0 {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in inconsistent delegation amounts."), req.String())
+	}
 
 	// Checking that distributions / zero-index delegations sum does not change
+	distributionTotalV2 := common.BigZero()
+	for _, distribution := range distributions {
+		distributionTotalV2.Add(distributionTotalV2, &distribution.Amount.Value)
+	}
+
+	if distributionTotalV2.Cmp(distributionTotalV3) != 0 {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in inconsistent distribution amounts."), req.String())
+	}
 
 	resp := &ViewStateDumpResponse{
 		OldState: currentV2State,
