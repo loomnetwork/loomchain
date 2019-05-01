@@ -230,3 +230,8 @@
   RunCmd = "{{ $.LoomPath }} dposV2 time_until_election"
   Condition = "contains"
   Expected = ["timeUntilElection"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dposV2 view_state_dump"
+  Condition = "excludes"
+  Excluded = ["Error"]
