@@ -17,7 +17,8 @@ const (
 )
 
 func AddIdentityMappingCmd() *cobra.Command {
-	var uri, mainnetURI, contractAddr, chainId, chainID, privFile, hsmConfigFile, algo, callerChainID string
+	var chainId string
+	var callFlags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "add-identity-mapping <loom-addr> <eth-key-file>",
 		Short: "Adds a mapping between a DAppChain account and a Mainnet account.",
@@ -45,7 +46,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 				return errors.Wrap(err, "sigining mapping with ethereum key")
 			}
 
-			err = cli.CallContract(AddressMapperName, "AddIdentityMapping", &mapping, nil)
+			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "AddIdentityMapping", &mapping, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			} else {
@@ -54,14 +55,14 @@ func AddIdentityMappingCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&uri, "uri", "u", "http://localhost:46658", "DAppChain base URI")
-	cmd.Flags().StringVarP(&mainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
-	cmd.Flags().StringVar(&contractAddr, "contract", "", "contract address")
-	cmd.Flags().StringVarP(&chainID, "chain", "", "default", "chain ID")
-	cmd.Flags().StringVarP(&privFile, "key", "k", "", "private key file")
-	cmd.Flags().StringVar(&hsmConfigFile, "hsm", "", "hsm config file")
-	cmd.Flags().StringVar(&algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
-	cmd.Flags().StringVar(&callerChainID, "caller-chain", "", "Overrides chain ID of caller")
+	cmd.Flags().StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmd.Flags().StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
+	cmd.Flags().StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
+	cmd.Flags().StringVarP(&callFlags.ChainID, "chain", "c", "default", "chain ID")
+	cmd.Flags().StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
+	cmd.Flags().StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
+	cmd.Flags().StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
+	cmd.Flags().StringVar(&callFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
 	cmd.Flags().StringVarP(&chainId, "mapped-chain-id", "c", "eth", "ethereum chain id")
 	return cmd
 }
