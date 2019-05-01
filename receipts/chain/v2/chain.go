@@ -87,7 +87,7 @@ func writeReceipt(
 	}
 	block := state.Block()
 	txReceipt := types.EvmTxReceipt{
-		TransactionIndex:  state.Block().NumTxs,
+		TransactionIndex:  state.Block().NumTxs-1,
 		BlockHash:         block.GetLastBlockID().Hash,
 		BlockNumber:       state.Block().Height,
 		CumulativeGasUsed: 0,

@@ -24,7 +24,7 @@ func DepreciatedWriteReceipt(
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
-		TransactionIndex:  block.NumTxs,
+		TransactionIndex:  block.NumTxs-1,
 		BlockHash:         block.GetLastBlockID().Hash,
 		BlockNumber:       block.Height,
 		CumulativeGasUsed: 0,
