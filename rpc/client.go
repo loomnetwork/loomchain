@@ -96,6 +96,9 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 func (c *Client) writePump(logger log.TMLogger) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		if r:= recover(); r != nil {
+			logger.Error("Websocket write panicked","err", r)
+		}
 		ticker.Stop()
 		_ = c.conn.Close()
 	}()
