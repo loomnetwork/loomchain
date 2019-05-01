@@ -2177,6 +2177,67 @@ func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpReque
 		return nil, err
 	}
 
+	// Checking that number of Candidates does not change
+	if len(candidates) != len(initializationState.Candidates) {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of Candidates."), req.String())
+	}
+
+	// Checking that number of Delegations/Distributions does not change
+	if (len(delegations) + len(distributions)) != len(initializationState.Delegations) {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in len(v2Delegations + v2Distributions) != len(v3Delegations)."), req.String())
+	}
+
+	// Checking that number of statistics does not change
+	if len(statistics) != len(initializationState.Statistics) {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of ValidatorStatistics."), req.String())
+	}
+
+	// Checking that whitelist totals & weighted totals do not change
+	// Note: checking the total amount is enough
+	whitelistTotalV2 := common.BigZero()
+	for _, statistic := range statistics {
+		whitelistTotalV2.Add(whitelistTotalV2, &statistic.WhitelistAmount.Value)
+	}
+
+	whitelistTotalV3 := common.BigZero()
+	for _, statistic := range initializationState.Statistics {
+		whitelistTotalV3.Add(whitelistTotalV3, &statistic.WhitelistAmount.Value)
+	}
+
+	if whitelistTotalV2.Cmp(whitelistTotalV3) != 0 {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in inconsistent whitelist amounts."), req.String())
+	}
+
+	// Checking that (non-zero index) delegation sum does not change
+	delegationTotalV2 := common.BigZero()
+	for _, delegation := range delegations {
+		delegationTotalV2.Add(delegationTotalV2, &delegation.Amount.Value)
+	}
+
+	delegationTotalV3 := common.BigZero()
+	distributionTotalV3 := common.BigZero()
+	for _, delegation := range initializationState.Delegations {
+		if delegation.Index != 0 {
+			delegationTotalV3.Add(delegationTotalV3, &delegation.Amount.Value)
+		} else {
+			distributionTotalV3.Add(distributionTotalV3, &delegation.Amount.Value)
+		}
+	}
+
+	if delegationTotalV2.Cmp(delegationTotalV3) != 0 {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in inconsistent delegation amounts."), req.String())
+	}
+
+	// Checking that distributions / zero-index delegations sum does not change
+	distributionTotalV2 := common.BigZero()
+	for _, distribution := range distributions {
+		distributionTotalV2.Add(distributionTotalV2, &distribution.Amount.Value)
+	}
+
+	if distributionTotalV2.Cmp(distributionTotalV3) != 0 {
+		return nil, logStaticDposError(ctx, errors.New("Migration resulted in inconsistent distribution amounts."), req.String())
+	}
+
 	resp := &ViewStateDumpResponse{
 		OldState: currentV2State,
 		NewState: initializationState,
@@ -2255,7 +2316,7 @@ func populateInitializationState(ctx contract.StaticContext, state *State) (*dpo
 
 	for _, distribution := range distributions {
 		v3Delegation := &dposv3.Delegation{
-			Validator:    limboValidatorAddress.MarshalPB(),
+			Validator:    dposv3.LimboValidatorAddress(ctx).MarshalPB(),
 			Delegator:    distribution.Address,
 			Index:        dposv3.REWARD_DELEGATION_INDEX,
 			Amount:       distribution.Amount,
