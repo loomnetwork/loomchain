@@ -25,7 +25,7 @@ var (
 func TestReceiptsHandlerChain(t *testing.T) {
 	testHandlerDepreciated(t, ReceiptHandlerChain)
 
-	os.RemoveAll(leveldb.Db_Filename)
+	_ = os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
 	testHandler(t, ReceiptHandlerLevelDb)
@@ -42,15 +42,15 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	receiptHandler := handler
 
 	var txHashList [][]byte
-	for txNum := 0; txNum < 20; txNum++ {
-		if txNum%2 == 0 {
+	for txNum := 1; txNum < 21; txNum++ {
+		if txNum%2 == 1 {
 			stateI := common.MockStateTx(state, height, uint64(txNum))
 			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 
-			if txNum == 10 {
+			if txNum == 11 {
 				receiptHandler.SetFailStatusCurrentReceipt()
 			}
 			receiptHandler.CommitCurrentReceipt()
