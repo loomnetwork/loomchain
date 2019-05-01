@@ -2182,18 +2182,18 @@ func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpReque
 		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of Candidates."), req.String())
 	}
 
-	// Checking that number of Delagations/Distributions does not change
+	// Checking that number of Delegations/Distributions does not change
 	if (len(delegations) + len(distributions)) != len(initializationState.Delegations) {
 		return nil, logStaticDposError(ctx, errors.New("Migration resulted in len(v2Delegations + v2Distributions) != len(v3Delegations)."), req.String())
 	}
 
-	// Chekcing that number of statistics does not change
+	// Checking that number of statistics does not change
 	if len(statistics) != len(initializationState.Statistics) {
 		return nil, logStaticDposError(ctx, errors.New("Migration resulted in unequal number of ValidatorStatistics."), req.String())
 	}
 
 	// Checking that whitelist totals & weighted totals do not change
-	// Note: there is no weighting in V2 statistics so so checking total is enough
+	// Note: checking the total amount is enough
 	whitelistTotalV2 := common.BigZero()
 	for _, statistic := range statistics {
 		whitelistTotalV2.Add(whitelistTotalV2, &statistic.WhitelistAmount.Value)
