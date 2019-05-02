@@ -43,7 +43,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 			mapping.To = ethAddr.MarshalPB()
 			mapping.Signature, err = address_mapper.SignIdentityMapping(user, ethAddr, ethKey)
 			if err != nil {
-				return errors.Wrap(err, "sigining mapping with ethereum key")
+				return errors.Wrap(err, "signing mapping with ethereum key")
 			}
 
 			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "AddIdentityMapping", &mapping, nil)
@@ -62,7 +62,6 @@ func AddIdentityMappingCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
 	cmd.Flags().StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
 	cmd.Flags().StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
-	cmd.Flags().StringVar(&callFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
 	cmd.Flags().StringVarP(&chainId, "mapped-chain-id", "c", "eth", "ethereum chain id")
 	return cmd
 }
