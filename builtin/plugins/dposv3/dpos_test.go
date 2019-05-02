@@ -545,9 +545,17 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	// redelegating from 1 to 2 fails
-	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr1, &addr2, delegationAmount, 1, nil, nil)
+	delegations, _, _, err := dpos.CheckAllDelegations(pctx, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations), 6)
+
+	// redelegating from 1 to 2 does not create a new delegation
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr1, &addr2, nil, 1, nil, nil)
 	require.Nil(t, err)
+
+	delegations, _, _, err = dpos.CheckAllDelegations(pctx, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations), 6)
 
 	require.NoError(t, elect(pctx, dpos.Address))
 	require.NoError(t, elect(pctx, dpos.Address))
@@ -568,8 +576,8 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, len(delegations2) == 3)
 	require.True(t, amount2.Cmp(totalAmount) == 0)
-
 	fmt.Println('a')
+
 	// Amount 3 should be the sum of the two delegations
 	delegations3, amount3, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr3, &delegatorAddress1)
 	require.NoError(t, err)
