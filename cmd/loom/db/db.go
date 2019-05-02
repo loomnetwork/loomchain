@@ -15,6 +15,7 @@ func NewDBCommand() *cobra.Command {
 		newPruneDBCommand(),
 		newCompactDBCommand(),
 		newDumpEVMStateCommand(),
+		newMigrateEvmStateCommand(),
 	)
 	return cmd
 }

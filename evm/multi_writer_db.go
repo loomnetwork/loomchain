@@ -21,7 +21,7 @@ var (
 const (
 	EVM_DB      = 1
 	LOOM_ETH_DB = 2
-	BOTH_DB     = 3
+	ALL_DB      = 3
 )
 
 type MultiWriterDB interface {
@@ -66,20 +66,20 @@ func NewMultiWriterDB(evmDB dbm.DB, loomEthDB *LoomEthDB, logContext *MultiWrite
 }
 
 func (db *multiWriterDB) Delete(key []byte) error {
-	if db.config.Write == EVM_DB || db.config.Write == BOTH_DB {
+	if db.config.Write == EVM_DB || db.config.Write == ALL_DB {
 		db.evmDB.Delete(key)
 	}
-	if db.config.Write == LOOM_ETH_DB || db.config.Write == BOTH_DB {
+	if db.config.Write == LOOM_ETH_DB || db.config.Write == ALL_DB {
 		db.loomEthDB.Delete(key)
 	}
 	return nil
 }
 
 func (db *multiWriterDB) Put(key []byte, value []byte) error {
-	if db.config.Write == EVM_DB || db.config.Write == BOTH_DB {
+	if db.config.Write == EVM_DB || db.config.Write == ALL_DB {
 		db.evmDB.Set(key, value)
 	}
-	if db.config.Write == LOOM_ETH_DB || db.config.Write == BOTH_DB {
+	if db.config.Write == LOOM_ETH_DB || db.config.Write == ALL_DB {
 		db.loomEthDB.Put(key, value)
 	}
 	return nil
@@ -147,7 +147,12 @@ func (db *multiWriterDB) NewLogBatch(logContext *MultiWriterDBLogContext) ethdb.
 	}
 
 	if logContext != nil {
-		multiWriterLogger.Printf(batchHeaderWithContext, logContext.BlockHeight, logContext.ContractAddr, logContext.CallerAddr)
+		multiWriterLogger.Printf(
+			batchHeaderWithContext,
+			logContext.BlockHeight,
+			logContext.ContractAddr,
+			logContext.CallerAddr,
+		)
 	} else {
 		multiWriterLogger.Print(batchHeader)
 	}

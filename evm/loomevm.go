@@ -60,7 +60,7 @@ func NewLoomEvm(
 	// otherwise write to both evm.db and app.db but read from app.db
 	var config MultiWriterDBConfig
 	var loomEthDB *LoomEthDB
-	if loomState.FeatureEnabled(loomchain.EvmDBFeature, true) {
+	if loomState.FeatureEnabled(loomchain.EvmDBFeature, false) {
 		config = MultiWriterDBConfig{
 			Read:  EVM_DB,
 			Write: EVM_DB,
@@ -69,7 +69,7 @@ func NewLoomEvm(
 		loomEthDB = NewLoomEthDB(loomState, MultiWriterDBLogContextToEthDbLogContext(logContext))
 		config = MultiWriterDBConfig{
 			Read:  LOOM_ETH_DB,
-			Write: BOTH_DB,
+			Write: LOOM_ETH_DB,
 		}
 	}
 

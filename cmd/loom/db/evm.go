@@ -25,6 +25,7 @@ import (
 
 func newDumpEVMStateCommand() *cobra.Command {
 	var appHeight int64
+	var evmDBFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "evm-dump",
@@ -125,6 +126,8 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
+			state.SetFeature(loomchain.EvmDBFeature, evmDBFlag)
+
 			vm, err := evm.NewLoomEvm(state, evmDB, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
@@ -137,5 +140,46 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
+	cmdFlags.BoolVar(&evmDBFlag, "evmdb", false, "Dump EVM state from evm.db instead of app.db")
+	return cmd
+}
+
+func newMigrateEvmStateCommand() *cobra.Command {
+	var appHeight int64
+	vmPrefix := []byte("vm")
+	cmd := &cobra.Command{
+		Use:   "evm-migrate",
+		Short: "Migrate EVM state stored in app.db at a specific block height to evm.db",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := common.ParseConfig()
+			if err != nil {
+				return err
+			}
+
+			appDB, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
+			if err != nil {
+				return err
+			}
+
+			evmDB, err := dbm.NewGoLevelDB(cfg.EvmDB.DBName, cfg.RootPath())
+			if err != nil {
+				return err
+			}
+
+			appStore, err := store.NewIAVLStore(appDB, 0, appHeight)
+			if err != nil {
+				return err
+			}
+
+			for _, d := range appStore.Range(vmPrefix) {
+				evmDB.Set(d.Key, d.Value)
+			}
+
+			return nil
+		},
+	}
+
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&appHeight, "app-height", 0, "App height at which EVM state will be migrated from app.db to evm.db")
 	return cmd
 }
