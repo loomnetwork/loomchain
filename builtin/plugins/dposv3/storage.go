@@ -214,7 +214,7 @@ func (s byValidatorAndDelegator) Less(i, j int) bool {
 	}
 
 	if diff == 0 {
-		return s[i].Index < s[j].Index
+		return s[i].Index > s[j].Index
 	}
 
 	return diff < 0
