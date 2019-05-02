@@ -351,9 +351,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 		priorDelegation.State = REDELEGATING
 		priorDelegation.LockTime = newLocktime
-		if len(req.Referrer) > 0 {
-			priorDelegation.Referrer = req.Referrer
-		}
+		priorDelegation.Referrer = req.Referrer
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
