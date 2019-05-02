@@ -1268,7 +1268,6 @@ func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *lo
 
 func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
-	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
@@ -1294,24 +1293,21 @@ func main() {
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		NewCoinCommand(),
+		NewAddressMapperCommand(),
 		NewDPOSV2Command(),
 		NewDPOSV3Command(),
 		karmaCmd,
-		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
 		resolveCmd,
 		unsafeCmd,
-		commands.GetMapping(),
-		commands.ListMapping(),
 		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
-	AddAddressMappingMethods(addressMappingCmd)
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)
