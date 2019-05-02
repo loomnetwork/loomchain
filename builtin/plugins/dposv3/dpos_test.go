@@ -2,6 +2,7 @@ package dposv3
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -543,20 +544,26 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-        // They should have 6 delegations (3 + 3 rewards delegations)
+	// They should have 6 delegations (3 + 3 rewards delegations)
 	delegations, _, _, err := dpos.CheckAllDelegations(pctx, &delegatorAddress1)
 	require.NoError(t, err)
 	require.Equal(t, len(delegations), 6)
 
-	// redelegating from 1 to 2 does not create a new delegation
+	// redelegating from 1 to 2
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr1, &addr2, nil, 1, nil, nil)
 	require.Nil(t, err)
+
+	// redelegating from 3 to 2 in the same election
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr3, &addr2, nil, 1, nil, nil)
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+	require.NoError(t, elect(pctx, dpos.Address))
 
 	delegations, _, _, err = dpos.CheckAllDelegations(pctx, &delegatorAddress1)
 	require.NoError(t, err)
 	require.Equal(t, len(delegations), 6)
 
-	require.NoError(t, elect(pctx, dpos.Address))
 	require.NoError(t, elect(pctx, dpos.Address))
 	require.NoError(t, elect(pctx, dpos.Address))
 
@@ -573,14 +580,17 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	// Amount 2 should be the sum of the two delegations
 	delegations2, amount2, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr2, &delegatorAddress1)
 	require.NoError(t, err)
-	require.True(t, len(delegations2) == 3)
-	require.True(t, amount2.Cmp(big.NewInt(0).Mul(delegationAmount, big.NewInt(2))) == 0)
+	for _, d := range delegations2 {
+		fmt.Println(d.Index)
+	}
+	require.Equal(t, len(delegations2), 4)
+	require.True(t, amount2.Cmp(big.NewInt(0).Mul(delegationAmount, big.NewInt(3))) == 0)
 
 	// Amount 3 should be one delegation
 	delegations3, amount3, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr3, &delegatorAddress1)
 	require.NoError(t, err)
-	require.True(t, len(delegations3) == 2)
-	require.True(t, amount3.Cmp(delegationAmount) == 0)
+	require.True(t, len(delegations3) == 1)
+	require.True(t, amount3.Cmp(big.NewInt(0)) == 0) // no amount delegated
 }
 
 func TestRedelegate(t *testing.T) {
