@@ -49,7 +49,7 @@ func GetTxByHash(_ loomchain.ReadOnlyState, _ []byte, _ loomchain.ReadReceiptHan
 	return eth.JsonTxObject{}, nil
 }
 
-func GetTxByBlockAndIndex(_ store.BlockStore, _ loomchain.ReadOnlyState, _, _ uint64, _ loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
+func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64) (txObj eth.JsonTxObject, err error) {
 	return eth.JsonTxObject{}, nil
 }
 
