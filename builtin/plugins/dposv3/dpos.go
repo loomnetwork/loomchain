@@ -1473,6 +1473,11 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do not distribute rewards to delegators of the Limbo validator
+		// NOTE: because all delegations are sorted in reverse index order, the
+		// 0-index delegation (for rewards) is handled last. Therefore, all
+		// increases to reward delegations will be reflected in newDelegation
+		// totals that are computed at the end of this for loop. (We do this to
+		// avoid looping over all delegations twice)
 		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
