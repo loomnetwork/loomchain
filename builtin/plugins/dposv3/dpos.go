@@ -1340,7 +1340,15 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 
 				// Keeping track of cumulative distributed rewards by adding
 				// every validator's total rewards to
-				// state.TotalRewardDistribution
+				// `state.TotalRewardDistribution`
+				// NOTE: because we round down in every `calculateRewards` call,
+				// we expect `state.TotalRewardDistribution` to be a slight
+				// overestimate of what was actually distributed. We could be
+				// exact with our record keeping by incrementing
+				// `state.TotalRewardDistribution` each time
+				// `IncreaseRewardDelegation` is called, but because we will not
+				// use `state.TotalRewardDistributions` as part of any invariants,
+				// we will live with this situation.
 				state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
 			} else {
 				slashValidatorDelegations(ctx, statistic, candidateAddress)
@@ -1473,6 +1481,11 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do not distribute rewards to delegators of the Limbo validator
+		// NOTE: because all delegations are sorted in reverse index order, the
+		// 0-index delegation (for rewards) is handled last. Therefore, all
+		// increases to reward delegations will be reflected in newDelegation
+		// totals that are computed at the end of this for loop. (We do this to
+		// avoid looping over all delegations twice)
 		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals

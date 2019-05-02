@@ -2211,7 +2211,7 @@ func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpReque
 	// Checking that (non-zero index) delegation sum does not change
 	delegationTotalV2 := common.BigZero()
 	for _, delegation := range delegations {
-		delegationTotalV2.Add(delegationTotalV2, &delegation.Amount.Value)
+		delegationTotalV2.Add(delegationTotalV2, &adjustDoubledDelegationAmount(*delegation).Value)
 	}
 
 	delegationTotalV3 := common.BigZero()
