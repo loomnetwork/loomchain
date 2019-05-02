@@ -642,7 +642,7 @@ func TestRedelegate(t *testing.T) {
 	require.NoError(t, elect(pctx, dpos.Address))
 
 	delegations, _, _, err := dpos.CheckDelegation(pctx, &addr3, &delegatorAddress2)
-	assert.Equal(t, delegations[len(delegations)-1].LocktimeTier, TIER_THREE)
+	assert.Equal(t, delegations[0].LocktimeTier, TIER_THREE)
 
 	// checking that all 3 candidates have been elected validators
 	validators, err = dpos.ListValidators(pctx)
@@ -1675,7 +1675,7 @@ func TestLockup(t *testing.T) {
 		// checking delegation pre-election
 		delegations, _, _, err := dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &test.Delegator)
 		require.Nil(t, err)
-		delegation := delegations[len(delegations)-1]
+		delegation := delegations[0]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
 		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
@@ -1688,7 +1688,7 @@ func TestLockup(t *testing.T) {
 		// checking delegation post-election
 		delegations, _, _, err = dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &test.Delegator)
 		require.Nil(t, err)
-		delegation = delegations[len(delegations)-1]
+		delegation = delegations[0]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
 		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
@@ -1704,11 +1704,11 @@ func TestLockup(t *testing.T) {
 
 	delegations, _, _, err := dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &delegatorAddress3)
 	require.Nil(t, err)
-	assert.Equal(t, TIER_ZERO, delegations[len(delegations)-1].LocktimeTier)
+	assert.Equal(t, TIER_ZERO, delegations[0].LocktimeTier)
 
 	delegations, _, _, err = dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &delegatorAddress4)
 	require.Nil(t, err)
-	assert.Equal(t, TIER_THREE, delegations[len(delegations)-1].LocktimeTier)
+	assert.Equal(t, TIER_THREE, delegations[0].LocktimeTier)
 }
 
 func TestApplyPowerCap(t *testing.T) {
