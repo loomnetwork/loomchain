@@ -344,16 +344,16 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
 	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
-		// remove the prior delegation from state and subsequently save it with the new key
-		if err := DeleteDelegation(ctx, priorDelegation); err != nil {
-			return err
-		}
+
 		priorDelegation.UpdateValidator = req.ValidatorAddress
+		priorDelegation.UpdateLocktimeTier = newLocktimeTier
+		priorDelegation.UpdateIndex = index
+
 		priorDelegation.State = REDELEGATING
-		priorDelegation.LocktimeTier = newLocktimeTier
 		priorDelegation.LockTime = newLocktime
-		priorDelegation.Referrer = req.Referrer
-		priorDelegation.Index = index
+		if len(req.Referrer) > 0 {
+			priorDelegation.Referrer = req.Referrer
+		}
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
@@ -1524,6 +1524,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 				return nil, err
 			}
 			delegation.Validator = delegation.UpdateValidator
+			delegation.LocktimeTier = delegation.UpdateLocktimeTier
+			delegation.Index = delegation.UpdateIndex
 			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
