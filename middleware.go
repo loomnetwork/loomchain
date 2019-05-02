@@ -1,6 +1,7 @@
 package loomchain
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"runtime/debug"
@@ -120,9 +121,7 @@ var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
 	res TxHandlerResult,
 	next PostCommitHandler,
 ) error {
-	log.Default.Debug("Running post commit logger")
-	log.Default.Info(string(txBytes))
-	log.Default.Info(fmt.Sprintf("%+v", res))
+	log.Default.Info("Tx processed", "result", res, "payload", base64.StdEncoding.EncodeToString(txBytes))
 	return next(state, txBytes, res)
 })
 
