@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -522,7 +521,6 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	require.NoError(t, elect(pctx, dpos.Address))
 
 	delegationAmount := big.NewInt(10000000)
-	totalAmount := big.NewInt(30000000)
 	tier := uint64(3)
 
 	// Delegator makes 3 delegations of the same amount to the 3 candidates
@@ -575,8 +573,7 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	delegations2, amount2, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr2, &delegatorAddress1)
 	require.NoError(t, err)
 	require.True(t, len(delegations2) == 3)
-	require.True(t, amount2.Cmp(totalAmount) == 0)
-	fmt.Println('a')
+	require.True(t, amount2.Cmp(big.NewInt(0).Mul(delegationAmount, big.NewInt(2))) == 0)
 
 	// Amount 3 should be the sum of the two delegations
 	delegations3, amount3, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr3, &delegatorAddress1)
