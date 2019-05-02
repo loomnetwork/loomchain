@@ -121,8 +121,7 @@ var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
 	res TxHandlerResult,
 	next PostCommitHandler,
 ) error {
-	log.Default.Debug("Running post commit logger")
-	log.Default.Info(base64.StdEncoding.EncodeToString(txBytes))
+	log.Default.Info("Tx processed", "result", res, "payload", base64.StdEncoding.EncodeToString(txBytes))
 	log.Default.Info(fmt.Sprintf("%+v", res))
 	return next(state, txBytes, res)
 })
