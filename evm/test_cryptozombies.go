@@ -136,6 +136,75 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 
 }
 
+func testCryptoZombiesEVMMigrate(t *testing.T, state loomchain.State, caller loom.Address) {
+	motherKat := loom.Address{
+		ChainID: "AChainID",
+		Local:   []byte("myMotherKat"),
+	}
+	manager := lvm.NewManager()
+	LoomVmFactory := CreateLoomVmFactory(dbm.NewMemDB())
+	manager.Register(lvm.VMType_EVM, LoomVmFactory)
+
+	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
+	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")
+
+	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
+	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
+
+	state.SetFeature(loomchain.EvmDBFeature, true)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	checkKitty(t, vm, caller, kittyAddr, kittyData)
+
+	state.SetFeature(loomchain.EvmDBFeature, false)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	makeZombie(t, vm, caller, zOwnershipAddr, zOwnershipData, "EEK")
+
+	state.SetFeature(loomchain.EvmDBFeature, true)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	greedyZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 0)
+	// greedy zombie should look like:
+	//{
+	//"0": "string: name EEK",
+	//"1": "uint256: dna 2925635026906600",
+	//"2": "uint32: level 1",
+	//"3": "uint32: readyTime 1523984404",
+	//"4": "uint16: winCount 0",
+	//"5": "uint16: lossCount 0"
+	//}
+	if !checkEqual(greedyZombie[57:64], []byte{10, 100, 217, 124, 133, 109, 232}) {
+		fmt.Println("dna 2925635026906600 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x", 2925635026906600)))
+		fmt.Println("new zombie data: ", greedyZombie)
+		t.Error("Wrong dna for greedy zombie")
+	}
+
+	state.SetFeature(loomchain.EvmDBFeature, false)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	setKittyAddress(t, vm, caller, kittyAddr, zOwnershipAddr, zOwnershipData)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	zombieFeed(t, vm, caller, zOwnershipAddr, zOwnershipData, 0, 67)
+
+	state.SetFeature(loomchain.EvmDBFeature, true)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	newZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 1)
+	// New zombie should look like
+	//{
+	//"0": "string: name NoName",
+	//"1": "uint256: dna 5307191969124799",
+	//"2": "uint32: level 1",
+	//"3": "uint32: readyTime 1523984521",
+	//"4": "uint16: winCount 0",
+	//"5": "uint16: lossCount 0"
+	//}
+	if !checkEqual(newZombie[57:64], []byte{18, 218, 220, 236, 19, 17, 191}) {
+		fmt.Println("dna 5307191969124799 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x", 5307191969124799)))
+		fmt.Println("new zombie data: ", newZombie)
+		t.Error("Wrong dna for new zombie")
+	}
+
+}
+
 func deployContract(t *testing.T, vm lvm.VM, caller loom.Address, code string, runCode string) loom.Address {
 	res, addr, err := vm.Create(caller, common.Hex2Bytes(code), loom.NewBigUIntFromInt(0))
 	require.NoError(t, err, "calling vm.Create")

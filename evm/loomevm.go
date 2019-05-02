@@ -69,7 +69,7 @@ func NewLoomEvm(
 		loomEthDB = NewLoomEthDB(loomState, MultiWriterDBLogContextToEthDbLogContext(logContext))
 		config = MultiWriterDBConfig{
 			Read:  LOOM_ETH_DB,
-			Write: LOOM_ETH_DB,
+			Write: ALL_DB,
 		}
 	}
 

@@ -65,6 +65,9 @@ func TestProcessDeployTx(t *testing.T) {
 	// committed to the state.
 	// The state carries over to be used to create the VM for the next transaction.
 	testCryptoZombiesUpdateState(t, mockState(), caller)
+
+	// Test EVM State migration from app.db to evm.db with CryptoZombie solidity contract
+	testCryptoZombiesEVMMigrate(t, mockState(), caller)
 }
 
 // Test that if we add a new precompile, we can call it using the solidity call function.
