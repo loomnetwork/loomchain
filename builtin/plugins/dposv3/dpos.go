@@ -1289,7 +1289,15 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				// The validator share, equal to validator_fee * total_validotor_reward
 				// is to be split between the referrers and the validator
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, distributionTotal)
+
+				// delegatorsShare is what fraction of the total rewards will be
+				// distributed to delegators
+				delegatorsShare := common.BigZero()
+				delegatorsShare.Sub(&distributionTotal, &validatorShare)
+				delegatorRewards[validatorKey] = delegatorsShare
+
 				// Distribute rewards to referrers
+
 				for _, d := range delegations {
 					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 {
 						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
@@ -1322,12 +1330,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				}
 
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
-
-				// delegatorsShare is what fraction of the total rewards will be
-				// distributed to delegators
-				delegatorsShare := common.BigZero()
-				delegatorsShare.Sub(&distributionTotal, &validatorShare)
-				delegatorRewards[validatorKey] = delegatorsShare
 
 				// If a validator has some non-zero WhitelistAmount,
 				// calculate the validator's reward based on whitelist amount
