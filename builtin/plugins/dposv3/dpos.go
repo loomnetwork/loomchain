@@ -337,11 +337,19 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 	}
 
+	index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *priorDelegation.Delegator)
+	if err != nil {
+		return err
+	}
+
 	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
 	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
+
 		priorDelegation.UpdateValidator = req.ValidatorAddress
+		priorDelegation.UpdateLocktimeTier = newLocktimeTier
+		priorDelegation.UpdateIndex = index
+
 		priorDelegation.State = REDELEGATING
-		priorDelegation.LocktimeTier = newLocktimeTier
 		priorDelegation.LockTime = newLocktime
 		priorDelegation.Referrer = req.Referrer
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
@@ -352,11 +360,6 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		priorDelegation.State = REDELEGATING
 		priorDelegation.UpdateAmount.Value.Add(&priorDelegation.UpdateAmount.Value, &req.Amount.Value)
 		priorDelegation.UpdateValidator = priorDelegation.Validator
-
-		index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *priorDelegation.Delegator)
-		if err != nil {
-			return err
-		}
 
 		delegation := &Delegation{
 			Validator:    req.ValidatorAddress,
@@ -1521,6 +1524,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 				return nil, err
 			}
 			delegation.Validator = delegation.UpdateValidator
+			delegation.LocktimeTier = delegation.UpdateLocktimeTier
+			delegation.Index = delegation.UpdateIndex
 			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
