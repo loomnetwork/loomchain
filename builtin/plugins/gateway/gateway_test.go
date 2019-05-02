@@ -368,7 +368,7 @@ func TestOldEventBatchProcessing(t *testing.T) {
 }
 */
 
-func (ts *GatewayTestSuite) TestReplayProtection() {
+func (ts *GatewayTestSuite) TestConfirmWithdrawalReceiptV2() {
 	require := ts.Require()
 	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
 
