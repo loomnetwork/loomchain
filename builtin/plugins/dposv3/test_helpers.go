@@ -254,9 +254,13 @@ func (dpos *testDPOSContract) Redelegate(ctx *plugin.FakeContext, validator *loo
 	req := &RedelegateRequest{
 		FormerValidatorAddress: validator.MarshalPB(),
 		ValidatorAddress:       newValidator.MarshalPB(),
-		Amount:                 &types.BigUInt{Value: *loom.NewBigUInt(amount)},
 		Index:                  index,
 	}
+
+	if amount != nil {
+		req.Amount = &types.BigUInt{Value: *loom.NewBigUInt(amount)}
+	}
+
 	if tier != nil {
 		req.NewLocktimeTier = *tier
 	}
