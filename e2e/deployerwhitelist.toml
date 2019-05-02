@@ -122,7 +122,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 list-validators"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
