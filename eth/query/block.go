@@ -83,7 +83,7 @@ func GetBlockByNumber(
 
 			txObj, err := GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
 			if err != nil {
-				return resp, errors.Wrapf(err, "cant resolve tx %v", tx)
+				return resp, errors.Wrapf(err, "cant resolve tx, hash %v", tx.Hash())
 			}
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
