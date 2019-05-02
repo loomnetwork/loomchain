@@ -840,7 +840,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 
 		txObj, err = query.GetTxByTendermintHash(s.BlockStore, txHash)
 		if err != nil {
-			return resp, errors.Wrapf(err, "cannot get tx from hash")
+			return resp, errors.Wrapf(err, "failed to find tx with hash %v", txHash)
 		}
 	}
 	return txObj, nil
@@ -856,27 +856,17 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
 	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
 	if err != nil {
 		return txObj, err
 	}
+	snapshot.Release()
+
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
 		return txObj, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(
-		snapshot.Block().Height,
-		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-	)
-	if err != nil {
-		return txObj, err
-	}
-	// TODO: Reading from the TM block store could take a while, might be more efficient to release
-	//       the current snapshot and get a new one after pulling out whatever we need from the TM
-	//       block store.
-	return query.GetTxByBlockAndIndex(s.BlockStore, snapshot, uint64(height), txIndex, r)
+	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
@@ -884,27 +874,18 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	block eth.BlockHeight, index eth.Quantity,
 ) (txObj eth.JsonTxObject, err error) {
 	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
 		return txObj, err
 	}
+	snapshot.Release()
+
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
 		return txObj, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(
-		snapshot.Block().Height,
-		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-	)
-	if err != nil {
-		return txObj, err
-	}
-	// TODO: Reading from the TM block store could take a while, might be more efficient to release
-	//       the current snapshot and get a new one after pulling out whatever we need from the TM
-	//       block store.
-	return query.GetTxByBlockAndIndex(s.BlockStore, snapshot, height, txIndex, r)
+	return query.GetTxByBlockAndIndex(s.BlockStore, height, txIndex)
 }
 
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
@@ -1025,11 +1006,7 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	}
 
 	if height != uint64(snapshot.Block().Height) {
-		return eth.Quantity("0x0"), fmt.Errorf(
-			"transaction count only implemted for the latest block %v, block %v requested",
-			snapshot.Block().Height,
-			height,
-		)
+		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
 	}
 	address, err := eth.DecDataToAddress(s.ChainID, local)
 	if err != nil {

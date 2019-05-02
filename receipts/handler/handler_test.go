@@ -42,15 +42,15 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	receiptHandler := handler
 
 	var txHashList [][]byte
-	for txNum := 1; txNum < 21; txNum++ {
-		if txNum%2 == 1 {
+	for txNum := 0; txNum < 20; txNum++ {
+		if txNum%2 == 0 {
 			stateI := common.MockStateTx(state, height, uint64(txNum))
 			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 
-			if txNum == 11 {
+			if txNum == 10 {
 				receiptHandler.SetFailStatusCurrentReceipt()
 			}
 			receiptHandler.CommitCurrentReceipt()

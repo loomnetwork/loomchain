@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -11,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
 )
 
 // ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
@@ -87,7 +88,7 @@ func writeReceipt(
 	}
 	block := state.Block()
 	txReceipt := types.EvmTxReceipt{
-		TransactionIndex:  state.Block().NumTxs-1,
+		TransactionIndex:  state.Block().NumTxs,
 		BlockHash:         block.GetLastBlockID().Hash,
 		BlockNumber:       state.Block().Height,
 		CumulativeGasUsed: 0,

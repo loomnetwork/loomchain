@@ -4,15 +4,12 @@ package query
 
 import (
 	"github.com/gogo/protobuf/proto"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/go-loom/vm"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 )
@@ -52,10 +49,8 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 
 func GetTxByBlockAndIndex(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
 	height,
 	index uint64,
-	readReceipts loomchain.ReadReceiptHandler,
 ) (txObj eth.JsonTxObject, err error) {
 	iHeight := int64(height)
 
@@ -71,46 +66,12 @@ func GetTxByBlockAndIndex(
 	if err != nil {
 		return txObj, errors.Errorf("no tx with hash %v found in block %v", blockResult.Block.Data.Txs[index].Hash(), height)
 	}
-	txObj, err = getTxFromTxResponse(state, txResult, blockResult,  readReceipts)
+	txObj , err = GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
 	if err != nil {
 		return txObj, err
 	}
 	txObj.TransactionIndex = eth.EncInt(int64(index))
 	return txObj, nil
-}
-
-func getTxFromTxResponse(state loomchain.ReadOnlyState, txResult *ctypes.ResultTx, blockResult *ctypes.ResultBlock, readReceipts loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
-	switch txResult.TxResult.Info {
-	case utils.DeployEvm:
-		dr := vm.DeployResponse{}
-		if err := proto.Unmarshal(txResult.TxResult.Data, &dr); err != nil {
-			return txObj, errors.Wrap(err, "deploy response does not unmarshal")
-		}
-		drd := vm.DeployResponseData{}
-		if err := proto.Unmarshal(dr.Output, &drd); err != nil {
-			return txObj, errors.Wrap(err, "deploy response data does not unmarshal")
-		}
-		return GetTxByHash(state, drd.TxHash, readReceipts)
-	case utils.CallEVM:
-		return GetTxByHash(state, txResult.TxResult.Data, readReceipts)
-	case utils.CallPlugin:
-		fallthrough
-	case utils.DeployPlugin:
-		return eth.JsonTxObject{
-			Nonce:                  eth.ZeroedQuantity,
-			Hash:                   eth.EncBytes(txResult.Hash),
-			BlockHash:              eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
-			BlockNumber:            eth.EncInt(txResult.Height),
-			From:                   eth.ZeroedData20Bytes,
-			To:                     eth.ZeroedData20Bytes,
-			Gas:                    eth.EncInt(txResult.TxResult.GasWanted),
-			GasPrice:               eth.EncInt(txResult.TxResult.GasUsed),
-			Input:                  eth.EncBytes(txResult.Tx),
-			Value:                  eth.EncInt(0),
-		}, nil
-	default:
-		return txObj, errors.Errorf("unknown transaction type %v", txResult.TxResult.Info)
-	}
 }
 
 func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {

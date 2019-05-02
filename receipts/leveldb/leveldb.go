@@ -34,11 +34,12 @@ func WriteReceipt(
 	events []*types.EventData,
 	status int32,
 	eventHadler loomchain.EventHandler,
+	evmTxIndex int32,
 	nonce int64,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
 		Nonce:             nonce,
-		TransactionIndex:  block.NumTxs-1,
+		TransactionIndex:  evmTxIndex,
 		BlockHash:         block.CurrentHash,
 		BlockNumber:       block.Height,
 		CumulativeGasUsed: 0,
@@ -70,7 +71,7 @@ func WriteReceipt(
 		pEvent.TransactionIndex = uint64(block.NumTxs-1)
 		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
 	}
-
+	txReceipt.TransactionIndex = block.NumTxs-1
 	return txReceipt, nil
 }
 

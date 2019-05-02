@@ -9,11 +9,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	ttypes "github.com/tendermint/tendermint/types"
 
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
@@ -23,6 +21,7 @@ import (
 const (
 	deployId    = uint32(1)
 	callId      = uint32(2)
+	migrationTx = uint32(3)
 )
 
 var (
@@ -79,7 +78,7 @@ func GetBlockByNumber(
 		if full {
 			txResult, err := blockStore.GetTxResult(tx.Hash())
 			if err != nil {
-				return resp, errors.Wrapf(err, "cant find result for tx %v", tx)
+				return resp, errors.Wrapf(err, "cant find result for tx, hash %v", tx.Hash())
 			}
 
 			txObj, err := GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
@@ -100,62 +99,63 @@ func GetBlockByNumber(
 }
 
 func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.JsonTxObject, error) {
-	nonce, from, to, input, err := GetTxFields(txResult.Tx)
-	if err != nil {
+	var signedTx auth.SignedTx
+	if err := proto.Unmarshal([]byte(txResult.Tx), &signedTx); err != nil {
 		return eth.JsonTxObject{}, err
 	}
+
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return eth.JsonTxObject{}, err
+	}
+
+	var txTx loomchain.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
+		return eth.JsonTxObject{}, err
+	}
+
+	var msg vm.MessageTx
+	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
+		return eth.JsonTxObject{}, err
+	}
+
+	var input []byte
+	switch txTx.Id {
+	case deployId:
+		{
+			var deployTx vm.DeployTx
+			if err := proto.Unmarshal(msg.Data, &deployTx);  err != nil {
+				return eth.JsonTxObject{}, err
+			}
+			input = deployTx.Code
+		}
+	case callId:
+		{
+			var callTx vm.CallTx
+			if err := proto.Unmarshal(msg.Data, &callTx);  err != nil {
+				return eth.JsonTxObject{}, err
+			}
+			input = callTx.Input
+		}
+	case migrationTx:
+		input = msg.Data
+	default:
+		return eth.JsonTxObject{}, fmt.Errorf("unrecognised tx type %v", txTx.Id)
+	}
+
 	return eth.JsonTxObject{
-		Nonce:                  eth.EncInt(int64(nonce)),
+		Nonce:                  eth.EncInt(int64(nonceTx.Sequence)),
 		Hash:                   eth.EncBytes(txResult.Hash),
 		BlockHash:              eth.EncBytes(blockHash),
 		BlockNumber:            eth.EncInt(txResult.Height),
 		TransactionIndex:       eth.EncInt(int64(txResult.Index)),
-		From:                   eth.EncAddress(from),
-		To:                     eth.EncAddress(to),
+		From:                   eth.EncAddress(msg.From),
+		To:                     eth.EncAddress(msg.To),
 		Value:                  eth.EncInt(0),
 		GasPrice:               eth.EncInt(txResult.TxResult.GasWanted),
 		Gas:                    eth.EncInt(txResult.TxResult.GasUsed),
 		Input:                  eth.EncBytes(input),
 	}, nil
-}
-
-func GetTxFields(tx ttypes.Tx) (uint64, *ltypes.Address, *ltypes.Address, []byte, error) {
-	var signedTx auth.SignedTx
-	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
-		return 0, nil, nil, nil, err
-	}
-
-	var nonceTx auth.NonceTx
-	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return 0, nil, nil, nil, err
-	}
-
-	var txTx loomchain.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
-		return 0, nil, nil, nil, err
-	}
-
-	var msg vm.MessageTx
-	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
-		return 0, nil, nil, nil, err
-	}
-
-	switch txTx.Id {
-	case deployId:
-		var deployTx vm.DeployTx
-		if err := proto.Unmarshal(msg.Data, &deployTx);  err != nil {
-			return 0, nil, nil, nil, err
-		}
-		return nonceTx.Sequence, msg.From, msg.To, deployTx.Code, nil
-	case callId:
-		var callTx vm.CallTx
-		if err := proto.Unmarshal(msg.Data, &callTx);  err != nil {
-			return 0, nil, nil,nil, err
-		}
-		return nonceTx.Sequence, msg.From, msg.To, callTx.Input, nil
-	default:
-		return 0, nil, nil, nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
-	}
 }
 
 func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
