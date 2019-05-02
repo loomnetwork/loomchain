@@ -58,6 +58,7 @@ func GetTxByBlockAndIndex(
 	if blockResult == nil || blockResult.Block == nil {
 		return txObj, errors.Errorf("no block results found at height %v", height)
 	}
+
 	if len(blockResult.Block.Data.Txs) <= int(index) {
 		return txObj, errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
 	}
