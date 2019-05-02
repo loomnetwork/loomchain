@@ -337,17 +337,11 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 	}
 
-	index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *priorDelegation.Delegator)
-	if err != nil {
-		return err
-	}
-
 	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
 	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
 
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.UpdateLocktimeTier = newLocktimeTier
-		priorDelegation.UpdateIndex = index
 
 		priorDelegation.State = REDELEGATING
 		priorDelegation.LockTime = newLocktime
@@ -369,7 +363,6 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LocktimeTier: newLocktimeTier,
 			LockTime:     newLocktime,
 			State:        BONDING,
-			Index:        index,
 			Referrer:     req.Referrer,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
@@ -1524,8 +1517,14 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 				return nil, err
 			}
 			delegation.Validator = delegation.UpdateValidator
+
+			index, err := GetNextDelegationIndex(ctx, *delegation.Validator, *delegation.Delegator)
+			if err != nil {
+				return nil, err
+			}
+
 			delegation.LocktimeTier = delegation.UpdateLocktimeTier
-			delegation.Index = delegation.UpdateIndex
+			delegation.Index = index
 			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
