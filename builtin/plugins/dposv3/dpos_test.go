@@ -557,6 +557,17 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr3, &addr2, nil, 1, nil, nil)
 	require.Nil(t, err)
 
+	// Delegations should be in redelegating state before elections
+	delegations1, _, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr1, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations1), 2)
+	require.Equal(t, delegations1[0].State, REDELEGATING)
+
+	delegations3, _, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr3, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations1), 2)
+	require.Equal(t, delegations3[0].State, REDELEGATING)
+
 	require.NoError(t, elect(pctx, dpos.Address))
 	require.NoError(t, elect(pctx, dpos.Address))
 
@@ -564,13 +575,10 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(delegations), 6)
 
-	require.NoError(t, elect(pctx, dpos.Address))
-	require.NoError(t, elect(pctx, dpos.Address))
-
 	// They should have:
 	// reward delegation on addr1
-	// reward delegation + 2 delegations on addr2
-	// reward delegation + 1 delegations on addr3
+	// reward delegation + 3 delegations on addr2
+	// reward delegation on addr3
 
 	delegations1, amount1, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr1, &delegatorAddress1)
 	require.NoError(t, err)
