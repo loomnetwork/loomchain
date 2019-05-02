@@ -543,6 +543,7 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
+        // They should have 6 delegations (3 + 3 rewards delegations)
 	delegations, _, _, err := dpos.CheckAllDelegations(pctx, &delegatorAddress1)
 	require.NoError(t, err)
 	require.Equal(t, len(delegations), 6)
@@ -575,7 +576,7 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	require.True(t, len(delegations2) == 3)
 	require.True(t, amount2.Cmp(big.NewInt(0).Mul(delegationAmount, big.NewInt(2))) == 0)
 
-	// Amount 3 should be the sum of the two delegations
+	// Amount 3 should be one delegation
 	delegations3, amount3, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr3, &delegatorAddress1)
 	require.NoError(t, err)
 	require.True(t, len(delegations3) == 2)
