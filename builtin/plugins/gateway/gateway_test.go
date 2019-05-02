@@ -368,76 +368,6 @@ func TestOldEventBatchProcessing(t *testing.T) {
 }
 */
 
-// func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
-// 	require := ts.Require()
-
-// 	oracleAddr := ts.dAppAddr
-// 	ownerAddr := ts.dAppAddr2
-
-// 	fakeCtx := plugin.CreateFakeContextWithEVM(ownerAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
-
-// 	addressMapper, err := deployAddressMapperContract(fakeCtx)
-// 	require.NoError(err)
-
-// 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
-// 		Owner:   ownerAddr.MarshalPB(),
-// 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-// 	}, false)
-// 	require.NoError(err)
-
-// 	for i, _ := range ts.validatorsDetails {
-// 		var sig []byte
-
-// 		sig, err = address_mapper.SignIdentityMapping(ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, ts.validatorsDetails[i].EthPrivKey)
-// 		require.NoError(err)
-
-// 		require.NoError(addressMapper.AddIdentityMapping(fakeCtx.WithSender(ts.validatorsDetails[i].DAppAddress), ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, sig))
-// 	}
-
-// 	trustedValidators := &TrustedValidators{
-// 		Validators: make([]*types.Address, len(ts.validatorsDetails)),
-// 	}
-// 	for i, validatorDetails := range ts.validatorsDetails {
-// 		trustedValidators.Validators[i] = validatorDetails.DAppAddress.MarshalPB()
-// 	}
-
-// 	dposValidators := make([]*types.Validator, len(ts.validatorsDetails))
-// 	for i, _ := range dposValidators {
-// 		dposValidators[i] = &types.Validator{
-// 			PubKey: ts.validatorsDetails[i].DAppPrivKey.PubKey().Bytes(),
-// 			Power:  10,
-// 		}
-// 	}
-
-// 	_, err = deployDPOSV2Contract(fakeCtx, dposValidators)
-// 	require.NoError(err)
-
-// 	validators := make([]*loom.Validator, len(ts.validatorsDetails))
-// 	for i, _ := range validators {
-// 		validators[i] = &loom.Validator{
-// 			PubKey: ts.validatorsDetails[i].DAppPrivKey.PubKey().Bytes(),
-// 			Power:  10,
-// 		}
-// 	}
-// 	fakeCtx = fakeCtx.WithValidators(validators)
-// 	sig, _ := hex.DecodeString("cd7f07b4f35d2d2dee86bde44d765aef81673745aab5d5aaf4422dc73938237d2cbc5105bc0ceddbf4037b62003159903d35b834496a622ba4d9117008c164401c")
-
-// 	require.NoError(gwHelper.Contract.UpdateTrustedValidators(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
-// 		TrustedValidators: trustedValidators,
-// 	}))
-
-// 	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
-// 		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
-// 	}))
-
-// 	// If sender is trusted validator, request should pass validation check and fail at the signatures (because we gave it a wrong sig)
-// 	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequestV2{
-// 		TokenOwner:      trustedValidators.Validators[0],
-// 		OracleSignature: sig,
-// 	}), ErrNotEnoughSignatures.Error())
-
-// }
-
 func (ts *GatewayTestSuite) TestReplayProtection() {
 	require := ts.Require()
 	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
@@ -720,6 +650,7 @@ func (ts *GatewayTestSuite) TestReplayProtection() {
 		aggregatedSignature = append(aggregatedSignature, sig...)
 	}
 
+	// Signature prepared accordance with new strategy should work
 	err = gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[2].DAppAddress)), &ConfirmWithdrawalReceiptRequestV2{
 		TokenOwner:      ts.dAppAddr2.MarshalPB(),
 		OracleSignature: aggregatedSignature,
