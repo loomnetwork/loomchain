@@ -4,7 +4,6 @@ package gateway
 
 import (
 	"crypto/ecdsa"
-	"encoding/hex"
 	"math/big"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -368,23 +368,34 @@ func TestOldEventBatchProcessing(t *testing.T) {
 }
 */
 
-func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
+func (ts *GatewayTestSuite) TestConfirmWithdrawalReceiptV2() {
 	require := ts.Require()
-
-	oracleAddr := ts.dAppAddr
-	ownerAddr := ts.dAppAddr2
-
-	fakeCtx := plugin.CreateFakeContextWithEVM(ownerAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
 
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
 	require.NoError(err)
 
+	ownerAddr := ts.dAppAddr2
+
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
-		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
 	}, false)
 	require.NoError(err)
 
+	ethHelper, err := deployETHContract(fakeCtx)
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	// Initializes validators
 	for i, _ := range ts.validatorsDetails {
 		var sig []byte
 
@@ -394,10 +405,15 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		require.NoError(addressMapper.AddIdentityMapping(fakeCtx.WithSender(ts.validatorsDetails[i].DAppAddress), ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, sig))
 	}
 
+	// First two become trusted validators
+	trustedValidatorDetails := make([]*testValidator, 2)
+	trustedValidatorDetails[0] = ts.validatorsDetails[0]
+	trustedValidatorDetails[1] = ts.validatorsDetails[1]
+
 	trustedValidators := &TrustedValidators{
-		Validators: make([]*types.Address, len(ts.validatorsDetails)),
+		Validators: make([]*types.Address, len(trustedValidatorDetails)),
 	}
-	for i, validatorDetails := range ts.validatorsDetails {
+	for i, validatorDetails := range trustedValidatorDetails {
 		trustedValidators.Validators[i] = validatorDetails.DAppAddress.MarshalPB()
 	}
 
@@ -420,8 +436,6 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		}
 	}
 	fakeCtx = fakeCtx.WithValidators(validators)
-	sig, _ := hex.DecodeString("cd7f07b4f35d2d2dee86bde44d765aef81673745aab5d5aaf4422dc73938237d2cbc5105bc0ceddbf4037b62003159903d35b834496a622ba4d9117008c164401c")
-	hash, _ := hex.DecodeString("9be6cc490c68327498647b5a846b34565b4358a806d8b7e25a64058cfec744a0")
 
 	require.NoError(gwHelper.Contract.UpdateTrustedValidators(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
 		TrustedValidators: trustedValidators,
@@ -431,24 +445,218 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
 	}))
 
-	// If sender is trusted validator, request should pass validation check and fail at the signatures (because we gave it a wrong sig)
-	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
-		TokenOwner:      trustedValidators.Validators[0],
-		OracleSignature: sig,
-		WithdrawalHash:  hash,
-	}), ErrNotEnoughSignatures.Error())
+	// Mint some tokens/ETH and distribute to users
+	token1 := big.NewInt(123)
+	token2 := big.NewInt(456)
+	token3 := big.NewInt(789)
+	ethAmt := big.NewInt(999)
+	erc721 := newERC721Context(gwHelper.ContractCtx(fakeCtx), dappTokenAddr)
+	require.NoError(erc721.mintToGateway(token1))
+	require.NoError(erc721.safeTransferFrom(gwHelper.Address, ts.dAppAddr, token1))
+	require.NoError(erc721.mintToGateway(token2))
+	require.NoError(erc721.safeTransferFrom(gwHelper.Address, ts.dAppAddr, token2))
+	require.NoError(erc721.mintToGateway(token3))
+	require.NoError(erc721.safeTransferFrom(gwHelper.Address, ts.dAppAddr2, token3))
+	require.NoError(
+		ethHelper.mintToGateway(
+			fakeCtx.WithSender(gwHelper.Address),
+			big.NewInt(0).Mul(ethAmt, big.NewInt(2)),
+		),
+	)
+	require.NoError(ethHelper.transfer(fakeCtx.WithSender(gwHelper.Address), ts.dAppAddr, ethAmt))
+	require.NoError(ethHelper.transfer(fakeCtx.WithSender(gwHelper.Address), ts.dAppAddr2, ethAmt))
+
+	// Authorize Gateway to withdraw tokens from users
+	erc721 = newERC721Context(
+		// Abusing the contract context here, WithAddress() is really meant for contract addresses.
+		// Unfortunately WithSender() has no effect when calling the EVM via the fake context
+		// because the caller is always set to the contract address stored in the context.
+		contract.WrapPluginContext(fakeCtx.WithAddress(ts.dAppAddr)),
+		dappTokenAddr,
+	)
+	require.NoError(erc721.approve(gwHelper.Address, token1))
+	require.NoError(erc721.approve(gwHelper.Address, token2))
+
+	erc721 = newERC721Context(
+		contract.WrapPluginContext(fakeCtx.WithAddress(ts.dAppAddr2)),
+		dappTokenAddr,
+	)
+	require.NoError(erc721.approve(gwHelper.Address, token3))
+
+	require.NoError(ethHelper.approve(fakeCtx.WithSender(ts.dAppAddr), gwHelper.Address, ethAmt))
+	require.NoError(ethHelper.approve(fakeCtx.WithSender(ts.dAppAddr2), gwHelper.Address, ethAmt))
+
+	// Withdraw to an Ethereum account that isn't mapped to a DAppChain account via Address Mapper
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token1)},
+			Recipient:     ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+
+	pendingWithdrawalResp, err := gwHelper.Contract.PendingWithdrawalsV2(gwHelper.ContractCtx(fakeCtx), &PendingWithdrawalsRequest{
+		MainnetGateway: loom.RootAddress("eth").MarshalPB(),
+	})
+	require.NoError(err)
+
+	pendingWithdrawal := pendingWithdrawalResp.Withdrawals[0]
+
+	withdrawalReceiptResp, err := gwHelper.Contract.WithdrawalReceipt(gwHelper.ContractCtx(fakeCtx), &WithdrawalReceiptRequest{
+		Owner: pendingWithdrawal.TokenOwner,
+	})
+	require.NoError(err)
+
+	calculatedHash := client.ToEthereumSignedMessage(gwHelper.Contract.calculateHashFromReceiptV2(loom.RootAddress("eth").MarshalPB(), withdrawalReceiptResp.Receipt))
+	aggregatedSignature := make([]byte, 0, 65*len(trustedValidatorDetails))
+	for _, validatorDetails := range trustedValidatorDetails {
+		sig, err := evmcompat.SoliditySign(calculatedHash, validatorDetails.EthPrivKey)
+		require.NoError(err)
+		aggregatedSignature = append(aggregatedSignature, sig...)
+	}
+
+	// Proper signature should work
+	err = gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[2].DAppAddress)), &ConfirmWithdrawalReceiptRequestV2{
+		TokenOwner:      pendingWithdrawal.TokenOwner,
+		OracleSignature: aggregatedSignature,
+		MainnetGateway:  loom.RootAddress("eth").MarshalPB(),
+	})
+	require.NoError(err)
+
+	// Simulate token withdrawal from Ethereum Gateway to clear out the pending withdrawal
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{
+			Events: []*MainnetEvent{
+				&MainnetEvent{
+					EthBlock: 5,
+					Payload: &MainnetWithdrawalEvent{
+						Withdrawal: &MainnetTokenWithdrawn{
+							TokenOwner:    ts.ethAddr2.MarshalPB(),
+							TokenContract: ethTokenAddr.MarshalPB(),
+							TokenKind:     TokenKind_ERC721,
+							TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token1)},
+						},
+					},
+				},
+			},
+		},
+	)
+	require.NoError(err)
+
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr2)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token3)},
+			Recipient:     ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+
+	// Replayed  signature should not work
+	err = gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[2].DAppAddress)), &ConfirmWithdrawalReceiptRequestV2{
+		TokenOwner:      ts.dAppAddr2.MarshalPB(),
+		OracleSignature: aggregatedSignature,
+		MainnetGateway:  loom.RootAddress("eth").MarshalPB(),
+	})
+	require.EqualError(err, ErrNotEnoughSignatures.Error(), "replayed hash and signature should not work")
+
+	withdrawalReceiptResp, err = gwHelper.Contract.WithdrawalReceipt(gwHelper.ContractCtx(fakeCtx), &WithdrawalReceiptRequest{
+		Owner: ts.dAppAddr2.MarshalPB(),
+	})
+	require.NoError(err)
+
+	calculatedHash = client.ToEthereumSignedMessage(gwHelper.Contract.calculateHashFromReceiptV2(loom.RootAddress("eth").MarshalPB(), withdrawalReceiptResp.Receipt))
+	aggregatedSignature = make([]byte, 0, 65*len(trustedValidatorDetails))
+	for _, validatorDetails := range trustedValidatorDetails {
+		sig, err := evmcompat.SoliditySign(calculatedHash, validatorDetails.EthPrivKey)
+		require.NoError(err)
+		aggregatedSignature = append(aggregatedSignature, sig...)
+	}
+
+	// Proper signature should work
+	err = gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[2].DAppAddress)), &ConfirmWithdrawalReceiptRequestV2{
+		TokenOwner:      ts.dAppAddr2.MarshalPB(),
+		OracleSignature: aggregatedSignature,
+		MainnetGateway:  loom.RootAddress("eth").MarshalPB(),
+	})
+	require.NoError(err)
 
 	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
 		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS,
 	}))
 
-	// After changing auth strategy, this should stop working
-	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
-		TokenOwner:      trustedValidators.Validators[0],
-		OracleSignature: sig,
-		WithdrawalHash:  hash,
-	}), ErrNotAuthorized.Error())
+	// Simulate token withdrawal from Ethereum Gateway to clear out the pending withdrawal
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{
+			Events: []*MainnetEvent{
+				&MainnetEvent{
+					EthBlock: 10,
+					Payload: &MainnetWithdrawalEvent{
+						Withdrawal: &MainnetTokenWithdrawn{
+							TokenOwner:    ts.ethAddr2.MarshalPB(),
+							TokenContract: ethTokenAddr.MarshalPB(),
+							TokenKind:     TokenKind_ERC721,
+							TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token1)},
+						},
+					},
+				},
+			},
+		},
+	)
+	require.NoError(err)
 
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr2)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token3)},
+			Recipient:     ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+
+	withdrawalReceiptResp, err = gwHelper.Contract.WithdrawalReceipt(gwHelper.ContractCtx(fakeCtx), &WithdrawalReceiptRequest{
+		Owner: ts.dAppAddr2.MarshalPB(),
+	})
+	require.NoError(err)
+
+	calculatedHash = client.ToEthereumSignedMessage(gwHelper.Contract.calculateHashFromReceiptV2(loom.RootAddress("eth").MarshalPB(), withdrawalReceiptResp.Receipt))
+	aggregatedSignature = make([]byte, 0, 65*len(trustedValidatorDetails))
+	for _, validatorDetails := range trustedValidatorDetails {
+		sig, err := evmcompat.SoliditySign(calculatedHash, validatorDetails.EthPrivKey)
+		require.NoError(err)
+		aggregatedSignature = append(aggregatedSignature, sig...)
+	}
+
+	// Due to strategy change this should not work
+	err = gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[2].DAppAddress)), &ConfirmWithdrawalReceiptRequestV2{
+		TokenOwner:      ts.dAppAddr2.MarshalPB(),
+		OracleSignature: aggregatedSignature,
+		MainnetGateway:  loom.RootAddress("eth").MarshalPB(),
+	})
+	require.EqualError(err, ErrNotAuthorized.Error())
+
+	calculatedHash = client.ToEthereumSignedMessage(gwHelper.Contract.calculateHashFromReceiptV2(loom.RootAddress("eth").MarshalPB(), withdrawalReceiptResp.Receipt))
+	aggregatedSignature = make([]byte, 0, 65*len(ts.validatorsDetails))
+	for _, validatorDetails := range ts.validatorsDetails {
+		sig, err := evmcompat.SoliditySign(calculatedHash, validatorDetails.EthPrivKey)
+		require.NoError(err)
+		aggregatedSignature = append(aggregatedSignature, sig...)
+	}
+
+	// Signature prepared accordance with new strategy should work
+	err = gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[2].DAppAddress)), &ConfirmWithdrawalReceiptRequestV2{
+		TokenOwner:      ts.dAppAddr2.MarshalPB(),
+		OracleSignature: aggregatedSignature,
+		MainnetGateway:  loom.RootAddress("eth").MarshalPB(),
+	})
+	require.NoError(err)
 }
 
 func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {

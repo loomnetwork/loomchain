@@ -53,12 +53,12 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 		return
 	}
 
-	confirmedWithdrawalRequests := make([]*ConfirmWithdrawalReceiptRequest, len(batchWithdrawalFnMessage.WithdrawalMessages))
+	confirmedWithdrawalRequests := make([]*ConfirmWithdrawalReceiptRequestV2, len(batchWithdrawalFnMessage.WithdrawalMessages))
 
 	for i, withdrawalMessage := range batchWithdrawalFnMessage.WithdrawalMessages {
-		confirmedWithdrawalRequests[i] = &ConfirmWithdrawalReceiptRequest{
+		confirmedWithdrawalRequests[i] = &ConfirmWithdrawalReceiptRequestV2{
 			TokenOwner:     withdrawalMessage.TokenOwner,
-			WithdrawalHash: withdrawalMessage.WithdrawalHash,
+			MainnetGateway: b.mainnetGatewayAddress.MarshalPB(),
 		}
 
 		validatorSignatures := make([]byte, 0, len(signatures)*SignatureSize)

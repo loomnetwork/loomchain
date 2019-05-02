@@ -82,6 +82,8 @@ type (
 	GetValidatorAuthStrategyResponse = tgtypes.TransferGatewayGetValidatorAuthStrategyResponse
 
 	UpdateValidatorAuthStrategyRequest = tgtypes.TransferGatewayUpdateValidatorAuthStrategyRequest
+
+	ConfirmWithdrawalReceiptRequestV2 = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequestV2
 )
 
 var (
@@ -957,7 +959,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 // receipt. This method is allowed to be invoked by any Validator ,
 // and only one Validator will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
-func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequestV2) error {
 	valAddresses, powers, clusterStake, err := getCurrentValidators(ctx)
 	if err != nil {
 		return err
@@ -979,7 +981,25 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 	if err := ctx.Get(validatorAuthConfigKey, validatorsAuthConfig); err != nil {
 		return err
 	}
-	hash := client.ToEthereumSignedMessage(req.WithdrawalHash)
+
+	if req.TokenOwner == nil || req.OracleSignature == nil {
+		return ErrInvalidRequest
+	}
+
+	ownerAddr := loom.UnmarshalAddressPB(req.TokenOwner)
+	ownerAccount, err := loadLocalAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	if ownerAccount.WithdrawalReceipt == nil {
+		return ErrMissingWithdrawalReceipt
+	} else if ownerAccount.WithdrawalReceipt.OracleSignature != nil {
+		return ErrWithdrawalReceiptSigned
+	}
+
+	hash := client.ToEthereumSignedMessage(gw.calculateHashFromReceiptV2(req.MainnetGateway, ownerAccount.WithdrawalReceipt))
+
 	switch validatorsAuthConfig.AuthStrategy {
 	case tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS:
 		// Convert array of validator to array of address, try to resolve via address mapper
@@ -1039,7 +1059,86 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		break
 	}
 
-	return gw.doConfirmWithdrawalReceipt(ctx, req)
+	return gw.doConfirmWithdrawalReceiptV2(ctx, ownerAccount, req.OracleSignature)
+}
+
+func (gw *Gateway) calculateHashFromReceipt(mainnetGatewayAddr *types.Address, receipt *tgtypes.TransferGatewayWithdrawalReceipt) []byte {
+	safeTokenID := big.NewInt(0)
+	if receipt.TokenID != nil {
+		safeTokenID = receipt.TokenID.Value.Int
+	}
+
+	safeAmount := big.NewInt(0)
+	if receipt.TokenAmount != nil {
+		safeAmount = receipt.TokenAmount.Value.Int
+	}
+
+	mainnetGatewayEthAddress := common.BytesToAddress(mainnetGatewayAddr.Local)
+
+	hash := client.WithdrawalHash(
+		common.BytesToAddress(receipt.TokenOwner.Local),
+		common.BytesToAddress(receipt.TokenContract.Local),
+		mainnetGatewayEthAddress,
+		receipt.TokenKind,
+		safeTokenID,
+		safeAmount,
+		big.NewInt(int64(receipt.WithdrawalNonce)),
+		false,
+	)
+
+	return hash
+}
+
+func (gw *Gateway) calculateHashFromReceiptV2(mainnetGatewayAddr *types.Address, receipt *tgtypes.TransferGatewayWithdrawalReceipt) []byte {
+	safeTokenID := big.NewInt(0)
+	if receipt.TokenID != nil {
+		safeTokenID = receipt.TokenID.Value.Int
+	}
+
+	safeAmount := big.NewInt(0)
+	if receipt.TokenAmount != nil {
+		safeAmount = receipt.TokenAmount.Value.Int
+	}
+
+	mainnetGatewayEthAddress := common.BytesToAddress(mainnetGatewayAddr.Local)
+
+	hash := client.WithdrawalHash(
+		common.BytesToAddress(receipt.TokenOwner.Local),
+		common.BytesToAddress(receipt.TokenContract.Local),
+		mainnetGatewayEthAddress,
+		receipt.TokenKind,
+		safeTokenID,
+		safeAmount,
+		big.NewInt(int64(receipt.WithdrawalNonce)),
+		true,
+	)
+
+	return hash
+}
+
+func (gw *Gateway) doConfirmWithdrawalReceiptV2(ctx contract.Context, account *LocalAccount, oracleSignature []byte) error {
+	account.WithdrawalReceipt.OracleSignature = oracleSignature
+
+	if err := saveLocalAccount(ctx, account); err != nil {
+		return err
+	}
+
+	wr := account.WithdrawalReceipt
+	payload, err := proto.Marshal(&TokenWithdrawalSigned{
+		TokenOwner:    wr.TokenOwner,
+		TokenContract: wr.TokenContract,
+		TokenKind:     wr.TokenKind,
+		TokenID:       wr.TokenID,
+		TokenAmount:   wr.TokenAmount,
+		Sig:           wr.OracleSignature,
+	})
+	if err != nil {
+		return err
+	}
+	// TODO: Re-enable the second topic when we fix an issue with subscribers receiving the same
+	//       event twice (or more depending on the number of topics).
+	ctx.EmitTopics(payload, tokenWithdrawalSignedEventTopic /*, fmt.Sprintf("contract:%v", wr.TokenContract)*/)
+	return nil
 }
 
 func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
@@ -1096,7 +1195,6 @@ func (gw *Gateway) PendingWithdrawalsV2(ctx contract.StaticContext, req *Pending
 		return nil, err
 	}
 
-	mainnetGatewayAddr := common.BytesToAddress(req.MainnetGateway.Local)
 	summaries := make([]*PendingWithdrawalSummary, 0, len(state.TokenWithdrawers))
 	for _, ownerAddrPB := range state.TokenWithdrawers {
 		ownerAddr := loom.UnmarshalAddressPB(ownerAddrPB)
@@ -1114,26 +1212,7 @@ func (gw *Gateway) PendingWithdrawalsV2(ctx contract.StaticContext, req *Pending
 			continue
 		}
 
-		safeTokenID := big.NewInt(0)
-		if receipt.TokenID != nil {
-			safeTokenID = receipt.TokenID.Value.Int
-		}
-
-		safeAmount := big.NewInt(0)
-		if receipt.TokenAmount != nil {
-			safeAmount = receipt.TokenAmount.Value.Int
-		}
-
-		hash := client.WithdrawalHash(
-			common.BytesToAddress(receipt.TokenOwner.Local),
-			common.BytesToAddress(receipt.TokenContract.Local),
-			mainnetGatewayAddr,
-			receipt.TokenKind,
-			safeTokenID,
-			safeAmount,
-			big.NewInt(int64(receipt.WithdrawalNonce)),
-			true,
-		)
+		hash := gw.calculateHashFromReceiptV2(req.MainnetGateway, receipt)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
 			TokenOwner: ownerAddrPB,
@@ -1157,7 +1236,6 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 		return nil, err
 	}
 
-	mainnetGatewayAddr := common.BytesToAddress(req.MainnetGateway.Local)
 	summaries := make([]*PendingWithdrawalSummary, 0, len(state.TokenWithdrawers))
 	for _, ownerAddrPB := range state.TokenWithdrawers {
 		ownerAddr := loom.UnmarshalAddressPB(ownerAddrPB)
@@ -1175,26 +1253,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			continue
 		}
 
-		safeTokenID := big.NewInt(0)
-		if receipt.TokenID != nil {
-			safeTokenID = receipt.TokenID.Value.Int
-		}
-
-		safeAmount := big.NewInt(0)
-		if receipt.TokenAmount != nil {
-			safeAmount = receipt.TokenAmount.Value.Int
-		}
-
-		hash := client.WithdrawalHash(
-			common.BytesToAddress(receipt.TokenOwner.Local),
-			common.BytesToAddress(receipt.TokenContract.Local),
-			mainnetGatewayAddr,
-			receipt.TokenKind,
-			safeTokenID,
-			safeAmount,
-			big.NewInt(int64(receipt.WithdrawalNonce)),
-			false,
-		)
+		hash := gw.calculateHashFromReceipt(req.MainnetGateway, receipt)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
 			TokenOwner: ownerAddrPB,
