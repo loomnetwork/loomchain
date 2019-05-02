@@ -352,8 +352,13 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		// if less than the full amount is being redelegated, create a new
 		// delegation for new validator and unbond from former validator
 		priorDelegation.State = REDELEGATING
-		priorDelegation.UpdateAmount.Value.Add(&priorDelegation.UpdateAmount.Value, &req.Amount.Value)
+		priorDelegation.UpdateAmount.Value.Sub(&priorDelegation.UpdateAmount.Value, &req.Amount.Value)
 		priorDelegation.UpdateValidator = priorDelegation.Validator
+
+		index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *priorDelegation.Delegator)
+		if err != nil {
+			return err
+		}
 
 		delegation := &Delegation{
 			Validator:    req.ValidatorAddress,
@@ -363,6 +368,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LocktimeTier: newLocktimeTier,
 			LockTime:     newLocktime,
 			State:        BONDING,
+			Index:        index,
 			Referrer:     req.Referrer,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
@@ -1522,6 +1528,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			if err != nil {
 				return nil, err
 			}
+
+			delegation.Amount = delegation.UpdateAmount
 
 			delegation.LocktimeTier = delegation.UpdateLocktimeTier
 			delegation.Index = index
