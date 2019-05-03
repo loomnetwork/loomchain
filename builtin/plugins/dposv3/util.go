@@ -65,7 +65,13 @@ func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
 	if !found {
 		bonusPercentage = TierBonusMap[TIER_ZERO]
 	}
-	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
+
+	safeAmount := delegation.Amount
+	if safeAmount == nil {
+		safeAmount = loom.BigZeroPB()
+	}
+
+	return CalculateFraction(bonusPercentage, safeAmount.Value)
 }
 
 // Locktime Tiers are enforced to be 0-3 for 5-20% rewards. Any other number is reset to 5%. We add the check just in case somehow the variable gets misset.
