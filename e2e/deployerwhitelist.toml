@@ -125,4 +125,4 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}"]
+  Expected = ["local"]
