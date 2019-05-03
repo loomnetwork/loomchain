@@ -32,9 +32,8 @@ make loomcoin_tgoracle
 make dposv2_oracle
 make plasmachain
 
-##TODO reenable
-#make loom-cleveldb
-#make plasmachain-cleveldb
+make loom-cleveldb
+make plasmachain-cleveldb
 
 
 export LOOM_BIN=`pwd`/loom
