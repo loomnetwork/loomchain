@@ -10,6 +10,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 
 	errUtil "github.com/pkg/errors"
 )
@@ -223,8 +224,9 @@ func (c *Coin) BalanceOf(
 }
 
 func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
-	//TODO Add feature flag
-	return c._LegacyTransfer(ctx, req)
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
+		return c._LegacyTransfer(ctx, req)
+	}
 
 	return c.transfer(ctx, req)
 }
@@ -304,10 +306,11 @@ func (c *Coin) Allowance(
 }
 
 func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	//TODO Add feature flag
-	return c._LegacyTransferFrom(ctx, req)
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
+		return c.transferFrom(ctx, req)
+	}
 
-	return c.transferFrom(ctx, req)
+	return c._LegacyTransferFrom(ctx, req)
 }
 
 func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) error {
