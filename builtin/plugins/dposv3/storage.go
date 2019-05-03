@@ -271,14 +271,9 @@ func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, de
 		return err
 	}
 
-	safeAmount := delegation.Amount
-	if safeAmount == nil {
-		safeAmount = loom.BigZeroPB()
-	}
-
 	// increase delegation amount by new reward amount
 	updatedAmount := common.BigZero()
-	updatedAmount.Add(&safeAmount.Value, &increase)
+	updatedAmount.Add(&delegation.Amount.Value, &increase)
 	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
 	return SetDelegation(ctx, delegation)
