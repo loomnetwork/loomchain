@@ -198,27 +198,29 @@ func Transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt)
 		return err
 	}
 
-	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
 	}
 
 	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
 
 	if fromBalance.Cmp(amount) < 0 {
 		return errors.New("sender balance is too low")
 	}
 
 	fromBalance.Sub(&fromBalance, amount)
-	toBalance.Add(&toBalance, amount)
 
 	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
+
+	toAccount, err := loadAccount(ctx, to)
+	toBalance := toAccount.Balance.Value
+	toBalance.Add(&toBalance, amount)
+	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
@@ -281,7 +283,6 @@ func (c *ETHCoin) TransferFrom(ctx contract.Context, req *TransferFromRequest) e
 	allowAmount := allow.Amount.Value
 	amount := req.Amount.Value
 	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
 
 	if allowAmount.Cmp(&amount) < 0 {
 		return errors.New("amount is over spender's limit")
@@ -292,14 +293,17 @@ func (c *ETHCoin) TransferFrom(ctx contract.Context, req *TransferFromRequest) e
 	}
 
 	fromBalance.Sub(&fromBalance, &amount)
-	toBalance.Add(&toBalance, &amount)
 
 	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
+
+	toBalance := toAccount.Balance.Value
+	toBalance.Add(&toBalance, &amount)
+	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
