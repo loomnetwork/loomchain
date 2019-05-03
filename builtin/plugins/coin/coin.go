@@ -112,7 +112,6 @@ func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) er
 }
 
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
-
 	if req.Owner == nil || req.Amount == nil {
 		return errors.New("owner or amount is nil")
 	}
@@ -225,10 +224,10 @@ func (c *Coin) BalanceOf(
 
 func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
 	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
-		return c._LegacyTransfer(ctx, req)
+		return c.transfer(ctx, req)
 	}
 
-	return c.transfer(ctx, req)
+	return c.legacyTransfer(ctx, req)
 }
 
 func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
@@ -310,7 +309,7 @@ func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) erro
 		return c.transferFrom(ctx, req)
 	}
 
-	return c._LegacyTransferFrom(ctx, req)
+	return c.legacyTransferFrom(ctx, req)
 }
 
 func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) error {
@@ -337,7 +336,7 @@ func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) erro
 	}
 
 	if fromBalance.Cmp(&amount) < 0 {
-		return errors.New("sender balance is too low")
+		return ErrSenderBalanceTooLow
 	}
 
 	fromBalance.Sub(&fromBalance, &amount)
@@ -421,9 +420,9 @@ func saveAllowance(ctx contract.Context, allow *Allowance) error {
 
 var Contract plugin.Contract = contract.MakePluginContract(&Coin{})
 
-///-----legacy methods
+// Legacy methods from v1.0.0
 
-func (c *Coin) _LegacyTransfer(ctx contract.Context, req *TransferRequest) error {
+func (c *Coin) legacyTransfer(ctx contract.Context, req *TransferRequest) error {
 	from := ctx.Message().Sender
 	to := loom.UnmarshalAddressPB(req.To)
 
@@ -461,7 +460,7 @@ func (c *Coin) _LegacyTransfer(ctx contract.Context, req *TransferRequest) error
 	return nil
 }
 
-func (c *Coin) _LegacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
+func (c *Coin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
 	spender := ctx.Message().Sender
 	from := loom.UnmarshalAddressPB(req.From)
 	to := loom.UnmarshalAddressPB(req.To)
