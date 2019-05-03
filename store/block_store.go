@@ -221,6 +221,9 @@ func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBl
 	if err != nil {
 		return nil, err
 	}
+	if blockResult.BlockMeta == nil || blockResult.Block == nil {
+		return nil, fmt.Errorf("Block Not Found")
+	}
 	blockMeta := types.BlockMeta{
 		BlockID: blockResult.BlockMeta.BlockID,
 	}
