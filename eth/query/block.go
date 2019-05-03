@@ -192,11 +192,10 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 		}
 
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
-			if info.BlockMetas[i] != nil {
-				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-					return info.BlockMetas[i].Header.Height, nil //    int64(int(end) + i), nil
-				}
+			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
+				return info.BlockMetas[i].Header.Height, nil //    int64(int(end) + i), nil
 			}
+
 		}
 
 		if end == 1 {
@@ -301,11 +300,10 @@ func DeprecatedGetBlockByHash(
 		}
 
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
-			if info.BlockMetas[i] != nil {
-				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)
-				}
+			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
+				return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)
 			}
+
 		}
 
 		if end == 1 {
