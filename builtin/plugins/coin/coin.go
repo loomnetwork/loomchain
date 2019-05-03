@@ -6,7 +6,6 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
-	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -227,41 +226,30 @@ func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
 	if err != nil {
 		return err
 	}
-
-	toAccount, err := loadAccount(ctx, to)
-	if err != nil {
-		return err
-	}
-
 	amount := req.Amount.Value
 	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
-
-	totalBalances := common.BigZero()
-	totalBalances.Add(&fromBalance, &toBalance)
 
 	if fromBalance.Cmp(&amount) < 0 {
 		return errors.New("sender balance is too low")
 	}
 
 	fromBalance.Sub(&fromBalance, &amount)
-	toBalance.Add(&toBalance, &amount)
-
 	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
-
-	totalBalancesFinish := common.BigZero()
-	totalBalancesFinish.Add(&fromBalance, &toBalance)
-
-	if totalBalances.Cmp(totalBalancesFinish) < 0 {
-		//TODO we should halt the chain if this happens
-		return errors.New("invariant check triggered, halting chain")
-	}
 
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	toBalance := toAccount.Balance.Value
+	toBalance.Add(&toBalance, &amount)
+	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
@@ -314,11 +302,6 @@ func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) erro
 		return err
 	}
 
-	toAccount, err := loadAccount(ctx, to)
-	if err != nil {
-		return err
-	}
-
 	allow, err := loadAllowance(ctx, from, spender)
 	if err != nil {
 		return err
@@ -327,7 +310,6 @@ func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) erro
 	allowAmount := allow.Amount.Value
 	amount := req.Amount.Value
 	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
 
 	if allowAmount.Cmp(&amount) < 0 {
 		return errors.New("amount is over spender's limit")
@@ -338,14 +320,22 @@ func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) erro
 	}
 
 	fromBalance.Sub(&fromBalance, &amount)
-	toBalance.Add(&toBalance, &amount)
-
 	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	toBalance := toAccount.Balance.Value
+	toBalance.Add(&toBalance, &amount)
+	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
