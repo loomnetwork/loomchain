@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -795,19 +796,19 @@ func NewDPOSV3Command() *cobra.Command {
 		Use:   "dpos3 <command>",
 		Short: "Methods available in dposv3 contract",
 	}
-	var flags cli.ContractCallFlags
-	AddContractCallFlags(cmd.PersistentFlags(), &flags)
-
+	var flags,staticflags cli.ContractCallFlags
+	common.AddContractCallFlags(cmd.PersistentFlags(), &flags)
+	common.AddContractStaticCallFlags(cmd.PersistentFlags(), &staticflags)
 	registercmd := RegisterCandidateCmdV3(&flags)
 	registercmd.Flags().StringVarP(&candidateName, "name", "", "", "candidate name")
 	registercmd.Flags().StringVarP(&candidateDescription, "description", "", "", "candidate description")
 	registercmd.Flags().StringVarP(&candidateWebsite, "website", "", "", "candidate website")
 	cmd.AddCommand(
 		registercmd,
-		ListCandidatesCmdV3(&flags),
-		ListValidatorsCmdV3(&flags),
-		ListDelegationsCmdV3(&flags),
-		ListAllDelegationsCmdV3(&flags),
+		ListCandidatesCmdV3(&staticflags),
+		ListValidatorsCmdV3(&staticflags),
+		ListDelegationsCmdV3(&staticflags),
+		ListAllDelegationsCmdV3(&staticflags),
 		UnregisterCandidateCmdV3(&flags),
 		UpdateCandidateInfoCmdV3(&flags),
 		DelegateCmdV3(&flags),
@@ -815,9 +816,9 @@ func NewDPOSV3Command() *cobra.Command {
 		WhitelistCandidateCmdV3(&flags),
 		RemoveWhitelistedCandidateCmdV3(&flags),
 		ChangeWhitelistInfoCmdV3(&flags),
-		CheckDelegationCmdV3(&flags),
-		CheckAllDelegationsCmdV3(&flags),
-		CheckRewardsCmdV3(&flags),
+		CheckDelegationCmdV3(&staticflags),
+		CheckAllDelegationsCmdV3(&staticflags),
+		CheckRewardsCmdV3(&staticflags),
 		UnbondCmdV3(&flags),
 		RegisterReferrerCmdV3(&flags),
 		SetElectionCycleCmdV3(&flags),
@@ -827,9 +828,9 @@ func NewDPOSV3Command() *cobra.Command {
 		SetOracleAddressCmdV3(&flags),
 		SetSlashingPercentagesCmdV3(&flags),
 		ChangeFeeCmdV3(&flags),
-		TimeUntilElectionCmdV3(&flags),
-		TotalDelegationCmdV3(&flags),
-		GetStateCmdV3(&flags),
+		TimeUntilElectionCmdV3(&staticflags),
+		TotalDelegationCmdV3(&staticflags),
+		GetStateCmdV3(&staticflags),
 	)
 
 	return cmd

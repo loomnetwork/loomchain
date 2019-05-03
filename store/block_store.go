@@ -33,7 +33,7 @@ type BlockStore interface {
 	// specify nil to retrieve results from the latest block.
 	GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error)
 	// Get Transaction Results from Tendermint Tx Hash
-	GetTxResult(txHash []byte)  (*ctypes.ResultTx, error)
+	GetTxResult(txHash []byte) (*ctypes.ResultTx, error)
 }
 
 type MockBlockStore struct {
@@ -114,7 +114,7 @@ func (s *MockBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResu
 	}, nil
 }
 
-func (s *MockBlockStore) GetTxResult(_ []byte)  (*ctypes.ResultTx, error) {
+func (s *MockBlockStore) GetTxResult(_ []byte) (*ctypes.ResultTx, error) {
 	return nil, nil
 }
 
@@ -271,21 +271,21 @@ func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlo
 	return &blockchaininfo, nil
 }
 
-func (s *TendermintBlockStore) GetTxResult(txHash []byte)  (*ctypes.ResultTx, error) {
+func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, error) {
 	txResult, err := core.Tx(txHash, false)
 	if err != nil {
 		return nil, err
 	}
 	results := &ctypes.ResultTx{
-		Hash:           txResult.Hash,
-		Height:         txResult.Height,
-		Index:          txResult.Index,
-		Tx:             txResult.Tx,
-		TxResult:       abci.ResponseDeliverTx{
-			Data:           txResult.TxResult.Data,
-			Info:           txResult.TxResult.Info,
-			GasWanted:      txResult.TxResult.GasWanted,
-			GasUsed:        txResult.TxResult.GasUsed,
+		Hash:   txResult.Hash,
+		Height: txResult.Height,
+		Index:  txResult.Index,
+		Tx:     txResult.Tx,
+		TxResult: abci.ResponseDeliverTx{
+			Data:      txResult.TxResult.Data,
+			Info:      txResult.TxResult.Info,
+			GasWanted: txResult.TxResult.GasWanted,
+			GasUsed:   txResult.TxResult.GasUsed,
 		},
 	}
 	return results, nil

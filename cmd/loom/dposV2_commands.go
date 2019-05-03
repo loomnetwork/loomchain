@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"strconv"
 
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -831,8 +832,9 @@ func NewDPOSV2Command() *cobra.Command {
 		Use:   "dposV2 <command>",
 		Short: "Methods available in dposv2 contract",
 	}
-	var flags cli.ContractCallFlags
-	AddContractCallFlags(cmd.PersistentFlags(), &flags)
+	var flags,staticflags cli.ContractCallFlags
+	common.AddContractCallFlags(cmd.PersistentFlags(), &flags)
+	common.AddContractStaticCallFlags(cmd.PersistentFlags(), &staticflags)
 	registercmd := RegisterCandidateCmdV2(&flags)
 	registercmd.Flags().StringVarP(&candidateName, "name", "", "", "candidate name")
 	registercmd.Flags().StringVarP(&candidateDescription, "description", "", "", "candidate description")
@@ -840,10 +842,10 @@ func NewDPOSV2Command() *cobra.Command {
 
 	cmd.AddCommand(
 		registercmd,
-		ListCandidatesCmdV2(&flags),
-		ListValidatorsCmdV2(&flags),
-		ListDelegationsCmd(&flags),
-		ListAllDelegationsCmd(&flags),
+		ListCandidatesCmdV2(&staticflags),
+		ListValidatorsCmdV2(&staticflags),
+		ListDelegationsCmd(&staticflags),
+		ListAllDelegationsCmd(&staticflags),
 		UnregisterCandidateCmdV2(&flags),
 		UpdateCandidateInfoCmd(&flags),
 		DelegateCmdV2(&flags),
@@ -852,10 +854,10 @@ func NewDPOSV2Command() *cobra.Command {
 		RemoveWhitelistedCandidateCmdV2(&flags),
 		ChangeWhitelistAmountCmdV2(&flags),
 		ChangeWhitelistLockTimeTierCmdV2(&flags),
-		CheckDelegationCmdV2(&flags),
-		CheckAllDelegationsCmd(&flags),
-		CheckDistributionCmd(&flags),
-		CheckRewardsCmd(&flags),
+		CheckDelegationCmdV2(&staticflags),
+		CheckAllDelegationsCmd(&staticflags),
+		CheckDistributionCmd(&staticflags),
+		CheckRewardsCmd(&staticflags),
 		UnbondCmdV2(&flags),
 		ClaimDistributionCmdV2(&flags),
 		SetElectionCycleCmdV2(&flags),
@@ -865,11 +867,11 @@ func NewDPOSV2Command() *cobra.Command {
 		SetOracleAddressCmdV2(&flags),
 		SetSlashingPercentagesCmdV2(&flags),
 		ChangeFeeCmd(&flags),
-		TimeUntilElectionCmd(&flags),
-		TotalDelegationCmd(&flags),
-		GetStateCmd(&flags),
-		ViewStateDumpCmd(&flags),
-		GetDistributionsCmd(&flags),
+		TimeUntilElectionCmd(&staticflags),
+		TotalDelegationCmd(&staticflags),
+		GetStateCmd(&staticflags),
+		ViewStateDumpCmd(&staticflags),
+		GetDistributionsCmd(&staticflags),
 	)
 	return cmd
 

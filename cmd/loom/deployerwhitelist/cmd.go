@@ -3,6 +3,7 @@ package deployer_whitelist
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"strings"
 
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
@@ -21,14 +22,18 @@ type deployerInfo struct {
 }
 
 func NewDeployCommand() *cobra.Command {
-	cmd := cli.ContractCallCommand("deployerwhitelist")
-	cmd.Use = "deployer"
-	cmd.Short = "Deployer Whitelist CLI"
+	cmd := &cobra.Command{
+		Use:   "deployerwhitelist <command>",
+		Short: "Methods available in deployerwhitelist contract",
+	}
+	var flags,staticflags cli.ContractCallFlags
+	common.AddContractCallFlags(cmd.PersistentFlags(), &flags)
+	common.AddContractStaticCallFlags(cmd.PersistentFlags(), &staticflags)
 	cmd.AddCommand(
-		addDeployerCmd(),
-		getDeployerCmd(),
-		listDeployersCmd(),
-		removeDeployerCmd(),
+		addDeployerCmd(&flags),
+		getDeployerCmd(&staticflags),
+		listDeployersCmd(&staticflags),
+		removeDeployerCmd(&flags),
 	)
 	return cmd
 }
@@ -37,7 +42,7 @@ const addDeployerCmdExample = `
 loom deployer add 0x7262d4c97c7B93937E4810D289b7320e9dA82857 all
 `
 
-func addDeployerCmd() *cobra.Command {
+func addDeployerCmd(flag *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:     "add <deployer address> <permission (go|evm|migration|all)>",
 		Short:   "Add deployer with permision to deployer list",
@@ -72,7 +77,7 @@ func addDeployerCmd() *cobra.Command {
 				Flags:        flags,
 			}
 
-			return cli.CallContract(dwContractName, "AddDeployer", req, nil)
+			return cli.CallContractWithFlags(flag,dwContractName, "AddDeployer", req, nil)
 		},
 	}
 }
@@ -81,7 +86,7 @@ const removeDeployerCmdExample = `
 loom deployer remove 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
-func removeDeployerCmd() *cobra.Command {
+func removeDeployerCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:     "remove <deployer address>",
 		Short:   "Remove deployer from whitelist",
@@ -98,7 +103,7 @@ func removeDeployerCmd() *cobra.Command {
 				DeployerAddr: addr.MarshalPB(),
 			}
 
-			return cli.CallContract(dwContractName, "RemoveDeployer", req, nil)
+			return cli.CallContractWithFlags(flags,dwContractName, "RemoveDeployer", req, nil)
 		},
 	}
 }
@@ -107,7 +112,7 @@ const getDeployerCmdExample = `
 loom deployer get 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
-func getDeployerCmd() *cobra.Command {
+func getDeployerCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:     "get <deployer address>",
 		Short:   "Show current permissions of a deployer",
@@ -125,7 +130,7 @@ func getDeployerCmd() *cobra.Command {
 			}
 
 			var resp dwtypes.GetDeployerResponse
-			if err := cli.StaticCallContract(dwContractName, "GetDeployer", req, &resp); err != nil {
+			if err := cli.StaticCallContractWithFlags(flags,dwContractName, "GetDeployer", req, &resp); err != nil {
 				return err
 			}
 
@@ -145,7 +150,7 @@ const listDeployersCmdExample = `
 loom deployer list
 `
 
-func listDeployersCmd() *cobra.Command {
+func listDeployersCmd(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:     "list",
 		Short:   "Display all deployers in whitelist",
@@ -155,7 +160,7 @@ func listDeployersCmd() *cobra.Command {
 
 			req := &dwtypes.ListDeployersRequest{}
 			var resp dwtypes.ListDeployersResponse
-			if err := cli.StaticCallContract(dwContractName, "ListDeployers", req, &resp); err != nil {
+			if err := cli.StaticCallContractWithFlags(flags,dwContractName, "ListDeployers", req, &resp); err != nil {
 				return err
 			}
 
