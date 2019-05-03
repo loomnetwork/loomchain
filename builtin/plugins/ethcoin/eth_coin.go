@@ -8,6 +8,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/pkg/errors"
 )
 
@@ -29,6 +30,10 @@ type (
 	Allowance            = ctypes.Allowance
 	Account              = ctypes.Account
 	Economy              = ctypes.Economy
+)
+
+var (
+	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
 )
 
 var (
@@ -192,33 +197,44 @@ func (c *ETHCoin) Transfer(ctx contract.Context, req *TransferRequest) error {
 	return Transfer(ctx, from, to, &amount)
 }
 
+// Transfer is used by the AccountBalanceManager to allow transfer of ETH within the EVM.
 func Transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
+		return transfer(ctx, from, to, amount)
+	}
+
+	return legacyTransfer(ctx, from, to, amount)
+}
+
+func transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
 	fromAccount, err := loadAccount(ctx, from)
 	if err != nil {
 		return err
 	}
 
-	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
 	}
 
 	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
 
 	if fromBalance.Cmp(amount) < 0 {
-		return errors.New("sender balance is too low")
+		return ErrSenderBalanceTooLow
 	}
 
 	fromBalance.Sub(&fromBalance, amount)
-	toBalance.Add(&toBalance, amount)
 
 	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
+
+	toAccount, err := loadAccount(ctx, to)
+	toBalance := toAccount.Balance.Value
+	toBalance.Add(&toBalance, amount)
+	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
@@ -259,16 +275,19 @@ func (c *ETHCoin) Allowance(ctx contract.StaticContext, req *AllowanceRequest) (
 }
 
 func (c *ETHCoin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
+		return c.transferFrom(ctx, req)
+	}
+
+	return c.legacyTransferFrom(ctx, req)
+}
+
+func (c *ETHCoin) transferFrom(ctx contract.Context, req *TransferFromRequest) error {
 	spender := ctx.Message().Sender
 	from := loom.UnmarshalAddressPB(req.From)
 	to := loom.UnmarshalAddressPB(req.To)
 
 	fromAccount, err := loadAccount(ctx, from)
-	if err != nil {
-		return err
-	}
-
-	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
 	}
@@ -281,25 +300,32 @@ func (c *ETHCoin) TransferFrom(ctx contract.Context, req *TransferFromRequest) e
 	allowAmount := allow.Amount.Value
 	amount := req.Amount.Value
 	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
 
 	if allowAmount.Cmp(&amount) < 0 {
 		return errors.New("amount is over spender's limit")
 	}
 
 	if fromBalance.Cmp(&amount) < 0 {
-		return errors.New("sender balance is too low")
+		return ErrSenderBalanceTooLow
 	}
 
 	fromBalance.Sub(&fromBalance, &amount)
-	toBalance.Add(&toBalance, &amount)
-
 	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	toBalance := toAccount.Balance.Value
+	toBalance.Add(&toBalance, &amount)
+	toAccount.Balance.Value = toBalance
+
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
@@ -357,3 +383,95 @@ func saveAllowance(ctx contract.Context, allow *Allowance) error {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ETHCoin{})
+
+// Legacy methods from v1.0.0
+
+func legacyTransfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
+	fromAccount, err := loadAccount(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	fromBalance := fromAccount.Balance.Value
+	toBalance := toAccount.Balance.Value
+
+	if fromBalance.Cmp(amount) < 0 {
+		return errors.New("sender balance is too low")
+	}
+
+	fromBalance.Sub(&fromBalance, amount)
+	toBalance.Add(&toBalance, amount)
+
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
+	err = saveAccount(ctx, fromAccount)
+	if err != nil {
+		return err
+	}
+	err = saveAccount(ctx, toAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ETHCoin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
+	spender := ctx.Message().Sender
+	from := loom.UnmarshalAddressPB(req.From)
+	to := loom.UnmarshalAddressPB(req.To)
+
+	fromAccount, err := loadAccount(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	allow, err := loadAllowance(ctx, from, spender)
+	if err != nil {
+		return err
+	}
+
+	allowAmount := allow.Amount.Value
+	amount := req.Amount.Value
+	fromBalance := fromAccount.Balance.Value
+	toBalance := toAccount.Balance.Value
+
+	if allowAmount.Cmp(&amount) < 0 {
+		return errors.New("amount is over spender's limit")
+	}
+
+	if fromBalance.Cmp(&amount) < 0 {
+		return errors.New("sender balance is too low")
+	}
+
+	fromBalance.Sub(&fromBalance, &amount)
+	toBalance.Add(&toBalance, &amount)
+
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
+	err = saveAccount(ctx, fromAccount)
+	if err != nil {
+		return err
+	}
+	err = saveAccount(ctx, toAccount)
+	if err != nil {
+		return err
+	}
+
+	allowAmount.Sub(&allowAmount, &amount)
+	allow.Amount.Value = allowAmount
+	err = saveAllowance(ctx, allow)
+	if err != nil {
+		return err
+	}
+	return nil
+}

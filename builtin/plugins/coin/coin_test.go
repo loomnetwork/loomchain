@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 )
 
 var (
@@ -72,6 +73,63 @@ func TestTransfer(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
+}
+
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
+}
+
+// Verify Coin.Transfer works correctly when the to & from addresses are the same.
+func TestTransferToSelf(t *testing.T) {
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	// Test using the v1.1 contract, this test will fail if this feature is not enabled
+	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+
+	contract := &Coin{}
+	err := contract.Init(
+		contractpb.WrapPluginContext(pctx),
+		&InitRequest{
+			Accounts: []*InitialAccount{
+				&InitialAccount{
+					Owner:   addr2.MarshalPB(),
+					Balance: uint64(100),
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	amount := sciNot(100, 18)
+	resp, err := contract.BalanceOf(
+		contractpb.WrapPluginContext(pctx),
+		&BalanceOfRequest{
+			Owner: addr2.MarshalPB(),
+		},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, *amount, resp.Balance.Value)
+
+	err = contract.Transfer(
+		contractpb.WrapPluginContext(pctx.WithSender(addr2)),
+		&TransferRequest{
+			To:     addr2.MarshalPB(),
+			Amount: &types.BigUInt{Value: *amount},
+		},
+	)
+	assert.NoError(t, err)
+
+	resp, err = contract.BalanceOf(
+		contractpb.WrapPluginContext(pctx),
+		&BalanceOfRequest{
+			Owner: addr2.MarshalPB(),
+		},
+	)
+	require.NoError(t, err)
+	// the transfer was from addr2 to addr2 so the balance of addr2 should remain unchanged
+	assert.Equal(t, *amount, resp.Balance.Value)
 }
 
 func TestApprove(t *testing.T) {
@@ -164,6 +222,70 @@ func TestTransferFrom(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
+}
+
+// Verify Coin.TransferFrom works correctly when the to & from addresses are the same.
+func TestTransferFromSelf(t *testing.T) {
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	// Test using the v1.1 contract, this test will fail if this feature is not enabled
+	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+
+	contract := &Coin{}
+	err := contract.Init(
+		contractpb.WrapPluginContext(pctx),
+		&InitRequest{
+			Accounts: []*InitialAccount{
+				&InitialAccount{
+					Owner:   addr2.MarshalPB(),
+					Balance: uint64(100),
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	amount := sciNot(100, 18)
+	resp, err := contract.BalanceOf(
+		contractpb.WrapPluginContext(pctx),
+		&BalanceOfRequest{
+			Owner: addr2.MarshalPB(),
+		},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, *amount, resp.Balance.Value)
+
+	err = contract.Approve(
+		contractpb.WrapPluginContext(pctx.WithSender(addr2)),
+		&ApproveRequest{
+			Spender: addr2.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *amount,
+			},
+		},
+	)
+	assert.NoError(t, err)
+
+	err = contract.TransferFrom(
+		contractpb.WrapPluginContext(pctx.WithSender(addr2)),
+		&TransferFromRequest{
+			From: addr2.MarshalPB(),
+			To:   addr2.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *amount,
+			},
+		},
+	)
+	assert.NoError(t, err)
+
+	resp, err = contract.BalanceOf(
+		contractpb.WrapPluginContext(pctx),
+		&BalanceOfRequest{
+			Owner: addr2.MarshalPB(),
+		},
+	)
+	require.NoError(t, err)
+	// the transfer was from addr2 to addr2 so the balance of addr2 should remain unchanged
+	assert.Equal(t, *amount, resp.Balance.Value)
 }
 
 func TestMintToGateway(t *testing.T) {
