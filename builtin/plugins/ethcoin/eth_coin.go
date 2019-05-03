@@ -212,10 +212,6 @@ func transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt)
 		return err
 	}
 
-	if err != nil {
-		return err
-	}
-
 	fromBalance := fromAccount.Balance.Value
 
 	if fromBalance.Cmp(amount) < 0 {
@@ -231,6 +227,10 @@ func transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt)
 	}
 
 	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
 	toBalance := toAccount.Balance.Value
 	toBalance.Add(&toBalance, amount)
 	toAccount.Balance.Value = toBalance
