@@ -2301,6 +2301,7 @@ func populateInitializationState(ctx contract.StaticContext, state *State) (*dpo
 			Address:         statistic.Address,
 			PubKey:          statistic.PubKey,
 			WhitelistAmount: statistic.WhitelistAmount,
+			LocktimeTier:    dposv3.TierMap[statistic.WhitelistLocktime],
 			DelegationTotal: statistic.DelegationTotal,
 			SlashPercentage: statistic.SlashPercentage,
 		}
