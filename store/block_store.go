@@ -249,8 +249,7 @@ func (s *TendermintBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64)
 	if err != nil {
 		return nil, err
 	}
-
-	blockchaininfo := ctypes.ResultBlockchainInfo{
+        blockchaininfo := ctypes.ResultBlockchainInfo{
 		BlockMetas: blockResult.BlockMetas,
 	}
 	return &blockchaininfo, nil
