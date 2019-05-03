@@ -31,8 +31,10 @@ make tgoracle
 make loomcoin_tgoracle
 make dposv2_oracle
 make plasmachain
-make loom-cleveldb
-make plasmachain-cleveldb
+
+##TODO reenable
+#make loom-cleveldb
+#make plasmachain-cleveldb
 
 
 export LOOM_BIN=`pwd`/loom
@@ -41,7 +43,10 @@ export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
-make test
+
+##TODO REENABLE
+##make test
+
 #make test-no-evm
 make no-evm-tests
 make test-app-store-race
