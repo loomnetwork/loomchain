@@ -76,15 +76,17 @@ func (s *TwoQueueBlockStoreCache) GetBlockRangeByHeight(minHeight, maxHeight int
 				//This error can be ignored as it arise when i is greater than blockstore height, for which nothing is to be done
 				//Blocks till maximum blockchain height will already be cached till this point. Core tendermint API does not throw error in this case (maxheight > blockchain height in height range)so cache wrapper is also not throwing error
 			} else {
-				header := types.Header{
-					Height: blockRange.BlockMetas[0].Header.Height,
+				if blockRange.BlockMetas[0] != nil {
+					header := types.Header{
+						Height: blockRange.BlockMetas[0].Header.Height,
+					}
+					blockMeta := types.BlockMeta{
+						BlockID: blockRange.BlockMetas[0].BlockID,
+						Header:  header,
+					}
+					blockMetas = append(blockMetas, &blockMeta)
+					s.TwoQueueCache.Add(blockMetaKey(blockRange.BlockMetas[0].Header.Height), &blockMeta)
 				}
-				blockMeta := types.BlockMeta{
-					BlockID: blockRange.BlockMetas[0].BlockID,
-					Header:  header,
-				}
-				blockMetas = append(blockMetas, &blockMeta)
-				s.TwoQueueCache.Add(blockMetaKey(blockRange.BlockMetas[0].Header.Height), &blockMeta)
 			}
 		}
 	}
@@ -116,7 +118,7 @@ func (s *TwoQueueBlockStoreCache) GetBlockResults(height *int64) (*ctypes.Result
 	return blockinfo, nil
 }
 
-func (s *TwoQueueBlockStoreCache) GetTxResult(txHash []byte)  (*ctypes.ResultTx, error) {
+func (s *TwoQueueBlockStoreCache) GetTxResult(txHash []byte) (*ctypes.ResultTx, error) {
 	var txResult *ctypes.ResultTx
 	cacheData, ok := s.TwoQueueCache.Get(txHashKey(txHash))
 	if ok {
