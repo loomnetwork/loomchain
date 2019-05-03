@@ -43,8 +43,7 @@ export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
 
-##TODO REENABLE
-##make test
+make test
 
 ##make test-no-evm
 ##make no-evm-tests
