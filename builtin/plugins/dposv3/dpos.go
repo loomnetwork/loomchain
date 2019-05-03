@@ -1646,7 +1646,7 @@ func (c *DPOS) CheckRewardDelegation(ctx contract.StaticContext, req *CheckRewar
 }
 
 func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetStateResponse, error) {
-	ctx.Logger().Debug("DPOSv3", "GetState", "request", req)
+	ctx.Logger().Debug("DPOSv3 GetState", "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
