@@ -18,6 +18,8 @@ var (
 	ReceiptPrefix = []byte("receipt")
 	BloomPrefix   = []byte("bloomFilter")
 	TxHashPrefix  = []byte("txHash")
+
+	ErrTxReceiptNotFound = errors.New("Tx receipt not found")
 )
 
 func GetTxHashList(state loomchain.ReadOnlyState, height uint64) ([][]byte, error) {

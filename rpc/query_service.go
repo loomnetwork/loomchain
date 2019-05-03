@@ -163,8 +163,10 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger, hub *Hub)
 	routesJson["eth_getLogs"] = eth.NewRPCFunc(svc.EthGetLogs, "filter")
 	routesJson["eth_getBlockTransactionCountByNumber"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByNumber, "block")
 	routesJson["eth_getBlockTransactionCountByHash"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByHash, "hash")
-	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
-	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
+	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(
+		svc.EthGetTransactionByBlockHashAndIndex, "block,index")
+	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(
+		svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
 
 	routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
 	routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")

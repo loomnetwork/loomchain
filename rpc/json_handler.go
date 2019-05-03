@@ -124,7 +124,11 @@ func getRequests(message []byte) ([]eth.JsonRpcRequest, bool, *eth.Error) {
 	if err := json.Unmarshal(message, &inputList); err != nil {
 		var singleInput eth.JsonRpcRequest
 		if err := json.Unmarshal(message, &singleInput); err != nil {
-			return nil, false, eth.NewErrorf(eth.EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err)
+			return nil, false, eth.NewErrorf(
+				eth.EcInvalidRequest,
+				"Invalid request",
+				"error  unmarshalling message body %v", err,
+			)
 		} else {
 			isBatchRequest = false
 			inputList = append(inputList, singleInput)
