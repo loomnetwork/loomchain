@@ -76,30 +76,30 @@
   Expected = ["1250020000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 list-validators"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 list-candidates"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
   Excluded = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 list-validators"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "excludes"
   Excludes = ["{{index $.NodePubKeyList 0}}"]
 
 # The validatorCount is only set to a non-zero value in dposV3.Initialize so if
 # the value is 14, it implies the v2 state was successfully transferred to v3
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 get-dpos-state"
+  RunCmd = "{{ $.LoomPath }} dpos3 get-dpos-state"
   Condition = "contains"
   Expected = ["\"validatorCount\": \"14\""]
 
 # Check that delegation was properly migrated
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
   Expected = ["2000000000000000000"]
 
@@ -121,7 +121,7 @@
 
 # Checking that Node1's distribution is transfered to a delegation in v3
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["\"lockTime\": \"0\""]
 
