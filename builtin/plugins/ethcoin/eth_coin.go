@@ -361,3 +361,119 @@ func saveAllowance(ctx contract.Context, allow *Allowance) error {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ETHCoin{})
+
+////------- Legacy methods
+
+func (c *ETHCoin) _LegacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
+	spender := ctx.Message().Sender
+	from := loom.UnmarshalAddressPB(req.From)
+	to := loom.UnmarshalAddressPB(req.To)
+
+	fromAccount, err := loadAccount(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	allow, err := loadAllowance(ctx, from, spender)
+	if err != nil {
+		return err
+	}
+
+	allowAmount := allow.Amount.Value
+	amount := req.Amount.Value
+	fromBalance := fromAccount.Balance.Value
+	toBalance := toAccount.Balance.Value
+
+	if allowAmount.Cmp(&amount) < 0 {
+		return errors.New("amount is over spender's limit")
+	}
+
+	if fromBalance.Cmp(&amount) < 0 {
+		return errors.New("sender balance is too low")
+	}
+
+	fromBalance.Sub(&fromBalance, &amount)
+	toBalance.Add(&toBalance, &amount)
+
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
+	err = saveAccount(ctx, fromAccount)
+	if err != nil {
+		return err
+	}
+	err = saveAccount(ctx, toAccount)
+	if err != nil {
+		return err
+	}
+
+	allowAmount.Sub(&allowAmount, &amount)
+	allow.Amount.Value = allowAmount
+	err = saveAllowance(ctx, allow)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ETHCoin) _LegacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
+	spender := ctx.Message().Sender
+	from := loom.UnmarshalAddressPB(req.From)
+	to := loom.UnmarshalAddressPB(req.To)
+
+	fromAccount, err := loadAccount(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	allow, err := loadAllowance(ctx, from, spender)
+	if err != nil {
+		return err
+	}
+
+	allowAmount := allow.Amount.Value
+	amount := req.Amount.Value
+	fromBalance := fromAccount.Balance.Value
+	toBalance := toAccount.Balance.Value
+
+	if allowAmount.Cmp(&amount) < 0 {
+		return errors.New("amount is over spender's limit")
+	}
+
+	if fromBalance.Cmp(&amount) < 0 {
+		return errors.New("sender balance is too low")
+	}
+
+	fromBalance.Sub(&fromBalance, &amount)
+	toBalance.Add(&toBalance, &amount)
+
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
+	err = saveAccount(ctx, fromAccount)
+	if err != nil {
+		return err
+	}
+	err = saveAccount(ctx, toAccount)
+	if err != nil {
+		return err
+	}
+
+	allowAmount.Sub(&allowAmount, &amount)
+	allow.Amount.Value = allowAmount
+	err = saveAllowance(ctx, allow)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//--------------Legacy methods
