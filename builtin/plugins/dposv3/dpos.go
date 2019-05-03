@@ -976,15 +976,12 @@ func Elect(ctx contract.Context) error {
 			if statistic == nil {
 				statistic = &ValidatorStatistic{
 					Address:         res.ValidatorAddress.MarshalPB(),
-					PubKey:          candidate.PubKey,
 					DelegationTotal: delegationTotal,
 					SlashPercentage: loom.BigZeroPB(),
 					WhitelistAmount: loom.BigZeroPB(),
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
-				// Needed in case pubkey was not set during whitelisting
-				statistic.PubKey = candidate.PubKey
 
 				if statistic.UpdateWhitelistAmount != nil {
 					statistic.WhitelistAmount = statistic.UpdateWhitelistAmount
@@ -1102,7 +1099,6 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		stat, _ := GetStatistic(ctx, address)
 		if stat == nil {
 			stat = &ValidatorStatistic{
-				PubKey:  validator.PubKey,
 				Address: address.MarshalPB(),
 			}
 		}
