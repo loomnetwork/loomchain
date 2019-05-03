@@ -255,7 +255,7 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
 	// check if rewards delegation already exists
 	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
-	if err == contract.ErrNotFound {
+	if err == contract.ErrNotFound || delegation == nil || delegation.Amount == nil {
 		delegation = &Delegation{
 			Validator:    validator,
 			Delegator:    delegator,
@@ -271,14 +271,9 @@ func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, de
 		return err
 	}
 
-	safeAmount := delegation.Amount
-	if safeAmount == nil {
-		safeAmount = loom.BigZeroPB()
-	}
-
 	// increase delegation amount by new reward amount
 	updatedAmount := common.BigZero()
-	updatedAmount.Add(&safeAmount.Value, &increase)
+	updatedAmount.Add(&delegation.Amount.Value, &increase)
 	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
 	return SetDelegation(ctx, delegation)
