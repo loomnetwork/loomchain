@@ -6,6 +6,7 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -236,6 +237,9 @@ func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
 	fromBalance := fromAccount.Balance.Value
 	toBalance := toAccount.Balance.Value
 
+	totalBalances := common.BigZero()
+	totalBalances.Add(&fromBalance, &toBalance)
+
 	if fromBalance.Cmp(&amount) < 0 {
 		return errors.New("sender balance is too low")
 	}
@@ -245,6 +249,15 @@ func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
 
 	fromAccount.Balance.Value = fromBalance
 	toAccount.Balance.Value = toBalance
+
+	totalBalancesFinish := common.BigZero()
+	totalBalancesFinish.Add(&fromBalance, &toBalance)
+
+	if totalBalances.Cmp(totalBalancesFinish) < 0 {
+		//TODO we should halt the chain if this happens
+		return errors.New("invariant check triggered, halting chain")
+	}
+
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
