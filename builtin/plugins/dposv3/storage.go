@@ -85,15 +85,6 @@ func GetDelegation(ctx contract.StaticContext, index uint64, validator types.Add
 		return nil, err
 	}
 
-	amount := delegation.Amount
-	if amount == nil {
-		delegation.Amount = loom.BigZeroPB()
-	}
-	updateAmount := delegation.UpdateAmount
-	if updateAmount == nil {
-		delegation.UpdateAmount = loom.BigZeroPB()
-	}
-
 	return &delegation, nil
 }
 
