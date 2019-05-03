@@ -38,6 +38,10 @@ type (
 )
 
 var (
+	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+)
+
+var (
 	economyKey = []byte("economy")
 	decimals   = 18
 )
@@ -237,7 +241,7 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 	fromBalance := fromAccount.Balance.Value
 
 	if fromBalance.Cmp(&amount) < 0 {
-		return errors.New("sender balance is too low")
+		return ErrSenderBalanceTooLow
 	}
 
 	fromBalance.Sub(&fromBalance, &amount)

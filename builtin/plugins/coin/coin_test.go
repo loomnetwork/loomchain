@@ -74,6 +74,58 @@ func TestTransfer(t *testing.T) {
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
 }
 
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
+}
+
+func TestTransferToSelf(t *testing.T) {
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	contract := &Coin{}
+	err := contract.Init(
+		contractpb.WrapPluginContext(pctx),
+		&InitRequest{
+			Accounts: []*InitialAccount{
+				&InitialAccount{
+					Owner:   addr2.MarshalPB(),
+					Balance: uint64(100),
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	amount := sciNot(100, 18)
+	resp, err := contract.BalanceOf(
+		contractpb.WrapPluginContext(pctx),
+		&BalanceOfRequest{
+			Owner: addr2.MarshalPB(),
+		},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, *amount, resp.Balance.Value)
+
+	err = contract.Transfer(
+		contractpb.WrapPluginContext(pctx.WithSender(addr2)),
+		&TransferRequest{
+			To:     addr2.MarshalPB(),
+			Amount: &types.BigUInt{Value: *amount},
+		},
+	)
+	assert.NoError(t, err)
+
+	resp, err = contract.BalanceOf(
+		contractpb.WrapPluginContext(pctx),
+		&BalanceOfRequest{
+			Owner: addr2.MarshalPB(),
+		},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, *amount, resp.Balance.Value)
+}
+
 func TestApprove(t *testing.T) {
 	contract := &Coin{}
 
