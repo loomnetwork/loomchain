@@ -584,7 +584,7 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	require.True(t, len(delegations1) == 1)
 	require.True(t, amount1.Cmp(big.NewInt(0)) == 0) // no amount delegated
 
-	// Amount 2 should be the sum of the two delegations
+	// Amount 2 should be the sum of the three delegations
 	delegations2, amount2, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr2, &delegatorAddress1)
 	require.NoError(t, err)
 	require.Equal(t, len(delegations2), 4)
@@ -706,7 +706,7 @@ func TestRedelegate(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	// checking that the 2nd validator (addr1) was elected in addition to add3
+	// checking that the 2nd validator (addr1) was elected in addition to addr3
 	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
 	assert.Equal(t, len(validators), 2)
@@ -739,6 +739,13 @@ func TestRedelegate(t *testing.T) {
 	// this also tests that redelegate is able to set a new tier
 	tier := uint64(3)
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, smallDelegationAmount, 1, &tier, nil)
+	// test that cannot redelegate redelegating delegation
+	require.NotNil(t, err)
+
+	// run election to put delegation back into bonded state
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, smallDelegationAmount, 1, &tier, nil)
 	require.Nil(t, err)
 
 	require.NoError(t, elect(pctx, dpos.Address))
@@ -761,6 +768,19 @@ func TestRedelegate(t *testing.T) {
 
 	delegations, _, _, err := dpos.CheckDelegation(pctx, &addr3, &delegatorAddress2)
 	assert.Equal(t, delegations[0].LocktimeTier, TIER_THREE)
+	assert.True(t, delegations[0].Amount.Value.Cmp(&common.BigUInt{smallDelegationAmount}) == 0)
+
+	delegations, _, _, err = dpos.CheckDelegation(pctx, &addr2, &delegatorAddress2)
+	assert.Equal(t, delegations[0].LocktimeTier, TIER_ZERO)
+	assert.True(t, delegations[0].Amount.Value.Cmp(&common.BigUInt{smallDelegationAmount}) == 0)
+
+	postDelegationAmount := big.NewInt(0)
+	postDelegationAmount = postDelegationAmount.Add(postDelegationAmount, delegationAmount)
+	postDelegationAmount = postDelegationAmount.Sub(postDelegationAmount, smallDelegationAmount)
+	postDelegationAmount = postDelegationAmount.Sub(postDelegationAmount, smallDelegationAmount)
+	delegations, _, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
+	assert.Equal(t, delegations[0].LocktimeTier, TIER_ZERO)
+	assert.True(t, delegations[0].Amount.Value.Cmp(&common.BigUInt{postDelegationAmount}) == 0)
 
 	// checking that all 3 candidates have been elected validators
 	validators, err = dpos.ListValidators(pctx)

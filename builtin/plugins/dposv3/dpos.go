@@ -313,6 +313,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	priorDelegation, err := GetDelegation(ctx, req.Index, *req.FormerValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
+	} else if priorDelegation.State != BONDED {
+		return logDposError(ctx, errors.New("Cannot redelegate a delegation not in the BONDED state."), req.String())
 	} else if err != nil {
 		return err
 	}
@@ -339,7 +341,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
 	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
-
+		priorDelegation.UpdateAmount = priorDelegation.Amount
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.UpdateLocktimeTier = newLocktimeTier
 
@@ -352,7 +354,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		// if less than the full amount is being redelegated, create a new
 		// delegation for new validator and unbond from former validator
 		priorDelegation.State = REDELEGATING
-		priorDelegation.UpdateAmount.Value.Sub(&priorDelegation.UpdateAmount.Value, &req.Amount.Value)
+		priorDelegation.UpdateAmount.Value.Sub(&priorDelegation.Amount.Value, &req.Amount.Value)
 		priorDelegation.UpdateValidator = priorDelegation.Validator
 
 		index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *priorDelegation.Delegator)
@@ -1523,16 +1525,15 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 				return nil, err
 			}
 			delegation.Validator = delegation.UpdateValidator
+			delegation.Amount = delegation.UpdateAmount
+			delegation.LocktimeTier = delegation.UpdateLocktimeTier
 
 			index, err := GetNextDelegationIndex(ctx, *delegation.Validator, *delegation.Delegator)
 			if err != nil {
 				return nil, err
 			}
-
-			delegation.Amount = delegation.UpdateAmount
-
-			delegation.LocktimeTier = delegation.UpdateLocktimeTier
 			delegation.Index = index
+
 			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
