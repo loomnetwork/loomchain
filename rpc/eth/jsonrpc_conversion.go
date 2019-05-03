@@ -27,7 +27,11 @@ const (
 	ZeroedData32Bytes  Data     = "0x0000000000000000000000000000000000000000000000000000000000000000"
 	ZeroedData64bytes  Data     = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 	ZeroedData256Bytes Data     = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+	StatusTxFail = "0x0"
+	StatusTxSuccess   = "0x1"
 )
+
 
 type JsonLog struct {
 	Removed          bool     `json:"removed,omitempty"`
@@ -111,7 +115,7 @@ type JsonFilter struct {
 }
 
 func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
-	jReceipt := JsonTxReceipt{
+	return JsonTxReceipt{
 		TransactionIndex:  EncInt(int64(receipt.TransactionIndex)),
 		BlockHash:         EncBytes(receipt.BlockHash),
 		BlockNumber:       EncInt(receipt.BlockNumber),
@@ -124,8 +128,22 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 		TxHash:            EncBytes(receipt.TxHash),
 		CallerAddress:     EncAddress(receipt.CallerAddress),
 	}
+}
 
-	return jReceipt
+func TxObjToReceipt(txObj JsonTxObject) JsonTxReceipt {
+	return JsonTxReceipt{
+		TransactionIndex:  txObj.TransactionIndex,
+		BlockHash:         txObj.BlockHash,
+		BlockNumber:       txObj.BlockNumber,
+		CumulativeGasUsed: txObj.Gas,
+		GasUsed:           txObj.Gas,
+		ContractAddress:   txObj.To,
+		Logs:              make([]JsonLog, 0),
+		LogsBloom:         ZeroedData8Bytes,
+		Status:            StatusTxSuccess,
+		TxHash:            txObj.Hash,
+		CallerAddress:     txObj.From,
+	}
 }
 
 func EncEvents(logs []*types.EventData) []JsonLog {

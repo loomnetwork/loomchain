@@ -7,14 +7,21 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+)
+const (
+	deployId    = uint32(1)
+	callId      = uint32(2)
+	migrationTx = uint32(3)
 )
 
 var (
@@ -23,7 +30,6 @@ var (
 
 func GetBlockByNumber(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
-	readReceipts loomchain.ReadReceiptHandler,
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
 	if height > state.Block().Height {
@@ -68,19 +74,20 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
 
-	txHashList, err := common.GetTxHashList(state, uint64(height))
-	if err != nil {
-		return resp, errors.Wrapf(err, "get tx hash list at height %v", height)
-	}
-	for _, hash := range txHashList {
+	for _, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txObj, err := GetTxByHash(state, hash, readReceipts)
+			txResult, err := blockStore.GetTxResult(tx.Hash())
 			if err != nil {
-				return resp, errors.Wrapf(err, "txObj for hash %v", hash)
+				return resp, errors.Wrapf(err, "cant find result for tx, hash %v", tx.Hash())
+			}
+
+			txObj, err := GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
+			if err != nil {
+				return resp, errors.Wrapf(err, "cant resolve tx, hash %v", tx.Hash())
 			}
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
-			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(hash))
+			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
 		}
 	}
 
@@ -91,7 +98,67 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
-func GetNumEvmTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
+func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.JsonTxObject, error) {
+	var signedTx auth.SignedTx
+	if err := proto.Unmarshal([]byte(txResult.Tx), &signedTx); err != nil {
+		return eth.JsonTxObject{}, err
+	}
+
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return eth.JsonTxObject{}, err
+	}
+
+	var txTx loomchain.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
+		return eth.JsonTxObject{}, err
+	}
+
+	var msg vm.MessageTx
+	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
+		return eth.JsonTxObject{}, err
+	}
+
+	var input []byte
+	switch txTx.Id {
+	case deployId:
+		{
+			var deployTx vm.DeployTx
+			if err := proto.Unmarshal(msg.Data, &deployTx);  err != nil {
+				return eth.JsonTxObject{}, err
+			}
+			input = deployTx.Code
+		}
+	case callId:
+		{
+			var callTx vm.CallTx
+			if err := proto.Unmarshal(msg.Data, &callTx);  err != nil {
+				return eth.JsonTxObject{}, err
+			}
+			input = callTx.Input
+		}
+	case migrationTx:
+		input = msg.Data
+	default:
+		return eth.JsonTxObject{}, fmt.Errorf("unrecognised tx type %v", txTx.Id)
+	}
+
+	return eth.JsonTxObject{
+		Nonce:                  eth.EncInt(int64(nonceTx.Sequence)),
+		Hash:                   eth.EncBytes(txResult.Hash),
+		BlockHash:              eth.EncBytes(blockHash),
+		BlockNumber:            eth.EncInt(txResult.Height),
+		TransactionIndex:       eth.EncInt(int64(txResult.Index)),
+		From:                   eth.EncAddress(msg.From),
+		To:                     eth.EncAddress(msg.To),
+		Value:                  eth.EncInt(0),
+		GasPrice:               eth.EncInt(txResult.TxResult.GasWanted),
+		Gas:                    eth.EncInt(txResult.TxResult.GasUsed),
+		Input:                  eth.EncBytes(input),
+	}, nil
+}
+
+func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
 	// todo make information about pending block available.
 	// Should be able to get transaction count from receipt object.
 	if height > state.Block().Height {
@@ -103,14 +170,7 @@ func GetNumEvmTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState
 	if err != nil {
 		return 0, errors.Wrapf(err, "results for block %v", height)
 	}
-
-	numEvmTx := uint64(0)
-	for _, deliverTx := range blockResults.Results.DeliverTx {
-		if deliverTx.Info == utils.DeployEvm || deliverTx.Info == utils.CallEVM {
-			numEvmTx++
-		}
-	}
-	return numEvmTx, nil
+	return uint64(len(blockResults.Results.DeliverTx)), nil
 }
 
 // todo find better method of doing this. Maybe use a blockhash index.
@@ -130,9 +190,6 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 			return 0, err
 		}
 
-		if err != nil {
-			return 0, err
-		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
 				return info.BlockMetas[i].Header.Height, nil //    int64(int(end) + i), nil
@@ -240,9 +297,6 @@ func DeprecatedGetBlockByHash(
 			return nil, err
 		}
 
-		if err != nil {
-			return nil, err
-		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
 				return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)

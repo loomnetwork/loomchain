@@ -13,9 +13,7 @@ func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyStat
 	return nil, nil
 }
 
-func GetBlockByNumber(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ loomchain.ReadReceiptHandler,
-) (eth.JsonBlockObject, error) {
+func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool) (eth.JsonBlockObject, error) {
 	return eth.JsonBlockObject{}, nil
 }
 
@@ -51,7 +49,7 @@ func GetTxByHash(_ loomchain.ReadOnlyState, _ []byte, _ loomchain.ReadReceiptHan
 	return eth.JsonTxObject{}, nil
 }
 
-func GetTxByBlockAndIndex(_ store.BlockStore, _ loomchain.ReadOnlyState, _, _ uint64, _ loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
+func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64) (txObj eth.JsonTxObject, err error) {
 	return eth.JsonTxObject{}, nil
 }
 
@@ -59,4 +57,12 @@ func QueryChain(
 	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler,
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
+}
+
+func GetTxByTendermintHash(_ store.BlockStore, _ []byte) (eth.JsonTxObject, error) {
+	return eth.JsonTxObject{}, nil
+}
+
+func GetNumTxBlock(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64) (uint64, error) {
+	return 0, nil
 }

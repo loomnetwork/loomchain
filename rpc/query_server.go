@@ -25,6 +25,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -416,13 +417,11 @@ func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*
 	if !existed {
 		sub.Do(writer(wsCtx, s.Subscriptions))
 	}
-	s.Subscriptions.AddSubscription(caller, topics)
-	return &WSEmptyResult{}, nil
+	return &WSEmptyResult{}, s.Subscriptions.AddSubscription(caller, topics)
 }
 
 func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error) {
-	s.Subscriptions.Remove(wsCtx.GetRemoteAddr(), topic)
-	return &WSEmptyResult{}, nil
+	return &WSEmptyResult{}, s.Subscriptions.Remove(wsCtx.GetRemoteAddr(), topic)
 }
 
 func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.LegacyEthSubscriptionSet) pubsub.SubscriberFunc {
@@ -463,15 +462,17 @@ func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter s
 }
 
 func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
-	s.EthLegacySubscriptions.Remove(id)
-	return true, nil
+	return true, s.EthLegacySubscriptions.Remove(id)
 }
 
 func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +497,9 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReceipt)
 }
 
-func (s *QueryServer) ContractEvents(fromBlock uint64, toBlock uint64, contractName string) (*types.ContractEventsResult, error) {
+func (s *QueryServer) ContractEvents(
+	fromBlock uint64, toBlock uint64, contractName string,
+) (*types.ContractEventsResult, error) {
 	if s.EventStore == nil {
 		return nil, errors.New("event store is not available")
 	}
@@ -544,7 +547,10 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -582,7 +588,10 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -620,7 +629,10 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -643,7 +655,10 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -655,13 +670,17 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return resp, err
 	}
 	return query.DeprecatedGetTxByHash(snapshot, txHash, r)
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
 func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
 	if block == "0x0" {
 		return eth.GetBlockZero(), nil
@@ -674,14 +693,11 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	if err != nil {
 		return resp, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		return resp, err
-	}
+
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full)
 	if err != nil {
 		return resp, err
 	}
@@ -703,13 +719,23 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return resp, err
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
-	if err != nil {
+	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
 		return resp, err
+	}
+	if err != nil {
+		txObj, err := query.GetTxByTendermintHash(s.BlockStore, txHash)
+		if err != nil {
+			return resp, errors.Wrapf(err, "cannot find tx hash %v", txHash)
+		}
+		return eth.TxObjToReceipt(txObj), nil
 	}
 
 	// accessing the TM block store might take a while and we don't need the snapshot anymore
@@ -746,7 +772,7 @@ func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount 
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumEvmTxBlock(s.BlockStore, snapshot, height)
+	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, height)
 	if err != nil {
 		return txCount, err
 	}
@@ -762,7 +788,7 @@ func (s *QueryServer) EthGetBlockTransactionCountByNumber(block eth.BlockHeight)
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumEvmTxBlock(s.BlockStore, snapshot, int64(height))
+	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, int64(height))
 	if err != nil {
 		return txCount, err
 	}
@@ -786,11 +812,7 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 	if err != nil {
 		return resp, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		return resp, err
-	}
-	return query.GetBlockByNumber(s.BlockStore, snapshot, height, full, r)
+	return query.GetBlockByNumber(s.BlockStore, snapshot, height, full)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -803,62 +825,67 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return resp, err
 	}
-	return query.GetTxByHash(snapshot, txHash, r)
+	txObj, err := query.GetTxByHash(snapshot, txHash, r)
+	if err != nil {
+		if errors.Cause(err) != common.ErrTxReceiptNotFound {
+			return resp, err
+		}
+
+		txObj, err = query.GetTxByTendermintHash(s.BlockStore, txHash)
+		if err != nil {
+			return resp, errors.Wrapf(err, "failed to find tx with hash %v", txHash)
+		}
+	}
+	return txObj, nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblockHashAndIndex
-func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
+func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
+	hash eth.Data, index eth.Quantity,
+) (txObj eth.JsonTxObject, err error) {
 	blockHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
 		return txObj, err
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
 	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
 	if err != nil {
 		return txObj, err
 	}
+	snapshot.Release()
+
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
 		return txObj, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		return txObj, err
-	}
-	// TODO: Reading from the TM block store could take a while, might be more efficient to release
-	//       the current snapshot and get a new one after pulling out whatever we need from the TM
-	//       block store.
-	return query.GetTxByBlockAndIndex(s.BlockStore, snapshot, uint64(height), txIndex, r)
+	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
-func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
+func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
+	block eth.BlockHeight, index eth.Quantity,
+) (txObj eth.JsonTxObject, err error) {
 	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
 		return txObj, err
 	}
+	snapshot.Release()
+
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
 		return txObj, err
 	}
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		return txObj, err
-	}
-	// TODO: Reading from the TM block store could take a while, might be more efficient to release
-	//       the current snapshot and get a new one after pulling out whatever we need from the TM
-	//       block store.
-	return query.GetTxByBlockAndIndex(s.BlockStore, snapshot, height, txIndex, r)
+	return query.GetTxByBlockAndIndex(s.BlockStore, height, txIndex)
 }
 
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
@@ -871,7 +898,10 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return resp, err
 	}
@@ -910,7 +940,10 @@ func (s *QueryServer) EthUninstallFilter(id eth.Quantity) (bool, error) {
 func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -924,20 +957,14 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	state := s.StateProvider.ReadOnlyState()
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
+	r, err := s.ReceiptHandlerProvider.ReaderAt(
+		snapshot.Block().Height,
+		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
+	)
 	if err != nil {
 		return nil, err
 	}
-
-	if filter, err := s.EthSubscriptions.GetFilter(string(id)); filter != nil || err != nil {
-		logs, err := query.QueryChain(s.BlockStore, state, *filter, r)
-		if err != nil {
-			return nil, err
-		}
-		return eth.EncLogs(logs), err
-	} else {
-		return s.EthPolls.AllLogs(s.BlockStore, state, string(id), r)
-	}
+	return s.EthPolls.AllLogs(s.BlockStore, state, string(id), r)
 }
 
 // Sets up new filter for polling
@@ -979,7 +1006,7 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	}
 
 	if height != uint64(snapshot.Block().Height) {
-		return eth.Quantity("0x0"), fmt.Errorf("transaction count only implemted for the latest block %v, block %v requested", snapshot.Block().Height, height)
+		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
 	}
 	address, err := eth.DecDataToAddress(s.ChainID, local)
 	if err != nil {

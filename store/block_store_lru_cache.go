@@ -51,7 +51,7 @@ func (s *LRUBlockStoreCache) GetBlockRangeByHeight(minHeight, maxHeight int64) (
 	const limit int64 = 20
 	var err error
 	//Get filterMinMax added to emulate error handling covered in tendermint blockstore
-	minHeight, maxHeight, err = filterMinMaxforCache(minHeight, maxHeight, limit)
+	minHeight, maxHeight, err = filterMinMaxforCache(minHeight, maxHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -112,4 +112,20 @@ func (s *LRUBlockStoreCache) GetBlockResults(height *int64) (*ctypes.ResultBlock
 		s.Cache.Add(blockResultKey(blockinfo.Height), blockinfo)
 	}
 	return blockinfo, nil
+}
+
+func (s *LRUBlockStoreCache) GetTxResult(txHash []byte)  (*ctypes.ResultTx, error) {
+	var txResult *ctypes.ResultTx
+	cacheData, ok := s.Cache.Get(txHashKey(txHash))
+	if ok {
+		txResult = cacheData.(*ctypes.ResultTx)
+	} else {
+		var err error
+		txResult, err = s.CachedBlockStore.GetTxResult(txHash)
+		if err != nil {
+			return nil, err
+		}
+		s.Cache.Add(txHashKey(txResult.Hash), txResult)
+	}
+	return txResult, nil
 }
