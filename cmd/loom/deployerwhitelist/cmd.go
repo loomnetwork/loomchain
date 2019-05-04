@@ -23,8 +23,8 @@ type deployerInfo struct {
 
 func NewDeployCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "deployerwhitelist <command>",
-		Short: "Methods available in deployerwhitelist contract",
+		Use:   "deployer <command>",
+		Short: "Deployer Whitelist CLI",
 	}
 
 	cmd.AddCommand(
