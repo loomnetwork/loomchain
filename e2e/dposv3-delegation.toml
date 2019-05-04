@@ -118,7 +118,12 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
-  Expected = ["\"Value\": 12500", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
+  Expected = ["\"Value\": 12500"]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 2}}"
@@ -139,7 +144,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
-  Expected = ["\"Value\": 12500", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
+  Expected = ["\"Value\": 12500"]
 
 [[TestCases]]
   RunCmd = "check_validators"
@@ -174,7 +179,12 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
-  Expected = ["\"Value\": 1250025", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 1}}"]
+  Expected = ["\"Value\": 1250025"]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unbond {{index $.NodeAddressList 1}} 15 2 -k {{index $.NodePrivKeyPathList 2}}"
