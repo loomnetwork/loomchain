@@ -3,6 +3,8 @@ package chainconfig
 import (
 	"fmt"
 
+	"github.com/loomnetwork/loomchain/cmd/loom/common"
+
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -16,9 +18,10 @@ var (
 )
 
 func NewChainCfgCommand() *cobra.Command {
-	cmd := cli.ContractCallCommand("chainconfig")
-	cmd.Use = "chain-cfg"
-	cmd.Short = "On-chain configuration CLI"
+	cmd := &cobra.Command{
+		Use:   "chain-cfg <command>",
+		Short: "Methods available in chainconfig contract",
+	}
 	cmd.AddCommand(
 		EnableFeatureCmd(),
 		AddFeatureCmd(),
@@ -37,7 +40,8 @@ loom chain-cfg enable-feature hardfork multichain
 `
 
 func EnableFeatureCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd:= &cobra.Command{
 		Use:     "enable-feature <feature name 1> ... <feature name N>",
 		Short:   "Enable features by feature names",
 		Example: enableFeatureCmdExample,
@@ -48,20 +52,23 @@ func EnableFeatureCmd() *cobra.Command {
 				}
 			}
 			req := &cctype.EnableFeatureRequest{Names: args}
-			err := cli.CallContract(chainConfigContractName, "EnableFeature", req, nil)
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "EnableFeature", req, nil)
 			if err != nil {
 				return err
 			}
 			return nil
-		},
+			},
 	}
-}
+	common.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+	}
 
 const addFeatureCmdExample = `
 loom chain-cfg add-feature hardfork multichain --build 866 --no-auto-enable
 `
 
 func AddFeatureCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	var buildNumber uint64
 	var noAutoEnable bool
 	cmd := &cobra.Command{
@@ -79,13 +86,14 @@ func AddFeatureCmd() *cobra.Command {
 				BuildNumber: buildNumber,
 				AutoEnable:  !noAutoEnable,
 			}
-			err := cli.CallContract(chainConfigContractName, "AddFeature", req, nil)
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "AddFeature", req, nil)
 			if err != nil {
 				return err
 			}
 			return nil
 		},
 	}
+	common.AddContractCallFlags(cmd.Flags(), &flags)
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number that supports this feature")
 	cmdFlags.BoolVar(
@@ -104,6 +112,7 @@ loom chain-cfg set-params --block-confirmations 1000
 `
 
 func SetParamsCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	voteThreshold := uint64(0)
 	numBlockConfirmations := uint64(0)
 	cmd := &cobra.Command{
@@ -117,13 +126,14 @@ func SetParamsCmd() *cobra.Command {
 					NumBlockConfirmations: numBlockConfirmations,
 				},
 			}
-			err := cli.CallContract(chainConfigContractName, "SetParams", request, nil)
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetParams", request, nil)
 			if err != nil {
 				return err
 			}
 			return nil
 		},
 	}
+	common.AddContractCallFlags(cmd.Flags(), &flags)
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&voteThreshold, "vote-threshold", 0, "Set vote threshold")
 	cmdFlags.Uint64Var(&numBlockConfirmations, "block-confirmations", 0, "Set N block confirmations")
@@ -135,13 +145,15 @@ loom chain-cfg get-params
 `
 
 func GetParamsCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "get-params",
 		Short:   "Get vote-threshold and num-block-confirmation parameters from chainconfig",
 		Example: getParamsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.GetParamsResponse
-			err := cli.StaticCallContract(chainConfigContractName, "GetParams", &cctype.GetParamsRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "GetParams",
+				&cctype.GetParamsRequest{}, &resp)
 			if err != nil {
 				return err
 			}
@@ -153,21 +165,25 @@ func GetParamsCmd() *cobra.Command {
 			return nil
 		},
 	}
-}
+	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+	}
 
 const getFeatureCmdExample = `
 loom chain-cfg get-feature hardfork
 `
 
 func GetFeatureCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd :=&cobra.Command{
 		Use:     "get-feature <feature name>",
 		Short:   "Get feature by feature name",
 		Example: getFeatureCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.GetFeatureResponse
-			err := cli.StaticCallContract(chainConfigContractName, "GetFeature", &cctype.GetFeatureRequest{Name: args[0]}, &resp)
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "GetFeature",
+				&cctype.GetFeatureRequest{Name: args[0]}, &resp)
 			if err != nil {
 				return err
 			}
@@ -179,20 +195,24 @@ func GetFeatureCmd() *cobra.Command {
 			return nil
 		},
 	}
-}
+	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+	}
 
 const listFeaturesCmdExample = `
 loom chainconfig list-features
 `
 
 func ListFeaturesCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd:= &cobra.Command{
 		Use:     "list-features",
 		Short:   "Display all features",
 		Example: listFeaturesCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ListFeaturesResponse
-			err := cli.StaticCallContract(chainConfigContractName, "ListFeatures", &cctype.ListFeaturesRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "ListFeatures",
+				&cctype.ListFeaturesRequest{}, &resp)
 			if err != nil {
 				return err
 			}
@@ -204,6 +224,8 @@ func ListFeaturesCmd() *cobra.Command {
 			return nil
 		},
 	}
+	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const featureEnabledCmdExample = `
@@ -211,7 +233,8 @@ loom chain-cfg feature-enabled hardfork false
 `
 
 func FeatureEnabledCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd:= &cobra.Command{
 		Use:     "feature-enabled <feature name> <default value>",
 		Short:   "Check if feature is enabled on chain",
 		Example: featureEnabledCmdExample,
@@ -222,7 +245,7 @@ func FeatureEnabledCmd() *cobra.Command {
 				Name:       args[0],
 				DefaultVal: false,
 			}
-			if err := cli.StaticCallContract(
+			if err := cli.StaticCallContractWithFlags(&flags,
 				chainConfigContractName,
 				"FeatureEnabled",
 				req,
@@ -234,6 +257,8 @@ func FeatureEnabledCmd() *cobra.Command {
 			return nil
 		},
 	}
+	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const removeFeatureCmdExample = `
@@ -241,6 +266,7 @@ loom chain-cfg remove-feature tx:migration migration:1
 `
 
 func RemoveFeatureCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "remove-feature <feature name 1> ... <feature name N>",
 		Short:   "Remove feature by feature name",
@@ -253,7 +279,7 @@ func RemoveFeatureCmd() *cobra.Command {
 				}
 			}
 			var resp cctype.RemoveFeatureRequest
-			if err := cli.CallContract(
+			if err := cli.CallContractWithFlags(&flags,
 				chainConfigContractName,
 				"RemoveFeature",
 				&cctype.RemoveFeatureRequest{
@@ -266,6 +292,7 @@ func RemoveFeatureCmd() *cobra.Command {
 			return nil
 		},
 	}
+	common.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
