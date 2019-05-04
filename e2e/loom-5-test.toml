@@ -78,6 +78,11 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
+  Expected = ["local"]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
@@ -85,8 +90,13 @@
   Condition = "contains"
   Excluded = ["{{index $.NodePubKeyList 1}}"]
 
+#[[TestCases]]
+#  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+#  Condition = "excludes"
+#  Excludes = ["{{index $.NodePubKeyList 0}}"]
+
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  RunCmd = "check_validators"
   Condition = "excludes"
   Excludes = ["{{index $.NodePubKeyList 0}}"]
 
