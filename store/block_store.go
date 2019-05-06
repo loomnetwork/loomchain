@@ -251,11 +251,9 @@ func (s *TendermintBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64)
 	}
 	blockMetas := []*types.BlockMeta{}
 	for _, meta := range blockResult.BlockMetas {
-
 		if meta != nil {
 			blockMetas = append(blockMetas, meta)
 		}
-
 	}
 	blockchaininfo := ctypes.ResultBlockchainInfo{
 		BlockMetas: blockMetas,
