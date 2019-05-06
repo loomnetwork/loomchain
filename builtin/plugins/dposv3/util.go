@@ -3,6 +3,7 @@ package dposv3
 import (
 	"errors"
 	"math/big"
+	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"
@@ -84,6 +85,19 @@ func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
 }
 
 // VALIDATION
+
+func validateCandidateFee(ctx contract.Context, fee uint64) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if fee < state.Params.MinCandidateFee {
+		return errors.New(fmt.Sprintf("Candidate Fee percentage cannot be less than %d", state.Params.MinCandidateFee))
+	}
+
+	return validateFee(fee)
+}
 
 func validateFee(fee uint64) error {
 	if fee > 10000 {
