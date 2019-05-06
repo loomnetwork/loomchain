@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -28,27 +25,11 @@ func TestE2eEvm(t *testing.T) {
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, test.ethAccounts)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			binary, err := exec.LookPath("go")
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			exampleCmd := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
-			}
-
-			if err := exampleCmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(exampleCmd.Args, " "), err))
 			}
 
 			if err := common.DoRun(*config); err != nil {
