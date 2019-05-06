@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -47,34 +44,11 @@ func TestContractChainConfig(t *testing.T) {
 	}
 	tests := make([]Test, 0)
 	tests = append(tests, test1, test2, test3)
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(
-				test.name,
-				test.testFile,
-				test.genFile,
-				test.yamlFile,
-				test.validators,
-				test.accounts,
-				0,
-			)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			binary, err := exec.LookPath("go")
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			cmd := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
-			}
-			if err := cmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
 			}
 
 			if err := common.DoRun(*config); err != nil {
