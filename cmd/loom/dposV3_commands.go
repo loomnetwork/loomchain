@@ -863,6 +863,7 @@ func NewDPOSV3Command() *cobra.Command {
 		SetOracleAddressCmdV3(&flags),
 		SetSlashingPercentagesCmdV3(&flags),
 		ChangeFeeCmdV3(&flags),
+		SetMinCandidateFeeCmdV3(&flags),
 		TimeUntilElectionCmdV3(&flags),
 		TotalDelegationCmdV3(&flags),
 		GetStateCmdV3(&flags),
