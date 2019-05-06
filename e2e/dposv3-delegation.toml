@@ -26,7 +26,22 @@
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 2}} 100 0 600 --name numero-dos -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 2}} 50 0 600 --name numero-dos -k {{index $.NodePrivKeyPathList 2}}"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 change-fee 100 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 set-min-candidate-fee 900 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 change-fee 200 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = ["Error"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
@@ -62,7 +77,7 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 3}} 100 -k {{index $.NodePrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 3}} 1200 -k {{index $.NodePrivKeyPathList 3}}"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 update-candidate-info updated-name updated-description update.com 1000 -k {{index $.NodePrivKeyPathList 1}}"
