@@ -220,6 +220,7 @@ func (c *Coin) BalanceOf(
 
 func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
 	from := ctx.Message().Sender
+	ctx.Logger().Error("coin-Transfer-from", "from", from.String())
 	to := loom.UnmarshalAddressPB(req.To)
 
 	fromAccount, err := loadAccount(ctx, from)
