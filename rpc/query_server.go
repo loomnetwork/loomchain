@@ -277,6 +277,7 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 // Gives an error for non-EVM contracts.
 // contract - address of the contract in the form of a string. (Use loom.Address.String() to convert)
 // return []byte - runtime bytecode of the contract.
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getcode
 func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	contractAddr, err := loom.ParseAddress(contract)
 	if err != nil {
@@ -290,6 +291,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	return vm.GetCode(contractAddr)
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getcode
 func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error) {
 	addr, err := eth.DecDataToAddress(s.ChainID, address)
 	if err != nil {
@@ -302,7 +304,15 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
 	code, err := evm.GetCode(addr)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "getting evm code for %v", address)
+	}
+	if code == nil {
+		reg := s.CreateRegistry(snapshot)
+		record, err := reg.GetRecord(addr)
+		if err != nil {
+			return "", errors.Wrapf(err, "retrieving record from registry for %v", address)
+		}
+		return eth.Data(record.String()), nil
 	}
 	return eth.EncBytes(code), nil
 }
