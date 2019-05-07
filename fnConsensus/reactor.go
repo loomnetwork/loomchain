@@ -28,7 +28,7 @@ const (
 
 	VoteSetIDSize = 32
 
-	StartingNonce int64 = 1
+	StartingNonce int64 = 1 // can we remove since unused?
 
 	// Max message size 2 MB
 	MaxMsgSize = 2 * 1000 * 1024
@@ -41,7 +41,7 @@ const (
 	ProposeIntervalInSeconds int64 = 10
 	CommitIntervalInSeconds  int64 = 5
 
-	// Delay between propogating votesets to make other peers up to date.
+	// Delay between propagating votesets to make other peers up to date.
 	VoteSetPropogationDelay = 1 * time.Second
 
 	// FnVoteSet cannot be modified beyond this interval
@@ -51,14 +51,14 @@ const (
 	// Max context size 1 KB
 	MaxContextSize = 1024
 
-	MaxPetitionPayloadSize = 1000 * 1024
+	MaxPetitionPayloadSize = 1000 * 1024 // what is the petition payload? why 1kb max size? can we remove since unused?
 
-	MaxAllowedTimeDriftInFuture = 10 * time.Second
+	MaxAllowedTimeDriftInFuture = 10 * time.Second // what is the time drift? can we remove since unused?
 
 	BaseProposalDelay = 500 * time.Millisecond
 	BaseCommitDelay   = 100 * time.Millisecond
 
-	MonitoringInterval = 1 * time.Second
+	MonitoringInterval = 1 * time.Second // can we remove since unused?
 
 	ProgressLoopStartDelay = 2 * time.Second
 
@@ -89,7 +89,7 @@ type FnConsensusReactor struct {
 
 	staticValidators *types.ValidatorSet
 
-	cfg *ReactorConfig
+	cfg *ReactorConfig // override validators + signing threshold
 }
 
 func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB, parsableConfig *ReactorConfigParsable) (*FnConsensusReactor, error) {
@@ -129,7 +129,7 @@ func (f *FnConsensusReactor) safeGetMessageAndSignature(fn Fn, ctx []byte) ([]by
 			f.Logger.Error("panicked while invoking GetMessageAndSignature", "error", err)
 		}
 	}()
-	return fn.GetMessageAndSignature(nil)
+	return fn.GetMessageAndSignature(nil) // this must be implemented by the user of the reactor
 }
 
 func (f *FnConsensusReactor) safeMapMessage(fn Fn, ctx []byte, hash []byte, message []byte) error {
@@ -231,6 +231,7 @@ func (f *FnConsensusReactor) calculateSleepTimeForCommit(areWeValidator bool, ow
 		return (time.Duration(baseTimeToSleep) * time.Second) + BaseCommitDelay
 	}
 
+	// so we sleep more depending on our index? if we are the 20th validator index we take too long?
 	return (time.Duration(baseTimeToSleep) * time.Second) + (time.Duration(ownValidatorIndex+1) * BaseCommitDelay)
 }
 
@@ -242,10 +243,12 @@ func (f *FnConsensusReactor) calculateSleepTimeForPropose(areWeValidator bool, o
 		return (time.Duration(baseTimeToSleep) * time.Second) + BaseProposalDelay
 	}
 
+	// so we sleep more depending on our index? if we are the 20th validator index we take too long?
 	return (time.Duration(baseTimeToSleep) * time.Second) + (time.Duration(ownValidatorIndex+1) * BaseProposalDelay)
 }
 
 func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
+	// no change if we didnt specify any override validators
 	if len(f.cfg.OverrideValidators) == 0 {
 		return nil
 	}
@@ -301,6 +304,7 @@ func (f *FnConsensusReactor) commitRoutine() {
 
 OUTER_LOOP:
 	for {
+		// why are we sleeping varying amounts depending on our index?
 		commitSleepTime := f.calculateSleepTimeForCommit(areWeValidator, ownValidatorIndex)
 		commitTimer := time.NewTimer(commitSleepTime)
 
@@ -505,7 +509,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytesOfCurrentVoteSet)
 		}
 	} else {
-		if areWeValidator {
+		if areWeValidator { // Can't a non-validator modify their Fn code and execute that functionality?
 			majExecutionResponse := currentVoteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 			if majExecutionResponse != nil {
 				f.Logger.Info("Maj-consensus achieved", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response)
@@ -700,7 +704,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 	var didWeContribute, hasOurVoteSetChanged bool
 	var err error
 
-	currentNonce, ok := f.state.CurrentNonces[remoteVoteSet.GetFnID()]
+	currentNonce, ok := f.state.CurrentNonces[remoteVoteSet.GetFnID()] // probably should extract all these if !ok calls to `GetFnNonce`
 	if !ok {
 		currentNonce = 1
 		f.state.CurrentNonces[remoteVoteSet.GetFnID()] = currentNonce
@@ -778,8 +782,8 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		hasOurVoteSetChanged = true
 	}
 
-	// If our vote havent't changed, no need to annonce it, as
-	// we would have already annonunced it last time it changed
+	// If our vote havent't changed, no need to announce it, as
+	// we would have already announced it last time it changed
 	// This could mean no new additions happened on our existing voteset, and
 	// by logic other flags also will be false
 	if !hasOurVoteSetChanged {

@@ -49,6 +49,7 @@ func (f *InMemoryFnRegistry) GetAll() []string {
 }
 
 func (f *InMemoryFnRegistry) Get(fnID string) Fn {
+	// Since we do not allow for an Fn to be overwritten, when can this be dangerous?
 	f.mtx.RLock()
 	defer f.mtx.RUnlock()
 	return f.fnMap[fnID]
@@ -59,6 +60,7 @@ func (f *InMemoryFnRegistry) Set(fnID string, fnObj Fn) error {
 		return ErrFnObjCantNil
 	}
 
+	// If 2 Fns try to register at the same time, this ensures that wnone get overwritten
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 

@@ -23,6 +23,11 @@ type ReactorConfigParsable struct {
 	FnVoteSigningThreshold SigningThreshold
 }
 
+type ReactorConfig struct {
+	FnVoteSigningThreshold SigningThreshold
+	OverrideValidators     []*OverrideValidator
+}
+
 func (r *ReactorConfigParsable) Parse() (*ReactorConfig, error) {
 	reactorConfig := &ReactorConfig{}
 
@@ -30,6 +35,7 @@ func (r *ReactorConfigParsable) Parse() (*ReactorConfig, error) {
 		return nil, fmt.Errorf("fnConsensus reactor's parsable configuration cant be nil")
 	}
 
+	// What's the purpose of this instead of setting it directly?
 	if r.FnVoteSigningThreshold != AllSigningThreshold && r.FnVoteSigningThreshold != Maj23SigningThreshold {
 		return nil, fmt.Errorf("unknown signing threshold: %s specified", r.FnVoteSigningThreshold)
 	}
@@ -64,9 +70,4 @@ func DefaultReactorConfigParsable() *ReactorConfigParsable {
 	return &ReactorConfigParsable{
 		FnVoteSigningThreshold: Maj23SigningThreshold,
 	}
-}
-
-type ReactorConfig struct {
-	FnVoteSigningThreshold SigningThreshold
-	OverrideValidators     []*OverrideValidator
 }
