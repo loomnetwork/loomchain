@@ -228,7 +228,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	dposContractAddress := ctx.ContractAddress()
 	err = coin.TransferFrom(delegator, dposContractAddress, &req.Amount.Value)
 	if err != nil {
-		return err
+		transferFromErr := fmt.Sprintf("Failed coin TransferFrom - Delegate, %v, %s", delegator.String(), req.Amount.Value.String())
+		return logDposError(ctx, err, transferFromErr)
 	}
 
 	// Get next delegation index for this validator / delegator pair
@@ -717,7 +718,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		dposContractAddress := ctx.ContractAddress()
 		err = coin.TransferFrom(candidateAddress, dposContractAddress, &state.Params.RegistrationRequirement.Value)
 		if err != nil {
-			return err
+			transferFromErr := fmt.Sprintf("Failed coin TransferFrom - registercanidate, %v, %s", candidateAddress.String(), state.Params.RegistrationRequirement.Value.String())
+			return logDposError(ctx, err, transferFromErr)
 		}
 
 		// Self-delegate funds for the amount of time specified
@@ -1515,7 +1517,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			}
 			err = coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
 			if err != nil {
-				return nil, err
+				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegation.Delegator.String(), delegation.UpdateAmount.Value.String())
+				return nil, logDposError(ctx, err, transferFromErr)
 			}
 		} else if delegation.State == REDELEGATING {
 			if err = DeleteDelegation(ctx, delegation); err != nil {
@@ -1869,15 +1872,22 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 }
 
 func (c *DPOS) SetMinCandidateFee(ctx contract.Context, req *SetMinCandidateFeeRequest) error {
-	ctx.Logger().Info("DPOSv3 SetMinCandidateFee", "request", req)
-
-	if err := validateFee(req.MinCandidateFee); err != nil {
-		return logDposError(ctx, err, req.String())
-	}
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 SetMinCandidateFee", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
+	}
+
+	//TODO: this will be replaced with voting system next week
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	if err := validateFee(req.MinCandidateFee); err != nil {
+		return logDposError(ctx, err, req.String())
 	}
 
 	state.Params.MinCandidateFee = req.MinCandidateFee
