@@ -876,6 +876,8 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 			return nil
 		},
 	}
+	common.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 func SetMinCandidateFeeCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
@@ -895,7 +897,7 @@ func SetMinCandidateFeeCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
 			}
 
 			err = cli.CallContractWithFlags(
-				flags, DPOSV3ContractName, "SetMinCandidateFee", &dposv3.SetMinCandidateFeeRequest{
+				&flags, DPOSV3ContractName, "SetMinCandidateFee", &dposv3.SetMinCandidateFeeRequest{
 					MinCandidateFee: minCandidateFee,
 				}, nil)
 			if err != nil {
