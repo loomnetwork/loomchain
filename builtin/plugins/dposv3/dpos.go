@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 const (
@@ -1509,15 +1510,25 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			updatedAmount.Add(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 		} else if delegation.State == UNBONDING {
+			delegatorAddress := loom.UnmarshalAddressPB(delegation.Delegator)
+			if len(delegatorAddress.Local) == 0 {
+				//in theory this can only happen in test environmetns
+				transferFromErr := fmt.Sprintf("missing delegator address - distributeDelegatorRewards, %v, %s", delegatorAddress, delegation.UpdateAmount.Value.String())
+
+				log.Error(transferFromErr)
+				continue
+			}
+
 			updatedAmount.Sub(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 			coin, err := loadCoin(ctx)
 			if err != nil {
 				return nil, err
 			}
-			err = coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
+			err = coin.Transfer(delegatorAddress, &delegation.UpdateAmount.Value)
 			if err != nil {
-				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegation.Delegator.String(), delegation.UpdateAmount.Value.String())
+				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegatorAddress, delegation.UpdateAmount.Value.String())
+
 				return nil, logDposError(ctx, err, transferFromErr)
 			}
 		} else if delegation.State == REDELEGATING {
