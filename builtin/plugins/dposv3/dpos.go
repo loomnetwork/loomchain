@@ -1511,7 +1511,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 		} else if delegation.State == UNBONDING {
 			delegatorAddress := loom.UnmarshalAddressPB(delegation.Delegator)
-			if len(delegatorAddress.Local) == 0 {
+			if delegatorAddress.Compare(LimboValidatorAddress(ctx)) != 0 {
 				//in theory this can only happen in test environmetns
 				transferFromErr := fmt.Sprintf("missing delegator address - distributeDelegatorRewards, %v, %s", delegatorAddress, delegation.UpdateAmount.Value.String())
 
