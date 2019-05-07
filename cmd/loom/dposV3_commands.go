@@ -142,7 +142,7 @@ func RegisterCandidateCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		// nolint:lll
-		Use:   "register-candidate [public key] [validator fee (" +
+		Use: "register-candidate [public key] [validator fee (" +
 			"in basis points)] [locktime tier] [maximum referral percentage]",
 		Short: "Register a candidate for validator",
 		Args:  cobra.MinimumNArgs(2),
@@ -656,7 +656,7 @@ func ListDelegationsCmdV3() *cobra.Command {
 	}
 	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-	}
+}
 
 func ListAllDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
@@ -735,7 +735,7 @@ func SetElectionCycleCmdV3() *cobra.Command {
 	}
 	common.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
-	}
+}
 
 func SetValidatorCountCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
@@ -842,7 +842,7 @@ func SetOracleAddressCmdV3() *cobra.Command {
 	}
 	common.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
-	}
+}
 
 func SetSlashingPercentagesCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
@@ -859,7 +859,6 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 
 			err = cli.CallContractWithFlags(
 				&flags, DPOSV3ContractName, "SetSlashingPercentages", &dposv3.SetSlashingPercentagesRequest{
@@ -880,8 +879,9 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 	return cmd
 }
 
-func SetMinCandidateFeeCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
-	return &cobra.Command{
+func SetMinCandidateFeeCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:   "set-min-candidate-fee [min candidate fee]",
 		Short: "Set minimum candidate fee",
 		Args:  cobra.MinimumNArgs(1),
@@ -947,6 +947,7 @@ func NewDPOSV3Command() *cobra.Command {
 		TimeUntilElectionCmdV3(),
 		TotalDelegationCmdV3(),
 		GetStateCmdV3(),
+		SetMinCandidateFeeCmdV3(),
 	)
 	return cmd
 }
