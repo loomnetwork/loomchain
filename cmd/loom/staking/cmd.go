@@ -112,6 +112,7 @@ func ListValidatorsCmd() *cobra.Command  {
 		Short: "List the current validators",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListValidatorsResponseV2
+			// nolint:lll
 			err := cli.StaticCallContractWithFlags(&flags, dPOSV2ContractName  , "ListValidators", &dposv2.ListValidatorsRequestV2{},
 			&resp)
 			if err != nil {
