@@ -1527,7 +1527,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			}
 			err = coin.Transfer(delegatorAddress, &delegation.UpdateAmount.Value)
 			if err != nil {
-				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %v, %s", delegatorAddress, delegatorAddress.Bytes(), delegation.UpdateAmount.Value.String())
+				dposContractAddress := ctx.ContractAddress()
+				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards(contract-%s), %v, %v, %s", dposContractAddress.String(), delegatorAddress, delegatorAddress.Bytes(), delegation.UpdateAmount.Value.String())
 
 				return nil, logDposError(ctx, err, transferFromErr)
 			}
