@@ -1516,11 +1516,13 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 				return nil, err
 			}
 			delegatorAddress := loom.UnmarshalAddressPB(delegation.Delegator)
+
 			dposContractAddress := ctx.ContractAddress()
 			err = coin.TransferFrom(ctx.ContractAddress(), delegatorAddress, &delegation.UpdateAmount.Value)
 			if err != nil {
 				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards(contract-%s), %v, %v, %s", dposContractAddress.String(), delegatorAddress, delegatorAddress.Bytes(), delegation.UpdateAmount.Value.String())
 
+				panic(logDposError(ctx, err, transferFromErr))
 				return nil, logDposError(ctx, err, transferFromErr)
 			}
 		} else if delegation.State == REDELEGATING {
