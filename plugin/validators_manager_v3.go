@@ -3,7 +3,6 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
@@ -17,11 +16,12 @@ type ValidatorsManagerV3 struct {
 }
 
 func NewValidatorsManagerV3(pvm *PluginVM) (*ValidatorsManagerV3, error) {
-	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("dposV3")
 	if err != nil {
 		return nil, err
 	}
+	caller := contractAddr
+
 	readOnly := false
 	ctx := contract.WrapPluginContext(pvm.CreateContractContext(caller, contractAddr, readOnly))
 	return &ValidatorsManagerV3{
