@@ -10,7 +10,6 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
 
 	errUtil "github.com/pkg/errors"
 )
@@ -36,10 +35,6 @@ type (
 	Economy              = ctypes.Economy
 
 	BurnRequest = ctypes.BurnRequest
-)
-
-var (
-	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
 )
 
 var (
@@ -112,6 +107,7 @@ func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) er
 }
 
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
+
 	if req.Owner == nil || req.Amount == nil {
 		return errors.New("owner or amount is nil")
 	}
@@ -223,32 +219,10 @@ func (c *Coin) BalanceOf(
 }
 
 func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
-	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
-		return c.transfer(ctx, req)
-	}
-
-	return c.legacyTransfer(ctx, req)
-}
-
-func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 	from := ctx.Message().Sender
 	to := loom.UnmarshalAddressPB(req.To)
 
 	fromAccount, err := loadAccount(ctx, from)
-	if err != nil {
-		return err
-	}
-	amount := req.Amount.Value
-	fromBalance := fromAccount.Balance.Value
-
-	if fromBalance.Cmp(&amount) < 0 {
-		return ErrSenderBalanceTooLow
-	}
-
-	fromBalance.Sub(&fromBalance, &amount)
-	fromAccount.Balance.Value = fromBalance
-
-	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
@@ -258,10 +232,23 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 		return err
 	}
 
+	amount := req.Amount.Value
+	fromBalance := fromAccount.Balance.Value
 	toBalance := toAccount.Balance.Value
-	toBalance.Add(&toBalance, &amount)
-	toAccount.Balance.Value = toBalance
 
+	if fromBalance.Cmp(&amount) < 0 {
+		return errors.New("sender balance is too low")
+	}
+
+	fromBalance.Sub(&fromBalance, &amount)
+	toBalance.Add(&toBalance, &amount)
+
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
+	err = saveAccount(ctx, fromAccount)
+	if err != nil {
+		return err
+	}
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
@@ -305,19 +292,16 @@ func (c *Coin) Allowance(
 }
 
 func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
-		return c.transferFrom(ctx, req)
-	}
-
-	return c.legacyTransferFrom(ctx, req)
-}
-
-func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) error {
 	spender := ctx.Message().Sender
 	from := loom.UnmarshalAddressPB(req.From)
 	to := loom.UnmarshalAddressPB(req.To)
 
 	fromAccount, err := loadAccount(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
 	}
@@ -330,32 +314,25 @@ func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) erro
 	allowAmount := allow.Amount.Value
 	amount := req.Amount.Value
 	fromBalance := fromAccount.Balance.Value
+	toBalance := toAccount.Balance.Value
 
 	if allowAmount.Cmp(&amount) < 0 {
 		return errors.New("amount is over spender's limit")
 	}
 
 	if fromBalance.Cmp(&amount) < 0 {
-		return ErrSenderBalanceTooLow
+		return errors.New("sender balance is too low")
 	}
 
 	fromBalance.Sub(&fromBalance, &amount)
-	fromAccount.Balance.Value = fromBalance
+	toBalance.Add(&toBalance, &amount)
 
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
 	err = saveAccount(ctx, fromAccount)
 	if err != nil {
 		return err
 	}
-
-	toAccount, err := loadAccount(ctx, to)
-	if err != nil {
-		return err
-	}
-
-	toBalance := toAccount.Balance.Value
-	toBalance.Add(&toBalance, &amount)
-	toAccount.Balance.Value = toBalance
-
 	err = saveAccount(ctx, toAccount)
 	if err != nil {
 		return err
@@ -419,99 +396,3 @@ func saveAllowance(ctx contract.Context, allow *Allowance) error {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Coin{})
-
-// Legacy methods from v1.0.0
-
-func (c *Coin) legacyTransfer(ctx contract.Context, req *TransferRequest) error {
-	from := ctx.Message().Sender
-	to := loom.UnmarshalAddressPB(req.To)
-
-	fromAccount, err := loadAccount(ctx, from)
-	if err != nil {
-		return err
-	}
-
-	toAccount, err := loadAccount(ctx, to)
-	if err != nil {
-		return err
-	}
-
-	amount := req.Amount.Value
-	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
-
-	if fromBalance.Cmp(&amount) < 0 {
-		return errors.New("sender balance is too low")
-	}
-
-	fromBalance.Sub(&fromBalance, &amount)
-	toBalance.Add(&toBalance, &amount)
-
-	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
-	err = saveAccount(ctx, fromAccount)
-	if err != nil {
-		return err
-	}
-	err = saveAccount(ctx, toAccount)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Coin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	spender := ctx.Message().Sender
-	from := loom.UnmarshalAddressPB(req.From)
-	to := loom.UnmarshalAddressPB(req.To)
-
-	fromAccount, err := loadAccount(ctx, from)
-	if err != nil {
-		return err
-	}
-
-	toAccount, err := loadAccount(ctx, to)
-	if err != nil {
-		return err
-	}
-
-	allow, err := loadAllowance(ctx, from, spender)
-	if err != nil {
-		return err
-	}
-
-	allowAmount := allow.Amount.Value
-	amount := req.Amount.Value
-	fromBalance := fromAccount.Balance.Value
-	toBalance := toAccount.Balance.Value
-
-	if allowAmount.Cmp(&amount) < 0 {
-		return errors.New("amount is over spender's limit")
-	}
-
-	if fromBalance.Cmp(&amount) < 0 {
-		return errors.New("sender balance is too low")
-	}
-
-	fromBalance.Sub(&fromBalance, &amount)
-	toBalance.Add(&toBalance, &amount)
-
-	fromAccount.Balance.Value = fromBalance
-	toAccount.Balance.Value = toBalance
-	err = saveAccount(ctx, fromAccount)
-	if err != nil {
-		return err
-	}
-	err = saveAccount(ctx, toAccount)
-	if err != nil {
-		return err
-	}
-
-	allowAmount.Sub(&allowAmount, &amount)
-	allow.Amount.Value = allowAmount
-	err = saveAllowance(ctx, allow)
-	if err != nil {
-		return err
-	}
-	return nil
-}
