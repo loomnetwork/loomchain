@@ -55,6 +55,21 @@ func GetStateCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
 	}
 }
 
+func GetContractAddressV3(flags *cli.ContractCallFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "get-dpos-contract-address",
+		Short: "Gets dpos contract",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contract, err := cli.ResolveContract(flags, DPOSV3ContractName)
+			if err != nil {
+				return err
+			}
+			fmt.Println(contract.Address.String())
+			return nil
+		},
+	}
+}
+
 func ListValidatorsCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-validators",
@@ -125,7 +140,7 @@ func ChangeFeeCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
 func RegisterCandidateCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
 	return &cobra.Command{
 		// nolint:lll
-		Use:   "register-candidate [public key] [validator fee (" +
+		Use: "register-candidate [public key] [validator fee (" +
 			"in basis points)] [locktime tier] [maximum referral percentage]",
 		Short: "Register a candidate for validator",
 		Args:  cobra.MinimumNArgs(2),
@@ -780,7 +795,6 @@ func SetSlashingPercentagesCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-
 			err = cli.CallContractWithFlags(
 				flags, DPOSV3ContractName, "SetSlashingPercentages", &dposv3.SetSlashingPercentagesRequest{
 					CrashSlashingPercentage: &types.BigUInt{
@@ -867,6 +881,7 @@ func NewDPOSV3Command() *cobra.Command {
 		TimeUntilElectionCmdV3(&flags),
 		TotalDelegationCmdV3(&flags),
 		GetStateCmdV3(&flags),
+		GetContractAddressV3(&flags),
 	)
 
 	return cmd

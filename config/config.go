@@ -130,6 +130,7 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
+	BootReadOnly    bool //makes the server not process blocks, to debug halts
 }
 
 type Metrics struct {

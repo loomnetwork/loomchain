@@ -373,6 +373,7 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			if err := backend.Start(app); err != nil {
 				return err
 			}
@@ -1104,6 +1105,7 @@ func loadApp(
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
+		BootReadOnly:                cfg.BootReadOnly,
 	}, nil
 }
 
