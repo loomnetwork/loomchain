@@ -38,8 +38,10 @@ import (
 )
 
 const (
-	goGetCodeBefore = "608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73"
-	goGetCodeAfter = "815600a165627a7a72305820da3cd5399df9cc51d37113161d2dde2cdbb3d01680f2f6813ec0c5f3e5853f420029"
+	/**
+	 * contract GoContract {}
+	 */
+	goGetCode = "0x608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73e288d6eec7150d6a22fde33f0aa2d81e06591c4d815600a165627a7a72305820b8b6992011e1a3286b9546ca427bf9cb05db8bd25addbee7a9894131d9db12500029"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -317,7 +319,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 		if err != nil {
 			return "", errors.Wrapf(err, "retrieving record from registry for %v", address)
 		}
-		return eth.Data(goGetCodeBefore + addr.Local.Hex() + goGetCodeAfter), nil
+		return eth.Data(goGetCode), nil
 	}
 	return eth.EncBytes(code), nil
 }
