@@ -188,7 +188,7 @@ type StoreTestSuite struct {
 	suite.Suite
 	store     VersionedKVStore
 	StoreName string
-	//nolint:unused
+	//nolint:unused,structcheck
 	supportsSnapshots bool
 }
 
