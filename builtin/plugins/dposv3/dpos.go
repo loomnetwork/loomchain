@@ -1511,9 +1511,9 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 		} else if delegation.State == UNBONDING {
 			delegatorAddress := loom.UnmarshalAddressPB(delegation.Delegator)
-			if delegatorAddress.Compare(LimboValidatorAddress(ctx)) != 0 {
+			if delegatorAddress.Compare(LimboValidatorAddress(ctx)) == 0 {
 				//in theory this can only happen in test environmetns
-				transferFromErr := fmt.Sprintf("missing delegator address - distributeDelegatorRewards, %v, %s", delegatorAddress, delegation.UpdateAmount.Value.String())
+				transferFromErr := fmt.Sprintf("missing delegator address - distributeDelegatorRewards, %v, %v, %s", delegatorAddress, delegatorAddress.Bytes(), delegation.UpdateAmount.Value.String())
 
 				log.Error(transferFromErr)
 				continue
@@ -1527,7 +1527,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			}
 			err = coin.Transfer(delegatorAddress, &delegation.UpdateAmount.Value)
 			if err != nil {
-				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegatorAddress, delegation.UpdateAmount.Value.String())
+				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %v, %s", delegatorAddress, delegatorAddress.Bytes(), delegation.UpdateAmount.Value.String())
 
 				return nil, logDposError(ctx, err, transferFromErr)
 			}
