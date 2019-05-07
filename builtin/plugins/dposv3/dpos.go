@@ -88,6 +88,7 @@ type (
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
 	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
+	SetMinCandidateFeeRequest         = dtypes.SetMinCandidateFeeRequest
 	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
 	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequest
 	ListCandidatesRequest             = dtypes.ListCandidatesRequest
@@ -687,7 +688,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return logDposError(ctx, errCandidateAlreadyRegistered, req.String())
 	}
 
-	if err = validateFee(req.Fee); err != nil {
+	if err = validateCandidateFee(ctx, req.Fee); err != nil {
 		return logDposError(ctx, err, req.String())
 	}
 
@@ -783,7 +784,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	}
 
-	if err = validateFee(req.Fee); err != nil {
+	if err = validateCandidateFee(ctx, req.Fee); err != nil {
 		return logDposError(ctx, err, req.String())
 	}
 
@@ -1863,6 +1864,23 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 
 	state.Params.CrashSlashingPercentage = req.CrashSlashingPercentage
 	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetMinCandidateFee(ctx contract.Context, req *SetMinCandidateFeeRequest) error {
+	ctx.Logger().Info("DPOSv3 SetMinCandidateFee", "request", req)
+
+	if err := validateFee(req.MinCandidateFee); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	state.Params.MinCandidateFee = req.MinCandidateFee
 
 	return saveState(ctx, state)
 }
