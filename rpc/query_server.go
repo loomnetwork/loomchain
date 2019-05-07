@@ -317,7 +317,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 		if err != nil {
 			return "", errors.Wrapf(err, "retrieving record from registry for %v", address)
 		}
-		return eth.Data(goGetCodeBefore + address[2:] + goGetCodeAfter), nil
+		return eth.Data(goGetCodeBefore + addr.Local.Hex() + goGetCodeAfter), nil
 	}
 	return eth.EncBytes(code), nil
 }
