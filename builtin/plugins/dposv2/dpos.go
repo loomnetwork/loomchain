@@ -2299,7 +2299,6 @@ func populateInitializationState(ctx contract.StaticContext, state *State) (*dpo
 	for _, statistic := range statistics {
 		v3Statistic := &dposv3.ValidatorStatistic{
 			Address:         statistic.Address,
-			PubKey:          statistic.PubKey,
 			WhitelistAmount: statistic.WhitelistAmount,
 			LocktimeTier:    dposv3.TierMap[statistic.WhitelistLocktime],
 			DelegationTotal: statistic.DelegationTotal,

@@ -851,16 +851,52 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			registrationRequirement, err := cli.ParseAmount(args[1])
+			crashFaultSlashingPercentage, err := cli.ParseAmount(args[1])
+			if err != nil {
+				return err
+			}
+			byzantineFaultSlashingPercentage, err := cli.ParseAmount(args[2])
 			if err != nil {
 				return err
 			}
 
+
 			err = cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "SetRegistrationRequirement", &dposv3.SetRegistrationRequirementRequest{
-					RegistrationRequirement: &types.BigUInt{
-						Value: *registrationRequirement,
+				&flags, DPOSV3ContractName, "SetSlashingPercentages", &dposv3.SetSlashingPercentagesRequest{
+					CrashSlashingPercentage: &types.BigUInt{
+						Value: *crashFaultSlashingPercentage,
 					},
+					ByzantineSlashingPercentage: &types.BigUInt{
+						Value: *byzantineFaultSlashingPercentage,
+					},
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+}
+
+func SetMinCandidateFeeCmdV3(flags *cli.ContractCallFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-min-candidate-fee [min candidate fee]",
+		Short: "Set minimum candidate fee",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			minCandidateFee, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			if minCandidateFee > 10000 {
+				// nolint:lll
+				return errors.New("minCandidateFee is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%).")
+			}
+
+			err = cli.CallContractWithFlags(
+				flags, DPOSV3ContractName, "SetMinCandidateFee", &dposv3.SetMinCandidateFeeRequest{
+					MinCandidateFee: minCandidateFee,
 				}, nil)
 			if err != nil {
 				return err

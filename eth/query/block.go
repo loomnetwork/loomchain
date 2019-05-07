@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 )
+
 const (
 	deployId    = uint32(1)
 	callId      = uint32(2)
@@ -124,7 +125,7 @@ func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.J
 	case deployId:
 		{
 			var deployTx vm.DeployTx
-			if err := proto.Unmarshal(msg.Data, &deployTx);  err != nil {
+			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
 				return eth.JsonTxObject{}, err
 			}
 			input = deployTx.Code
@@ -132,7 +133,7 @@ func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.J
 	case callId:
 		{
 			var callTx vm.CallTx
-			if err := proto.Unmarshal(msg.Data, &callTx);  err != nil {
+			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
 				return eth.JsonTxObject{}, err
 			}
 			input = callTx.Input
@@ -144,17 +145,17 @@ func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.J
 	}
 
 	return eth.JsonTxObject{
-		Nonce:                  eth.EncInt(int64(nonceTx.Sequence)),
-		Hash:                   eth.EncBytes(txResult.Hash),
-		BlockHash:              eth.EncBytes(blockHash),
-		BlockNumber:            eth.EncInt(txResult.Height),
-		TransactionIndex:       eth.EncInt(int64(txResult.Index)),
-		From:                   eth.EncAddress(msg.From),
-		To:                     eth.EncAddress(msg.To),
-		Value:                  eth.EncInt(0),
-		GasPrice:               eth.EncInt(txResult.TxResult.GasWanted),
-		Gas:                    eth.EncInt(txResult.TxResult.GasUsed),
-		Input:                  eth.EncBytes(input),
+		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
+		Hash:             eth.EncBytes(txResult.Hash),
+		BlockHash:        eth.EncBytes(blockHash),
+		BlockNumber:      eth.EncInt(txResult.Height),
+		TransactionIndex: eth.EncInt(int64(txResult.Index)),
+		From:             eth.EncAddress(msg.From),
+		To:               eth.EncAddress(msg.To),
+		Value:            eth.EncInt(0),
+		GasPrice:         eth.EncInt(txResult.TxResult.GasWanted),
+		Gas:              eth.EncInt(txResult.TxResult.GasUsed),
+		Input:            eth.EncBytes(input),
 	}, nil
 }
 
@@ -191,8 +192,10 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 		}
 
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
-			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return info.BlockMetas[i].Header.Height, nil //    int64(int(end) + i), nil
+			if info.BlockMetas[i] != nil {
+				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
+					return info.BlockMetas[i].Header.Height, nil //    int64(int(end) + i), nil
+				}
 			}
 		}
 
@@ -298,8 +301,10 @@ func DeprecatedGetBlockByHash(
 		}
 
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
-			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)
+			if info.BlockMetas[i] != nil {
+				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
+					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)
+				}
 			}
 		}
 
