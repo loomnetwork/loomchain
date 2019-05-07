@@ -37,6 +37,11 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
+const (
+	goGetCodeBefore = "608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73"
+	goGetCodeAfter = "815600a165627a7a72305820da3cd5399df9cc51d37113161d2dde2cdbb3d01680f2f6813ec0c5f3e5853f420029"
+)
+
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
@@ -308,11 +313,11 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	}
 	if code == nil {
 		reg := s.CreateRegistry(snapshot)
-		record, err := reg.GetRecord(addr)
+		_, err := reg.GetRecord(addr)
 		if err != nil {
 			return "", errors.Wrapf(err, "retrieving record from registry for %v", address)
 		}
-		return eth.Data(record.String()), nil
+		return eth.Data(goGetCodeBefore + address[2:] + goGetCodeAfter), nil
 	}
 	return eth.EncBytes(code), nil
 }
