@@ -367,12 +367,6 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 }
 
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	if a.BootReadOnly { //TODO maybe we can optimize it so we dont even have to check this every block
-		for {
-			time.Sleep(1000000000)
-		}
-	}
-
 	block := req.Header
 	if block.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
@@ -380,6 +374,13 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
+
+	if a.BootReadOnly { //TODO maybe we can optimize it so we dont even have to check this every block
+		for {
+			log.Error("Booted in readonly mode!!!! Only do this for fixing chain halts!")
+			time.Sleep(time.Minute)
+		}
+	}
 
 	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
