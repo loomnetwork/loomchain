@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 const (
@@ -1521,7 +1522,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			err = coin.Transfer(delegatorAddress, &delegation.UpdateAmount.Value)
 			if err != nil {
 				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards(contract-%s), %v, %v, %s", dposContractAddress.String(), delegatorAddress, delegatorAddress.Bytes(), delegation.UpdateAmount.Value.String())
-
+				log.Error(transferFromErr)
 				//panic(logDposError(ctx, err, transferFromErr))
 				//return nil, logDposError(ctx, err, transferFromErr)
 				continue
