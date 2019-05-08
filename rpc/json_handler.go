@@ -37,7 +37,6 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 			})
 			return
 		}
-		logger.Debug("JSON-RPC2 http request", "message", string(body))
 
 		outBytes, ethError := handleMessage(body, funcMap, nil)
 
@@ -48,8 +47,6 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 			})
 			return
 		}
-
-		logger.Debug("JSON-RPC2 http request", "result", string(outBytes))
 
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(http.StatusOK)
