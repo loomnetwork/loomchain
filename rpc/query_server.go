@@ -37,6 +37,13 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
+const (
+	/**
+	 * contract GoContract {}
+	 */
+	goGetCode = "0x608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73e288d6eec7150d6a22fde33f0aa2d81e06591c4d815600a165627a7a72305820b8b6992011e1a3286b9546ca427bf9cb05db8bd25addbee7a9894131d9db12500029"
+)
+
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
@@ -277,6 +284,7 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 // Gives an error for non-EVM contracts.
 // contract - address of the contract in the form of a string. (Use loom.Address.String() to convert)
 // return []byte - runtime bytecode of the contract.
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getcode
 func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	contractAddr, err := loom.ParseAddress(contract)
 	if err != nil {
@@ -290,6 +298,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	return vm.GetCode(contractAddr)
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getcode
 func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error) {
 	addr, err := eth.DecDataToAddress(s.ChainID, address)
 	if err != nil {
@@ -302,7 +311,15 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
 	code, err := evm.GetCode(addr)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "getting evm code for %v", address)
+	}
+	if code == nil {
+		reg := s.CreateRegistry(snapshot)
+		_, err := reg.GetRecord(addr)
+		if err != nil {
+			return "", errors.Wrapf(err, "retrieving record from registry for %v", address)
+		}
+		return eth.Data(goGetCode), nil
 	}
 	return eth.EncBytes(code), nil
 }
