@@ -235,7 +235,11 @@ func EncBytesArray(list [][]byte) []Data {
 }
 
 func EncAddress(value *ltypes.Address) Data {
-	return EncBytes([]byte(value.Local))
+	if value == nil {
+		return ZeroedData
+	} else {
+		return EncBytes([]byte(value.Local))
+	}
 }
 
 type EthBlockFilter struct {
