@@ -67,8 +67,6 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 			break
 		}
 
-		logger.Debug("JSON-RPC2 websocket request", "received message", string(message))
-
 		outBytes, ethError := handleMessage(message, funcMap, c.conn)
 
 		if ethError != nil {
@@ -119,7 +117,6 @@ func (c *Client) writePump(logger log.TMLogger) {
 				logger.Error("error writing message to websocket", "err", err)
 				return
 			}
-			logger.Debug("JSON-RPC2 websocket request successful", "result written to websocket", string(message))
 
 			n := len(c.send)
 			for i := 0; i < n; i++ {
@@ -128,7 +125,6 @@ func (c *Client) writePump(logger log.TMLogger) {
 					logger.Error("error writing message to websocket", "err", err)
 					return
 				}
-				logger.Debug("JSON-RPC2 websocket request successful", "result written to websocket", string(msg))
 			}
 		case <-ticker.C:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
