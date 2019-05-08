@@ -4,6 +4,7 @@ package query
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -81,7 +82,7 @@ func GetBlockByNumber(
 			txResult, err := blockStore.GetTxResult(tx.Hash())
 
 			if err != nil && !strings.HasSuffix(err.Error(), "not found") {
-				return resp, errors.Wrapf(err, "cant find result for tx, hash %v", tx.Hash())
+				return resp, errors.Wrapf(err, "cant find result for tx, hash %v", hex.EncodeToString((tx.Hash())))
 			}
 
 			var txObj eth.JsonTxObject
