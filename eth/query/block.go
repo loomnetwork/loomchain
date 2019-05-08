@@ -5,6 +5,7 @@ package query
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
@@ -75,17 +76,31 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
 
-	for _, tx := range blockResult.Block.Data.Txs {
+	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			txResult, err := blockStore.GetTxResult(tx.Hash())
-			if err != nil {
+
+			if err != nil && !strings.HasSuffix(err.Error(), "not found") {
 				return resp, errors.Wrapf(err, "cant find result for tx, hash %v", tx.Hash())
 			}
 
-			txObj, err := GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
+			var txObj eth.JsonTxObject
 			if err != nil {
-				return resp, errors.Wrapf(err, "cant resolve tx, hash %v", tx.Hash())
+				// If transcation cannot be found it suggests that it has been deleted to make space
+				// so return whatever information is available.
+				txObj = eth.JsonTxObject{
+					Hash:             eth.EncBytes(tx.Hash()),
+					BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+					BlockNumber:      eth.EncInt(height),
+					TransactionIndex: eth.EncInt(int64(index)),
+				}
+			} else {
+				txObj, err = GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
+				if err != nil {
+					return resp, errors.Wrapf(err, "cant resolve tx, hash %v", tx.Hash())
+				}
 			}
+
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
 			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
