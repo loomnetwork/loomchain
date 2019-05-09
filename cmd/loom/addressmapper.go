@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/loomnetwork/loomchain/cmd/loom/common"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
@@ -94,7 +93,7 @@ func GetMapping() *cobra.Command {
 		},
 	}
 
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -120,7 +119,7 @@ func ListMappingCmd() *cobra.Command {
 		},
 	}
 
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 
 }

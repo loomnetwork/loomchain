@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"strconv"
 
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -17,7 +16,7 @@ const DPOSV2ContractName = "dposV2"
 
 func UnregisterCandidateCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "unregister_candidateV2",
 		Short: "Unregisters the candidate (only called if previously registered)",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -27,13 +26,13 @@ func UnregisterCandidateCmdV2() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func GetDistributionsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "get_distributions",
 		Short: "Gets a list of all rewards for each address",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -53,19 +52,19 @@ func GetDistributionsCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func GetStateCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "get_dpos_state",
 		Short: "Gets dpos state",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.GetStateResponse
 			err := cli.StaticCallContractWithFlags(&flags, DPOSV2ContractName, "GetState", &dposv2.GetStateRequest{},
-			&resp)
+				&resp)
 			if err != nil {
 				return err
 			}
@@ -77,13 +76,13 @@ func GetStateCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ViewStateDumpCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "view_state_dump",
 		Short: "View full dposV2 state & migrated dposV3 state",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -101,13 +100,13 @@ func ViewStateDumpCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ListValidatorsCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list_validatorsV2",
 		Short: "List the current validators",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -127,13 +126,13 @@ func ListValidatorsCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ListCandidatesCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list_candidatesV2",
 		Short: "List the registered candidates",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -151,13 +150,13 @@ func ListCandidatesCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ChangeFeeCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "change_fee [new validator fee (in basis points)]",
 		Short: "Changes a validator's fee after (with a 2 election delay)",
 		Args:  cobra.MinimumNArgs(1),
@@ -175,13 +174,13 @@ func ChangeFeeCmd() *cobra.Command {
 			}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func RegisterCandidateCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "register_candidateV2 [public key] [validator fee (in basis points)] [locktime tier]",
 		Short: "Register a candidate for validator",
 		Args:  cobra.MinimumNArgs(2),
@@ -213,22 +212,22 @@ func RegisterCandidateCmdV2() *cobra.Command {
 
 			return cli.CallContractWithFlags(&flags, DPOSV2ContractName, "RegisterCandidate2",
 				&dposv2.RegisterCandidateRequestV2{
-				PubKey:       pubKey,
-				Fee:          candidateFee,
-				Name:         candidateName,
-				Description:  candidateDescription,
-				Website:      candidateWebsite,
-				LocktimeTier: tier,
-			}, nil)
+					PubKey:       pubKey,
+					Fee:          candidateFee,
+					Name:         candidateName,
+					Description:  candidateDescription,
+					Website:      candidateWebsite,
+					LocktimeTier: tier,
+				}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func UpdateCandidateInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "update_candidate_info [name] [description] [website]",
 		Short: "Update candidate information for a validator",
 		Args:  cobra.MinimumNArgs(3),
@@ -239,19 +238,19 @@ func UpdateCandidateInfoCmd() *cobra.Command {
 
 			return cli.CallContractWithFlags(&flags, DPOSV2ContractName, "UpdateCandidateInfo",
 				&dposv2.UpdateCandidateInfoRequest{
-				Name:        candidateName,
-				Description: candidateDescription,
-				Website:     candidateWebsite,
-			}, nil)
+					Name:        candidateName,
+					Description: candidateDescription,
+					Website:     candidateWebsite,
+				}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func DelegateCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "delegateV2 [validator address] [amount] [locktime tier]",
 		Short: "delegate tokens to a validator",
 		Args:  cobra.MinimumNArgs(2),
@@ -285,13 +284,13 @@ func DelegateCmdV2() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, DPOSV2ContractName, "Delegate2", &req, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func RedelegateCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "redelegateV2 [new validator address] [former validator address] [amount]",
 		Short: "Redelegate tokens from one validator to another",
 		Args:  cobra.MinimumNArgs(2),
@@ -320,13 +319,13 @@ func RedelegateCmdV2() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, DPOSV2ContractName, "Redelegate", &req, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func WhitelistCandidateCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "whitelist_candidate [candidate address] [amount] [lock time]",
 		Short: "Whitelist candidate & credit candidate's self delegation without token deposit",
 		Args:  cobra.MinimumNArgs(3),
@@ -346,21 +345,21 @@ func WhitelistCandidateCmdV2() *cobra.Command {
 
 			return cli.CallContractWithFlags(&flags, DPOSV2ContractName, "WhitelistCandidate",
 				&dposv2.WhitelistCandidateRequestV2{
-				CandidateAddress: candidateAddress.MarshalPB(),
-				Amount: &types.BigUInt{
-					Value: *amount,
-				},
-				LockTime: locktime,
-			}, nil)
+					CandidateAddress: candidateAddress.MarshalPB(),
+					Amount: &types.BigUInt{
+						Value: *amount,
+					},
+					LockTime: locktime,
+				}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func RemoveWhitelistedCandidateCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "remove_whitelisted_candidate [candidate address]",
 		Short: "remove a candidate's whitelist entry",
 		Args:  cobra.MinimumNArgs(1),
@@ -378,13 +377,13 @@ func RemoveWhitelistedCandidateCmdV2() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ChangeWhitelistLockTimeTierCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "change_whitelist_locktime_tier [candidate address] [amount]",
 		Short: "Changes a whitelisted candidate's whitelist lock time tier",
 		Args:  cobra.MinimumNArgs(2),
@@ -412,13 +411,13 @@ func ChangeWhitelistLockTimeTierCmdV2() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ChangeWhitelistAmountCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "change_whitelist_amount [candidate address] [amount]",
 		Short: "Changes a whitelisted candidate's whitelist amount",
 		Args:  cobra.MinimumNArgs(2),
@@ -433,20 +432,20 @@ func ChangeWhitelistAmountCmdV2() *cobra.Command {
 			}
 			return cli.CallContractWithFlags(&flags, DPOSV2ContractName, "ChangeWhitelistAmount",
 				&dposv2.ChangeWhitelistAmountRequestV2{
-				CandidateAddress: candidateAddress.MarshalPB(),
-				Amount: &types.BigUInt{
-					Value: *amount,
-				},
-			}, nil)
+					CandidateAddress: candidateAddress.MarshalPB(),
+					Amount: &types.BigUInt{
+						Value: *amount,
+					},
+				}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func CheckDelegationCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "check_delegationV2 [validator address] [delegator address]",
 		Short: "check delegation to a particular validator",
 		Args:  cobra.MinimumNArgs(2),
@@ -478,13 +477,13 @@ func CheckDelegationCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func UnbondCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "unbondV2 [validator address] [amount]",
 		Short: "De-allocate tokens from a validator",
 		Args:  cobra.MinimumNArgs(2),
@@ -506,13 +505,13 @@ func UnbondCmdV2() *cobra.Command {
 			}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ClaimDistributionCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "claim_distributionV2 [withdrawal address]",
 		Short: "claim dpos distributions due to a validator or delegator",
 		Args:  cobra.MinimumNArgs(1),
@@ -540,13 +539,13 @@ func ClaimDistributionCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func CheckRewardsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "check_rewards",
 		Short: "check rewards statistics",
 		Args:  cobra.MinimumNArgs(0),
@@ -567,13 +566,13 @@ func CheckRewardsCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func CheckDistributionCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "check_distribution [address]",
 		Short: "check rewards distribution",
 		Args:  cobra.MinimumNArgs(1),
@@ -601,13 +600,13 @@ func CheckDistributionCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func TotalDelegationCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "total_delegation [delegator]",
 		Short: "check how much a delegator has delegated in total (to all validators)",
 		Args:  cobra.MinimumNArgs(1),
@@ -633,13 +632,13 @@ func TotalDelegationCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func CheckAllDelegationsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "check_all_delegations [delegator]",
 		Short: "display all of a particular delegator's delegations",
 		Args:  cobra.MinimumNArgs(1),
@@ -665,13 +664,13 @@ func CheckAllDelegationsCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func TimeUntilElectionCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "time_until_election",
 		Short: "check how many seconds remain until the next election",
 		Args:  cobra.MinimumNArgs(0),
@@ -692,13 +691,13 @@ func TimeUntilElectionCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-	}
+}
 
 func ListDelegationsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list_delegations",
 		Short: "list a candidate's delegations & delegation total",
 		Args:  cobra.MinimumNArgs(1),
@@ -724,13 +723,13 @@ func ListDelegationsCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func ListAllDelegationsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list_all_delegations",
 		Short: "display the results of calling list_delegations for all candidates",
 		Args:  cobra.MinimumNArgs(0),
@@ -751,7 +750,7 @@ func ListAllDelegationsCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -759,7 +758,7 @@ func ListAllDelegationsCmd() *cobra.Command {
 
 func SetElectionCycleCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "set_election_cycle [election duration]",
 		Short: "Set election cycle duration (in seconds)",
 		Args:  cobra.MinimumNArgs(1),
@@ -781,13 +780,13 @@ func SetElectionCycleCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func SetValidatorCountCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "set_validator_count [validator count]",
 		Short: "Set maximum number of validators",
 		Args:  cobra.MinimumNArgs(1),
@@ -809,13 +808,13 @@ func SetValidatorCountCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func SetMaxYearlyRewardCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "set_max_yearly_reward [max yearly rewward amount]",
 		Short: "Set maximum yearly reward",
 		Args:  cobra.MinimumNArgs(1),
@@ -839,13 +838,13 @@ func SetMaxYearlyRewardCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func SetRegistrationRequirementCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "set_registration_requirement [registration_requirement]",
 		Short: "Set minimum self-delegation required of a new Candidate",
 		Args:  cobra.MinimumNArgs(1),
@@ -868,13 +867,13 @@ func SetRegistrationRequirementCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 func SetOracleAddressCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "set_oracle_address [oracle address]",
 		Short: "Set oracle address",
 		Args:  cobra.MinimumNArgs(1),
@@ -893,14 +892,14 @@ func SetOracleAddressCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 
-	}
+}
 
 func SetSlashingPercentagesCmdV2() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "set_slashing_percentages [crash fault slashing percentage] [byzantine fault slashing percentage",
 		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
 		Args:  cobra.MinimumNArgs(2),
@@ -924,10 +923,10 @@ func SetSlashingPercentagesCmdV2() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 
-	}
+}
 
 func NewDPOSV2Command() *cobra.Command {
 	cmd := &cobra.Command{

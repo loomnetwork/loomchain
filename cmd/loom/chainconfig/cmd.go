@@ -3,8 +3,6 @@ package chainconfig
 import (
 	"fmt"
 
-	"github.com/loomnetwork/loomchain/cmd/loom/common"
-
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -20,7 +18,7 @@ var (
 func NewChainCfgCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "chain-cfg <command>",
-		Short: "Methods available in chainconfig contract",
+		Short: "On-chain configuration CLI",
 	}
 	cmd.AddCommand(
 		EnableFeatureCmd(),
@@ -59,7 +57,7 @@ func EnableFeatureCmd() *cobra.Command {
 			return nil
 			},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 	}
 
@@ -93,7 +91,7 @@ func AddFeatureCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number that supports this feature")
 	cmdFlags.BoolVar(
@@ -133,7 +131,7 @@ func SetParamsCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&voteThreshold, "vote-threshold", 0, "Set vote threshold")
 	cmdFlags.Uint64Var(&numBlockConfirmations, "block-confirmations", 0, "Set N block confirmations")
@@ -165,7 +163,7 @@ func GetParamsCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 	}
 
@@ -195,7 +193,7 @@ func GetFeatureCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 	}
 
@@ -224,7 +222,7 @@ func ListFeaturesCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -257,7 +255,7 @@ func FeatureEnabledCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -292,7 +290,7 @@ func RemoveFeatureCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 

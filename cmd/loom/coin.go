@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/loomnetwork/loomchain/cmd/loom/common"
 
 	"github.com/spf13/cobra"
 
@@ -37,7 +36,7 @@ func TransferCmd() *cobra.Command {
 			}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -71,7 +70,7 @@ func TransferFromCmd() *cobra.Command {
 		},
 	}
 
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 
 }
@@ -101,7 +100,7 @@ func ApproveCmd() *cobra.Command {
 		},
 	}
 
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 
 }
@@ -132,7 +131,7 @@ func BalanceCmd() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &staticflags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &staticflags)
 	return cmd
 }
 

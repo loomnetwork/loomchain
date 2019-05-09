@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -33,7 +32,7 @@ func UnregisterCandidateCmdV3() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -58,7 +57,7 @@ func GetStateCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -83,7 +82,7 @@ func ListValidatorsCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -108,7 +107,7 @@ func ListCandidatesCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -134,7 +133,7 @@ func ChangeFeeCmdV3() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -194,7 +193,7 @@ func RegisterCandidateCmdV3() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -231,7 +230,7 @@ func UpdateCandidateInfoCmdV3() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -275,7 +274,7 @@ func DelegateCmdV3() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, DPOSV3ContractName, "Delegate", &req, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -320,7 +319,7 @@ func RedelegateCmdV3() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, DPOSV3ContractName, "Redelegate", &req, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -364,7 +363,7 @@ func WhitelistCandidateCmdV3() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -388,7 +387,7 @@ func RemoveWhitelistedCandidateCmdV3() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -432,7 +431,7 @@ func ChangeWhitelistInfoCmdV3() *cobra.Command {
 			)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -470,7 +469,7 @@ func CheckDelegationCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -505,7 +504,7 @@ func UnbondCmdV3() *cobra.Command {
 			}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -531,7 +530,7 @@ func CheckRewardsCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -563,7 +562,7 @@ func TotalDelegationCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -595,7 +594,7 @@ func CheckAllDelegationsCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -622,7 +621,7 @@ func TimeUntilElectionCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -654,7 +653,7 @@ func ListDelegationsCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -681,7 +680,7 @@ func ListAllDelegationsCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -707,7 +706,7 @@ func RegisterReferrerCmdV3() *cobra.Command {
 				}, nil)
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -733,7 +732,7 @@ func SetElectionCycleCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -759,7 +758,7 @@ func SetValidatorCountCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -787,7 +786,7 @@ func SetMaxYearlyRewardCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -815,7 +814,7 @@ func SetRegistrationRequirementCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -840,7 +839,7 @@ func SetOracleAddressCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -875,7 +874,7 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -906,7 +905,7 @@ func SetMinCandidateFeeCmdV3() *cobra.Command {
 			return nil
 		},
 	}
-	common.AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
