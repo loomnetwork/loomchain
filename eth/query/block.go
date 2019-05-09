@@ -5,7 +5,6 @@ package query
 import (
 	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
@@ -78,29 +77,10 @@ func GetBlockByNumber(
 
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txResult, err := blockStore.GetTxResult(tx.Hash())
-
-			if err != nil && !strings.HasSuffix(err.Error(), "not found") {
-				return resp, errors.Wrapf(err, "cant find result for tx, hash %X", tx.Hash())
-			}
-
-			var txObj eth.JsonTxObject
+			txObj, err := GetTxObjectFromTxResult(blockResult, int64(index))
 			if err != nil {
-				// If transcation cannot be found it suggests that it has been deleted to make space
-				// so return whatever information is available.
-				txObj = eth.JsonTxObject{
-					Hash:             eth.EncBytes(tx.Hash()),
-					BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
-					BlockNumber:      eth.EncInt(height),
-					TransactionIndex: eth.EncInt(int64(index)),
-				}
-			} else {
-				txObj, err = GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
-				if err != nil {
-					return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
-				}
+				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
-
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
 			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
@@ -114,9 +94,10 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
-func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.JsonTxObject, error) {
+func GetTxObjectFromTxResult(blockResult *ctypes.ResultBlock, index int64) (eth.JsonTxObject, error) {
+	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
-	if err := proto.Unmarshal([]byte(txResult.Tx), &signedTx); err != nil {
+	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
 		return eth.JsonTxObject{}, err
 	}
 
@@ -161,15 +142,15 @@ func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.J
 
 	return eth.JsonTxObject{
 		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
-		Hash:             eth.EncBytes(txResult.Hash),
-		BlockHash:        eth.EncBytes(blockHash),
-		BlockNumber:      eth.EncInt(txResult.Height),
-		TransactionIndex: eth.EncInt(int64(txResult.Index)),
+		Hash:             eth.EncBytes(tx.Hash()),
+		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
+		TransactionIndex: eth.EncInt(int64(index)),
 		From:             eth.EncAddress(msg.From),
 		To:               eth.EncAddress(msg.To),
 		Value:            eth.EncInt(0),
-		GasPrice:         eth.EncInt(txResult.TxResult.GasWanted),
-		Gas:              eth.EncInt(txResult.TxResult.GasUsed),
+		GasPrice:         eth.EncInt(0),
+		Gas:              eth.EncInt(0),
 		Input:            eth.EncBytes(input),
 	}, nil
 }

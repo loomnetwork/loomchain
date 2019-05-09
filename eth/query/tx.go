@@ -44,7 +44,7 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	if err != nil {
 		return eth.JsonTxObject{}, err
 	}
-	return GetTxObjectFromTxResult(txResults, blockResult.BlockMeta.BlockID.Hash)
+	return GetTxObjectFromTxResult(blockResult, int64(txResults.Index))
 }
 
 func GetTxByBlockAndIndex(
@@ -63,11 +63,7 @@ func GetTxByBlockAndIndex(
 		return txObj, errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
 	}
 
-	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
-	if err != nil {
-		return txObj, errors.Errorf("no tx with hash %v found in block %v", blockResult.Block.Data.Txs[index].Hash(), height)
-	}
-	txObj , err = GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
+	txObj , err = GetTxObjectFromTxResult(blockResult, int64(index))
 	if err != nil {
 		return txObj, err
 	}
