@@ -84,6 +84,12 @@ type (
 	UpdateValidatorAuthStrategyRequest = tgtypes.TransferGatewayUpdateValidatorAuthStrategyRequest
 
 	ConfirmWithdrawalReceiptRequestV2 = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequestV2
+
+	SubmitDepositTxHashRequest         = tgtypes.TransferGatewaySubmitDepositTxHashRequest
+	ClearInvalidDepositTxHashRequest   = tgtypes.TransferGatewayClearInvalidDepositTxHashRequest
+	UnprocessedDepositTxHashesResponse = tgtypes.TransferGatewayUnprocessedDepositTxHashesResponse
+
+	ExtendedState = tgtypes.TransferGatewayExtendedState
 )
 
 var (
@@ -98,11 +104,15 @@ var (
 	unclaimedTokenByOwnerPrefix             = []byte("uto")
 	seenTxHashKeyPrefix                     = []byte("stx")
 
+	loomcoinDepositTxHashKeyPrefix = []byte("lcdth")
+	extendedStateKey               = []byte("ext-state")
+
 	// Permissions
-	changeOraclesPerm   = []byte("change-oracles")
-	submitEventsPerm    = []byte("submit-events")
-	signWithdrawalsPerm = []byte("sign-withdrawals")
-	verifyCreatorsPerm  = []byte("verify-creators")
+	changeOraclesPerm        = []byte("change-oracles")
+	submitEventsPerm         = []byte("submit-events")
+	signWithdrawalsPerm      = []byte("sign-withdrawals")
+	verifyCreatorsPerm       = []byte("verify-creators")
+	clearInvalidTxHashesPerm = []byte("clear-invalid-txhashes")
 
 	validatorAuthConfigKey = []byte("validator-authcfg")
 )
@@ -141,6 +151,10 @@ func localAccountKey(owner loom.Address) []byte {
 
 func foreignAccountKey(owner loom.Address) []byte {
 	return util.PrefixKey(foreignAccountKeyPrefix, owner.Bytes())
+}
+
+func loomcoinDepositTxHashKey(owner loom.Address) []byte {
+	return util.PrefixKey(loomcoinDepositTxHashKeyPrefix, owner.Bytes())
 }
 
 func oracleStateKey(oracle loom.Address) []byte {
@@ -200,6 +214,9 @@ var (
 	ErrContractMappingExists     = errors.New("TG012: contract mapping already exists")
 	ErrFailedToReclaimToken      = errors.New("TG013: failed to reclaim token")
 	ErrNotEnoughSignatures       = errors.New("TG014: failed to recover enough signatures from trusted validators")
+
+	ErrUnprocessedTxHashAlreadyExists = errors.New("TG015: unprocessed tx hash already exists")
+	ErrNoUnprocessedTxHashExists      = errors.New("TG016: no unprocessed tx hash exists")
 )
 
 type Gateway struct {
@@ -384,6 +401,7 @@ func removeOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	ctx.RevokePermissionFrom(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.RevokePermissionFrom(oracleAddr, signWithdrawalsPerm, oracleRole)
 	ctx.RevokePermissionFrom(oracleAddr, verifyCreatorsPerm, oracleRole)
+	ctx.RevokePermissionFrom(oracleAddr, clearInvalidTxHashesPerm, oracleRole)
 
 	ctx.Delete(oracleStateKey(oracleAddr))
 	return nil
@@ -818,6 +836,83 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 	}
 
 	return saveState(ctx, state)
+}
+
+// User can call
+func (gw *Gateway) SubmitLoomCoinDepositTxHash(ctx contract.Context, req *SubmitDepositTxHashRequest) error {
+	if req.TxHash == nil {
+		return ErrInvalidRequest
+	}
+
+	addressMapperAddress, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return err
+	}
+
+	ownerAddr := ctx.Message().Sender
+	ownerEthAddr, err := resolveToEthAddr(ctx, addressMapperAddress, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	extState, err := loadExtendedState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := addLoomCoinDepositTxHashSubmitter(ctx, extState, ownerEthAddr); err != nil {
+		return err
+	}
+
+	if err := saveExtendedState(ctx, extState); err != nil {
+		return err
+	}
+
+	return saveLoomCoinDepositTxHash(ctx, ownerEthAddr, req.TxHash)
+}
+
+// Oracle only
+func (gw *Gateway) ClearInvalidLoomCoinDepositTxHash(ctx contract.Context, req *ClearInvalidDepositTxHashRequest) error {
+	if ok, _ := ctx.HasPermission(clearInvalidTxHashesPerm, []string{oracleRole}); !ok {
+		return nil, ErrNotAuthorized
+	}
+
+	extState, err := loadExtendedState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := removeLoomCoinDepositTxHashes(ctx, extState, req.TxHashes); err != nil {
+		return err
+	}
+
+	return saveExtendedState(ctx, extState)
+}
+
+func (gw *Gateway) UnprocessedLoomCoinDepositTxHashes(ctx contract.StaticContext) (*UnprocessedDepositTxHashesResponse, error) {
+	extState, err := loadExtendedState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	unprocessedHashes, err := getLoomCoinDepositTxHashes(ctx, extState)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UnprocessedDepositTxHashesResponse{TxHashes: unprocessedHashes}, nil
+}
+
+func clearLoomDepositTxHashIfExists(ctx contract.Context, extState *ExtendedState, ownerAddress loom.Address) error {
+	if err := removeLoomCoinDepositTxHashSubmitter(ctx, extState, ownerAddress); err != nil {
+		if err != ErrNoUnprocessedTxHashExists {
+			return err
+		}
+	}
+
+	if err := saveExtendedState(ctx, extState); err != nil {
+		return err
+	}
 }
 
 // WithdrawLoomCoin will attempt to transfer Loomcoin to the Gateway contract,
@@ -1849,6 +1944,111 @@ func saveForeignAccount(ctx contract.Context, acct *ForeignAccount) error {
 	return nil
 }
 
+func loadLoomCoinDepositTxHash(ctx contract.StaticContext, owner loom.Address) (common.Hash, error) {
+	txHashBytes := make([]byte, 32)
+	err := ctx.Get(loomcoinDepositTxHashKey(owner), &txHashBytes)
+	if err != nil {
+		if err == contract.ErrNotFound {
+			return nil, nil
+		}
+		return nil, errors.Wrapf(err, "failed to load deposit tx hash")
+	}
+
+	return common.BytesToHash(txHashBytes), nil
+}
+
+func deleteLoomCoinDepositTxHash(ctx contract.Context, owner loom.Address) {
+	ctx.Delete(loomcoinDepositTxHashKey(owner))
+}
+
+func saveLoomCoinDepositTxHash(ctx contract.Context, owner loom.Address, txHash common.Hash) error {
+	txHashBytes := txHash.Bytes()
+	return ctx.Set(loomcoinDepositTxHashKey(owner), &txHashBytes)
+}
+
+func loadExtendedState(ctx contract.StaticContext) (*ExtendedState, error) {
+	state := &ExtendedState{}
+	err := ctx.Get(extendedStateKey, state)
+	if err != nil && err != contract.ErrNotFound {
+		return nil, err
+	}
+	return state, nil
+}
+
+func saveExtendedState(ctx contract.Context, extState *ExtendedState) error {
+	return ctx.Set(extendedStateKey, extState)
+}
+
+func addLoomCoinDepositTxHashSubmitter(ctx contract.StaticContext, extState *ExtendedState, owner loom.Address) error {
+	ownerAddrPB := owner.MarshalPB()
+	for _, addr := range extState.LoomcoinDepositTxHashSubmitters {
+		if ownerAddrPB.ChainId == addr.ChainId && ownerAddrPB.Local.Compare(addr.Local) == 0 {
+			return ErrUnprocessedTxHashAlreadyExists
+		}
+	}
+	extState.LoomcoinDepositTxHashSubmitters = append(extState.LoomcoinDepositTxHashSubmitters, ownerAddrPB)
+	return nil
+}
+
+func getLoomCoinDepositTxHashes(ctx contract.StaticContext, extState *ExtendedState) ([]common.Hash, error) {
+	txHashes := make([]common.Hash, len(extState.LoomcoinDepositTxHashSubmitters))
+	for i, txHashSubmitter := range extState.LoomcoinDepositTxHashSubmitters {
+		hash, err := loadLoomCoinDepositTxHash(ctx, loom.UnmarshalAddressPB(txHashSubmitter))
+		if err != nil {
+			return nil, errors.Wrap(err, "error while loading loomcoin deposit tx hash")
+		}
+		if hash == nil {
+			return nil, ErrNoUnprocessedTxHashExists
+		}
+		txHashes[i] = hash
+	}
+
+	return txHashes, nil
+}
+
+func removeLoomCoinDepositTxHashes(ctx contract.Context, extState *ExtendedState, toBeDeletedTxHashes []common.Hash) error {
+	// Temporarily store it in map for faster lookup
+	toBeDeletedTxHashMap := make(map[string]bool)
+	for _, toBeDeletedTxHash := range txHashesToBeDeleted {
+		toBeDeletedTxHashMap[toBeDeletedTxHash.Hex()]
+	}
+
+	survivedTxHashSubmitters := make([]*types.Address, 0, len(extState.LoomcoinDepositTxHashSubmitters))
+
+	for i, txHashSubmitter := range extState.LoomcoinDepositTxHashSubmitters {
+		hash, err := loadLoomCoinDepositTxHash(ctx, loom.UnmarshalAddressPB(txHashSubmitter))
+		if err != nil {
+			return errors.Wrap(err, "error while loading loomcoin deposit tx hash")
+		}
+		if hash == nil {
+			return ErrNoUnprocessedTxHashExists
+		}
+
+		if _, ok := toBeDeletedTxHashMap[hash.Hex()]; ok {
+			deleteLoomCoinDepositTxHash(ctx, loom.UnmarshalAddressPB(txHashSubmitter))
+		} else {
+			survivedTxHashSubmitters = append(survivedTxHashSubmitters, txHashSubmitter)
+		}
+	}
+
+	extState.LoomcoinDepositTxHashSubmitters = survivedTxHashSubmitters
+	return nil
+}
+
+func removeLoomCoinDepositTxHashSubmitter(ctx contract.StaticContext, extState *ExtendedState, owner loom.Address) error {
+	ownerAddrPB := owner.MarshalPB()
+	for i, addr := range extState.LoomcoinDepositTxHashSubmitters {
+		if ownerAddrPB.ChainId == addr.ChainId && ownerAddrPB.Local.Compare(addr.Local) == 0 {
+			// TODO: keep the list sorted
+			extState.LoomcoinDepositTxHashSubmitters[i] = extState.LoomcoinDepositTxHashSubmitters[len(extState.LoomcoinDepositTxHashSubmitters)-1]
+			extState.LoomcoinDepositTxHashSubmitters = extState.LoomcoinDepositTxHashSubmitters[:len(extState.LoomcoinDepositTxHashSubmitters)-1]
+			return nil
+		}
+	}
+
+	return ErrNoUnprocessedTxHashExists
+}
+
 func addTokenWithdrawer(ctx contract.StaticContext, state *GatewayState, owner loom.Address) error {
 	// TODO: replace this with ctx.Range()
 	ownerAddrPB := owner.MarshalPB()
@@ -1879,6 +2079,7 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
 	ctx.GrantPermissionTo(oracleAddr, verifyCreatorsPerm, oracleRole)
+	ctx.GrantPermissionTo(oracleAddr, clearInvalidTxHashesPerm, oracleRole)
 
 	err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{Address: oracleAddr.MarshalPB()})
 	if err != nil {

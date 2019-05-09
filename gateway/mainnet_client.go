@@ -3,18 +3,30 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
+	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/loomnetwork/go-ethereum/accounts/abi"
+	"github.com/loomnetwork/go-ethereum/core/types"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
+	"github.com/pkg/errors"
 )
 
 // MainnetClient defines typed wrappers for the Ethereum RPC API.
 type MainnetClient struct {
 	*ethclient.Client
 	rpcClient *rpc.Client
+}
+
+type ERC20DepositInfo struct {
+	From   common.Address
+	To     common.Address
+	Amount *big.Int
 }
 
 // ConnectToMainnet connects a client to the given URL.
@@ -29,6 +41,59 @@ func ConnectToMainnet(url string) (*MainnetClient, error) {
 type MainnetContractCreationTx struct {
 	CreatorAddress  common.Address
 	ContractAddress common.Address
+}
+
+func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI abi.ABI, txHash common.Hash) ([]*ERC20DepositInfo, error) {
+	r := &struct {
+		Logs []types.Log `json:"logs"`
+	}{}
+
+	err := c.rpcClient.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	if err != nil {
+		return nil, err
+	} else if r == nil {
+		return nil, ethereum.NotFound
+	}
+
+	transferEvent, ok := erc20ABI.Events["Transfer"]
+	if !ok {
+		return nil, errors.New("incompatible erc20 abi, no transfer event exists")
+	}
+	transferEventHash := transferEvent.Id()
+
+	erc20Deposits := make([]*ERC20DepositInfo, 0, len(r.Logs))
+	for _, log := range r.Logs {
+		if !bytes.Equal(transferEventHash.Bytes(), log.Topics[0].Bytes()) {
+			continue
+		}
+
+		valueHexStr := common.Bytes2Hex(log.Data)
+		result, err := evmcompat.SolidityUnpackString(valueHexStr, []string{"uint256"})
+		if err != nil {
+			return nil, err
+		}
+		value := result[0].(*big.Int)
+
+		result, err = evmcompat.SolidityUnpackString(common.Bytes2Hex(log.Topics[1].Bytes()), []string{"address"})
+		if err != nil {
+			return nil, err
+		}
+		from := common.HexToAddress(result[0].(string))
+
+		result, err = evmcompat.SolidityUnpackString(common.Bytes2Hex(log.Topics[2].Bytes()), []string{"address"})
+		if err != nil {
+			return nil, err
+		}
+		to := common.HexToAddress(result[0].(string))
+
+		erc20Deposits = append(erc20Deposits, &ERC20DepositInfo{
+			From:   from,
+			To:     to,
+			Amount: value,
+		})
+	}
+
+	return erc20Deposits, nil
 }
 
 // ContractCreationTxByHash attempt to retrieve the address of the contract, and its creator from
