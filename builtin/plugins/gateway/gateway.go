@@ -88,6 +88,7 @@ type (
 	SubmitDepositTxHashRequest         = tgtypes.TransferGatewaySubmitDepositTxHashRequest
 	ClearInvalidDepositTxHashRequest   = tgtypes.TransferGatewayClearInvalidDepositTxHashRequest
 	UnprocessedDepositTxHashesResponse = tgtypes.TransferGatewayUnprocessedDepositTxHashesResponse
+	UnprocessedDepositTxHashesRequest  = tgtypes.TransferGatewayUnprocessedDepositTxHashesRequest
 
 	ExtendedState = tgtypes.TransferGatewayExtendedState
 )
@@ -104,7 +105,7 @@ var (
 	unclaimedTokenByOwnerPrefix             = []byte("uto")
 	seenTxHashKeyPrefix                     = []byte("stx")
 
-	loomcoinDepositTxHashKeyPrefix = []byte("lcdth")
+	loomcoinDepositTxHashKeyPrefix = []byte("loomcoin-dth")
 	extendedStateKey               = []byte("ext-state")
 
 	// Permissions
@@ -485,6 +486,12 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			tokenAddr := loom.RootAddress("eth")
 			if payload.Deposit.TokenContract != nil {
 				tokenAddr = loom.UnmarshalAddressPB(payload.Deposit.TokenContract)
+			}
+
+			if payload.Deposit.TokenKind == TokenKind_LoomCoin {
+				if err := clearLoomCoinDepositTxHashIfExists(ctx, loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)); err != nil {
+					return err
+				}
 			}
 
 			err = transferTokenDeposit(
@@ -877,19 +884,28 @@ func (gw *Gateway) ClearInvalidLoomCoinDepositTxHash(ctx contract.Context, req *
 		return nil, ErrNotAuthorized
 	}
 
+	if req.TxHashes == nil {
+		return nil, ErrInvalidRequest
+	}
+
 	extState, err := loadExtendedState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := removeLoomCoinDepositTxHashes(ctx, extState, req.TxHashes); err != nil {
+	txHashes := make([]common.Hash, len(req.TxHashes))
+	for _, txHashBytes := range req.TxHashes {
+		txHashes[i] = common.BytesToHash(txHashBytes)
+	}
+
+	if err := removeLoomCoinDepositTxHashes(ctx, extState, txHashes); err != nil {
 		return err
 	}
 
 	return saveExtendedState(ctx, extState)
 }
 
-func (gw *Gateway) UnprocessedLoomCoinDepositTxHashes(ctx contract.StaticContext) (*UnprocessedDepositTxHashesResponse, error) {
+func (gw *Gateway) UnprocessedLoomCoinDepositTxHashes(ctx contract.StaticContext, req *UnprocessedDepositTxHashesRequest) (*UnprocessedDepositTxHashesResponse, error) {
 	extState, err := loadExtendedState(ctx)
 	if err != nil {
 		return nil, err
@@ -903,7 +919,12 @@ func (gw *Gateway) UnprocessedLoomCoinDepositTxHashes(ctx contract.StaticContext
 	return &UnprocessedDepositTxHashesResponse{TxHashes: unprocessedHashes}, nil
 }
 
-func clearLoomDepositTxHashIfExists(ctx contract.Context, extState *ExtendedState, ownerAddress loom.Address) error {
+func clearLoomCoinDepositTxHashIfExists(ctx contract.Context, ownerAddress loom.Address) error {
+	extState, err := loadExtendedState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := removeLoomCoinDepositTxHashSubmitter(ctx, extState, ownerAddress); err != nil {
 		if err != ErrNoUnprocessedTxHashExists {
 			return err
