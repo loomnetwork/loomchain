@@ -81,7 +81,6 @@ func addDeployerCmd() *cobra.Command {
 
 	cli.AddContractCallFlags(cmd.Flags(), &flag)
 	return cmd
-
 }
 
 const removeDeployerCmdExample = `
@@ -111,7 +110,6 @@ func removeDeployerCmd() *cobra.Command {
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
-
 }
 
 const getDeployerCmdExample = `
@@ -153,7 +151,6 @@ func getDeployerCmd() *cobra.Command {
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-
 }
 
 const listDeployersCmdExample = `
@@ -191,7 +188,6 @@ func listDeployersCmd() *cobra.Command {
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-
 }
 
 func getDeployerInfo(deployer *dwtypes.Deployer) deployerInfo {

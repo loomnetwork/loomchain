@@ -56,7 +56,6 @@ func AddIdentityMappingCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
-	cmd.Flags().StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
 	cmd.Flags().StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
 	cmd.Flags().StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
 	cmd.Flags().StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")

@@ -39,7 +39,7 @@ loom chain-cfg enable-feature hardfork multichain
 
 func EnableFeatureCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "enable-feature <feature name 1> ... <feature name N>",
 		Short:   "Enable features by feature names",
 		Example: enableFeatureCmdExample,
@@ -55,11 +55,11 @@ func EnableFeatureCmd() *cobra.Command {
 				return err
 			}
 			return nil
-			},
+		},
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
-	}
+}
 
 const addFeatureCmdExample = `
 loom chain-cfg add-feature hardfork multichain --build 866 --no-auto-enable
@@ -165,7 +165,7 @@ func GetParamsCmd() *cobra.Command {
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-	}
+}
 
 const getFeatureCmdExample = `
 loom chain-cfg get-feature hardfork
@@ -173,7 +173,7 @@ loom chain-cfg get-feature hardfork
 
 func GetFeatureCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd :=&cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "get-feature <feature name>",
 		Short:   "Get feature by feature name",
 		Example: getFeatureCmdExample,
@@ -195,7 +195,7 @@ func GetFeatureCmd() *cobra.Command {
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-	}
+}
 
 const listFeaturesCmdExample = `
 loom chainconfig list-features
@@ -203,7 +203,7 @@ loom chainconfig list-features
 
 func ListFeaturesCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "list-features",
 		Short:   "Display all features",
 		Example: listFeaturesCmdExample,
@@ -232,7 +232,7 @@ loom chain-cfg feature-enabled hardfork false
 
 func FeatureEnabledCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	cmd:= &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "feature-enabled <feature name> <default value>",
 		Short:   "Check if feature is enabled on chain",
 		Example: featureEnabledCmdExample,
