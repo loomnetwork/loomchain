@@ -31,6 +31,7 @@ make tgoracle
 make loomcoin_tgoracle
 make dposv2_oracle
 make plasmachain
+
 make loom-cleveldb
 make plasmachain-cleveldb
 
@@ -41,10 +42,12 @@ export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
+
 make test
-#make test-no-evm
-make no-evm-tests
-make test-app-store-race
+
+##make test-no-evm
+##make no-evm-tests
+##make test-app-store-race
 
 #setup & run truffle tests
 #cd e2e/tests/truffle

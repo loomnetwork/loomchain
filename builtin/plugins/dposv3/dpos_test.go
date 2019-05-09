@@ -479,6 +479,124 @@ func TestDelegate(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
+	pctx := createCtx()
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(delegatorAddress2, 2000000000000000000),
+			makeAccount(delegatorAddress3, 1000000000000000000),
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(addr2, 1000000000000000000),
+			makeAccount(addr3, 1000000000000000000),
+		},
+	})
+
+	registrationFee := loom.BigZeroPB()
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          3,
+		RegistrationRequirement: registrationFee,
+	})
+	require.Nil(t, err)
+
+	// Registering 3 candidates
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr3), pubKey3, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	candidates, err := dpos.ListCandidates(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, len(candidates), 3)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	delegationAmount := big.NewInt(10000000)
+	tier := uint64(3)
+
+	// Delegator makes 3 delegations of the same amount to the 3 candidates
+	addrs := []loom.Address{addr1, addr2, addr3}
+	for _, addr := range addrs {
+		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+			Spender: dpos.Address.MarshalPB(),
+			Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+		})
+		require.Nil(t, err)
+
+		err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr, delegationAmount, &tier, nil)
+		require.Nil(t, err)
+	}
+
+	require.NoError(t, elect(pctx, dpos.Address))
+	validators, err := dpos.ListValidators(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, len(validators), 3)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// They should have 6 delegations (3 + 3 rewards delegations)
+	delegations, _, _, err := dpos.CheckAllDelegations(pctx, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations), 6)
+
+	// redelegating from 1 to 2
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr1, &addr2, nil, 1, nil, nil)
+	require.Nil(t, err)
+
+	// redelegating from 3 to 2 in the same election
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress1), &addr3, &addr2, nil, 1, nil, nil)
+	require.Nil(t, err)
+
+	// Delegations should be in redelegating state before elections
+	delegations1, _, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr1, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations1), 2)
+	require.Equal(t, delegations1[0].State, REDELEGATING)
+
+	delegations3, _, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr3, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations1), 2)
+	require.Equal(t, delegations3[0].State, REDELEGATING)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	delegations, _, _, err = dpos.CheckAllDelegations(pctx, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations), 6)
+
+	// They should have:
+	// reward delegation on addr1
+	// reward delegation + 3 delegations on addr2
+	// reward delegation on addr3
+
+	delegations1, amount1, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr1, &delegatorAddress1)
+	require.NoError(t, err)
+	require.True(t, len(delegations1) == 1)
+	require.True(t, amount1.Cmp(big.NewInt(0)) == 0) // no amount delegated
+
+	// Amount 2 should be the sum of the three delegations
+	delegations2, amount2, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr2, &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations2), 4)
+	require.True(t, amount2.Cmp(big.NewInt(0).Mul(delegationAmount, big.NewInt(3))) == 0)
+
+	// Amount 3 should be one delegation
+	delegations3, amount3, _, err := dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr3, &delegatorAddress1)
+	require.NoError(t, err)
+	require.True(t, len(delegations3) == 1)
+	require.True(t, amount3.Cmp(big.NewInt(0)) == 0) // no amount delegated
+}
+
 func TestRedelegate(t *testing.T) {
 	pctx := createCtx()
 	limboValidatorAddress := LimboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
@@ -588,7 +706,7 @@ func TestRedelegate(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	// checking that the 2nd validator (addr1) was elected in addition to add3
+	// checking that the 2nd validator (addr1) was elected in addition to addr3
 	validators, err = dpos.ListValidators(pctx)
 	require.Nil(t, err)
 	assert.Equal(t, len(validators), 2)
@@ -621,14 +739,48 @@ func TestRedelegate(t *testing.T) {
 	// this also tests that redelegate is able to set a new tier
 	tier := uint64(3)
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, smallDelegationAmount, 1, &tier, nil)
+	// test that cannot redelegate redelegating delegation
+	require.NotNil(t, err)
+
+	// run election to put delegation back into bonded state
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr3, smallDelegationAmount, 1, &tier, nil)
 	require.Nil(t, err)
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	delegations, _, _, err := dpos.CheckDelegation(pctx, &addr3, &delegatorAddress2)
+	balanceBefore, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
-	// assert.True(t, delegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
-	assert.Equal(t, delegations[len(delegations)-1].LocktimeTier, TIER_THREE)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	balanceAfter, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	require.True(t, balanceBefore.Balance.Value.Cmp(&balanceAfter.Balance.Value) == 0)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	delegations, _, _, err := dpos.CheckDelegation(pctx, &addr3, &delegatorAddress2)
+	assert.Equal(t, delegations[0].LocktimeTier, TIER_THREE)
+	assert.True(t, delegations[0].Amount.Value.Cmp(&common.BigUInt{smallDelegationAmount}) == 0)
+
+	delegations, _, _, err = dpos.CheckDelegation(pctx, &addr2, &delegatorAddress2)
+	assert.Equal(t, delegations[0].LocktimeTier, TIER_ZERO)
+	assert.True(t, delegations[0].Amount.Value.Cmp(&common.BigUInt{smallDelegationAmount}) == 0)
+
+	postDelegationAmount := big.NewInt(0)
+	postDelegationAmount = postDelegationAmount.Add(postDelegationAmount, delegationAmount)
+	postDelegationAmount = postDelegationAmount.Sub(postDelegationAmount, smallDelegationAmount)
+	postDelegationAmount = postDelegationAmount.Sub(postDelegationAmount, smallDelegationAmount)
+	delegations, _, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
+	assert.Equal(t, delegations[0].LocktimeTier, TIER_ZERO)
+	assert.True(t, delegations[0].Amount.Value.Cmp(&common.BigUInt{postDelegationAmount}) == 0)
 
 	// checking that all 3 candidates have been elected validators
 	validators, err = dpos.ListValidators(pctx)
@@ -1661,7 +1813,7 @@ func TestLockup(t *testing.T) {
 		// checking delegation pre-election
 		delegations, _, _, err := dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &test.Delegator)
 		require.Nil(t, err)
-		delegation := delegations[len(delegations)-1]
+		delegation := delegations[0]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
 		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
@@ -1674,7 +1826,7 @@ func TestLockup(t *testing.T) {
 		// checking delegation post-election
 		delegations, _, _, err = dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &test.Delegator)
 		require.Nil(t, err)
-		delegation = delegations[len(delegations)-1]
+		delegation = delegations[0]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
 		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
@@ -1690,11 +1842,11 @@ func TestLockup(t *testing.T) {
 
 	delegations, _, _, err := dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &delegatorAddress3)
 	require.Nil(t, err)
-	assert.Equal(t, TIER_ZERO, delegations[len(delegations)-1].LocktimeTier)
+	assert.Equal(t, TIER_ZERO, delegations[0].LocktimeTier)
 
 	delegations, _, _, err = dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &delegatorAddress4)
 	require.Nil(t, err)
-	assert.Equal(t, TIER_THREE, delegations[len(delegations)-1].LocktimeTier)
+	assert.Equal(t, TIER_THREE, delegations[0].LocktimeTier)
 }
 
 func TestApplyPowerCap(t *testing.T) {

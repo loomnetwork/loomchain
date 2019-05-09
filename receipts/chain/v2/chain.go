@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -11,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
 )
 
 // ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
@@ -35,7 +36,7 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := types.EvmTxReceipt{}
 	if txReceiptProto == nil {
-		return txReceipt, errors.New("Tx receipt not found")
+		return txReceipt, common.ErrTxReceiptNotFound
 	}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
 	return txReceipt, err

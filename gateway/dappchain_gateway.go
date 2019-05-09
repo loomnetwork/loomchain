@@ -29,6 +29,8 @@ type (
 	VerifyContractCreatorsRequest      = tgtypes.TransferGatewayVerifyContractCreatorsRequest
 	UnverifiedContractCreator          = tgtypes.TransferGatewayUnverifiedContractCreator
 	VerifiedContractCreator            = tgtypes.TransferGatewayVerifiedContractCreator
+
+	ConfirmWithdrawalReceiptRequestV2 = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequestV2
 )
 
 const (
@@ -147,7 +149,7 @@ func (gw *DAppChainGateway) ConfirmWithdrawalReceipt(req *ConfirmWithdrawalRecei
 	return nil
 }
 
-func (gw *DAppChainGateway) ConfirmWithdrawalReceiptV2(req *ConfirmWithdrawalReceiptRequest) error {
+func (gw *DAppChainGateway) ConfirmWithdrawalReceiptV2(req *ConfirmWithdrawalReceiptRequestV2) error {
 	_, err := gw.contract.Call("ConfirmWithdrawalReceiptV2", req, gw.signer, nil)
 	if err != nil {
 		return err
