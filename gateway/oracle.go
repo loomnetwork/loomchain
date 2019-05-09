@@ -14,9 +14,11 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/loomnetwork/go-ethereum/accounts/abi"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/client/erc20"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
@@ -140,9 +142,12 @@ type Oracle struct {
 
 	hashPool *recentHashPool
 
-	isLoomCoinOracle      bool
-	withdrawalSig         WithdrawalSigType
-	withdrawerBlacklist   []loom.Address
+	isLoomCoinOracle    bool
+	withdrawalSig       WithdrawalSigType
+	withdrawerBlacklist []loom.Address
+
+	erc20ABI abi.ABI
+
 	receiptSigningEnabled bool
 }
 
@@ -195,6 +200,11 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 	hashPool := newRecentHashPool(time.Duration(cfg.MainnetPollInterval) * time.Second * 4)
 	hashPool.startCleanupRoutine()
 
+	erc20ABI, err := abi.JSON(strings.NewReader(erc20.ERC20ABI))
+	if err != nil {
+		return nil, err
+	}
+
 	return &Oracle{
 		cfg:                          *cfg,
 		chainID:                      chainID,
@@ -224,6 +234,8 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		withdrawerBlacklist: withdrawerBlacklist,
 		// Oracle will do receipt signing when BatchSignFnConfig is disabled
 		receiptSigningEnabled: !cfg.BatchSignFnConfig.Enabled,
+
+		erc20ABI: erc20ABI,
 	}, nil
 }
 
@@ -403,6 +415,25 @@ func (orc *Oracle) pollDAppChain() error {
 			return err
 		}
 	}
+
+	if err := orc.validateERC20DepositTx(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (orc *Oracle) getERC20DepositsFromTxHash(hash common.Hash) ([]*ERC20DepositInfo, error) {
+	if deposits, err := orc.ethClient.GetERC20DepositByTxHash(context.TODO(), orc.erc20ABI, hash); err != nil {
+		return nil, err
+	}
+
+	return deposits, nil
+}
+
+func (orc *Oracle) validateERC20DepositTx() error {
+	// Take txs from dappchain contract
+	// validate all txs
 	return nil
 }
 
