@@ -5,6 +5,7 @@ package gateway
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -91,6 +92,8 @@ type (
 	UnprocessedDepositTxHashesRequest  = tgtypes.TransferGatewayUnprocessedDepositTxHashesRequest
 
 	ExtendedState = tgtypes.TransferGatewayExtendedState
+
+	TransferGatewayTxHash = tgtypes.TransferGatewayTxHash
 )
 
 var (
@@ -218,6 +221,7 @@ var (
 
 	ErrUnprocessedTxHashAlreadyExists = errors.New("TG015: unprocessed tx hash already exists")
 	ErrNoUnprocessedTxHashExists      = errors.New("TG016: no unprocessed tx hash exists")
+	ErrCheckTxHashIsDisabled          = errors.New("TG017: check txhash feature is disabled")
 )
 
 type Gateway struct {
@@ -422,6 +426,35 @@ func (gw *Gateway) GetOracles(ctx contract.StaticContext, req *GetOraclesRequest
 	}, nil
 }
 
+func (gw *Gateway) ProcessDepositEventByTxHash(ctx contract.Context, req *ProcessEventBatchRequest) error {
+	if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	checkTxHash := ctx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false)
+	if !checkTxHash {
+		return ErrCheckTxHashIsDisabled
+	}
+
+	for _, ev := range req.Events {
+		switch payload := ev.Payload.(type) {
+		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
+			// We need to pass ev here, as emitProcessEvent expects it.
+			if err := gw.handleDeposit(ctx, ev, checkTxHash); err != nil {
+				return err
+			}
+		case nil:
+			ctx.Logger().Error("[Transfer Gateway] missing event payload")
+			continue
+		default:
+			ctx.Logger().Error("[Transfer Gateway] unknown event payload type %T", payload)
+			continue
+		}
+	}
+
+	return nil
+}
+
 func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatchRequest) error {
 	if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
 		return ErrNotAuthorized
@@ -454,73 +487,10 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 		switch payload := ev.Payload.(type) {
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
-
-			// If loomCoinTG flag is true, then token kind must need to be loomcoin
-			// If loomCoinTG flag is false, then token kind must not be loomcoin
-			if gw.loomCoinTG != (payload.Deposit.TokenKind == TokenKind_LoomCoin) {
-				return ErrInvalidRequest
+			// We need to pass ev here, as emitProcessEvent expects it.
+			if err := gw.handleDeposit(ctx, ev, checkTxHash); err != nil {
+				return err
 			}
-
-			if err := validateTokenDeposit(payload.Deposit); err != nil {
-				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
-				emitProcessEventError(ctx, "[TransferGateway validateTokenDeposit]"+err.Error(), ev)
-				continue
-			}
-
-			if checkTxHash {
-				if len(payload.Deposit.TxHash) == 0 {
-					ctx.Logger().Error("[Transfer Gateway] missing Mainnet deposit tx hash")
-					return ErrInvalidRequest
-				}
-				if hasSeenTxHash(ctx, payload.Deposit.TxHash) {
-					msg := fmt.Sprintf("[TransferGateway] skipping Mainnet deposit with dupe tx hash: %x",
-						payload.Deposit.TxHash,
-					)
-					ctx.Logger().Info(msg)
-					emitProcessEventError(ctx, msg, ev)
-					continue
-				}
-			}
-
-			ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
-			tokenAddr := loom.RootAddress("eth")
-			if payload.Deposit.TokenContract != nil {
-				tokenAddr = loom.UnmarshalAddressPB(payload.Deposit.TokenContract)
-			}
-
-			if payload.Deposit.TokenKind == TokenKind_LoomCoin {
-				if err := clearLoomCoinDepositTxHashIfExists(ctx, loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)); err != nil {
-					return err
-				}
-			}
-
-			err = transferTokenDeposit(
-				ctx, ownerAddr, tokenAddr,
-				payload.Deposit.TokenKind, payload.Deposit.TokenID, payload.Deposit.TokenAmount)
-			if err != nil {
-				ctx.Logger().Error("[Transfer Gateway] failed to transfer Mainnet deposit", "err", err)
-				emitProcessEventError(ctx, "[TransferGateway transferTokenDeposit]"+err.Error(), ev)
-				if err := storeUnclaimedToken(ctx, payload.Deposit); err != nil {
-					// this is a fatal error, discard the entire batch so that this deposit event
-					// is resubmitted again in the next batch (hopefully after whatever caused this
-					// error is resolved)
-					emitProcessEventError(ctx, err.Error(), ev)
-					return err
-				}
-			} else {
-				deposit, err := proto.Marshal(payload.Deposit)
-				if err != nil {
-					return err
-				}
-				ctx.EmitTopics(deposit, mainnetDepositEventTopic)
-			}
-
-			if checkTxHash {
-				if err := saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
-					return err
-				}
-			}
-
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 
 			// If loomCoinTG flag is true, then token kind must need to be loomcoin
@@ -586,6 +556,85 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	state.LastMainnetBlockNum = lastEthBlock
 
 	return saveState(ctx, state)
+}
+
+func (gw *Gateway) handleDeposit(ctx contract.Context, ev *MainnetEvent, checkTxHash bool) error {
+	var err error
+
+	// This should be already checked in Process* function, so returning false here means function
+	// was invoked from somewhere else.
+	payload, ok := ev.Payload.(*tgtypes.TransferGatewayMainnetEvent_Deposit)
+	if !ok {
+		return fmt.Errorf("[Transfer Gateway] unknown event payload type %T", payload)
+	}
+
+	// If loomCoinTG flag is true, then token kind must need to be loomcoin
+	// If loomCoinTG flag is false, then token kind must not be loomcoin
+	if gw.loomCoinTG != (payload.Deposit.TokenKind == TokenKind_LoomCoin) {
+		return ErrInvalidRequest
+	}
+
+	if err := validateTokenDeposit(payload.Deposit); err != nil {
+		ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
+		emitProcessEventError(ctx, "[TransferGateway validateTokenDeposit]"+err.Error(), ev)
+		return nil
+	}
+
+	if checkTxHash {
+		if len(payload.Deposit.TxHash) == 0 {
+			ctx.Logger().Error("[Transfer Gateway] missing Mainnet deposit tx hash")
+			return ErrInvalidRequest
+		}
+		if hasSeenTxHash(ctx, payload.Deposit.TxHash) {
+			msg := fmt.Sprintf("[TransferGateway] skipping Mainnet deposit with dupe tx hash: %x",
+				payload.Deposit.TxHash,
+			)
+			ctx.Logger().Info(msg)
+			emitProcessEventError(ctx, msg, ev)
+			return nil
+		}
+	}
+
+	ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
+	tokenAddr := loom.RootAddress("eth")
+	if payload.Deposit.TokenContract != nil {
+		tokenAddr = loom.UnmarshalAddressPB(payload.Deposit.TokenContract)
+	}
+
+	if payload.Deposit.TokenKind == TokenKind_LoomCoin {
+		if err := clearLoomCoinDepositTxHashIfExists(ctx, loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)); err != nil {
+			return err
+		}
+	}
+
+	err = transferTokenDeposit(
+		ctx, ownerAddr, tokenAddr,
+		payload.Deposit.TokenKind, payload.Deposit.TokenID, payload.Deposit.TokenAmount)
+	if err != nil {
+		ctx.Logger().Error("[Transfer Gateway] failed to transfer Mainnet deposit", "err", err)
+		emitProcessEventError(ctx, "[TransferGateway transferTokenDeposit]"+err.Error(), ev)
+		if err := storeUnclaimedToken(ctx, payload.Deposit); err != nil {
+			// this is a fatal error, discard the entire batch so that this deposit event
+			// is resubmitted again in the next batch (hopefully after whatever caused this
+			// error is resolved)
+			emitProcessEventError(ctx, err.Error(), ev)
+			return err
+		}
+	} else {
+		deposit, err := proto.Marshal(payload.Deposit)
+		if err != nil {
+			return err
+		}
+		ctx.EmitTopics(deposit, mainnetDepositEventTopic)
+	}
+
+	if checkTxHash {
+		if err := saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
@@ -881,24 +930,19 @@ func (gw *Gateway) SubmitLoomCoinDepositTxHash(ctx contract.Context, req *Submit
 // Oracle only
 func (gw *Gateway) ClearInvalidLoomCoinDepositTxHash(ctx contract.Context, req *ClearInvalidDepositTxHashRequest) error {
 	if ok, _ := ctx.HasPermission(clearInvalidTxHashesPerm, []string{oracleRole}); !ok {
-		return nil, ErrNotAuthorized
+		return ErrNotAuthorized
 	}
 
 	if req.TxHashes == nil {
-		return nil, ErrInvalidRequest
+		return ErrInvalidRequest
 	}
 
 	extState, err := loadExtendedState(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	txHashes := make([]common.Hash, len(req.TxHashes))
-	for _, txHashBytes := range req.TxHashes {
-		txHashes[i] = common.BytesToHash(txHashBytes)
-	}
-
-	if err := removeLoomCoinDepositTxHashes(ctx, extState, txHashes); err != nil {
+	if err := removeLoomCoinDepositTxHashes(ctx, extState, req.TxHashes); err != nil {
 		return err
 	}
 
@@ -922,7 +966,7 @@ func (gw *Gateway) UnprocessedLoomCoinDepositTxHashes(ctx contract.StaticContext
 func clearLoomCoinDepositTxHashIfExists(ctx contract.Context, ownerAddress loom.Address) error {
 	extState, err := loadExtendedState(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := removeLoomCoinDepositTxHashSubmitter(ctx, extState, ownerAddress); err != nil {
@@ -934,6 +978,8 @@ func clearLoomCoinDepositTxHashIfExists(ctx contract.Context, ownerAddress loom.
 	if err := saveExtendedState(ctx, extState); err != nil {
 		return err
 	}
+
+	return nil
 }
 
 // WithdrawLoomCoin will attempt to transfer Loomcoin to the Gateway contract,
@@ -1965,9 +2011,9 @@ func saveForeignAccount(ctx contract.Context, acct *ForeignAccount) error {
 	return nil
 }
 
-func loadLoomCoinDepositTxHash(ctx contract.StaticContext, owner loom.Address) (common.Hash, error) {
-	txHashBytes := make([]byte, 32)
-	err := ctx.Get(loomcoinDepositTxHashKey(owner), &txHashBytes)
+func loadLoomCoinDepositTxHash(ctx contract.StaticContext, owner loom.Address) ([]byte, error) {
+	tgTxHash := &TransferGatewayTxHash{}
+	err := ctx.Get(loomcoinDepositTxHashKey(owner), tgTxHash)
 	if err != nil {
 		if err == contract.ErrNotFound {
 			return nil, nil
@@ -1975,16 +2021,18 @@ func loadLoomCoinDepositTxHash(ctx contract.StaticContext, owner loom.Address) (
 		return nil, errors.Wrapf(err, "failed to load deposit tx hash")
 	}
 
-	return common.BytesToHash(txHashBytes), nil
+	return tgTxHash.TxHash, nil
 }
 
 func deleteLoomCoinDepositTxHash(ctx contract.Context, owner loom.Address) {
 	ctx.Delete(loomcoinDepositTxHashKey(owner))
 }
 
-func saveLoomCoinDepositTxHash(ctx contract.Context, owner loom.Address, txHash common.Hash) error {
-	txHashBytes := txHash.Bytes()
-	return ctx.Set(loomcoinDepositTxHashKey(owner), &txHashBytes)
+func saveLoomCoinDepositTxHash(ctx contract.Context, owner loom.Address, txHash []byte) error {
+	tgTxHash := &TransferGatewayTxHash{
+		TxHash: txHash,
+	}
+	return ctx.Set(loomcoinDepositTxHashKey(owner), tgTxHash)
 }
 
 func loadExtendedState(ctx contract.StaticContext) (*ExtendedState, error) {
@@ -2011,8 +2059,8 @@ func addLoomCoinDepositTxHashSubmitter(ctx contract.StaticContext, extState *Ext
 	return nil
 }
 
-func getLoomCoinDepositTxHashes(ctx contract.StaticContext, extState *ExtendedState) ([]common.Hash, error) {
-	txHashes := make([]common.Hash, len(extState.LoomcoinDepositTxHashSubmitters))
+func getLoomCoinDepositTxHashes(ctx contract.StaticContext, extState *ExtendedState) ([][]byte, error) {
+	txHashes := make([][]byte, len(extState.LoomcoinDepositTxHashSubmitters))
 	for i, txHashSubmitter := range extState.LoomcoinDepositTxHashSubmitters {
 		hash, err := loadLoomCoinDepositTxHash(ctx, loom.UnmarshalAddressPB(txHashSubmitter))
 		if err != nil {
@@ -2027,16 +2075,16 @@ func getLoomCoinDepositTxHashes(ctx contract.StaticContext, extState *ExtendedSt
 	return txHashes, nil
 }
 
-func removeLoomCoinDepositTxHashes(ctx contract.Context, extState *ExtendedState, toBeDeletedTxHashes []common.Hash) error {
+func removeLoomCoinDepositTxHashes(ctx contract.Context, extState *ExtendedState, toBeDeletedTxHashes [][]byte) error {
 	// Temporarily store it in map for faster lookup
 	toBeDeletedTxHashMap := make(map[string]bool)
-	for _, toBeDeletedTxHash := range txHashesToBeDeleted {
-		toBeDeletedTxHashMap[toBeDeletedTxHash.Hex()]
+	for _, toBeDeletedTxHash := range toBeDeletedTxHashes {
+		toBeDeletedTxHashMap[hex.EncodeToString(toBeDeletedTxHash)] = true
 	}
 
 	survivedTxHashSubmitters := make([]*types.Address, 0, len(extState.LoomcoinDepositTxHashSubmitters))
 
-	for i, txHashSubmitter := range extState.LoomcoinDepositTxHashSubmitters {
+	for _, txHashSubmitter := range extState.LoomcoinDepositTxHashSubmitters {
 		hash, err := loadLoomCoinDepositTxHash(ctx, loom.UnmarshalAddressPB(txHashSubmitter))
 		if err != nil {
 			return errors.Wrap(err, "error while loading loomcoin deposit tx hash")
@@ -2045,7 +2093,7 @@ func removeLoomCoinDepositTxHashes(ctx contract.Context, extState *ExtendedState
 			return ErrNoUnprocessedTxHashExists
 		}
 
-		if _, ok := toBeDeletedTxHashMap[hash.Hex()]; ok {
+		if _, ok := toBeDeletedTxHashMap[hex.EncodeToString(hash)]; ok {
 			deleteLoomCoinDepositTxHash(ctx, loom.UnmarshalAddressPB(txHashSubmitter))
 		} else {
 			survivedTxHashSubmitters = append(survivedTxHashSubmitters, txHashSubmitter)

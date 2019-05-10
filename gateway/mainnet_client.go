@@ -24,9 +24,12 @@ type MainnetClient struct {
 }
 
 type ERC20DepositInfo struct {
-	From   common.Address
-	To     common.Address
-	Amount *big.Int
+	ERC20Contract common.Address
+	From          common.Address
+	To            common.Address
+	Amount        *big.Int
+	TxIndex       uint
+	BlockNumber   uint64
 }
 
 // ConnectToMainnet connects a client to the given URL.
@@ -43,7 +46,7 @@ type MainnetContractCreationTx struct {
 	ContractAddress common.Address
 }
 
-func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI abi.ABI, txHash common.Hash) ([]*ERC20DepositInfo, error) {
+func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI abi.ABI, erc20ContractAddress common.Address, txHash common.Hash) ([]*ERC20DepositInfo, error) {
 	r := &struct {
 		Logs []types.Log `json:"logs"`
 	}{}
@@ -67,6 +70,10 @@ func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI ab
 			continue
 		}
 
+		if erc20ContractAddress.Hex() != log.Address.Hex() {
+			continue
+		}
+
 		valueHexStr := common.Bytes2Hex(log.Data)
 		result, err := evmcompat.SolidityUnpackString(valueHexStr, []string{"uint256"})
 		if err != nil {
@@ -87,9 +94,12 @@ func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI ab
 		to := common.HexToAddress(result[0].(string))
 
 		erc20Deposits = append(erc20Deposits, &ERC20DepositInfo{
-			From:   from,
-			To:     to,
-			Amount: value,
+			From:          from,
+			To:            to,
+			Amount:        value,
+			ERC20Contract: log.Address,
+			TxIndex:       log.TxIndex,
+			BlockNumber:   log.BlockNumber,
 		})
 	}
 
