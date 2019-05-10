@@ -426,6 +426,8 @@ func (gw *Gateway) GetOracles(ctx contract.StaticContext, req *GetOraclesRequest
 	}, nil
 }
 
+// ProcessDepositEventByTxHash tries to submit deposit events by tx hash
+// This method expects that TGCheckTxHashFeature is enabled on chain
 func (gw *Gateway) ProcessDepositEventByTxHash(ctx contract.Context, req *ProcessEventBatchRequest) error {
 	if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
 		return ErrNotAuthorized
@@ -894,7 +896,8 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 	return saveState(ctx, state)
 }
 
-// User can call
+// SubmitLoomCoinDepositTxHash is called by User to add txhash, which will be used to submit deposit event
+// User's account need to be mapped to an eth address for this to work.
 func (gw *Gateway) SubmitLoomCoinDepositTxHash(ctx contract.Context, req *SubmitDepositTxHashRequest) error {
 	if req.TxHash == nil {
 		return ErrInvalidRequest
@@ -927,7 +930,8 @@ func (gw *Gateway) SubmitLoomCoinDepositTxHash(ctx contract.Context, req *Submit
 	return saveLoomCoinDepositTxHash(ctx, ownerEthAddr, req.TxHash)
 }
 
-// Oracle only
+// ClearInvalidLoomCoinDepositTxHash is oracle only method called by oracle to clear
+// invalid tx hashes submitted by users
 func (gw *Gateway) ClearInvalidLoomCoinDepositTxHash(ctx contract.Context, req *ClearInvalidDepositTxHashRequest) error {
 	if ok, _ := ctx.HasPermission(clearInvalidTxHashesPerm, []string{oracleRole}); !ok {
 		return ErrNotAuthorized
@@ -949,6 +953,7 @@ func (gw *Gateway) ClearInvalidLoomCoinDepositTxHash(ctx contract.Context, req *
 	return saveExtendedState(ctx, extState)
 }
 
+// UnprocessedLoomCoinDepositTxHashes returns tx hashes that havent been processed yet by oracle
 func (gw *Gateway) UnprocessedLoomCoinDepositTxHashes(ctx contract.StaticContext, req *UnprocessedDepositTxHashesRequest) (*UnprocessedDepositTxHashesResponse, error) {
 	extState, err := loadExtendedState(ctx)
 	if err != nil {
