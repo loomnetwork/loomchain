@@ -34,7 +34,7 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork"
   Condition = "contains"
   Expected = ['50','PENDING']
 
@@ -44,7 +44,7 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork"
   Condition = "contains"
   Expected = ['75']
 
@@ -64,7 +64,7 @@
   Expected = ['hardfork','newfeature']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork"
   Condition = "contains"
   Expected = ['75']
 
@@ -94,12 +94,7 @@
   Expected = ['100', '1']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
-  Condition = "contains"
-  Expected = ['75']
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork"
   Condition = "contains"
   Expected = ['75']
 
@@ -109,7 +104,7 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature hardfork"
   Condition = "contains"
   Expected = ['75']
 
