@@ -1,5 +1,5 @@
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = [ "auth:sigtx:tron", "auth:sigtx:eth" ]
 

@@ -54,12 +54,12 @@
   Expected = []
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = ['hardfork','newfeature','multichain','dposv3']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = ['hardfork','newfeature']
 
