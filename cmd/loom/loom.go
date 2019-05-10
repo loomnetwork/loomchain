@@ -1088,6 +1088,11 @@ func loadApp(
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
+	blockIndexStore, err := store.NewBlockIndexStore(cfg.BlockIndexStore)
+	if err != nil {
+		return nil, err
+	}
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
@@ -1096,6 +1101,7 @@ func loadApp(
 			router,
 			postCommitMiddlewares,
 		),
+		BlockIndexStore:             blockIndexStore,
 		EventHandler:                eventHandler,
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
@@ -1221,6 +1227,11 @@ func initQueryService(
 		return err
 	}
 
+	blockIndexStore, err := store.NewBlockIndexStore(cfg.BlockIndexStore)
+	if err != nil {
+		return err
+	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1234,6 +1245,7 @@ func initQueryService(
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
+		BlockIndexStore:        blockIndexStore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 	}

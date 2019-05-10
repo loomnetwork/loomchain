@@ -114,6 +114,7 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
+	store.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
 }
@@ -782,14 +783,14 @@ func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount 
 		return txCount, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
+	height, err := s.GetBlockHeightFromHash(blockHash)
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, height)
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, int64(height))
 	if err != nil {
 		return txCount, err
 	}
@@ -819,17 +820,14 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 		return resp, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	// TODO: Reading from the TM block store could take a while, might be more efficient to release
-	//       the current snapshot and get a new one after pulling out whatever we need from the TM
-	//       block store.
-	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
+	height, err := s.GetBlockHeightFromHash(blockHash)
 	if err != nil {
 		return resp, err
 	}
-	return query.GetBlockByNumber(s.BlockStore, snapshot, height, full)
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -872,12 +870,10 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 		return txObj, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
+	height, err := s.GetBlockHeightFromHash(blockHash)
 	if err != nil {
 		return txObj, err
 	}
-	snapshot.Release()
 
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
@@ -1058,4 +1054,15 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 
 func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
+}
+
+func (s *QueryServer) GetBlockHeightFromHash(hash []byte) (uint64, error) {
+	if nil != s.BlockIndexStore {
+		return s.BlockIndexStore.GetHeight(hash)
+	} else {
+		snapshot := s.StateProvider.ReadOnlyState()
+		defer snapshot.Release()
+		height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, hash)
+		return uint64(height), err
+	}
 }

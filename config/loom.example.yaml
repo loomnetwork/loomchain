@@ -35,6 +35,9 @@ Karma:
   MaxCallCount:  10
   SessionDuration: 60
 
+BlockIndexStore:
+  Method: "LevelDB"
+
 ChainConfig:
   ContractEnabled: true
 

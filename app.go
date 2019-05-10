@@ -275,6 +275,7 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
+	store.BlockIndexStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	OriginHandler
@@ -373,6 +374,12 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
+
+	if a.BlockIndexStore != nil {
+		if err := a.BlockIndexStore.PutHashHeight(a.curBlockHash, uint64(a.height())); err != nil {
+			log.Error("Error saveing height to block index store", "err", err)
+		}
+	}
 
 	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()

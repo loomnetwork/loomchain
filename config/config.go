@@ -93,6 +93,7 @@ type Config struct {
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 	// Blockstore config
 	BlockStore *store.BlockStoreConfig
+	BlockIndexStore *store.BlockIndexStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -372,6 +373,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
+	cfg.BlockIndexStore = store.DefaultBlockIndesStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
@@ -653,6 +655,9 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
+BlockIndexStore:
+  # LevelDB | Legacy | Memory
+  Method: {{ .BlockIndexStore.Method }}
 #
 # Cashing store 
 #
