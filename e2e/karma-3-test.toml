@@ -50,7 +50,7 @@
    Expected = [  'upkeep parameters updated' ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} karma get-upkeep -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} karma get-upkeep"
     Condition = "contains"
     Expected = [
         '"cost": "1"',
