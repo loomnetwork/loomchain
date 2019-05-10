@@ -447,7 +447,7 @@ func (gw *Gateway) ProcessDepositEventByTxHash(ctx contract.Context, req *Proces
 			ctx.Logger().Error("[Transfer Gateway] missing event payload")
 			continue
 		default:
-			ctx.Logger().Error("[Transfer Gateway] unknown event payload type %T", payload)
+			ctx.Logger().Error("[Transfer Gateway] only deposit event is supported to be submitted by txhash, got %T", payload)
 			continue
 		}
 	}
