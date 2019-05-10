@@ -4,12 +4,12 @@
   Expected = [ "auth:sigtx:tron", "auth:sigtx:eth" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:eth"
   Condition = "contains"
   Expected = [ "true" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:tron"
   Condition = "contains"
   Expected = [ "true" ]
 
