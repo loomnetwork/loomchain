@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/binary"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -10,14 +11,15 @@ import (
 
 const (
 	LevelDBFilename = "blockIndex_db"
-	BisMemory =     "Memory"
-	BisLevelDB =    "LevelDB"
-	BisLegacy =     "Legacy"
+	BisMemory       = "Memory"
+	BisLevelDB      = "LevelDB"
+	BisLegacy       = "Legacy"
 )
 
 type BlockIndexStore interface {
 	GetHeight(hash []byte) (uint64, error)
 	PutHashHeight(hash []byte, height uint64) error
+	ClearData()
 	Close() error
 }
 
@@ -38,7 +40,7 @@ func NewBlockIndexStore(cfg *BlockIndexStoreConfig) (BlockIndexStore, error) {
 	}
 }
 
-func DefaultBlockIndesStoreConfig() *BlockIndexStoreConfig{
+func DefaultBlockIndesStoreConfig() *BlockIndexStoreConfig {
 	return &BlockIndexStoreConfig{
 		Method: BisLegacy,
 	}
@@ -50,7 +52,7 @@ type MemoryBlockIndexStore struct {
 
 func NewMemoryBlockIndexStore() BlockIndexStore {
 	return MemoryBlockIndexStore{
-		hashHeight:        map[string]uint64{},
+		hashHeight: map[string]uint64{},
 	}
 }
 
@@ -68,12 +70,15 @@ func (ms MemoryBlockIndexStore) PutHashHeight(hash []byte, height uint64) error 
 }
 
 func (ms MemoryBlockIndexStore) Close() error {
-	ms.hashHeight = map[string]uint64{}
 	return nil
 }
 
+func (ms MemoryBlockIndexStore) ClearData() {
+	ms.hashHeight = map[string]uint64{}
+}
+
 type LevelDBBlockIndexStore struct {
-	db        *leveldb.DB
+	db *leveldb.DB
 }
 
 func NewLevelDBBlockIndexStore() (BlockIndexStore, error) {
@@ -82,7 +87,7 @@ func NewLevelDBBlockIndexStore() (BlockIndexStore, error) {
 		return nil, errors.Wrapf(err, "opening %s", LevelDBFilename)
 	}
 	return LevelDBBlockIndexStore{
-		db:        db,
+		db: db,
 	}, nil
 }
 
@@ -102,4 +107,8 @@ func (ls LevelDBBlockIndexStore) PutHashHeight(hash []byte, height uint64) error
 
 func (ls LevelDBBlockIndexStore) Close() error {
 	return ls.db.Close()
+}
+
+func (ls LevelDBBlockIndexStore) ClearData() {
+	_ = os.RemoveAll(LevelDBFilename)
 }

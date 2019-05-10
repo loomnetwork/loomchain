@@ -243,6 +243,9 @@ func newInitCommand() *cobra.Command {
 					return err
 				}
 				destroyReceiptsDB(cfg)
+				if err := destroyBlockIndexDB(cfg); err != nil {
+					return err
+				}
 			}
 			validator, err := backend.Init()
 			if err != nil {
@@ -283,6 +286,9 @@ func newResetCommand() *cobra.Command {
 			}
 
 			destroyReceiptsDB(cfg)
+			if err := destroyBlockIndexDB(cfg); err != nil {
+				return err
+			}
 
 			return nil
 		},
@@ -612,6 +618,17 @@ func destroyReceiptsDB(cfg *config.Config) {
 		receptHandler := leveldb.LevelDbReceipts{}
 		receptHandler.ClearData()
 	}
+}
+
+func destroyBlockIndexDB(cfg *config.Config) error {
+	bis, err := store.NewBlockIndexStore(cfg.BlockIndexStore)
+	if err != nil {
+		return err
+	}
+	if bis != nil {
+		bis.ClearData()
+	}
+	return nil
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
@@ -1227,11 +1244,6 @@ func initQueryService(
 		return err
 	}
 
-	blockIndexStore, err := store.NewBlockIndexStore(cfg.BlockIndexStore)
-	if err != nil {
-		return err
-	}
-
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1245,7 +1257,7 @@ func initQueryService(
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
-		BlockIndexStore:        blockIndexStore,
+		BlockIndexStore:        app.BlockIndexStore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 	}
