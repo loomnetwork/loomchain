@@ -77,7 +77,7 @@ func GetBlockByNumber(
 
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txObj, err := GetTxObjectFromTxResult(blockResult, int64(index))
+			txObj, err := GetTxObjectFromBlockResult(blockResult, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
@@ -94,7 +94,7 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
-func GetTxObjectFromTxResult(blockResult *ctypes.ResultBlock, index int64) (eth.JsonTxObject, error) {
+func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (eth.JsonTxObject, error) {
 	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
