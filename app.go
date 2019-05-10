@@ -31,6 +31,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
+	ChainConfig() loom.Config
 }
 
 type State interface {
@@ -40,6 +41,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
+	SetConfig(string, string)
 }
 
 type StoreState struct {
@@ -126,10 +128,15 @@ func (s *StoreState) Context() context.Context {
 
 var (
 	featurePrefix = "feature"
+	configPrefix  = "config"
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+func configKey(configName string) []byte {
+	return util.PrefixKey([]byte(configPrefix), []byte(configName))
 }
 
 func (s *StoreState) FeatureEnabled(name string, val bool) bool {
@@ -150,6 +157,20 @@ func (s *StoreState) SetFeature(name string, val bool) {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
+}
+
+func (s *StoreState) ChainConfig() loom.Config {
+	configRange := s.store.Range([]byte(configPrefix))
+	configs := make(map[string]string)
+	for _, data := range configRange {
+		configs[string(data.Key)] = string(data.Value)
+	}
+	cfg := NewChainConfig(configs)
+	return cfg
+}
+
+func (s *StoreState) SetConfig(name, value string) {
+	s.store.Set(configKey(name), []byte(value))
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
