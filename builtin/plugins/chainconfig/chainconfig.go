@@ -32,13 +32,15 @@ type (
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 
-	Config             = cctypes.Config
-	Vote               = cctypes.Vote
-	Candidate          = cctypes.Candidate
-	AddConfigRequest   = cctypes.AddConfigRequest
-	GetConfigRequest   = cctypes.GetConfigRequest
-	ListConfigsRequest = cctypes.ListConfigsRequest
-	VoteConfigRequest  = cctypes.VoteConfigRequest
+	Config              = cctypes.Config
+	Vote                = cctypes.Vote
+	Proposal            = cctypes.Proposal
+	AddConfigRequest    = cctypes.AddConfigRequest
+	GetConfigRequest    = cctypes.GetConfigRequest
+	GetConfigResponse   = cctypes.GetConfigResponse
+	ListConfigsRequest  = cctypes.ListConfigsRequest
+	ListConfigsResponse = cctypes.ListConfigsResponse
+	SetConfigRequest    = cctypes.SetConfigRequest
 )
 
 const (
@@ -55,12 +57,12 @@ const (
 
 	// ConfigVoting status indicates new config settings are being voted.
 	ConfigVoting = cctypes.Config_VOTING
-	// ConfigElected status indicates a new config setting has been elected by majority of validators, but
+	// ConfigElected status indicates a new config setting has been settled by majority of validators, but
 	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
-	ConfigElected = cctypes.Config_ELECTED
-	// ConfigSet status indicates a new config has been elected by majority of validators, and
-	// has been set on the chain.
-	ConfigSet = cctypes.Config_SET
+	ConfigSettled = cctypes.Config_SETTLED
+	// ConfigSet status indicates a new config has been settled by majority of validators, and
+	// has been activated on the chain.
+	ConfigActivated = cctypes.Config_ACTIVATED
 )
 
 var (
@@ -91,8 +93,8 @@ var (
 	ErrConfigNotSupported = errors.New("[ChainConfig] config is not supported in the current build")
 	// ErrConfigAlreadyExists returned if an owner try to set an existing config
 	ErrConfigAlreadyExists = errors.New("[ChainConfig] config already exists")
-	// ErrFeatureAlreadyElected is returned if a validator tries to vote a confg that's already elected
-	ErrFeatureAlreadyElected = errors.New("[ChainConfig] confg already elected")
+	// ErrConfigAlreadyElected is returned if a validator tries to vote a confg that's already elected
+	ErrConfigAlreadySettled = errors.New("[ChainConfig] confg already ")
 )
 
 const (
@@ -351,7 +353,12 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 
 // AddConfig should be called by the contract owner to add new config the validators can vote.
 func (c *ChainConfig) AddConfig(ctx contract.Context, req *AddConfigRequest) error {
-	if req.Name == "" || req.VoteThreshold == 0 {
+	for _, name := range req.Names {
+		if name == "" {
+			return ErrInvalidRequest
+		}
+	}
+	if req.VoteThreshold == 0 {
 		return ErrInvalidRequest
 	}
 
@@ -360,26 +367,49 @@ func (c *ChainConfig) AddConfig(ctx contract.Context, req *AddConfigRequest) err
 		return ErrNotAuthorized
 	}
 
-	if found := ctx.Has(configKey(req.Name)); found {
-		return ErrConfigAlreadyExists
-	}
+	for _, name := range req.Names {
+		if found := ctx.Has(configKey(name)); found {
+			return ErrConfigAlreadyExists
+		}
 
-	config := Config{
-		Name:          req.Name,
-		BuildNumber:   req.BuildNumber,
-		Status:        ConfigVoting,
-		VoteThreshold: req.VoteThreshold,
-	}
+		config := Config{
+			Name:          name,
+			BuildNumber:   req.BuildNumber,
+			Status:        ConfigVoting,
+			VoteThreshold: req.VoteThreshold,
+		}
 
-	if err := ctx.Set(configKey(req.Name), &config); err != nil {
-		return err
+		if err := ctx.Set(configKey(name), &config); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// VoteConfig should be called by a validator to indicate they want to set a new config value.
-func (c *ChainConfig) VoteConfig(ctx contract.Context, req *VoteConfigRequest) error {
+// GetConfig returns info about a specific config.
+func (c *ChainConfig) GetConfig(ctx contract.StaticContext, req *GetConfigRequest) (*GetConfigResponse, error) {
+	if req.Name == "" {
+		return nil, ErrInvalidRequest
+	}
+
+	curValidators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := getConfig(ctx, req.Name, curValidators)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetConfigResponse{
+		Config: config,
+	}, nil
+}
+
+// SetConfig should be called by a validator to indicate they want to set a new config value.
+func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) error {
 	if req.Name == "" || req.Value == "" {
 		return ErrInvalidRequest
 	}
@@ -402,16 +432,16 @@ func (c *ChainConfig) VoteConfig(ctx contract.Context, req *VoteConfigRequest) e
 		return ErrNotAuthorized
 	}
 
-	// record the fact that the validator is ready to enable the feature
+	// record the fact that the validator is ready to set the config
 	var config Config
 	if err := ctx.Get(configKey(req.Name), &config); err != nil {
 		return errors.Wrapf(err, "config '%s' not found", req.Name)
 	}
 
-	// if the feature has already been activated there's no point in recording additional votes
-	if config.Status == ConfigElected {
-		return ErrFeatureAlreadyEnabled
-	} else if config.Status == ConfigSet {
+	// if the cnfig has already been activated there's no point in recording additional votes
+	if config.Status == ConfigSettled {
+		return ErrConfigAlreadySettled
+	} else if config.Status == ConfigActivated {
 		config.Status = ConfigVoting
 	}
 
@@ -433,6 +463,32 @@ func (c *ChainConfig) VoteConfig(ctx contract.Context, req *VoteConfigRequest) e
 	}
 
 	return ctx.Set(configKey(req.Name), &config)
+}
+
+// ListConfigs returns info about all the currently known configs.
+func (c *ChainConfig) ListConfigs(ctx contract.StaticContext, req *ListConfigsRequest) (*ListConfigsResponse, error) {
+	curValidators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	configRange := ctx.Range([]byte(configPrefix))
+	configs := []*Config{}
+	for _, m := range configRange {
+		var cfg Config
+		if err := proto.Unmarshal(m.Value, &cfg); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal config %s", string(m.Key))
+		}
+		config, err := getConfig(ctx, cfg.Name, curValidators)
+		if err != nil {
+			return nil, err
+		}
+		configs = append(configs, config)
+	}
+
+	return &ListConfigsResponse{
+		Configs: configs,
+	}, nil
 }
 
 func EnableConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Config, error) {
@@ -461,30 +517,33 @@ func EnableConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Co
 
 		switch config.Status {
 		case ConfigVoting:
-			candidate := getMostPopularCandidate(config.Candidates)
-			if candidate.Percentage >= config.VoteThreshold {
-				config.Status = ConfigElected
+			proposal := getMostPopularProposal(config.Proposals)
+			if proposal == nil {
+				continue
+			}
+			if proposal.Percentage >= config.VoteThreshold {
+				config.Status = ConfigSettled
 				config.BlockHeight = blockHeight
+				config.Settlement = proposal
 				if err := ctx.Set(configKey(config.Name), config); err != nil {
 					return nil, err
 				}
-				config.ElectedCandidate = candidate
 				ctx.Logger().Info(
 					"[Config status changed]",
 					"name", config.Name,
 					"from", ConfigVoting,
-					"to", ConfigElected,
+					"to", ConfigSettled,
 					"block_height", blockHeight,
-					"percentage", candidate.Percentage,
-					"value", candidate.Value,
+					"percentage", proposal.Percentage,
+					"value", proposal.Value,
 				)
 			}
-		case ConfigElected:
+		case ConfigSettled:
 			if blockHeight > (config.BlockHeight + params.NumBlockConfirmations) {
 				if buildNumber < config.BuildNumber {
 					return nil, ErrConfigNotSupported
 				}
-				config.Status = ConfigSet
+				config.Status = ConfigActivated
 				if err := ctx.Set(configKey(config.Name), config); err != nil {
 					return nil, err
 				}
@@ -495,8 +554,8 @@ func EnableConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Co
 					"from", FeatureWaiting,
 					"to", FeatureEnabled,
 					"block_height", blockHeight,
-					"percentage", config.ElectedCandidate.Percentage,
-					"value", config.ElectedCandidate.Value,
+					"percentage", config.Settlement.Percentage,
+					"value", config.Settlement.Value,
 				)
 			}
 		}
@@ -744,42 +803,45 @@ func getConfig(ctx contract.StaticContext, name string, curValidators []loom.Add
 
 	for _, v := range curValidators {
 		validatorsHashMap[v.String()] = true
+		ctx.Logger().Info(v.String())
 	}
 	for _, vote := range config.Votes {
 		// Only count valid validator votes
-		if validatorsHashMap[vote.Validator.String()] {
-			candidateScores[vote.Validator.String()]++
+		validator := loom.UnmarshalAddressPB(vote.Validator)
+		if validatorsHashMap[validator.String()] {
+			candidateScores[vote.Value]++
 		}
 	}
 
-	candidates := make([]*Candidate, 0)
+	if len(curValidators) == 0 {
+		return &config, nil
+	}
+
+	proposals := make([]*Proposal, 0)
 	for value, voteScore := range candidateScores {
-		candidate := &Candidate{
+		proposal := &Proposal{
 			Value:      value,
 			Percentage: uint64((voteScore * 100) / len(curValidators)),
 		}
-		candidates = append(candidates, candidate)
+		proposals = append(proposals, proposal)
 	}
-
-	if len(curValidators) > 0 {
-		config.Candidates = candidates
-	}
+	config.Proposals = proposals
 
 	return &config, nil
 }
 
-func getMostPopularCandidate(candidates []*Candidate) *Candidate {
-	var candidate *Candidate
-	for i, c := range candidates {
+func getMostPopularProposal(proposals []*Proposal) *Proposal {
+	var proposal *Proposal
+	for i, p := range proposals {
 		if i == 0 {
-			candidate = c
+			proposal = p
 			continue
 		}
-		if c.Percentage > candidate.Percentage {
-			candidate = c
+		if p.Percentage > proposal.Percentage {
+			proposal = p
 		}
 	}
-	return candidate
+	return proposal
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})

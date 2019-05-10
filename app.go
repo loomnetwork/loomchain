@@ -278,6 +278,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
+	SetConfigs(blockHeight int64) error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -446,6 +447,10 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 	if chainConfigManager != nil {
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
+			panic(err)
+		}
+
+		if err := chainConfigManager.SetConfigs(a.height()); err != nil {
 			panic(err)
 		}
 	}
