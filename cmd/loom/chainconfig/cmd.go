@@ -31,6 +31,10 @@ func NewChainCfgCommand() *cobra.Command {
 		ListFeaturesCmd(),
 		FeatureEnabledCmd(),
 		RemoveFeatureCmd(),
+		SetConfigCmd(),
+		AddConfigCmd(),
+		ListConfigsCmd(),
+		GetConfigCmd(),
 	)
 	return cmd
 }
@@ -321,6 +325,128 @@ func RemoveFeatureCmd() *cobra.Command {
 		},
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const addConfigCmdExample = `
+loom chain-cfg add-config dpos.feeFloor --build 866 --vote-threshold 70
+`
+
+func AddConfigCmd() *cobra.Command {
+	var buildNumber uint64
+	var voteThreshold uint64
+	cmd := &cobra.Command{
+		Use:     "add-config <config name 1> ... <config name N>",
+		Short:   "Add new config",
+		Example: addConfigCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			for _, name := range args {
+				if name == "" {
+					return fmt.Errorf("Invalid config name")
+				}
+			}
+			if voteThreshold == 0 {
+				return fmt.Errorf("Invalid vote threshold")
+			}
+			req := &cctype.AddConfigRequest{
+				Names:         args,
+				BuildNumber:   buildNumber,
+				VoteThreshold: voteThreshold,
+			}
+			err := cli.CallContract(chainConfigContractName, "AddConfig", req, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number that supports this config")
+	cmdFlags.Uint64Var(&voteThreshold, "vote-threshold", 0, "Set vote threshold")
+	cmd.MarkFlagRequired("build")
+	cmd.MarkFlagRequired("vote-threshold")
+	return cmd
+}
+
+const listConfigsCmdExample = `
+loom chainconfig list-configs
+`
+
+func ListConfigsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "list-configs",
+		Short:   "Display all configs",
+		Example: listConfigsCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.ListConfigsResponse
+			err := cli.StaticCallContract(chainConfigContractName, "ListConfigs", &cctype.ListConfigsRequest{}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const getConfigCmdExample = `
+loom chain-cfg get-config dpos.feeFloor
+`
+
+func GetConfigCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "get-config <config name>",
+		Short:   "Get config by config name",
+		Example: getConfigCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.GetConfigResponse
+			err := cli.StaticCallContract(chainConfigContractName, "GetConfig", &cctype.GetConfigRequest{Name: args[0]}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const setConfigCmdExample = `
+loom chain-cfg set-config dpos.feeFloor --value 15
+`
+
+func SetConfigCmd() *cobra.Command {
+	var value string
+	cmd := &cobra.Command{
+		Use:     "set-config <config name>",
+		Short:   "Set config setting",
+		Example: setConfigCmdExample,
+		Args:    cobra.RangeArgs(1, 1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] == "" || value == "" {
+				return fmt.Errorf("Invalid config name")
+			}
+			req := &cctype.SetConfigRequest{
+				Name:  args[0],
+				Value: value,
+			}
+			err := cli.CallContract(chainConfigContractName, "SetConfig", req, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&value, "value", "", "Set value of config")
 	return cmd
 }
 
