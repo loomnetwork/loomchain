@@ -178,9 +178,16 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 	}
 	signer := auth.NewSigner(signerType, privKey)
 
-	mainnetPrivateKey, err := LoadMainnetPrivateKey(cfg.MainnetPrivateKeyHsmEnabled, cfg.MainnetPrivateKeyPath)
-	if err != nil {
-		return nil, err
+	receiptSigningEnabled := !cfg.BatchSignFnConfig.Enabled
+
+	// only load the mainnet private key if receipt signing is needed
+	var mainnetPrivateKey lcrypto.PrivateKey
+	if receiptSigningEnabled {
+		mainnetPrivateKey, err = LoadMainnetPrivateKey(cfg.MainnetPrivateKeyHsmEnabled, cfg.MainnetPrivateKeyPath)
+		if err != nil {
+			return nil, err
+
+		}
 	}
 
 	address := loom.Address{
@@ -233,7 +240,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		withdrawalSig:       cfg.WithdrawalSig,
 		withdrawerBlacklist: withdrawerBlacklist,
 		// Oracle will do receipt signing when BatchSignFnConfig is disabled
-		receiptSigningEnabled: !cfg.BatchSignFnConfig.Enabled,
+		receiptSigningEnabled: receiptSigningEnabled,
 
 		erc20ABI: erc20ABI,
 	}, nil
