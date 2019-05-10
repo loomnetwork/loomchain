@@ -69,7 +69,7 @@
   Expected = ['75']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-params"
   Condition = "contains"
   Expected = ['100', '1']
 
@@ -79,7 +79,7 @@
   Expected = ['Error']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-params"
   Condition = "contains"
   Expected = ['50', '1000']
   
@@ -89,7 +89,7 @@
   Expected = ['Error']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-params"
   Condition = "contains"
   Expected = ['100', '1']
 
@@ -114,11 +114,11 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature feature1 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature feature1"
   Condition = "contains"
   Expected = ['feature1', '567']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature feature2 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-feature feature2"
   Condition = "contains"
   Expected = ['feature2', '567']
