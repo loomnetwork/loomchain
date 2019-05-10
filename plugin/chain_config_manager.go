@@ -60,5 +60,16 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	for _, feature := range features {
 		c.state.SetFeature(feature.Name, true)
 	}
+
+	configs, err := chainconfig.EnableConfigs(c.ctx, uint64(blockHeight), c.build)
+	if err != nil {
+		if err == chainconfig.ErrFeatureNotSupported {
+			panic(err)
+		}
+		return err
+	}
+	for _, config := range configs {
+		c.state.SetConfig(config.Name, config.ElectedCandidate.Value)
+	}
 	return nil
 }
