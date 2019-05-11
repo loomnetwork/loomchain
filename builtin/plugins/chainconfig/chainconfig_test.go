@@ -2,7 +2,6 @@ package chainconfig
 
 import (
 	"encoding/base64"
-	"fmt"
 	"testing"
 	"time"
 
@@ -358,7 +357,6 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(featureName, getFeature.Feature.Name)
 	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
 	require.Equal(uint64(50), getFeature.Feature.Percentage)
-	fmt.Println(formatJSON(getFeature))
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &EnableFeatureRequest{
 		Names: []string{featureName},
@@ -372,7 +370,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(featureName, getFeature.Feature.Name)
 	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
-	fmt.Println(formatJSON(getFeature))
+
 	buildNumber := uint64(1000)
 	enabledFeatures, err := EnableFeatures(ctx, 20, buildNumber)
 	require.NoError(err)
@@ -385,7 +383,6 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(featureName, getFeature.Feature.Name)
 	require.Equal(cctypes.Feature_WAITING, getFeature.Feature.Status)
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
-	fmt.Println(formatJSON(getFeature))
 
 	enabledFeatures, err = EnableFeatures(ctx, 31, buildNumber)
 	require.NoError(err)
@@ -398,13 +395,10 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(featureName, getFeature.Feature.Name)
 	require.Equal(cctypes.Feature_ENABLED, getFeature.Feature.Status)
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
-	fmt.Println(formatJSON(getFeature))
 
-	featureEnable, err := chainconfigContract.FeatureEnabled(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &plugintypes.FeatureEnabledRequest{
+	chainconfigContract.FeatureEnabled(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &plugintypes.FeatureEnabledRequest{
 		Name: featureName,
 	})
-
-	fmt.Println(formatJSON(featureEnable))
 }
 
 func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {
@@ -520,4 +514,215 @@ func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {
 	buildNumber = uint64(2000)
 	_, err = EnableFeatures(ctx, 1000, buildNumber)
 	require.NoError(err)
+}
+
+func (c *ChainConfigTestSuite) TestChainConfigFourValidators() {
+	require := c.Require()
+	configName := "dpos.feeFloor"
+	encoder := base64.StdEncoding
+	pubKeyB64_1, _ = encoder.DecodeString(pubKey1)
+	addr1 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
+	pubKeyB64_2, _ = encoder.DecodeString(pubKey2)
+	addr2 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_2)}
+	pubKeyB64_3, _ = encoder.DecodeString(pubKey3)
+	addr3 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_3)}
+	pubKeyB64_4, _ = encoder.DecodeString(pubKey4)
+	addr4 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_4)}
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	validators := []*loom.Validator{
+		&loom.Validator{
+			PubKey: pubKeyB64_1,
+			Power:  10,
+		},
+		&loom.Validator{
+			PubKey: pubKeyB64_2,
+			Power:  10,
+		},
+		&loom.Validator{
+			PubKey: pubKeyB64_3,
+			Power:  10,
+		},
+		&loom.Validator{
+			PubKey: pubKeyB64_4,
+			Power:  10,
+		},
+	}
+	pctx = pctx.WithValidators(validators)
+
+	//Init fake coin contract
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{},
+	})
+	require.NoError(err)
+
+	//Init fake dposv2 contract
+	dposv2Contract := dposv2.DPOS{}
+	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	pctx = pctx.WithAddress(dposv2Addr)
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
+		Params: &dposv2.Params{
+			ValidatorCount: 21,
+		},
+		Validators: validators,
+	})
+	require.NoError(err)
+
+	chainconfigContract := &ChainConfig{}
+	err = chainconfigContract.Init(ctx, &InitRequest{
+		Owner: addr1.MarshalPB(),
+		Params: &Params{
+			VoteThreshold:         66,
+			NumBlockConfirmations: 10,
+		},
+	})
+	require.NoError(err)
+
+	setConfigRequest := &SetConfigRequest{
+		Name:  configName,
+		Value: "40",
+	}
+
+	err = chainconfigContract.AddConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &AddConfigRequest{
+		Names:         []string{configName},
+		VoteThreshold: 80,
+		BuildNumber:   0,
+	})
+	require.NoError(err)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr4)), setConfigRequest)
+	require.NoError(err)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr2)), setConfigRequest)
+	require.NoError(err)
+
+	setConfigRequest.Value = "30"
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), setConfigRequest)
+	require.NoError(err)
+
+	config, err := chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: configName,
+	})
+	require.NoError(err)
+	require.Equal(cctypes.Config_VOTING, config.Config.Status)
+	proposal := getMostPopularProposal(config.Config.Proposals)
+	require.Equal(uint64(50), proposal.Percentage)
+	require.Equal("40", proposal.Value)
+
+	setConfigRequest.Value = "40"
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), setConfigRequest)
+	require.NoError(err)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: configName,
+	})
+	proposal = getMostPopularProposal(config.Config.Proposals)
+	require.Equal(uint64(75), proposal.Percentage)
+	require.Equal("40", proposal.Value)
+
+	configs, err := SetConfigs(contractpb.WrapPluginContext(pctx), 70, 0)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: configName,
+	})
+	require.Nil(config.Config.Settlement)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), setConfigRequest)
+	require.NoError(err)
+
+	configs, err = SetConfigs(contractpb.WrapPluginContext(pctx), 70, 0)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: configName,
+	})
+	proposal = getMostPopularProposal(config.Config.Proposals)
+	require.Equal(uint64(100), proposal.Percentage)
+	require.NotNil(config.Config.Settlement)
+	require.Equal(ConfigSettled, config.Config.Status)
+	require.Equal("40", config.Config.Settlement.Value)
+
+	configs, err = SetConfigs(contractpb.WrapPluginContext(pctx), 100, 0)
+	require.Equal(1, len(configs))
+	require.Equal(configName, configs[0].Name)
+	require.Equal("40", configs[0].Settlement.Value)
+	//storeStateKey := util.PrefixKey([]byte("config"), []byte(configName))
+	pctx.SetConfig(configName, configs[0].Settlement.Value)
+
+	cfg := pctx.ChainConfig()
+	require.Equal(int64(40), cfg.DPOS().FeeFloor(10))
+
+	setConfigRequest.Value = "20"
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), setConfigRequest)
+	require.NoError(err)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: configName,
+	})
+	proposal = getMostPopularProposal(config.Config.Proposals)
+	require.Equal(uint64(25), proposal.Percentage)
+	require.NotNil(config.Config.Settlement)
+	require.Equal(ConfigVoting, config.Config.Status)
+	require.Equal("40", config.Config.Settlement.Value)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr4)), setConfigRequest)
+	require.NoError(err)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr2)), setConfigRequest)
+	require.NoError(err)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: configName,
+	})
+	proposal = getMostPopularProposal(config.Config.Proposals)
+	require.Equal(uint64(75), proposal.Percentage)
+	require.NotNil(config.Config.Settlement)
+	require.Equal(ConfigVoting, config.Config.Status)
+	require.Equal("40", config.Config.Settlement.Value)
+
+	dposLockTime := "dpos.lockTime"
+
+	err = chainconfigContract.AddConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &AddConfigRequest{
+		Names:         []string{dposLockTime},
+		VoteThreshold: 30,
+		BuildNumber:   0,
+	})
+	require.NoError(err)
+
+	setConfigRequest = &SetConfigRequest{
+		Name:  dposLockTime,
+		Value: "1000",
+	}
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr4)), setConfigRequest)
+	require.NoError(err)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr2)), setConfigRequest)
+	require.NoError(err)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: dposLockTime,
+	})
+	proposal = getMostPopularProposal(config.Config.Proposals)
+	require.Equal(uint64(50), proposal.Percentage)
+	require.Equal(ConfigVoting, config.Config.Status)
+	require.Equal("1000", proposal.Value)
+
+	SetConfigs(contractpb.WrapPluginContext(pctx), 100, 0)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: dposLockTime,
+	})
+	require.NotNil(config.Config.Settlement)
+	require.Equal(ConfigSettled, config.Config.Status)
+
+	configs, err = SetConfigs(contractpb.WrapPluginContext(pctx), 200, 0)
+	require.Equal(1, len(configs))
+	require.Equal(dposLockTime, configs[0].Name)
+	require.Equal("1000", configs[0].Settlement.Value)
+
 }

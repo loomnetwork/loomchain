@@ -164,7 +164,7 @@ func (s *StoreState) ChainConfig() loom.Config {
 	for _, data := range configRange {
 		configs[string(data.Key)] = string(data.Value)
 	}
-	cfg := NewChainConfig(configs)
+	cfg := loom.NewChainConfig(configs)
 	return cfg
 }
 
