@@ -41,6 +41,8 @@ type (
 	ListConfigsRequest  = cctypes.ListConfigsRequest
 	ListConfigsResponse = cctypes.ListConfigsResponse
 	SetConfigRequest    = cctypes.SetConfigRequest
+	ConfigValueRequest  = cctypes.ConfigValueRequest
+	ConfigValueResponse = cctypes.ConfigValueResponse
 )
 
 const (
@@ -465,6 +467,20 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 	return ctx.Set(configKey(req.Name), &config)
 }
 
+// ConfigValue checks value of a specific config that is currently set on the chain, which means that
+// it has been voted by a sufficient number of validators, and has been set.
+func (c *ChainConfig) ConfigValue(ctx contract.StaticContext, req *ConfigValueRequest) (*ConfigValueResponse, error) {
+	if req.Name == "" {
+		return nil, ErrInvalidRequest
+	}
+	cfg := ctx.ChainConfig()
+	val := cfg.GetConfig(req.Name)
+	return &ConfigValueResponse{
+		Name:  req.Name,
+		Value: val,
+	}, nil
+}
+
 // ListConfigs returns info about all the currently known configs.
 func (c *ChainConfig) ListConfigs(ctx contract.StaticContext, req *ListConfigsRequest) (*ListConfigsResponse, error) {
 	curValidators, err := getCurrentValidators(ctx)
@@ -491,7 +507,7 @@ func (c *ChainConfig) ListConfigs(ctx contract.StaticContext, req *ListConfigsRe
 	}, nil
 }
 
-func EnableConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Config, error) {
+func SetConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Config, error) {
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
@@ -503,13 +519,13 @@ func EnableConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Co
 	}
 
 	configRange := ctx.Range([]byte(configPrefix))
-	enabledConfigs := make([]*Config, 0)
+	activatedConfigs := make([]*Config, 0)
 	for _, data := range configRange {
 		var cfg Config
 		if err := proto.Unmarshal(data.Value, &cfg); err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal config %s", string(data.Key))
 		}
-		// this one will calculate the percentage for pending config
+		// this one will calculate the percentage for voting config
 		config, err := getConfig(ctx, cfg.Name, curValidators)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get config info %s", cfg.Name)
@@ -547,12 +563,12 @@ func EnableConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Co
 				if err := ctx.Set(configKey(config.Name), config); err != nil {
 					return nil, err
 				}
-				enabledConfigs = append(enabledConfigs, config)
+				activatedConfigs = append(activatedConfigs, config)
 				ctx.Logger().Info(
 					"[Config status changed]",
 					"name", config.Name,
-					"from", FeatureWaiting,
-					"to", FeatureEnabled,
+					"from", ConfigSettled,
+					"to", ConfigActivated,
 					"block_height", blockHeight,
 					"percentage", config.Settlement.Percentage,
 					"value", config.Settlement.Value,
@@ -561,7 +577,7 @@ func EnableConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Co
 		}
 
 	}
-	return enabledConfigs, nil
+	return activatedConfigs, nil
 }
 
 func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
@@ -803,7 +819,6 @@ func getConfig(ctx contract.StaticContext, name string, curValidators []loom.Add
 
 	for _, v := range curValidators {
 		validatorsHashMap[v.String()] = true
-		ctx.Logger().Info(v.String())
 	}
 	for _, vote := range config.Votes {
 		// Only count valid validator votes

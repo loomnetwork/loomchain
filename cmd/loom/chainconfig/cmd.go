@@ -35,6 +35,7 @@ func NewChainCfgCommand() *cobra.Command {
 		AddConfigCmd(),
 		ListConfigsCmd(),
 		GetConfigCmd(),
+		ChainConfigCmd(),
 	)
 	return cmd
 }
@@ -447,6 +448,39 @@ func SetConfigCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&value, "value", "", "Set value of config")
+	return cmd
+}
+
+const cfgCmdExample = `
+loom chain-cfg config-value dpos.feeFloor
+`
+
+func ChainConfigCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "config-value <config name>",
+		Short:   "Get the activated value on chain of a config",
+		Example: setConfigCmdExample,
+		Args:    cobra.RangeArgs(1, 1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] == "" {
+				return fmt.Errorf("Invalid config name")
+			}
+			var resp cctype.ConfigValueResponse
+			req := &cctype.ConfigValueResponse{
+				Name: args[0],
+			}
+			err := cli.StaticCallContract(chainConfigContractName, "ConfigValue", req, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
 	return cmd
 }
 

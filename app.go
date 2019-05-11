@@ -140,7 +140,6 @@ func configKey(configName string) []byte {
 }
 
 func (s *StoreState) FeatureEnabled(name string, val bool) bool {
-
 	data := s.store.Get(featureKey(name))
 	if len(data) == 0 {
 		return val

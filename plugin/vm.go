@@ -262,6 +262,10 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
+func (c *contractContext) ChainConfig() loom.Config {
+	return c.VM.State.ChainConfig()
+}
+
 func (c *contractContext) Validators() []*ltypes.Validator {
 	return c.VM.State.Validators()
 }
