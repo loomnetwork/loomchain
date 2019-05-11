@@ -64,8 +64,11 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 }
 
 func (c *ChainConfigManager) SetConfigs(blockHeight int64) error {
-	configs, err := chainconfig.EnableConfigs(c.ctx, uint64(blockHeight), c.build)
+	configs, err := chainconfig.SetConfigs(c.ctx, uint64(blockHeight), c.build)
 	if err != nil {
+		// When an unsupported config has been activated by the rest of the chain
+		// panic to prevent the node from processing any further blocks until it's
+		// upgraded to a new build that supports the config.
 		if err == chainconfig.ErrConfigNotSupported {
 			panic(err)
 		}
