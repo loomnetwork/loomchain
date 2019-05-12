@@ -43,6 +43,7 @@ type (
 	SetConfigRequest    = cctypes.SetConfigRequest
 	ConfigValueRequest  = cctypes.ConfigValueRequest
 	ConfigValueResponse = cctypes.ConfigValueResponse
+	RemoveConfigRequest = cctypes.RemoveConfigRequest
 )
 
 const (
@@ -467,6 +468,27 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 	return ctx.Set(configKey(req.Name), &config)
 }
 
+// RemoveConfig should be called by the contract owner to remove configs.
+func (c *ChainConfig) RemoveConfig(ctx contract.Context, req *RemoveConfigRequest) error {
+	if len(req.Names) == 0 {
+		return ErrInvalidRequest
+	}
+	for _, name := range req.Names {
+		if name == "" {
+			return ErrInvalidRequest
+		}
+		// TODO: config should have its own permission
+		if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
+			return ErrNotAuthorized
+		}
+		if found := ctx.Has(configKey(name)); !found {
+			return ErrConfigNotFound
+		}
+		ctx.Delete(configKey(name))
+	}
+	return nil
+}
+
 // ConfigValue checks value of a specific config that is currently set on the chain, which means that
 // it has been voted by a sufficient number of validators, and has been set.
 func (c *ChainConfig) ConfigValue(ctx contract.StaticContext, req *ConfigValueRequest) (*ConfigValueResponse, error) {
@@ -578,6 +600,20 @@ func SetConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Confi
 
 	}
 	return activatedConfigs, nil
+}
+
+// ConfigList returns the list of config on the chainconfig contract
+func ConfigList(ctx contract.Context) ([]*Config, error) {
+	configRange := ctx.Range([]byte(configPrefix))
+	configList := make([]*Config, 0)
+	for _, data := range configRange {
+		var config Config
+		if err := proto.Unmarshal(data.Value, &config); err != nil {
+			return nil, errors.Wrapf(err, "failed to unmarshal config %s", string(data.Key))
+		}
+		configList = append(configList, &config)
+	}
+	return configList, nil
 }
 
 func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {

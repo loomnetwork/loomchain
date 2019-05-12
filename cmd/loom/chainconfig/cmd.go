@@ -36,6 +36,7 @@ func NewChainCfgCommand() *cobra.Command {
 		ListConfigsCmd(),
 		GetConfigCmd(),
 		ChainConfigCmd(),
+		RemoveConfigCmd(),
 	)
 	return cmd
 }
@@ -478,6 +479,38 @@ func ChainConfigCmd() *cobra.Command {
 				return err
 			}
 			fmt.Println(out)
+			return nil
+		},
+	}
+	return cmd
+}
+
+const removeConfigCmdExample = `
+loom chain-cfg remove-config dpos.feeFloor dpos.lockTime
+`
+
+func RemoveConfigCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "remove-config <config name 1> ... <config name N>",
+		Short:   "Remove config by config name",
+		Example: removeConfigCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			for _, name := range args {
+				if name == "" {
+					return fmt.Errorf("Invalid feature name")
+				}
+			}
+			if err := cli.CallContract(
+				chainConfigContractName,
+				"RemoveConfig",
+				&cctype.RemoveConfigRequest{
+					Names: args,
+				},
+				nil,
+			); err != nil {
+				return err
+			}
 			return nil
 		},
 	}

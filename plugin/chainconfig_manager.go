@@ -16,6 +16,11 @@ var (
 	ErrChainConfigContractNotFound = errors.New("[ChainConfigManager] ChainContract contract not found")
 )
 
+const (
+	// This configPrefix must have the same value as configPrefix in app.go
+	configPrefix = "config"
+)
+
 // ChainConfigManager implements loomchain.ChainConfigManager interface
 type ChainConfigManager struct {
 	ctx   contract.Context
@@ -77,5 +82,31 @@ func (c *ChainConfigManager) SetConfigs(blockHeight int64) error {
 	for _, config := range configs {
 		c.state.SetConfig(config.Name, config.Settlement.Value)
 	}
+
+	// The following logic remove configs that do not
+	configListHashMap := make(map[string]bool)
+	configListOnChain := c.state.Range([]byte(configPrefix))
+	configListOnContract, err := chainconfig.ConfigList(c.ctx)
+	if err != nil {
+		return err
+	}
+
+	// Make hashmap of configs on chain
+	for _, config := range configListOnChain {
+		configListHashMap[string(config.Key)] = true
+	}
+
+	// Cross out configs that still exist on the contract
+	for _, config := range configListOnContract {
+		configListHashMap[string(config.Name)] = false
+	}
+
+	// Delete configs (on chain) that do not exist anymore
+	for configName, deleted := range configListHashMap {
+		if deleted {
+			c.state.DeleteConfig(configName)
+		}
+	}
+
 	return nil
 }
