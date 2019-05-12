@@ -725,4 +725,26 @@ func (c *ChainConfigTestSuite) TestChainConfigFourValidators() {
 	require.Equal(dposLockTime, configs[0].Name)
 	require.Equal("1000", configs[0].Settlement.Value)
 
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), setConfigRequest)
+	require.NoError(err)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), setConfigRequest)
+	require.NoError(err)
+
+	validators = append(validators[:1], validators[2:]...)
+	err = dposv2Contract.Init(ctx, &dposv2.InitRequest{
+		Params: &dposv2.Params{
+			ValidatorCount: 21,
+		},
+		Validators: validators,
+	})
+	require.NoError(err)
+
+	err = chainconfigContract.SetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), setConfigRequest)
+	require.NoError(err)
+
+	config, err = chainconfigContract.GetConfig(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetConfigRequest{
+		Name: dposLockTime,
+	})
+	require.Equal(3, len(config.Config.Votes))
 }

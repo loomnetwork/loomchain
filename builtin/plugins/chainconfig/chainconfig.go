@@ -60,10 +60,10 @@ const (
 
 	// ConfigVoting status indicates new config settings are being voted.
 	ConfigVoting = cctypes.Config_VOTING
-	// ConfigElected status indicates a new config setting has been settled by majority of validators, but
+	// ConfigSettled status indicates a new config setting has been settled by majority of validators, but
 	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
 	ConfigSettled = cctypes.Config_SETTLED
-	// ConfigSet status indicates a new config has been settled by majority of validators, and
+	// ConfigActivated status indicates a new config has been voted by majority of validators, and
 	// has been activated on the chain.
 	ConfigActivated = cctypes.Config_ACTIVATED
 )
@@ -411,7 +411,7 @@ func (c *ChainConfig) GetConfig(ctx contract.StaticContext, req *GetConfigReques
 	}, nil
 }
 
-// SetConfig should be called by a validator to indicate they want to set a new config value.
+// SetConfig should be called by a validator to indicate they want to propose a new config value.
 func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) error {
 	if req.Name == "" || req.Value == "" {
 		return ErrInvalidRequest
@@ -422,6 +422,13 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 	if err != nil {
 		return err
 	}
+
+	// create validators hash map for checking valid validator
+	curValidatorsHashMap := make(map[string]bool, 0)
+	for _, validator := range curValidators {
+		curValidatorsHashMap[validator.String()] = true
+	}
+
 	sender := ctx.Message().Sender
 
 	found := false
@@ -441,15 +448,24 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 		return errors.Wrapf(err, "config '%s' not found", req.Name)
 	}
 
-	// if the cnfig has already been activated there's no point in recording additional votes
+	// if the config has already been settled there's no point in recording additional votes
 	if config.Status == ConfigSettled {
 		return ErrConfigAlreadySettled
+		// if a validator sets a config that has been activated, change config status to voting,
 	} else if config.Status == ConfigActivated {
 		config.Status = ConfigVoting
 	}
 
+	votes := make([]*Vote, 0)
 	var vote *Vote
 	for _, v := range config.Votes {
+		// only add valid votes to vote list
+		voterAddr := loom.UnmarshalAddressPB(v.Validator).String()
+		if curValidatorsHashMap[voterAddr] {
+			votes = append(votes, v)
+		}
+
+		// find the vote of this validator
 		if sender.Compare(loom.UnmarshalAddressPB(v.Validator)) == 0 {
 			vote = v
 		}
@@ -460,10 +476,12 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 			Validator: sender.MarshalPB(),
 			Value:     req.Value,
 		}
-		config.Votes = append(config.Votes, vote)
+		votes = append(votes, vote)
 	} else {
 		vote.Value = req.Value
 	}
+
+	config.Votes = votes
 
 	return ctx.Set(configKey(req.Name), &config)
 }
@@ -529,6 +547,11 @@ func (c *ChainConfig) ListConfigs(ctx contract.StaticContext, req *ListConfigsRe
 	}, nil
 }
 
+// SetConfigs updates the status of configs that haven't been activated yet:
+// - A VOTING config will become SETTLED once the percentage of validators that have voted to set
+//   a particular value reaches a certain threshold.
+// - A SETTLED config will become ACTIVATED after a sufficient number of block confirmations.
+// Returns a list of configs whose status has changed from SETTLED to ACTIVTED at the given height.
 func SetConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Config, error) {
 	params, err := getParams(ctx)
 	if err != nil {
@@ -602,7 +625,7 @@ func SetConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Confi
 	return activatedConfigs, nil
 }
 
-// ConfigList returns the list of config on the chainconfig contract
+// ConfigList returns the list of configs on the chainconfig contract
 func ConfigList(ctx contract.Context) ([]*Config, error) {
 	configRange := ctx.Range([]byte(configPrefix))
 	configList := make([]*Config, 0)
