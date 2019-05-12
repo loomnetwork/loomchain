@@ -451,7 +451,7 @@ func SetConfigCmd() *cobra.Command {
 	return cmd
 }
 
-const cfgCmdExample = `
+const chainconfigCmdExample = `
 loom chain-cfg config-value dpos.feeFloor
 `
 
@@ -459,7 +459,7 @@ func ChainConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "config-value <config name>",
 		Short:   "Get the activated value on chain of a config",
-		Example: setConfigCmdExample,
+		Example: chainconfigCmdExample,
 		Args:    cobra.RangeArgs(1, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" {

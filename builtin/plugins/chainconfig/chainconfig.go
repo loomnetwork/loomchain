@@ -95,8 +95,8 @@ var (
 	ErrConfigNotSupported = errors.New("[ChainConfig] config is not supported in the current build")
 	// ErrConfigAlreadyExists returned if an owner try to set an existing config
 	ErrConfigAlreadyExists = errors.New("[ChainConfig] config already exists")
-	// ErrConfigAlreadyElected is returned if a validator tries to vote a confg that's already elected
-	ErrConfigAlreadySettled = errors.New("[ChainConfig] confg already ")
+	// ErrConfigAlreadySettled is returned if a validator tries to vote a confg that's already settled
+	ErrConfigAlreadySettled = errors.New("[ChainConfig] config already settled")
 )
 
 const (
