@@ -40,6 +40,7 @@ type State interface {
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
 	SetConfig(string, string)
+	DeleteConfig(string)
 }
 
 type StoreState struct {
@@ -168,6 +169,10 @@ func (s *StoreState) ChainConfig() loom.Config {
 
 func (s *StoreState) SetConfig(name, value string) {
 	s.store.Set(configKey(name), []byte(value))
+}
+
+func (s *StoreState) DeleteConfig(name string) {
+	s.store.Delete(configKey(name))
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
