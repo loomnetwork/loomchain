@@ -664,7 +664,7 @@ func (c *ChainConfigTestSuite) TestChainConfigFourValidators() {
 		Name: configName,
 	})
 	proposal = getMostPopularProposal(config.Config.Proposals)
-	require.Equal(uint64(25), proposal.Percentage)
+	require.Equal(uint64(75), proposal.Percentage)
 	require.NotNil(config.Config.Settlement)
 	require.Equal(ConfigVoting, config.Config.Status)
 	require.Equal("40", config.Config.Settlement.Value)
