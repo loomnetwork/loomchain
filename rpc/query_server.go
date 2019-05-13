@@ -783,7 +783,7 @@ func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount 
 		return txCount, err
 	}
 
-	height, err := s.GetBlockHeightFromHash(blockHash)
+	height, err := s.getBlockHeightFromHash(blockHash)
 	if err != nil {
 		return txCount, err
 	}
@@ -820,7 +820,7 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 		return resp, err
 	}
 
-	height, err := s.GetBlockHeightFromHash(blockHash)
+	height, err := s.getBlockHeightFromHash(blockHash)
 	if err != nil {
 		return resp, err
 	}
@@ -870,7 +870,7 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 		return txObj, err
 	}
 
-	height, err := s.GetBlockHeightFromHash(blockHash)
+	height, err := s.getBlockHeightFromHash(blockHash)
 	if err != nil {
 		return txObj, err
 	}
@@ -1056,9 +1056,9 @@ func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
 }
 
-func (s *QueryServer) GetBlockHeightFromHash(hash []byte) (uint64, error) {
+func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	if nil != s.BlockIndexStore {
-		return s.BlockIndexStore.GetHeight(hash)
+		return s.BlockIndexStore.GetBlockHeightByHash(hash)
 	} else {
 		snapshot := s.StateProvider.ReadOnlyState()
 		defer snapshot.Release()

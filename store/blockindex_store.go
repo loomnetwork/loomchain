@@ -10,15 +10,15 @@ import (
 )
 
 const (
-	LevelDBFilename = "blockIndex_db"
+	LevelDBFilename = "blockIndex"
 	BisMemory       = "Memory"
-	BisLevelDB      = "LevelDB"
+	BisLevelDB      = "DBBackend"
 	BisLegacy       = "Legacy"
 )
 
 type BlockIndexStore interface {
-	GetHeight(hash []byte) (uint64, error)
-	PutHashHeight(hash []byte, height uint64) error
+	GetBlockHeightByHash(hash []byte) (uint64, error)
+	SetBlockHashAtHeight(hash []byte, height uint64) error
 	ClearData()
 	Close() error
 }
@@ -56,7 +56,7 @@ func NewMemoryBlockIndexStore() BlockIndexStore {
 	}
 }
 
-func (ms MemoryBlockIndexStore) GetHeight(hash []byte) (uint64, error) {
+func (ms MemoryBlockIndexStore) GetBlockHeightByHash(hash []byte) (uint64, error) {
 	height, ok := ms.hashHeight[string(hash)]
 	if !ok {
 		return 0, errors.New("block hash not found")
@@ -64,7 +64,7 @@ func (ms MemoryBlockIndexStore) GetHeight(hash []byte) (uint64, error) {
 	return height, nil
 }
 
-func (ms MemoryBlockIndexStore) PutHashHeight(hash []byte, height uint64) error {
+func (ms MemoryBlockIndexStore) SetBlockHashAtHeight(hash []byte, height uint64) error {
 	ms.hashHeight[string(hash)] = height
 	return nil
 }
@@ -91,17 +91,17 @@ func NewLevelDBBlockIndexStore() (BlockIndexStore, error) {
 	}, nil
 }
 
-func (ls LevelDBBlockIndexStore) GetHeight(hash []byte) (uint64, error) {
+func (ls LevelDBBlockIndexStore) GetBlockHeightByHash(hash []byte) (uint64, error) {
 	height, err := ls.db.Get(hash, nil)
 	if err != nil {
 		return 0, err
 	}
-	return binary.LittleEndian.Uint64(height), nil
+	return binary.BigEndian.Uint64(height), nil
 }
 
-func (ls LevelDBBlockIndexStore) PutHashHeight(hash []byte, height uint64) error {
+func (ls LevelDBBlockIndexStore) SetBlockHashAtHeight(hash []byte, height uint64) error {
 	hightBuffer := make([]byte, 8)
-	binary.LittleEndian.PutUint64(hightBuffer, height)
+	binary.BigEndian.PutUint64(hightBuffer, height)
 	return ls.db.Put(hash, hightBuffer, nil)
 }
 

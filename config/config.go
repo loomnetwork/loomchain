@@ -92,7 +92,7 @@ type Config struct {
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 	// Blockstore config
-	BlockStore *store.BlockStoreConfig
+	BlockStore      *store.BlockStoreConfig
 	BlockIndexStore *store.BlockIndexStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
@@ -656,7 +656,7 @@ BlockStore:
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
 BlockIndexStore:
-  # LevelDB | Legacy | Memory
+  # DBBackend | Legacy | Memory
   Method: {{ .BlockIndexStore.Method }}
 #
 # Cashing store 

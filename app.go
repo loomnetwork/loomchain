@@ -375,12 +375,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
-	if a.BlockIndexStore != nil {
-		if err := a.BlockIndexStore.PutHashHeight(a.curBlockHash, uint64(a.height())); err != nil {
-			log.Error("Error saveing height to block index store", "err", err)
-		}
-	}
-
 	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
 		upkeepState := NewStoreState(
@@ -627,6 +621,12 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	if err := a.Store.Prune(); err != nil {
 		log.Error("failed to prune app.db", "err", err)
+	}
+
+	if a.BlockIndexStore != nil {
+		if err := a.BlockIndexStore.SetBlockHashAtHeight(a.curBlockHash, uint64(a.height())); err != nil {
+			log.Error("Error saving height to block index store", "err", err)
+		}
 	}
 
 	return abci.ResponseCommit{

@@ -621,12 +621,8 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func destroyBlockIndexDB(cfg *config.Config) error {
-	bis, err := store.NewBlockIndexStore(cfg.BlockIndexStore)
-	if err != nil {
-		return err
-	}
-	if bis != nil {
-		bis.ClearData()
+	if cfg.BlockIndexStore.Method == store.BisLevelDB {
+		store.LevelDBBlockIndexStore{}.ClearData()
 	}
 	return nil
 }
