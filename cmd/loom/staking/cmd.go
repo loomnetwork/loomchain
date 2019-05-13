@@ -5,7 +5,7 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -15,16 +15,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 const (
-	dPOSV2ContractName = "dposV2"
+	dPOSV2ContractName        = "dposV2"
 	addressMapperContractName = "addressmapper"
 )
 
 func NewStakingCommand() *cobra.Command {
-	cmd := cli.ContractCallCommand("staking")
-	cmd.Use = "staking"
-	cmd.Short = "Run staking commands"
+	cmd := &cobra.Command{
+		Use:   "staking <command>",
+		Short: "Run staking commands",
+	}
 	cmd.AddCommand(
 		ListAllDelegationsCmd(),
 		GetMappingCmd(),
@@ -42,13 +42,14 @@ func NewStakingCommand() *cobra.Command {
 }
 
 func ListAllDelegationsCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:   "list-all-delegations",
 		Short: "display the all delegations",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListAllDelegationsResponse
-			err := cli.StaticCallContract(dPOSV2ContractName, "ListAllDelegations",
+			err := cli.StaticCallContractWithFlags(&flags, dPOSV2ContractName, "ListAllDelegations",
 				&dposv2.ListAllDelegationsRequest{}, &resp)
 			if err != nil {
 				return err
@@ -61,6 +62,8 @@ func ListAllDelegationsCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const listDelegationsCmdExample = `
@@ -68,7 +71,8 @@ loom staking list-delegations 0x0ca3d6bf201ce53c7ddc3cb397ae33a68ed4a328
 `
 
 func ListDelegationsCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "list-delegations <validator hex address>",
 		Short:   "List a validator's delegations and delegation total",
 		Example: listDelegationsCmdExample,
@@ -80,7 +84,7 @@ func ListDelegationsCmd() *cobra.Command {
 			}
 
 			var resp dposv2.ListDelegationsResponse
-			err = cli.StaticCallContract(
+			err = cli.StaticCallContractWithFlags(&flags,
 				dPOSV2ContractName, "ListDelegations",
 				&dposv2.ListDelegationsRequest{Candidate: addr.MarshalPB()}, &resp,
 			)
@@ -95,16 +99,20 @@ func ListDelegationsCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 func ListValidatorsCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:   "list-validators",
 		Short: "List the current validators",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListValidatorsResponseV2
-			err := cli.StaticCallContract(dPOSV2ContractName, "ListValidators", &dposv2.ListValidatorsRequestV2{},
-			&resp)
+			// nolint:lll
+			err := cli.StaticCallContractWithFlags(&flags, dPOSV2ContractName, "ListValidators", &dposv2.ListValidatorsRequestV2{},
+				&resp)
 			if err != nil {
 				return err
 			}
@@ -116,6 +124,8 @@ func ListValidatorsCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const totalDelegationCmdExample = `
@@ -127,7 +137,8 @@ loom staking total-delegation eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
 `
 
 func TotalDelegationCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "total-delegation (delegator address)",
 		Short:   "Display total staking amount that has delegated to all validators",
 		Example: totalDelegationCmdExample,
@@ -143,7 +154,7 @@ func TotalDelegationCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(addressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
@@ -151,7 +162,7 @@ func TotalDelegationCmd() *cobra.Command {
 			}
 
 			var resp dposv2.TotalDelegationResponse
-			err = cli.StaticCallContract(
+			err = cli.StaticCallContractWithFlags(&flags,
 				dPOSV2ContractName, "TotalDelegation",
 				&dposv2.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp,
 			)
@@ -166,6 +177,8 @@ func TotalDelegationCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const checkDelegationsCmdExample = `
@@ -173,7 +186,8 @@ loom staking check-delegation 0x0ca3d6bf201ce53c7ddc3cb397ae33a68ed4a328 0x75148
 `
 
 func CheckDelegationsCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "check-delegation (validator address) (delegator address)",
 		Short:   "Check delegation to a particular validator",
 		Example: checkDelegationsCmdExample,
@@ -188,7 +202,7 @@ func CheckDelegationsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = cli.StaticCallContract(
+			err = cli.StaticCallContractWithFlags(&flags,
 				dPOSV2ContractName, "CheckDelegation",
 				&dposv2.CheckDelegationRequestV2{
 					ValidatorAddress: validatorAddress.MarshalPB(),
@@ -206,6 +220,8 @@ func CheckDelegationsCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const getMappingCmdExample = `
@@ -217,7 +233,8 @@ loom staking get-mapping eth:0x0BE2BC95ea604a5ac4ECcE0F8570fe58bC9C320A
 `
 
 func GetMappingCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "get-mapping",
 		Short:   "Get mapping address",
 		Example: getMappingCmdExample,
@@ -229,7 +246,7 @@ func GetMappingCmd() *cobra.Command {
 				return err
 			}
 
-			err = cli.StaticCallContract(
+			err = cli.StaticCallContractWithFlags(&flags,
 				addressMapperContractName, "GetMapping",
 				&address_mapper.AddressMapperGetMappingRequest{From: from.MarshalPB()}, &resp,
 			)
@@ -244,15 +261,18 @@ func GetMappingCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 func ListMappingCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:   "list-mapping",
 		Short: "List mapping address",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp address_mapper.AddressMapperListMappingResponse
-			err := cli.StaticCallContract(
+			err := cli.StaticCallContractWithFlags(&flags,
 				addressMapperContractName, "ListMapping",
 				&address_mapper.AddressMapperListMappingRequest{}, &resp,
 			)
@@ -267,6 +287,8 @@ func ListMappingCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const getBalanceCmdExample = `
@@ -278,7 +300,8 @@ loom staking balance eth:0x0BE2BC95ea604a5ac4ECcE0F8570fe58bC9C320A
 `
 
 func GetBalanceCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "balance <owner hex address>",
 		Short:   "Get balance on plasmachain",
 		Example: getBalanceCmdExample,
@@ -294,7 +317,7 @@ func GetBalanceCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(addressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
@@ -302,7 +325,7 @@ func GetBalanceCmd() *cobra.Command {
 			}
 
 			var resp coin.BalanceOfResponse
-			err = cli.StaticCallContract("coin", "BalanceOf", &coin.BalanceOfRequest{
+			err = cli.StaticCallContractWithFlags(&flags, "coin", "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
 			if err != nil {
@@ -316,6 +339,10 @@ func GetBalanceCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+
 }
 
 const getWithdrawalReceiptExample = `
@@ -327,7 +354,8 @@ loom staking withdrawal-receipt 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7
 `
 
 func WithdrawalReceiptCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "withdrawal-receipt <owner hex address>",
 		Short:   "Get the withdrawal receipt for an account",
 		Example: getWithdrawalReceiptExample,
@@ -343,7 +371,7 @@ func WithdrawalReceiptCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(addressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
@@ -351,7 +379,7 @@ func WithdrawalReceiptCmd() *cobra.Command {
 			}
 
 			var resp tgtypes.TransferGatewayWithdrawalReceiptResponse
-			err = cli.StaticCallContract(
+			err = cli.StaticCallContractWithFlags(&flags,
 				commands.LoomGatewayName, "WithdrawalReceipt",
 				&tgtypes.TransferGatewayWithdrawalReceiptRequest{
 					Owner: addr.MarshalPB(),
@@ -369,6 +397,8 @@ func WithdrawalReceiptCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const checkAllDelegationsExample = `
@@ -380,7 +410,8 @@ loom staking check-all-delegations 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7
 `
 
 func CheckAllDelegationsCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "check-all-delegations <delegator hex address>",
 		Short:   "Display all of a particular delegator's delegations",
 		Args:    cobra.MinimumNArgs(1),
@@ -396,7 +427,7 @@ func CheckAllDelegationsCmd() *cobra.Command {
 				var req = address_mapper.AddressMapperGetMappingRequest{
 					From: addr.MarshalPB(),
 				}
-				err = cli.StaticCallContract(addressMapperContractName, "GetMapping", &req, &resp)
+				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
 				if err != nil {
 					return err
 				}
@@ -404,7 +435,7 @@ func CheckAllDelegationsCmd() *cobra.Command {
 			}
 
 			var resp dposv2.CheckAllDelegationsResponse
-			err = cli.StaticCallContract(dPOSV2ContractName, "CheckAllDelegations", &dposv2.CheckAllDelegationsRequest{
+			err = cli.StaticCallContractWithFlags(&flags, dPOSV2ContractName, "CheckAllDelegations", &dposv2.CheckAllDelegationsRequest{
 				DelegatorAddress: addr.MarshalPB(),
 			}, &resp)
 			if err != nil {
@@ -418,6 +449,8 @@ func CheckAllDelegationsCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const listCandidatesExample = `
@@ -426,13 +459,14 @@ loom staking list-candidates
 `
 
 func ListCandidatesCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "list-candidates",
 		Short:   "List the registered candidates",
 		Example: listCandidatesExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListCandidateResponseV2
-			err := cli.StaticCallContract(dPOSV2ContractName, "ListCandidates", &dposv2.ListCandidateRequestV2{}, &resp)
+			err := cli.StaticCallContractWithFlags(&flags, dPOSV2ContractName, "ListCandidates", &dposv2.ListCandidateRequestV2{}, &resp)
 			if err != nil {
 				return err
 			}
@@ -444,6 +478,8 @@ func ListCandidatesCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 // Utils
