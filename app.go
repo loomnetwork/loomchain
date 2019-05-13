@@ -624,7 +624,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 
 	if a.BlockIndexStore != nil {
-		a.BlockIndexStore.SetBlockHashAtHeight(a.curBlockHash, uint64(a.height()))
+		a.BlockIndexStore.SetBlockHashAtHeight(a.curBlockHash, uint64(height))
 	}
 
 	return abci.ResponseCommit{
