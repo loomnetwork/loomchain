@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -75,11 +76,25 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
 
+	evmIndex := 0
+	txHashList, err := common.GetTxHashList(state, uint64(height))
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			txObj, err := GetTxObjectFromBlockResult(blockResult, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
+			}
+
+			txResult, err := blockStore.GetTxResult(tx.Hash())
+			if err != nil {
+				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+			}
+			if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info == utils.DeployEvm {
+				if evmIndex >= len(txHashList) {
+					return resp, fmt.Errorf("evm txs exceed tx-hash count %v ", len(txHashList))
+				}
+				txObj.Hash = eth.EncBytes(txHashList[evmIndex])
+				evmIndex++
 			}
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {

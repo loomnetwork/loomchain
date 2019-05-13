@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -283,8 +284,12 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 	if err != nil {
 		return nil, err
 	}
+	respDeliverTx := abci.ResponseDeliverTx{
+		Info: txResult.TxResult.Info,
+	}
 	results := &ctypes.ResultTx{
-		Index: txResult.Index,
+		Index:    txResult.Index,
+		TxResult: respDeliverTx,
 	}
 	return results, nil
 }
