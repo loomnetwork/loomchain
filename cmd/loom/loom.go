@@ -930,6 +930,11 @@ func loadApp(
 		loomchain.RecoveryTxMiddleware,
 	}
 
+	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
+		loomchain.LogPostCommitMiddleware,
+		auth.NonceTxPostNonceMiddleware,
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
 		cfg.Auth,
 		getContractCtx("addressmapper", vmManager),
@@ -953,6 +958,13 @@ func loadApp(
 			return nil, err
 		}
 		txMiddleWare = append(txMiddleWare, dwMiddleware)
+
+		deployRecorderMiddleware, err := throttle.NewDeployRecorderPostCommitMiddleware(contextFactory)
+		if err != nil {
+			return nil, err
+		}
+
+		postCommitMiddlewares = append(postCommitMiddlewares, deployRecorderMiddleware)
 	}
 
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
@@ -1080,10 +1092,6 @@ func loadApp(
 		return m, nil
 	}
 
-	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
-		loomchain.LogPostCommitMiddleware,
-		auth.NonceTxPostNonceMiddleware,
-	}
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}

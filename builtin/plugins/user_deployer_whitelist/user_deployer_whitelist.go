@@ -4,6 +4,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 type UserDeployerWhitelist struct {
@@ -16,8 +17,10 @@ func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address) error {
-
+// RecordContractDeployment will record contract deployer address, newly deployed contract and on which vm it is deployed.
+// If key is not part of whitelisted key, Ignore.
+func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address, vmType vm.VMType) error {
+	panic("not implemented")
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&UserDeployerWhitelist{})
