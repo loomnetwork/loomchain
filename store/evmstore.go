@@ -21,11 +21,13 @@ func evmRootKey(blockHeight int64) []byte {
 	return util.PrefixKey(vmPrefix, []byte(evmRootPrefix), b)
 }
 
+// EvmStore persists EVM state to a DB.
 type EvmStore struct {
 	evmDB db.DBWrapper
 	cache map[string]cacheItem
 }
 
+// NewEvmStore returns a new instance of the store backed by the given DB.
 func NewEvmStore(evmDB db.DBWrapper) *EvmStore {
 	evmStore := &EvmStore{
 		evmDB: evmDB,
@@ -41,6 +43,10 @@ func (s *EvmStore) setCache(key, val []byte, deleted bool) {
 	}
 }
 
+// Range iterates in-order over the keys in the store prefixed by the given prefix.
+// TODO (VM): This needs a proper review, other than tests there is no code that really makes use of
+//            this function, only place it's called is from MultiWriterAppStore.Range but only when
+//            iterating over the "vm" prefix - which no code currently does.
 func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 	rangeCacheKeys := []string{}
 	rangeCache := make(map[string][]byte)
@@ -146,11 +152,12 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	root := s.evmDB.Get(evmRootKey(targetVersion))
 	if root == nil && targetVersion != 0 {
 		return errors.Errorf("failed to load EVM root for version %d", targetVersion)
-		// []byte{1} root inidicates that the Patricia tree is empty at targetVersion,
+		// defaultRoot indicates that the Patricia tree is empty at targetVersion,
 		// so we need to set vmroot to empty
 	} else if bytes.Equal(root, defaultRoot) {
 		root = []byte("")
 	}
+	// TODO: This needs to be refactored to avoid writing to the DB on load.
 	s.evmDB.Set(util.PrefixKey(vmPrefix, rootKey), root)
 	return nil
 }

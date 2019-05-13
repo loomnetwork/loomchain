@@ -691,9 +691,11 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	// NOTE: Shouldn't wrap the MultiReaderIAVLStore in a CachingStore yet, otherwise the
-	//       MultiReaderIAVLStore loses its advantages.
+	// MultiReaderIAVLStore loses its advantages. Wrapping the MultiWriterAppStore doesn't make
+	// sense either since the caching store doesn't handle snapshots properly, which means the cache
+	// is never actually read from.
 	if cfg.CachingStoreConfig.CachingEnabled &&
-		((cfg.AppStore.Version == 3) || (cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
+		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
 		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
 		if err != nil {
 			return nil, err
