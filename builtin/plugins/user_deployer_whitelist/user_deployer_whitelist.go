@@ -11,7 +11,7 @@ type UserDeployerWhitelist struct {
 
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
-		Name:    "user-deployerwhitelist",
+		Name:    "user-deployer-whitelist",
 		Version: "1.0.0",
 	}, nil
 }

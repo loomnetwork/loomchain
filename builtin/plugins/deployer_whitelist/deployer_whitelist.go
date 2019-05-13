@@ -100,7 +100,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 }
 
 func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserDeployerRequest) error {
-	userWhitelistContract, err := ctx.Resolve("user-deployerwhitelist")
+	userWhitelistContract, err := ctx.Resolve("user-deployer-whitelist")
 	if err != nil {
 		return err
 	}
