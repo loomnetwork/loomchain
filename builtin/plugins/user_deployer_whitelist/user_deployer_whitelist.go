@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 )
 
@@ -14,7 +15,6 @@ type (
 	GetUserDeployersRequest  = dwtypes.ListDeployersRequest
 	GetUserDeployersResponse = dwtypes.ListDeployersResponse
 	Deployer                 = dwtypes.Deployer
-
 	AddUserDeployerRequest = dwtypes.AddUserDeployerRequest
 )
 
@@ -36,9 +36,14 @@ var (
 const (
 	ownerRole      = "owner"
 	deployerPrefix = "dep"
+	deployerStatePrefix = "userdepstate"
 )
 
 type UserDeployerWhitelist struct {
+}
+
+func DeployerStateKey(deployer loom.Address) []byte {
+	return util.PrefixKey([]byte(deployerStatePrefix), deployer.Bytes())
 }
 
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
