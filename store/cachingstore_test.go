@@ -78,7 +78,7 @@ func TestCachingStore(t *testing.T) {
 
 	mockStore := NewMockStore()
 
-	cachingStore, err := NewCachingStore(mockStore, defaultConfig)
+	cachingStore, err := NewCachingStore(mockStore, defaultConfig, 0)
 	require.NoError(t, err)
 
 	mockStore.Set([]byte("key1"), []byte("value1"))
@@ -111,7 +111,7 @@ func TestReadOnlyCachingStore(t *testing.T) {
 
 	mockStore := NewMockStore()
 
-	cachingStore, err := NewCachingStore(mockStore, defaultConfig)
+	cachingStore, err := NewCachingStore(mockStore, defaultConfig, 0)
 	require.NoError(t, err)
 
 	readOnlyCachingStore := NewReadOnlyCachingStore(cachingStore)

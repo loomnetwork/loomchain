@@ -680,7 +680,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	//       MultiReaderIAVLStore loses its advantages.
 	if cfg.CachingStoreConfig.CachingEnabled &&
 		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
-		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
+		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err
 		}
