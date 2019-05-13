@@ -873,17 +873,17 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
 	if err != nil {
 		return txObj, err
 	}
-	snapshot.Release()
 
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
 		return txObj, err
 	}
-	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex)
+	return query.GetTxByBlockAndIndex(snapshot, s.BlockStore, uint64(height), txIndex)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
@@ -891,18 +891,18 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	block eth.BlockHeight, index eth.Quantity,
 ) (txObj eth.JsonTxObject, err error) {
 	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
 		return txObj, err
 	}
-	snapshot.Release()
 
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
 		return txObj, err
 	}
-	return query.GetTxByBlockAndIndex(s.BlockStore, height, txIndex)
+	return query.GetTxByBlockAndIndex(snapshot, s.BlockStore, height, txIndex)
 }
 
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs

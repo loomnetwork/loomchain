@@ -78,6 +78,9 @@ func GetBlockByNumber(
 
 	evmIndex := 0
 	txHashList, err := common.GetTxHashList(state, uint64(height))
+	if err != nil {
+		return resp, errors.Wrapf(err, "tx-hahs list at height %v", height)
+	}
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			txObj, err := GetTxObjectFromBlockResult(blockResult, int64(index))

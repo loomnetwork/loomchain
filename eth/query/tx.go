@@ -4,9 +4,13 @@ package query
 
 import (
 	"github.com/gogo/protobuf/proto"
+
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/pkg/errors"
+	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/receipts/common"
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -48,6 +52,7 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 }
 
 func GetTxByBlockAndIndex(
+	state loomchain.State,
 	blockStore store.BlockStore,
 	height,
 	index uint64,
@@ -68,6 +73,30 @@ func GetTxByBlockAndIndex(
 		return txObj, err
 	}
 	txObj.TransactionIndex = eth.EncInt(int64(index))
+
+	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
+	if txResult == nil {
+		return txObj, errors.Wrapf(err, "cant find tx result, hash %X", blockResult.Block.Data.Txs[index].Hash())
+	}
+	if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info == utils.DeployEvm {
+		txHashList, err := common.GetTxHashList(state, uint64(height))
+		if err != nil {
+			return txObj, errors.Wrapf(err, "tx-hahs list at height %v", height)
+		}
+		evmIndex := 0
+		for i := uint64(0); i <= index; i++ {
+			tx := blockResult.Block.Data.Txs[i]
+			txResult, err := blockStore.GetTxResult(tx.Hash())
+			if err != nil {
+				return txObj, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+			}
+			if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info == utils.DeployEvm {
+				evmIndex++
+			}
+		}
+		txObj.Hash = eth.EncBytes(txHashList[evmIndex])
+	}
+
 	return txObj, nil
 }
 
