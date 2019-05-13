@@ -4,10 +4,11 @@ import (
 	"github.com/golang/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
+	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain/vm"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
 
@@ -15,7 +16,9 @@ type (
 	GetUserDeployersRequest  = dwtypes.ListDeployersRequest
 	GetUserDeployersResponse = dwtypes.ListDeployersResponse
 	Deployer                 = dwtypes.Deployer
-	AddUserDeployerRequest = dwtypes.AddUserDeployerRequest
+	AddUserDeployerRequest   = dwtypes.AddUserDeployerRequest
+
+	InitRequest = udwtypes.InitRequest
 )
 
 var (
@@ -34,9 +37,14 @@ var (
 )
 
 const (
-	ownerRole      = "owner"
-	deployerPrefix = "dep"
-	deployerStatePrefix = "userdepstate"
+	ownerRole           = "owner"
+	deployerPrefix      = "dep"
+	deployerStatePrefix = "dep-state"
+	userStatePrefix     = "user-state"
+)
+
+var (
+	modifyPerm = []byte("modp")
 )
 
 type UserDeployerWhitelist struct {
@@ -51,6 +59,16 @@ func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 		Name:    "user-deployer-whitelist",
 		Version: "1.0.0",
 	}, nil
+}
+
+func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error {
+	if req.Owner == nil {
+		return ErrOwnerNotSpecified
+	}
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	// TODO: Add relevant methods to manage owner and permissions later on.
+	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
+	return nil
 }
 
 // GetUserDeployers returns whitelisted deployer with addresses and flags
