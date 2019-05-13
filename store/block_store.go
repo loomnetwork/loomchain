@@ -231,8 +231,8 @@ func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBl
 		ProposerAddress: blockResult.Block.Header.ProposerAddress,
 	}
 	blockMeta := types.BlockMeta{
-		BlockID:        blockResult.BlockMeta.BlockID,
-		Header:         header,
+		BlockID: blockResult.BlockMeta.BlockID,
+		Header:  header,
 	}
 	block := types.Block{
 		Header: header,
@@ -284,7 +284,7 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 		return nil, err
 	}
 	results := &ctypes.ResultTx{
-		Index:  txResult.Index,
+		Index: txResult.Index,
 	}
 	return results, nil
 }
