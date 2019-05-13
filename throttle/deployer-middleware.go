@@ -23,7 +23,8 @@ var (
 // NewDeployRecorderPostCommitMiddleware returns post-commit middleware that
 // Records deploymentAddress and vmType
 // Note that to get vmType we need to decode txBytes, even though information is there
-// in the TxHandlerResult, as comparing it, require us to access evm tag enabled go files
+// in the TxHandlerResult.Info. as accessing TxHandlerResult.Info, require us to
+// access evm tag enabled go files
 func NewDeployRecorderPostCommitMiddleware(
 	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) (loomchain.PostCommitMiddleware, error) {
