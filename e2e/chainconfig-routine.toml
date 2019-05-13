@@ -19,7 +19,7 @@
   Expected = ['Error']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-features {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = ['auto-enabled:feature-1','auto-enabled:feature-2','auto-enabled:feature-3']
 
@@ -45,6 +45,6 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-features {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "excludes"
   Expected = ['auto-enabled:feature-3']
