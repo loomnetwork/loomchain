@@ -624,9 +624,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 
 	if a.BlockIndexStore != nil {
-		if err := a.BlockIndexStore.SetBlockHashAtHeight(a.curBlockHash, uint64(a.height())); err != nil {
-			log.Error("Error saving height to block index store", "err", err)
-		}
+		a.BlockIndexStore.SetBlockHashAtHeight(a.curBlockHash, uint64(a.height()))
 	}
 
 	return abci.ResponseCommit{

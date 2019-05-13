@@ -134,8 +134,9 @@ type Config struct {
 }
 
 type Metrics struct {
-	EventHandling bool
-	Database      bool
+	BlockIndexStore bool
+	EventHandling   bool
+	Database        bool
 }
 
 type FnConsensusConfig struct {
@@ -200,8 +201,9 @@ func DefaultDBBackendConfig() *DBBackendConfig {
 
 func DefaultMetrics() *Metrics {
 	return &Metrics{
-		EventHandling: true,
-		Database:      true,
+		BlockIndexStore: false,
+		EventHandling:   true,
+		Database:        true,
 	}
 }
 
@@ -529,6 +531,7 @@ BlockchainLogLevel: "{{ .BlockchainLogLevel }}"
 LogStateDB: {{ .LogStateDB }}
 LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
+  BlockIndexStore: {{ .Metrics.BlockIndexStore }} 
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
 #
@@ -656,8 +659,10 @@ BlockStore:
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
 BlockIndexStore:
-  # DBBackend | Legacy | Memory
+  # goleveldb | cleveldb | legacy | memdb
   Method: {{ .BlockIndexStore.Method }}
+  Name: {{ .BlockIndexStore.Name }}
+  CacheSizeMegs: {{ .BlockIndexStore.CacheSizeMegs }}
 #
 # Cashing store 
 #

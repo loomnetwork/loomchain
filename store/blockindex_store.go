@@ -2,113 +2,68 @@ package store
 
 import (
 	"encoding/binary"
-	"fmt"
-	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
+
+	"github.com/loomnetwork/loomchain/db"
 )
 
 const (
 	LevelDBFilename = "blockIndex"
-	BisMemory       = "Memory"
-	BisLevelDB      = "DBBackend"
-	BisLegacy       = "Legacy"
+	BisLegacy       = "legacy"
 )
 
 type BlockIndexStore interface {
 	GetBlockHeightByHash(hash []byte) (uint64, error)
-	SetBlockHashAtHeight(hash []byte, height uint64) error
-	ClearData()
-	Close() error
+	SetBlockHashAtHeight(hash []byte, height uint64)
+	Close()
 }
 
 type BlockIndexStoreConfig struct {
-	Method string
-}
-
-func NewBlockIndexStore(cfg *BlockIndexStoreConfig) (BlockIndexStore, error) {
-	switch cfg.Method {
-	case BisMemory:
-		return NewMemoryBlockIndexStore(), nil
-	case BisLevelDB:
-		return NewLevelDBBlockIndexStore()
-	case BisLegacy:
-		return nil, nil
-	default:
-		return nil, fmt.Errorf("unrecognised block index store method %s", cfg.Method)
-	}
+	Method        string
+	Name          string
+	CacheSizeMegs int
 }
 
 func DefaultBlockIndesStoreConfig() *BlockIndexStoreConfig {
 	return &BlockIndexStoreConfig{
-		Method: BisLegacy,
+		Method:        BisLegacy,
+		Name:          "",
+		CacheSizeMegs: 0,
 	}
 }
 
-type MemoryBlockIndexStore struct {
-	hashHeight map[string]uint64
-}
-
-func NewMemoryBlockIndexStore() BlockIndexStore {
-	return MemoryBlockIndexStore{
-		hashHeight: map[string]uint64{},
+func NewBlockIndexStore(dbBackend, name, directory string, cacheSizeMegs int, collectMetrics bool) (BlockIndexStore, error) {
+	if dbBackend == BisLegacy {
+		return nil, nil
 	}
+	dbWrapper, err := db.LoadDB(dbBackend, name, directory, cacheSizeMegs, collectMetrics)
+	if err != nil {
+		return nil, err
+	}
+	return BlockIndexStoreDB{dbWrapper, filepath.Join(directory, name+".db")}, nil
 }
 
-func (ms MemoryBlockIndexStore) GetBlockHeightByHash(hash []byte) (uint64, error) {
-	height, ok := ms.hashHeight[string(hash)]
-	if !ok {
+type BlockIndexStoreDB struct {
+	db   db.DBWrapper
+	path string
+}
+
+func (bis BlockIndexStoreDB) GetBlockHeightByHash(hash []byte) (uint64, error) {
+	height := bis.db.Get(hash)
+	if height == nil {
 		return 0, errors.New("block hash not found")
-	}
-	return height, nil
-}
-
-func (ms MemoryBlockIndexStore) SetBlockHashAtHeight(hash []byte, height uint64) error {
-	ms.hashHeight[string(hash)] = height
-	return nil
-}
-
-func (ms MemoryBlockIndexStore) Close() error {
-	return nil
-}
-
-func (ms MemoryBlockIndexStore) ClearData() {
-	ms.hashHeight = map[string]uint64{}
-}
-
-type LevelDBBlockIndexStore struct {
-	db *leveldb.DB
-}
-
-func NewLevelDBBlockIndexStore() (BlockIndexStore, error) {
-	db, err := leveldb.OpenFile(LevelDBFilename, nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "opening %s", LevelDBFilename)
-	}
-	return LevelDBBlockIndexStore{
-		db: db,
-	}, nil
-}
-
-func (ls LevelDBBlockIndexStore) GetBlockHeightByHash(hash []byte) (uint64, error) {
-	height, err := ls.db.Get(hash, nil)
-	if err != nil {
-		return 0, err
 	}
 	return binary.BigEndian.Uint64(height), nil
 }
 
-func (ls LevelDBBlockIndexStore) SetBlockHashAtHeight(hash []byte, height uint64) error {
+func (bis BlockIndexStoreDB) SetBlockHashAtHeight(hash []byte, height uint64) {
 	hightBuffer := make([]byte, 8)
 	binary.BigEndian.PutUint64(hightBuffer, height)
-	return ls.db.Put(hash, hightBuffer, nil)
+	bis.db.Set(hash, hightBuffer)
 }
 
-func (ls LevelDBBlockIndexStore) Close() error {
-	return ls.db.Close()
-}
-
-func (ls LevelDBBlockIndexStore) ClearData() {
-	_ = os.RemoveAll(LevelDBFilename)
+func (bis BlockIndexStoreDB) Close() {
+	bis.db.Close()
 }

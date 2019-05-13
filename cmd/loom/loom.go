@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/tendermint/tendermint/libs/db"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
@@ -621,8 +622,9 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func destroyBlockIndexDB(cfg *config.Config) error {
-	if cfg.BlockIndexStore.Method == store.BisLevelDB {
-		store.LevelDBBlockIndexStore{}.ClearData()
+	// todo support for cleveldb
+	if cfg.BlockIndexStore.Method == string(db.GoLevelDBBackend) {
+		_ = os.RemoveAll(filepath.Join(cfg.RootPath(), cfg.BlockIndexStore.Name+".db"))
 	}
 	return nil
 }
@@ -1101,7 +1103,13 @@ func loadApp(
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
-	blockIndexStore, err := store.NewBlockIndexStore(cfg.BlockIndexStore)
+	blockIndexStore, err := store.NewBlockIndexStore(
+		cfg.BlockIndexStore.Method,
+		cfg.BlockIndexStore.Name,
+		cfg.RootPath(),
+		cfg.BlockIndexStore.CacheSizeMegs,
+		cfg.Metrics.BlockIndexStore,
+	)
 	if err != nil {
 		return nil, err
 	}

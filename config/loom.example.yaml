@@ -36,7 +36,9 @@ Karma:
   SessionDuration: 60
 
 BlockIndexStore:
-  Method: "LevelDB"
+  Method: "cleveldb"
+  Name: "blockIndexDb"
+  CacheSizeMegs: 128
 
 ChainConfig:
   ContractEnabled: true
@@ -58,6 +60,7 @@ HsmConfig:
   HsmSignKeyDomain: 1
 
 Metrics:
+  BlockIndexStore: false
   EventHandling: true
 
 GoContractDeployerWhitelist:
