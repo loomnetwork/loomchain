@@ -94,9 +94,9 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 				log.Error("failed to unprefix key", "key", k, "prefix", prefix, "err", err)
 				k = nil
 			}
-			// If prefix length > 0, skip this key as it does not have the prefix
-		} else if len(prefix) > 0 {
-			continue
+
+		} else {
+			continue // Skip this key as it does not have the prefix
 		}
 
 		re := &plugin.RangeEntry{

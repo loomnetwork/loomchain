@@ -47,6 +47,7 @@ func (s *EvmStore) setCache(key, val []byte, deleted bool) {
 // TODO (VM): This needs a proper review, other than tests there is no code that really makes use of
 //            this function, only place it's called is from MultiWriterAppStore.Range but only when
 //            iterating over the "vm" prefix - which no code currently does.
+// NOTE: This version of EvmStore supports Range(nil)
 func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 	rangeCacheKeys := []string{}
 	rangeCache := make(map[string][]byte)

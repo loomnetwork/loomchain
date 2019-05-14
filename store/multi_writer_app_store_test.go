@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/loomnetwork/go-loom/util"
@@ -145,7 +146,10 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 	snapshot = store.GetSnapshot()
 	rangeData = snapshot.Range(vmPrefix)
 	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
-	// TODO: check the rest of the keys
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("aaaa")), []byte("yes")))
 
 	// Modifications shouldn't be visible in the snapshot until the next SaveVersion()
 	store.Delete(vmPrefixKey("abcd"))
@@ -154,18 +158,22 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 	snapshot = store.GetSnapshot()
 	rangeData = snapshot.Range(vmPrefix)
 	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
-	// TODO: check the rest of the keys
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("aaaa")), []byte("yes")))
 
 	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
 	snapshot = store.GetSnapshot()
 	rangeData = snapshot.Range(vmPrefix)
-	require.Equal(3+1, len(rangeData)) // FIXME
-	// TODO: check the rest of the keys
-
-	require.Equal([]byte(""), snapshot.Get(vmPrefixKey("abcd")))
-	require.Equal([]byte(""), snapshot.Get(vmPrefixKey("ssssvvv")))
+	require.Equal(3+2, len(rangeData))                       // +2 for evm root stored by EVM store
+	require.Equal(0, len(snapshot.Get(vmPrefixKey("abcd")))) // has been deleted
+	require.Equal(0, len(snapshot.Get([]byte("ssssvvv"))))   // has been deleted
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("aaaa")), []byte("yes")))
 }
 
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
