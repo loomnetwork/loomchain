@@ -80,8 +80,8 @@ func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]
 func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*Delegation, error) {
 	delegations := []*Delegation{}
 	delegationIdx := make(map[string]*Delegation)
-	for _, m := range ctx.Range(delegationsKey) {
-		log.Error(fmt.Sprintf("Trying Key ------%s\n", delegationsKey))
+	for k, m := range ctx.Range(delegationsKey) {
+		log.Error(fmt.Sprintf("Trying Key -%s", k, "bytes", m.Value))
 		var f *Delegation
 		if err := proto.Unmarshal(m.Value, f); err != nil {
 			err := errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
