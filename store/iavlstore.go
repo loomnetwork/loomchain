@@ -1,12 +1,14 @@
 package store
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -84,6 +86,33 @@ func UnprefixKey2(key, prefix []byte) ([]byte, error) {
 }
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
+	ret := make(plugin.RangeData, 0)
+	if bytes.HasSuffix(prefix, []byte("delegation")) {
+		return s.Range2(prefix)
+	}
+
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	if err != nil {
+		log.Error("failed to get range", "err", err)
+		return ret
+	}
+	for i, x := range keys {
+		k, err := util.UnprefixKey(x, prefix)
+		if err != nil {
+			log.Error("failed to unprefix key", "key", x, "prefix", prefix, "err", err)
+			k = nil
+		}
+		re := &plugin.RangeEntry{
+			Key:   k,
+			Value: values[i],
+		}
+		ret = append(ret, re)
+	}
+
+	return ret
+}
+
+func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
