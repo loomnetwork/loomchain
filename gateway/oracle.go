@@ -450,7 +450,15 @@ func (orc *Oracle) getLoomCoinDepositFromTxHash(solLoomAddr common.Address) ([]*
 
 	for _, unprocessedTxHash := range unprocessedTxHashes {
 		erc20Deposits, err := orc.ethClient.GetERC20DepositByTxHash(context.TODO(), orc.erc20ABI, solLoomAddr, common.BytesToHash(unprocessedTxHash))
-		if err != nil || len(erc20Deposits) == 0 {
+		if err != nil {
+			if err == ethereum.NotFound {
+				invalidTxHashes = append(invalidTxHashes, unprocessedTxHash)
+				continue
+			}
+			return nil, nil, err
+		}
+
+		if len(erc20Deposits) == 0 {
 			invalidTxHashes = append(invalidTxHashes, unprocessedTxHash)
 			continue
 		}
