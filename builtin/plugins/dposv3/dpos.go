@@ -944,7 +944,7 @@ func Elect(ctx contract.Context) error {
 			return nil
 		}
 	*/
-	log.Error("LEERROOOOOYYYY JENKIIINNNNNSSSS!!!!!")
+	ctx.Logger().Error("LEERROOOOOYYYY JENKIIINNNNNSSSS!!!!!")
 
 	delegationResults, err := rewardAndSlash(ctx, state)
 	if err != nil {
@@ -1398,9 +1398,9 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	}
 
 	//TODO NEW DELEGATIONS
-	log.Error("distributedNewDelegations----", "distributedNewDelegations", distributedNewDelegations)
+	ctx.Logger().Error("distributedNewDelegations----", "distributedNewDelegations", distributedNewDelegations)
 	for _, d := range distributedNewDelegations {
-		log.Error("newDelegation", "delegation", d)
+		ctx.Logger().Error("newDelegation", "delegation", d)
 		SetDelegationV2(ctx, d)
 	}
 
@@ -1638,10 +1638,9 @@ func returnMatchingDelegations(ctx contract.StaticContext, validator, delegator 
 		return nil, errors.New("request made with req.DelegatorAddress == nil")
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return nil, err
-	}
+	delegations, _, _ := GetAllDelegations(ctx)
+	//	require.Nil(t, err)
+	fmt.Printf("Weeee2-%v\n", delegations)
 
 	ourDelegator := loom.UnmarshalAddressPB(delegator)
 	ourValidator := loom.UnmarshalAddressPB(validator)

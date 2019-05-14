@@ -10,7 +10,6 @@ import (
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 )
 
@@ -80,12 +79,17 @@ func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]
 func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*Delegation, error) {
 	delegations := []*Delegation{}
 	delegationIdx := make(map[string]*Delegation)
+	first := 0
 	for _, m := range ctx.Range(delegationsKey) {
-		log.Error(fmt.Sprintf("Trying Key -%s", m.Key), "bytes", len(m.Value))
+		ctx.Logger().Error(fmt.Sprintf("Trying Key -%s", m.Key), "bytes", len(m.Value))
 		var f *Delegation
+		if first == 0 {
+			first = 1
+			continue
+		}
 		if err := proto.Unmarshal(m.Value, f); err != nil {
 			err := errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
-			log.Error(err.Error())
+			ctx.Logger().Error(err.Error())
 			continue
 			//return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
 		}
