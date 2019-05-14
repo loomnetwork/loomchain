@@ -1390,6 +1390,16 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	}
 
 	//TODO SAVE ALL DELEGATIONS
+	for _, d := range delegations {
+		SetDelegationV2(ctx, d)
+	}
+
+	//TODO NEW DELEGATIONS
+	log.Error("distributedNewDelegations----", "distributedNewDelegations", distributedNewDelegations)
+	for _, d := range distributedNewDelegations {
+		log.Error("newDelegation", "delegation", d)
+		SetDelegationV2(ctx, d)
+	}
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
 	for validator := range newDelegationTotals {

@@ -302,7 +302,9 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 
 	state.Witnesses = sortedWitnesses
 	state.LastElectionTime = ctx.Now().Unix()
-	return saveState(ctx, state)
+	// return
+	saveState(ctx, state)
+	return fmt.Errorf("Dying in election")
 }
 
 func (c *DPOS) ListWitnesses(ctx contract.StaticContext, req *ListWitnessesRequest) (*ListWitnessesResponse, error) {

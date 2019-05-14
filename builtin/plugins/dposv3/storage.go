@@ -163,6 +163,15 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
 
+func SetDelegationV2(ctx contract.Context, delegation *Delegation) error {
+	delegationKey, err := computeDelegationsKey(delegation.Index, *delegation.Validator, *delegation.Delegator)
+	if err != nil {
+		return err
+	}
+
+	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+}
+
 func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {

@@ -487,9 +487,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		t2 := time.Now()
 		log.Error("Begin Endblock")
 		validators, err := validatorManager.EndBlock(req)
-		if err != nil {
-			panic(err)
-		}
+
 		log.Error("End Endblock")
 		diffsecs := time.Since(t2).Seconds()
 		validatorFuncLatency.Observe(diffsecs)
@@ -499,6 +497,9 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		log.Error(fmt.Sprintf("commit           took %f seconds---\n", time.Since(t).Seconds()))
 		log.Error(fmt.Sprintf("nvalidator manager took %f seconds-----\n", diffsecs))
 		log.Error("----------end endblock\n")
+		if err != nil {
+			panic(err)
+		}
 		return abci.ResponseEndBlock{
 			ValidatorUpdates: validators,
 		}
