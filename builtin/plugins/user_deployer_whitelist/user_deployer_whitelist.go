@@ -1,7 +1,6 @@
 package user_deployer_whitelist
 
 import (
-	"github.com/golang/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
@@ -15,12 +14,18 @@ import (
 )
 
 type (
-	GetUserDeployersRequest      = dwtypes.ListDeployersRequest
-	GetUserDeployersResponse     = dwtypes.ListDeployersResponse
+	GetUserDeployersRequest      = udwtypes.GetUserDeployersRequest
+	GetUserDeployersResponse     = udwtypes.GetUserDeployersResponse
+	GetDeployedContractsRequest  = udwtypes.GetDeployedContractsRequest
+	GetDeployedContractsResponse = udwtypes.GetDeployedContractsResponse
+	GetDeployerResponse          = dwtypes.GetDeployerResponse
+	GetDeployerRequest           = dwtypes.GetDeployerRequest
 	Deployer                     = dwtypes.Deployer
+	UDeployer                    = udwtypes.Deployer
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
 	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
 	UserDeployers                = udwtypes.UserDeployers
+	UserDeployerContracts        = udwtypes.UserDeployerContracts
 	InitRequest                  = udwtypes.InitRequest
 	TierInfo                     = udwtypes.TierInfo
 )
@@ -109,7 +114,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if err := ctx.Get(tierInfoKey, &tierInfo); err != nil {
 		return err
 	}
-	for k := range tierInfo.Tiers{
+	for k := range tierInfo.Tiers {
 		if tierInfo.Tiers[k].Id == 0 {
 			whitelistingFees = tierInfo.Tiers[k].Fee
 		}
@@ -157,27 +162,58 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	return nil
 }
 
-// GetUserDeployers returns whitelisted deployer with addresses and flags
-func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext, req *GetUserDeployersRequest) (*GetUserDeployersResponse, error) {
-	deployerRange := ctx.Range([]byte(deployerPrefix))
-	deployers := []*Deployer{}
-	for _, m := range deployerRange {
-		var deployer Deployer
-		if err := proto.Unmarshal(m.Value, &deployer); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal deployer %x", m.Key)
-		}
-		deployers = append(deployers, &deployer)
+// GetUserDeployers returns whitelisted deployers corresponding to specific user
+func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
+	req *GetUserDeployersRequest) (*GetUserDeployersResponse, error) {
+	if req.UserAddr == nil {
+		return nil, ErrInvalidRequest
 	}
-
+	userAddr := loom.UnmarshalAddressPB(req.UserAddr)
+	var userDeployers UserDeployers
+	err := ctx.Get(UserStateKey(userAddr), &userDeployers)
+	if err != nil {
+		return nil, err
+	}
+	deployerWhitelistAddr, err := ctx.Resolve("deployer_whitelist")
+	if err != nil {
+		return nil, errors.Wrap(err, "address of deployer_whitelist contract")
+	}
+	deployers := []*UDeployer{}
+	for _, deployerAddr := range userDeployers.Deployers {
+		deployerReq := &GetDeployerRequest{
+			DeployerAddr: deployerAddr,
+		}
+		var getDeployerResponse GetDeployerResponse
+		if err := contract.StaticCallMethod(ctx, deployerWhitelistAddr,
+			"GetDeployer", deployerReq, &getDeployerResponse); err != nil {
+			return nil, err
+		}
+		deployers = append(deployers, &UDeployer{
+			Address: getDeployerResponse.Deployer.GetAddress(),
+			Flags:   getDeployerResponse.Deployer.GetFlags(),
+		})
+	}
 	return &GetUserDeployersResponse{
 		Deployers: deployers,
 	}, nil
 }
 
 // GetDeployedContracts return contract addresses deployed by particular deployer
-// func (uw *UserDeployerWhitelist) GetDeployedContracts(ctx contract.StaticContext, req *GetDeployedContractsRequest) (*GetDeployedContractsResponse, error) {
-// 	return nil, nil
-// }
+func (uw *UserDeployerWhitelist) GetDeployedContracts(ctx contract.StaticContext,
+	req *GetDeployedContractsRequest) (*GetDeployedContractsResponse, error) {
+	if req.DeployerAddr == nil {
+		return nil, ErrInvalidRequest
+	}
+	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
+	var userDeployerContracts UserDeployerContracts
+	err := ctx.Get(DeployerStateKey(deployerAddr), &userDeployerContracts)
+	if err != nil {
+		return nil, err
+	}
+	return &GetDeployedContractsResponse{
+		Contracts: userDeployerContracts.Contracts,
+	}, nil
+}
 
 // RecordContractDeployment will record contract deployer address, newly deployed contract and on which vm it is deployed.
 // If key is not part of whitelisted key, Ignore.
