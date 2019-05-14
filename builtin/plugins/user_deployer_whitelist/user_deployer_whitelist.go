@@ -1,8 +1,6 @@
 package user_deployer_whitelist
 
 import (
-	"math/big"
-
 	"github.com/golang/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -43,6 +41,8 @@ var (
 	ErrInsufficientBalance = errors.New("[UserDeployerWhitelist] Insufficient Loom Balance for whitelisting")
 	// ErrInvalidTier returned if Tier provided is invalid
 	ErrInvalidTier = errors.New("[UserDeployerWhitelist] Invalid Tier")
+	// ErrMissingTierInfo is returned if init doesnt get atleast one tier
+	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
 )
 
 const (
@@ -53,8 +53,8 @@ const (
 )
 
 var (
-	modifyPerm       = []byte("modp")
-	whitelistingfees *big.Int
+	modifyPerm  = []byte("modp")
+	tierInfoKey = []byte("tier-info")
 )
 
 type UserDeployerWhitelist struct {
@@ -75,9 +75,20 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	if req.Owner == nil {
 		return ErrOwnerNotSpecified
 	}
+
+	if req.TierInfo == nil {
+		return ErrMissingTierInfo
+	}
+
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+
 	// TODO: Add relevant methods to manage owner and permissions later on.
 	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
+
+	if err := ctx.Set(tierInfoKey, req.TierInfo); err != nil {
+		return err
+	}
+
 	return nil
 }
 
