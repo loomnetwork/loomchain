@@ -163,7 +163,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
-        github.com/gogo/protobuf/proto \
+		github.com/gogo/protobuf/proto \
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
@@ -184,8 +184,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# for when you want to reference a different branch of go-loom
 	# cd $(PLUGIN_DIR) && git checkout Loom_Cli_Refactoring && git pull origin Loom_Cli_Refactoring
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
-	# make sure the right version of the compiler is built
-	rm -f protoc-gen-gogo
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
