@@ -157,7 +157,7 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
 func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, error) {
-	tree := iavl.NewMutableTree(db, 10000)
+	tree := iavl.NewMutableTree(db, 1000000)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
 		return nil, err
