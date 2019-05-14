@@ -37,7 +37,7 @@ func versionedKey(key []byte, version int64) []byte {
 	return util.PrefixKey(key, int64ToBytes(version))
 }
 
-func keyTableKey(key []byte) []byte {
+func versionTableKey(key []byte) []byte {
 	return util.PrefixKey(keyTablePrefix, key)
 }
 
@@ -56,17 +56,23 @@ func NewVersionedBigCache(cache *bigcache.BigCache, logger *loom.Logger) *Versio
 func (c *VersionedBigCache) Delete(key []byte, version int64) error {
 	var err error
 	versionedKey := versionedKey(key, version)
-	err = c.cache.Delete(string(versionedKey))
+	if err := c.cache.Delete(string(versionedKey)); err != nil {
+		return err
+	}
+	if err := c.deleteKeyVersion(key, version); err != nil {
+		return err
+	}
 	return err
 }
 
 func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
+	fmt.Printf("Set %s; Version: %d\n", key, version)
 	versionedKey := versionedKey(key, version)
 	err := c.cache.Set(string(versionedKey), val)
 	if err != nil {
 		return err
 	}
-	err = c.setKeyVersion(key, version)
+	err = c.addKeyVersion(key, version)
 	if err != nil {
 		return err
 	}
@@ -88,6 +94,7 @@ func (c *VersionedBigCache) Has(key []byte, version int64) bool {
 }
 
 func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
+	fmt.Printf("Get %s; Version: %d\n", key, version)
 	latestVersion := c.getKeyVersion(key, version)
 	versionedKey := versionedKey(key, latestVersion)
 	data, err := c.cache.Get(string(versionedKey))
@@ -98,10 +105,10 @@ func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
 }
 
 func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
-	keyTableKey := keyTableKey(key)
-	var kt KeyTable
+	tableKey := versionTableKey(key)
+	var kt KeyVersionTable
 	var latestVersion int64
-	buf, err := c.cache.Get(string(keyTableKey))
+	buf, err := c.cache.Get(string(tableKey))
 	if err != nil {
 		return latestVersion
 	}
@@ -114,14 +121,21 @@ func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
 	return latestVersion
 }
 
-func (c *VersionedBigCache) setKeyVersion(key []byte, version int64) error {
-	keyTableKey := keyTableKey(key)
-	var kt KeyTable
-	buf, err := c.cache.Get(string(keyTableKey))
+func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) error {
+	tableKey := versionTableKey(key)
+	var kt KeyVersionTable
+	buf, err := c.cache.Get(string(tableKey))
 	if err != nil {
+		if err != bigcache.ErrEntryNotFound {
+			return err
+		}
+		kt = KeyVersionTable{
+			Keys: []int64{},
+		}
+	}
+	if err := proto.Unmarshal(buf, &kt); err != nil {
 		return err
 	}
-	proto.Unmarshal(buf, &kt)
 	kt.Keys = append(kt.Keys, version)
 	found := false
 	for _, k := range kt.Keys {
@@ -134,16 +148,21 @@ func (c *VersionedBigCache) setKeyVersion(key []byte, version int64) error {
 		kt.Keys = append(kt.Keys, version)
 	}
 	buf, err = proto.Marshal(&kt)
-	c.cache.Set(string(keyTableKey), buf)
+	c.cache.Set(string(tableKey), buf)
 	return nil
 }
 
 func (c *VersionedBigCache) deleteKeyVersion(key []byte, version int64) error {
-	keyTableKey := keyTableKey(key)
-	var kt KeyTable
-	buf, err := c.cache.Get(string(keyTableKey))
+	tableKey := versionTableKey(key)
+	var kt KeyVersionTable
+	buf, err := c.cache.Get(string(tableKey))
 	if err != nil {
-		return err
+		if err != bigcache.ErrEntryNotFound {
+			return err
+		}
+		kt = KeyVersionTable{
+			Keys: []int64{},
+		}
 	}
 	proto.Unmarshal(buf, &kt)
 	for i, k := range kt.Keys {
@@ -153,7 +172,7 @@ func (c *VersionedBigCache) deleteKeyVersion(key []byte, version int64) error {
 		}
 	}
 	buf, err = proto.Marshal(&kt)
-	c.cache.Set(string(keyTableKey), buf)
+	c.cache.Set(string(tableKey), buf)
 	return nil
 }
 
@@ -406,7 +425,7 @@ func (c *CachingStoreSnapshot) Has(key []byte) bool {
 		hasDuration.With("error", fmt.Sprint(err != nil), "isCacheHit", fmt.Sprint(err == nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
 	}(time.Now())
 
-	_, err = c.cache.Get(key, c.version)
+	data, err := c.cache.Get(key, c.version)
 	exists := true
 
 	if err != nil {
@@ -421,7 +440,17 @@ func (c *CachingStoreSnapshot) Has(key []byte) bool {
 			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
-		exists = c.Snapshot.Has(key)
+		data = c.Snapshot.Get(key)
+		if data == nil {
+			exists = false
+		} else {
+			exists = true
+			setErr := c.cache.Set(key, data, c.version)
+			if setErr != nil {
+				cacheErrors.With("cache_operation", "set").Add(1)
+				c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+			}
+		}
 	} else {
 		cacheHits.With("store_operation", "has").Add(1)
 	}
@@ -449,8 +478,17 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 			c.logger.Error(fmt.Sprintf("[CachingStoreSnapshot] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
-		return c.Snapshot.Get(key)
+		data = c.Snapshot.Get(key)
+		if data == nil {
+			return nil
+		}
+		setErr := c.cache.Set(key, data, c.version)
+		if setErr != nil {
+			cacheErrors.With("cache_operation", "set").Add(1)
+			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+		}
 	} else {
+		fmt.Printf("Cache Hit Key:%s, Version:%d\n", key, c.version)
 		cacheHits.With("store_operation", "get").Add(1)
 	}
 

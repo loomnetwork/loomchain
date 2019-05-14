@@ -19,38 +19,38 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-type KeyTable struct {
+type KeyVersionTable struct {
 	Keys                 []int64  `protobuf:"varint,1,rep,packed,name=keys" json:"keys,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *KeyTable) Reset()         { *m = KeyTable{} }
-func (m *KeyTable) String() string { return proto.CompactTextString(m) }
-func (*KeyTable) ProtoMessage()    {}
-func (*KeyTable) Descriptor() ([]byte, []int) {
-	return fileDescriptor_store_925adaae638eecb9, []int{0}
+func (m *KeyVersionTable) Reset()         { *m = KeyVersionTable{} }
+func (m *KeyVersionTable) String() string { return proto.CompactTextString(m) }
+func (*KeyVersionTable) ProtoMessage()    {}
+func (*KeyVersionTable) Descriptor() ([]byte, []int) {
+	return fileDescriptor_store_702e7f249f05ab53, []int{0}
 }
-func (m *KeyTable) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_KeyTable.Unmarshal(m, b)
+func (m *KeyVersionTable) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_KeyVersionTable.Unmarshal(m, b)
 }
-func (m *KeyTable) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_KeyTable.Marshal(b, m, deterministic)
+func (m *KeyVersionTable) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_KeyVersionTable.Marshal(b, m, deterministic)
 }
-func (dst *KeyTable) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_KeyTable.Merge(dst, src)
+func (dst *KeyVersionTable) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_KeyVersionTable.Merge(dst, src)
 }
-func (m *KeyTable) XXX_Size() int {
-	return xxx_messageInfo_KeyTable.Size(m)
+func (m *KeyVersionTable) XXX_Size() int {
+	return xxx_messageInfo_KeyVersionTable.Size(m)
 }
-func (m *KeyTable) XXX_DiscardUnknown() {
-	xxx_messageInfo_KeyTable.DiscardUnknown(m)
+func (m *KeyVersionTable) XXX_DiscardUnknown() {
+	xxx_messageInfo_KeyVersionTable.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_KeyTable proto.InternalMessageInfo
+var xxx_messageInfo_KeyVersionTable proto.InternalMessageInfo
 
-func (m *KeyTable) GetKeys() []int64 {
+func (m *KeyVersionTable) GetKeys() []int64 {
 	if m != nil {
 		return m.Keys
 	}
@@ -58,21 +58,21 @@ func (m *KeyTable) GetKeys() []int64 {
 }
 
 func init() {
-	proto.RegisterType((*KeyTable)(nil), "KeyTable")
+	proto.RegisterType((*KeyVersionTable)(nil), "KeyVersionTable")
 }
 
 func init() {
-	proto.RegisterFile("github.com/loomnetwork/loomchain/store/store.proto", fileDescriptor_store_925adaae638eecb9)
+	proto.RegisterFile("github.com/loomnetwork/loomchain/store/store.proto", fileDescriptor_store_702e7f249f05ab53)
 }
 
-var fileDescriptor_store_925adaae638eecb9 = []byte{
-	// 121 bytes of a gzipped FileDescriptorProto
+var fileDescriptor_store_702e7f249f05ab53 = []byte{
+	// 128 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x32, 0x4a, 0xcf, 0x2c, 0xc9,
 	0x28, 0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0xcf, 0xc9, 0xcf, 0xcf, 0xcd, 0x4b, 0x2d, 0x29, 0xcf,
 	0x2f, 0xca, 0x06, 0xb3, 0x93, 0x33, 0x12, 0x33, 0xf3, 0xf4, 0x8b, 0x4b, 0xf2, 0x8b, 0x52, 0x21,
 	0xa4, 0x5e, 0x41, 0x51, 0x7e, 0x49, 0xbe, 0x94, 0x01, 0x0e, 0x3d, 0xe9, 0xf9, 0xba, 0x20, 0xae,
-	0x7e, 0x49, 0x65, 0x41, 0x6a, 0x31, 0x84, 0x84, 0xe8, 0x50, 0x92, 0xe3, 0xe2, 0xf0, 0x4e, 0xad,
-	0x0c, 0x49, 0x4c, 0xca, 0x49, 0x15, 0x12, 0xe2, 0x62, 0xc9, 0x4e, 0xad, 0x2c, 0x96, 0x60, 0x54,
-	0x60, 0xd6, 0x60, 0x0e, 0x02, 0xb3, 0x93, 0xd8, 0xc0, 0xca, 0x8c, 0x01, 0x01, 0x00, 0x00, 0xff,
-	0xff, 0x9e, 0x67, 0xe8, 0x34, 0x8e, 0x00, 0x00, 0x00,
+	0x7e, 0x49, 0x65, 0x41, 0x6a, 0x31, 0x84, 0x84, 0xe8, 0x50, 0x52, 0xe5, 0xe2, 0xf7, 0x4e, 0xad,
+	0x0c, 0x4b, 0x2d, 0x2a, 0xce, 0xcc, 0xcf, 0x0b, 0x49, 0x4c, 0xca, 0x49, 0x15, 0x12, 0xe2, 0x62,
+	0xc9, 0x4e, 0xad, 0x2c, 0x96, 0x60, 0x54, 0x60, 0xd6, 0x60, 0x0e, 0x02, 0xb3, 0x93, 0xd8, 0xc0,
+	0xaa, 0x8d, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0xe0, 0x8c, 0x1d, 0x9c, 0x95, 0x00, 0x00, 0x00,
 }

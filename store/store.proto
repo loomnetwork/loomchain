@@ -2,6 +2,6 @@ syntax = "proto3";
 
 import "github.com/loomnetwork/go-loom/types/types.proto";
 
-message KeyTable {
+message KeyVersionTable {
     repeated int64 keys = 1;
 }
