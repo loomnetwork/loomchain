@@ -208,6 +208,7 @@ type prefixWriter struct {
 }
 
 func (w *prefixWriter) Set(key, val []byte) {
+	log.Error("Set with prefix", "prefix", string(w.prefix), "key", string(key))
 	w.writer.Set(util.PrefixKey(w.prefix, key), val)
 }
 
