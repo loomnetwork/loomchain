@@ -1263,6 +1263,7 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, error) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
+	newDelegations := []*Delegation{}
 
 	delegations, delegationsIdx, err := GetAllDelegations(ctx)
 	if err != nil {
@@ -1328,7 +1329,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 						referrerDelegation := delegationsIdx[fmt.Sprintf("0-%s", loom.UnmarshalAddressPB(referrerAddress).String())]
 						if referrerDelegation == nil {
 							referrerDelegation = EmptyDelegation(LimboValidatorAddress(ctx).MarshalPB(), referrerAddress)
-							//TODO APPEND TO A LIST TO INSERT
+							newDelegations = append(newDelegations, referrerDelegation)
 						}
 
 						updatedAmount := common.BigZero()
@@ -1344,7 +1345,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 
 				if canidateDelegation == nil {
 					canidateDelegation = EmptyDelegation(candidate.Address, candidate.Address)
-					//TODO APPEND TO A LIST TO INSERT
+					newDelegations = append(newDelegations, canidateDelegation)
 				}
 
 				updatedAmount := common.BigZero()
@@ -1382,7 +1383,8 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 		}
 	}
 
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, formerValidatorTotals, delegatorRewards, delegations)
+	//TODO do we need to merge new distributions with existing before running distributerewards?
+	newDelegationTotals, distributedNewDelegations, err := distributeDelegatorRewards(ctx, formerValidatorTotals, delegatorRewards, delegations)
 	if err != nil {
 		return nil, err
 	}
@@ -1472,12 +1474,13 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 // the delegators, 2) finalize the bonding process for any delegations received
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations []*Delegation) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations []*Delegation) (map[string]*loom.BigUInt, []*Delegation, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
+	newDelegations := []*Delegation{}
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Initialize delegation totals with whitelist amounts
@@ -1527,7 +1530,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 					delegationIdxZero = nil
 					if delegationIdxZero == nil {
 						delegationIdxZero = EmptyDelegation(delegation.Validator, delegation.Delegator)
-						//TODO APPEND TO A LIST TO INSERT
+						newDelegations = append(newDelegations, delegationIdxZero)
 					}
 				}
 
@@ -1546,16 +1549,17 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 			coin, err := loadCoin(ctx)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			err = coin.Transfer(delegatorAddress, &delegation.UpdateAmount.Value)
 			if err != nil {
 				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegation.Delegator.String(), delegation.UpdateAmount.Value.String())
-				return nil, logDposError(ctx, err, transferFromErr)
+				return nil, nil, logDposError(ctx, err, transferFromErr)
 			}
 		} else if delegation.State == REDELEGATING {
+			//TODO
 			if err = DeleteDelegation(ctx, delegation); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			delegation.Validator = delegation.UpdateValidator
 			delegation.Amount = delegation.UpdateAmount
@@ -1563,7 +1567,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 			index, err := GetNextDelegationIndex(ctx, *delegation.Validator, *delegation.Delegator)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			delegation.Index = index
 
@@ -1575,7 +1579,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		// UpdateAmount
 		if common.IsZero(delegation.Amount.Value) && delegation.State == UNBONDING {
 			if err := DeleteDelegation(ctx, delegation); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			// After a delegation update, zero out UpdateAmount
@@ -1583,8 +1587,9 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			delegation.State = BONDED
 
 			resetDelegationIfExpired(ctx, delegation)
+			//TODO
 			if err := SetDelegation(ctx, delegation); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 
@@ -1601,7 +1606,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		}
 	}
 
-	return newDelegationTotals, nil
+	return newDelegationTotals, newDelegations, nil
 }
 
 // Reset a delegation's tier to 0 if it's locktime has expired
