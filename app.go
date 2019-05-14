@@ -478,16 +478,19 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.GetValidatorSet,
 	)
 
+	log.Error("Create validator manager")
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
 		if err != nil {
 			panic(err)
 		}
 		t2 := time.Now()
+		log.Error("Begin Endblock")
 		validators, err := validatorManager.EndBlock(req)
 		if err != nil {
 			panic(err)
 		}
+		log.Error("End Endblock")
 		diffsecs := time.Since(t2).Seconds()
 		validatorFuncLatency.Observe(diffsecs)
 
