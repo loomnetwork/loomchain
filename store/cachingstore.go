@@ -29,7 +29,6 @@ var (
 	cacheErrors metrics.Counter
 	cacheMisses metrics.Counter
 
-	versionPrefix      = []byte("version")
 	versionTablePrefix = []byte("versiontable")
 )
 
@@ -110,7 +109,9 @@ func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
 	if err != nil {
 		return latestVersion
 	}
-	proto.Unmarshal(buf, &kt)
+	if err := proto.Unmarshal(buf, &kt); err != nil {
+		return latestVersion
+	}
 	for _, k := range kt.Keys {
 		if k > latestVersion && k <= version {
 			latestVersion = k
@@ -146,6 +147,9 @@ func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) error {
 		kt.Keys = append(kt.Keys, version)
 	}
 	buf, err = proto.Marshal(&kt)
+	if err != nil {
+		return err
+	}
 	c.cache.Set(string(tableKey), buf)
 	return nil
 }
@@ -423,7 +427,7 @@ func (c *CachingStoreSnapshot) Has(key []byte) bool {
 		hasDuration.With("error", fmt.Sprint(err != nil), "isCacheHit", fmt.Sprint(err == nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
 	}(time.Now())
 
-	data, err := c.cache.Get(key, c.version)
+	_, err = c.cache.Get(key, c.version)
 	exists := true
 
 	if err != nil {
@@ -438,7 +442,7 @@ func (c *CachingStoreSnapshot) Has(key []byte) bool {
 			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
-		data = c.Snapshot.Get(key)
+		data := c.Snapshot.Get(key)
 		if data == nil {
 			exists = false
 		} else {
@@ -505,8 +509,4 @@ func int64ToBytes(n int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(n))
 	return buf
-}
-
-func bytesToInt64(b []byte) int64 {
-	return int64(binary.BigEndian.Uint64(b))
 }

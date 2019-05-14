@@ -107,7 +107,7 @@ func TestCachingStore(t *testing.T) {
 	cachingStore.Delete([]byte("key1"))
 	storedValue = mockStore.Get([]byte("key1"))
 	assert.Equal(t, true, storedValue == nil, "cachingStore need to delete value from underlying storage")
-	cachedValue, err = cachingStore.cache.Get([]byte("key1"), version)
+	_, err = cachingStore.cache.Get([]byte("key1"), version)
 	require.EqualError(t, err, bigcache.ErrEntryNotFound.Error())
 }
 
