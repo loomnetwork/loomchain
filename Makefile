@@ -117,6 +117,8 @@ install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
 
 protoc-gen-gogo:
+	which protoc
+	protoc --version
 	go build github.com/gogo/protobuf/protoc-gen-gogo
 
 %.pb.go: %.proto protoc-gen-gogo
