@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -64,7 +65,7 @@ func (s *LogStore) Delete(key []byte) {
 
 func (s *LogStore) Set(key, val []byte) {
 	if s.params.LogSetKey {
-		s.logger.Println("Set key: ", string(key))
+		s.logger.Println(fmt.Sprintf("Set key: %s", string(key)))
 	}
 	if s.params.LogSetValue {
 		s.logger.Println("Set Value: ", string(val))
@@ -93,7 +94,7 @@ func (s *LogStore) Range(prefix []byte) plugin.RangeData {
 func (s *LogStore) Get(key []byte) []byte {
 	val := s.store.Get(key)
 	if s.params.LogGet {
-		s.logger.Println("Get key: ", string(key), " val: ", val)
+		s.logger.Println(fmt.Sprintf("Get key: %s len(%d)", string(key), len(val)))
 	}
 	return val
 }
