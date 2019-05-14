@@ -10,6 +10,7 @@ import (
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 )
 
@@ -80,13 +81,17 @@ func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*D
 	delegations := []*Delegation{}
 	delegationIdx := make(map[string]*Delegation)
 	for _, m := range ctx.Range(delegationsKey) {
+		log.Error("Trying Key ------%s\n", delegationsKey)
 		var f *Delegation
 		if err := proto.Unmarshal(m.Value, f); err != nil {
-			return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
+			err := errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
+			log.Error(err.Error())
+			continue
+			//return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
 		}
 		delegations = append(delegations, f)
 		//Track the index in the array
-		delegationIdx[fmt.Sprintf("%s-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = f
+		delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = f
 	}
 
 	//TODO making assumption on order based on key order, maybe not
