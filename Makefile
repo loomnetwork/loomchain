@@ -5,7 +5,7 @@ PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
 
-PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
+PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src
 
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
