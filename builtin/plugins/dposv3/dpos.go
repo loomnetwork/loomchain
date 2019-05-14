@@ -939,9 +939,12 @@ func Elect(ctx contract.Context) error {
 	}
 
 	// Check if enough time has elapsed to start new validator election
-	if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
-		return nil
-	}
+	/*
+		if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
+			return nil
+		}
+	*/
+	log.Error("LEERROOOOOYYYY JENKIIINNNNNSSSS!!!!!")
 
 	delegationResults, err := rewardAndSlash(ctx, state)
 	if err != nil {
