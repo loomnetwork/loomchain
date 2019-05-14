@@ -143,7 +143,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	}
 	err = ctx.Get(UserStateKey(userAddr), &userdeployers)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Getting Deployers corresponding to user")
 	}
 	userdeployers.Deployers = append(userdeployers.Deployers, req.UserAddr)
 	userdeployer := &UserDeployers{
@@ -152,7 +152,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	}
 	err = ctx.Set(UserStateKey(userAddr), userdeployer)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Saving Deployers corresponding to user")
 	}
 	return nil
 }
