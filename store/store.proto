@@ -3,5 +3,5 @@ syntax = "proto3";
 import "github.com/loomnetwork/go-loom/types/types.proto";
 
 message KeyVersionTable {
-    repeated int64 keys = 1;
+    map<int64, bool> keys = 1;
 }

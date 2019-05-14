@@ -55,10 +55,11 @@ func NewVersionedBigCache(cache *bigcache.BigCache, logger *loom.Logger) *Versio
 func (c *VersionedBigCache) Delete(key []byte, version int64) error {
 	var err error
 	versionedKey := versionedKey(key, version)
-	if err := c.cache.Delete(string(versionedKey)); err != nil {
-		return err
-	}
-	if err := c.deleteKeyVersion(key, version); err != nil {
+	// delete data in cache if it does exist
+	c.cache.Delete(string(versionedKey))
+	// add key to inidicate that this is the latest version but
+	// the data has been delete
+	if err := c.addKeyVersion(key, version); err != nil {
 		return err
 	}
 	return err
@@ -80,12 +81,9 @@ func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
 func (c *VersionedBigCache) Has(key []byte, version int64) bool {
 	latestVersion := c.getKeyVersion(key, version)
 	versionedKey := versionedKey(key, latestVersion)
-	_, err := c.cache.Get(string(versionedKey))
+	data, err := c.cache.Get(string(versionedKey))
 	exists := true
-	if err != nil {
-		if latestVersion != 0 {
-			c.deleteKeyVersion(key, version)
-		}
+	if err != nil || data == nil {
 		exists = false
 	}
 	return exists
@@ -95,8 +93,11 @@ func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
 	latestVersion := c.getKeyVersion(key, version)
 	versionedKey := versionedKey(key, latestVersion)
 	data, err := c.cache.Get(string(versionedKey))
-	if err != nil && latestVersion != 0 {
-		c.deleteKeyVersion(key, version)
+	if err != nil {
+		return data, err
+	}
+	if data == nil {
+		err = bigcache.ErrEntryNotFound
 	}
 	return data, err
 }
@@ -112,8 +113,8 @@ func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
 	if err := proto.Unmarshal(buf, &kt); err != nil {
 		return latestVersion
 	}
-	for _, k := range kt.Keys {
-		if k > latestVersion && k <= version {
+	for k, exists := range kt.Keys {
+		if k > latestVersion && exists && k <= version {
 			latestVersion = k
 		}
 	}
@@ -123,58 +124,62 @@ func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
 func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) error {
 	tableKey := versionTableKey(key)
 	var kt KeyVersionTable
+	// get key table
 	buf, err := c.cache.Get(string(tableKey))
 	if err != nil {
 		if err != bigcache.ErrEntryNotFound {
 			return err
 		}
 		kt = KeyVersionTable{
-			Keys: []int64{},
+			Keys: map[int64]bool{},
+		}
+	} else {
+		if err := proto.Unmarshal(buf, &kt); err != nil {
+			return err
 		}
 	}
-	if err := proto.Unmarshal(buf, &kt); err != nil {
-		return err
-	}
-	kt.Keys = append(kt.Keys, version)
-	found := false
-	for _, k := range kt.Keys {
-		if k == version {
-			found = true
-			break
-		}
-	}
-	if !found {
-		kt.Keys = append(kt.Keys, version)
-	}
+
+	kt.Keys[version] = true
+
+	//save key table
 	buf, err = proto.Marshal(&kt)
 	if err != nil {
 		return err
 	}
-	c.cache.Set(string(tableKey), buf)
+	if err := c.cache.Set(string(tableKey), buf); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (c *VersionedBigCache) deleteKeyVersion(key []byte, version int64) error {
 	tableKey := versionTableKey(key)
 	var kt KeyVersionTable
+	// get key table
 	buf, err := c.cache.Get(string(tableKey))
 	if err != nil {
 		if err != bigcache.ErrEntryNotFound {
 			return err
 		}
 		kt = KeyVersionTable{
-			Keys: []int64{},
+			Keys: map[int64]bool{},
+		}
+	} else {
+		if err := proto.Unmarshal(buf, &kt); err != nil {
+			return err
 		}
 	}
-	proto.Unmarshal(buf, &kt)
-	for i, k := range kt.Keys {
-		if k == version {
-			kt.Keys = append(kt.Keys[:i], kt.Keys[i+1:]...)
-			break
-		}
-	}
+
+	kt.Keys[version] = false
+	// save key table
 	buf, err = proto.Marshal(&kt)
-	c.cache.Set(string(tableKey), buf)
+	if err != nil {
+		return err
+	}
+	if err := c.cache.Set(string(tableKey), buf); err != nil {
+		return err
+	}
+
 	return nil
 }
 
