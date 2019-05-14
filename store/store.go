@@ -1,8 +1,11 @@
 package store
 
 import (
+	"fmt"
+
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 // KVReader interface for reading data out of a store
@@ -136,15 +139,24 @@ func (c *cacheTx) Get(key []byte) []byte {
 }
 
 func (c *cacheTx) Commit() {
+	commits := 0
+	deletes := 0
+	commitBytes := 0
 	for _, tx := range c.tmpTxs {
 		if tx.Action == txSet {
 			c.store.Set(tx.Key, tx.Value)
+			commits = commits + 1
+			commitBytes = commitBytes + len(tx.Value)
 		} else if tx.Action == txDelete {
 			c.store.Delete(tx.Key)
+			deletes = deletes + 1
 		} else {
 			panic("invalid cacheTx action type")
 		}
 	}
+	print := fmt.Sprintf("Commit- %d sets(%d bytes), %d deletes\n", commits, commitBytes, deletes)
+	fmt.Printf(print)
+	log.Error(print)
 }
 
 func (c *cacheTx) Rollback() {

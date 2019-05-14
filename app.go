@@ -289,11 +289,12 @@ var _ abci.Application = &Application{}
 
 //Metrics
 var (
-	deliverTxLatency    metrics.Histogram
-	checkTxLatency      metrics.Histogram
-	commitBlockLatency  metrics.Histogram
-	requestCount        metrics.Counter
-	committedBlockCount metrics.Counter
+	deliverTxLatency     metrics.Histogram
+	checkTxLatency       metrics.Histogram
+	commitBlockLatency   metrics.Histogram
+	requestCount         metrics.Counter
+	committedBlockCount  metrics.Counter
+	validatorFuncLatency metrics.Histogram
 )
 
 func init() {
@@ -330,6 +331,13 @@ func init() {
 		Name:      "block_count",
 		Help:      "Number of committed blocks.",
 	}, fieldKeys)
+
+	validatorFuncLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "validator_election_latency_microseconds",
+		Help:      "Total duration of validator election in microseconds.",
+	}, []string{})
 }
 
 func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
@@ -435,6 +443,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 }
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
+	log.Error(fmt.Sprintf("------------begin endblock ---%s\n", time.Now().String()))
+
 	if req.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
@@ -473,13 +483,19 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		if err != nil {
 			panic(err)
 		}
+		t2 := time.Now()
 		validators, err := validatorManager.EndBlock(req)
 		if err != nil {
 			panic(err)
 		}
+		diffsecs := time.Since(t2).Seconds()
+		validatorFuncLatency.Observe(diffsecs)
 
+		t := time.Now()
 		storeTx.Commit()
-
+		log.Error(fmt.Sprintf("commit           took %f seconds---\n", time.Since(t).Seconds()))
+		log.Error(fmt.Sprintf("nvalidator manager took %f seconds-----\n", diffsecs))
+		log.Error("----------end endblock\n")
 		return abci.ResponseEndBlock{
 			ValidatorUpdates: validators,
 		}
@@ -523,7 +539,10 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
 		requestCount.With(lvs...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		fmt.Printf("DeliverTx took - %f seconds\n", time.Since(begin).Seconds())
+		fmt.Println("------------------------end delivertx--------------------------")
 	}(time.Now())
+	fmt.Println("------------------------begin delivertx--------------------------")
 
 	r, err := a.processTx(txBytes, false)
 	if err != nil {

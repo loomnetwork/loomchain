@@ -46,11 +46,11 @@ func NewLogStore(store VersionedKVStore) (ls *LogStore, err error) {
 		LogHash:        false,
 	}
 
-	file, err := os.Create(ls.params.LogFilename)
-	if err != nil {
-		return nil, err
-	}
-	ls.logger = *log.New(file, "", ls.params.LogFlags)
+	//file, err := os.Create(ls.params.LogFilename)
+	//if err != nil {
+	//	return nil, err
+	//}
+	ls.logger = *log.New(os.Stderr, "", ls.params.LogFlags)
 	ls.logger.Println("Created new app log store")
 	return ls, nil
 }
