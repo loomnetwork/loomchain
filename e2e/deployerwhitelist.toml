@@ -19,7 +19,7 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c5 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c5"
   Condition = "contains"
   Expected = ['default:0x5cECD1F7261e1f4C684E297bE3EDF03B825E01C5','"Flags": "EVM"']
 
@@ -29,7 +29,7 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c6 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c6"
   Condition = "contains"
   Expected = ['default:0x5CeCD1F7261E1f4C684e297bE3EdF03B825E01c6','"Flags": "MIGRATION"']
 
@@ -39,7 +39,7 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c7 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c7"
   Condition = "contains"
   Expected = ['default:0x5CECD1F7261e1F4C684E297be3eDF03b825E01c7','"Flags": "GO|EVM|MIGRATION"']
 
@@ -54,7 +54,7 @@
   Expected = ['not authorized']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4"
   Condition = "contains"
   Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
 
@@ -69,7 +69,7 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4"
   Condition = "contains"
   Expected = ['"Flags": ""']
 
