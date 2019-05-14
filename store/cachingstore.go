@@ -29,8 +29,8 @@ var (
 	cacheErrors metrics.Counter
 	cacheMisses metrics.Counter
 
-	versionPrefix  = []byte("version")
-	keyTablePrefix = []byte("keytable")
+	versionPrefix      = []byte("version")
+	versionTablePrefix = []byte("versiontable")
 )
 
 func versionedKey(key []byte, version int64) []byte {
@@ -38,7 +38,7 @@ func versionedKey(key []byte, version int64) []byte {
 }
 
 func versionTableKey(key []byte) []byte {
-	return util.PrefixKey(keyTablePrefix, key)
+	return util.PrefixKey(versionTablePrefix, key)
 }
 
 type VersionedBigCache struct {
@@ -66,7 +66,6 @@ func (c *VersionedBigCache) Delete(key []byte, version int64) error {
 }
 
 func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
-	fmt.Printf("Set %s; Version: %d\n", key, version)
 	versionedKey := versionedKey(key, version)
 	err := c.cache.Set(string(versionedKey), val)
 	if err != nil {
@@ -94,7 +93,6 @@ func (c *VersionedBigCache) Has(key []byte, version int64) bool {
 }
 
 func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
-	fmt.Printf("Get %s; Version: %d\n", key, version)
 	latestVersion := c.getKeyVersion(key, version)
 	versionedKey := versionedKey(key, latestVersion)
 	data, err := c.cache.Get(string(versionedKey))
@@ -282,6 +280,7 @@ func (c *CachingStore) Delete(key []byte) {
 		cacheErrors.With("cache_operation", "delete").Add(1)
 		c.logger.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
 	}
+	c.VersionedKVStore.Delete(key)
 }
 
 func (c *CachingStore) Set(key, val []byte) {
@@ -297,7 +296,6 @@ func (c *CachingStore) Set(key, val []byte) {
 		cacheErrors.With("cache_operation", "set").Add(1)
 		c.logger.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
 	}
-
 	c.VersionedKVStore.Set(key, val)
 }
 
@@ -393,7 +391,7 @@ func (c *CachingStore) GetSnapshot() Snapshot {
 	return NewCachingStoreSnapshot(kvStoreSnapshot, c.cache, c.VersionedKVStore.Version(), c.logger)
 }
 
-// CachingStoreSnapshot is a snapshot of CachingStore
+// CachingStoreSnapshot is a read-only CachingStore with specified version
 type CachingStoreSnapshot struct {
 	Snapshot
 	cache   *VersionedBigCache
@@ -479,16 +477,12 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 		}
 
 		data = c.Snapshot.Get(key)
-		if data == nil {
-			return nil
-		}
 		setErr := c.cache.Set(key, data, c.version)
 		if setErr != nil {
 			cacheErrors.With("cache_operation", "set").Add(1)
 			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
 	} else {
-		fmt.Printf("Cache Hit Key:%s, Version:%d\n", key, c.version)
 		cacheHits.With("store_operation", "get").Add(1)
 	}
 
@@ -503,9 +497,8 @@ func (c *CachingStoreSnapshot) Prune() error {
 	return errors.New("[CachingStoreSnapshot] Prune() not implemented")
 }
 
-// Implements Snapshot interface
 func (c *CachingStoreSnapshot) Release() {
-	// noop
+	c.Snapshot.Release()
 }
 
 func int64ToBytes(n int64) []byte {
