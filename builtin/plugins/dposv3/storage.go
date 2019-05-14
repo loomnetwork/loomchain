@@ -81,7 +81,7 @@ func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*D
 	delegations := []*Delegation{}
 	delegationIdx := make(map[string]*Delegation)
 	for k, m := range ctx.Range(delegationsKey) {
-		log.Error(fmt.Sprintf("Trying Key -%s", k, "bytes", m.Value))
+		log.Error(fmt.Sprintf("Trying Key -%s", k), "bytes", len(m.Value))
 		var f *Delegation
 		if err := proto.Unmarshal(m.Value, f); err != nil {
 			err := errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
