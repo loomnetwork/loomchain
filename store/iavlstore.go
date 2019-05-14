@@ -7,7 +7,6 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -77,6 +76,13 @@ func prefixRangeEnd(prefix []byte) []byte {
 	return end
 }
 
+func UnprefixKey2(key, prefix []byte) ([]byte, error) {
+	if len(prefix) > len(key) {
+		return nil, fmt.Errorf("prefix %s longer than key %s", string(prefix), string(key))
+	}
+	return key[len(prefix):], nil
+}
+
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
@@ -86,7 +92,8 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 		return ret
 	}
 	for i, x := range keys {
-		k, err := util.UnprefixKey(x, prefix)
+		//TODO return this to greatness
+		k, err := UnprefixKey2(x, prefix)
 		if err != nil {
 			log.Error("failed to unprefix key", "key", x, "prefix", prefix, "err", err)
 			k = nil
