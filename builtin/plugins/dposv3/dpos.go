@@ -1475,6 +1475,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		return nil, err
 	}
 
+	//delgations is just an index of delegations
 	for _, d := range delegations {
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {

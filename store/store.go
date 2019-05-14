@@ -188,6 +188,7 @@ func (r *prefixReader) Range(prefix []byte) plugin.RangeData {
 }
 
 func (r *prefixReader) Get(key []byte) []byte {
+	log.Error("Get with prefix", "prefix", string(r.prefix), "key", string(key))
 	return r.reader.Get(util.PrefixKey(r.prefix, key))
 }
 

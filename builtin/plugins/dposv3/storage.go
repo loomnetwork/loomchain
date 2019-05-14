@@ -116,6 +116,7 @@ func DelegationsCount(ctx contract.StaticContext) int {
 }
 
 func SetDelegation(ctx contract.Context, delegation *Delegation) error {
+	//TODO duplicative read
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -127,6 +128,7 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 		Index:     delegation.Index,
 	}
 
+	//TODO duplicative read
 	pastvalue, _ := GetDelegation(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		delegations = append(delegations, delegationIndex)
