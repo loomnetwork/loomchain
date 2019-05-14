@@ -27,6 +27,11 @@ ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
+# This is locked down to this particular revision because this is the last revision before the
+# google.golang.org/genproto was recompiled with a new version of protoc, which produces pb.go files
+# that don't appear to be compatible with the gogo protobuf & protoc versions we use.
+# google.golang.org/genproto seems to be pulled in by the grpc package.
+GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -190,7 +195,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GRPC_DIR) && git checkout v1.20.1
-	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout b515fa19cec88c32f305a962f34ae60068947aea
+	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# fetch vendored packages
