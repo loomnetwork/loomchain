@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
-	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -59,6 +60,7 @@ func (s byPubkey) Less(i, j int) bool {
 type DelegationList []*DelegationIndex
 
 func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]byte, error) {
+	//TODO this may break ordering if the index grows beyond a single digit
 	indexBytes := []byte(fmt.Sprintf("%d", index))
 	validatorAddressBytes, err := validator.Local.Marshal()
 	if err != nil {
@@ -71,6 +73,24 @@ func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]
 
 	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
 	return delegationKey, nil
+
+}
+
+func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*Delegation, error) {
+	delegations := []*Delegation{}
+	delegationIdx := make(map[string]*Delegation)
+	for _, m := range ctx.Range(delegationsKey) {
+		var f *Delegation
+		if err := proto.Unmarshal(m.Value, f); err != nil {
+			return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
+		}
+		delegations = append(delegations, f)
+		//Track the index in the array
+		delegationIdx[fmt.Sprintf("%s-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = f
+	}
+
+	//TODO making assumption on order based on key order, maybe not
+	return delegations, delegationIdx, nil
 }
 
 func GetDelegation(ctx contract.StaticContext, index uint64, validator types.Address, delegator types.Address) (*Delegation, error) {
@@ -116,7 +136,6 @@ func DelegationsCount(ctx contract.StaticContext) int {
 }
 
 func SetDelegation(ctx contract.Context, delegation *Delegation) error {
-	//TODO duplicative read
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -128,7 +147,6 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 		Index:     delegation.Index,
 	}
 
-	//TODO duplicative read
 	pastvalue, _ := GetDelegation(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		delegations = append(delegations, delegationIndex)
@@ -249,31 +267,18 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
-func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
-	// check if rewards delegation already exists
-	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
-	if err == contract.ErrNotFound {
-		delegation = &Delegation{
-			Validator:    validator,
-			Delegator:    delegator,
-			Amount:       loom.BigZeroPB(),
-			UpdateAmount: loom.BigZeroPB(),
-			// rewards delegations are automatically unlocked
-			LocktimeTier: 0,
-			LockTime:     0,
-			State:        BONDED,
-			Index:        REWARD_DELEGATION_INDEX,
-		}
-	} else if err != nil {
-		return err
+func EmptyDelegation(validator *types.Address, delegator *types.Address) *Delegation {
+	return &Delegation{
+		Validator:    validator,
+		Delegator:    delegator,
+		Amount:       loom.BigZeroPB(),
+		UpdateAmount: loom.BigZeroPB(),
+		// rewards delegations are automatically unlocked
+		LocktimeTier: 0,
+		LockTime:     0,
+		State:        BONDED,
+		Index:        REWARD_DELEGATION_INDEX,
 	}
-
-	// increase delegation amount by new reward amount
-	updatedAmount := common.BigZero()
-	updatedAmount.Add(&delegation.Amount.Value, &increase)
-	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
-
-	return SetDelegation(ctx, delegation)
 }
 
 type CandidateList []*Candidate

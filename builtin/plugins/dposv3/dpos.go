@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 const (
@@ -1263,7 +1264,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 
-	delegations, err := loadDelegationList(ctx)
+	delegations, delegationsIdx, err := GetAllDelegations(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1301,9 +1302,9 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 
 				// Distribute rewards to referrers
 
-				for _, d := range delegations {
-					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 {
-						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+				for _, delegation := range delegations {
+					if loom.UnmarshalAddressPB(delegation.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 {
+
 						// if the delegation is not found OR if the delegation
 						// has no referrer, we do not need to attempt to
 						// distribute the referrer rewards
@@ -1324,23 +1325,41 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 						referrerReward = CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, referrerReward)
 						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
 
-						// referrer fees are delegater to limbo validator
-						IncreaseRewardDelegation(ctx, LimboValidatorAddress(ctx).MarshalPB(), referrerAddress, referrerReward)
+						referrerDelegation := delegationsIdx[fmt.Sprintf("0-%s", loom.UnmarshalAddressPB(referrerAddress).String())]
+						if referrerDelegation == nil {
+							referrerDelegation = EmptyDelegation(LimboValidatorAddress(ctx).MarshalPB(), referrerAddress)
+							//TODO APPEND TO A LIST TO INSERT
+						}
+
+						updatedAmount := common.BigZero()
+						updatedAmount.Add(&referrerDelegation.Amount.Value, &referrerReward)
+						referrerDelegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
 						// any referrer bonus amount is subtracted from the validatorShare
 						validatorShare.Sub(&validatorShare, &referrerReward)
 					}
 				}
 
-				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
+				canidateDelegation := delegationsIdx[fmt.Sprintf("0-%s", candidateAddress.String())]
+
+				if canidateDelegation == nil {
+					canidateDelegation = EmptyDelegation(candidate.Address, candidate.Address)
+					//TODO APPEND TO A LIST TO INSERT
+				}
+
+				updatedAmount := common.BigZero()
+				updatedAmount.Add(&canidateDelegation.Amount.Value, &validatorShare)
+				canidateDelegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
 				// If a validator has some non-zero WhitelistAmount,
 				// calculate the validator's reward based on whitelist amount
 				if !common.IsZero(statistic.WhitelistAmount.Value) {
 					amount := calculateWeightedWhitelistAmount(*statistic)
 					whitelistDistribution := calculateShare(amount, statistic.DelegationTotal.Value, *delegatorsShare)
-					// increase a delegator's distribution
-					IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, whitelistDistribution)
+
+					updatedAmount := common.BigZero()
+					updatedAmount.Add(&canidateDelegation.Amount.Value, &whitelistDistribution)
+					canidateDelegation.Amount = &types.BigUInt{Value: *updatedAmount}
 				}
 
 				// Keeping track of cumulative distributed rewards by adding
@@ -1363,10 +1382,12 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 		}
 	}
 
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, formerValidatorTotals, delegatorRewards)
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, formerValidatorTotals, delegatorRewards, delegations)
 	if err != nil {
 		return nil, err
 	}
+
+	//TODO SAVE ALL DELEGATIONS
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
 	for validator := range newDelegationTotals {
@@ -1451,7 +1472,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 // the delegators, 2) finalize the bonding process for any delegations received
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations []*Delegation) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
 	candidates, err := loadCandidateList(ctx)
@@ -1470,18 +1491,18 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		}
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return nil, err
-	}
+	var delegationIdxZero *Delegation
+	var lastDelegator *loom.Address
 
-	//delgations is just an index of delegations
-	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-		if err == contract.ErrNotFound {
+	for _, delegation := range delegations {
+		delegatorAddress := loom.UnmarshalAddressPB(delegation.Delegator)
+
+		//ASSUMPTION that the order of the index is lexiagraphically sorted
+		if delegation.Index == REWARD_DELEGATION_INDEX {
+			lastDelegator = &delegatorAddress
+			delegationIdxZero = delegation
+			//Continue????? would the zeroith index come up in the old code?
 			continue
-		} else if err != nil {
-			return nil, err
 		}
 
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
@@ -1500,8 +1521,19 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			if rewardsTotal != nil {
 				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
 				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
-				// increase a delegator's distribution
-				IncreaseRewardDelegation(ctx, delegation.Validator, delegation.Delegator, delegatorDistribution)
+				if lastDelegator.Compare(delegatorAddress) != 0 {
+					//some odd condition where the last delegator doesnt match current lets log an error and set it to nil
+					log.Error("lastDelegator is incorrect", "delegator", delegation.Delegator, "lastDelegator", lastDelegator)
+					delegationIdxZero = nil
+					if delegationIdxZero == nil {
+						delegationIdxZero = EmptyDelegation(delegation.Validator, delegation.Delegator)
+						//TODO APPEND TO A LIST TO INSERT
+					}
+				}
+
+				updatedAmount := common.BigZero()
+				updatedAmount.Add(&delegation.Amount.Value, &delegatorDistribution)
+				delegationIdxZero.Amount = &types.BigUInt{Value: *updatedAmount}
 			}
 		}
 
@@ -1516,7 +1548,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			if err != nil {
 				return nil, err
 			}
-			err = coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
+			err = coin.Transfer(delegatorAddress, &delegation.UpdateAmount.Value)
 			if err != nil {
 				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegation.Delegator.String(), delegation.UpdateAmount.Value.String())
 				return nil, logDposError(ctx, err, transferFromErr)
