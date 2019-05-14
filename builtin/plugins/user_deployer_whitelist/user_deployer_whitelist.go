@@ -3,7 +3,6 @@ package user_deployer_whitelist
 import (
 	"github.com/golang/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -21,7 +20,9 @@ type (
 	Deployer                     = dwtypes.Deployer
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
 	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
+	UserDeployers                = udwtypes.UserDeployers
 	InitRequest                  = udwtypes.InitRequest
+	TierInfo                     = udwtypes.TierInfo
 )
 
 var (
@@ -64,6 +65,10 @@ func DeployerStateKey(deployer loom.Address) []byte {
 	return util.PrefixKey([]byte(deployerStatePrefix), deployer.Bytes())
 }
 
+func UserStateKey(user loom.Address) []byte {
+	return util.PrefixKey([]byte(userStatePrefix), user.Bytes())
+}
+
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "user-deployer-whitelist",
@@ -94,46 +99,62 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 
 // Add User Deployer
 func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
+	var userdeployers UserDeployers
+	var tierInfo TierInfo
+	var whitelistingFees *types.BigUInt
+	tier := req.TierId
+	if tier != 0 {
+		return ErrInvalidTier
+	}
+	if err := ctx.Get(tierInfoKey, &tierInfo); err != nil {
+		return err
+	}
+	for k := range tierInfo.Tiers{
+		if tierInfo.Tiers[k].Id == 0 {
+			whitelistingFees = tierInfo.Tiers[k].Fee
+		}
+
+	}
 	coinAddr, err := ctx.Resolve("coin")
 	if err != nil {
 		return errors.Wrap(err, "address of coin contract")
 	}
-	request := &ctypes.BalanceOfRequest{
-		Owner: req.DeployerAddr,
+	coinReq := &coin.TransferFromRequest{
+		To:     coinAddr.MarshalPB(),
+		From:   req.DeployerAddr,
+		Amount: whitelistingFees,
 	}
-	tier := req.Tier
-	if tier != 0 {
-		return ErrInvalidTier
+	if err := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); err != nil {
+		if err == coin.ErrSenderBalanceTooLow {
+			return ErrInsufficientBalance
+		}
+		return err
 	}
-	var response coin.BalanceOfResponse
-	err = contract.StaticCallMethod(ctx, coinAddr, "BalanceOf", request, &response)
+	userAddr := loom.UnmarshalAddressPB(req.UserAddr)
+	dwAddr, err := ctx.Resolve("deployerwhitelist")
+	if err != nil {
+		return errors.Wrap(err, "address of deployer_whitelist")
+	}
+	adddeprequest := &dwtypes.AddUserDeployerRequest{
+		DeployerAddr: req.DeployerAddr,
+	}
+	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, nil); err != nil {
+		return errors.Wrap(err, "Adding User Deployer")
+	}
+	err = ctx.Get(UserStateKey(userAddr), &userdeployers)
 	if err != nil {
 		return err
 	}
-	if (response.Balance != nil) && (response.Balance.Value.Int.Cmp(whitelistingfees) >= 0) {
-		dwAddr, err := ctx.Resolve("deployerwhitelist")
-		if err != nil {
-			return errors.Wrap(err, "address of deployer_whitelist")
-		}
-		adddeprequest := &dwtypes.AddUserDeployerRequest{
-			DeployerAddr: req.DeployerAddr,
-		}
-		if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, nil); err != nil {
-			return errors.Wrap(err, "Adding User Deployer")
-		}
-		coinReq := &coin.TransferFromRequest{
-			To:     coinAddr.MarshalPB(),
-			From:   req.DeployerAddr,
-			Amount: &types.BigUInt{Value: *loom.NewBigUInt(whitelistingfees)},
-		}
-		if err := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); err != nil {
-			return errors.Wrap(err, "Transferring whitelisting fees to coin contract")
-		}
-		return nil
-
+	userdeployers.Deployers = append(userdeployers.Deployers, req.UserAddr)
+	userdeployer := &UserDeployers{
+		UserAddr:  req.UserAddr,
+		Deployers: userdeployers.Deployers,
 	}
-	return ErrInsufficientBalance
-
+	err = ctx.Set(UserStateKey(userAddr), userdeployer)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetUserDeployers returns whitelisted deployer with addresses and flags
