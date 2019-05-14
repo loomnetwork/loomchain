@@ -4,10 +4,10 @@ import (
 	"math/big"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
-	udtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
+	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -18,13 +18,13 @@ import (
 )
 
 type (
-	GetUserDeployersRequest  = dwtypes.ListDeployersRequest
-	GetUserDeployersResponse = dwtypes.ListDeployersResponse
-	Deployer                 = dwtypes.Deployer
-	AddUserDeployerRequest   = dwtypes.AddUserDeployerRequest
-	WhitelistUserDeployerRequest   = udtypes.WhitelistUserDeployerRequest
-
-	)
+	GetUserDeployersRequest      = dwtypes.ListDeployersRequest
+	GetUserDeployersResponse     = dwtypes.ListDeployersResponse
+	Deployer                     = dwtypes.Deployer
+	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
+	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
+	InitRequest                  = udwtypes.InitRequest
+)
 
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
@@ -39,19 +39,21 @@ var (
 	ErrDeployerAlreadyExists = errors.New("[UserDeployerWhitelist] deployer already exists")
 	// ErrDeployerDoesNotExist returned if an owner try to to remove a deployer that does not exist
 	ErrDeployerDoesNotExist = errors.New("[UserDeployerWhitelist] deployer does not exist")
-	ErrInsufficientBalance  = errors.New("[UserDeployerWhitelist] Insufficient Loom Balance for whitelisting")
+	// ErrInsufficientBalance returned if loom balance is unsufficient for whitelisting
+	ErrInsufficientBalance = errors.New("[UserDeployerWhitelist] Insufficient Loom Balance for whitelisting")
+	// ErrInvalidTier returned if Tier provided is invalid
 	ErrInvalidTier = errors.New("[UserDeployerWhitelist] Invalid Tier")
 )
 
 const (
 	ownerRole           = "owner"
 	deployerPrefix      = "dep"
-	deployerStatePrefix = "userdepstate"
-	// AllowEVMDeployFlag indicates that a deployer is permitted to deploy EVM contract.
-	AllowEVMDeployFlag = dwtypes.Flags_EVM
+	deployerStatePrefix = "dep-state"
+	userStatePrefix     = "user-state"
 )
 
 var (
+	modifyPerm       = []byte("modp")
 	whitelistingfees *big.Int
 )
 
@@ -62,15 +64,21 @@ func DeployerStateKey(deployer loom.Address) []byte {
 	return util.PrefixKey([]byte(deployerStatePrefix), deployer.Bytes())
 }
 
-func deployerKey(addr loom.Address) []byte {
-	return util.PrefixKey([]byte(deployerPrefix), addr.Bytes())
-}
-
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "user-deployer-whitelist",
 		Version: "1.0.0",
 	}, nil
+}
+
+func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error {
+	if req.Owner == nil {
+		return ErrOwnerNotSpecified
+	}
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	// TODO: Add relevant methods to manage owner and permissions later on.
+	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
+	return nil
 }
 
 // Add User Deployer
@@ -82,7 +90,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	request := &ctypes.BalanceOfRequest{
 		Owner: req.DeployerAddr,
 	}
-	tier := req.Tier;
+	tier := req.Tier
 	if tier != 0 {
 		return ErrInvalidTier
 	}
