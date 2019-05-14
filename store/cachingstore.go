@@ -122,65 +122,25 @@ func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
 }
 
 func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) error {
-	tableKey := versionTableKey(key)
-	var kt KeyVersionTable
-	// get key table
-	buf, err := c.cache.Get(string(tableKey))
+	kt, err := loadKeyTable(c.cache, key)
 	if err != nil {
-		if err != bigcache.ErrEntryNotFound {
-			return err
-		}
-		kt = KeyVersionTable{
-			Keys: map[int64]bool{},
-		}
-	} else {
-		if err := proto.Unmarshal(buf, &kt); err != nil {
-			return err
-		}
+		return err
 	}
 
 	kt.Keys[version] = true
 
-	//save key table
-	buf, err = proto.Marshal(&kt)
-	if err != nil {
-		return err
-	}
-	if err := c.cache.Set(string(tableKey), buf); err != nil {
-		return err
-	}
-	return nil
+	return saveKeyTable(c.cache, key, kt)
 }
 
 func (c *VersionedBigCache) deleteKeyVersion(key []byte, version int64) error {
-	tableKey := versionTableKey(key)
-	var kt KeyVersionTable
-	// get key table
-	buf, err := c.cache.Get(string(tableKey))
+	kt, err := loadKeyTable(c.cache, key)
 	if err != nil {
-		if err != bigcache.ErrEntryNotFound {
-			return err
-		}
-		kt = KeyVersionTable{
-			Keys: map[int64]bool{},
-		}
-	} else {
-		if err := proto.Unmarshal(buf, &kt); err != nil {
-			return err
-		}
+		return err
 	}
 
 	kt.Keys[version] = false
-	// save key table
-	buf, err = proto.Marshal(&kt)
-	if err != nil {
-		return err
-	}
-	if err := c.cache.Set(string(tableKey), buf); err != nil {
-		return err
-	}
 
-	return nil
+	return saveKeyTable(c.cache, key, kt)
 }
 
 type CachingStoreLogger struct {
@@ -514,4 +474,33 @@ func int64ToBytes(n int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(n))
 	return buf
+}
+
+func loadKeyTable(cache *bigcache.BigCache, key []byte) (*KeyVersionTable, error) {
+	tableKey := versionTableKey(key)
+	var kt KeyVersionTable
+	buf, err := cache.Get(string(tableKey))
+	if err != nil && err != bigcache.ErrEntryNotFound {
+		return nil, err
+
+	}
+	if err == bigcache.ErrEntryNotFound {
+		kt = KeyVersionTable{
+			Keys: map[int64]bool{},
+		}
+	} else {
+		if err := proto.Unmarshal(buf, &kt); err != nil {
+			return nil, err
+		}
+	}
+	return &kt, nil
+}
+
+func saveKeyTable(cache *bigcache.BigCache, key []byte, kt *KeyVersionTable) error {
+	tableKey := versionTableKey(key)
+	buf, err := proto.Marshal(kt)
+	if err != nil {
+		return err
+	}
+	return cache.Set(string(tableKey), buf)
 }
