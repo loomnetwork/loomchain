@@ -10,6 +10,7 @@ PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
+GRPC_DIR = $(GOPATH)/src/google.golang.org/grpc
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
@@ -185,6 +186,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# cd $(PLUGIN_DIR) && git checkout Loom_Cli_Refactoring && git pull origin Loom_Cli_Refactoring
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
+	cd $(GRPC_DIR) && git checkout v1.20.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# fetch vendored packages
