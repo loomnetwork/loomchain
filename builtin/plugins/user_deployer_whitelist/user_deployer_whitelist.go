@@ -21,10 +21,10 @@ type (
 	GetDeployerResponse          = dwtypes.GetDeployerResponse
 	GetDeployerRequest           = dwtypes.GetDeployerRequest
 	Deployer                     = dwtypes.Deployer
-	UserDeployer                 = udwtypes.Deployer
+	UserDeployer                 = udwtypes.UserDeployer
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
 	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
-	UserDeployers                = udwtypes.UserDeployers
+	UserDeployers                = udwtypes.UserDeployersMapping
 	InitRequest                  = udwtypes.InitRequest
 	TierInfo                     = udwtypes.TierInfo
 )
@@ -240,9 +240,9 @@ func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address
 	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
 	// If key is not part of whitelisted keys then error will be logged
 	if err != nil {
-	        ctx.Logger().Error("Deployer not whitelisted","error", err)
+		ctx.Logger().Error("Deployer not whitelisted","error", err)
 	}
-	contract := udwtypes.Contract{
+	contract := udwtypes.DeployerContracts{
 		ContractAddress: contractAddr.MarshalPB(),
 		VmType:          vmType,
 	}
