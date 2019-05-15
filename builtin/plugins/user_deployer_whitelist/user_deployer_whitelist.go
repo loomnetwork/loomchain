@@ -200,21 +200,17 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
 	if err != nil {
 		return nil, err
 	}
-	deployerWhitelistAddr, err := ctx.Resolve("deployer_whitelist")
-	if err != nil {
-		return nil, errors.Wrap(err, "address of deployer_whitelist contract")
-	}
 	deployers := []*Deployer{}
 	for _, deployerAddr := range userDeployers.Deployers {
-		deployerReq := &GetDeployerRequest{
-			DeployerAddr: deployerAddr,
+		var userDeployer UserDeployer
+		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployer)
+		if err != nil {
+			return nil, errors.Wrap(err, "Getting WhitelistedDeployer in whitelisted deployers state")
 		}
-		var getDeployerResponse GetDeployerResponse
-		if err := contract.StaticCallMethod(ctx, deployerWhitelistAddr,
-			"GetDeployer", deployerReq, &getDeployerResponse); err != nil {
-			return nil, err
-		}
-		deployers = append(deployers, getDeployerResponse.Deployer)
+		deployers = append(deployers, &Deployer{
+			Address: deployerAddr,
+			Flags:   userDeployer.Flags,
+		})
 	}
 	return &GetUserDeployersResponse{
 		Deployers: deployers,
@@ -228,20 +224,40 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(ctx contract.StaticContext
 		return nil, ErrInvalidRequest
 	}
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
-	var userDeployerContracts UserDeployerContracts
-	err := ctx.Get(DeployerStateKey(deployerAddr), &userDeployerContracts)
+	var userDeployer UserDeployer
+	err := ctx.Get(DeployerStateKey(deployerAddr), &userDeployer)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Getting WhitelistedDeployer in whitelisted deployers state")
+	}
+	contractAddresses := []*types.Address{}
+	for _, contract := range userDeployer.Contracts {
+		contractAddresses = append(contractAddresses, contract.ContractAddress)
 	}
 	return &GetDeployedContractsResponse{
-		Contracts: userDeployerContracts.Contracts,
+		ContractAddresses: contractAddresses,
 	}, nil
 }
 
 // RecordContractDeployment will record contract deployer address, newly deployed contract and on which vm it is deployed.
 // If key is not part of whitelisted key, Ignore.
 func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address, vmType vm.VMType) error {
-	panic("not implemented")
+	var userDeployer UserDeployer
+	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
+	// If key is not part of whitelisted then error will be returned here
+	if err != nil {
+		return errors.Wrap(err, "Getting WhitelistedDeployer in whitelisted deployers state")
+	}
+	contract := udwtypes.Contract{
+		ContractAddress: contractAddr.MarshalPB(),
+		VmType:          vmType,
+	}
+	userDeployer.Contracts = append(userDeployer.Contracts, &contract)
+	err = ctx.Set(DeployerStateKey(deployerAddress), &userDeployer)
+	if err != nil {
+		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
+	}
+	return nil
+
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&UserDeployerWhitelist{})
