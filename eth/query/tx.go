@@ -83,7 +83,7 @@ func GetTxByBlockAndIndex(
 		if err != nil {
 			return txObj, errors.Wrapf(err, "tx-hahs list at height %v", height)
 		}
-		evmIndex := 0
+		evmIndex := -1
 		for i := uint64(0); i <= index; i++ {
 			tx := blockResult.Block.Data.Txs[i]
 			txResult, err := blockStore.GetTxResult(tx.Hash())
@@ -93,6 +93,9 @@ func GetTxByBlockAndIndex(
 			if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info == utils.DeployEvm {
 				evmIndex++
 			}
+		}
+		if evmIndex < 0 || evmIndex >= len(txHashList) {
+			return txObj, errors.Errorf("cannot find EVM tx with index %v", index)
 		}
 		txObj.Hash = eth.EncBytes(txHashList[evmIndex])
 	}
