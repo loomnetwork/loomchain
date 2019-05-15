@@ -5,19 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/allegro/bigcache"
-	"github.com/gogo/protobuf/proto"
 
 	"github.com/go-kit/kit/metrics"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/util"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
+
+type KeyVersionTable map[int64]bool
+type KeyTable map[string]KeyVersionTable
 
 var (
 	getDuration    metrics.Histogram
@@ -29,15 +32,25 @@ var (
 	cacheErrors metrics.Counter
 	cacheMisses metrics.Counter
 
-	keyVersionTablePrefix = []byte("kvtable")
+	keyTable  = KeyTable{}
+	seperator = "|"
 )
 
-func versionedKey(key []byte, version int64) []byte {
-	return util.PrefixKey(key, int64ToBytes(version))
+func versionedKey(key string, version int64) string {
+	v := strconv.FormatInt(version, 10)
+	return string(key) + seperator + v
 }
 
-func keyVersionTableKey(key []byte) []byte {
-	return util.PrefixKey(keyVersionTablePrefix, key)
+func unversionedKey(key string) (string, int64, error) {
+	k := strings.Split(key, seperator)
+	if len(k) != 2 {
+		return "", 0, fmt.Errorf("Invalid versioned key %s", string(key))
+	}
+	n, err := strconv.ParseInt(k[1], 10, 64)
+	if err != nil {
+		return "", 0, err
+	}
+	return k[0], n, nil
 }
 
 type VersionedBigCache struct {
@@ -50,50 +63,38 @@ func NewVersionedBigCache(cache *bigcache.BigCache) *VersionedBigCache {
 	}
 }
 
-func (c *VersionedBigCache) Delete(key []byte, version int64) error {
-	var err error
-	versionedKey := versionedKey(key, version)
+func (c *VersionedBigCache) Delete(key []byte, version int64) {
+	versionedKey := versionedKey(string(key), version)
 	// delete data in cache if it does exist
 	c.cache.Delete(string(versionedKey))
 	// add key to inidicate that this is the latest version but
 	// the data has been deleted
-	if err := c.addKeyVersion(key, version); err != nil {
-		return err
-	}
-	return err
+	c.addKeyVersion(key, version)
 }
 
 func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
-	versionedKey := versionedKey(key, version)
+	versionedKey := versionedKey(string(key), version)
 	err := c.cache.Set(string(versionedKey), val)
 	if err != nil {
 		return err
 	}
-	err = c.addKeyVersion(key, version)
-	if err != nil {
-		return err
-	}
+	c.addKeyVersion(key, version)
 	return nil
 }
 
 func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
 	latestVersion := c.getKeyVersion(key, version)
-	versionedKey := versionedKey(key, latestVersion)
+	versionedKey := versionedKey(string(key), latestVersion)
 	return c.cache.Get(string(versionedKey))
 }
 
 func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
-	tableKey := keyVersionTableKey(key)
-	var kt KeyVersionTable
+	kvTable, exist := keyTable[string(key)]
+	if !exist {
+		return 0
+	}
 	var latestVersion int64
-	buf, err := c.cache.Get(string(tableKey))
-	if err != nil {
-		return latestVersion
-	}
-	if err := proto.Unmarshal(buf, &kt); err != nil {
-		return latestVersion
-	}
-	for k, exists := range kt.Keys {
+	for k, exists := range kvTable {
 		if k > latestVersion && exists && k <= version {
 			latestVersion = k
 		}
@@ -101,13 +102,13 @@ func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
 	return latestVersion
 }
 
-func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) error {
-	kt, err := loadKeyTable(c.cache, key)
-	if err != nil {
-		return err
+func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) {
+	kvTable, exist := keyTable[string(key)]
+	if !exist {
+		kvTable = KeyVersionTable{}
 	}
-	kt.Keys[version] = true
-	return saveKeyTable(c.cache, key, kt)
+	kvTable[version] = true
+	keyTable[string(key)] = kvTable
 }
 
 type CachingStoreLogger struct {
@@ -266,6 +267,20 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, versio
 	if err != nil {
 		return nil, err
 	}
+	bigcacheConfig.OnRemove = func(key string, entry []byte) {
+		key, version, err := unversionedKey(key)
+		if err != nil {
+			cacheLogger.Error(fmt.Sprintf("[VersionedBigCache] error while unversioned key: %s, error: %v", string(key), err.Error()))
+		}
+		kvTable, exist := keyTable[key]
+		if exist {
+			delete(kvTable, version)
+		}
+		if len(kvTable) == 0 {
+			delete(keyTable, key)
+		}
+
+	}
 
 	cache, err := bigcache.NewBigCache(*bigcacheConfig)
 	if err != nil {
@@ -289,12 +304,7 @@ func (c *CachingStore) Delete(key []byte) {
 		deleteDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
 	}(time.Now())
 
-	err = c.cache.Delete(key, c.version)
-	if err != nil {
-		// Only log error and dont error out
-		cacheErrors.With("cache_operation", "delete").Add(1)
-		c.logger.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
-	}
+	c.cache.Delete(key, c.version)
 	c.VersionedKVStore.Delete(key)
 }
 
@@ -401,6 +411,7 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 	data, err := c.cache.Get(key, c.version)
 
 	if err != nil {
+		fmt.Println("Cache Miss")
 		cacheMisses.With("store_operation", "get").Add(1)
 		switch err {
 		case bigcache.ErrEntryNotFound:
@@ -419,6 +430,7 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 			c.logger.Error(fmt.Sprintf("[CachingStoreSnapshot] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
 	} else {
+		fmt.Println("Cache Hit")
 		cacheHits.With("store_operation", "get").Add(1)
 	}
 
@@ -441,33 +453,4 @@ func int64ToBytes(n int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(n))
 	return buf
-}
-
-func loadKeyTable(cache *bigcache.BigCache, key []byte) (*KeyVersionTable, error) {
-	tableKey := keyVersionTableKey(key)
-	var kt KeyVersionTable
-	buf, err := cache.Get(string(tableKey))
-	if err != nil && err != bigcache.ErrEntryNotFound {
-		return nil, err
-
-	}
-	if err == bigcache.ErrEntryNotFound {
-		kt = KeyVersionTable{
-			Keys: map[int64]bool{},
-		}
-	} else {
-		if err := proto.Unmarshal(buf, &kt); err != nil {
-			return nil, err
-		}
-	}
-	return &kt, nil
-}
-
-func saveKeyTable(cache *bigcache.BigCache, key []byte, kt *KeyVersionTable) error {
-	tableKey := keyVersionTableKey(key)
-	buf, err := proto.Marshal(kt)
-	if err != nil {
-		return err
-	}
-	return cache.Set(string(tableKey), buf)
 }

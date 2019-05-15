@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-import "github.com/loomnetwork/go-loom/types/types.proto";
-
-message KeyVersionTable {
-    map<int64, bool> keys = 1;
-}

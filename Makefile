@@ -149,7 +149,7 @@ linterrors:
 	chmod +x parselintreport.sh
 	./parselintreport.sh
 
-proto: registry/registry.pb.go store/store.pb.go
+proto: registry/registry.pb.go
 
 c-leveldb:
 	go get github.com/jmhodges/levigo
