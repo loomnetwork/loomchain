@@ -163,7 +163,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		}
 		err = ctx.Set(UserStateKey(userAddr), userdeployer)
 		if err != nil {
-			return errors.Wrap(err, "Failed to Save Deployers mapping corresponding to user")
+			return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
 		}
 		deployerReq := &GetDeployerRequest{
 			DeployerAddr: req.DeployerAddr,
