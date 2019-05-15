@@ -156,7 +156,7 @@ func (c *cacheTx) Commit() {
 	}
 	print := fmt.Sprintf("Commit- %d sets(%d bytes), %d deletes\n", commits, commitBytes, deletes)
 	fmt.Printf(print)
-	log.Error(print)
+	//	log.Error(print)
 }
 
 func (c *cacheTx) Rollback() {

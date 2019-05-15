@@ -86,26 +86,31 @@ func UnprefixKey2(key, prefix []byte) ([]byte, error) {
 }
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
-	log.Error(fmt.Sprintf("IAVL-Range-%v", prefix))
-	log.Error(fmt.Sprintf("IAVL-Range--%s", string(prefix)))
+	fmt.Printf("IAVL-Range-%v\n", prefix)
+	fmt.Printf("IAVL-Range--%s\n", string(prefix))
 	ret := make(plugin.RangeData, 0)
-	if bytes.HasSuffix(prefix, []byte("delegation")) {
-		log.Error("has suffix delegation")
+	if bytes.HasSuffix(prefix, []byte(fmt.Sprintf("delegation%d", 0))) {
+		fmt.Printf("has suffix delegation")
 		return s.Range2(prefix)
 	}
-	log.Error("Doesn't have suffix delegation")
+	fmt.Printf("Doesn't have suffix delegation\n")
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	fmt.Printf("Found %d --- KEYS!!! in Range\n", len(keys))
 	if err != nil {
-		log.Error("failed to get range", "err", err)
+		fmt.Printf("failed to get range  err -%v", err)
 		return ret
 	}
 	for i, x := range keys {
+		fmt.Printf("raw key-%s\n", x)
 		k, err := util.UnprefixKey(x, prefix)
 		if err != nil {
-			log.Error("failed to unprefix key", "key", x, "prefix", prefix, "err", err)
+			fmt.Printf("raw key-%s\n", x)
+			fmt.Printf("failed to unprefix key -%s prefix -%s err-%v", x, prefix, err)
 			k = nil
 		}
+		fmt.Printf("unprefixed key-%s\n", k)
+
 		re := &plugin.RangeEntry{
 			Key:   k,
 			Value: values[i],
@@ -119,7 +124,11 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	end := []byte(fmt.Sprintf("delegation%d", 9))
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, end, 0)
+	log.Error(fmt.Sprintf("Found2 %d --- KEYS!!! in Range", len(keys)))
+
+	keys, values, _, err = s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	log.Error(fmt.Sprintf("Found %d --- KEYS!!! in Range", len(keys)))
 	if err != nil {
 		log.Error("failed to get range", "err", err)
