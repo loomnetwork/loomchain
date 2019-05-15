@@ -133,6 +133,7 @@ func TestCachingStoreSnapshot(t *testing.T) {
 func TestCachingStoreVersion(t *testing.T) {
 	defaultConfig := DefaultCachingStoreConfig()
 	defaultConfig.CachingEnabled = true
+	defaultConfig.VersionedBigCache = true
 	version := int64(1)
 
 	mockStore := NewMockStore()

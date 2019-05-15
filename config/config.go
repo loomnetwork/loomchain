@@ -676,7 +676,8 @@ CachingStoreConfig:
   Verbose: {{ .CachingStoreConfig.Verbose }} 
   LogLevel: "{{ .CachingStoreConfig.LogLevel }}" 
   LogDestination: "{{ .CachingStoreConfig.LogDestination }}" 
-
+  # Enable VersionedBigCache to support MultiWriterAppStore snapshot
+  VersionedBigCache: {{ .CachingStoreConfig.VersionedBigCache }}
 #
 # Prometheus Push Gateway
 #
