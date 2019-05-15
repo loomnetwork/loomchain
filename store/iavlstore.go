@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -87,10 +88,10 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	fmt.Printf("IAVL-Range-%v\n", prefix)
 	fmt.Printf("IAVL-Range--%s\n", string(prefix))
 	ret := make(plugin.RangeData, 0)
-	//if bytes.IndexAny(prefix, "delegation") > -1 {
-	//	fmt.Printf("has suffix delegation\n")
-	//	return s.Range2(prefix)
-	//}
+	if bytes.IndexAny(prefix, "delegation") > -1 {
+		fmt.Printf("has suffix delegation\n")
+		return s.Range2(prefix)
+	}
 	fmt.Printf("Doesn't have suffix delegation\n")
 	end := prefixRangeEnd(prefix)
 	fmt.Printf("end-%s\n", end)
