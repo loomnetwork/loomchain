@@ -238,9 +238,9 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(ctx contract.StaticContext
 func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address, vmType vm.VMType) error {
 	var userDeployer UserDeployer
 	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
-	// If key is not part of whitelisted then error will be returned here
+	// If key is not part of whitelisted keys then error will be logged
 	if err != nil {
-		return errors.Wrap(err, "Failed to load whitelisted deployers state")
+	        ctx.Logger().Error("Deployer not whitelisted","error", err)
 	}
 	contract := udwtypes.Contract{
 		ContractAddress: contractAddr.MarshalPB(),
