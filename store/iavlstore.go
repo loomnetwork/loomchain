@@ -87,7 +87,7 @@ func UnprefixKey2(key, prefix []byte) ([]byte, error) {
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
-	if bytes.HasSuffix(prefix, []byte("delegation")) {
+	if bytes.HasSuffix(prefix, []byte("delegation0")) {
 		return s.Range2(prefix)
 	}
 
@@ -116,6 +116,7 @@ func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	log.Error(fmt.Sprintf("Found %d --- KEYS!!! in Range", len(keys)))
 	if err != nil {
 		log.Error("failed to get range", "err", err)
 		return ret
