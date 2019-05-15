@@ -21,7 +21,7 @@ type (
 	GetDeployerResponse          = dwtypes.GetDeployerResponse
 	GetDeployerRequest           = dwtypes.GetDeployerRequest
 	Deployer                     = dwtypes.Deployer
-	UDeployer                    = udwtypes.Deployer
+	// UDeployer                    = udwtypes.Deployer
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
 	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
 	UserDeployers                = udwtypes.UserDeployers
@@ -165,12 +165,8 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 // GetUserDeployers returns whitelisted deployers corresponding to specific user
 func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
 	req *GetUserDeployersRequest) (*GetUserDeployersResponse, error) {
-	if req.UserAddr == nil {
-		return nil, ErrInvalidRequest
-	}
-	userAddr := loom.UnmarshalAddressPB(req.UserAddr)
 	var userDeployers UserDeployers
-	err := ctx.Get(UserStateKey(userAddr), &userDeployers)
+	err := ctx.Get(UserStateKey(ctx.Message().Sender), &userDeployers)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +174,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
 	if err != nil {
 		return nil, errors.Wrap(err, "address of deployer_whitelist contract")
 	}
-	deployers := []*UDeployer{}
+	deployers := []*Deployer{}
 	for _, deployerAddr := range userDeployers.Deployers {
 		deployerReq := &GetDeployerRequest{
 			DeployerAddr: deployerAddr,
@@ -188,10 +184,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
 			"GetDeployer", deployerReq, &getDeployerResponse); err != nil {
 			return nil, err
 		}
-		deployers = append(deployers, &UDeployer{
-			Address: getDeployerResponse.Deployer.GetAddress(),
-			Flags:   getDeployerResponse.Deployer.GetFlags(),
-		})
+		deployers = append(deployers, getDeployerResponse.Deployer)
 	}
 	return &GetUserDeployersResponse{
 		Deployers: deployers,
