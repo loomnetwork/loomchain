@@ -8,6 +8,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
 var TierMap = map[uint64]LocktimeTier{
@@ -123,4 +124,11 @@ func logStaticDposError(ctx contract.StaticContext, err error, req string) error
 
 func LimboValidatorAddress(ctx contract.StaticContext) loom.Address {
 	return loom.RootAddress(ctx.Block().ChainID)
+}
+
+func MakeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
+	return &coin.InitialAccount{
+		Owner:   owner.MarshalPB(),
+		Balance: bal,
+	}
 }

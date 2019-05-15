@@ -74,7 +74,7 @@ func TestChangeParams(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(addr2, 2000000000000000000),
+			MakeAccount(addr2, 2000000000000000000),
 		},
 	})
 	dposContract := &DPOS{}
@@ -195,7 +195,7 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(addr2, 2000000000000000000),
+			MakeAccount(addr2, 2000000000000000000),
 		},
 	})
 
@@ -336,10 +336,10 @@ func TestDelegate(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 1000000000000000000),
-			makeAccount(delegatorAddress2, 2000000000000000000),
-			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(addr1, 1000000000000000000),
+			MakeAccount(delegatorAddress1, 1000000000000000000),
+			MakeAccount(delegatorAddress2, 2000000000000000000),
+			MakeAccount(delegatorAddress3, 1000000000000000000),
+			MakeAccount(addr1, 1000000000000000000),
 		},
 	})
 
@@ -488,12 +488,12 @@ func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 1000000000000000000),
-			makeAccount(delegatorAddress2, 2000000000000000000),
-			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(addr1, 1000000000000000000),
-			makeAccount(addr2, 1000000000000000000),
-			makeAccount(addr3, 1000000000000000000),
+			MakeAccount(delegatorAddress1, 1000000000000000000),
+			MakeAccount(delegatorAddress2, 2000000000000000000),
+			MakeAccount(delegatorAddress3, 1000000000000000000),
+			MakeAccount(addr1, 1000000000000000000),
+			MakeAccount(addr2, 1000000000000000000),
+			MakeAccount(addr3, 1000000000000000000),
 		},
 	})
 
@@ -607,12 +607,12 @@ func TestRedelegate(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 1000000000000000000),
-			makeAccount(delegatorAddress2, 2000000000000000000),
-			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(addr1, 1000000000000000000),
-			makeAccount(addr2, 1000000000000000000),
-			makeAccount(addr3, 1000000000000000000),
+			MakeAccount(delegatorAddress1, 1000000000000000000),
+			MakeAccount(delegatorAddress2, 2000000000000000000),
+			MakeAccount(delegatorAddress3, 1000000000000000000),
+			MakeAccount(addr1, 1000000000000000000),
+			MakeAccount(addr2, 1000000000000000000),
+			MakeAccount(addr3, 1000000000000000000),
 		},
 	})
 
@@ -820,9 +820,9 @@ func TestElectWhitelists(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 1e18),
-			makeAccount(delegatorAddress2, 20),
-			makeAccount(delegatorAddress3, 10),
+			MakeAccount(delegatorAddress1, 1e18),
+			MakeAccount(delegatorAddress2, 20),
+			MakeAccount(delegatorAddress3, 10),
 		},
 	})
 	// Enable the feature flag and check that the whitelist rules get applied corectly
@@ -978,9 +978,9 @@ func TestElect(t *testing.T) {
 	// Initialize the coin balances
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 130),
-			makeAccount(delegatorAddress2, 20),
-			makeAccount(delegatorAddress3, 10),
+			MakeAccount(delegatorAddress1, 130),
+			MakeAccount(delegatorAddress2, 20),
+			MakeAccount(delegatorAddress3, 10),
 		},
 	})
 
@@ -1081,12 +1081,12 @@ func TestValidatorRewards(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 100000000),
-			makeAccount(delegatorAddress2, 100000000),
-			makeAccount(delegatorAddress3, 100000000),
-			makeAccount(addr1, 100000000),
-			makeAccount(addr2, 100000000),
-			makeAccount(addr3, 100000000),
+			MakeAccount(delegatorAddress1, 100000000),
+			MakeAccount(delegatorAddress2, 100000000),
+			MakeAccount(delegatorAddress3, 100000000),
+			MakeAccount(addr1, 100000000),
+			MakeAccount(addr2, 100000000),
+			MakeAccount(addr3, 100000000),
 		},
 	})
 
@@ -1235,10 +1235,10 @@ func TestReferrerRewards(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 100000000),
-			makeAccount(delegatorAddress2, 100000000),
-			makeAccount(delegatorAddress3, 100000000),
-			makeAccount(addr1, 100000000),
+			MakeAccount(delegatorAddress1, 100000000),
+			MakeAccount(delegatorAddress2, 100000000),
+			MakeAccount(delegatorAddress3, 100000000),
+			MakeAccount(addr1, 100000000),
 		},
 	})
 
@@ -1313,15 +1313,15 @@ func TestRewardTiers(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 100000000),
-			makeAccount(delegatorAddress2, 100000000),
-			makeAccount(delegatorAddress3, 100000000),
-			makeAccount(delegatorAddress4, 100000000),
-			makeAccount(delegatorAddress5, 100000000),
-			makeAccount(delegatorAddress6, 100000000),
-			makeAccount(addr1, 100000000),
-			makeAccount(addr2, 100000000),
-			makeAccount(addr3, 100000000),
+			MakeAccount(delegatorAddress1, 100000000),
+			MakeAccount(delegatorAddress2, 100000000),
+			MakeAccount(delegatorAddress3, 100000000),
+			MakeAccount(delegatorAddress4, 100000000),
+			MakeAccount(delegatorAddress5, 100000000),
+			MakeAccount(delegatorAddress6, 100000000),
+			MakeAccount(addr1, 100000000),
+			MakeAccount(addr2, 100000000),
+			MakeAccount(addr3, 100000000),
 		},
 	})
 
@@ -1530,12 +1530,12 @@ func TestRewardCap(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 100000000),
-			makeAccount(delegatorAddress2, 100000000),
-			makeAccount(delegatorAddress3, 100000000),
-			makeAccount(addr1, 100000000),
-			makeAccount(addr2, 100000000),
-			makeAccount(addr3, 100000000),
+			MakeAccount(delegatorAddress1, 100000000),
+			MakeAccount(delegatorAddress2, 100000000),
+			MakeAccount(delegatorAddress3, 100000000),
+			MakeAccount(addr1, 100000000),
+			MakeAccount(addr2, 100000000),
+			MakeAccount(addr3, 100000000),
 		},
 	})
 
@@ -1669,8 +1669,8 @@ func TestMultiDelegate(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 1000000000000000000),
-			makeAccount(addr1, 1000000000000000000),
+			MakeAccount(delegatorAddress1, 1000000000000000000),
+			MakeAccount(addr1, 1000000000000000000),
 		},
 	})
 
@@ -1767,11 +1767,11 @@ func TestLockup(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(addr1, 1000000000000000000),
-			makeAccount(delegatorAddress1, 1000000000000000000),
-			makeAccount(delegatorAddress2, 1000000000000000000),
-			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(delegatorAddress4, 1000000000000000000),
+			MakeAccount(addr1, 1000000000000000000),
+			MakeAccount(delegatorAddress1, 1000000000000000000),
+			MakeAccount(delegatorAddress2, 1000000000000000000),
+			MakeAccount(delegatorAddress3, 1000000000000000000),
+			MakeAccount(delegatorAddress4, 1000000000000000000),
 		},
 	})
 
@@ -1888,13 +1888,6 @@ func TestApplyPowerCap(t *testing.T) {
 }
 
 // UTILITIES
-
-func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
-	return &coin.InitialAccount{
-		Owner:   owner.MarshalPB(),
-		Balance: bal,
-	}
-}
 
 func elect(pctx *plugin.FakeContext, dposAddress loom.Address) error {
 	return Elect(contractpb.WrapPluginContext(pctx.WithAddress(dposAddress)))

@@ -12,7 +12,7 @@ import (
 	// "github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
-type testDPOSContract struct {
+type TestDPOSContract struct {
 	Contract *DPOS
 	Address  loom.Address
 }
@@ -20,7 +20,7 @@ type testDPOSContract struct {
 func deployDPOSContract(
 	ctx *plugin.FakeContext,
 	params *Params,
-) (*testDPOSContract, error) {
+) (*TestDPOSContract, error) {
 	dposContract := &DPOS{}
 	contractAddr := ctx.CreateContract(contract.MakePluginContract(dposContract))
 	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
@@ -30,13 +30,13 @@ func deployDPOSContract(
 		// may also want to set validators
 	})
 
-	return &testDPOSContract{
+	return &TestDPOSContract{
 		Contract: dposContract,
 		Address:  contractAddr,
 	}, err
 }
 
-func (dpos *testDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*ListDelegationsResponse, error) {
+func (dpos *TestDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*ListDelegationsResponse, error) {
 	resp, err := dpos.Contract.ListAllDelegations(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ListAllDelegationsRequest{},
@@ -48,7 +48,7 @@ func (dpos *testDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*Li
 	return resp.ListResponses, err
 }
 
-func (dpos *testDPOSContract) ListCandidates(ctx *plugin.FakeContext) ([]*CandidateStatistic, error) {
+func (dpos *TestDPOSContract) ListCandidates(ctx *plugin.FakeContext) ([]*CandidateStatistic, error) {
 	resp, err := dpos.Contract.ListCandidates(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ListCandidatesRequest{},
@@ -59,7 +59,7 @@ func (dpos *testDPOSContract) ListCandidates(ctx *plugin.FakeContext) ([]*Candid
 	return resp.Candidates, err
 }
 
-func (dpos *testDPOSContract) ListValidators(ctx *plugin.FakeContext) ([]*ValidatorStatistic, error) {
+func (dpos *TestDPOSContract) ListValidators(ctx *plugin.FakeContext) ([]*ValidatorStatistic, error) {
 	resp, err := dpos.Contract.ListValidators(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ListValidatorsRequest{},
@@ -70,7 +70,7 @@ func (dpos *testDPOSContract) ListValidators(ctx *plugin.FakeContext) ([]*Valida
 	return resp.Statistics, err
 }
 
-func (dpos *testDPOSContract) CheckRewards(ctx *plugin.FakeContext) (*common.BigUInt, error) {
+func (dpos *TestDPOSContract) CheckRewards(ctx *plugin.FakeContext) (*common.BigUInt, error) {
 	resp, err := dpos.Contract.CheckRewards(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&CheckRewardsRequest{},
@@ -81,7 +81,7 @@ func (dpos *testDPOSContract) CheckRewards(ctx *plugin.FakeContext) (*common.Big
 	return &resp.TotalRewardDistribution.Value, err
 }
 
-func (dpos *testDPOSContract) CheckRewardDelegation(ctx *plugin.FakeContext, validator *loom.Address) (*Delegation, error) {
+func (dpos *TestDPOSContract) CheckRewardDelegation(ctx *plugin.FakeContext, validator *loom.Address) (*Delegation, error) {
 	resp, err := dpos.Contract.CheckRewardDelegation(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&CheckRewardDelegationRequest{
@@ -94,7 +94,7 @@ func (dpos *testDPOSContract) CheckRewardDelegation(ctx *plugin.FakeContext, val
 	return resp.Delegation, nil
 }
 
-func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator *loom.Address, delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
+func (dpos *TestDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator *loom.Address, delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
 	resp, err := dpos.Contract.CheckDelegation(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&CheckDelegationRequest{
@@ -108,7 +108,7 @@ func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator
 	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
 }
 
-func (dpos *testDPOSContract) CheckAllDelegations(ctx *plugin.FakeContext, delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
+func (dpos *TestDPOSContract) CheckAllDelegations(ctx *plugin.FakeContext, delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
 	resp, err := dpos.Contract.CheckAllDelegations(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&CheckAllDelegationsRequest{
@@ -121,7 +121,7 @@ func (dpos *testDPOSContract) CheckAllDelegations(ctx *plugin.FakeContext, deleg
 	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
 }
 
-func (dpos *testDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer loom.Address, name string) error {
+func (dpos *TestDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer loom.Address, name string) error {
 	err := dpos.Contract.RegisterReferrer(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&RegisterReferrerRequest{
@@ -132,7 +132,7 @@ func (dpos *testDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer
 	return err
 }
 
-func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candidate loom.Address, amount *big.Int, tier LocktimeTier) error {
+func (dpos *TestDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candidate loom.Address, amount *big.Int, tier LocktimeTier) error {
 	err := dpos.Contract.WhitelistCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&WhitelistCandidateRequest{
@@ -144,7 +144,7 @@ func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candid
 	return err
 }
 
-func (dpos *testDPOSContract) ChangeWhitelistInfo(ctx *plugin.FakeContext, candidate *loom.Address, amount *big.Int, tier *LocktimeTier) error {
+func (dpos *TestDPOSContract) ChangeWhitelistInfo(ctx *plugin.FakeContext, candidate *loom.Address, amount *big.Int, tier *LocktimeTier) error {
 	req := &ChangeWhitelistInfoRequest{
 		CandidateAddress: candidate.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *loom.NewBigUInt(amount)},
@@ -159,7 +159,7 @@ func (dpos *testDPOSContract) ChangeWhitelistInfo(ctx *plugin.FakeContext, candi
 	return err
 }
 
-func (dpos *testDPOSContract) ChangeFee(ctx *plugin.FakeContext, candidateFee uint64) error {
+func (dpos *TestDPOSContract) ChangeFee(ctx *plugin.FakeContext, candidateFee uint64) error {
 	err := dpos.Contract.ChangeFee(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ChangeCandidateFeeRequest{
@@ -169,7 +169,7 @@ func (dpos *testDPOSContract) ChangeFee(ctx *plugin.FakeContext, candidateFee ui
 	return err
 }
 
-func (dpos *testDPOSContract) RegisterCandidate(
+func (dpos *TestDPOSContract) RegisterCandidate(
 	ctx *plugin.FakeContext,
 	pubKey []byte,
 	tier *uint64,
@@ -214,7 +214,7 @@ func (dpos *testDPOSContract) RegisterCandidate(
 	return err
 }
 
-func (dpos *testDPOSContract) UnregisterCandidate(ctx *plugin.FakeContext) error {
+func (dpos *TestDPOSContract) UnregisterCandidate(ctx *plugin.FakeContext) error {
 	err := dpos.Contract.UnregisterCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&UnregisterCandidateRequest{},
@@ -222,7 +222,7 @@ func (dpos *testDPOSContract) UnregisterCandidate(ctx *plugin.FakeContext) error
 	return err
 }
 
-func (dpos *testDPOSContract) RemoveWhitelistedCandidate(ctx *plugin.FakeContext, candidate *loom.Address) error {
+func (dpos *TestDPOSContract) RemoveWhitelistedCandidate(ctx *plugin.FakeContext, candidate *loom.Address) error {
 	err := dpos.Contract.RemoveWhitelistedCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&RemoveWhitelistedCandidateRequest{CandidateAddress: candidate.MarshalPB()},
@@ -230,7 +230,7 @@ func (dpos *testDPOSContract) RemoveWhitelistedCandidate(ctx *plugin.FakeContext
 	return err
 }
 
-func (dpos *testDPOSContract) Delegate(ctx *plugin.FakeContext, validator *loom.Address, amount *big.Int, tier *uint64, referrer *string) error {
+func (dpos *TestDPOSContract) Delegate(ctx *plugin.FakeContext, validator *loom.Address, amount *big.Int, tier *uint64, referrer *string) error {
 	req := &DelegateRequest{
 		ValidatorAddress: validator.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *loom.NewBigUInt(amount)},
@@ -250,7 +250,7 @@ func (dpos *testDPOSContract) Delegate(ctx *plugin.FakeContext, validator *loom.
 	return err
 }
 
-func (dpos *testDPOSContract) Redelegate(ctx *plugin.FakeContext, validator *loom.Address, newValidator *loom.Address, amount *big.Int, index uint64, tier *uint64, referrer *string) error {
+func (dpos *TestDPOSContract) Redelegate(ctx *plugin.FakeContext, validator *loom.Address, newValidator *loom.Address, amount *big.Int, index uint64, tier *uint64, referrer *string) error {
 	req := &RedelegateRequest{
 		FormerValidatorAddress: validator.MarshalPB(),
 		ValidatorAddress:       newValidator.MarshalPB(),
@@ -276,7 +276,7 @@ func (dpos *testDPOSContract) Redelegate(ctx *plugin.FakeContext, validator *loo
 	return err
 }
 
-func (dpos *testDPOSContract) Unbond(ctx *plugin.FakeContext, validator *loom.Address, amount *big.Int, index uint64) error {
+func (dpos *TestDPOSContract) Unbond(ctx *plugin.FakeContext, validator *loom.Address, amount *big.Int, index uint64) error {
 	err := dpos.Contract.Unbond(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&UnbondRequest{
