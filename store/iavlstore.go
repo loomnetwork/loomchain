@@ -128,12 +128,16 @@ func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 	//end = []byte("delegation3")
 	fmt.Printf("end-%s\n", end)
 
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, end, 0)
-	fmt.Printf("Found %d --- KEYS!!! in Range\n", len(keys))
-	if err != nil {
-		fmt.Printf("failed to get range err -%v\n", err)
-		return ret
+	var keys [][]byte
+	var values [][]byte
+	fn := func(key, value []byte) bool {
+		fmt.Printf("Key-%s value -%s\n", string(key), string(value))
+		keys = append(keys, key)
+		values = append(values, value)
+		return false
 	}
+	s.tree.IterateRange(prefix, end, true, fn)
+	fmt.Printf("Found %d --- KEYS!!! in Range\n", len(keys))
 	for i, x := range keys {
 		//TODO return this to greatness
 		k, err := UnprefixKey2(x, prefix)
