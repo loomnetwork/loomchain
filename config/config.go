@@ -10,6 +10,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/loomnetwork/loomchain/evm"
+
 	"github.com/loomnetwork/loomchain/auth"
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -127,6 +129,8 @@ type Config struct {
 	FnConsensus *FnConsensusConfig
 
 	Auth *auth.Config
+
+	EvmStore *evm.EvmStoreConfig
 
 	// Dragons
 	EVMDebugEnabled bool
@@ -381,6 +385,7 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -733,7 +738,7 @@ DPOSv2OracleConfig:
 # App store
 #
 AppStore:
-  # 1 - IAVL, 2 - MultiReaderIAVL, defaults to 1
+  # 1 - IAVL, 2 - MultiReaderIAVL, 3 - MultiWriterAppStore, defaults to 1
   # WARNING: Once a node is initialized with a specific version it can't be switched to another
   #          version without rebuilding the node.
   Version: {{ .AppStore.Version }}
@@ -757,6 +762,9 @@ AppStore:
   # Snapshot type to use, only supported by MultiReaderIAVL store
   # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
   SnapshotVersion: {{ .AppStore.SnapshotVersion }}
+  # If true the app store will read EVM state from evm.db instead of app.db
+  # This config works with AppStore Version 3 (MultiWriterAppStore) only
+  EvmDBEnabled: {{ .AppStore.EvmDBEnabled }}
 {{if .EventStore -}}
 #
 # EventStore
@@ -765,6 +773,21 @@ EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
+
+{{if .EvmStore -}}
+#
+# EvmStore
+#
+EvmStore:
+  # DBName defines evm database file name
+  DBName: {{.EvmStore.DBName}}
+  # DBBackend defines backend EVM store type
+  # available backend types are 'goleveldb', or 'cleveldb'
+  DBBackend: {{.EvmStore.DBBackend}}
+  # CacheSizeMegs defines cache size (in megabytes) of EVM store
+  CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
+{{end}}
+
 # 
 #  FnConsensus reactor on/off switch + config
 #

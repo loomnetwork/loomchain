@@ -5,11 +5,13 @@ PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
 
-PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
+PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src
 
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
+GENPROTO_DIR = $(GOPATH)/src/google.golang.org/genproto
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
+GRPC_DIR = $(GOPATH)/src/google.golang.org/grpc
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
@@ -27,6 +29,11 @@ ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
 EOS_GIT_REV = 2a0f2243770a4ca745ebe30d0594a76e135d6a4d
+# This is locked down to this particular revision because this is the last revision before the
+# google.golang.org/genproto was recompiled with a new version of protoc, which produces pb.go files
+# that don't appear to be compatible with the gogo protobuf & protoc versions we use.
+# google.golang.org/genproto seems to be pulled in by the grpc package.
+GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -119,6 +126,8 @@ install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
 
 protoc-gen-gogo:
+	which protoc
+	protoc --version
 	go build github.com/gogo/protobuf/protoc-gen-gogo
 
 %.pb.go: %.proto protoc-gen-gogo
@@ -169,7 +178,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(EOS_DIR) $(SSHA3_DIR)
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
-        github.com/gogo/protobuf/proto \
+		github.com/gogo/protobuf/proto \
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
@@ -191,6 +200,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(EOS_DIR) $(SSHA3_DIR)
 	cd $(PLUGIN_DIR) && git checkout eos-siging && git pull origin eos-siging
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
+	cd $(GRPC_DIR) && git checkout v1.20.1
+	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(EOS_DIR) && git checkout master && git pull && git checkout $(EOS_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)

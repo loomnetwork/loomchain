@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -25,30 +22,15 @@ func TestE2eEvm(t *testing.T) {
 		{"ethSignature-type1", "loom-3-test.toml", 1, 1, 1, "loom-3-genesis.json", "loom-3-loom.yaml"},
 		{"ethSignature-type2", "loom-4-test.toml", 1, 3, 2, "loom-4-genesis.json", "loom-4-loom.yaml"},
 		{"migration-tx", "loom-5-test.toml", 3, 3, 3, "loom-5-genesis.json", "loom-5-loom.yaml"},
+		{"evm-state-migration", "loom-6-test.toml", 4, 4, 4, "loom-6-genesis.json", "loom-6-loom.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, test.ethAccounts)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			binary, err := exec.LookPath("go")
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			exampleCmd := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
-			}
-
-			if err := exampleCmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(exampleCmd.Args, " "), err))
 			}
 
 			if err := common.DoRun(*config); err != nil {

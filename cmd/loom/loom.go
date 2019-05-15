@@ -665,6 +665,20 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
+	} else if cfg.AppStore.Version == 3 {
+		logger.Info("Loading Multi-Writer App Store")
+		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		if err != nil {
+			return nil, err
+		}
+		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
+		if err != nil {
+			return nil, err
+		}
+		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.EvmDBEnabled)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
@@ -677,7 +691,9 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	// NOTE: Shouldn't wrap the MultiReaderIAVLStore in a CachingStore yet, otherwise the
-	//       MultiReaderIAVLStore loses its advantages.
+	// MultiReaderIAVLStore loses its advantages. Wrapping the MultiWriterAppStore doesn't make
+	// sense either since the caching store doesn't handle snapshots properly, which means the cache
+	// is never actually read from.
 	if cfg.CachingStoreConfig.CachingEnabled &&
 		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
 		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
@@ -705,6 +721,25 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	return eventStore, nil
 }
 
+func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, error) {
+	evmStoreCfg := cfg.EvmStore
+	db, err := cdb.LoadDB(
+		evmStoreCfg.DBBackend,
+		evmStoreCfg.DBName,
+		cfg.RootPath(),
+		evmStoreCfg.CacheSizeMegs,
+		cfg.Metrics.Database,
+	)
+	if err != nil {
+		return nil, err
+	}
+	evmStore := store.NewEvmStore(db)
+	if err := evmStore.LoadVersion(targetVersion); err != nil {
+		return nil, err
+	}
+	return evmStore, nil
+}
+
 func loadApp(
 	chainID string,
 	cfg *config.Config,
@@ -715,6 +750,7 @@ func loadApp(
 	logger := log.Root
 
 	appStore, err := loadAppStore(cfg, log.Default, appHeight)
+
 	if err != nil {
 		return nil, err
 	}
@@ -1267,7 +1303,6 @@ func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *lo
 }
 
 func main() {
-	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	callCommand := cli.ContractCallCommand("")
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
@@ -1296,7 +1331,7 @@ func main() {
 		NewAddressMapperCommand(),
 		NewDPOSV2Command(),
 		NewDPOSV3Command(),
-		karmaCmd,
+		NewKarmaCommand(),
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
@@ -1307,7 +1342,6 @@ func main() {
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
-	AddKarmaMethods(karmaCmd)
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

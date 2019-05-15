@@ -1,20 +1,20 @@
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = [ "auth:sigtx:default","auth:sigtx:tron", "auth:sigtx:eth" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:eth"
   Condition = "contains"
   Expected = [ "true" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:tron"
   Condition = "contains"
   Expected = [ "true" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:default"
   Condition = "contains"
   Expected = [ "true" ]
 
@@ -33,7 +33,7 @@
   Expected = [ "mapping successful" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings  -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings"
   Condition = "contains"
   Expected = [ "mappings", '"chainId": "default"', '"chainId": "eth"' ]
 
@@ -64,7 +64,7 @@
   Expected = [ "mapping successful" ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings mapped-chain-id tron -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings"
   Condition = "contains"
   Expected = [ "mappings", '"chainId": "default"', '"chainId": "tron"' ]
 

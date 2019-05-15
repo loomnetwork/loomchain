@@ -205,7 +205,7 @@
 
 # A delegator which was definitely never a validator should receive rewards for delegation
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 check_distribution {{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 check_distribution {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 

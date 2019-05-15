@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -224,13 +223,16 @@ func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBl
 	if blockResult.BlockMeta == nil || blockResult.Block == nil {
 		return nil, errors.New("block not found")
 	}
-	blockMeta := types.BlockMeta{
-		BlockID: blockResult.BlockMeta.BlockID,
-	}
+
 	header := types.Header{
+		Height:          blockResult.Block.Header.Height,
 		LastBlockID:     blockResult.Block.Header.LastBlockID,
 		Time:            blockResult.Block.Header.Time,
 		ProposerAddress: blockResult.Block.Header.ProposerAddress,
+	}
+	blockMeta := types.BlockMeta{
+		BlockID: blockResult.BlockMeta.BlockID,
+		Header:  header,
 	}
 	block := types.Block{
 		Header: header,
@@ -282,16 +284,7 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 		return nil, err
 	}
 	results := &ctypes.ResultTx{
-		Hash:   txResult.Hash,
-		Height: txResult.Height,
-		Index:  txResult.Index,
-		Tx:     txResult.Tx,
-		TxResult: abci.ResponseDeliverTx{
-			Data:      txResult.TxResult.Data,
-			Info:      txResult.TxResult.Info,
-			GasWanted: txResult.TxResult.GasWanted,
-			GasUsed:   txResult.TxResult.GasUsed,
-		},
+		Index: txResult.Index,
 	}
 	return results, nil
 }
