@@ -411,7 +411,6 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 	data, err := c.cache.Get(key, c.version)
 
 	if err != nil {
-		fmt.Println("Cache Miss")
 		cacheMisses.With("store_operation", "get").Add(1)
 		switch err {
 		case bigcache.ErrEntryNotFound:
@@ -430,7 +429,6 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 			c.logger.Error(fmt.Sprintf("[CachingStoreSnapshot] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
 	} else {
-		fmt.Println("Cache Hit")
 		cacheHits.With("store_operation", "get").Add(1)
 	}
 
