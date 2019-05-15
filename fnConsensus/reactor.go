@@ -3,6 +3,7 @@ package fnConsensus
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -26,10 +27,6 @@ const (
 	FnVoteSetChannel = byte(0x50)
 	FnMajChannel     = byte(0x51)
 
-	VoteSetIDSize = 32
-
-	StartingNonce int64 = 1
-
 	// Max message size 2 MB
 	MaxMsgSize = 2 * 1000 * 1024
 
@@ -44,21 +41,8 @@ const (
 	// Delay between propogating votesets to make other peers up to date.
 	VoteSetPropogationDelay = 1 * time.Second
 
-	// FnVoteSet cannot be modified beyond this interval
-	// but can be used to let behind nodes catch up on nonce
-	ExpiresInForSync = 40 * time.Second
-
 	// Max context size 1 KB
 	MaxContextSize = 1024
-
-	MaxPetitionPayloadSize = 1000 * 1024
-
-	MaxAllowedTimeDriftInFuture = 10 * time.Second
-
-	BaseProposalDelay = 500 * time.Millisecond
-	BaseCommitDelay   = 100 * time.Millisecond
-
-	MonitoringInterval = 1 * time.Second
 
 	ProgressLoopStartDelay = 2 * time.Second
 
@@ -223,26 +207,36 @@ func (f *FnConsensusReactor) calculateMessageHash(message []byte) ([]byte, error
 	return hash.Sum(nil), nil
 }
 
-func (f *FnConsensusReactor) calculateSleepTimeForCommit(areWeValidator bool, ownValidatorIndex int) time.Duration {
+func (f *FnConsensusReactor) calculateSleepTimeForCommit(areWeValidator bool) time.Duration {
 	currentEpochTime := time.Now().Unix()
 	baseTimeToSleep := CommitIntervalInSeconds - currentEpochTime%CommitIntervalInSeconds
 
+	const maxBoundForVariableComponent = 2 * time.Second
+	const baseCommitDelay = 100 * time.Millisecond
+
 	if !areWeValidator {
-		return (time.Duration(baseTimeToSleep) * time.Second) + BaseCommitDelay
+		return (time.Duration(baseTimeToSleep) * time.Second) + baseCommitDelay
 	}
 
-	return (time.Duration(baseTimeToSleep) * time.Second) + (time.Duration(ownValidatorIndex+1) * BaseCommitDelay)
+	return (time.Duration(baseTimeToSleep) * time.Second) +
+		time.Duration(rand.Int63n(int64(maxBoundForVariableComponent))) +
+		baseCommitDelay
 }
 
-func (f *FnConsensusReactor) calculateSleepTimeForPropose(areWeValidator bool, ownValidatorIndex int) time.Duration {
+func (f *FnConsensusReactor) calculateSleepTimeForPropose(areWeValidator bool) time.Duration {
 	currentEpochTime := time.Now().Unix()
 	baseTimeToSleep := ProposeIntervalInSeconds - currentEpochTime%ProposeIntervalInSeconds
 
+	const baseProposalDelay = 500 * time.Millisecond
+	const maxBoundForVariableComponent = 2 * time.Second
+
 	if !areWeValidator {
-		return (time.Duration(baseTimeToSleep) * time.Second) + BaseProposalDelay
+		return (time.Duration(baseTimeToSleep) * time.Second) + baseProposalDelay
 	}
 
-	return (time.Duration(baseTimeToSleep) * time.Second) + (time.Duration(ownValidatorIndex+1) * BaseProposalDelay)
+	return (time.Duration(baseTimeToSleep) * time.Second) +
+		time.Duration(rand.Int63n(int64(maxBoundForVariableComponent))) +
+		baseProposalDelay
 }
 
 func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
@@ -297,11 +291,11 @@ func (f *FnConsensusReactor) commitRoutine() {
 	currentValidators := f.getValidatorSet()
 
 	// Initializing these vars with sane value to calculate initial time
-	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
+	areWeValidator, _ := f.areWeValidator(currentValidators)
 
 OUTER_LOOP:
 	for {
-		commitSleepTime := f.calculateSleepTimeForCommit(areWeValidator, ownValidatorIndex)
+		commitSleepTime := f.calculateSleepTimeForCommit(areWeValidator)
 		commitTimer := time.NewTimer(commitSleepTime)
 
 		select {
@@ -343,7 +337,7 @@ OUTER_LOOP:
 		// Align to minutes, to make sure this routine runs at almost same time across all nodes
 		// Not strictly required
 		// state and other variables will be same as the one initialized in second case statement
-		proposeSleepTime := f.calculateSleepTimeForPropose(areWeValidator, ownValidatorIndex)
+		proposeSleepTime := f.calculateSleepTimeForPropose(areWeValidator)
 		proposeTimer := time.NewTimer(proposeSleepTime)
 
 		select {
