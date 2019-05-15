@@ -163,7 +163,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		}
 		err = ctx.Set(UserStateKey(userAddr), userdeployer)
 		if err != nil {
-			return errors.Wrap(err, "Saving Deployers mapping corresponding to user")
+			return errors.Wrap(err, "Failed to Save Deployers mapping corresponding to user")
 		}
 		deployerReq := &GetDeployerRequest{
 			DeployerAddr: req.DeployerAddr,
@@ -180,7 +180,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		//Storing Full Deployer object corresponding to Deployer Key
 		err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
 		if err != nil {
-			return errors.Wrap(err, "Error Saving WhitelistedDeployer in whitelisted deployers state")
+			return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
 		}
 		return nil
 	}
