@@ -154,7 +154,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		if err != nil {
 			//This is taking care of boundary cases that user is whitelisting deployers for first time
 			if err != contract.ErrNotFound {
-				return errors.Wrap(err, "Getting Deployers corresponding to user")
+				return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 			}
 		}
 		userdeployers.Deployers = append(userdeployers.Deployers, req.DeployerAddr)
@@ -180,12 +180,14 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		//Storing Full Deployer object corresponding to Deployer Key
 		err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
 		if err != nil {
-			return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
+			return errors.Wrap(err, "Error Saving WhitelistedDeployer in whitelisted deployers state")
 		}
 		return nil
 	}
 	return ErrDeployerAlreadyExists
+
 }
+
 
 // GetUserDeployers returns whitelisted deployers corresponding to specific user
 func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
@@ -200,7 +202,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
 		var userDeployer UserDeployer
 		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployer)
 		if err != nil {
-			return nil, errors.Wrap(err, "Getting WhitelistedDeployer in whitelisted deployers state")
+			return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 		}
 		deployers = append(deployers, &Deployer{
 			Address: deployerAddr,
@@ -222,7 +224,7 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(ctx contract.StaticContext
 	var userDeployer UserDeployer
 	err := ctx.Get(DeployerStateKey(deployerAddr), &userDeployer)
 	if err != nil {
-		return nil, errors.Wrap(err, "Getting WhitelistedDeployer in whitelisted deployers state")
+		return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 	}
 	contractAddresses := []*types.Address{}
 	for _, contract := range userDeployer.Contracts {
@@ -240,7 +242,7 @@ func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address
 	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
 	// If key is not part of whitelisted then error will be returned here
 	if err != nil {
-		return errors.Wrap(err, "Getting WhitelistedDeployer in whitelisted deployers state")
+		return errors.Wrap(err, "Failed to load whitelisted deployers state")
 	}
 	contract := udwtypes.Contract{
 		ContractAddress: contractAddr.MarshalPB(),
