@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
@@ -9,7 +8,6 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
@@ -89,13 +87,15 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	fmt.Printf("IAVL-Range-%v\n", prefix)
 	fmt.Printf("IAVL-Range--%s\n", string(prefix))
 	ret := make(plugin.RangeData, 0)
-	if bytes.HasSuffix(prefix, []byte(fmt.Sprintf("delegation%d", 0))) {
-		fmt.Printf("has suffix delegation")
-		return s.Range2(prefix)
-	}
+	//if bytes.IndexAny(prefix, "delegation") > -1 {
+	//	fmt.Printf("has suffix delegation\n")
+	//	return s.Range2(prefix)
+	//}
 	fmt.Printf("Doesn't have suffix delegation\n")
+	end := prefixRangeEnd(prefix)
+	fmt.Printf("end-%s\n", end)
 
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, end, 0)
 	fmt.Printf("Found %d --- KEYS!!! in Range\n", len(keys))
 	if err != nil {
 		fmt.Printf("failed to get range  err -%v", err)
@@ -109,7 +109,7 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 			fmt.Printf("failed to unprefix key -%s prefix -%s err-%v", x, prefix, err)
 			k = nil
 		}
-		fmt.Printf("unprefixed key-%s\n", k)
+		fmt.Printf("\nunprefixed key-%s\n", k)
 
 		re := &plugin.RangeEntry{
 			Key:   k,
@@ -124,21 +124,21 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
-	end := []byte(fmt.Sprintf("delegation%d", 9))
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, end, 0)
-	log.Error(fmt.Sprintf("Found2 %d --- KEYS!!! in Range", len(keys)))
+	end := prefixRangeEnd(prefix)
+	//end = []byte("delegation3")
+	fmt.Printf("end-%s\n", end)
 
-	keys, values, _, err = s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
-	log.Error(fmt.Sprintf("Found %d --- KEYS!!! in Range", len(keys)))
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, end, 0)
+	fmt.Printf("Found %d --- KEYS!!! in Range\n", len(keys))
 	if err != nil {
-		log.Error("failed to get range", "err", err)
+		fmt.Printf("failed to get range err -%v\n", err)
 		return ret
 	}
 	for i, x := range keys {
 		//TODO return this to greatness
 		k, err := UnprefixKey2(x, prefix)
 		if err != nil {
-			log.Error("failed to unprefix key", "key", x, "prefix", prefix, "err", err)
+			fmt.Printf("failed to unprefix key -%s prefix -%s err-%v\n", x, prefix, err)
 			k = nil
 		}
 		re := &plugin.RangeEntry{
