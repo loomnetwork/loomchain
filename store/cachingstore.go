@@ -29,26 +29,24 @@ var (
 	cacheErrors metrics.Counter
 	cacheMisses metrics.Counter
 
-	versionTablePrefix = []byte("versiontable")
+	keyVersionTablePrefix = []byte("kvtable")
 )
 
 func versionedKey(key []byte, version int64) []byte {
 	return util.PrefixKey(key, int64ToBytes(version))
 }
 
-func versionTableKey(key []byte) []byte {
-	return util.PrefixKey(versionTablePrefix, key)
+func keyVersionTableKey(key []byte) []byte {
+	return util.PrefixKey(keyVersionTablePrefix, key)
 }
 
 type VersionedBigCache struct {
-	cache  *bigcache.BigCache
-	logger *loom.Logger
+	cache *bigcache.BigCache
 }
 
-func NewVersionedBigCache(cache *bigcache.BigCache, logger *loom.Logger) *VersionedBigCache {
+func NewVersionedBigCache(cache *bigcache.BigCache) *VersionedBigCache {
 	return &VersionedBigCache{
-		cache:  cache,
-		logger: logger,
+		cache: cache,
 	}
 }
 
@@ -58,7 +56,7 @@ func (c *VersionedBigCache) Delete(key []byte, version int64) error {
 	// delete data in cache if it does exist
 	c.cache.Delete(string(versionedKey))
 	// add key to inidicate that this is the latest version but
-	// the data has been delete
+	// the data has been deleted
 	if err := c.addKeyVersion(key, version); err != nil {
 		return err
 	}
@@ -78,32 +76,14 @@ func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
 	return nil
 }
 
-func (c *VersionedBigCache) Has(key []byte, version int64) bool {
-	latestVersion := c.getKeyVersion(key, version)
-	versionedKey := versionedKey(key, latestVersion)
-	data, err := c.cache.Get(string(versionedKey))
-	exists := true
-	if err != nil || data == nil {
-		exists = false
-	}
-	return exists
-}
-
 func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
 	latestVersion := c.getKeyVersion(key, version)
 	versionedKey := versionedKey(key, latestVersion)
-	data, err := c.cache.Get(string(versionedKey))
-	if err != nil {
-		return data, err
-	}
-	if data == nil {
-		err = bigcache.ErrEntryNotFound
-	}
-	return data, err
+	return c.cache.Get(string(versionedKey))
 }
 
 func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
-	tableKey := versionTableKey(key)
+	tableKey := keyVersionTableKey(key)
 	var kt KeyVersionTable
 	var latestVersion int64
 	buf, err := c.cache.Get(string(tableKey))
@@ -126,20 +106,7 @@ func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) error {
 	if err != nil {
 		return err
 	}
-
 	kt.Keys[version] = true
-
-	return saveKeyTable(c.cache, key, kt)
-}
-
-func (c *VersionedBigCache) deleteKeyVersion(key []byte, version int64) error {
-	kt, err := loadKeyTable(c.cache, key)
-	if err != nil {
-		return err
-	}
-
-	kt.Keys[version] = false
-
 	return saveKeyTable(c.cache, key, kt)
 }
 
@@ -322,7 +289,7 @@ func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*
 
 func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, version int64) (*CachingStore, error) {
 	if config == nil {
-		return nil, fmt.Errorf("[CachingStore] config cant be null for caching store")
+		return nil, fmt.Errorf("[CachingStore] config can't be null for caching store")
 	}
 
 	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
@@ -337,7 +304,7 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, versio
 		return nil, err
 	}
 
-	versionedBigCache := NewVersionedBigCache(cache, cacheLogger)
+	versionedBigCache := NewVersionedBigCache(cache)
 
 	return &CachingStore{
 		VersionedKVStore: source,
@@ -404,7 +371,7 @@ func (c *CachingStoreSnapshot) Has(key []byte) bool {
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
-			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
+			c.logger.Error(fmt.Sprintf("[CachingStoreSnapshot] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
 		data := c.Snapshot.Get(key)
@@ -415,7 +382,7 @@ func (c *CachingStoreSnapshot) Has(key []byte) bool {
 			setErr := c.cache.Set(key, data, c.version)
 			if setErr != nil {
 				cacheErrors.With("cache_operation", "set").Add(1)
-				c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+				c.logger.Error(fmt.Sprintf("[CachingStoreSnapshot] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 			}
 		}
 	} else {
@@ -449,7 +416,7 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 		setErr := c.cache.Set(key, data, c.version)
 		if setErr != nil {
 			cacheErrors.With("cache_operation", "set").Add(1)
-			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+			c.logger.Error(fmt.Sprintf("[CachingStoreSnapshot] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
 	} else {
 		cacheHits.With("store_operation", "get").Add(1)
@@ -477,7 +444,7 @@ func int64ToBytes(n int64) []byte {
 }
 
 func loadKeyTable(cache *bigcache.BigCache, key []byte) (*KeyVersionTable, error) {
-	tableKey := versionTableKey(key)
+	tableKey := keyVersionTableKey(key)
 	var kt KeyVersionTable
 	buf, err := cache.Get(string(tableKey))
 	if err != nil && err != bigcache.ErrEntryNotFound {
@@ -497,7 +464,7 @@ func loadKeyTable(cache *bigcache.BigCache, key []byte) (*KeyVersionTable, error
 }
 
 func saveKeyTable(cache *bigcache.BigCache, key []byte, kt *KeyVersionTable) error {
-	tableKey := versionTableKey(key)
+	tableKey := keyVersionTableKey(key)
 	buf, err := proto.Marshal(kt)
 	if err != nil {
 		return err
