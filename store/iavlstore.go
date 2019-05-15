@@ -80,16 +80,19 @@ func prefixRangeEnd(prefix []byte) []byte {
 
 func UnprefixKey2(key, prefix []byte) ([]byte, error) {
 	if len(prefix) > len(key) {
-		return nil, fmt.Errorf("prefix %s longer than key %s", string(prefix), string(key))
+		return nil, fmt.Errorf("prefix2 %s longer than key %s", string(prefix), string(key))
 	}
 	return key[len(prefix):], nil
 }
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
+	log.Error(fmt.Sprintf("IAVL-Range-%v", prefix))
 	ret := make(plugin.RangeData, 0)
 	if bytes.HasSuffix(prefix, []byte("delegation0")) {
+		log.Error("has suffix delegation0")
 		return s.Range2(prefix)
 	}
+	log.Error("Doesn't have suffix delegation0")
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {
