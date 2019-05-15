@@ -195,7 +195,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/btcsuite/btcd
 
 	# for when you want to reference a different branch of go-loom
-	cd $(PLUGIN_DIR) && git checkout tg-tron-types && git pull origin tg-tron-types
+	#cd $(PLUGIN_DIR) && git checkout tg-tron-types && git pull origin tg-tron-types
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GRPC_DIR) && git checkout v1.20.1

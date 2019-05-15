@@ -26,16 +26,12 @@ type (
 
 // AddContractMapping adds a mapping between a DAppChain contract and a Mainnet contract.
 func (gw *Gateway) AddContractMapping(ctx contract.Context, req *AddContractMappingRequest) error {
-	// Tron Gateway allows
-	if gw.Type == TronGateway {
-		if req.ForeignContract == nil || req.LocalContract == nil || req.ForeignContractCreatorSig == nil {
-			return ErrInvalidRequest
-		}
-	} else {
-		if req.ForeignContract == nil || req.LocalContract == nil || req.ForeignContractCreatorSig == nil ||
-			req.ForeignContractTxHash == nil {
-			return ErrInvalidRequest
-		}
+	if req.ForeignContract == nil || req.LocalContract == nil || req.ForeignContractCreatorSig == nil {
+		return ErrInvalidRequest
+	}
+	// Don't need the TRON contract creation tx hash to verify the contract creator
+	if (gw.Type != TronGateway) && (req.ForeignContractTxHash == nil) {
+		return ErrInvalidRequest
 	}
 
 	foreignAddr := loom.UnmarshalAddressPB(req.ForeignContract)

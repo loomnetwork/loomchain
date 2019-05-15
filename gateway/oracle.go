@@ -588,6 +588,7 @@ func (orc *Oracle) fetchMainnetContractCreator(unverified *UnverifiedContractCre
 		verifiedCreator.Creator.Local = loom.LocalAddress(tx.CreatorAddress.Bytes())
 		verifiedCreator.Contract.Local = loom.LocalAddress(tx.ContractAddress.Bytes())
 		return verifiedCreator, nil
+
 	case gwcontract.TronGateway:
 		verifiedCreator := &VerifiedContractCreator{
 			ContractMappingID: unverified.ContractMappingID,
@@ -607,7 +608,7 @@ func (orc *Oracle) fetchMainnetContractCreator(unverified *UnverifiedContractCre
 		creatorAddress = fmt.Sprintf("0x%s", creatorAddress)
 		creatorLocalAddress, err := loom.LocalAddressFromHexString(creatorAddress)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "failed to convert contract creator address %s", creatorAddress)
 		}
 		verifiedCreator.Creator.Local = creatorLocalAddress
 
@@ -646,13 +647,17 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 	var trxDeposits, trc20Deposits []*mainnetEventInfo
 	var err error
 
-	// This is required, as LoomCoin gateway fires both erc20 as well as loomcoin received event
 	switch orc.gatewayType {
 	case gwcontract.LoomCoinGateway:
 		loomcoinDeposits, err = orc.fetchLoomCoinDeposits(filterOpts)
 		if err != nil {
 			return nil, err
 		}
+		withdrawals, err = orc.fetchTokenWithdrawals(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
 	case gwcontract.EthereumGateway:
 		erc721Deposits, err = orc.fetchERC721Deposits(filterOpts)
 		if err != nil {
@@ -678,6 +683,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 		if err != nil {
 			return nil, err
 		}
+
 	case gwcontract.TronGateway:
 		trxDeposits, err = orc.fetchTRXDeposits(filterOpts)
 		if err != nil {
