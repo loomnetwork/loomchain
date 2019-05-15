@@ -21,11 +21,10 @@ type (
 	GetDeployerResponse          = dwtypes.GetDeployerResponse
 	GetDeployerRequest           = dwtypes.GetDeployerRequest
 	Deployer                     = dwtypes.Deployer
-	// UDeployer                    = udwtypes.Deployer
+	UserDeployer                 = udwtypes.Deployer
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
 	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
 	UserDeployers                = udwtypes.UserDeployers
-	UserDeployerContracts        = udwtypes.UserDeployerContracts
 	InitRequest                  = udwtypes.InitRequest
 	TierInfo                     = udwtypes.TierInfo
 )
@@ -52,10 +51,11 @@ var (
 )
 
 const (
-	ownerRole           = "owner"
-	deployerPrefix      = "dep"
+	ownerRole = "owner"
+	//This state stores deployer contract mapping
 	deployerStatePrefix = "dep-state"
-	userStatePrefix     = "user-state"
+	//This state stores deployers corresponding to the user
+	userStatePrefix = "user-state"
 )
 
 var (
@@ -104,6 +104,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 
 // Add User Deployer
 func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
+	var deployer UserDeployer
 	var userdeployers UserDeployers
 	var tierInfo TierInfo
 	var whitelistingFees *types.BigUInt
@@ -135,7 +136,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		}
 		return err
 	}
-	userAddr := loom.UnmarshalAddressPB(req.UserAddr)
+	userAddr := ctx.Message().Sender
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
 	if err != nil {
 		return errors.Wrap(err, "address of deployer_whitelist")
@@ -146,19 +147,48 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, nil); err != nil {
 		return errors.Wrap(err, "Adding User Deployer")
 	}
-	err = ctx.Get(UserStateKey(userAddr), &userdeployers)
-	if err != nil {
-		return errors.Wrap(err, "Getting Deployers corresponding to user")
+
+	//Check for deployer is not already whitelisted
+	if err := ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), &deployer); err != nil {
+		if err == contract.ErrNotFound {
+			//Further code runs if deployer is not already whitelisted
+			err = ctx.Get(UserStateKey(userAddr), &userdeployers)
+			if err != nil {
+				//This is taking care of boundary cases that user is whitelisting deployers for first time
+				if err != contract.ErrNotFound {
+					return errors.Wrap(err, "Getting Deployers corresponding to user")
+				}
+			}
+			userdeployers.Deployers = append(userdeployers.Deployers, req.DeployerAddr)
+			userdeployer := &UserDeployers{
+				Deployers: userdeployers.Deployers,
+			}
+			err = ctx.Set(UserStateKey(userAddr), userdeployer)
+			if err != nil {
+				return errors.Wrap(err, "Saving Deployers mapping corresponding to user")
+			}
+			deployerReq := &GetDeployerRequest{
+				DeployerAddr: req.DeployerAddr,
+			}
+			var getDeployerResponse GetDeployerResponse
+			if err := contract.StaticCallMethod(ctx, dwAddr,
+				"GetDeployer", deployerReq, &getDeployerResponse); err != nil {
+				return err
+			}
+			deployer := &UserDeployer{
+				Address: getDeployerResponse.Deployer.GetAddress(),
+				Flags:   getDeployerResponse.Deployer.GetFlags(),
+			}
+			//Storing Full Deployer object corresponding to Deployer Key
+			err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
+			if err != nil {
+				return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
+			}
+			return nil
+		}
+		return err
 	}
-	userdeployers.Deployers = append(userdeployers.Deployers, req.UserAddr)
-	userdeployer := &UserDeployers{
-		UserAddr:  req.UserAddr,
-		Deployers: userdeployers.Deployers,
-	}
-	err = ctx.Set(UserStateKey(userAddr), userdeployer)
-	if err != nil {
-		return errors.Wrap(err, "Saving Deployers corresponding to user")
-	}
+
 	return nil
 }
 
