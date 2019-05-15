@@ -81,7 +81,7 @@ func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]
 func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*Delegation, error) {
 	delegations := []*Delegation{}
 	delegationIdx := make(map[string]*Delegation)
-	for _, m := range ctx.Range(delegationsKey) {
+	for _, m := range ctx.Range([]byte("delegation0")) {
 		ctx.Logger().Error(fmt.Sprintf("Trying Key -%v(%d bytes)", m.Key, len(m.Key)), "bytes", len(m.Value))
 		var f *Delegation
 		if bytes.Compare(m.Key, delegationsKey) == 0 || len(m.Key) < 3 {
