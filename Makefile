@@ -191,7 +191,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/posener/wstest
 
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout Loom_Cli_Refactoring && git pull origin Loom_Cli_Refactoring
+	# cd $(PLUGIN_DIR) && git checkout util-has-prefix && git pull origin util-has-prefix
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GRPC_DIR) && git checkout v1.20.1

@@ -33,6 +33,9 @@ const (
 	// Enables usage of ctx.Validators() in ChainConfig contract.
 	ChainCfgVersion1_1 = "chaincfg:v1.1"
 
+	// Enables application to persist and retrive EVM state in/from evm.db
+	EvmDBFeature = "db:evm"
+
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 )
