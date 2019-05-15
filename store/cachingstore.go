@@ -203,38 +203,6 @@ func init() {
 
 }
 
-func (c *CachingStore) Delete(key []byte) {
-	var err error
-
-	defer func(begin time.Time) {
-		deleteDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
-	}(time.Now())
-
-	err = c.cache.Delete(key, c.version)
-	if err != nil {
-		// Only log error and dont error out
-		cacheErrors.With("cache_operation", "delete").Add(1)
-		c.logger.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
-	}
-	c.VersionedKVStore.Delete(key)
-}
-
-func (c *CachingStore) Set(key, val []byte) {
-	var err error
-
-	defer func(begin time.Time) {
-		setDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
-	}(time.Now())
-
-	err = c.cache.Set(key, val, c.version)
-	if err != nil {
-		// Only log error and dont error out
-		cacheErrors.With("cache_operation", "set").Add(1)
-		c.logger.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
-	}
-	c.VersionedKVStore.Set(key, val)
-}
-
 // CachingStore wraps a write-through cache around a VersionedKVStore.
 // NOTE: Writes update the cache, reads do not, to read from the cache use the store returned by
 //       ReadOnly().
@@ -312,6 +280,38 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, versio
 		logger:           cacheLogger,
 		version:          version,
 	}, nil
+}
+
+func (c *CachingStore) Delete(key []byte) {
+	var err error
+
+	defer func(begin time.Time) {
+		deleteDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	err = c.cache.Delete(key, c.version)
+	if err != nil {
+		// Only log error and dont error out
+		cacheErrors.With("cache_operation", "delete").Add(1)
+		c.logger.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+	}
+	c.VersionedKVStore.Delete(key)
+}
+
+func (c *CachingStore) Set(key, val []byte) {
+	var err error
+
+	defer func(begin time.Time) {
+		setDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	err = c.cache.Set(key, val, c.version)
+	if err != nil {
+		// Only log error and dont error out
+		cacheErrors.With("cache_operation", "set").Add(1)
+		c.logger.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+	}
+	c.VersionedKVStore.Set(key, val)
 }
 
 func (c *CachingStore) SaveVersion() ([]byte, int64, error) {
