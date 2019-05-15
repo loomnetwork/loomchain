@@ -18,6 +18,3 @@ Auth:
     eos:
       TxType: "eos"
       AccountType: 1
-    eos-scatter:
-      TxType: "eos-scatter"
-      AccountType: 1
