@@ -190,7 +190,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	cachedValue = snapshotv100.Get(key3)
 	assert.Equal(t, "newvalue3", string(cachedValue), "snapshotv100 should get the value from cache")
 	cacheSnapshot = snapshotv1.(*CachingStoreSnapshot)
-	cacheSnapshot.cache.cache.Delete(string(keyVersionTableKey(key1))) // evict a key table
+	cacheSnapshot.cache.cache.Delete(string(key1)) // evict a key table
 	cachedValue = snapshotv100.Get(key1)
 	assert.Equal(t, "value1", string(cachedValue), "snapshotv100 should get the value from cache")
 }
