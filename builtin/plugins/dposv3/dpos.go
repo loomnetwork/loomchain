@@ -1638,9 +1638,10 @@ func returnMatchingDelegations(ctx contract.StaticContext, validator, delegator 
 		return nil, errors.New("request made with req.DelegatorAddress == nil")
 	}
 
-	delegations, _, _ := GetAllDelegations(ctx)
-	//	require.Nil(t, err)
-	fmt.Printf("Weeee2-%v\n", delegations)
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	ourDelegator := loom.UnmarshalAddressPB(delegator)
 	ourValidator := loom.UnmarshalAddressPB(validator)
