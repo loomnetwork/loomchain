@@ -2,6 +2,7 @@ package dposv3
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"sort"
 
@@ -87,7 +88,7 @@ func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*D
 			log.Error("Skipping delegationsKey")
 			continue
 		}
-		log.Error(fmt.Sprintf("trying keyyyy-%s\n", m.Key))
+		log.Error(fmt.Sprintf("trying keyyyy-\n%s\n", hex.Dump(m.Key)))
 
 		if err := proto.Unmarshal(m.Value, f); err != nil {
 			err := errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
