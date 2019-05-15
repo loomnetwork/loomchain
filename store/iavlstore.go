@@ -87,12 +87,13 @@ func UnprefixKey2(key, prefix []byte) ([]byte, error) {
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	log.Error(fmt.Sprintf("IAVL-Range-%v", prefix))
+	log.Error(fmt.Sprintf("IAVL-Range--%s", string(prefix)))
 	ret := make(plugin.RangeData, 0)
-	if bytes.HasSuffix(prefix, []byte("delegation0")) {
-		log.Error("has suffix delegation0")
+	if bytes.HasSuffix(prefix, []byte("delegation")) {
+		log.Error("has suffix delegation")
 		return s.Range2(prefix)
 	}
-	log.Error("Doesn't have suffix delegation0")
+	log.Error("Doesn't have suffix delegation")
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {

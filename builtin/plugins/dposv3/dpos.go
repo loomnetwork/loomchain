@@ -1021,7 +1021,6 @@ func Elect(ctx contract.Context) error {
 
 	ctx.Logger().Debug("DPOSv3 Elect", "Post-Elect State", state)
 	//return emitElectionEvent(ctx)
-
 	return fmt.Errorf("Weeeeeeee")
 }
 
@@ -1400,7 +1399,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	}
 
 	//TODO NEW DELEGATIONS
-	ctx.Logger().Error("distributedNewDelegations----", "distributedNewDelegations", fmt.Sprintf("%v", distributedNewDelegations))
+	//ctx.Logger().Error("distributedNewDelegations----", "distributedNewDelegations", fmt.Sprintf("%v", distributedNewDelegations))
 	for _, d := range distributedNewDelegations {
 		ctx.Logger().Error("newDelegation", "delegation", d)
 		SetDelegationV2(ctx, d)

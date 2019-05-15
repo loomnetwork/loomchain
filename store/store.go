@@ -184,6 +184,7 @@ type prefixReader struct {
 }
 
 func (r *prefixReader) Range(prefix []byte) plugin.RangeData {
+	log.Error("Range with prefix", "prefix", string(r.prefix), "key", string(prefix))
 	return r.reader.Range(util.PrefixKey(r.prefix, prefix))
 }
 
