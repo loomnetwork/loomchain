@@ -107,22 +107,30 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	var userdeployers UserDeployers
 	var tierInfo TierInfo
 	var whitelistingFees *types.BigUInt
-	tier := req.TierId
-	if tier != 0 {
+	dwAddr, err := ctx.Resolve("deployerwhitelist")
+	if err != nil {
+		return errors.Wrap(err, "unable to get address of deployer_whitelist")
+	}
+	//Check for deployer is not already whitelisted
+	//Further code runs if deployer is not already whitelisted
+	if ctx.Has(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
+		return ErrDeployerAlreadyExists
+	}
+	if req.TierId != udwtypes.TierID_DEFAULT {
 		return ErrInvalidTier
 	}
 	if err := ctx.Get(tierInfoKey, &tierInfo); err != nil {
 		return err
 	}
 	for k := range tierInfo.Tiers {
-		if tierInfo.Tiers[k].Id == 0 {
+		if tierInfo.Tiers[k].Id == req.TierId {
 			whitelistingFees = tierInfo.Tiers[k].Fee
 		}
 
 	}
 	coinAddr, err := ctx.Resolve("coin")
 	if err != nil {
-		return errors.Wrap(err, "address of coin contract")
+		return errors.Wrap(err, "unable to get address of coin contract")
 	}
 	coinReq := &coin.TransferFromRequest{
 		To:     coinAddr.MarshalPB(),
@@ -133,13 +141,9 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		if err == coin.ErrSenderBalanceTooLow {
 			return ErrInsufficientBalance
 		}
-		return err
+		return errors.Wrap(err, "Unable to transfer coin")
 	}
 	userAddr := ctx.Message().Sender
-	dwAddr, err := ctx.Resolve("deployerwhitelist")
-	if err != nil {
-		return errors.Wrap(err, "address of deployer_whitelist")
-	}
 	adddeprequest := &dwtypes.AddUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
@@ -147,47 +151,41 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		return errors.Wrap(err, "Adding User Deployer")
 	}
 
-	//Check for deployer is not already whitelisted
-	if !ctx.Has(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
-		//Further code runs if deployer is not already whitelisted
-		err = ctx.Get(UserStateKey(userAddr), &userdeployers)
-		if err != nil {
-			//This is taking care of boundary cases that user is whitelisting deployers for first time
-			if err != contract.ErrNotFound {
-				return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
-			}
+	err = ctx.Get(UserStateKey(userAddr), &userdeployers)
+	if err != nil {
+		//This is taking care of boundary cases that user is whitelisting deployers for first time
+		if err != contract.ErrNotFound {
+			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 		}
-		userdeployers.Deployers = append(userdeployers.Deployers, req.DeployerAddr)
-		userdeployer := &UserDeployers{
-			Deployers: userdeployers.Deployers,
-		}
-		err = ctx.Set(UserStateKey(userAddr), userdeployer)
-		if err != nil {
-			return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
-		}
-		deployerReq := &GetDeployerRequest{
-			DeployerAddr: req.DeployerAddr,
-		}
-		var getDeployerResponse GetDeployerResponse
-		if err := contract.StaticCallMethod(ctx, dwAddr,
-			"GetDeployer", deployerReq, &getDeployerResponse); err != nil {
-			return err
-		}
-		deployer := &UserDeployer{
-			Address: getDeployerResponse.Deployer.GetAddress(),
-			Flags:   getDeployerResponse.Deployer.GetFlags(),
-		}
-		//Storing Full Deployer object corresponding to Deployer Key
-		err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
-		if err != nil {
-			return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
-		}
-		return nil
 	}
-	return ErrDeployerAlreadyExists
+	userdeployers.Deployers = append(userdeployers.Deployers, req.DeployerAddr)
+	userdeployer := &UserDeployers{
+		Deployers: userdeployers.Deployers,
+	}
+	err = ctx.Set(UserStateKey(userAddr), userdeployer)
+	if err != nil {
+		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
+	}
+	deployerReq := &GetDeployerRequest{
+		DeployerAddr: req.DeployerAddr,
+	}
+	var getDeployerResponse GetDeployerResponse
+	if err := contract.StaticCallMethod(ctx, dwAddr,
+		"GetDeployer", deployerReq, &getDeployerResponse); err != nil {
+		return err
+	}
+	deployer := &UserDeployer{
+		Address: getDeployerResponse.Deployer.GetAddress(),
+		Flags:   getDeployerResponse.Deployer.GetFlags(),
+	}
+	//Storing Full Deployer object corresponding to Deployer Key
+	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
+	if err != nil {
+		return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
+	}
+	return nil
 
 }
-
 
 // GetUserDeployers returns whitelisted deployers corresponding to specific user
 func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
