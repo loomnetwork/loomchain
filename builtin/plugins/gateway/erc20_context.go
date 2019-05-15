@@ -91,6 +91,12 @@ func (c *erc20Context) callEVM(method string, params ...interface{}) ([]byte, er
 	return evmOut, contract.CallEVM(c.ctx, c.tokenAddr, input, &evmOut)
 }
 
+func (c *erc20Context) approve(spender loom.Address, amount *big.Int) error {
+	spenderAddr := common.BytesToAddress(spender.Local)
+	_, err := c.callEVM("approve", spenderAddr, amount)
+	return err
+}
+
 // From src/ethcontract/ERC20DAppToken.abi in transfer-gateway-v2 repo
 const erc20ABI = `
 [

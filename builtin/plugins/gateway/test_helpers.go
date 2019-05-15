@@ -220,9 +220,9 @@ func (gc *testGatewayContract) AddContractMapping(ctx *plugin.FakeContextWithEVM
 	return nil
 }
 
-func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest, loomcoinTG bool) (*testGatewayContract, error) {
+func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest, gatewayType GatewayType) (*testGatewayContract, error) {
 	gwContract := &Gateway{
-		loomCoinTG: loomcoinTG,
+		Type: gatewayType,
 	}
 	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
 	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))

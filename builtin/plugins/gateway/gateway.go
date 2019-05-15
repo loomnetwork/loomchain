@@ -105,6 +105,9 @@ var (
 	verifyCreatorsPerm  = []byte("verify-creators")
 
 	validatorAuthConfigKey = []byte("validator-authcfg")
+
+	// Tron's TRX fake fixed address to map to dApp's contract
+	TRXTokenAddr = loom.MustParseAddress("tron:0x0000000000000000000000000000000000000001")
 )
 
 const (
@@ -131,6 +134,8 @@ const (
 	TokenKind_ERC721  = tgtypes.TransferGatewayTokenKind_ERC721
 	TokenKind_ERC20   = tgtypes.TransferGatewayTokenKind_ERC20
 	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
+	TokenKind_TRX     = tgtypes.TransferGatewayTokenKind_TRX
+	TokenKind_TRC20   = tgtypes.TransferGatewayTokenKind_TRC20
 
 	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
 )
@@ -202,22 +207,37 @@ var (
 	ErrNotEnoughSignatures       = errors.New("TG014: failed to recover enough signatures from trusted validators")
 )
 
+type GatewayType int
+
+const (
+	EthereumGateway GatewayType = 0 // default type
+	LoomCoinGateway GatewayType = 1
+	TronGateway     GatewayType = 2
+)
+
 type Gateway struct {
-	loomCoinTG bool
+	Type GatewayType
 }
 
 func (gw *Gateway) Meta() (plugin.Meta, error) {
-	if gw.loomCoinTG {
-		return plugin.Meta{
-			Name:    "loomcoin-gateway",
-			Version: "0.1.0",
-		}, nil
-	} else {
+	switch gw.Type {
+	case EthereumGateway:
 		return plugin.Meta{
 			Name:    "gateway",
 			Version: "0.1.0",
 		}, nil
+	case LoomCoinGateway:
+		return plugin.Meta{
+			Name:    "loomcoin-gateway",
+			Version: "0.1.0",
+		}, nil
+	case TronGateway:
+		return plugin.Meta{
+			Name:    "tron-gateway",
+			Version: "0.1.0",
+		}, nil
 	}
+	return plugin.Meta{}, errors.Errorf("invalid Gateway Type: %v", gw.Type)
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
@@ -435,10 +455,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 		switch payload := ev.Payload.(type) {
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
-
-			// If loomCoinTG flag is true, then token kind must need to be loomcoin
-			// If loomCoinTG flag is false, then token kind must not be loomcoin
-			if gw.loomCoinTG != (payload.Deposit.TokenKind == TokenKind_LoomCoin) {
+			if !isTokenKindAllowed(gw.Type, payload.Deposit.TokenKind) {
 				return ErrInvalidRequest
 			}
 
@@ -497,10 +514,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			}
 
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
-
-			// If loomCoinTG flag is true, then token kind must need to be loomcoin
-			// If loomCoinTG flag is false, then token kind must not be loomcoin
-			if gw.loomCoinTG != (payload.Withdrawal.TokenKind == TokenKind_LoomCoin) {
+			if !isTokenKindAllowed(gw.Type, payload.Withdrawal.TokenKind) {
 				return ErrInvalidRequest
 			}
 
@@ -581,11 +595,10 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 	if req.TokenContract == nil {
 		return ErrInvalidRequest
 	}
-
 	switch req.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_TRX, TokenKind_TRC20:
 		if req.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
@@ -670,13 +683,13 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		}
 		ctx.Logger().Info("WithdrawERC721X", "owner", ownerEthAddr, "token", tokenEthAddr)
 
-	case TokenKind_ERC20:
+	case TokenKind_ERC20, TokenKind_TRC20, TokenKind_TRX:
 		erc20 := newERC20Context(ctx, tokenAddr)
 		if err := erc20.transferFrom(ownerAddr, ctx.ContractAddress(), tokenAmount); err != nil {
 			emitWithdrawTokenError(ctx, err.Error(), req)
 			return err
 		}
-		ctx.Logger().Info("WithdrawERC20", "owner", ownerEthAddr, "token", tokenEthAddr)
+		ctx.Logger().Info("WithdrawToken", "kind", req.TokenKind, "owner", ownerEthAddr, "token", tokenEthAddr)
 	}
 
 	account.WithdrawalReceipt = &WithdrawalReceipt{
@@ -729,8 +742,7 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		return ErrInvalidRequest
 	}
 
-	// If loomCoinTG flag is true, then we cant allow eth withdraw operation
-	if gw.loomCoinTG {
+	if gw.Type != EthereumGateway {
 		return ErrInvalidRequest
 	}
 
@@ -831,8 +843,7 @@ func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinR
 		return ErrInvalidRequest
 	}
 
-	// If loomCoinTG flag is false, then we cant allow loomcoin withdraw operation
-	if !gw.loomCoinTG {
+	if gw.Type != LoomCoinGateway {
 		return ErrInvalidRequest
 	}
 
@@ -1509,7 +1520,7 @@ func validateTokenDeposit(deposit *MainnetTokenDeposited) error {
 	switch deposit.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin, TokenKind_TRX, TokenKind_TRC20:
 		if deposit.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
@@ -1593,7 +1604,8 @@ func transferTokenDeposit(
 			return errors.Wrapf(err, "failed to transfer ERC721X token")
 		}
 
-	case TokenKind_ERC20:
+	case TokenKind_ERC20, TokenKind_TRC20, TokenKind_TRX:
+		// TRC20 and TRX are also others ERC20s compatible
 		erc20 := newERC20Context(ctx, tokenAddr)
 		availableFunds, err := erc20.balanceOf(ctx.ContractAddress())
 		if err != nil {
@@ -1653,7 +1665,13 @@ func transferTokenDeposit(
 
 func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) error {
 	ownerAddr := loom.UnmarshalAddressPB(deposit.TokenOwner)
-	tokenAddr := loom.RootAddress("eth")
+	var tokenAddr loom.Address
+	switch deposit.TokenKind {
+	case TokenKind_TRC20, TokenKind_TRX:
+		tokenAddr = loom.RootAddress("tron")
+	default:
+		tokenAddr = loom.RootAddress("eth")
+	}
 
 	if deposit.TokenContract != nil {
 		tokenAddr = loom.UnmarshalAddressPB(deposit.TokenContract)
@@ -1694,7 +1712,7 @@ func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) e
 			})
 		}
 
-	case TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
+	case TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin, TokenKind_TRX, TokenKind_TRC20:
 		// store a single total amount
 		oldAmount := big.NewInt(0)
 		if len(unclaimedToken.Amounts) == 1 {
@@ -1732,6 +1750,7 @@ func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal
 		return ErrInvalidRequest
 	}
 
+	// non-native coins must have token contract address
 	if (withdrawal.TokenKind != TokenKind_ETH) && (withdrawal.TokenContract == nil) {
 		return ErrInvalidRequest
 	}
@@ -1739,7 +1758,7 @@ func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal
 	switch withdrawal.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin, TokenKind_TRX, TokenKind_TRC20:
 		if withdrawal.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
@@ -1888,20 +1907,28 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{
-	loomCoinTG: false,
+	Type: EthereumGateway,
 })
 
 var LoomCoinContract plugin.Contract = contract.MakePluginContract(&Gateway{
-	loomCoinTG: true,
+	Type: LoomCoinGateway,
 })
 
 var UnsafeContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
-	loomCoinTG: false,
+	Type: EthereumGateway,
 }})
 
 var UnsafeLoomCoinContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
-	loomCoinTG: true,
+	Type: LoomCoinGateway,
 }})
+
+var TronContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
+	Type: TronGateway,
+}})
+
+var UnsafeTronContract plugin.Contract = contract.MakePluginContract(&Gateway{
+	Type: TronGateway,
+})
 
 func emitProcessEventError(ctx contract.Context, errorMessage string, event *MainnetEvent) error {
 	eventError, err := proto.Marshal(&MainnetProcessEventError{
@@ -2050,4 +2077,31 @@ func getCurrentValidators(ctx contract.StaticContext) ([]*types.Address, []*big.
 	}
 
 	return valAddresses, powers, clusterStake, nil
+}
+
+func isTokenKindAllowed(gwType GatewayType, tokenKind TokenKind) bool {
+	switch gwType {
+	case EthereumGateway:
+		switch tokenKind {
+		case TokenKind_ETH, TokenKind_ERC20, TokenKind_ERC721, TokenKind_ERC721X:
+			return true
+		default:
+			return false
+		}
+	case LoomCoinGateway:
+		switch tokenKind {
+		case TokenKind_LoomCoin:
+			return true
+		default:
+			return false
+		}
+	case TronGateway:
+		switch tokenKind {
+		case TokenKind_TRX, TokenKind_TRC20:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }

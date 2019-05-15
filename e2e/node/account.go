@@ -9,8 +9,9 @@ import (
 	"path"
 	"strings"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 )
 
 type Account struct {
@@ -66,6 +67,15 @@ type EthAccount struct {
 	Local       string
 }
 
+type TronAccount struct {
+	PubKey      string
+	PubKeyPath  string
+	PrivKey     *ecdsa.PrivateKey
+	PrivKeyPath string
+	Address     string
+	Local       string
+}
+
 func CreateEthAccount(id int, baseDir string) (*EthAccount, error) {
 	ethKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -86,6 +96,31 @@ func CreateEthAccount(id int, baseDir string) (*EthAccount, error) {
 		Address:     addr.String(),
 		Local:       local.String(),
 		PrivKey:     ethKey,
+		PrivKeyPath: privfile,
+	}, nil
+}
+
+func CreateTronAccount(id int, baseDir string) (*TronAccount, error) {
+	key, err := btcec.NewPrivateKey(btcec.S256())
+	if err != nil {
+		return nil, err
+	}
+	tronKey := key.ToECDSA()
+
+	privfile := path.Join(baseDir, fmt.Sprintf("privetronkey-%d", id))
+	if err := crypto.SaveECDSA(privfile, tronKey); err != nil {
+		return nil, err
+	}
+
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(tronKey.PublicKey).Hex())
+	if err != nil {
+		return nil, err
+	}
+	addr := loom.Address{ChainID: "tron", Local: local}
+	return &TronAccount{
+		Address:     addr.String(),
+		Local:       local.String(),
+		PrivKey:     tronKey,
 		PrivKeyPath: privfile,
 	}, nil
 }
