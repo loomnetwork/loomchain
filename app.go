@@ -645,13 +645,11 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-
-	snapshot := a.Store.GetSnapshot()
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
 		nil,
-		snapshot,
+		a.Store.GetSnapshot(),
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
