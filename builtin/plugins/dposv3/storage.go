@@ -83,7 +83,7 @@ func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*D
 	delegationIdx := make(map[string]*Delegation)
 	for _, m := range ctx.Range([]byte("delegation")) {
 		ctx.Logger().Error(fmt.Sprintf("Trying Key -%v(%d bytes)", m.Key, len(m.Key)), "bytes", len(m.Value))
-		var f *Delegation
+		var f Delegation
 		if bytes.HasSuffix(m.Key, delegationsKey) || len(m.Key) < 3 {
 			log.Error(fmt.Sprintf("Skipping delegationsKey -%d", len(m.Key)))
 			continue
@@ -91,15 +91,15 @@ func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*D
 		log.Error(fmt.Sprintf("trying keyyyy-\n%s\n", hex.Dump(m.Key)))
 		fmt.Printf("%s\n", hex.Dump(m.Key))
 
-		if err := proto.Unmarshal(m.Value, f); err != nil {
+		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			err := errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
 			ctx.Logger().Error(err.Error())
 			continue
 			//return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
 		}
-		delegations = append(delegations, f)
+		delegations = append(delegations, &f)
 		//Track the index in the array
-		delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = f
+		delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = &f
 	}
 
 	//TODO making assumption on order based on key order, maybe not
