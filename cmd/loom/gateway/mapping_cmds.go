@@ -37,6 +37,8 @@ const prefixedSigLength uint64 = 66
 func newMapContractsCommand() *cobra.Command {
 	var txHashStr string
 	var authorized bool
+	var chainID string
+	var gatewayType string
 	cmd := &cobra.Command{
 		Use:     "map-contracts <local-contract-addr> <foreign-contract-addr>",
 		Short:   "Links a DAppChain token contract to an Ethereum token contract via the Transfer Gateway.",
@@ -63,7 +65,7 @@ func newMapContractsCommand() *cobra.Command {
 			foreignContractAddr := common.HexToAddress(args[1])
 
 			rpcClient := getDAppChainClient()
-			gatewayAddr, err := rpcClient.Resolve("gateway")
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
 			}
@@ -72,7 +74,7 @@ func newMapContractsCommand() *cobra.Command {
 			if authorized {
 				req := &tgtypes.TransferGatewayAddContractMappingRequest{
 					ForeignContract: loom.Address{
-						ChainID: "eth",
+						ChainID: chainID,
 						Local:   foreignContractAddr.Bytes(),
 					}.MarshalPB(),
 					LocalContract: localContractAddr.MarshalPB(),
@@ -87,11 +89,6 @@ func newMapContractsCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to load creator Ethereum key")
 			}
 
-			txHash, err := hex.DecodeString(strings.TrimPrefix(txHashStr, "0x"))
-			if err != nil {
-				return err
-			}
-
 			hash := ssha.SoliditySHA3(
 				[]string{"address", "address"},
 				foreignContractAddr,
@@ -104,12 +101,19 @@ func newMapContractsCommand() *cobra.Command {
 
 			req := &tgtypes.TransferGatewayAddContractMappingRequest{
 				ForeignContract: loom.Address{
-					ChainID: "eth",
+					ChainID: chainID,
 					Local:   foreignContractAddr.Bytes(),
 				}.MarshalPB(),
 				LocalContract:             localContractAddr.MarshalPB(),
 				ForeignContractCreatorSig: sig,
-				ForeignContractTxHash:     txHash,
+			}
+
+			if gatewayType != "tron-gateway" {
+				txHash, err := hex.DecodeString(strings.TrimPrefix(txHashStr, "0x"))
+				if err != nil {
+					return err
+				}
+				req.ForeignContractTxHash = txHash
 			}
 
 			_, err = gateway.Call("AddContractMapping", req, signer, nil)
@@ -119,6 +123,8 @@ func newMapContractsCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
 	cmdFlags.StringVar(&txHashStr, "eth-tx", "", "Ethereum hash of contract creation tx")
+	cmdFlags.StringVar(&chainID, "chain-id", "eth", "Foreign chain id")
+	cmdFlags.StringVar(&gatewayType, "gateway-contract", "gateway", "Gateway type: possible values are gateway, tron-gateway")
 	return cmd
 }
 
