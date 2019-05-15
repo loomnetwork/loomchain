@@ -137,7 +137,7 @@ func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 		return false
 	}
 	s.tree.IterateRange(prefix, end, true, fn)
-	fmt.Printf("Found %d --- KEYS!!! in Range\n", len(keys))
+	fmt.Printf("Found(range2) %d --- KEYS!!! in Range\n", len(keys))
 	for i, x := range keys {
 		//TODO return this to greatness
 		k, err := UnprefixKey2(x, prefix)
