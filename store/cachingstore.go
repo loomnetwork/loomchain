@@ -153,7 +153,7 @@ type CachingStoreConfig struct {
 	LogLevel       string
 	LogDestination string
 
-	// CachingStore use VersionedBigCache instead of BigCca
+	// Enable VersionedBigCache in order to support MultiWriterAppStore snapshot
 	VersionedBigCache bool
 }
 
