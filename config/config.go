@@ -375,7 +375,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
-	cfg.BlockIndexStore = store.DefaultBlockIndesStoreConfig()
+	cfg.BlockIndexStore = store.DefaultBlockIndexStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
@@ -660,8 +660,9 @@ BlockStore:
   CacheSize: {{ .BlockStore.CacheSize }}
 BlockIndexStore:
   # goleveldb | cleveldb | legacy | memdb
-  Method: {{ .BlockIndexStore.Method }}
-  Name: {{ .BlockIndexStore.Name }}
+  Enabled: {{ .BlockIndexStore.Enabled }}
+  DBBackend: {{ .BlockIndexStore.DBBackend }}
+  DBName: {{ .BlockIndexStore.DBName }}
   CacheSizeMegs: {{ .BlockIndexStore.CacheSizeMegs }}
 #
 # Cashing store 

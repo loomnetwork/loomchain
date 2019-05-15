@@ -20,21 +20,21 @@ var (
 )
 
 func TestBlockIndexStore(t *testing.T) {
-	memoryStore, err := NewBlockIndexStore("memdb", "", ".", 0, false)
+	memoryStore, err := NewBlockIndexStore(true, "memdb", "", ".", 0, false)
 	require.NoError(t, err)
 	testBlockIndexStore(t, memoryStore)
 
 	_ = os.RemoveAll(LevelDBFilename)
 	_, err = os.Stat(LevelDBFilename)
 	require.True(t, os.IsNotExist(err))
-	golevelDbStore, err := NewBlockIndexStore("goleveldb", LevelDBFilename, ".", 0, false)
+	golevelDbStore, err := NewBlockIndexStore(true, "goleveldb", LevelDBFilename, ".", 0, false)
 	require.NoError(t, err)
 	testBlockIndexStore(t, golevelDbStore)
 }
 
 func testBlockIndexStore(t *testing.T, bs BlockIndexStore) {
 	for _, hashHeight := range hashHeights {
-		bs.SetBlockHashAtHeight(hashHeight.hash, hashHeight.height)
+		bs.SetBlockHashAtHeight(hashHeight.height, hashHeight.hash)
 	}
 	for _, hashHeight := range hashHeights {
 		height, err := bs.GetBlockHeightByHash(hashHeight.hash)

@@ -623,8 +623,11 @@ func destroyReceiptsDB(cfg *config.Config) {
 
 func destroyBlockIndexDB(cfg *config.Config) error {
 	// todo support for cleveldb
-	if cfg.BlockIndexStore.Method == string(db.GoLevelDBBackend) {
-		_ = os.RemoveAll(filepath.Join(cfg.RootPath(), cfg.BlockIndexStore.Name+".db"))
+	if cfg.BlockIndexStore.Enabled && cfg.BlockIndexStore.DBBackend == string(db.GoLevelDBBackend) {
+		err := os.RemoveAll(filepath.Join(cfg.RootPath(), cfg.BlockIndexStore.DBName+".db"))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1104,8 +1107,9 @@ func loadApp(
 	}
 
 	blockIndexStore, err := store.NewBlockIndexStore(
-		cfg.BlockIndexStore.Method,
-		cfg.BlockIndexStore.Name,
+		cfg.BlockIndexStore.Enabled,
+		cfg.BlockIndexStore.DBBackend,
+		cfg.BlockIndexStore.DBName,
 		cfg.RootPath(),
 		cfg.BlockIndexStore.CacheSizeMegs,
 		cfg.Metrics.BlockIndexStore,

@@ -36,8 +36,9 @@ Karma:
   SessionDuration: 60
 
 BlockIndexStore:
-  Method: "cleveldb"
-  Name: "blockIndexDb"
+  Enabled: true
+  DBBackend: "cleveldb"
+  DBName: "blockIndexDb"
   CacheSizeMegs: 128
 
 ChainConfig:
