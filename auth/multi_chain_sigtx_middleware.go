@@ -20,11 +20,10 @@ import (
 type SignedTxType string
 
 const (
-	LoomSignedTxType       SignedTxType = "loom"
-	EthereumSignedTxType   SignedTxType = "eth"
-	TronSignedTxType       SignedTxType = "tron"
-	EosSignedTxType        SignedTxType = "eos"
-	EosScatterSignedTxType SignedTxType = "eos-scatter"
+	LoomSignedTxType     SignedTxType = "loom"
+	EthereumSignedTxType SignedTxType = "eth"
+	TronSignedTxType     SignedTxType = "tron"
+	EosSignedTxType      SignedTxType = "eos"
 )
 
 // AccountType is used to specify which address should be used on-chain to identify a tx sender.
@@ -40,11 +39,10 @@ const (
 )
 
 var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
-	LoomSignedTxType:       verifyEd25519,
-	EthereumSignedTxType:   verifySolidity66Byte,
-	TronSignedTxType:       verifyTron,
-	EosSignedTxType:        verifyEos,
-	EosScatterSignedTxType: verifyEosScatter,
+	LoomSignedTxType:     verifyEd25519,
+	EthereumSignedTxType: verifySolidity66Byte,
+	TronSignedTxType:     verifyTron,
+	EosSignedTxType:      verifyEos,
 }
 
 type originRecoveryFunc func(tx SignedTx) ([]byte, error)

@@ -36,13 +36,11 @@ func AddIdentityMappingCmd() *cobra.Command {
 			var signature []byte
 			switch txType {
 			case "eth":
-				signature, to, err = sigEthMapping(args, chainId, user)
+				signature, to, err = sigEthMapping(args[1], chainId, user)
 			case "tron":
-				signature, to, err = sigEthMapping(args, chainId, user)
+				signature, to, err = sigEthMapping(args[1], chainId, user)
 			case "eos":
-				signature, to, err = sigEosMapping(args, chainId, user)
-			case "eos-scatter":
-				signature, to, err = sigEosScatterMapping(args, chainId, user)
+				signature, to, err = sigEosMapping(args[1], chainId, user)
 			default:
 				err = errors.Errorf("unrecognised tx type %s", txType)
 			}
@@ -51,9 +49,9 @@ func AddIdentityMappingCmd() *cobra.Command {
 			}
 
 			mapping := address_mapper.AddIdentityMappingRequest{
-				From:           user.MarshalPB(),
-				To:             to.MarshalPB(),
-				Signature:      signature,
+				From:      user.MarshalPB(),
+				To:        to.MarshalPB(),
+				Signature: signature,
 			}
 
 			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "AddIdentityMapping", &mapping, nil)
@@ -108,67 +106,43 @@ func GetMapping() *cobra.Command {
 	return cmd
 }
 
-func sigEthMapping(args []string, chainId string, user loom.Address)  ([]byte, loom.Address, error) {
-	ethKey, err := crypto.LoadECDSA(args[1])
+func sigEthMapping(keyFile string, chainId string, user loom.Address) ([]byte, loom.Address, error) {
+	ethKey, err := crypto.LoadECDSA(keyFile)
 	if err != nil {
-		return nil, loom.Address{}, errors.Wrapf(err, "read ethereum private key from file %v", args[1])
+		return nil, loom.Address{}, errors.Wrapf(err, "read ethereum private key from file %v", keyFile)
 	}
 	ethLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
 	if err != nil {
-		return nil, loom.Address{}, errors.Wrapf(err, "bad ethereum private key from file%v", args[1])
+		return nil, loom.Address{}, errors.Wrapf(err, "bad ethereum private key from file%v", keyFile)
 	}
 	ethAddr := loom.Address{ChainID: chainId, Local: ethLocalAddr}
-	signature, err :=  address_mapper.SignIdentityMapping(user, ethAddr, ethKey)
+	signature, err := address_mapper.SignIdentityMapping(user, ethAddr, ethKey)
 	if err != nil {
-		return nil, loom.Address{}, errors.Wrapf(err, "singing identity mapping")
+		return nil, loom.Address{}, errors.Wrapf(err, "signing identity mapping")
 	}
 	return signature, ethAddr, nil
 }
 
-func sigEosMapping(args []string, chainId string, user loom.Address)  ([]byte, loom.Address, error) {
-	keyString, err := ioutil.ReadFile(args[1])
+func sigEosMapping(keyFile string, chainId string, user loom.Address) ([]byte, loom.Address, error) {
+	keyString, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		return nil, loom.Address{}, fmt.Errorf("cannot read private key %s", args[0])
+		return nil, loom.Address{}, fmt.Errorf("cannot read private key %s", keyFile)
 	}
 
 	eccKey, err := ecc.NewPrivateKey(string(keyString))
 	if err != nil {
-		return nil, loom.Address{}, fmt.Errorf("cannot make private key %s", args[0])
+		return nil, loom.Address{}, fmt.Errorf("cannot make private key %s", keyFile)
 	}
 
 	local, err := auth.LocalAddressFromEosPublicKey(eccKey.PublicKey())
 	if err != nil {
-		return nil, loom.Address{}, fmt.Errorf("cannot get local address from public key %s", args[0])
+		return nil, loom.Address{}, fmt.Errorf("cannot get local address from public key %s", keyFile)
 	}
 
 	addr := loom.Address{ChainID: chainId, Local: local}
 	signature, err := address_mapper.SignIdentityMappingEos(user, addr, *eccKey)
 	if err != nil {
-		return nil, loom.Address{}, errors.Wrapf(err, "singing identity mapping")
-	}
-	return signature, addr, nil
-}
-
-func sigEosScatterMapping(args []string, chainId string, user loom.Address)  ([]byte, loom.Address, error) {
-	keyString, err := ioutil.ReadFile(args[1])
-	if err != nil {
-		return nil, loom.Address{}, fmt.Errorf("cannot read private key %s", args[0])
-	}
-
-	eccKey, err := ecc.NewPrivateKey(string(keyString))
-	if err != nil {
-		return nil, loom.Address{}, fmt.Errorf("cannot make private key %s", args[0])
-	}
-
-	local, err := auth.LocalAddressFromEosPublicKey(eccKey.PublicKey())
-	if err != nil {
-		return nil, loom.Address{}, fmt.Errorf("cannot get local address from public key %s", args[0])
-	}
-
-	addr := loom.Address{ChainID: chainId, Local: local}
-	signature, err := address_mapper.SignIdentityMappingScatterEos(user, addr, *eccKey)
-	if err != nil {
-		return nil, loom.Address{}, errors.Wrapf(err, "singing identity mapping")
+		return nil, loom.Address{}, errors.Wrapf(err, "signing identity mapping")
 	}
 	return signature, addr, nil
 }

@@ -38,18 +38,6 @@ func verifyTron(tx SignedTx) ([]byte, error) {
 }
 
 func verifyEos(tx SignedTx) ([]byte, error) {
-	signature := ecc.NewSigNil()
-	if _, err := signature.Unpack(tx.Signature[1:]); err != nil {
-		return nil, errors.Wrapf(err, "unpack eos signature %v", tx.Signature)
-	}
-	eosPubKey, err := signature.PublicKey(sha3.SoliditySHA3(tx.Inner))
-	if err != nil {
-		return nil, errors.Wrapf(err, "retrieve public key from eos signature %v", tx.Signature)
-	}
-	return LocalAddressFromEosPublicKey(eosPubKey)
-}
-
-func verifyEosScatter(tx SignedTx) ([]byte, error) {
 	hash := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(tx.Inner))))
 	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(hash[:], tx.Signature)
 	if err != nil {

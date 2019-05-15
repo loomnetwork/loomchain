@@ -71,7 +71,7 @@ func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 			TxType:      TronSignedTxType,
 			AccountType: MappedAccountType,
 		},
-		"eos":{
+		"eos": {
 			TxType:      EosSignedTxType,
 			AccountType: MappedAccountType,
 		},

@@ -44,10 +44,6 @@
             {
               "name":"auth:sigtx:eos",
               "status":"WAITING"
-            },
-            {
-              "name":"auth:sigtx:eos-scatter",
-              "status":"WAITING"
             }
           ]
       }

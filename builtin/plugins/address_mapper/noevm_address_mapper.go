@@ -52,8 +52,4 @@ func SignIdentityMappingEos(_, _ loom.Address, _ ecc.PrivateKey) ([]byte, error)
 	return nil, nil
 }
 
-func SignIdentityMappingScatterEos(_, _ loom.Address, _ ecc.PrivateKey) ([]byte, error) {
-	return nil, nil
-}
-
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})

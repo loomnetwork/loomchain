@@ -233,24 +233,9 @@ func SignIdentityMappingEos(from, to loom.Address, key ecc.PrivateKey) ([]byte, 
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
-	sig, err := key.Sign(hash)
-	if err != nil {
-		return nil, err
-	}
-	sigBytes, err := sig.Pack()
-	if err != nil {
-		return nil, err
-	}
-	return append([]byte{byte(evmcompat.SignatureType_EOS)}, sigBytes...), nil
-}
 
-func SignIdentityMappingScatterEos(from, to loom.Address, key ecc.PrivateKey) ([]byte, error) {
-	hash := ssha.SoliditySHA3(
-		ssha.Address(common.BytesToAddress(from.Local)),
-		ssha.Address(common.BytesToAddress(to.Local)),
-	)
-
-	typedSignature := []byte{byte(evmcompat.SignatureType_EOS_SCATTER)}
+	typedSignature := []byte{byte(evmcompat.SignatureType_EOS)}
+	// use zero nonce to avoid changes to the loom-js interface for address mapper and loomchain protobuf calls
 	nonceBytes := []byte(strconv.FormatUint(0, 10))[:6]
 	typedSignature = append(typedSignature, nonceBytes...)
 	nonceHash := sha256.Sum256([]byte(hex.EncodeToString(nonceBytes)))

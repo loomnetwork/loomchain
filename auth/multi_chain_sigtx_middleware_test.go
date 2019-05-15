@@ -39,8 +39,6 @@ var (
 	priKey1       = "PKAYW0doHy4RUQz9Hg8cpYYT4jpRH2AQAUSm6m0O2IvggzWbwX2CViNtD9f55kGssAOZG2MnsDU88QFYpTtwyg=="
 	pubKey1       = "0x62666100f8988238d81831dc543D098572F283A1"
 
-	//tronPrivateKey = "65e48fcb00c88c0d4b9c3ee0bff77102dc72eda882f0891acb830e46f0f75e8b"
-
 	addr1    = loom.MustParseAddress(defaultLoomChainId + ":" + pubKey1)
 	origin   = loom.MustParseAddress(defaultLoomChainId + ":0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	contract = loom.MustParseAddress(defaultLoomChainId + ":0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
@@ -85,7 +83,6 @@ func TestTronSigning(t *testing.T) {
 }
 
 func TestEosSigning(t *testing.T) {
-	t.Skip("eos not implemented yet")
 	privateKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 
@@ -102,28 +99,6 @@ func TestEosSigning(t *testing.T) {
 	signedTx := auth.SignTx(signer, nonceTxBytes)
 
 	verifier := originRecoveryFuncs[EosSignedTxType]
-	localRetrived, err := verifier(*signedTx)
-	require.NoError(t, err)
-	require.Equal(t, 0, bytes.Compare(local, localRetrived))
-}
-
-func TestEosScatterSigning(t *testing.T) {
-	privateKey, err := ecc.NewRandomPrivateKey()
-	require.NoError(t, err)
-
-	key, err := privateKey.PublicKey().Key()
-	require.NoError(t, err)
-	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ecdsa.PublicKey(*key)).Hex())
-	require.NoError(t, err)
-
-	signer := &auth.EosScatterSigner{privateKey}
-	nonceTxBytes, err := proto.Marshal(&auth.NonceTx{
-		Inner:    []byte("innerTx"),
-		Sequence: 3,
-	})
-	signedTx := auth.SignTx(signer, nonceTxBytes)
-
-	verifier := originRecoveryFuncs[EosScatterSignedTxType]
 	localRetrived, err := verifier(*signedTx)
 	require.NoError(t, err)
 	require.Equal(t, 0, bytes.Compare(local, localRetrived))
@@ -147,48 +122,35 @@ func TestEthAddressMappingVerification(t *testing.T) {
 			TxType:      EosSignedTxType,
 			AccountType: MappedAccountType,
 		},
-		"eos-scatter": {
-			TxType:      EosScatterSignedTxType,
-			AccountType: MappedAccountType,
-		},
 	}
 
 	ethKey, err := crypto.GenerateKey()
-	require.NoError(t,err)
+	require.NoError(t, err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
-	require.NoError(t,err)
+	require.NoError(t, err)
 	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
 	ethSig, err := address_mapper.SignIdentityMapping(addr1, ethPublicAddr, ethKey)
-	require.NoError(t,err)
-	testEthAddressMappingVerification(t, chains, "eth",  &auth.EthSigner66Byte{ethKey}, ethPublicAddr, ethSig)
+	require.NoError(t, err)
+	testEthAddressMappingVerification(t, chains, "eth", &auth.EthSigner66Byte{ethKey}, ethPublicAddr, ethSig)
 
 	tronKey, err := crypto.GenerateKey()
-	require.NoError(t,err)
+	require.NoError(t, err)
 	tronLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(tronKey.PublicKey).Hex())
-	require.NoError(t,err)
+	require.NoError(t, err)
 	tronPublicAddr := loom.Address{ChainID: "tron", Local: tronLocalAdr}
 	tronSig, err := address_mapper.SignIdentityMapping(addr1, tronPublicAddr, tronKey)
-	require.NoError(t,err)
-	testEthAddressMappingVerification(t, chains, "tron",  &auth.TronSigner{tronKey}, tronPublicAddr, tronSig)
-	/* todo
+	require.NoError(t, err)
+	testEthAddressMappingVerification(t, chains, "tron", &auth.TronSigner{tronKey}, tronPublicAddr, tronSig)
+
 	eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	eosLocalAddr, err := LocalAddressFromEosPublicKey(eosKey.PublicKey())
-	require.NoError(t,err)
+	require.NoError(t, err)
 	eosPublicAddr := loom.Address{ChainID: "eos", Local: eosLocalAddr}
 	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey)
-	require.NoError(t,err)
-	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
-
-	eosScatterKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
-	eosScatterLocalAddr, err := LocalAddressFromEosPublicKey(eosScatterKey.PublicKey())
-	require.NoError(t,err)
-	eosScatterPublicAddr := loom.Address{ChainID: "eos", Local: eosScatterLocalAddr}
-	eosScatterSig, err := address_mapper.SignIdentityMappingEos(addr1, eosScatterPublicAddr, *eosScatterKey)
-	require.NoError(t,err)
-	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosScatterSigner{eosScatterKey}, eosScatterPublicAddr, eosScatterSig)
-*/}
+	testEthAddressMappingVerification(t, chains, "eos", &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
+}
 
 func testEthAddressMappingVerification(
 	t *testing.T,
@@ -264,10 +226,6 @@ func TestChainIdVerification(t *testing.T) {
 			TxType:      EosSignedTxType,
 			AccountType: NativeAccountType,
 		},
-		"eos-scatter": {
-			TxType:      EosScatterSignedTxType,
-			AccountType: NativeAccountType,
-		},
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
@@ -302,26 +260,15 @@ func TestChainIdVerification(t *testing.T) {
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
-	// todo
 	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
 	// to contracts will be eos:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
 	// Don't try this in production.
-	/*eosKey, err := ecc.NewRandomPrivateKey()
+	eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	txSigned = mockSignedTx(t, "eos", &auth.EosSigner{eosKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
-
-	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
-	// to contracts will be eos-scatter:xxxxxx, i.e. the eth account is passed through without being mapped
-	// to a DAppChain account.
-	// Don't try this in production.
-	eosScatterKey, err := ecc.NewRandomPrivateKey()
-	require.NoError(t, err)
-	txSigned = mockSignedTx(t, "eos-scatter", &auth.EosScatterSigner{eosScatterKey})
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
-	require.NoError(t, err)*/
 }
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
