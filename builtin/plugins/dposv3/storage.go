@@ -84,7 +84,7 @@ func GetAllDelegations(ctx contract.StaticContext) ([]*Delegation, map[string]*D
 	for _, m := range ctx.Range([]byte(fmt.Sprintf("delegation%d", 0))) {
 		ctx.Logger().Error(fmt.Sprintf("Trying Key -%v(%d bytes)", m.Key, len(m.Key)), "bytes", len(m.Value))
 		var f *Delegation
-		if bytes.Compare(m.Key, delegationsKey) == 0 || len(m.Key) < 3 {
+		if bytes.HasSuffix(m.Key, delegationsKey) || len(m.Key) < 3 {
 			log.Error(fmt.Sprintf("Skipping delegationsKey -%d", len(m.Key)))
 			continue
 		}

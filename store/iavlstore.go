@@ -132,7 +132,9 @@ func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 	var keys [][]byte
 	var values [][]byte
 	fn := func(key, value []byte) bool {
-		fmt.Printf("Key-%s value -%s\n", string(key), string(value))
+		unprefix, _ := UnprefixKey2(key, prefix)
+
+		fmt.Printf("Unprefixed-%s Key-%s value -%s\n", string(unprefix), string(key), string(value))
 		keys = append(keys, key)
 		values = append(values, value)
 		return false
