@@ -99,24 +99,24 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 	return nil
 }
 
-func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserDeployerRequest) error {
+func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserDeployerRequest) (*Deployer, error) {
 	userWhitelistContract, err := ctx.Resolve("user-deployer-whitelist")
 	if err != nil {
-		return err
+		return nil, errors.Wrap(err, "unable to resolve user_deployer_whitelist contract")
 	}
 
 	if ctx.Message().Sender.Compare(userWhitelistContract) != 0 {
-		return ErrNotAuthorized
+		return nil, ErrNotAuthorized
 	}
 
 	if req.DeployerAddr == nil {
-		return ErrInvalidRequest
+		return nil, ErrInvalidRequest
 	}
 
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 
 	if ctx.Has(deployerKey(deployerAddr)) {
-		return ErrDeployerAlreadyExists
+		return nil, ErrDeployerAlreadyExists
 	}
 
 	deployer := &Deployer{
@@ -124,7 +124,7 @@ func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserD
 		Flags:   PackFlags(uint32(AllowEVMDeployFlag)),
 	}
 
-	return ctx.Set(deployerKey(deployerAddr), deployer)
+	return deployer, ctx.Set(deployerKey(deployerAddr), deployer)
 }
 
 // AddDeployer
