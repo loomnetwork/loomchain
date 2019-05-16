@@ -10,20 +10,22 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	vm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	addr1     = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2     = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	addr3     = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
-	addr4     = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
-	addr5     = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
-	user      = addr1.MarshalPB()
-	user_addr = addr3
-	chainID   = "default"
+	addr1        = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr3        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
+	addr4        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
+	addr5        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
+	contractAddr = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01ab")
+	user         = addr1.MarshalPB()
+	user_addr    = addr3
+	chainID      = "default"
 )
 
 func TestUserDeployerWhitelistContract(t *testing.T) {
@@ -107,6 +109,30 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		})
 	require.Equal(t, ErrInvalidTier, err, "Tier Supplied is Invalid")
 
+	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr3)), &GetUserDeployersRequest{})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
+
+	// addr3 is not a deployer so response should be Nil
+	getDeployedContractsResponse, err := deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
+		DeployerAddr: addr3.MarshalPB(),
+	})
+	require.Error(t, err)
+	require.Nil(t, getDeployedContractsResponse)
+
+	err = RecordContractDeployment(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
+		addr1, contractAddr, vm.VMType_EVM)
+	require.Nil(t, err)
+
+	// addr1 is deployer
+	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
+		DeployerAddr: addr1.MarshalPB(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
 }
 
 func createCtx() *plugin.FakeContext {
