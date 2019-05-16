@@ -40,6 +40,9 @@ var (
 	ethTokenAddr2 = loom.MustParseAddress("eth:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 	ethTokenAddr3 = loom.MustParseAddress("eth:0x5d1ddf5223a412d24901c32d14ef56cb706c0f64")
 	ethTokenAddr4 = loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+
+	tronTokenAddr  = loom.MustParseAddress("tron:0x774cc7b7d66e5aec6cbfcffb96c5d1421758402f")
+	tronTokenAddr2 = loom.MustParseAddress("tron:0xc8C88F1c531fcC6C55395b57CFdF4226Fbf77799")
 )
 
 const (
@@ -68,6 +71,10 @@ type GatewayTestSuite struct {
 	dAppAddr3         loom.Address
 	dAppAddr4         loom.Address
 	validatorsDetails []*testValidator
+	tronKey           *ecdsa.PrivateKey
+	tronKey2          *ecdsa.PrivateKey
+	tronAddr          loom.Address
+	tronAddr2         loom.Address
 }
 
 func (ts *GatewayTestSuite) SetupTest() {
@@ -86,6 +93,17 @@ func (ts *GatewayTestSuite) SetupTest() {
 	ts.dAppAddr = loom.Address{ChainID: "chain", Local: addr1.Local}
 	ts.dAppAddr2 = loom.Address{ChainID: "chain", Local: addr2.Local}
 	ts.dAppAddr3 = loom.Address{ChainID: "chain", Local: addr3.Local}
+	ts.dAppAddr4 = loom.Address{ChainID: "chain", Local: addr4.Local}
+	ts.tronKey, err = crypto.GenerateKey()
+	require.NoError(err)
+	tronLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.tronKey.PublicKey).Hex())
+	require.NoError(err)
+	ts.tronAddr = loom.Address{ChainID: "tron", Local: tronLocalAddr}
+	ts.tronKey2, err = crypto.GenerateKey()
+	require.NoError(err)
+	tronLocalAddr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.tronKey2.PublicKey).Hex())
+	require.NoError(err)
+	ts.tronAddr2 = loom.Address{ChainID: "tron", Local: tronLocalAddr2}
 	var err1 error
 	ts.ethKey3, err1 = crypto.GenerateKey()
 	require.NoError(err1)
@@ -380,7 +398,7 @@ func (ts *GatewayTestSuite) TestConfirmWithdrawalReceiptV2() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	ethHelper, err := deployETHContract(fakeCtx)
@@ -672,7 +690,7 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -752,7 +770,7 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -798,7 +816,7 @@ func (ts *GatewayTestSuite) TestWithdrawalRestrictions() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	ethHelper, err := deployETHContract(fakeCtx)
@@ -986,7 +1004,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -1084,7 +1102,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	// Deploy token contracts to DAppChain EVM
@@ -1340,13 +1358,13 @@ func (ts *GatewayTestSuite) TestGetUnclaimedContractTokens() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	LoomCoinGwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, true)
+	}, LoomCoinGateway)
 	require.NoError(err)
 
 	// Deploy token contracts to DAppChain EVM
@@ -1551,7 +1569,7 @@ func (ts *GatewayTestSuite) TestGetOracles() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	resp, err := gwHelper.Contract.GetOracles(gwHelper.ContractCtx(fakeCtx), &GetOraclesRequest{})
@@ -1636,7 +1654,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -1800,7 +1818,7 @@ func (ts *GatewayTestSuite) TestAddNewAuthorizedContractMapping() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -1904,7 +1922,7 @@ func (ts *GatewayTestSuite) TestLoomCoinTG() {
 	loomCoinGwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	}, true)
+	}, LoomCoinGateway)
 	require.NoError(err)
 
 	require.EqualError(loomCoinGwHelper.Contract.WithdrawETH(loomCoinGwHelper.ContractCtx(fakeCtx.WithSender(userAddr)), &WithdrawETHRequest{
@@ -1923,7 +1941,7 @@ func (ts *GatewayTestSuite) TestLoomCoinTG() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 
 	require.Nil(gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx.WithSender(oracleAddr)), &ProcessEventBatchRequest{
 		Events: genERC721Deposits(ethTokenAddr, ts.ethAddr, []uint64{9, 10}, nil),
@@ -1945,7 +1963,7 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	}, false)
+	}, EthereumGateway)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -2070,4 +2088,160 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	require.NoError(err)
 	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash2))
 	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash3))
+}
+
+func (ts *GatewayTestSuite) TestGatewayTRC20Deposit() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("tron"))
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+	}, TronGateway)
+	require.NoError(err)
+
+	// Deploy ERC20 Solidity contract to DAppChain EVM
+	// TRC20 is ERC20 compatible so using ERC20 on DAppChain would be suffice
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC20Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, tronTokenAddr, dappTokenAddr))
+	sig, err := address_mapper.SignIdentityMapping(ts.tronAddr, ts.dAppAddr, ts.tronKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.tronAddr, ts.dAppAddr, sig))
+
+	// Send token to Gateway Go contract
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 5,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_TRC20,
+						TokenContract: tronTokenAddr.MarshalPB(),
+						TokenOwner:    ts.tronAddr.MarshalPB(),
+						TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(err)
+
+	erc20 := newERC20StaticContext(gwHelper.ContractCtx(fakeCtx), dappTokenAddr)
+	balance, err := erc20.balanceOf(ts.dAppAddr)
+	require.NoError(err)
+	require.Equal(big.NewInt(123), balance)
+}
+
+func (ts *GatewayTestSuite) TestTronGateway() {
+	require := ts.Require()
+	ownerAddr := ts.dAppAddr
+	oracleAddr := ts.dAppAddr2
+	justinTRXTronAddr := ts.tronAddr
+	justinTRC20TronAddr := ts.tronAddr2
+	justinTRXdAppAddr := ts.dAppAddr3
+	justinTRC20dAppAddr := ts.dAppAddr4
+
+	fakeCtx := plugin.CreateFakeContextWithEVM(oracleAddr, loom.RootAddress("chain"))
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	}, TronGateway)
+	require.NoError(err)
+
+	// Deploy TRX as TRC20 Solidity contract to DAppChain EVM
+	dappTRXTokenAddr, err := deployTokenContract(fakeCtx, "TRXToken", gwHelper.Address, ownerAddr)
+	require.NoError(err)
+	// Deploy TRC20 Solidity contract to DAppChain EVM
+	dappTRC20TokenAddr, err := deployTokenContract(fakeCtx, "SampleERC20Token", gwHelper.Address, ownerAddr)
+	require.NoError(err)
+
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, TRXTokenAddr, dappTRXTokenAddr))
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, tronTokenAddr2, dappTRC20TokenAddr))
+
+	sig, err := address_mapper.SignIdentityMapping(justinTRXTronAddr, justinTRXdAppAddr, ts.tronKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx.WithSender(justinTRXdAppAddr), justinTRXTronAddr, justinTRXdAppAddr, sig))
+
+	sig, err = address_mapper.SignIdentityMapping(justinTRC20TronAddr, justinTRC20dAppAddr, ts.tronKey2)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx.WithSender(justinTRC20dAppAddr), justinTRC20TronAddr, justinTRC20dAppAddr, sig))
+
+	// Send token to Gateway Go contract
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 5,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_TRX,
+						TokenContract: TRXTokenAddr.MarshalPB(),
+						TokenOwner:    justinTRXTronAddr.MarshalPB(),
+						TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+					},
+				},
+			},
+			&MainnetEvent{
+				EthBlock: 10,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_TRC20,
+						TokenContract: tronTokenAddr2.MarshalPB(),
+						TokenOwner:    justinTRC20TronAddr.MarshalPB(),
+						TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(456)},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(err)
+
+	trcx := newERC20StaticContext(gwHelper.ContractCtx(fakeCtx), dappTRXTokenAddr)
+	balance, err := trcx.balanceOf(justinTRXdAppAddr)
+	require.NoError(err)
+	require.Equal(big.NewInt(123), balance)
+
+	// justin approves gateway to transfer the amount
+	trctx := newERC20Context(contract.WrapPluginContext(fakeCtx.WithAddress(justinTRXdAppAddr)), dappTRXTokenAddr)
+	require.NoError(trctx.approve(gwHelper.Address, big.NewInt(123)))
+
+	trc20 := newERC20StaticContext(gwHelper.ContractCtx(fakeCtx), dappTRC20TokenAddr)
+	balance, err = trc20.balanceOf(justinTRC20dAppAddr)
+	require.NoError(err)
+	require.Equal(big.NewInt(456), balance)
+
+	// justin withdraw from dAppChain Gateway
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(justinTRXdAppAddr)),
+		&WithdrawTokenRequest{
+			TokenKind:     TokenKind_TRX,
+			TokenContract: TRXTokenAddr.MarshalPB(),
+			TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(99)},
+		},
+	)
+	require.NoError(err)
+
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 15,
+				Payload: &MainnetWithdrawalEvent{
+					Withdrawal: &MainnetTokenWithdrawn{
+						TokenKind:     TokenKind_TRX,
+						TokenContract: tronTokenAddr.MarshalPB(),
+						TokenOwner:    justinTRXTronAddr.MarshalPB(),
+						TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(99)},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(err)
 }

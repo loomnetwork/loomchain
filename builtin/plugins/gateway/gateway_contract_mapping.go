@@ -26,10 +26,14 @@ type (
 
 // AddContractMapping adds a mapping between a DAppChain contract and a Mainnet contract.
 func (gw *Gateway) AddContractMapping(ctx contract.Context, req *AddContractMappingRequest) error {
-	if req.ForeignContract == nil || req.LocalContract == nil || req.ForeignContractCreatorSig == nil ||
-		req.ForeignContractTxHash == nil {
+	if req.ForeignContract == nil || req.LocalContract == nil || req.ForeignContractCreatorSig == nil {
 		return ErrInvalidRequest
 	}
+	// Don't need the TRON contract creation tx hash to verify the contract creator
+	if (gw.Type != TronGateway) && (req.ForeignContractTxHash == nil) {
+		return ErrInvalidRequest
+	}
+
 	foreignAddr := loom.UnmarshalAddressPB(req.ForeignContract)
 	localAddr := loom.UnmarshalAddressPB(req.LocalContract)
 	if foreignAddr.ChainID == "" || localAddr.ChainID == "" {
@@ -156,10 +160,19 @@ func (gw *Gateway) UnverifiedContractCreators(ctx contract.StaticContext,
 		if err := proto.Unmarshal(entry.Value, &mapping); err != nil {
 			return nil, err
 		}
-		creators = append(creators, &UnverifiedContractCreator{
-			ContractMappingID: mapping.ID,
-			ContractTxHash:    mapping.ForeignContractTxHash,
-		})
+
+		if gw.Type == TronGateway {
+			creators = append(creators, &UnverifiedContractCreator{
+				ContractMappingID: mapping.ID,
+				ContractAddress:   mapping.ForeignContract,
+			})
+		} else {
+			creators = append(creators, &UnverifiedContractCreator{
+				ContractMappingID: mapping.ID,
+				ContractTxHash:    mapping.ForeignContractTxHash,
+			})
+		}
+
 	}
 	return &UnverifiedContractCreatorsResponse{
 		Creators: creators,
