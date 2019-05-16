@@ -386,9 +386,9 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	// If the delegator redelegated the rewards delegation, emit a claimedrewards event
+	// If the former delegator redelegated the rewards delegation, emit a claimedrewards event
 	if req.Index == REWARD_DELEGATION_INDEX {
-		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.Amount)
+		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.FormerValidatorAddress, req.Amount)
 	}
 
 	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
@@ -509,7 +509,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 
 	// If the delegator unbonded the rewards delegation, emit a claimedrewards event
 	if delegation.Index == REWARD_DELEGATION_INDEX {
-		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.Amount)
+		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.ValidatorAddress, req.Amount)
 	}
 
 	return c.emitDelegatorUnbondsEvent(ctx, delegator.MarshalPB(), req.Amount)
@@ -2053,12 +2053,13 @@ func (c *DPOS) emitReferrerRegistersEvent(ctx contract.Context, name string, add
 	return nil
 }
 
-func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *types.Address, validator *types.Address, amount *types.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposDelegatorClaimsRewardsEvent{
-		Address: delegator,
-		Amount:  amount,
-		Time:    ctx.Block().Time,
-		Height:  ctx.Block().Height,
+		Delegator: delegator,
+		Validator: validator,
+		Amount:    amount,
+		Time:      ctx.Block().Time,
+		Height:    ctx.Block().Height,
 	})
 	if err != nil {
 		return err
