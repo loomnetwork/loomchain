@@ -21,10 +21,10 @@ type (
 	GetDeployerResponse          = dwtypes.GetDeployerResponse
 	GetDeployerRequest           = dwtypes.GetDeployerRequest
 	Deployer                     = dwtypes.Deployer
-	UserDeployer                 = udwtypes.UserDeployer
+	UserDeployer                 = udwtypes.UserDeployerState
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
 	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
-	UserDeployers                = udwtypes.UserDeployersMapping
+	UserDeployers                = udwtypes.UserState
 	InitRequest                  = udwtypes.InitRequest
 	TierInfo                     = udwtypes.TierInfo
 )
@@ -102,7 +102,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	return nil
 }
 
-// Add User Deployer
+// Add User Deployer - Adds Deployer in UserState
 func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
 	var userdeployers UserDeployers
 	var tierInfo TierInfo
@@ -147,10 +147,11 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	adddeprequest := &dwtypes.AddUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
-	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, nil); err != nil {
+	var resp Deployer
+	//Retrieving Deployer Address and Corresponding Flags after Deployer Addition
+	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, &resp); err != nil {
 		return errors.Wrap(err, "Adding User Deployer")
 	}
-
 	err = ctx.Get(UserStateKey(userAddr), &userdeployers)
 	if err != nil {
 		//This is taking care of boundary cases that user is whitelisting deployers for first time
@@ -166,17 +167,9 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if err != nil {
 		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
 	}
-	deployerReq := &GetDeployerRequest{
-		DeployerAddr: req.DeployerAddr,
-	}
-	var getDeployerResponse GetDeployerResponse
-	if err := contract.StaticCallMethod(ctx, dwAddr,
-		"GetDeployer", deployerReq, &getDeployerResponse); err != nil {
-		return err
-	}
 	deployer := &UserDeployer{
-		Address: getDeployerResponse.Deployer.GetAddress(),
-		Flags:   getDeployerResponse.Deployer.GetFlags(),
+		Address: resp.GetAddress(),
+		Flags:   resp.GetFlags(),
 	}
 	//Storing Full Deployer object corresponding to Deployer Key
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
@@ -245,7 +238,7 @@ func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address
 		}
 		return errors.Wrap(err, "Failed to Get Deployer State")
 	}
-	contract := udwtypes.DeployerContracts{
+	contract := udwtypes.DeployerContract{
 		ContractAddress: contractAddr.MarshalPB(),
 		VmType:          vmType,
 	}
