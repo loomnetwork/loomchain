@@ -34,17 +34,18 @@ const (
 	TIER_TWO                       = dtypes.LocktimeTier_TIER_TWO
 	TIER_THREE                     = dtypes.LocktimeTier_TIER_THREE
 
-	ElectionEventTopic              = "dposv3:election"
-	SlashEventTopic                 = "dposv3:slash"
-	CandidateRegistersEventTopic    = "dposv3:candidateregisters"
-	CandidateUnregistersEventTopic  = "dposv3:candidateunregisters"
-	CandidateFeeChangeEventTopic    = "dposv3:candidatefeechange"
-	UpdateCandidateInfoEventTopic   = "dposv3:updatecandidateinfo"
-	DelegatorDelegatesEventTopic    = "dposv3:delegatordelegates"
-	DelegatorRedelegatesEventTopic  = "dposv3:delegatorredelegates"
-	DelegatorConsolidatesEventTopic = "dposv3:delegatorconsolidates"
-	DelegatorUnbondsEventTopic      = "dposv3:delegatorunbonds"
-	ReferrerRegistersEventTopic     = "dposv3:referrerregisters"
+	ElectionEventTopic               = "dposv3:election"
+	SlashEventTopic                  = "dposv3:slash"
+	CandidateRegistersEventTopic     = "dposv3:candidateregisters"
+	CandidateUnregistersEventTopic   = "dposv3:candidateunregisters"
+	CandidateFeeChangeEventTopic     = "dposv3:candidatefeechange"
+	UpdateCandidateInfoEventTopic    = "dposv3:updatecandidateinfo"
+	DelegatorDelegatesEventTopic     = "dposv3:delegatordelegates"
+	DelegatorRedelegatesEventTopic   = "dposv3:delegatorredelegates"
+	DelegatorConsolidatesEventTopic  = "dposv3:delegatorconsolidates"
+	DelegatorUnbondsEventTopic       = "dposv3:delegatorunbonds"
+	ReferrerRegistersEventTopic      = "dposv3:referrerregisters"
+	DelegatorClaimsRewardsEventTopic = "dposv3:delegatorclaimsrewards"
 )
 
 var (
@@ -118,17 +119,18 @@ type (
 	GetStateResponse                  = dtypes.GetStateResponse
 	InitializationState               = dtypes.InitializationState
 
-	DposElectionEvent              = dtypes.DposElectionEvent
-	DposSlashEvent                 = dtypes.DposSlashEvent
-	DposCandidateRegistersEvent    = dtypes.DposCandidateRegistersEvent
-	DposCandidateUnregistersEvent  = dtypes.DposCandidateUnregistersEvent
-	DposCandidateFeeChangeEvent    = dtypes.DposCandidateFeeChangeEvent
-	DposUpdateCandidateInfoEvent   = dtypes.DposUpdateCandidateInfoEvent
-	DposDelegatorDelegatesEvent    = dtypes.DposDelegatorDelegatesEvent
-	DposDelegatorRedelegatesEvent  = dtypes.DposDelegatorRedelegatesEvent
-	DposDelegatorConsolidatesEvent = dtypes.DposDelegatorConsolidatesEvent
-	DposDelegatorUnbondsEvent      = dtypes.DposDelegatorUnbondsEvent
-	DposReferrerRegistersEvent     = dtypes.DposReferrerRegistersEvent
+	DposElectionEvent               = dtypes.DposElectionEvent
+	DposSlashEvent                  = dtypes.DposSlashEvent
+	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
+	DposCandidateUnregistersEvent   = dtypes.DposCandidateUnregistersEvent
+	DposCandidateFeeChangeEvent     = dtypes.DposCandidateFeeChangeEvent
+	DposUpdateCandidateInfoEvent    = dtypes.DposUpdateCandidateInfoEvent
+	DposDelegatorDelegatesEvent     = dtypes.DposDelegatorDelegatesEvent
+	DposDelegatorRedelegatesEvent   = dtypes.DposDelegatorRedelegatesEvent
+	DposDelegatorConsolidatesEvent  = dtypes.DposDelegatorConsolidatesEvent
+	DposDelegatorUnbondsEvent       = dtypes.DposDelegatorUnbondsEvent
+	DposReferrerRegistersEvent      = dtypes.DposReferrerRegistersEvent
+	DposDelegatorClaimsRewardsEvent = dtypes.DposDelegatorClaimsRewardsEvent
 
 	RequestBatch                = dtypes.RequestBatch
 	RequestBatchTally           = dtypes.RequestBatchTally
@@ -384,6 +386,11 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
+	// If the delegator redelegated the rewards delegation, emit a claimedrewards event
+	if req.Index == REWARD_DELEGATION_INDEX {
+		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.Amount)
+	}
+
 	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
@@ -498,6 +505,11 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			delegation.UpdateAmount = req.Amount
 		}
 		SetDelegation(ctx, delegation)
+	}
+
+	// If the delegator unbonded the rewards delegation, emit a claimedrewards event
+	if delegation.Index == REWARD_DELEGATION_INDEX {
+		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.Amount)
 	}
 
 	return c.emitDelegatorUnbondsEvent(ctx, delegator.MarshalPB(), req.Amount)
@@ -2038,6 +2050,21 @@ func (c *DPOS) emitReferrerRegistersEvent(ctx contract.Context, name string, add
 	}
 
 	ctx.EmitTopics(marshalled, ReferrerRegistersEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+	marshalled, err := proto.Marshal(&DposDelegatorClaimsRewardsEvent{
+		Address: delegator,
+		Amount:  amount,
+		Time:    ctx.Block().Time,
+		Height:  ctx.Block().Height,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, DelegatorClaimsRewardsEventTopic)
 	return nil
 }
 
