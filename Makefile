@@ -196,7 +196,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 	# for when you want to reference a different branch of go-loom
 	cd $(PLUGIN_DIR) && git checkout feature/add-consumer-whitelist && git pull origin feature/add-consumer-whitelist
-  cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
+  	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GRPC_DIR) && git checkout v1.20.1
 	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
