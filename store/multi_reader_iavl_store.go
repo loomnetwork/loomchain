@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 
@@ -212,6 +213,7 @@ func NewMultiReaderIAVLStore(nodeDB dbm.DB, valueDB db.DBWrapper, cfg *AppStoreC
 	s.IAVLStore = IAVLStore{
 		tree:        tree,
 		maxVersions: maxVersions,
+		Mutex:       &sync.RWMutex{},
 	}
 
 	if err := s.setLastSavedTreeToVersion(treeVer); err != nil {

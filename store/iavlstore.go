@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
@@ -36,21 +37,30 @@ func init() {
 type IAVLStore struct {
 	tree        *iavl.MutableTree
 	maxVersions int64 // maximum number of versions to keep when pruning
+	Mutex       *sync.RWMutex
 }
 
 func (s *IAVLStore) Delete(key []byte) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
 	s.tree.Remove(key)
 }
 
 func (s *IAVLStore) Set(key, val []byte) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
 	s.tree.Set(key, val)
 }
 
 func (s *IAVLStore) Has(key []byte) bool {
+	s.Mutex.RLock()
+	defer s.Mutex.RUnlock()
 	return s.tree.Has(key)
 }
 
 func (s *IAVLStore) Get(key []byte) []byte {
+	s.Mutex.RLock()
+	defer s.Mutex.RUnlock()
 	_, val := s.tree.Get(key)
 	return val
 }
@@ -78,6 +88,8 @@ func prefixRangeEnd(prefix []byte) []byte {
 }
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
+	s.Mutex.RLock()
+	defer s.Mutex.RUnlock()
 	ret := make(plugin.RangeData, 0)
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
@@ -118,6 +130,8 @@ func (s *IAVLStore) Version() int64 {
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
 	oldVersion := s.Version()
 	hash, version, err := s.tree.SaveVersion()
 	if err != nil {
@@ -153,6 +167,8 @@ func (s *IAVLStore) Prune() error {
 }
 
 func (s *IAVLStore) GetSnapshot() Snapshot {
+	s.Mutex.RLock()
+	defer s.Mutex.RUnlock()
 	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
 	return &iavlStoreSnapshot{
 		IAVLStore: s,
@@ -179,6 +195,7 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 	return &IAVLStore{
 		tree:        tree,
 		maxVersions: maxVersions,
+		Mutex:       &sync.RWMutex{},
 	}, nil
 }
 
