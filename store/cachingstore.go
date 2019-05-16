@@ -33,16 +33,16 @@ var (
 	cacheMisses metrics.Counter
 
 	keyTable  = KeyTable{}
-	seperator = "|"
+	separator = "|"
 )
 
 func versionedKey(key string, version int64) string {
 	v := strconv.FormatInt(version, 10)
-	return string(key) + seperator + v
+	return string(key) + separator + v
 }
 
 func unversionedKey(key string) (string, int64, error) {
-	k := strings.Split(key, seperator)
+	k := strings.Split(key, separator)
 	if len(k) != 2 {
 		return "", 0, fmt.Errorf("Invalid versioned key %s", string(key))
 	}
