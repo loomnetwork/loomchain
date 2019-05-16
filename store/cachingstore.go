@@ -158,6 +158,7 @@ type CachingStoreConfig struct {
 	LogDestination string
 
 	// Enable VersionedBigCache in order to support MultiWriterAppStore snapshot
+	// VersionedBigCache is NOT compatible with current state snapshot (fake snapshot)
 	VersionedBigCache bool
 }
 
@@ -301,11 +302,10 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, versio
 			kvTable, exist := keyTable[key]
 			if exist {
 				delete(kvTable, version)
+				if len(kvTable) == 0 {
+					delete(keyTable, key)
+				}
 			}
-			if len(kvTable) == 0 {
-				delete(keyTable, key)
-			}
-
 		}
 	}
 	cache, err := bigcache.NewBigCache(*bigcacheConfig)
@@ -372,7 +372,7 @@ func (c *CachingStore) SaveVersion() ([]byte, int64, error) {
 func (c *CachingStore) GetSnapshot() Snapshot {
 	return NewCachingStoreSnapshot(
 		c.VersionedKVStore.GetSnapshot(),
-		c.cache, c.version, c.logger)
+		c.cache, c.version-1, c.logger)
 }
 
 // CachingStoreSnapshot is a read-only CachingStore with specified version
