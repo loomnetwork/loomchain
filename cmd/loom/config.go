@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -156,6 +156,16 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 				Format:     "plugin",
 				Name:       "loomcoin-gateway",
 				Location:   "loomcoin-gateway:0.1.0",
+			})
+	}
+
+	if cfg.TronTransferGateway.ContractEnabled {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "tron-gateway",
+				Location:   "tron-gateway:0.1.0",
 			})
 	}
 

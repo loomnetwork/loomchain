@@ -169,6 +169,7 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 		GoLoom:       loomchain.GoLoomGitSHA,
 		GoEthereum:   loomchain.EthGitSHA,
 		GoPlugin:     loomchain.HashicorpGitSHA,
+		Btcd:         loomchain.BtcdGitSHA,
 		PluginPath:   cfg.PluginsPath(),
 		Peers:        cfg.Peers,
 	}
