@@ -124,7 +124,7 @@ func newMapContractsCommand() *cobra.Command {
 	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
 	cmdFlags.StringVar(&txHashStr, "eth-tx", "", "Ethereum hash of contract creation tx")
 	cmdFlags.StringVar(&chainID, "chain-id", "eth", "Foreign chain id")
-	cmdFlags.StringVar(&gatewayType, "gateway-contract", "gateway", "Gateway type: possible values are gateway, tron-gateway")
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
 	return cmd
 }
 

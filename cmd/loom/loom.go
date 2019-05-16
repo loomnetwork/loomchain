@@ -652,7 +652,7 @@ func destroyReceiptsDB(cfg *config.Config) {
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
 	db, err := cdb.LoadDB(
-		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.Metrics.Database,
+		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
 	)
 	if err != nil {
 		return nil, err
@@ -692,7 +692,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		logger.Info("Loading MultiReaderIAVL Store")
 		valueDB, err := cdb.LoadDB(
 			cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(),
-			cfg.DBBackendConfig.CacheSizeMegs, cfg.Metrics.Database,
+			cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
 		)
 		if err != nil {
 			return nil, err
@@ -746,7 +746,7 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	eventStoreCfg := cfg.EventStore
 	db, err := cdb.LoadDB(
 		eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath(),
-		20, //TODO do we want a separate cache config for eventstore?,
+		20, 4, //TODO do we want a separate cache config for eventstore?,
 		cfg.Metrics.Database,
 	)
 	if err != nil {
@@ -764,6 +764,7 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 		evmStoreCfg.DBName,
 		cfg.RootPath(),
 		evmStoreCfg.CacheSizeMegs,
+		evmStoreCfg.WriteBufferMegs,
 		cfg.Metrics.Database,
 	)
 	if err != nil {
