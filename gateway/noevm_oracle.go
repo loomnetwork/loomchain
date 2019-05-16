@@ -17,6 +17,10 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 	return nil, errors.New("not implemented in non-EVM build")
 }
 
+func CreateTronOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return nil, errors.New("not implemented in non-EVM build")
+}
+
 func (orc *Oracle) RunWithRecovery() {
 }
 

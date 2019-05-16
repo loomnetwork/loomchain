@@ -68,6 +68,11 @@ type TransferGatewayConfig struct {
 
 	// List of DAppChain addresses that aren't allowed to withdraw to the Mainnet Gateway
 	WithdrawerAddressBlacklist []string
+
+	// URI of Tron node the Oracle should connect to, and retrieve Mainnet events from.
+	TronURI string
+	// Number of seconds ot wait before polling the next page if event server supports pagination
+	OracleEventPollDelay int32
 }
 
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
@@ -123,6 +128,39 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9997",
+		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
+			Enabled:                     false,
+			LogLevel:                    "info",
+			LogDestination:              "file://-",
+			MainnetPrivateKeyPath:       "",
+			MainnetPrivateKeyHsmEnabled: false,
+		},
+		WithdrawalSig: UnprefixedWithdrawalSigType,
+	}
+}
+
+func DefaultTronConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return &TransferGatewayConfig{
+		ContractEnabled:               false,
+		Unsafe:                        false,
+		OracleEnabled:                 false,
+		TronURI:                       "https://api.shasta.trongrid.io",
+		MainnetContractHexAddress:     "",
+		MainnetPrivateKeyHsmEnabled:   false,
+		MainnetPrivateKeyPath:         "",
+		DappChainPrivateKeyHsmEnabled: false,
+		DAppChainPrivateKeyPath:       "",
+		DAppChainReadURI:              fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
+		DAppChainWriteURI:             fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
+		DAppChainEventsURI:            fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
+		DAppChainPollInterval:         10,
+		MainnetPollInterval:           10,
+		NumMainnetBlockConfirmations:  15,
+		OracleLogLevel:                "info",
+		OracleLogDestination:          "file://tron_tgoracle.log",
+		OracleStartupDelay:            5,
+		OracleEventPollDelay:          1,
+		OracleQueryAddress:            "127.0.0.1:9996",
 		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
 			Enabled:                     false,
 			LogLevel:                    "info",

@@ -69,6 +69,14 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 		}
 	}
 
+	if cfg.TronTransferGateway.ContractEnabled {
+		if cfg.TronTransferGateway.Unsafe {
+			contracts = append(contracts, gateway.UnsafeTronContract)
+		} else {
+			contracts = append(contracts, gateway.TronContract)
+		}
+	}
+
 	loader := plugin.NewStaticLoader(contracts...)
 	loader.SetContractOverrides(replay.ContractOverrides())
 	return loader

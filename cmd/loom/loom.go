@@ -128,6 +128,7 @@ func newEnvCommand() *cobra.Command {
 				"go-loom":       loomchain.GoLoomGitSHA,
 				"go-ethereum":   loomchain.EthGitSHA,
 				"go-plugin":     loomchain.HashicorpGitSHA,
+				"go-btcd":       loomchain.BtcdGitSHA,
 				"plugin path":   cfg.PluginsPath(),
 				"peers":         cfg.Peers,
 			})
@@ -402,6 +403,14 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startTronGatewayOracle(chainID, cfg.TronTransferGateway); err != nil {
+				return err
+			}
+
+			if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner); err != nil {
+				return err
+			}
+
 			if err := startPlasmaOracle(chainID, cfg.PlasmaCash); err != nil {
 				return err
 			}
@@ -554,6 +563,33 @@ func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) err
 
 	go orc.RunWithRecovery()
 	return nil
+}
+
+func startTronGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
+	if !cfg.OracleEnabled {
+		return nil
+	}
+
+	orc, err := tgateway.CreateTronOracle(cfg, chainID)
+	if err != nil {
+		return err
+	}
+
+	go orc.RunWithRecovery()
+	return nil
+}
+
+func startTronGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+	if !cfg.BatchSignFnConfig.Enabled {
+		return nil
+	}
+
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
+	if err != nil {
+		return err
+	}
+
+	return fnRegistry.Set("tron:batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
 func initDB(name, dir string) error {
