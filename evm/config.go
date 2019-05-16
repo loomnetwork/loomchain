@@ -8,13 +8,16 @@ type EvmStoreConfig struct {
 	DBBackend string
 	// CacheSizeMegs defines cache size (in megabytes) of EVM store
 	CacheSizeMegs int
+	// WriteBufferMegs for the goleveldb backend EVM Store
+	WriteBufferMegs int
 }
 
 func DefaultEvmStoreConfig() *EvmStoreConfig {
 	return &EvmStoreConfig{
-		DBName:        "evm",
-		DBBackend:     "goleveldb",
-		CacheSizeMegs: 256,
+		DBName:          "evm",
+		DBBackend:       "goleveldb",
+		CacheSizeMegs:   256,
+		WriteBufferMegs: 4,
 	}
 }
 

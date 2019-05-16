@@ -27,10 +27,10 @@ type Snapshot interface {
 	Release()
 }
 
-func LoadDB(dbBackend, name, directory string, cacheSizeMegs int, collectMetrics bool) (DBWrapper, error) {
+func LoadDB(dbBackend, name, directory string, cacheSizeMegs int, bufferSizeMeg int, collectMetrics bool) (DBWrapper, error) {
 	switch dbBackend {
 	case GoLevelDBBackend:
-		return LoadGoLevelDB(name, directory, cacheSizeMegs, collectMetrics)
+		return LoadGoLevelDB(name, directory, cacheSizeMegs, bufferSizeMeg, collectMetrics)
 	case CLevelDBBackend:
 		return LoadCLevelDB(name, directory)
 	case MemDBackend:
