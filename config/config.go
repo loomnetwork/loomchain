@@ -154,7 +154,8 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 }
 
 type DBBackendConfig struct {
-	CacheSizeMegs int
+	CacheSizeMegs   int
+	WriteBufferMegs int
 }
 
 type KarmaConfig struct {
@@ -197,7 +198,8 @@ type DeployerWhitelistConfig struct {
 
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
-		CacheSizeMegs: 2042, //2 Gigabytes
+		CacheSizeMegs:   1042, //1 Gigabyte
+		WriteBufferMegs: 500,  //500 megabyte
 	}
 }
 
