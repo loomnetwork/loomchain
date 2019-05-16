@@ -18,10 +18,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
-type KeyVersionTable map[int64]bool
-
-type KeyTable map[string]KeyVersionTable
-
 var (
 	getDuration    metrics.Histogram
 	hasDuration    metrics.Histogram
@@ -35,6 +31,12 @@ var (
 	keyTable  = KeyTable{}
 	separator = "|"
 )
+
+// KeyVersionTable keeps cached versions of a key
+type KeyVersionTable map[int64]bool
+
+// KeyTable keeps KeyVersionTable records of all cached keys
+type KeyTable map[string]KeyVersionTable
 
 func versionedKey(key string, version int64) string {
 	v := strconv.FormatInt(version, 10)
@@ -51,6 +53,31 @@ func unversionedKey(key string) (string, int64, error) {
 		return "", 0, err
 	}
 	return k[0], n, nil
+}
+
+// getKeyVersion returns the latest version number (limited by version argument) of a particular key
+func getKeyVersion(key []byte, version int64) int64 {
+	kvTable, exist := keyTable[string(key)]
+	if !exist {
+		return 0
+	}
+	var latestVersion int64
+	for k, exists := range kvTable {
+		if k > latestVersion && exists && k <= version {
+			latestVersion = k
+		}
+	}
+	return latestVersion
+}
+
+// addKeyVersion add version number of a key to KeyVersionTable
+func addKeyVersion(key []byte, version int64) {
+	kvTable, exist := keyTable[string(key)]
+	if !exist {
+		kvTable = KeyVersionTable{}
+	}
+	kvTable[version] = true
+	keyTable[string(key)] = kvTable
 }
 
 type VersionedBigCache struct {
@@ -72,7 +99,7 @@ func (c *VersionedBigCache) Delete(key []byte, version int64) error {
 		c.cache.Delete(string(versionedKey))
 		// add key to inidicate that this is the latest version but
 		// the data has been deleted
-		c.addKeyVersion(key, version)
+		addKeyVersion(key, version)
 		return nil
 	}
 	return c.cache.Delete(string(key))
@@ -85,7 +112,7 @@ func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
 		if err != nil {
 			return err
 		}
-		c.addKeyVersion(key, version)
+		addKeyVersion(key, version)
 		return nil
 	}
 	return c.cache.Set(string(key), val)
@@ -93,34 +120,11 @@ func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
 
 func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
 	if c.versionedCache {
-		latestVersion := c.getKeyVersion(key, version)
+		latestVersion := getKeyVersion(key, version)
 		versionedKey := versionedKey(string(key), latestVersion)
 		return c.cache.Get(string(versionedKey))
 	}
 	return c.cache.Get(string(key))
-}
-
-func (c *VersionedBigCache) getKeyVersion(key []byte, version int64) int64 {
-	kvTable, exist := keyTable[string(key)]
-	if !exist {
-		return 0
-	}
-	var latestVersion int64
-	for k, exists := range kvTable {
-		if k > latestVersion && exists && k <= version {
-			latestVersion = k
-		}
-	}
-	return latestVersion
-}
-
-func (c *VersionedBigCache) addKeyVersion(key []byte, version int64) {
-	kvTable, exist := keyTable[string(key)]
-	if !exist {
-		kvTable = KeyVersionTable{}
-	}
-	kvTable[version] = true
-	keyTable[string(key)] = kvTable
 }
 
 type CachingStoreLogger struct {
@@ -284,12 +288,14 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, versio
 	if err != nil {
 		return nil, err
 	}
+
 	if config.VersionedBigCache {
+		// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
 		bigcacheConfig.OnRemove = func(key string, entry []byte) {
 			key, version, err := unversionedKey(key)
 			if err != nil {
 				cacheLogger.Error(fmt.Sprintf(
-					"[VersionedBigCache] error while unversioned key: %s, error: %v",
+					"[VersionedBigCache] error while unversioning key: %s, error: %v",
 					string(key), err.Error()))
 			}
 			kvTable, exist := keyTable[key]
