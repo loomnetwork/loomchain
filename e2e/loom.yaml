@@ -1,0 +1,6 @@
+AppStore:
+  Version: 3
+  EvmDBEnabled: true
+CachingStoreConfig:
+  CachingEnabled: true
+  VersionedBigCache: true

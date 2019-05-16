@@ -6,8 +6,9 @@ ContractLogLevel: "debug"
 LoomLogLevel: "debug"
 AppStore:
   Version: 3
-EvmStore:
-  Enabled: false
+CachingStoreConfig:
+  CachingEnabled: true
+  VersionedBigCache: true
 
 Auth:
   Chains:
