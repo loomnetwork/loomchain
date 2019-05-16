@@ -141,6 +141,8 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *IAVLStore) Prune() error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
 	// keep all the versions
 	if s.maxVersions == 0 {
 		return nil
