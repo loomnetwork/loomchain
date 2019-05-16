@@ -45,7 +45,8 @@ ignored = [
   "github.com/prometheus/client_golang/prometheus*",
   "github.com/loomnetwork/yubihsm-go*",
   "github.com/certusone/yubihsm-go*",
-  "github.com/jmhodges/levigo*" # can only build it with the right c packages
+  "github.com/jmhodges/levigo*", # can only build it with the right c packages
+  "github.com/btcsuite/btcd*"
 ]
 
 [[constraint]]
@@ -90,6 +91,10 @@ ignored = [
 [[constraint]]
   name = "github.com/allegro/bigcache"
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
+
+[[constraint]]
+  name = "github.com/btcsuite/btcutil"
+  revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
 [prune]
   go-tests = true
