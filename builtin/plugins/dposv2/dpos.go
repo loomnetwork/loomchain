@@ -33,15 +33,16 @@ const (
 	TIER_THREE                     = dtypes.DelegationV2_TIER_THREE
 	feeChangeDelay                 = 2
 
-	ElectionEventTopic             = "dpos:election"
-	SlashEventTopic                = "dpos:slash"
-	CandidateRegistersEventTopic   = "dpos:candidateregisters"
-	CandidateUnregistersEventTopic = "dpos:candidateunregisters"
-	CandidateFeeChangeEventTopic   = "dpos:candidatefeechange"
-	UpdateCandidateInfoEventTopic  = "dpos:updatecandidateinfo"
-	DelegatorDelegatesEventTopic   = "dpos:delegatordelegates"
-	DelegatorRedelegatesEventTopic = "dpos:delegatorredelegates"
-	DelegatorUnbondsEventTopic     = "dpos:delegatorunbonds"
+	ElectionEventTopic               = "dpos:election"
+	SlashEventTopic                  = "dpos:slash"
+	CandidateRegistersEventTopic     = "dpos:candidateregisters"
+	CandidateUnregistersEventTopic   = "dpos:candidateunregisters"
+	CandidateFeeChangeEventTopic     = "dpos:candidatefeechange"
+	UpdateCandidateInfoEventTopic    = "dpos:updatecandidateinfo"
+	DelegatorDelegatesEventTopic     = "dpos:delegatordelegates"
+	DelegatorRedelegatesEventTopic   = "dpos:delegatorredelegates"
+	DelegatorUnbondsEventTopic       = "dpos:delegatorunbonds"
+	DelegatorClaimsRewardsEventTopic = "dpos:delegatorclaimsrewards"
 )
 
 var (
@@ -116,15 +117,16 @@ type (
 	GetDistributionsRequest           = dtypes.GetDistributionsRequest
 	GetDistributionsResponse          = dtypes.GetDistributionsResponse
 
-	DposElectionEvent             = dtypes.DposElectionEvent
-	DposSlashEvent                = dtypes.DposSlashEvent
-	DposCandidateRegistersEvent   = dtypes.DposCandidateRegistersEvent
-	DposCandidateUnregistersEvent = dtypes.DposCandidateUnregistersEvent
-	DposCandidateFeeChangeEvent   = dtypes.DposCandidateFeeChangeEvent
-	DposUpdateCandidateInfoEvent  = dtypes.DposUpdateCandidateInfoEvent
-	DposDelegatorDelegatesEvent   = dtypes.DposDelegatorDelegatesEvent
-	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
-	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
+	DposElectionEvent               = dtypes.DposElectionEvent
+	DposSlashEvent                  = dtypes.DposSlashEvent
+	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
+	DposCandidateUnregistersEvent   = dtypes.DposCandidateUnregistersEvent
+	DposCandidateFeeChangeEvent     = dtypes.DposCandidateFeeChangeEvent
+	DposUpdateCandidateInfoEvent    = dtypes.DposUpdateCandidateInfoEvent
+	DposDelegatorDelegatesEvent     = dtypes.DposDelegatorDelegatesEvent
+	DposDelegatorRedelegatesEvent   = dtypes.DposDelegatorRedelegatesEvent
+	DposDelegatorUnbondsEvent       = dtypes.DposDelegatorUnbondsEvent
+	DposDelegatorClaimsRewardsEvent = dtypes.DposDelegatorClaimsRewardsEvent
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
@@ -1673,6 +1675,11 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 
 	ctx.Logger().Info("DPOS ClaimDistribution result", "delegator", delegator, "amount", distribution.Amount)
 
+	err = c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), distribution.Amount)
+	if err != nil {
+		return nil, err
+	}
+
 	err = saveDistributionList(ctx, distributions)
 	if err != nil {
 		return nil, err
@@ -2093,6 +2100,21 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 	return nil
 }
 
+func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+	marshalled, err := proto.Marshal(&DposDelegatorClaimsRewardsEvent{
+		Address: delegator,
+		Amount:  amount,
+		Time:    ctx.Block().Time,
+		Height:  ctx.Block().Height,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, DelegatorClaimsRewardsEventTopic)
+	return nil
+}
+
 // ***************************
 // MIGRATION FUNCTIONS
 // ***************************
@@ -2165,11 +2187,11 @@ func (c *DPOS) ViewStateDump(ctx contract.StaticContext, req *ViewStateDumpReque
 	}
 
 	currentV2State := &StateDump{
-		State: state,
-		Candidates: candidates,
-		Delegations: delegations,
+		State:         state,
+		Candidates:    candidates,
+		Delegations:   delegations,
 		Distributions: distributions,
-		Statistics: statistics,
+		Statistics:    statistics,
 	}
 
 	initializationState, err := populateInitializationState(ctx, state)

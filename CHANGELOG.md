@@ -1,6 +1,19 @@
 Pending Release
 ----------
 
+
+```
+
+* Leveldb WriteBuffer
+
+This used to be 4 megabytes, now defaults to 500 megabytes
+
+loom.yaml
+```yaml
+DBBackendConfig:
+    WriteBufferMegs: 500
+```
+
 ## Build 963 - Apr 16th
 
 ### Changes
