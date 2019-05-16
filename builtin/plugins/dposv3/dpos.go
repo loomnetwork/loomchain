@@ -761,14 +761,14 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:                req.PubKey,
-		Address:               candidateAddress.MarshalPB(),
-		Fee:                   req.Fee,
-		NewFee:                req.Fee,
-		Name:                  req.Name,
-		Description:           req.Description,
-		Website:               req.Website,
-		State:                 REGISTERED,
+		PubKey:      req.PubKey,
+		Address:     candidateAddress.MarshalPB(),
+		Fee:         req.Fee,
+		NewFee:      req.Fee,
+		Name:        req.Name,
+		Description: req.Description,
+		Website:     req.Website,
+		State:       REGISTERED,
 		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
@@ -943,7 +943,12 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesReq
 // ***************************
 
 // electing and settling rewards settlement
-func Elect(ctx contract.Context) error {
+func Elect(context contract.Context) error {
+	ctx, err := newElectionContext(context)
+	if err != nil {
+		return err
+	}
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -1024,6 +1029,10 @@ func Elect(ctx contract.Context) error {
 	}
 
 	if err = updateCandidateList(ctx); err != nil {
+		return err
+	}
+
+	if err := ctx.Flush(); err != nil {
 		return err
 	}
 
