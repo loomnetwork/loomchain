@@ -2,27 +2,12 @@ package dposv3
 
 import (
 	"reflect"
-	"sort"
 
 	"github.com/gogo/protobuf/proto"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
-
-/*
-type actionKind int
-
-const (
-	setAction actionKind = iota
-	delAction
-)
-
-type action struct {
-	kind       actionKind
-	key, value []byte
-}
-*/
 
 type cacheItem struct {
 	Value   []byte
@@ -35,10 +20,6 @@ type electionContext struct {
 	contract.Context
 	pctx  plugin.Context
 	cache map[string]cacheItem
-	// Was going to retain order of actions so this context would be backwards compatible, but
-	// it's not possible because the election will also call the coin contract, which won't use this
-	// context, so the order in which writes occur will change anyway.
-	// actions []action
 }
 
 func newElectionContext(ctx contract.Context) (*electionContext, error) {
@@ -115,27 +96,6 @@ func (ctx *electionContext) load() error {
 	return nil
 }
 
-func (ctx *electionContext) Flush() error {
-	keys := make([]string, len(ctx.cache))
-	i := 0
-	for k := range ctx.cache {
-		keys[i] = k
-		i++
-	}
-
-	sort.Strings(keys)
-	for _, k := range keys {
-		if item, exists := ctx.cache[k]; exists {
-			if item.Deleted {
-				ctx.pctx.Delete([]byte(k))
-			} else {
-				ctx.pctx.Set([]byte(k), item.Value)
-			}
-		}
-	}
-	return nil
-}
-
 func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 	if item, exists := ctx.cache[string(key)]; exists {
 		if len(item.Value) == 0 {
@@ -143,14 +103,14 @@ func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 		}
 		return proto.Unmarshal(item.Value, pb)
 	}
-	return contract.ErrNotFound
+	return ctx.Context.Get(key, pb)
 }
 
 func (ctx *electionContext) Has(key []byte) bool {
 	if item, exists := ctx.cache[string(key)]; exists {
 		return !item.Deleted
 	}
-	return false
+	return ctx.Context.Has(key)
 }
 
 func (ctx *electionContext) Set(key []byte, pb proto.Message) error {
@@ -159,6 +119,7 @@ func (ctx *electionContext) Set(key []byte, pb proto.Message) error {
 		return err
 	}
 	ctx.cache[string(key)] = cacheItem{Value: data}
+	ctx.pctx.Set(key, data)
 	return nil
 }
 
@@ -167,4 +128,5 @@ func (ctx *electionContext) Delete(key []byte) {
 		panic("key can't be nil")
 	}
 	ctx.cache[string(key)] = cacheItem{Deleted: true}
+	ctx.pctx.Delete(key)
 }

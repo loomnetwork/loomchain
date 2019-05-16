@@ -1032,10 +1032,6 @@ func Elect(context contract.Context) error {
 		return err
 	}
 
-	if err := ctx.Flush(); err != nil {
-		return err
-	}
-
 	ctx.Logger().Debug("DPOSv3 Elect", "Post-Elect State", state)
 	return emitElectionEvent(ctx)
 }
