@@ -184,21 +184,21 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 // GetUserDeployers returns whitelisted deployers corresponding to specific user
 func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
 	req *GetUserDeployersRequest) (*GetUserDeployersResponse, error) {
-	var userDeployers UserState
-	err := ctx.Get(UserStateKey(ctx.Message().Sender), &userDeployers)
+	var userState UserState
+	err := ctx.Get(UserStateKey(ctx.Message().Sender), &userState)
 	if err != nil {
 		return nil, err
 	}
 	deployers := []*Deployer{}
-	for _, deployerAddr := range userDeployers.Deployers {
-		var userDeployer UserDeployerState
-		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployer)
+	for _, deployerAddr := range userState.Deployers {
+		var userDeployerState UserDeployerState
+		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployerState)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 		}
 		deployers = append(deployers, &Deployer{
 			Address: deployerAddr,
-			Flags:   userDeployer.Flags,
+			Flags:   userDeployerState.Flags,
 		})
 	}
 	return &GetUserDeployersResponse{
