@@ -1179,16 +1179,19 @@ func loadApp(
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
-	blockIndexStore, err := store.NewBlockIndexStore(
-		cfg.BlockIndexStore.Enabled,
-		cfg.BlockIndexStore.DBBackend,
-		cfg.BlockIndexStore.DBName,
-		cfg.RootPath(),
-		cfg.BlockIndexStore.CacheSizeMegs,
-		cfg.Metrics.BlockIndexStore,
-	)
-	if err != nil {
-		return nil, err
+	var blockIndexStore store.BlockIndexStore
+	if cfg.BlockIndexStore.Enabled {
+		blockIndexStore, err = store.NewBlockIndexStore(
+			cfg.BlockIndexStore.DBBackend,
+			cfg.BlockIndexStore.DBName,
+			cfg.RootPath(),
+			cfg.BlockIndexStore.CacheSizeMegs,
+			cfg.BlockIndexStore.WriteBufferMegs,
+			cfg.Metrics.BlockIndexStore,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &loomchain.Application{

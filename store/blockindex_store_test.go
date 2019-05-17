@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/loomnetwork/loomchain/db"
 )
 
 var (
@@ -20,14 +22,14 @@ var (
 )
 
 func TestBlockIndexStore(t *testing.T) {
-	memoryStore, err := NewBlockIndexStore(true, "memdb", "", ".", 0, false)
+	memoryStore, err := NewBlockIndexStore(db.MemDBackend, LevelDBFilename, ".", 0, 0, false)
 	require.NoError(t, err)
 	testBlockIndexStore(t, memoryStore)
 
 	_ = os.RemoveAll(LevelDBFilename)
 	_, err = os.Stat(LevelDBFilename)
 	require.True(t, os.IsNotExist(err))
-	golevelDbStore, err := NewBlockIndexStore(true, "goleveldb", LevelDBFilename, ".", 0, false)
+	golevelDbStore, err := NewBlockIndexStore(db.GoLevelDBBackend, LevelDBFilename, ".", 0, 0, false)
 	require.NoError(t, err)
 	testBlockIndexStore(t, golevelDbStore)
 }
@@ -42,6 +44,6 @@ func testBlockIndexStore(t *testing.T, bs BlockIndexStore) {
 		require.Equal(t, hashHeight.height, height)
 	}
 	_, err := bs.GetBlockHeightByHash([]byte("Non existent block-hash"))
-	require.Error(t, err)
+	require.Equal(t, ErrNotFound, err)
 	bs.Close()
 }

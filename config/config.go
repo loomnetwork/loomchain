@@ -711,12 +711,13 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
-BlockIndexStore:
-  # goleveldb | cleveldb | legacy | memdb
+BlockIndexStore:  
   Enabled: {{ .BlockIndexStore.Enabled }}
+  # goleveldb | cleveldb | memdb
   DBBackend: {{ .BlockIndexStore.DBBackend }}
   DBName: {{ .BlockIndexStore.DBName }}
   CacheSizeMegs: {{ .BlockIndexStore.CacheSizeMegs }}
+  WriteBufferMegs: {{ .BlockIndexStore.WriteBufferMegs }}
 #
 # Cashing store 
 #

@@ -37,9 +37,10 @@ Karma:
 
 BlockIndexStore:
   Enabled: true
-  DBBackend: "cleveldb"
-  DBName: "blockIndexDb"
+  DBBackend: "goleveldb"
+  DBName: "block_index"
   CacheSizeMegs: 128
+  WriteBufferMegs: 64
 
 ChainConfig:
   ContractEnabled: true

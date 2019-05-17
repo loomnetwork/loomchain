@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/binary"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 
@@ -10,7 +9,11 @@ import (
 )
 
 const (
-	LevelDBFilename = "blockIndex"
+	LevelDBFilename = "block_index"
+)
+
+var (
+	ErrNotFound = errors.New("block hash not found")
 )
 
 type BlockIndexStore interface {
@@ -20,41 +23,39 @@ type BlockIndexStore interface {
 }
 
 type BlockIndexStoreConfig struct {
-	Enabled       bool
-	DBBackend     string
-	DBName        string
-	CacheSizeMegs int
+	Enabled         bool
+	DBBackend       string
+	DBName          string
+	CacheSizeMegs   int
+	WriteBufferMegs int
 }
 
 func DefaultBlockIndexStoreConfig() *BlockIndexStoreConfig {
 	return &BlockIndexStoreConfig{
-		Enabled:       false,
-		DBBackend:     db.GoLevelDBBackend,
-		DBName:        "",
-		CacheSizeMegs: 256,
+		Enabled:         false,
+		DBBackend:       db.GoLevelDBBackend,
+		DBName:          "block_index",
+		CacheSizeMegs:   256,
+		WriteBufferMegs: 128,
 	}
 }
 
-func NewBlockIndexStore(enabled bool, dbBackend, name, directory string, cacheSizeMegs int, collectMetrics bool) (BlockIndexStore, error) {
-	if !enabled {
-		return nil, nil
-	}
-	dbWrapper, err := db.LoadDB(dbBackend, name, directory, cacheSizeMegs, collectMetrics)
+func NewBlockIndexStore(dbBackend, name, directory string, cacheSizeMegs, WriteBufferMegs int, collectMetrics bool) (BlockIndexStore, error) {
+	dbWrapper, err := db.LoadDB(dbBackend, name, directory, cacheSizeMegs, WriteBufferMegs, collectMetrics)
 	if err != nil {
 		return nil, err
 	}
-	return &BlockIndexStoreDB{dbWrapper, filepath.Join(directory, name+".db")}, nil
+	return &BlockIndexStoreDB{dbWrapper}, nil
 }
 
 type BlockIndexStoreDB struct {
-	db   db.DBWrapper
-	path string
+	db db.DBWrapper
 }
 
 func (bis *BlockIndexStoreDB) GetBlockHeightByHash(hash []byte) (uint64, error) {
 	height := bis.db.Get(hash)
 	if height == nil {
-		return 0, errors.New("block hash not found")
+		return 0, ErrNotFound
 	}
 	return binary.BigEndian.Uint64(height), nil
 }
