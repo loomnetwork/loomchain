@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	defaultRoot = []byte{1}
+	defaultRoot        = []byte{1}
+	latestSavedRootKey = []byte("lastest-root")
 )
 
 func evmRootKey(blockHeight int64) []byte {
@@ -125,12 +126,17 @@ func (s *EvmStore) Set(key, val []byte) {
 }
 
 func (s *EvmStore) Commit(version int64) []byte {
-	// Save versioning roots
 	currentRoot := s.Get(util.PrefixKey(vmPrefix, rootKey))
-	if currentRoot == nil {
+	latestSavedRoot := s.Get(util.PrefixKey(vmPrefix, latestSavedRootKey))
+	// default root is an indicator for empty root
+	if bytes.Equal(currentRoot, []byte("")) {
 		currentRoot = defaultRoot
 	}
-	s.Set(evmRootKey(version), currentRoot)
+	// Save Patricia root of EVM state only if it changes
+	if !bytes.Equal(currentRoot, latestSavedRoot) {
+		s.Set(evmRootKey(version), currentRoot)
+		s.Set(util.PrefixKey(vmPrefix, latestSavedRootKey), currentRoot)
+	}
 
 	batch := s.evmDB.NewBatch()
 	for key, item := range s.cache {
@@ -147,17 +153,27 @@ func (s *EvmStore) Commit(version int64) []byte {
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	s.Rollback()
-	// To ensure that evm root is corresponding with iavl tree height,
-	// copy current root of Patricia tree to vmvmroot in evm.db.
-	// LoomEthDb uses vmvmroot as a key to current root of Patricia tree.
-	root := s.evmDB.Get(evmRootKey(targetVersion))
+	// find the lastest saved root
+	var root []byte
+	for i := targetVersion; i > 0; i-- {
+		root = s.evmDB.Get(evmRootKey(i))
+		if bytes.Equal(root, defaultRoot) {
+			root = []byte("")
+		}
+		// latest root found
+		if root != nil {
+			break
+		}
+	}
+
+	// nil root indicates that latest saved root below target version is not found
 	if root == nil && targetVersion != 0 {
 		return errors.Errorf("failed to load EVM root for version %d", targetVersion)
-		// defaultRoot indicates that the Patricia tree is empty at targetVersion,
-		// so we need to set vmroot to empty
-	} else if bytes.Equal(root, defaultRoot) {
-		root = []byte("")
 	}
+
+	// To ensure that evm root is corresponding with iavl tree height,
+	// copy current root of Patricia tree to vmvmroot in evm.db.
+	// LoomEthDb uses vmvmroot as a key to current root of Patricia tree
 	// TODO: This needs to be refactored to avoid writing to the DB on load.
 	s.evmDB.Set(util.PrefixKey(vmPrefix, rootKey), root)
 	return nil
