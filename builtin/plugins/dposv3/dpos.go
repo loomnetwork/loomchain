@@ -761,14 +761,14 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:      req.PubKey,
-		Address:     candidateAddress.MarshalPB(),
-		Fee:         req.Fee,
-		NewFee:      req.Fee,
-		Name:        req.Name,
-		Description: req.Description,
-		Website:     req.Website,
-		State:       REGISTERED,
+		PubKey:                req.PubKey,
+		Address:               candidateAddress.MarshalPB(),
+		Fee:                   req.Fee,
+		NewFee:                req.Fee,
+		Name:                  req.Name,
+		Description:           req.Description,
+		Website:               req.Website,
+		State:                 REGISTERED,
 		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
@@ -955,9 +955,9 @@ func Elect(context contract.Context) error {
 	}
 
 	// Check if enough time has elapsed to start new validator election
-	if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
-		return nil
-	}
+	//if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
+	//	return nil
+	//}
 
 	delegationResults, err := rewardAndSlash(ctx, state)
 	if err != nil {
@@ -1033,7 +1033,9 @@ func Elect(context contract.Context) error {
 	}
 
 	ctx.Logger().Debug("DPOSv3 Elect", "Post-Elect State", state)
-	return emitElectionEvent(ctx)
+	//return emitElectionEvent(ctx)
+	emitElectionEvent(ctx)
+	return fmt.Errorf("weeee testing")
 }
 
 // `applyPowerCap` ensures that
