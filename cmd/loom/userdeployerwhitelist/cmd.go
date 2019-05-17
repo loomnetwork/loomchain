@@ -10,12 +10,7 @@ var (
 	dwContractName = "user-deployer-whitelist"
 )
 
-type deployerInfo struct {
-	Address string
-	Flags   string
-}
-
-func NewDeployCommand() *cobra.Command {
+func NewUserDeployCommand() *cobra.Command{
 	cmd := &cobra.Command{
 		Use:   "userdeployer <command>",
 		Short: "User Deployer Whitelist CLI",
@@ -37,7 +32,7 @@ func addUserDeployerCmd() *cobra.Command {
 	var flag cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "add <deployer address>",
-		Short:   "Add deployer corresponding to the user with EVM permision to deployer list",
+		Short:   "Add deployer corresponding to the user with evm permission to deployer list",
 		Example: addUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +40,6 @@ func addUserDeployerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cmd.SilenceUsage = true
 			req := &udwtypes.WhitelistUserDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
 			}
@@ -69,7 +63,6 @@ func getUserDeployersCmd() *cobra.Command {
 		Example: getUserDeployersCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.SilenceUsage = true
 			req := &udwtypes.GetDeployedContractsRequest{}
 			return cli.CallContractWithFlags(&flag, dwContractName, "GetUserDeployers", req, nil)
 		},
@@ -95,7 +88,6 @@ func getDeployedContractsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cmd.SilenceUsage = true
 			req := &udwtypes.GetDeployedContractsRequest{
 				DeployerAddr: addr.MarshalPB(),
 			}
