@@ -118,6 +118,7 @@ func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 
 	end := prefixRangeEnd(prefix)
 
+	log.Error("Range2")
 	var keys [][]byte
 	var values [][]byte
 	fn := func(key, value []byte) bool {
@@ -126,6 +127,7 @@ func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
 		return false
 	}
 	s.tree.IterateRange(prefix, end, true, fn)
+	fmt.Printf("Range2----%d\n", len(keys))
 	for i, x := range keys {
 		k, err := UnprefixKey2(x, prefix)
 		if err != nil {

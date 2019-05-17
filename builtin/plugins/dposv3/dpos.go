@@ -1035,6 +1035,7 @@ func Elect(context contract.Context) error {
 	ctx.Logger().Debug("DPOSv3 Elect", "Post-Elect State", state)
 	//return emitElectionEvent(ctx)
 	emitElectionEvent(ctx)
+	ctx.Finished()
 	return fmt.Errorf("weeee testing")
 }
 

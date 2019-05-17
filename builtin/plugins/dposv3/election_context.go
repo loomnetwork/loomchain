@@ -22,8 +22,10 @@ type cacheItem struct {
 //       within Elect().
 type electionContext struct {
 	contract.Context
-	pctx  plugin.Context
-	cache map[string]cacheItem
+	pctx      plugin.Context
+	cache     map[string]cacheItem
+	cachehit  int
+	cachemiss int
 }
 
 // Preloads DPOS data needed during an election and returns a wrapped contract context that provides
@@ -44,6 +46,7 @@ func (ctx *electionContext) GetAllDelegations() ([]*Delegation, [][]byte, error)
 	delegationBytes := [][]byte{}
 	log.Error("Starting Range")
 	//delegationIdx := make(map[string]*Delegation)
+	count := 0
 	for _, m := range ctx.Range([]byte("delegation")) {
 		var f Delegation
 		if bytes.HasSuffix(m.Key, delegationsKey) || len(m.Key) < 3 {
@@ -61,8 +64,9 @@ func (ctx *electionContext) GetAllDelegations() ([]*Delegation, [][]byte, error)
 		delegationBytes = append(delegationBytes, m.Value)
 		//Track the index in the array
 		//	delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = &f
+		count++
 	}
-	log.Error("Ending Range")
+	log.Error(fmt.Sprintf("Ending Range - found %d items", count))
 
 	//TODO making assumption on order based on key order, maybe not
 	return delegations, delegationBytes, nil
@@ -133,12 +137,18 @@ func (ctx *electionContext) load() error {
 // in case electionContext.load() didn't load all the relevant keys.
 func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 	if item, exists := ctx.cache[string(key)]; exists {
+		ctx.cachehit = ctx.cachehit + 1
 		if len(item.Value) == 0 {
 			return contract.ErrNotFound
 		}
 		return proto.Unmarshal(item.Value, pb)
 	}
+	ctx.cachemiss = ctx.cachemiss + 1
 	return ctx.Context.Get(key, pb)
+}
+
+func (ctx *electionContext) Finished() {
+	log.Error(fmt.Sprintf("cache hits %d --- cache misses %d", ctx.cachehit, ctx.cachemiss))
 }
 
 func (ctx *electionContext) Has(key []byte) bool {
