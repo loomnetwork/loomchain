@@ -3,10 +3,7 @@ package dposv3
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
-	"os"
-	"runtime/pprof"
 	"sort"
 
 	"github.com/gogo/protobuf/proto"
@@ -947,13 +944,6 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesReq
 
 // electing and settling rewards settlement
 func Elect(context contract.Context) error {
-	f, err := os.Create("cpu_profile_dpos3.txt")
-	if err != nil {
-		log.Fatal(err)
-	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-
 	ctx, err := newElectionContext(context)
 	if err != nil {
 		return err

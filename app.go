@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/loomnetwork/go-loom/util"
@@ -443,6 +445,13 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 }
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
+	f, err := os.Create("cpu_endblock.txt")
+	if err != nil {
+		panic(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	if req.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
