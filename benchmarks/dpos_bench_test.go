@@ -70,13 +70,18 @@ func BenchmarkLargeElection(b *testing.B) {
 
 		dposContract := &dpos.DPOS{}
 		dposAddr, err := reg.Resolve("dposV3")
+		require.NoError(b, err)
+
+		/*
 		dposTestContract := &dpos.TestDPOSContract{
 			Contract: dposContract,
 			Address: dposAddr,
 		}
+		*/
 
-		require.NoError(b, err)
-		dposCtx := CreateFakeStateContext(state, reg, addr3, dposAddr, pluginVm)
+		dposCtx := contractpb.WrapPluginContext(
+			CreateFakeStateContext(state, reg, addr1, dposAddr, pluginVm),
+		)
 
 		coinAddr, err := reg.Resolve("coin")
 		require.NoError(b, err)
@@ -87,15 +92,20 @@ func BenchmarkLargeElection(b *testing.B) {
 
 		require.NoError(b, coinContract.Approve(coinCtx, &coin.ApproveRequest{
 			Spender: dposAddr.MarshalPB(),
-			Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
+			Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(100000000000000000)},
 		}))
 
+		err = dposContract.RegisterCandidate(dposCtx, &dtypes.RegisterCandidateRequest{
+			PubKey: pubKey1,
+		})
+		require.Nil(b, err)
+		/*
 		err = dposTestContract.RegisterCandidate(dposCtx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
 		require.Nil(b, err)
 		err = dposTestContract.RegisterCandidate(dposCtx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
 		require.Nil(b, err)
-
 		err = dposTestContract.RegisterCandidate(dposCtx.WithSender(addr3), pubKey3, nil, nil, nil, nil, nil, nil)
 		require.Nil(b, err)
+		*/
 	}
 }
