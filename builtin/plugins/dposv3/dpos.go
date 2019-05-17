@@ -955,9 +955,9 @@ func Elect(context contract.Context) error {
 	}
 
 	// Check if enough time has elapsed to start new validator election
-	//if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
-	//	return nil
-	//}
+	if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
+		return nil
+	}
 
 	delegationResults, err := rewardAndSlash(ctx, state)
 	if err != nil {
@@ -1033,10 +1033,8 @@ func Elect(context contract.Context) error {
 	}
 
 	ctx.Logger().Debug("DPOSv3 Elect", "Post-Elect State", state)
-	//return emitElectionEvent(ctx)
-	emitElectionEvent(ctx)
 	ctx.Finished()
-	return fmt.Errorf("weeee testing")
+	return emitElectionEvent(ctx)
 }
 
 // `applyPowerCap` ensures that
