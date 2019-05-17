@@ -335,8 +335,8 @@ func init() {
 	validatorFuncLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
-		Name:      "validator_election_latency_microseconds",
-		Help:      "Total duration of validator election in microseconds.",
+		Name:      "validator_election_latency",
+		Help:      "Total duration of validator election in seconds.",
 	}, []string{})
 }
 
