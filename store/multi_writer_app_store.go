@@ -139,8 +139,8 @@ func (s *MultiWriterAppStore) Prune() error {
 
 func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
 	// TODO: Need to ensure that the EvmStore and ImmutableTree are from the same height.
-	evmDbSnapshot := s.evmStore.GetSnapshot()
 	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
+	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
 	featureKey := util.PrefixKey(featureKey, evmDBFeature)
 	featureFlag := false
 	_, data := appStoreTree.Get(featureKey)

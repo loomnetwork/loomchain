@@ -183,10 +183,6 @@ func (s *EvmStore) Rollback() {
 	s.cache = make(map[string]cacheItem)
 }
 
-func (s *EvmStore) GetSnapshot() db.Snapshot {
-	return s.evmDB.GetSnapshot()
-}
-
 func (s *EvmStore) getLatestSavedRoot(targetVersion int64) ([]byte, int64) {
 	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
 	defer iter.Close()
@@ -202,6 +198,30 @@ func (s *EvmStore) getLatestSavedRoot(targetVersion int64) ([]byte, int64) {
 		}
 	}
 	return nil, 0
+}
+
+func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
+	targetRoot, _ := s.getLatestSavedRoot(version)
+	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
+}
+
+func NewEvmStoreSnapshot(snapshot db.Snapshot, vmvmroot []byte) *EvmStoreSnapshot {
+	return &EvmStoreSnapshot{
+		Snapshot: snapshot,
+		vmvmroot: vmvmroot,
+	}
+}
+
+type EvmStoreSnapshot struct {
+	db.Snapshot
+	vmvmroot []byte
+}
+
+func (s *EvmStoreSnapshot) Get(key []byte) []byte {
+	if bytes.Equal(key, util.PrefixKey(vmPrefix, rootKey)) {
+		return s.vmvmroot
+	}
+	return s.Get(key)
 }
 
 func remove(keys []string, key string) []string {
