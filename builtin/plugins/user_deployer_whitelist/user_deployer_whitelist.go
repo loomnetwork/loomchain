@@ -104,7 +104,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 
 // Add User Deployer - Adds Deployer in UserState
 func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
-	var userdeployers UserState
+	var userState UserState
 	var tierInfo TierInfo
 	var whitelistingFees *types.BigUInt
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
@@ -133,9 +133,10 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		return errors.Wrap(err, "unable to get address of coin contract")
 	}
 	userAddr := ctx.Message().Sender
-	//Amount equal to whitelisting fees is debited from users loomcoin balance
+	//Amount equal to whitelisting fees is debited from users loomcoin balance,
+	// whitelisting fees is transferred to user deployer whitelist contract
 	coinReq := &coin.TransferFromRequest{
-		To:     coinAddr.MarshalPB(),
+		To:     ctx.ContractAddress().MarshalPB(),
 		From:   userAddr.MarshalPB(),
 		Amount: whitelistingFees,
 	}
@@ -153,18 +154,15 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, &resp); err != nil {
 		return errors.Wrap(err, "Adding User Deployer")
 	}
-	err = ctx.Get(UserStateKey(userAddr), &userdeployers)
+	err = ctx.Get(UserStateKey(userAddr), &userState)
 	if err != nil {
 		//This is taking care of boundary cases that user is whitelisting deployers for first time
 		if err != contract.ErrNotFound {
 			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 		}
 	}
-	userdeployers.Deployers = append(userdeployers.Deployers, req.DeployerAddr)
-	userdeployer := &UserState{
-		Deployers: userdeployers.Deployers,
-	}
-	err = ctx.Set(UserStateKey(userAddr), userdeployer)
+	userState.Deployers = append(userState.Deployers, req.DeployerAddr)
+	err = ctx.Set(UserStateKey(userAddr), &userState)
 	if err != nil {
 		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
 	}

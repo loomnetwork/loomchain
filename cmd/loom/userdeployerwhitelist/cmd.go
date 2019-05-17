@@ -39,7 +39,7 @@ func addUserDeployerCmd() *cobra.Command {
 		Use:     "add <deployer address>",
 		Short:   "Add deployer corresponding to the user with EVM permision to deployer list",
 		Example: addUserDeployerCmdExample,
-		Args:    cobra.MinimumNArgs(2),
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := parseAddress(args[0])
 			if err != nil {
