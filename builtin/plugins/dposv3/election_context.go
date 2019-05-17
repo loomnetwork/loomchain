@@ -144,6 +144,7 @@ func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 		ctx.cachehit = ctx.cachehit + 1
 		return proto.Unmarshal(item.Value, pb)
 	}
+	fmt.Printf("getmiss--%s\n", string(key))
 	ctx.cachemiss = ctx.cachemiss + 1
 	return ctx.Context.Get(key, pb)
 }
@@ -161,6 +162,7 @@ func (ctx *electionContext) GetDelegation(key []byte) (*Delegation, error) {
 		err := proto.Unmarshal(item.Value, &d)
 		return &d, err
 	}
+	fmt.Printf("getdelegationmiss--%s\n", string(key))
 	ctx.cachemiss = ctx.cachemiss + 1
 	var d Delegation
 	err := ctx.Context.Get(key, &d)
@@ -169,6 +171,7 @@ func (ctx *electionContext) GetDelegation(key []byte) (*Delegation, error) {
 
 func (ctx *electionContext) Finished() {
 	log.Error(fmt.Sprintf("cache hits %d --- cache misses %d", ctx.cachehit, ctx.cachemiss))
+	log.Error(fmt.Sprintf("delegationTimes TOTAL -%d\n", delegationTimes))
 }
 
 func (ctx *electionContext) Has(key []byte) bool {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -222,7 +223,10 @@ func saveDelegationList(ctx contract.Context, dl DelegationList) error {
 	return ctx.Set(delegationsKey, &dtypes.DelegationList{Delegations: sorted})
 }
 
+var delegationTimes float64
+
 func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
+	t := time.Now()
 	var pbcl dtypes.DelegationList
 	err := ctx.Get(delegationsKey, &pbcl)
 	if err == contract.ErrNotFound {
@@ -231,6 +235,9 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	if err != nil {
 		return nil, err
 	}
+	since := time.Now().Sub(t).Seconds()
+	fmt.Printf("loadDelegationList-took-%d\n", since)
+	delegationTimes = delegationTimes + since
 	return pbcl.Delegations, nil
 }
 
