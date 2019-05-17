@@ -221,7 +221,7 @@ func (s *EvmStoreSnapshot) Get(key []byte) []byte {
 	if bytes.Equal(key, util.PrefixKey(vmPrefix, rootKey)) {
 		return s.vmvmroot
 	}
-	return s.Get(key)
+	return s.Snapshot.Get(key)
 }
 
 func remove(keys []string, key string) []string {
