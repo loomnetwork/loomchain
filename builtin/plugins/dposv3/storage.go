@@ -88,6 +88,20 @@ func GetDelegation(ctx contract.StaticContext, index uint64, validator types.Add
 	return &delegation, nil
 }
 
+func GetDelegation2(ctx *electionContext, index uint64, validator types.Address, delegator types.Address) (*Delegation, error) {
+	delegationKey, err := computeDelegationsKey(index, validator, delegator)
+	if err != nil {
+		return nil, err
+	}
+
+	delegation, err := ctx.GetDelegation(append(delegationsKey, delegationKey...))
+	if err != nil {
+		return nil, err
+	}
+
+	return delegation, nil
+}
+
 // Iterates over non-rewards delegaton indices to find the next available slot
 // for a new delegation entry
 func GetNextDelegationIndex(ctx contract.StaticContext, validator types.Address, delegator types.Address) (uint64, error) {

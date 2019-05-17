@@ -14,8 +14,9 @@ import (
 )
 
 type cacheItem struct {
-	Value   []byte
-	Deleted bool
+	Value      []byte
+	Deleted    bool
+	delegation *Delegation
 }
 
 // NOTE: This context doesn't wrap Range(), which means it's not currently possible to use Range()
@@ -99,7 +100,7 @@ func (ctx *electionContext) load() error {
 			return err
 		}
 		delKey = append(delegationsKey, delKey...)
-		ctx.cache[string(delKey)] = cacheItem{Value: dBytes[v]}
+		ctx.cache[string(delKey)] = cacheItem{Value: dBytes[v], delegation: delegation}
 
 		if len(delegation.Referrer) > 0 {
 			refKey := append(referrersKey, delegation.Referrer...)
@@ -145,6 +146,25 @@ func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 	}
 	ctx.cachemiss = ctx.cachemiss + 1
 	return ctx.Context.Get(key, pb)
+}
+
+func (ctx *electionContext) GetDelegation(key []byte) (*Delegation, error) {
+	if item, exists := ctx.cache[string(key)]; exists {
+		if len(item.Value) == 0 {
+			return nil, contract.ErrNotFound
+		}
+		ctx.cachehit = ctx.cachehit + 1
+		if item.delegation != nil {
+			return item.delegation, nil
+		}
+		var d Delegation
+		err := proto.Unmarshal(item.Value, &d)
+		return &d, err
+	}
+	ctx.cachemiss = ctx.cachemiss + 1
+	var d Delegation
+	err := ctx.Context.Get(key, &d)
+	return &d, err
 }
 
 func (ctx *electionContext) Finished() {

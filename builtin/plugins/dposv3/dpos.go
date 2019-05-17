@@ -906,7 +906,9 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		slashValidatorDelegations(ctx, statistic, candidateAddress)
+		fmt.Printf("todo-%v\n", statistic)
+		//TODO redo
+		//slashValidatorDelegations(ctx, statistic, candidateAddress)
 	}
 
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
@@ -1279,7 +1281,7 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, error) {
+func rewardAndSlash(ctx *electionContext, state *State) ([]*DelegationResult, error) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 
@@ -1426,14 +1428,14 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 	return reward
 }
 
-func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
+func slashValidatorDelegations(ctx *electionContext, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation2(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -1471,7 +1473,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 // the delegators, 2) finalize the bonding process for any delegations received
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx *electionContext, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
 	candidates, err := loadCandidateList(ctx)
@@ -1496,7 +1498,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 	}
 
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation2(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {

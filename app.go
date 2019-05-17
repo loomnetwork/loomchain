@@ -445,7 +445,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 }
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
-	f, err := os.Create("cpu_endblock.txt")
+	f, err := os.Create("cpu_endblock2.txt")
 	if err != nil {
 		panic(err)
 	}
