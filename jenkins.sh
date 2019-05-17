@@ -29,6 +29,7 @@ make  # on OSX we don't need any C precompiles like cleveldb
 make validators-tool
 make tgoracle
 make loomcoin_tgoracle
+make tron_tgoracle
 make dposv2_oracle
 make plasmachain
 
