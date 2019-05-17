@@ -1034,7 +1034,9 @@ func Elect(context contract.Context) error {
 
 	ctx.Logger().Debug("DPOSv3 Elect", "Post-Elect State", state)
 	ctx.Finished()
-	return emitElectionEvent(ctx)
+	//return emitElectionEvent(ctx)
+	emitElectionEvent(ctx)
+	return fmt.Errorf("weee1")
 }
 
 // `applyPowerCap` ensures that

@@ -139,14 +139,16 @@ func (ctx *electionContext) load() error {
 // in case electionContext.load() didn't load all the relevant keys.
 func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 	if item, exists := ctx.cache[string(key)]; exists {
-		ctx.cachehit = ctx.cachehit + 1
-		if len(item.Value) == 0 {
-			return contract.ErrNotFound
-		}
 		if item.Delegation == true {
+			ctx.cachehit = ctx.cachehit + 1
 			pb = item.P
 			return nil
 		}
+		if len(item.Value) == 0 {
+			fmt.Printf("invalid data %s \n", string(key))
+			return contract.ErrNotFound
+		}
+		ctx.cachehit = ctx.cachehit + 1
 		return proto.Unmarshal(item.Value, pb)
 	}
 	ctx.cachemiss = ctx.cachemiss + 1
