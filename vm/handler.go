@@ -32,6 +32,10 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
+	if msg.From == nil {
+		return r, fmt.Errorf("msg.From was nil")
+	}
+
 	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 
@@ -108,7 +112,15 @@ func (h *CallTxHandler) ProcessTx(
 	}
 
 	origin := auth.Origin(state.Context())
+
+	if msg.From == nil {
+		return r, fmt.Errorf("msg.From was nil")
+	}
 	caller := loom.UnmarshalAddressPB(msg.From)
+
+	if msg.To == nil {
+		return r, fmt.Errorf("msg.To was nil")
+	}
 	addr := loom.UnmarshalAddressPB(msg.To)
 
 	if caller.Compare(origin) != 0 {

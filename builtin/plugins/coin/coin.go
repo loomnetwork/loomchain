@@ -71,6 +71,9 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 
 	supply := loom.NewBigUIntFromInt(0)
 	for _, initAcct := range req.Accounts {
+		if initAcct.Owner == nil {
+			continue
+		}
 		owner := loom.UnmarshalAddressPB(initAcct.Owner)
 		balance := loom.NewBigUIntFromInt(int64(initAcct.Balance))
 		balance.Mul(balance, div)
