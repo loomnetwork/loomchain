@@ -71,7 +71,29 @@ func MockStateWithDposAndCoin(dposInit *dtypes.DPOSInitRequest, coinInit *ctypes
 		return nil, nil, nil, err
 	}
 
+	var coinAddr loom.Address
+	if coinInit != nil {
+		coinCode, err := json.Marshal(coinInit)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		coinInitCode, err := LoadContractCode("coin:1.0.0", coinCode)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		callerAddr := plugin.CreateAddress(loom.RootAddress(chainID), uint64(0))
+		_, coinAddr, err = pluginVm.Create(callerAddr, coinInitCode, loom.NewBigUIntFromInt(0))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		err = reg.Register("coin", coinAddr, coinAddr)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
 	if dposInit != nil {
+		dposInit.Params.CoinContractAddress = coinAddr.MarshalPB()
 		dposCode, err := json.Marshal(dposInit)
 		if err != nil {
 			return nil, nil, nil, err
@@ -80,7 +102,7 @@ func MockStateWithDposAndCoin(dposInit *dtypes.DPOSInitRequest, coinInit *ctypes
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		callerAddr := plugin.CreateAddress(loom.RootAddress(chainID), uint64(0))
+		callerAddr := plugin.CreateAddress(loom.RootAddress(chainID), uint64(1))
 		_, dposAddr, err := pluginVm.Create(callerAddr, dposInitCode, loom.NewBigUIntFromInt(0))
 		if err != nil {
 			return nil, nil, nil, err
@@ -92,25 +114,6 @@ func MockStateWithDposAndCoin(dposInit *dtypes.DPOSInitRequest, coinInit *ctypes
 		}
 	}
 
-	if coinInit != nil {
-		coinCode, err := json.Marshal(coinInit)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		coinInitCode, err := LoadContractCode("coin:1.0.0", coinCode)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		callerAddr := plugin.CreateAddress(loom.RootAddress(chainID), uint64(1))
-		_, coinAddr, err := pluginVm.Create(callerAddr, coinInitCode, loom.NewBigUIntFromInt(0))
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		err = reg.Register("coin", coinAddr, coinAddr)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-	}
 	return state, reg, pluginVm, nil
 }
 
