@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -77,28 +78,60 @@ func prefixRangeEnd(prefix []byte) []byte {
 	return end
 }
 
+func UnprefixKey2(key, prefix []byte) ([]byte, error) {
+	if len(prefix) > len(key) {
+		return nil, fmt.Errorf("prefix2 %s longer than key %s", string(prefix), string(key))
+	}
+	return key[len(prefix):], nil
+}
+
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
+	if bytes.IndexAny(prefix, "delegation") > -1 {
+		return s.Range2(prefix)
+	}
+	end := prefixRangeEnd(prefix)
 
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, end, 0)
 	if err != nil {
-		log.Error("failed to get range", "err", err)
+		log.Error("failed to get range  err -%v", err)
 		return ret
 	}
-	for i, k := range keys {
-		// Tree range gives all keys that has prefix but it does not check zero byte
-		// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
-		if util.HasPrefix(k, prefix) {
-			k, err = util.UnprefixKey(k, prefix)
-			if err != nil {
-				log.Error("failed to unprefix key", "key", k, "prefix", prefix, "err", err)
-				k = nil
-			}
-
-		} else {
-			continue // Skip this key as it does not have the prefix
+	for i, x := range keys {
+		k, err := util.UnprefixKey(x, prefix)
+		if err != nil {
+			k = nil
 		}
 
+		re := &plugin.RangeEntry{
+			Key:   k,
+			Value: values[i],
+		}
+		ret = append(ret, re)
+	}
+
+	return ret
+}
+
+func (s *IAVLStore) Range2(prefix []byte) plugin.RangeData {
+	ret := make(plugin.RangeData, 0)
+
+	end := prefixRangeEnd(prefix)
+
+	var keys [][]byte
+	var values [][]byte
+	fn := func(key, value []byte) bool {
+		keys = append(keys, key)
+		values = append(values, value)
+		return false
+	}
+	s.tree.IterateRange(prefix, end, true, fn)
+	for i, x := range keys {
+		k, err := UnprefixKey2(x, prefix)
+		if err != nil {
+			log.Error("failed to unprefix key -%s prefix -%s err-%v\n", x, prefix, err)
+			k = nil
+		}
 		re := &plugin.RangeEntry{
 			Key:   k,
 			Value: values[i],

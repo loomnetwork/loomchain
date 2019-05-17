@@ -1,12 +1,16 @@
 package dposv3
 
 import (
+	"bytes"
+	"fmt"
 	"reflect"
 
 	"github.com/gogo/protobuf/proto"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/pkg/errors"
 )
 
 type cacheItem struct {
@@ -35,6 +39,32 @@ func newElectionContext(ctx contract.Context) (*electionContext, error) {
 	return ectx, ectx.load()
 }
 
+func (ctx *electionContext) GetAllDelegations() ([]*Delegation, map[string]*Delegation, error) {
+	delegations := []*Delegation{}
+	delegationIdx := make(map[string]*Delegation)
+	for _, m := range ctx.Range([]byte("delegation")) {
+		ctx.Logger().Error(fmt.Sprintf("Trying Key -%v(%d bytes)", m.Key, len(m.Key)), "bytes", len(m.Value))
+		var f Delegation
+		if bytes.HasSuffix(m.Key, delegationsKey) || len(m.Key) < 3 {
+			log.Error(fmt.Sprintf("Skipping delegationsKey -%d", len(m.Key)))
+			continue
+		}
+
+		if err := proto.Unmarshal(m.Value, &f); err != nil {
+			err := errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
+			ctx.Logger().Error(err.Error())
+			continue
+			//return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
+		}
+		delegations = append(delegations, &f)
+		//Track the index in the array
+		delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = &f
+	}
+
+	//TODO making assumption on order based on key order, maybe not
+	return delegations, delegationIdx, nil
+}
+
 func (ctx *electionContext) load() error {
 	pctx := ctx.pctx
 
@@ -52,19 +82,18 @@ func (ctx *electionContext) load() error {
 		}
 	}
 
-	for _, del := range delIdxList.Delegations {
-		var delegation Delegation
-		delKey, err := computeDelegationsKey(del.Index, *del.Validator, *del.Delegator)
+	delegations, _, err := ctx.GetAllDelegations()
+	if err != nil {
+		return err
+	}
+	for _, delegation := range delegations {
+		delKey, err := computeDelegationsKey(delegation.Index, *delegation.Validator, *delegation.Delegator)
 		if err != nil {
 			return err
 		}
 		delKey = append(delegationsKey, delKey...)
-		data := pctx.Get(delKey)
 		if len(data) > 0 {
 			ctx.cache[string(delKey)] = cacheItem{Value: data}
-			if err := proto.Unmarshal(data, &delegation); err != nil {
-				return err
-			}
 		}
 
 		if len(delegation.Referrer) > 0 {
