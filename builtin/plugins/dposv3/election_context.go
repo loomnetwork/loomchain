@@ -14,8 +14,10 @@ import (
 )
 
 type cacheItem struct {
-	Value   []byte
-	Deleted bool
+	Value      []byte
+	Deleted    bool
+	Delegation bool
+	P          proto.Message
 }
 
 // NOTE: This context doesn't wrap Range(), which means it's not currently possible to use Range()
@@ -61,7 +63,7 @@ func (ctx *electionContext) GetAllDelegations() ([]*Delegation, [][]byte, error)
 			//return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
 		}
 		delegations = append(delegations, &f)
-		delegationBytes = append(delegationBytes, m.Value)
+		//	delegationBytes = append(delegationBytes, m.Value)
 		//Track the index in the array
 		//	delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = &f
 		count++
@@ -89,17 +91,17 @@ func (ctx *electionContext) load() error {
 		}
 	}
 
-	delegations, dBytes, err := ctx.GetAllDelegations()
+	delegations, _, err := ctx.GetAllDelegations()
 	if err != nil {
 		return err
 	}
-	for v, delegation := range delegations {
+	for _, delegation := range delegations {
 		delKey, err := computeDelegationsKey(delegation.Index, *delegation.Validator, *delegation.Delegator)
 		if err != nil {
 			return err
 		}
 		delKey = append(delegationsKey, delKey...)
-		ctx.cache[string(delKey)] = cacheItem{Value: dBytes[v]}
+		ctx.cache[string(delKey)] = cacheItem{P: delegation, Delegation: true}
 
 		if len(delegation.Referrer) > 0 {
 			refKey := append(referrersKey, delegation.Referrer...)
@@ -140,6 +142,10 @@ func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 		ctx.cachehit = ctx.cachehit + 1
 		if len(item.Value) == 0 {
 			return contract.ErrNotFound
+		}
+		if item.Delegation == true {
+			pb = item.P
+			return nil
 		}
 		return proto.Unmarshal(item.Value, pb)
 	}
