@@ -42,9 +42,9 @@ func newElectionContext(ctx contract.Context) (*electionContext, error) {
 func (ctx *electionContext) GetAllDelegations() ([]*Delegation, [][]byte, error) {
 	delegations := []*Delegation{}
 	delegationBytes := [][]byte{}
+	log.Error("Starting Range")
 	//delegationIdx := make(map[string]*Delegation)
 	for _, m := range ctx.Range([]byte("delegation")) {
-		ctx.Logger().Error(fmt.Sprintf("Trying Key -%v(%d bytes)", m.Key, len(m.Key)), "bytes", len(m.Value))
 		var f Delegation
 		if bytes.HasSuffix(m.Key, delegationsKey) || len(m.Key) < 3 {
 			log.Error(fmt.Sprintf("Skipping delegationsKey -%d", len(m.Key)))
@@ -62,6 +62,7 @@ func (ctx *electionContext) GetAllDelegations() ([]*Delegation, [][]byte, error)
 		//Track the index in the array
 		//	delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = &f
 	}
+	log.Error("Ending Range")
 
 	//TODO making assumption on order based on key order, maybe not
 	return delegations, delegationBytes, nil
