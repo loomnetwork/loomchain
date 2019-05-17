@@ -32,7 +32,7 @@ var (
 func TestUserDeployerWhitelistContract(t *testing.T) {
 	fees := sciNot(100, 18)
 	tier := &udwtypes.Tier{
-		Id: 0,
+		Id: udwtypes.TierID_DEFAULT,
 		Fee: &types.BigUInt{
 			Value: *fees,
 		},
