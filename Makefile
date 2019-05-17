@@ -61,7 +61,7 @@ E2E_TESTS_TIMEOUT = 28m
 
 all: loom builtin
 
-oracles: tgoracle pcoracle
+oracles: tgoracle pcoracle tron_tgoracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
@@ -84,6 +84,9 @@ tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 loomcoin_tgoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+
+tron_tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 pcoracle:
