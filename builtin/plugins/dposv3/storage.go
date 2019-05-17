@@ -157,6 +157,34 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
 
+func SetDelegation2(ctx *electionContext, delegation *Delegation) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	delegationIndex := &DelegationIndex{
+		Validator: delegation.Validator,
+		Delegator: delegation.Delegator,
+		Index:     delegation.Index,
+	}
+
+	pastvalue, _ := GetDelegation2(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
+	if pastvalue == nil {
+		delegations = append(delegations, delegationIndex)
+		if err := saveDelegationList(ctx, delegations); err != nil {
+			return err
+		}
+	}
+
+	delegationKey, err := computeDelegationsKey(delegationIndex.Index, *delegation.Validator, *delegation.Delegator)
+	if err != nil {
+		return err
+	}
+
+	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+}
+
 func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {

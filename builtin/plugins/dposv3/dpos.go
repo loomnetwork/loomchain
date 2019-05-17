@@ -1447,7 +1447,7 @@ func slashValidatorDelegations(ctx *electionContext, statistic *ValidatorStatist
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
-			if err := SetDelegation(ctx, delegation); err != nil {
+			if err := SetDelegation2(ctx, delegation); err != nil {
 				return err
 			}
 		}
@@ -1572,7 +1572,7 @@ func distributeDelegatorRewards(ctx *electionContext, formerValidatorTotals map[
 			delegation.State = BONDED
 
 			resetDelegationIfExpired(ctx, delegation)
-			if err := SetDelegation(ctx, delegation); err != nil {
+			if err := SetDelegation2(ctx, delegation); err != nil {
 				return nil, err
 			}
 		}
