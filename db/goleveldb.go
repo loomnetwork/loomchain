@@ -32,9 +32,11 @@ func (g *GoLevelDB) GetSnapshot() Snapshot {
 	}
 }
 
-func LoadGoLevelDB(name, dir string, cacheSizeMeg int, collectMetrics bool) (*GoLevelDB, error) {
+func LoadGoLevelDB(name, dir string, cacheSizeMeg int, bufferSizeMeg int, collectMetrics bool) (*GoLevelDB, error) {
 	o := &opt.Options{
-		BlockCacheCapacity: cacheSizeMeg * opt.MiB,
+		BlockCacheCapacity:     cacheSizeMeg * opt.MiB,
+		WriteBuffer:            bufferSizeMeg * opt.MiB,
+		OpenFilesCacheCapacity: 1000, //perhaps make this configurable, not sure how much it will help
 	}
 	db, err := dbm.NewGoLevelDBWithOpts(name, dir, o)
 	if err != nil {
