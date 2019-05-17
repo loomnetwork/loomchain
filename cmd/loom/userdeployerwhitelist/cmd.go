@@ -1,8 +1,14 @@
 package userdeployerwhitelist
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/cli"
+	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/spf13/cobra"
 )
 
@@ -61,6 +67,20 @@ const getUserDeployersCmdExample = `
 loom userdeployer getdeployers
 `
 
+func getDeployerInfo(deployer *dwtypes.Deployer) deployerInfo {
+	flagsInt := dw.UnpackFlags(deployer.Flags)
+	flags := []string{}
+	for _, flag := range flagsInt {
+		flags = append(flags, dwtypes.Flags_name[int32(flag)])
+	}
+	f := strings.Join(flags, "|")
+	deployerInfo := deployerInfo{
+		Address: deployer.Address.ChainId + ":" + deployer.Address.Local.String(),
+		Flags:   f,
+	}
+	return deployerInfo
+}
+
 func getUserDeployersCmd() *cobra.Command {
 	var flag cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -69,13 +89,24 @@ func getUserDeployersCmd() *cobra.Command {
 		Example: getUserDeployersCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// addr, err := parseAddress(args[0])
-			// if err != nil {
-			// 	return err
-			// }
-			cmd.SilenceUsage = true
-			req := &udwtypes.GetDeployedContractsRequest{}
-			return cli.CallContractWithFlags(&flag, dwContractName, "GetUserDeployers", req, nil)
+
+			req := &udwtypes.GetUserDeployersRequest{}
+			var resp udwtypes.GetUserDeployersResponse
+			if err := cli.StaticCallContractWithFlags(&flag, dwContractName,
+				"GetUserDeployers", req, &resp); err != nil {
+				return err
+			}
+			deployerInfos := []deployerInfo{}
+			for _, deployer := range resp.Deployers {
+				deployerInfos = append(deployerInfos, getDeployerInfo(deployer))
+			}
+			// deployer := getDeployerInfo(resp.Deployer)
+			output, err := json.MarshalIndent(deployerInfos, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
+			return nil
 		},
 	}
 
@@ -99,11 +130,27 @@ func getDeployedContractsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cmd.SilenceUsage = true
+
 			req := &udwtypes.GetDeployedContractsRequest{
 				DeployerAddr: addr.MarshalPB(),
 			}
-			return cli.CallContractWithFlags(&flag, dwContractName, "GetDeployedContracts", req, nil)
+			var resp udwtypes.GetDeployedContractsResponse
+			if err := cli.StaticCallContractWithFlags(&flag, dwContractName,
+				"GetDeployedContracts", req, &resp); err != nil {
+				return err
+			}
+			contracts := []string{}
+			for _, addr := range resp.ContractAddresses {
+				contracts = append(contracts, addr.ChainId+":"+addr.Local.String())
+			}
+			// deployer := getDeployerInfo(resp.Deployer)
+			output, err := json.MarshalIndent(contracts, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
+			return nil
+
 		},
 	}
 
