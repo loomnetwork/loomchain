@@ -70,7 +70,7 @@ func getKeyVersion(key []byte, version int64) int64 {
 	return latestVersion
 }
 
-// addKeyVersion add version number of a key to KeyVersionTable
+// addKeyVersion adds version number of a key to KeyVersionTable
 func addKeyVersion(key []byte, version int64) {
 	kvTable, exist := keyTable[string(key)]
 	if !exist {
@@ -236,15 +236,15 @@ func DefaultCachingStoreConfig() *CachingStoreConfig {
 
 func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*bigcache.Config, error) {
 	if config.MaxKeys == 0 || config.MaxSizeOfValueInBytes == 0 {
-		return nil, fmt.Errorf("[CachingStore] max keys and/or max size of value cannot be zero")
+		return nil, fmt.Errorf("[CachingStoreConfig] max keys and/or max size of value cannot be zero")
 	}
 
 	if config.EvictionTimeInSeconds == 0 {
-		return nil, fmt.Errorf("[CachingStore] eviction time cannot be zero")
+		return nil, fmt.Errorf("[CachingStoreConfig] eviction time cannot be zero")
 	}
 
 	if config.Shards == 0 {
-		return nil, fmt.Errorf("[CachingStore] caching shards cannot be zero")
+		return nil, fmt.Errorf("[CachingStoreConfig] caching shards cannot be zero")
 	}
 
 	configTemplate := bigcache.DefaultConfig(time.Duration(config.EvictionTimeInSeconds) * time.Second)
@@ -263,7 +263,7 @@ func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*
 
 func NewVersionedCachingStore(source VersionedKVStore, config *CachingStoreConfig, version int64) (*VersionedCachingStore, error) {
 	if config == nil {
-		return nil, fmt.Errorf("[CachingStore] config can't be null for caching store")
+		return nil, fmt.Errorf("[VersionedCachingStore] config can't be null for caching store")
 	}
 
 	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
@@ -318,7 +318,7 @@ func (c *VersionedCachingStore) Delete(key []byte) {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "delete").Add(1)
 		c.logger.Error(fmt.Sprintf(
-			"[CachingStore] error while deleting key: %s in cache, error: %v",
+			"[VersionedCachingStore] error while deleting key: %s in cache, error: %v",
 			string(key), err.Error()))
 	}
 	c.VersionedKVStore.Delete(key)
@@ -337,7 +337,7 @@ func (c *VersionedCachingStore) Set(key, val []byte) {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "set").Add(1)
 		c.logger.Error(fmt.Sprintf(
-			"[CachingStore] error while setting key: %s in cache, error: %v",
+			"[VersionedCachingStore] error while setting key: %s in cache, error: %v",
 			string(key), err.Error()))
 	}
 	c.VersionedKVStore.Set(key, val)
@@ -376,11 +376,11 @@ func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache *versionedBigCach
 }
 
 func (c *versionedCachingStoreSnapshot) Delete(key []byte) {
-	panic("[CachingStoreSnapshot] Delete() not implemented")
+	panic("[versionedCachingStoreSnapshot] Delete() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
-	panic("[CachingStoreSnapshot] Set() not implemented")
+	panic("[versionedCachingStoreSnapshot] Set() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
@@ -406,7 +406,7 @@ func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
 			c.logger.Error(fmt.Sprintf(
-				"[CachingStoreSnapshot] error while getting key: %s from cache, error: %v",
+				"[versionedCachingStoreSnapshot] error while getting key: %s from cache, error: %v",
 				string(key), err.Error()))
 		}
 
@@ -419,7 +419,7 @@ func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
 			if setErr != nil {
 				cacheErrors.With("cache_operation", "set").Add(1)
 				c.logger.Error(fmt.Sprintf(
-					"[CachingStoreSnapshot] error while setting key: %s in cache, error: %v",
+					"[versionedCachingStoreSnapshot] error while setting key: %s in cache, error: %v",
 					string(key), setErr.Error()))
 			}
 		}
@@ -449,7 +449,7 @@ func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
 			c.logger.Error(fmt.Sprintf(
-				"[CachingStoreSnapshot] error while getting key: %s from cache, error: %v",
+				"[versionedCachingStoreSnapshot] error while getting key: %s from cache, error: %v",
 				string(key), err.Error()))
 		}
 
@@ -458,7 +458,7 @@ func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 		if setErr != nil {
 			cacheErrors.With("cache_operation", "set").Add(1)
 			c.logger.Error(fmt.Sprintf(
-				"[CachingStoreSnapshot] error while setting key: %s in cache, error: %v",
+				"[versionedCachingStoreSnapshot] error while setting key: %s in cache, error: %v",
 				string(key), setErr.Error()))
 		}
 	} else {
