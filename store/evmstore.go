@@ -12,14 +12,22 @@ import (
 )
 
 var (
-	defaultRoot        = []byte{1}
-	latestSavedRootKey = []byte("lastest-root")
+	defaultRoot = []byte{1}
 )
 
 func evmRootKey(blockHeight int64) []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(blockHeight))
 	return util.PrefixKey(vmPrefix, []byte(evmRootPrefix), b)
+}
+
+func getVersionFromEvmRootKey(key []byte) (int64, error) {
+	v, err := util.UnprefixKey(key, util.PrefixKey(vmPrefix, []byte(evmRootPrefix)))
+	if err != nil {
+		return 0, err
+	}
+	version := int64(binary.BigEndian.Uint64(v))
+	return version, nil
 }
 
 // EvmStore persists EVM state to a DB.
@@ -127,15 +135,14 @@ func (s *EvmStore) Set(key, val []byte) {
 
 func (s *EvmStore) Commit(version int64) []byte {
 	currentRoot := s.Get(util.PrefixKey(vmPrefix, rootKey))
-	latestSavedRoot := s.Get(util.PrefixKey(vmPrefix, latestSavedRootKey))
+	latestSavedRoot, _ := s.getLatestSavedRoot(0)
 	// default root is an indicator for empty root
 	if bytes.Equal(currentRoot, []byte("")) {
 		currentRoot = defaultRoot
 	}
-	// Save Patricia root of EVM state only if it changes
+	// save Patricia root of EVM state only if it changes
 	if !bytes.Equal(currentRoot, latestSavedRoot) {
 		s.Set(evmRootKey(version), currentRoot)
-		s.Set(util.PrefixKey(vmPrefix, latestSavedRootKey), currentRoot)
 	}
 
 	batch := s.evmDB.NewBatch()
@@ -154,16 +161,9 @@ func (s *EvmStore) Commit(version int64) []byte {
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	s.Rollback()
 	// find the lastest saved root
-	var root []byte
-	for i := targetVersion; i > 0; i-- {
-		root = s.evmDB.Get(evmRootKey(i))
-		if bytes.Equal(root, defaultRoot) {
-			root = []byte("")
-		}
-		// latest root found
-		if root != nil {
-			break
-		}
+	root, _ := s.getLatestSavedRoot(targetVersion)
+	if bytes.Equal(root, defaultRoot) {
+		root = []byte("")
 	}
 
 	// nil root indicates that latest saved root below target version is not found
@@ -185,6 +185,23 @@ func (s *EvmStore) Rollback() {
 
 func (s *EvmStore) GetSnapshot() db.Snapshot {
 	return s.evmDB.GetSnapshot()
+}
+
+func (s *EvmStore) getLatestSavedRoot(targetVersion int64) ([]byte, int64) {
+	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		if util.HasPrefix(iter.Key(), util.PrefixKey(vmPrefix, evmRootPrefix)) {
+			version, err := getVersionFromEvmRootKey(iter.Key())
+			if err != nil {
+				return nil, 0
+			}
+			if version <= targetVersion || targetVersion == 0 {
+				return iter.Value(), version
+			}
+		}
+	}
+	return nil, 0
 }
 
 func remove(keys []string, key string) []string {
