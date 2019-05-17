@@ -39,9 +39,10 @@ func newElectionContext(ctx contract.Context) (*electionContext, error) {
 	return ectx, ectx.load()
 }
 
-func (ctx *electionContext) GetAllDelegations() ([]*Delegation, map[string]*Delegation, error) {
+func (ctx *electionContext) GetAllDelegations() ([]*Delegation, [][]byte, error) {
 	delegations := []*Delegation{}
-	delegationIdx := make(map[string]*Delegation)
+	delegationBytes := [][]byte{}
+	//delegationIdx := make(map[string]*Delegation)
 	for _, m := range ctx.Range([]byte("delegation")) {
 		ctx.Logger().Error(fmt.Sprintf("Trying Key -%v(%d bytes)", m.Key, len(m.Key)), "bytes", len(m.Value))
 		var f Delegation
@@ -57,12 +58,13 @@ func (ctx *electionContext) GetAllDelegations() ([]*Delegation, map[string]*Dele
 			//return nil, nil, errors.Wrapf(err, "unmarshal delegation %s", string(m.Key))
 		}
 		delegations = append(delegations, &f)
+		delegationBytes = append(delegationBytes, m.Value)
 		//Track the index in the array
-		delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = &f
+		//	delegationIdx[fmt.Sprintf("%d-loom.UnmarshalAddressPB(f.GetDelegator()).String()", f.Index)] = &f
 	}
 
 	//TODO making assumption on order based on key order, maybe not
-	return delegations, delegationIdx, nil
+	return delegations, delegationBytes, nil
 }
 
 func (ctx *electionContext) load() error {
@@ -82,19 +84,17 @@ func (ctx *electionContext) load() error {
 		}
 	}
 
-	delegations, _, err := ctx.GetAllDelegations()
+	delegations, dBytes, err := ctx.GetAllDelegations()
 	if err != nil {
 		return err
 	}
-	for _, delegation := range delegations {
+	for v, delegation := range delegations {
 		delKey, err := computeDelegationsKey(delegation.Index, *delegation.Validator, *delegation.Delegator)
 		if err != nil {
 			return err
 		}
 		delKey = append(delegationsKey, delKey...)
-		if len(data) > 0 {
-			ctx.cache[string(delKey)] = cacheItem{Value: data}
-		}
+		ctx.cache[string(delKey)] = cacheItem{Value: dBytes[v]}
 
 		if len(delegation.Referrer) > 0 {
 			refKey := append(referrersKey, delegation.Referrer...)
