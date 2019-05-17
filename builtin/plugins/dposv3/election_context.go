@@ -22,6 +22,8 @@ type electionContext struct {
 	cache map[string]cacheItem
 }
 
+// Preloads DPOS data needed during an election and returns a wrapped contract context that provides
+// access to the preloaded data.
 func newElectionContext(ctx contract.Context) (*electionContext, error) {
 	// Need the plugin.Context to skip protobuf de/serialization when loading & storing keys
 	pctx := reflect.Indirect(reflect.ValueOf(ctx)).FieldByName("Context").Interface().(plugin.Context)
@@ -96,6 +98,9 @@ func (ctx *electionContext) load() error {
 	return nil
 }
 
+// Get tries to read the given key from the cache, if the key is not in the cache it will be read
+// from the app state. All keys should be in the cache, reading from the app state is just a precaution
+// in case electionContext.load() didn't load all the relevant keys.
 func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 	if item, exists := ctx.cache[string(key)]; exists {
 		if len(item.Value) == 0 {
@@ -113,6 +118,9 @@ func (ctx *electionContext) Has(key []byte) bool {
 	return ctx.Context.Has(key)
 }
 
+// Set writes the given key to the cache and to the app state. The key is written to the app state
+// immediately to ensure the order in which keys are written to the IAVL store during the election
+// remains consistent with previous builds that don't have the cache.
 func (ctx *electionContext) Set(key []byte, pb proto.Message) error {
 	data, err := proto.Marshal(pb)
 	if err != nil {
