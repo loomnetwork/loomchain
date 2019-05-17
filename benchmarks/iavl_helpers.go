@@ -6,6 +6,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/loomchain"
@@ -45,6 +46,34 @@ func CreateFakeStateContext(state loomchain.State, reg registry.Registry, caller
 		registry:    reg,
 		VM:          pluginVm,
 	}
+}
+
+func (c *FakeStateContext) Range(prefix []byte) pl.RangeData {
+	return c.state.Range(prefix)
+}
+
+func (c *FakeStateContext) Get(key []byte) []byte {
+	return c.state.Get(key)
+}
+
+func (c *FakeStateContext) Has(key []byte) bool {
+	return c.state.Has(key)
+}
+
+func (c *FakeStateContext) Set(key []byte, value []byte) {
+	c.state.Set(key, value)
+}
+
+func (c *FakeStateContext) Delete(key []byte) {
+	c.state.Delete(key)
+}
+
+func (c *FakeStateContext) Resolve(name string) (loom.Address, error) {
+	return c.registry.Resolve(name)
+}
+
+func (c *FakeStateContext) Call(addr loom.Address, input []byte) ([]byte, error) {
+	return c.VM.Call(c.FakeContext.ContractAddress(), addr, input, common.BigZero())
 }
 
 func MockStateWithDposAndCoin(dposInit *dtypes.DPOSInitRequest, coinInit *ctypes.InitRequest, appDb db.DB) (loomchain.State, registry.Registry, vm.VM, error) {
