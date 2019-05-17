@@ -1,12 +1,15 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/cli"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -31,19 +34,35 @@ func AddIdentityMappingCmd() *cobra.Command {
 			}
 			mapping.From = user.MarshalPB()
 
-			ethKey, err := crypto.LoadECDSA(args[1])
-			if err != nil {
-				return errors.Wrapf(err, "read ethereum private key from file%v", args[1])
+			var privkey *ecdsa.PrivateKey
+			var foreignLocalAddr loom.LocalAddress
+
+			switch strings.TrimSpace(chainId) {
+			case "eth":
+				privkey, err = crypto.LoadECDSA(args[1])
+				if err != nil {
+					return errors.Wrapf(err, "read ethereum private key from file %v", args[1])
+				}
+				foreignLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privkey.PublicKey).Hex())
+				if err != nil {
+					return errors.Wrapf(err, "bad ethereum private key from file %v", args[1])
+				}
+			case "tron":
+				privkey, err = lcrypto.LoadBtecSecp256k1PrivKey(args[1])
+				if err != nil {
+					return errors.Wrapf(err, "read tron private key from file %v", args[1])
+				}
+				foreignLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privkey.PublicKey).Hex())
+				if err != nil {
+					return errors.Wrapf(err, "bad tron private key from file% v", args[1])
+				}
 			}
-			ethLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
+
+			foreignAddr := loom.Address{ChainID: chainId, Local: foreignLocalAddr}
+			mapping.To = foreignAddr.MarshalPB()
+			mapping.Signature, err = address_mapper.SignIdentityMapping(user, foreignAddr, privkey)
 			if err != nil {
-				return errors.Wrapf(err, "bad ethereum private key from file%v", args[1])
-			}
-			ethAddr := loom.Address{ChainID: chainId, Local: ethLocalAddr}
-			mapping.To = ethAddr.MarshalPB()
-			mapping.Signature, err = address_mapper.SignIdentityMapping(user, ethAddr, ethKey)
-			if err != nil {
-				return errors.Wrap(err, "signing mapping with ethereum key")
+				return errors.Wrapf(err, "sigining mapping with %s key", chainId)
 			}
 
 			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "AddIdentityMapping", &mapping, nil)
@@ -56,7 +75,6 @@ func AddIdentityMappingCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
-	cmd.Flags().StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
 	cmd.Flags().StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
 	cmd.Flags().StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
 	cmd.Flags().StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
@@ -93,7 +111,7 @@ func GetMapping() *cobra.Command {
 		},
 	}
 
-	AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -119,7 +137,7 @@ func ListMappingCmd() *cobra.Command {
 		},
 	}
 
-	AddContractCallFlags(cmd.Flags(), &flags)
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 
 }

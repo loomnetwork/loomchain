@@ -5,8 +5,10 @@ package gateway
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +24,7 @@ import (
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	gwcontract "github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/gateway/ethcontract"
 	"github.com/pkg/errors"
 )
@@ -142,24 +145,33 @@ type Oracle struct {
 
 	hashPool *recentHashPool
 
-	isLoomCoinOracle    bool
+	gatewayType         gwcontract.GatewayType
 	withdrawalSig       WithdrawalSigType
 	withdrawerBlacklist []loom.Address
-
-	erc20ABI abi.ABI
+	erc20ABI            abi.ABI
 
 	receiptSigningEnabled bool
+
+	// Tron specific
+	tronClient *TronClient
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg, chainID, "tg_oracle", false)
+	return createOracle(cfg, chainID, "tg_oracle", gwcontract.EthereumGateway, "eth")
 }
 
 func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg, chainID, "loom_tg_oracle", true)
+	return createOracle(cfg, chainID, "loom_tg_oracle", gwcontract.LoomCoinGateway, "eth")
 }
 
-func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
+func CreateTronOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return createOracle(cfg, chainID, "tron_tg_oracle", gwcontract.TronGateway, "tron")
+}
+
+func createOracle(cfg *TransferGatewayConfig, chainID string,
+	metricSubsystem string, gatewayType gwcontract.GatewayType,
+	foreignChainID string,
+) (*Oracle, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -225,7 +237,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		startupDelay:                 time.Duration(cfg.OracleStartupDelay) * time.Second,
 		reconnectInterval:            time.Duration(cfg.OracleReconnectInterval) * time.Second,
 		mainnetGatewayAddress: loom.Address{
-			ChainID: "eth",
+			ChainID: foreignChainID,
 			Local:   common.HexToAddress(cfg.MainnetContractHexAddress).Bytes(),
 		},
 		status: Status{
@@ -236,7 +248,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 
 		metrics:             NewMetrics(metricSubsystem),
 		hashPool:            hashPool,
-		isLoomCoinOracle:    isLoomCoinOracle,
+		gatewayType:         gatewayType,
 		withdrawalSig:       cfg.WithdrawalSig,
 		withdrawerBlacklist: withdrawerBlacklist,
 		// Oracle will do receipt signing when BatchSignFnConfig is disabled
@@ -273,39 +285,57 @@ func (orc *Oracle) updateStatus() {
 
 func (orc *Oracle) connect() error {
 	var err error
-
-	if orc.ethClient == nil {
-		orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI)
-		if err != nil {
-			return errors.Wrap(err, "failed to connect to Ethereum")
+	switch orc.gatewayType {
+	case gwcontract.EthereumGateway, gwcontract.LoomCoinGateway:
+		if orc.ethClient == nil {
+			orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI)
+			if err != nil {
+				return errors.Wrap(err, "failed to connect to Ethereum mainnet network")
+			}
 		}
-	}
 
-	if orc.solGateway == nil {
-		orc.solGateway, err = ethcontract.NewMainnetGatewayContract(
-			common.HexToAddress(orc.cfg.MainnetContractHexAddress),
-			orc.ethClient,
-		)
-		if err != nil {
-			return errors.Wrap(err, "failed create Mainnet Gateway contract binding")
+		if orc.solGateway == nil {
+			orc.solGateway, err = ethcontract.NewMainnetGatewayContract(
+				common.HexToAddress(orc.cfg.MainnetContractHexAddress),
+				orc.ethClient,
+			)
+			if err != nil {
+				return errors.Wrap(err, "failed create Mainnet Gateway contract binding")
+			}
 		}
+	case gwcontract.TronGateway:
+		if orc.tronClient == nil {
+			oracleEventPollDelay := time.Second * time.Duration(orc.cfg.OracleEventPollDelay)
+			orc.tronClient, err = ConnectToTron(orc.cfg.TronURI, oracleEventPollDelay)
+			if err != nil {
+				return errors.Wrap(err, "failed to connect to Tron mainnet network")
+			}
+		}
+	default:
+		return errors.Errorf("invalid gateway type %v", orc.gatewayType)
 	}
 
 	if orc.goGateway == nil {
 		dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
-
-		if orc.isLoomCoinOracle {
-			orc.goGateway, err = ConnectToDAppChainLoomCoinGateway(dappClient, orc.address, orc.signer, orc.logger)
-			if err != nil {
-				return errors.Wrap(err, "failed to create dappchain loomcoin gateway")
-			}
-		} else {
+		switch orc.gatewayType {
+		case gwcontract.EthereumGateway:
 			orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
 			if err != nil {
 				return errors.Wrap(err, "failed to create dappchain gateway")
 			}
+		case gwcontract.LoomCoinGateway:
+			orc.goGateway, err = ConnectToDAppChainLoomCoinGateway(dappClient, orc.address, orc.signer, orc.logger)
+			if err != nil {
+				return errors.Wrap(err, "failed to create dappchain loomcoin gateway")
+			}
+		case gwcontract.TronGateway:
+			orc.goGateway, err = ConnectToDAppChainTronGateway(dappClient, orc.address, orc.signer, orc.logger)
+			if err != nil {
+				return errors.Wrap(err, "failed to create dappchain tron gateway")
+			}
+		default:
+			return errors.Errorf("invalid gateway type %v", orc.gatewayType)
 		}
-
 	}
 	return nil
 }
@@ -610,29 +640,68 @@ func (orc *Oracle) verifyContractCreators() error {
 }
 
 func (orc *Oracle) fetchMainnetContractCreator(unverified *UnverifiedContractCreator) (*VerifiedContractCreator, error) {
-	verifiedCreator := &VerifiedContractCreator{
-		ContractMappingID: unverified.ContractMappingID,
-		Creator:           loom.RootAddress("eth").MarshalPB(),
-		Contract:          loom.RootAddress("eth").MarshalPB(),
-	}
-	txHash := common.BytesToHash(unverified.ContractTxHash)
-	tx, err := orc.ethClient.ContractCreationTxByHash(context.TODO(), txHash)
-	if err == ethereum.NotFound {
+	switch orc.gatewayType {
+	case gwcontract.EthereumGateway, gwcontract.LoomCoinGateway:
+		verifiedCreator := &VerifiedContractCreator{
+			ContractMappingID: unverified.ContractMappingID,
+			Creator:           loom.RootAddress("eth").MarshalPB(),
+			Contract:          loom.RootAddress("eth").MarshalPB(),
+		}
+		txHash := common.BytesToHash(unverified.ContractTxHash)
+		tx, err := orc.ethClient.ContractCreationTxByHash(context.TODO(), txHash)
+		if err == ethereum.NotFound {
+			return verifiedCreator, nil
+		} else if err != nil {
+			return nil, errors.Wrapf(err, "failed to find contract creator by tx hash %v", txHash)
+		}
+		verifiedCreator.Creator.Local = loom.LocalAddress(tx.CreatorAddress.Bytes())
+		verifiedCreator.Contract.Local = loom.LocalAddress(tx.ContractAddress.Bytes())
 		return verifiedCreator, nil
-	} else if err != nil {
-		return nil, errors.Wrapf(err, "failed to find contract creator by tx hash %v", txHash)
+
+	case gwcontract.TronGateway:
+		verifiedCreator := &VerifiedContractCreator{
+			ContractMappingID: unverified.ContractMappingID,
+			Creator:           loom.RootAddress("tron").MarshalPB(),
+			Contract:          unverified.ContractAddress,
+		}
+		// Got to prefix with 41 instead of 0x
+		var address = fmt.Sprintf("41%s", unverified.ContractAddress.Local.Hex())
+		gwContract, err := orc.tronClient.GetContract(context.TODO(), address)
+		if err == TronContractNotFound {
+			return verifiedCreator, nil
+		} else if err != nil {
+			return nil, err
+		}
+
+		creatorAddress := strings.TrimPrefix(gwContract.OriginalAddress, "41")
+		creatorAddress = fmt.Sprintf("0x%s", creatorAddress)
+		creatorLocalAddress, err := loom.LocalAddressFromHexString(creatorAddress)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to convert contract creator address %s", creatorAddress)
+		}
+		verifiedCreator.Creator.Local = creatorLocalAddress
+
+		return verifiedCreator, nil
 	}
-	verifiedCreator.Creator.Local = loom.LocalAddress(tx.CreatorAddress.Bytes())
-	verifiedCreator.Contract.Local = loom.LocalAddress(tx.ContractAddress.Bytes())
-	return verifiedCreator, nil
+	return nil, errors.Errorf("invalid gateway type %v", orc.gatewayType)
 }
 
 func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
-	blockHeader, err := orc.ethClient.HeaderByNumber(context.TODO(), nil)
-	if err != nil {
-		return 0, err
+	switch orc.gatewayType {
+	case gwcontract.EthereumGateway, gwcontract.LoomCoinGateway:
+		blockHeader, err := orc.ethClient.HeaderByNumber(context.TODO(), nil)
+		if err != nil {
+
+		}
+		return blockHeader.Number.Uint64(), nil
+	case gwcontract.TronGateway:
+		latestBlock, err := orc.tronClient.GetLastBlockNumber(context.TODO())
+		if err != nil {
+
+		}
+		return latestBlock, nil
 	}
-	return blockHeader.Number.Uint64(), nil
+	return 0, errors.Errorf("invalid gateway type %v", orc.gatewayType)
 }
 
 func (orc *Oracle) processEventsByTxHash(solLoomAddr common.Address) error {
@@ -663,15 +732,21 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 	}
 
 	var erc721Deposits, erc721xDeposits, loomcoinDeposits, erc20Deposits, ethDeposits, withdrawals []*mainnetEventInfo
+	var trxDeposits, trc20Deposits []*mainnetEventInfo
 	var err error
 
-	// This is required, as LoomCoin gateway fires both erc20 as well as loomcoin received event
-	if orc.isLoomCoinOracle {
+	switch orc.gatewayType {
+	case gwcontract.LoomCoinGateway:
 		loomcoinDeposits, err = orc.fetchLoomCoinDeposits(filterOpts)
 		if err != nil {
 			return nil, err
 		}
-	} else {
+		withdrawals, err = orc.fetchTokenWithdrawals(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
+	case gwcontract.EthereumGateway:
 		erc721Deposits, err = orc.fetchERC721Deposits(filterOpts)
 		if err != nil {
 			return nil, err
@@ -691,22 +766,41 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	withdrawals, err = orc.fetchTokenWithdrawals(filterOpts)
-	if err != nil {
-		return nil, err
+		withdrawals, err = orc.fetchTokenWithdrawals(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
+	case gwcontract.TronGateway:
+		trxDeposits, err = orc.fetchTRXDeposits(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		trc20Deposits, err = orc.fetchTRC20Deposits(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		withdrawals, err = orc.fetchTronTokenWithdrawals(filterOpts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	events := make(
 		[]*mainnetEventInfo, 0,
-		len(erc721Deposits)+len(erc721xDeposits)+len(erc20Deposits)+len(ethDeposits)+len(loomcoinDeposits)+len(withdrawals),
+		len(erc721Deposits)+len(erc721xDeposits)+len(erc20Deposits)+len(ethDeposits)+len(loomcoinDeposits)+len(withdrawals)+len(trxDeposits)+len(trc20Deposits),
 	)
+
 	events = append(erc721Deposits, erc721xDeposits...)
 	events = append(events, erc20Deposits...)
 	events = append(events, ethDeposits...)
 	events = append(events, loomcoinDeposits...)
 	events = append(events, withdrawals...)
+	events = append(events, trxDeposits...)
+	events = append(events, trc20Deposits...)
 	sortMainnetEvents(events)
 
 	sortedEvents := make([]*MainnetEvent, len(events))
@@ -724,6 +818,8 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 			"eth-deposits", len(ethDeposits),
 			"loomcoin-deposits", len(loomcoinDeposits),
 			"withdrawals", len(withdrawals),
+			"trx-deposits", len(trxDeposits),
+			"trc20-deposits", len(trc20Deposits),
 		)
 	}
 
@@ -1027,7 +1123,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 
 			// Not strictly required, but will provide additional protection to oracle in case
 			// we get any erc20 events from loomcoin gateway
-			if orc.isLoomCoinOracle != (TokenKind(ev.Kind) == TokenKind_LoomCoin) {
+			if (orc.gatewayType == gwcontract.LoomCoinGateway) && (TokenKind(ev.Kind) != TokenKind_LoomCoin) {
 				continue
 			}
 
@@ -1076,6 +1172,164 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 			it.Close()
 			break
 		}
+	}
+	numEvents = len(events)
+	return events, nil
+}
+
+func (orc *Oracle) fetchTRXDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchTRXDeposits", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "TRXReceived")
+	}(time.Now())
+
+	contractAddress := orc.cfg.MainnetContractHexAddress
+	fromBlock := filterOpts.Start
+	toBlock := *filterOpts.End
+	filteredEvents, err := orc.tronClient.FilterTRXReceived(contractAddress, fromBlock, toBlock)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get events for TRXReceived")
+	}
+	events := []*mainnetEventInfo{}
+	for _, ev := range filteredEvents {
+		fromAddr, err := loom.LocalAddressFromHexString(ev.Result["from"])
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse TRXReceived from address")
+		}
+		amount, ok := loom.NewBigUIntFromInt(0).SetString(ev.Result["amount"], 10)
+		if !ok {
+			return nil, errors.Wrap(err, "failed to parse TRXReceived amount to big int")
+		}
+		events = append(events, &mainnetEventInfo{
+			BlockNum: uint64(ev.BlockNumber),
+			TxIdx:    ev.EventIndex,
+			Event: &MainnetEvent{
+				EthBlock: uint64(ev.BlockNumber),
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_TRX,
+						TokenContract: gwcontract.TRXTokenAddr.MarshalPB(),
+						TokenOwner:    loom.Address{ChainID: "tron", Local: fromAddr}.MarshalPB(),
+						TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(amount)},
+						TxHash:        []byte(ev.TransactionID),
+					},
+				},
+			},
+		})
+	}
+	numEvents = len(events)
+	return events, nil
+}
+
+func (orc *Oracle) fetchTRC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchTRC20Deposits", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "TRC20Received")
+	}(time.Now())
+
+	contractAddress := orc.cfg.MainnetContractHexAddress
+	fromBlock := filterOpts.Start
+	toBlock := *filterOpts.End
+	filteredEvents, err := orc.tronClient.FilterTRC20Received(contractAddress, fromBlock, toBlock)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logs for TRC20Received")
+	}
+	events := []*mainnetEventInfo{}
+	for _, ev := range filteredEvents {
+		fromAddr, err := loom.LocalAddressFromHexString(ev.Result["from"])
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse TRC20Received from address")
+		}
+		tokenAddr, err := loom.LocalAddressFromHexString(ev.Result["contractAddress"])
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse TRC20Received from address")
+		}
+		amount, ok := loom.NewBigUIntFromInt(0).SetString(ev.Result["amount"], 10)
+		if !ok {
+			return nil, errors.Wrap(err, "failed to parse TRC20Received amount to big int")
+		}
+		events = append(events, &mainnetEventInfo{
+			BlockNum: uint64(ev.BlockNumber),
+			TxIdx:    ev.EventIndex,
+			Event: &MainnetEvent{
+				EthBlock: uint64(ev.BlockNumber),
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_TRC20,
+						TokenContract: loom.Address{ChainID: "tron", Local: tokenAddr}.MarshalPB(),
+						TokenOwner:    loom.Address{ChainID: "tron", Local: fromAddr}.MarshalPB(),
+						TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(amount)},
+						TxHash:        []byte(ev.TransactionID),
+					},
+				},
+			},
+		})
+	}
+	numEvents = len(events)
+	return events, nil
+}
+
+func (orc *Oracle) fetchTronTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchTronTokenWithdrawals", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "TokenWithdrawn")
+	}(time.Now())
+
+	contractAddress := orc.cfg.MainnetContractHexAddress
+	fromBlock := filterOpts.Start
+	toBlock := *filterOpts.End
+	filteredEvents, err := orc.tronClient.FilterTokenWithdrawn(contractAddress, fromBlock, toBlock)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logs for TokenWithdrawn")
+	}
+
+	events := []*mainnetEventInfo{}
+	for _, ev := range filteredEvents {
+		fromAddr, err := loom.LocalAddressFromHexString(ev.Result["from"])
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse TokenWithdrawn from address")
+		}
+		value, ok := loom.NewBigUIntFromInt(0).SetString(ev.Result["value"], 10)
+		if !ok {
+			return nil, errors.Wrap(err, "failed to parse TokenWithdrawn value to big int")
+		}
+		kind, err := strconv.ParseInt(ev.Result["kind"], 10, 32)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse TokenWithdrawn value to int32")
+		}
+
+		var tokenAddr loom.LocalAddress
+		if TokenKind(kind) == TokenKind_TRX {
+			tokenAddr = gwcontract.TRXTokenAddr.Local
+		} else {
+			tokenAddr, err = loom.LocalAddressFromHexString(ev.Result["contractAddress"])
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse TokenWithdrawn from address")
+			}
+		}
+
+		events = append(events, &mainnetEventInfo{
+			BlockNum: uint64(ev.BlockNumber),
+			TxIdx:    ev.EventIndex,
+			Event: &MainnetEvent{
+				EthBlock: uint64(ev.BlockNumber),
+				Payload: &MainnetWithdrawalEvent{
+					Withdrawal: &MainnetTokenWithdrawn{
+						TokenKind:     TokenKind(kind),
+						TokenContract: loom.Address{ChainID: "tron", Local: tokenAddr}.MarshalPB(),
+						TokenOwner:    loom.Address{ChainID: "tron", Local: fromAddr}.MarshalPB(),
+						TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(value)},
+						TxHash:        []byte(ev.TransactionID),
+					},
+				},
+			},
+		})
 	}
 	numEvents = len(events)
 	return events, nil

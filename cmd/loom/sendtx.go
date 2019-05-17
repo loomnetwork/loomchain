@@ -17,10 +17,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/vm"
 )
 
@@ -532,7 +533,7 @@ func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 }
 
 func tronSigner(keyFilename string) ([]byte, auth.Signer, error) {
-	key, err := crypto.LoadECDSA(keyFilename)
+	key, err := lcrypto.LoadBtecSecp256k1PrivKey(keyFilename)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
 	}

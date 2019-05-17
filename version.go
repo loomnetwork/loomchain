@@ -8,6 +8,7 @@ var (
 	GoLoomGitSHA    = ""
 	EthGitSHA       = ""
 	HashicorpGitSHA = ""
+	BtcdGitSHA      = ""
 )
 
 func FullVersion() string {

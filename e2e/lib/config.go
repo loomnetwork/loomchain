@@ -12,15 +12,16 @@ import (
 )
 
 type Config struct {
-	Name        string
-	BaseDir     string
-	LoomPath    string
-	ContractDir string
-	Nodes       map[string]*node.Node
-	Accounts    []*node.Account
-	EthAccounts []*node.EthAccount
-	TestFile    string
-	LogAppDb    bool
+	Name         string
+	BaseDir      string
+	LoomPath     string
+	ContractDir  string
+	Nodes        map[string]*node.Node
+	Accounts     []*node.Account
+	EthAccounts  []*node.EthAccount
+	TronAccounts []*node.TronAccount
+	TestFile     string
+	LogAppDb     bool
 	// helper to easy access by template
 	AccountAddressList     []string
 	AccountPrivKeyPathList []string
@@ -29,6 +30,10 @@ type Config struct {
 	EthAccountAddressList     []string
 	EthAccountPrivKeyPathList []string
 	EthAccountPubKeyList      []string
+
+	TronAccountAddressList     []string
+	TronAccountPrivKeyPathList []string
+	TronAccountPubKeyList      []string
 
 	NodeAddressList         []string
 	NodePubKeyList          []string

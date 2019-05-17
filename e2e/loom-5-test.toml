@@ -1,6 +1,6 @@
 [[TestCases]]
   Delay = 1000
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = ["tx:migration"]
 
@@ -125,7 +125,7 @@
 
 # Checking that Node 1 got a reward distribution in v2
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 check_distribution {{index $.NodeAddressList 1}} -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dposV2 check_distribution {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 

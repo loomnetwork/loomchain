@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 
-	flag "github.com/spf13/pflag"
-
 	"github.com/spf13/cobra"
 
 	"github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -12,20 +10,10 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 )
 
-func AddContractCallFlags(flagSet *flag.FlagSet, callFlags *cli.ContractCallFlags) {
-	flagSet.StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
-	flagSet.StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
-	flagSet.StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
-	flagSet.StringVarP(&callFlags.ChainID, "chain", "c", "default", "chain ID")
-	flagSet.StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
-	flagSet.StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
-	flagSet.StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
-	flagSet.StringVar(&callFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
-}
-
 const CoinContractName = "coin"
 
-func TransferCmd(flags *cli.ContractCallFlags) *cobra.Command {
+func TransferCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "transfer [address] [amount]",
 		Short: "Transfer coins to another account",
@@ -40,7 +28,7 @@ func TransferCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return cli.CallContractWithFlags(flags, CoinContractName, "Transfer", &coin.TransferRequest{
+			return cli.CallContractWithFlags(&flags, CoinContractName, "Transfer", &coin.TransferRequest{
 				To: addr.MarshalPB(),
 				Amount: &types.BigUInt{
 					Value: *amount,
@@ -48,10 +36,12 @@ func TransferCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			}, nil)
 		},
 	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
-func TransferFromCmd(flags *cli.ContractCallFlags) *cobra.Command {
+func TransferFromCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "transfer_from [from_address] [to_address] [amount]",
 		Short: "Transfer coins from a specified address to another",
@@ -70,7 +60,7 @@ func TransferFromCmd(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			return cli.CallContractWithFlags(flags, CoinContractName, "TransferFrom", &coin.TransferFromRequest{
+			return cli.CallContractWithFlags(&flags, CoinContractName, "TransferFrom", &coin.TransferFromRequest{
 				From: fromAddress.MarshalPB(),
 				To:   toAddress.MarshalPB(),
 				Amount: &types.BigUInt{
@@ -79,11 +69,14 @@ func TransferFromCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			}, nil)
 		},
 	}
+
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 
 }
 
-func ApproveCmd(flags *cli.ContractCallFlags) *cobra.Command {
+func ApproveCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "approve [address] [amount]",
 		Short: "Approve the transfer of coins to another account",
@@ -98,7 +91,7 @@ func ApproveCmd(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			return cli.CallContractWithFlags(flags, CoinContractName, "Approve", &coin.ApproveRequest{
+			return cli.CallContractWithFlags(&flags, CoinContractName, "Approve", &coin.ApproveRequest{
 				Spender: addr.MarshalPB(),
 				Amount: &types.BigUInt{
 					Value: *amount,
@@ -106,22 +99,25 @@ func ApproveCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			}, nil)
 		},
 	}
+
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 
 }
 
-func BalanceCmd(flags *cli.ContractCallFlags) *cobra.Command {
+func BalanceCmd() *cobra.Command {
+	var staticflags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "balance [address]",
 		Short: "Fetch the balance of a coin account",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
+			addr, err := cli.ResolveAddress(args[0], staticflags.ChainID, staticflags.URI)
 			if err != nil {
 				return err
 			}
 			var resp coin.BalanceOfResponse
-			err = cli.StaticCallContractWithFlags(flags, CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
+			err = cli.StaticCallContractWithFlags(&staticflags, CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
 			if err != nil {
@@ -135,6 +131,7 @@ func BalanceCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &staticflags)
 	return cmd
 }
 
@@ -143,14 +140,12 @@ func NewCoinCommand() *cobra.Command {
 		Use:   "coin <command>",
 		Short: "Methods available in coin contract",
 	}
-	var flags cli.ContractCallFlags
-	AddContractCallFlags(cmd.PersistentFlags(), &flags)
 
 	cmd.AddCommand(
-		ApproveCmd(&flags),
-		BalanceCmd(&flags),
-		TransferCmd(&flags),
-		TransferFromCmd(&flags),
+		ApproveCmd(),
+		BalanceCmd(),
+		TransferCmd(),
+		TransferFromCmd(),
 	)
 	return cmd
 }

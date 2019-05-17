@@ -188,7 +188,7 @@ type StoreTestSuite struct {
 	suite.Suite
 	store     VersionedKVStore
 	StoreName string
-	//nolint:unused
+	//nolint:unused,structcheck
 	supportsSnapshots bool
 }
 
@@ -498,7 +498,7 @@ func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
 	// MemDB doesn't support snapshots yet, so have to use a real DB
 	valueDBName := fmt.Sprintf("teststorerange_app_state_%d_%v", ts.testID, time.Now().Unix())
 	ts.testID++
-	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir, 2, false)
+	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir, 2, 2, false)
 	require.NoError(err)
 	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, &AppStoreConfig{
 		MaxVersions:     1,

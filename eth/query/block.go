@@ -75,16 +75,11 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
 
-	for _, tx := range blockResult.Block.Data.Txs {
+	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txResult, err := blockStore.GetTxResult(tx.Hash())
+			txObj, err := GetTxObjectFromBlockResult(blockResult, int64(index))
 			if err != nil {
-				return resp, errors.Wrapf(err, "cant find result for tx, hash %v", tx.Hash())
-			}
-
-			txObj, err := GetTxObjectFromTxResult(txResult, blockResult.BlockMeta.BlockID.Hash)
-			if err != nil {
-				return resp, errors.Wrapf(err, "cant resolve tx, hash %v", tx.Hash())
+				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
@@ -99,9 +94,10 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
-func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.JsonTxObject, error) {
+func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (eth.JsonTxObject, error) {
+	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
-	if err := proto.Unmarshal([]byte(txResult.Tx), &signedTx); err != nil {
+	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
 		return eth.JsonTxObject{}, err
 	}
 
@@ -146,15 +142,15 @@ func GetTxObjectFromTxResult(txResult *ctypes.ResultTx, blockHash []byte) (eth.J
 
 	return eth.JsonTxObject{
 		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
-		Hash:             eth.EncBytes(txResult.Hash),
-		BlockHash:        eth.EncBytes(blockHash),
-		BlockNumber:      eth.EncInt(txResult.Height),
-		TransactionIndex: eth.EncInt(int64(txResult.Index)),
+		Hash:             eth.EncBytes(tx.Hash()),
+		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
+		TransactionIndex: eth.EncInt(int64(index)),
 		From:             eth.EncAddress(msg.From),
 		To:               eth.EncAddress(msg.To),
 		Value:            eth.EncInt(0),
-		GasPrice:         eth.EncInt(txResult.TxResult.GasWanted),
-		Gas:              eth.EncInt(txResult.TxResult.GasUsed),
+		GasPrice:         eth.EncInt(0),
+		Gas:              eth.EncInt(0),
 		Input:            eth.EncBytes(input),
 	}, nil
 }
