@@ -69,10 +69,6 @@ func getUserDeployersCmd() *cobra.Command {
 		Example: getUserDeployersCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// addr, err := parseAddress(args[0])
-			// if err != nil {
-			// 	return err
-			// }
 			cmd.SilenceUsage = true
 			req := &udwtypes.GetDeployedContractsRequest{}
 			return cli.CallContractWithFlags(&flag, dwContractName, "GetUserDeployers", req, nil)
