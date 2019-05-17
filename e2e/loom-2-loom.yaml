@@ -5,4 +5,3 @@ AppStore:
   EvmDBEnabled: true
 CachingStoreConfig:
   CachingEnabled: true
-  VersionedBigCache: true

@@ -80,11 +80,10 @@ func (s *mockStoreSnapshot) Release() {
 func TestCachingStore(t *testing.T) {
 	defaultConfig := DefaultCachingStoreConfig()
 	defaultConfig.CachingEnabled = true
-	version := int64(1)
 
 	mockStore := NewMockStore()
 
-	cachingStore, err := NewCachingStore(mockStore, defaultConfig, 0)
+	cachingStore, err := NewCachingStore(mockStore, defaultConfig)
 	require.NoError(t, err)
 
 	mockStore.Set([]byte("key1"), []byte("value1"))
@@ -100,24 +99,23 @@ func TestCachingStore(t *testing.T) {
 	cachingStore.Set([]byte("key1"), []byte("value3"))
 	storedValue := mockStore.Get([]byte("key1"))
 	assert.Equal(t, "value3", string(storedValue), "cachingstore need to set correct value to backing store")
-	cachedValue, err = cachingStore.cache.Get([]byte("key1"), version)
+	cachedValue, err = cachingStore.cache.Get("key1")
 	require.Nil(t, err)
 	assert.Equal(t, "value3", string(cachedValue), "cachingStore need to set correct value in the cache")
 
 	cachingStore.Delete([]byte("key1"))
 	storedValue = mockStore.Get([]byte("key1"))
 	assert.Equal(t, true, storedValue == nil, "cachingStore need to delete value from underlying storage")
-	_, err = cachingStore.cache.Get([]byte("key1"), version)
+	_, err = cachingStore.cache.Get("key1")
 	require.EqualError(t, err, bigcache.ErrEntryNotFound.Error())
 }
 
 func TestCachingStoreSnapshot(t *testing.T) {
 	defaultConfig := DefaultCachingStoreConfig()
 	defaultConfig.CachingEnabled = true
-	version := int64(1)
 	mockStore := NewMockStore()
 
-	cachingStore, err := NewCachingStore(mockStore, defaultConfig, version)
+	cachingStore, err := NewCachingStore(mockStore, defaultConfig)
 	require.NoError(t, err)
 
 	mockStore.Set([]byte("key1"), []byte("value1"))
@@ -133,12 +131,11 @@ func TestCachingStoreSnapshot(t *testing.T) {
 func TestCachingStoreVersion(t *testing.T) {
 	defaultConfig := DefaultCachingStoreConfig()
 	defaultConfig.CachingEnabled = true
-	defaultConfig.VersionedBigCache = true
 	version := int64(1)
 
 	mockStore := NewMockStore()
 
-	cachingStore, err := NewCachingStore(mockStore, defaultConfig, version)
+	cachingStore, err := NewVersionedCachingStore(mockStore, defaultConfig, version)
 
 	require.NoError(t, err)
 
@@ -177,7 +174,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	cachedValue = snapshotv1.Get(key3)
 	assert.Equal(t, "value3", string(cachedValue), "snapshotv1 should get correct value")
 
-	cacheSnapshot := snapshotv1.(*CachingStoreSnapshot)
+	cacheSnapshot := snapshotv1.(*versionedCachingStoreSnapshot)
 	cacheSnapshot.cache.Delete(key1, 1) // evict a key
 	cachedValue = snapshotv1.Get(key1)  // call an evicted key
 	assert.Equal(t, "value1", string(cachedValue), "snapshotv1 should get correct value, fetching from underlying snapshot")
@@ -190,7 +187,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	assert.Equal(t, "newvalue2", string(cachedValue), "snapshotv100 should get the value from cache")
 	cachedValue = snapshotv100.Get(key3)
 	assert.Equal(t, "newvalue3", string(cachedValue), "snapshotv100 should get the value from cache")
-	cacheSnapshot = snapshotv1.(*CachingStoreSnapshot)
+	cacheSnapshot = snapshotv1.(*versionedCachingStoreSnapshot)
 	cacheSnapshot.cache.cache.Delete(string(key1)) // evict a key table
 	cachedValue = snapshotv100.Get(key1)
 	assert.Equal(t, "value1", string(cachedValue), "snapshotv100 should get the value from cache")

@@ -8,7 +8,6 @@ AppStore:
   Version: 3
 CachingStoreConfig:
   CachingEnabled: true
-  VersionedBigCache: true
 
 Auth:
   Chains:

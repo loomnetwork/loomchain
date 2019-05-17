@@ -80,51 +80,40 @@ func addKeyVersion(key []byte, version int64) {
 	keyTable[string(key)] = kvTable
 }
 
-type VersionedBigCache struct {
-	cache          *bigcache.BigCache
-	versionedCache bool
+type versionedBigCache struct {
+	cache *bigcache.BigCache
 }
 
-func NewVersionedBigCache(cache *bigcache.BigCache, versionedCache bool) *VersionedBigCache {
-	return &VersionedBigCache{
-		cache:          cache,
-		versionedCache: versionedCache,
+func newVersionedBigCache(cache *bigcache.BigCache) *versionedBigCache {
+	return &versionedBigCache{
+		cache: cache,
 	}
 }
 
-func (c *VersionedBigCache) Delete(key []byte, version int64) error {
-	if c.versionedCache {
-		versionedKey := versionedKey(string(key), version)
-		// delete data in cache if it does exist
-		c.cache.Delete(string(versionedKey))
-		// add key to inidicate that this is the latest version but
-		// the data has been deleted
-		addKeyVersion(key, version)
-		return nil
-	}
-	return c.cache.Delete(string(key))
+func (c *versionedBigCache) Delete(key []byte, version int64) error {
+	versionedKey := versionedKey(string(key), version)
+	// delete data in cache if it does exist
+	c.cache.Delete(string(versionedKey))
+	// add key to inidicate that this is the latest version but
+	// the data has been deleted
+	addKeyVersion(key, version)
+	return nil
 }
 
-func (c *VersionedBigCache) Set(key, val []byte, version int64) error {
-	if c.versionedCache {
-		versionedKey := versionedKey(string(key), version)
-		err := c.cache.Set(string(versionedKey), val)
-		if err != nil {
-			return err
-		}
-		addKeyVersion(key, version)
-		return nil
+func (c *versionedBigCache) Set(key, val []byte, version int64) error {
+	versionedKey := versionedKey(string(key), version)
+	err := c.cache.Set(string(versionedKey), val)
+	if err != nil {
+		return err
 	}
-	return c.cache.Set(string(key), val)
+	addKeyVersion(key, version)
+	return nil
 }
 
-func (c *VersionedBigCache) Get(key []byte, version int64) ([]byte, error) {
-	if c.versionedCache {
-		latestVersion := getKeyVersion(key, version)
-		versionedKey := versionedKey(string(key), latestVersion)
-		return c.cache.Get(string(versionedKey))
-	}
-	return c.cache.Get(string(key))
+func (c *versionedBigCache) Get(key []byte, version int64) ([]byte, error) {
+	latestVersion := getKeyVersion(key, version)
+	versionedKey := versionedKey(string(key), latestVersion)
+	return c.cache.Get(string(versionedKey))
 }
 
 type CachingStoreLogger struct {
@@ -156,10 +145,6 @@ type CachingStoreConfig struct {
 
 	LogLevel       string
 	LogDestination string
-
-	// Enable VersionedBigCache in order to support MultiWriterAppStore snapshot
-	// VersionedBigCache is NOT compatible with current state snapshot (fake snapshot)
-	VersionedBigCache bool
 }
 
 func init() {
@@ -227,9 +212,9 @@ func init() {
 // CachingStore wraps a write-through cache around a VersionedKVStore.
 // NOTE: Writes update the cache, reads do not, to read from the cache use the store returned by
 //       ReadOnly().
-type CachingStore struct {
+type VersionedCachingStore struct {
 	VersionedKVStore
-	cache   *VersionedBigCache
+	cache   *versionedBigCache
 	version int64
 	logger  *loom.Logger
 }
@@ -246,8 +231,6 @@ func DefaultCachingStoreConfig() *CachingStoreConfig {
 		Verbose:               true,
 		LogDestination:        "file://-",
 		LogLevel:              "info",
-
-		VersionedBigCache: false,
 	}
 }
 
@@ -278,7 +261,7 @@ func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*
 	return &configTemplate, nil
 }
 
-func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, version int64) (*CachingStore, error) {
+func NewVersionedCachingStore(source VersionedKVStore, config *CachingStoreConfig, version int64) (*VersionedCachingStore, error) {
 	if config == nil {
 		return nil, fmt.Errorf("[CachingStore] config can't be null for caching store")
 	}
@@ -290,32 +273,31 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, versio
 		return nil, err
 	}
 
-	if config.VersionedBigCache {
-		// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
-		bigcacheConfig.OnRemove = func(key string, entry []byte) {
-			key, version, err := unversionedKey(key)
-			if err != nil {
-				cacheLogger.Error(fmt.Sprintf(
-					"[VersionedBigCache] error while unversioning key: %s, error: %v",
-					string(key), err.Error()))
-			}
-			kvTable, exist := keyTable[key]
-			if exist {
-				delete(kvTable, version)
-				if len(kvTable) == 0 {
-					delete(keyTable, key)
-				}
+	// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
+	bigcacheConfig.OnRemove = func(key string, entry []byte) {
+		key, version, err := unversionedKey(key)
+		if err != nil {
+			cacheLogger.Error(fmt.Sprintf(
+				"[VersionedBigCache] error while unversioning key: %s, error: %v",
+				string(key), err.Error()))
+		}
+		kvTable, exist := keyTable[key]
+		if exist {
+			delete(kvTable, version)
+			if len(kvTable) == 0 {
+				delete(keyTable, key)
 			}
 		}
 	}
+
 	cache, err := bigcache.NewBigCache(*bigcacheConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	versionedBigCache := NewVersionedBigCache(cache, config.VersionedBigCache)
+	versionedBigCache := newVersionedBigCache(cache)
 
-	return &CachingStore{
+	return &VersionedCachingStore{
 		VersionedKVStore: source,
 		cache:            versionedBigCache,
 		logger:           cacheLogger,
@@ -323,7 +305,7 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig, versio
 	}, nil
 }
 
-func (c *CachingStore) Delete(key []byte) {
+func (c *VersionedCachingStore) Delete(key []byte) {
 	var err error
 
 	defer func(begin time.Time) {
@@ -342,7 +324,7 @@ func (c *CachingStore) Delete(key []byte) {
 	c.VersionedKVStore.Delete(key)
 }
 
-func (c *CachingStore) Set(key, val []byte) {
+func (c *VersionedCachingStore) Set(key, val []byte) {
 	var err error
 
 	defer func(begin time.Time) {
@@ -361,7 +343,7 @@ func (c *CachingStore) Set(key, val []byte) {
 	c.VersionedKVStore.Set(key, val)
 }
 
-func (c *CachingStore) SaveVersion() ([]byte, int64, error) {
+func (c *VersionedCachingStore) SaveVersion() ([]byte, int64, error) {
 	hash, version, err := c.VersionedKVStore.SaveVersion()
 	if err == nil {
 		c.version = version + 1
@@ -369,23 +351,23 @@ func (c *CachingStore) SaveVersion() ([]byte, int64, error) {
 	return hash, version, err
 }
 
-func (c *CachingStore) GetSnapshot() Snapshot {
-	return NewCachingStoreSnapshot(
+func (c *VersionedCachingStore) GetSnapshot() Snapshot {
+	return newVersionedCachingStoreSnapshot(
 		c.VersionedKVStore.GetSnapshot(),
 		c.cache, c.version-1, c.logger)
 }
 
 // CachingStoreSnapshot is a read-only CachingStore with specified version
-type CachingStoreSnapshot struct {
+type versionedCachingStoreSnapshot struct {
 	Snapshot
-	cache   *VersionedBigCache
+	cache   *versionedBigCache
 	version int64
 	logger  *loom.Logger
 }
 
-func NewCachingStoreSnapshot(snapshot Snapshot, cache *VersionedBigCache,
-	version int64, logger *loom.Logger) *CachingStoreSnapshot {
-	return &CachingStoreSnapshot{
+func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache *versionedBigCache,
+	version int64, logger *loom.Logger) *versionedCachingStoreSnapshot {
+	return &versionedCachingStoreSnapshot{
 		Snapshot: snapshot,
 		cache:    cache,
 		version:  version,
@@ -393,15 +375,15 @@ func NewCachingStoreSnapshot(snapshot Snapshot, cache *VersionedBigCache,
 	}
 }
 
-func (c *CachingStoreSnapshot) Delete(key []byte) {
+func (c *versionedCachingStoreSnapshot) Delete(key []byte) {
 	panic("[CachingStoreSnapshot] Delete() not implemented")
 }
 
-func (c *CachingStoreSnapshot) Set(key, val []byte) {
+func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
 	panic("[CachingStoreSnapshot] Set() not implemented")
 }
 
-func (c *CachingStoreSnapshot) Has(key []byte) bool {
+func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
 	var err error
 
 	defer func(begin time.Time) {
@@ -448,7 +430,7 @@ func (c *CachingStoreSnapshot) Has(key []byte) bool {
 	return exists
 }
 
-func (c *CachingStoreSnapshot) Get(key []byte) []byte {
+func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 	var err error
 	defer func(begin time.Time) {
 		getDuration.With("error", fmt.Sprint(err != nil), "isCacheHit",
@@ -486,14 +468,193 @@ func (c *CachingStoreSnapshot) Get(key []byte) []byte {
 	return data
 }
 
-func (c *CachingStoreSnapshot) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, errors.New("[CachingStoreSnapshot] SaveVersion() not implemented")
+func (c *versionedCachingStoreSnapshot) SaveVersion() ([]byte, int64, error) {
+	return nil, 0, errors.New("[VersionedCachingStoreSnapshot] SaveVersion() not implemented")
 }
 
-func (c *CachingStoreSnapshot) Prune() error {
-	return errors.New("[CachingStoreSnapshot] Prune() not implemented")
+func (c *versionedCachingStoreSnapshot) Prune() error {
+	return errors.New("[VersionedCachingStoreSnapshot] Prune() not implemented")
 }
 
-func (c *CachingStoreSnapshot) Release() {
+func (c *versionedCachingStoreSnapshot) Release() {
 	c.Snapshot.Release()
+}
+
+// CachingStore wraps a write-through cache around a VersionedKVStore.
+// NOTE: Writes update the cache, reads do not, to read from the cache use the store returned by
+//       ReadOnly().
+type CachingStore struct {
+	VersionedKVStore
+	cache  *bigcache.BigCache
+	logger *loom.Logger
+}
+
+func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig) (*CachingStore, error) {
+	if config == nil {
+		return nil, fmt.Errorf("[CachingStore] config cant be null for caching store")
+	}
+
+	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
+
+	bigcacheConfig, err := convertToBigCacheConfig(config, cacheLogger)
+	if err != nil {
+		return nil, err
+	}
+
+	cache, err := bigcache.NewBigCache(*bigcacheConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CachingStore{
+		VersionedKVStore: source,
+		cache:            cache,
+		logger:           cacheLogger,
+	}, nil
+}
+
+func (c *CachingStore) Delete(key []byte) {
+	var err error
+
+	defer func(begin time.Time) {
+		deleteDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	err = c.cache.Delete(string(key))
+	if err != nil {
+		// Only log error and dont error out
+		cacheErrors.With("cache_operation", "delete").Add(1)
+		c.logger.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+	}
+	c.VersionedKVStore.Delete(key)
+}
+
+func (c *CachingStore) Set(key, val []byte) {
+	var err error
+
+	defer func(begin time.Time) {
+		setDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	err = c.cache.Set(string(key), val)
+	if err != nil {
+		// Only log error and dont error out
+		cacheErrors.With("cache_operation", "set").Add(1)
+		c.logger.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+	}
+	c.VersionedKVStore.Set(key, val)
+}
+
+func (c *CachingStore) GetSnapshot() Snapshot {
+	return newReadOnlyCachingStore(c)
+}
+
+// ReadOnlyCachingStore prevents any modification to the underlying backing store,
+// and uses the cache for reads.
+type readOnlyCachingStore struct {
+	*CachingStore
+}
+
+func newReadOnlyCachingStore(cachingStore *CachingStore) *readOnlyCachingStore {
+	return &readOnlyCachingStore{
+		CachingStore: cachingStore,
+	}
+}
+
+func (c *readOnlyCachingStore) Delete(key []byte) {
+	panic("[ReadOnlyCachingStore] Delete() not implemented")
+}
+
+func (c *readOnlyCachingStore) Set(key, val []byte) {
+	panic("[ReadOnlyCachingStore] Set() not implemented")
+}
+
+func (c *readOnlyCachingStore) Has(key []byte) bool {
+	var err error
+
+	defer func(begin time.Time) {
+		hasDuration.With("error", fmt.Sprint(err != nil), "isCacheHit", fmt.Sprint(err == nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	data, err := c.cache.Get(string(key))
+	exists := true
+
+	if err != nil {
+		cacheMisses.With("store_operation", "has").Add(1)
+		switch err {
+		case bigcache.ErrEntryNotFound:
+			break
+		default:
+			// Since, there is no provision of passing error in the interface
+			// we would directly access source and only log the error
+			cacheErrors.With("cache_operation", "get").Add(1)
+			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
+		}
+
+		data = c.VersionedKVStore.Get(key)
+		if data == nil {
+			exists = false
+		} else {
+			exists = true
+			setErr := c.cache.Set(string(key), data)
+			if setErr != nil {
+				cacheErrors.With("cache_operation", "set").Add(1)
+				c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+			}
+		}
+	} else {
+		cacheHits.With("store_operation", "has").Add(1)
+	}
+
+	return exists
+}
+
+func (c *readOnlyCachingStore) Get(key []byte) []byte {
+	var err error
+
+	defer func(begin time.Time) {
+		getDuration.With("error", fmt.Sprint(err != nil), "isCacheHit", fmt.Sprint(err == nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	data, err := c.cache.Get(string(key))
+
+	if err != nil {
+		cacheMisses.With("store_operation", "get").Add(1)
+		switch err {
+		case bigcache.ErrEntryNotFound:
+			break
+		default:
+			// Since, there is no provision of passing error in the interface
+			// we would directly access source and only log the error
+			cacheErrors.With("cache_operation", "get").Add(1)
+			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
+		}
+
+		data = c.VersionedKVStore.Get(key)
+		if data == nil {
+			return nil
+		}
+		setErr := c.cache.Set(string(key), data)
+		if setErr != nil {
+			cacheErrors.With("cache_operation", "set").Add(1)
+			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+		}
+	} else {
+		cacheHits.With("store_operation", "get").Add(1)
+	}
+
+	return data
+}
+
+func (c *readOnlyCachingStore) SaveVersion() ([]byte, int64, error) {
+	return nil, 0, errors.New("[ReadOnlyCachingStore] SaveVersion() not implemented")
+}
+
+func (c *readOnlyCachingStore) Prune() error {
+	return errors.New("[ReadOnlyCachingStore] Prune() not implemented")
+}
+
+// Implements Snapshot interface
+func (c *readOnlyCachingStore) Release() {
+	// noop
 }

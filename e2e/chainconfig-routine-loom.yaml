@@ -11,4 +11,3 @@ AppStore:
   EvmDBEnabled: true
 CachingStore:
   CachingEnabled: true
-  VersionedBigCache: true
