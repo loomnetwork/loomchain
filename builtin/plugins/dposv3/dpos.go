@@ -268,7 +268,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Index:        index,
 		Referrer:     req.Referrer,
 	}
-	if err := SetDelegation(ctx, delegation); err != nil {
+	if err := SetDelegation1(ctx, delegation); err != nil {
 		return err
 	}
 
@@ -377,12 +377,12 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			Index:        index,
 			Referrer:     req.Referrer,
 		}
-		if err := SetDelegation(ctx, delegation); err != nil {
+		if err := SetDelegation1(ctx, delegation); err != nil {
 			return err
 		}
 	}
 
-	if err := SetDelegation(ctx, priorDelegation); err != nil {
+	if err := SetDelegation1(ctx, priorDelegation); err != nil {
 		return err
 	}
 
@@ -460,7 +460,7 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 		State:        BONDED,
 		Index:        index,
 	}
-	if err := SetDelegation(ctx, delegation); err != nil {
+	if err := SetDelegation1(ctx, delegation); err != nil {
 		return -1, err
 	}
 
@@ -504,7 +504,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		} else {
 			delegation.UpdateAmount = req.Amount
 		}
-		SetDelegation(ctx, delegation)
+		SetDelegation1(ctx, delegation)
 	}
 
 	// If the delegator unbonded the rewards delegation, emit a claimedrewards event
@@ -755,7 +755,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			State:        BONDING,
 			Index:        DELEGATION_START_INDEX,
 		}
-		if err := SetDelegation(ctx, delegation); err != nil {
+		if err := SetDelegation1(ctx, delegation); err != nil {
 			return err
 		}
 	}
@@ -891,7 +891,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 				// amount will be returned to the unregistered validator
 				delegation.State = UNBONDING
 				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
-				if err := SetDelegation(ctx, delegation); err != nil {
+				if err := SetDelegation1(ctx, delegation); err != nil {
 					return err
 				}
 			}
@@ -2101,7 +2101,7 @@ func Initialize(ctx contract.Context, initState *InitializationState) error {
 
 	// set new Delegations
 	for _, delegation := range initState.Delegations {
-		if err := SetDelegation(ctx, delegation); err != nil {
+		if err := SetDelegation1(ctx, delegation); err != nil {
 			return err
 		}
 	}

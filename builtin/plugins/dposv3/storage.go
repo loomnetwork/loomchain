@@ -129,7 +129,7 @@ func DelegationsCount(ctx contract.StaticContext) int {
 	return len(delegations)
 }
 
-func SetDelegation(ctx contract.Context, delegation *Delegation) error {
+func SetDelegation1(ctx contract.Context, delegation *Delegation) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -289,9 +289,9 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
-func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
+func IncreaseRewardDelegation(ctx *electionContext, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
 	// check if rewards delegation already exists
-	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
+	delegation, err := GetDelegation2(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
 	if err == contract.ErrNotFound {
 		delegation = &Delegation{
 			Validator:    validator,
@@ -313,7 +313,7 @@ func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, de
 	updatedAmount.Add(&delegation.Amount.Value, &increase)
 	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
-	return SetDelegation(ctx, delegation)
+	return SetDelegation2(ctx, delegation)
 }
 
 type CandidateList []*Candidate
