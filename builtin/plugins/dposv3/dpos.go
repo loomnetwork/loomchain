@@ -118,6 +118,10 @@ type (
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
 	InitializationState               = dtypes.InitializationState
+	CheckDelegatorRewardsRequest      = dtypes.CheckDelegatorRewardsRequest
+	CheckDelegatorRewardsResponse     = dtypes.CheckDelegatorRewardsResponse
+	ClaimDelegatorRewardsRequest      = dtypes.ClaimDelegatorRewardsRequest
+	ClaimDelegatorRewardsResponse     = dtypes.ClaimDelegatorRewardsResponse
 
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
@@ -465,6 +469,73 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 	}
 
 	return unconsolidatedDelegations, nil
+}
+
+/// Returns the total amount which will be available to the user's balance
+/// if they claim all rewards that are owed to them
+func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.Context, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
+	delegator := ctx.Message().Sender
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	total := big.NewInt(0)
+	chainID := ctx.Block().ChainID
+	for _, v := range validators {
+		valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator.MarshalPB())
+		if err == contract.ErrNotFound {
+			// Skip reward delegations that were not found.
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		// Add to the sum
+		total.Add(total, delegation.Amount.Value.Int)
+	}
+
+	amount := loom.NewBigUInt(total)
+	return &CheckDelegatorRewardsResponse{
+		Amount: &types.BigUInt{Value: *amount},
+	}, nil
+}
+
+/// This unbonds the full amount of the rewards delegation from all validators
+/// and returns the total amount which will be available to the
+func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
+	delegator := ctx.Message().Sender
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	total := big.NewInt(0)
+	chainID := ctx.Block().ChainID
+	for _, v := range validators {
+		valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator.MarshalPB())
+		if err == contract.ErrNotFound {
+			// Skip reward delegations that were not found.
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		// Set to UNBONDING and UpdateAmount == Amount, to fully unbond it.
+		delegation.State = UNBONDING
+		delegation.UpdateAmount = delegation.Amount
+		SetDelegation(ctx, delegation)
+
+		// Add to the sum
+		total.Add(total, delegation.Amount.Value.Int)
+	}
+
+	amount := loom.NewBigUInt(total)
+	return &ClaimDelegatorRewardsResponse{
+		Amount: &types.BigUInt{Value: *amount},
+	}, nil
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
