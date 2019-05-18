@@ -159,7 +159,7 @@ func SetDelegation1(ctx contract.Context, delegation *Delegation) error {
 }
 
 func SetDelegation2(ctx *electionContext, delegation *Delegation) error {
-	delegations, err := loadDelegationList(ctx)
+	delegations, err := ctx.LoadDelegationList()
 	if err != nil {
 		return err
 	}
