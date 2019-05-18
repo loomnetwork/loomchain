@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -23,10 +24,11 @@ type cacheItem struct {
 //       within Elect().
 type electionContext struct {
 	contract.Context
-	pctx      plugin.Context
-	cache     map[string]cacheItem
-	cachehit  int
-	cachemiss int
+	pctx           plugin.Context
+	cache          map[string]cacheItem
+	cachehit       int
+	cachemiss      int
+	delegationList DelegationList
 }
 
 // Preloads DPOS data needed during an election and returns a wrapped contract context that provides
@@ -147,6 +149,32 @@ func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 	fmt.Printf("getmiss--%s\n", string(key))
 	ctx.cachemiss = ctx.cachemiss + 1
 	return ctx.Context.Get(key, pb)
+}
+
+func (ctx *electionContext) LoadDelegationList() (DelegationList, error) {
+	if ctx.delegationList != nil && len(ctx.delegationList) > 0 {
+		return ctx.delegationList, nil
+	}
+
+	t := time.Now()
+	var pbcl dtypes.DelegationList
+	err := ctx.Get(delegationsKey, &pbcl)
+	if err == contract.ErrNotFound {
+		return DelegationList{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	since := time.Now().Sub(t).Seconds()
+	fmt.Printf("loadDelegationList-took-%d\n", since)
+	delegationTimes = delegationTimes + since
+	return pbcl.Delegations, nil
+}
+
+func (ctx *electionContext) SaveDelegationList(dl DelegationList) error {
+	ctx.delegationList = dl
+	sorted := sortDelegations(dl)
+	return ctx.Set(delegationsKey, &dtypes.DelegationList{Delegations: sorted})
 }
 
 func (ctx *electionContext) GetDelegation(key []byte) (*Delegation, error) {

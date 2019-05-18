@@ -173,7 +173,7 @@ func SetDelegation2(ctx *electionContext, delegation *Delegation) error {
 	pastvalue, _ := GetDelegation2(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		delegations = append(delegations, delegationIndex)
-		if err := saveDelegationList(ctx, delegations); err != nil {
+		if err := ctx.SaveDelegationList(delegations); err != nil {
 			return err
 		}
 	}
@@ -186,7 +186,7 @@ func SetDelegation2(ctx *electionContext, delegation *Delegation) error {
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
 
-func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
+func DeleteDelegation1(ctx contract.Context, delegation *Delegation) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -205,6 +205,38 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 		}
 	}
 	if err := saveDelegationList(ctx, delegations); err != nil {
+		return err
+	}
+
+	delegationKey, err := computeDelegationsKey(delegation.Index, *delegation.Validator, *delegation.Delegator)
+	if err != nil {
+		return err
+	}
+
+	ctx.Delete(append(delegationsKey, delegationKey...))
+
+	return nil
+}
+
+func DeleteDelegation2(ctx *electionContext, delegation *Delegation) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	validator := loom.UnmarshalAddressPB(delegation.Validator)
+	delegator := loom.UnmarshalAddressPB(delegation.Delegator)
+
+	for i, d := range delegations {
+		otherValidator := loom.UnmarshalAddressPB(d.Validator)
+		otherDelegator := loom.UnmarshalAddressPB(d.Delegator)
+		if validator.Compare(otherValidator) == 0 && delegator.Compare(otherDelegator) == 0 && delegation.Index == d.Index {
+			copy(delegations[i:], delegations[i+1:])
+			delegations = delegations[:len(delegations)-1]
+			break
+		}
+	}
+	if err := ctx.SaveDelegationList(delegations); err != nil {
 		return err
 	}
 

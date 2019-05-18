@@ -439,7 +439,7 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 
 		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
 
-		if err = DeleteDelegation(ctx, delegation); err != nil {
+		if err = DeleteDelegation1(ctx, delegation); err != nil {
 			return -1, err
 		}
 	}
@@ -1285,7 +1285,7 @@ func rewardAndSlash(ctx *electionContext, state *State) ([]*DelegationResult, er
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 
-	delegations, err := loadDelegationList(ctx)
+	delegations, err := ctx.LoadDelegationList()
 	if err != nil {
 		return nil, err
 	}
@@ -1429,7 +1429,7 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 }
 
 func slashValidatorDelegations(ctx *electionContext, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
-	delegations, err := loadDelegationList(ctx)
+	delegations, err := ctx.LoadDelegationList()
 	if err != nil {
 		return err
 	}
@@ -1492,7 +1492,7 @@ func distributeDelegatorRewards(ctx *electionContext, formerValidatorTotals map[
 		}
 	}
 
-	delegations, err := loadDelegationList(ctx)
+	delegations, err := ctx.LoadDelegationList()
 	if err != nil {
 		return nil, err
 	}
@@ -1543,7 +1543,7 @@ func distributeDelegatorRewards(ctx *electionContext, formerValidatorTotals map[
 				return nil, logDposError(ctx, err, transferFromErr)
 			}
 		} else if delegation.State == REDELEGATING {
-			if err = DeleteDelegation(ctx, delegation); err != nil {
+			if err = DeleteDelegation2(ctx, delegation); err != nil {
 				return nil, err
 			}
 			delegation.Validator = delegation.UpdateValidator
@@ -1563,7 +1563,7 @@ func distributeDelegatorRewards(ctx *electionContext, formerValidatorTotals map[
 		// other cases, update the delegation state to BONDED and reset its
 		// UpdateAmount
 		if common.IsZero(delegation.Amount.Value) && delegation.State == UNBONDING {
-			if err := DeleteDelegation(ctx, delegation); err != nil {
+			if err := DeleteDelegation2(ctx, delegation); err != nil {
 				return nil, err
 			}
 		} else {
