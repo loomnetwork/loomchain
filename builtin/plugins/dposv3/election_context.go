@@ -179,19 +179,21 @@ func (ctx *electionContext) SaveDelegationList(dl DelegationList) error {
 }
 
 func (ctx *electionContext) GetDelegation(key []byte) (*Delegation, error) {
-	if item, exists := ctx.cache[string(key)]; exists {
-		if len(item.Value) == 0 {
-			return nil, contract.ErrNotFound
+	/*
+		if item, exists := ctx.cache[string(key)]; exists {
+			if len(item.Value) == 0 {
+				return nil, contract.ErrNotFound
+			}
+			ctx.cachehit = ctx.cachehit + 1
+			if item.delegation != nil {
+				return item.delegation, nil
+			}
+			var d Delegation
+			err := proto.Unmarshal(item.Value, &d)
+			return &d, err
 		}
-		ctx.cachehit = ctx.cachehit + 1
-		if item.delegation != nil {
-			return item.delegation, nil
-		}
-		var d Delegation
-		err := proto.Unmarshal(item.Value, &d)
-		return &d, err
-	}
-	fmt.Printf("getdelegationmiss--%s\n", string(key))
+		fmt.Printf("getdelegationmiss--%s\n", string(key))
+	*/
 	ctx.cachemiss = ctx.cachemiss + 1
 	var d Delegation
 	err := ctx.Context.Get(key, &d)
