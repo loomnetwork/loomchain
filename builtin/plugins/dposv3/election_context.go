@@ -152,7 +152,7 @@ func (ctx *electionContext) Get(key []byte, pb proto.Message) error {
 }
 
 func (ctx *electionContext) LoadDelegationList() (DelegationList, error) {
-	if ctx.delegationList != nil && len(ctx.delegationList) > 0 {
+	if len(ctx.delegationList) > 0 {
 		return ctx.delegationList, nil
 	}
 
@@ -166,14 +166,15 @@ func (ctx *electionContext) LoadDelegationList() (DelegationList, error) {
 		return nil, err
 	}
 	since := time.Now().Sub(t).Seconds()
-	fmt.Printf("loadDelegationList-took-%d\n", since)
 	delegationTimes = delegationTimes + since
+	ctx.delegationList = pbcl.Delegations
+	fmt.Printf("electionctx-loadDelegationList-took-%d len(%d)\n", since, len(ctx.delegationList))
 	return pbcl.Delegations, nil
 }
 
 func (ctx *electionContext) SaveDelegationList(dl DelegationList) error {
-	ctx.delegationList = dl
 	sorted := sortDelegations(dl)
+	ctx.delegationList = sorted
 	return ctx.Set(delegationsKey, &dtypes.DelegationList{Delegations: sorted})
 }
 
