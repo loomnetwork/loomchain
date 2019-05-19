@@ -473,7 +473,7 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 
 /// Returns the total amount which will be available to the user's balance
 /// if they claim all rewards that are owed to them
-func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.Context, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
+func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
 	delegator := ctx.Message().Sender
 	validators, err := ValidatorList(ctx)
 	if err != nil {
