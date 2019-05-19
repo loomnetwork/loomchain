@@ -36,14 +36,14 @@ func NewUserDeployCommand() *cobra.Command{
 }
 
 const addUserDeployerCmdExample = `
-loom userdeployer add 0x7262d4c97c7B93937E4810D289b7320e9dA82857 
+loom userdeployer add 0x7262d4c97c7B93937E4810D289b7320e9dA82857 default
 `
 
 func addUserDeployerCmd() *cobra.Command {
 	var flag cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "add <deployer address>",
-		Short:   "Add deployer corresponding to the user with evm permission to deployer list",
+		Use:     "add <deployer address> <tierId>",
+		Short:   "Add deployer corresponding to the user in tier Id <tierId> with evm permission to deployer list",
 		Example: addUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -51,8 +51,15 @@ func addUserDeployerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			var tierId udwtypes.TierID
+			if strings.EqualFold(args[1], "default") {
+				tierId = udwtypes.TierID_DEFAULT
+			} else {
+				return fmt.Errorf("Please specify tierId <default>")
+			}
 			req := &udwtypes.WhitelistUserDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
+				TierId: tierId,
 			}
 			return cli.CallContractWithFlags(&flag, dwContractName, "AddUserDeployer", req, nil)
 		},
@@ -99,7 +106,6 @@ func getUserDeployersCmd() *cobra.Command {
 			for _, deployer := range resp.Deployers {
 				deployerInfos = append(deployerInfos, getDeployerInfo(deployer))
 			}
-			// deployer := getDeployerInfo(resp.Deployer)
 			output, err := json.MarshalIndent(deployerInfos, "", "  ")
 			if err != nil {
 				return err
@@ -141,7 +147,6 @@ func getDeployedContractsCmd() *cobra.Command {
 			for _, addr := range resp.ContractAddresses {
 				contracts = append(contracts, addr.ChainId+":"+addr.Local.String())
 			}
-			// deployer := getDeployerInfo(resp.Deployer)
 			output, err := json.MarshalIndent(contracts, "", "  ")
 			if err != nil {
 				return err
