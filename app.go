@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"runtime/pprof"
 	"time"
 
 	"github.com/loomnetwork/go-loom/util"
@@ -337,8 +335,8 @@ func init() {
 	validatorFuncLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
-		Name:      "validator_election_latency_microseconds",
-		Help:      "Total duration of validator election in microseconds.",
+		Name:      "validator_election_latency",
+		Help:      "Total duration of validator election in seconds.",
 	}, []string{})
 }
 
@@ -445,14 +443,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 }
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
-	filename := fmt.Sprintf("cpu_endblock5- block -%d time-%d.txt", req.Height, time.Now().Unix())
-	f, err := os.Create(filename)
-	if err != nil {
-		panic(err)
-	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-
 	if req.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
