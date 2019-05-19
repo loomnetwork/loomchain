@@ -445,7 +445,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 }
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
-	f, err := os.Create("cpu_endblock5.txt")
+	filename := fmt.Sprintf("cpu_endblock5- block -%d time-%d.txt", req.Height, time.Now().Unix())
+	f, err := os.Create(filename)
 	if err != nil {
 		panic(err)
 	}
