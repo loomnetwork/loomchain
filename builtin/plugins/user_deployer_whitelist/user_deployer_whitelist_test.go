@@ -36,7 +36,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		Fee: &types.BigUInt{
 			Value: *fees,
 		},
-		Name: "DEFAULT",
+		Name: "Tier1",
 	}
 	tierList := []*udwtypes.Tier{}
 	tierList = append(tierList, tier)
