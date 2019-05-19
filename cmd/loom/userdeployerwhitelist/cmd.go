@@ -21,7 +21,7 @@ type deployerInfo struct {
 	Flags   string
 }
 
-func NewUserDeployCommand() *cobra.Command{
+func NewUserDeployCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "userdeployer <command>",
 		Short: "User Deployer Whitelist CLI",
@@ -52,14 +52,14 @@ func addUserDeployerCmd() *cobra.Command {
 				return err
 			}
 			var tierId udwtypes.TierID
-			if strings.EqualFold(args[1], "default") {
+			if strings.EqualFold(args[1], udwtypes.TierID_DEFAULT.String()) {
 				tierId = udwtypes.TierID_DEFAULT
 			} else {
 				return fmt.Errorf("Please specify tierId <default>")
 			}
 			req := &udwtypes.WhitelistUserDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
-				TierId: tierId,
+				TierId:       tierId,
 			}
 			return cli.CallContractWithFlags(&flag, dwContractName, "AddUserDeployer", req, nil)
 		},
