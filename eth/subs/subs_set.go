@@ -27,10 +27,9 @@ func NewEthSubscriptionSet() *EthSubscriptionSet {
 }
 
 func (s *EthSubscriptionSet) AddSubscription(
-	method string, 
-	filter eth.EthFilter, 
-	conn *websocket.Conn) (string, error) 
-{
+	method string,
+	filter eth.EthFilter,
+	conn *websocket.Conn) (string, error) {
 	var id string
 	switch method {
 	case Logs:

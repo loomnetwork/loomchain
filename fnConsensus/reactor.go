@@ -525,7 +525,11 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 }
 
-func (f *FnConsensusReactor) compareFnVoteSets(remoteVoteSet *FnVoteSet, currentVoteSet *FnVoteSet, currentNonce int64, currentValidators *types.ValidatorSet) int {
+func (f *FnConsensusReactor) compareFnVoteSets(
+	remoteVoteSet *FnVoteSet,
+	currentVoteSet *FnVoteSet,
+	currentNonce int64,
+	currentValidators *types.ValidatorSet) int {
 	if currentVoteSet == nil {
 		if currentNonce == remoteVoteSet.Nonce {
 			return 1
@@ -703,7 +707,11 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 	if currentNonce != remoteVoteSet.Nonce {
 		if currentNonce > remoteVoteSet.Nonce {
-			f.Logger.Info("FnConsensusReactor: Already seen this nonce, ignoring", "currentNonce", currentNonce, "remoteNonce", remoteVoteSet.Nonce)
+			f.Logger.Info(
+				"FnConsensusReactor: Already seen this nonce, ignoring",
+				"currentNonce", currentNonce,
+				"remoteNonce", remoteVoteSet.Nonce,
+			)
 			return
 		}
 	}
