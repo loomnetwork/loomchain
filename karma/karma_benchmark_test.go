@@ -28,10 +28,6 @@ const (
 	pcentDeactivateTicks = 1
 )
 
-var (
-	dummy int64
-)
-
 type benchmarkFunc func(state loomchain.State) error
 
 func BenchmarkUpkeep(b *testing.B) {
