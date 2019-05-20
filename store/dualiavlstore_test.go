@@ -51,7 +51,8 @@ var (
 		{
 			{"8", "eight"},
 			{"88", "eight eight"},
-		}, {
+		},
+		{
 			{"9", "nine"},
 			{"99", "nine nine"},
 		},
@@ -82,7 +83,6 @@ func TestDualIavlStore(t *testing.T) {
 		require.NoError(t, err)
 		for i := 1; i <= index; i++ {
 			updated := int64(i)/diskSaveFrequency < version/diskSaveFrequency || version%diskSaveFrequency == 0
-			//fmt.Println("updated", updated)
 			for _, test := range tests[i] {
 				require.Equal(t, updated, appDb.Has([]byte(test.key)))
 			}
