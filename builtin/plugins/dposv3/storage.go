@@ -107,7 +107,7 @@ func GetNextDelegationIndex(ctx contract.StaticContext, validator types.Address,
 }
 
 func DelegationsCount(ctx contract.StaticContext) int {
-	delegations, err := loadDelegationList(ctx)
+	delegations, err := DefaultNoCache.loadDelegationList(ctx)
 	if err != nil {
 		return 0
 	}
@@ -116,7 +116,11 @@ func DelegationsCount(ctx contract.StaticContext) int {
 }
 
 func SetDelegation(ctx contract.Context, delegation *Delegation) error {
-	delegations, err := loadDelegationList(ctx)
+	return DefaultNoCache.SetDelegation(ctx, delegation)
+}
+
+func (c *CachedDposStorage) SetDelegation(ctx contract.Context, delegation *Delegation) error {
+	delegations, err := c.loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
@@ -130,7 +134,7 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	pastvalue, _ := GetDelegation(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		delegations = append(delegations, delegationIndex)
-		if err := saveDelegationList(ctx, delegations); err != nil {
+		if err := c.SaveDelegationList(ctx, delegations); err != nil {
 			return err
 		}
 	}
@@ -144,7 +148,11 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 }
 
 func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
-	delegations, err := loadDelegationList(ctx)
+	return DefaultNoCache.DeleteDelegation(ctx, delegation)
+}
+
+func (c *CachedDposStorage) DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
+	delegations, err := c.loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
@@ -161,7 +169,7 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 			break
 		}
 	}
-	if err := saveDelegationList(ctx, delegations); err != nil {
+	if err := c.SaveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
 
@@ -175,12 +183,29 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 	return nil
 }
 
-func saveDelegationList(ctx contract.Context, dl DelegationList) error {
+func (c *CachedDposStorage) SaveDelegationList(ctx contract.Context, dl DelegationList) error {
 	sorted := sortDelegations(dl)
+	if c.EnableCaching {
+		c.delegations = sorted
+	}
 	return ctx.Set(delegationsKey, &dtypes.DelegationList{Delegations: sorted})
 }
 
+type CachedDposStorage struct {
+	EnableCaching bool
+	delegations   DelegationList
+}
+
+var DefaultNoCache *CachedDposStorage = &CachedDposStorage{EnableCaching: false}
+
 func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
+	return DefaultNoCache.loadDelegationList(ctx)
+}
+
+func (c *CachedDposStorage) loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
+	if c.EnableCaching && len(c.delegations) > 0 {
+		return c.delegations, nil
+	}
 	var pbcl dtypes.DelegationList
 	err := ctx.Get(delegationsKey, &pbcl)
 	if err == contract.ErrNotFound {
@@ -188,6 +213,9 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	if c.EnableCaching {
+		c.delegations = pbcl.Delegations
 	}
 	return pbcl.Delegations, nil
 }
@@ -247,7 +275,7 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
-func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
+func (c *CachedDposStorage) IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
 	// check if rewards delegation already exists
 	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
 	if err == contract.ErrNotFound {
@@ -271,7 +299,7 @@ func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, de
 	updatedAmount.Add(&delegation.Amount.Value, &increase)
 	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
-	return SetDelegation(ctx, delegation)
+	return c.SetDelegation(ctx, delegation)
 }
 
 type CandidateList []*Candidate
