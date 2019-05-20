@@ -508,6 +508,63 @@ func UnbondCmdV3() *cobra.Command {
 	return cmd
 }
 
+func ClaimDelegatorRewardsCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "claim-delegator-rewards",
+		Short: "claim pending delegation rewards",
+		Args:  cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv3.ClaimDelegatorRewardsResponse
+			err := cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "ClaimRewardsFromAllValidators", &dposv3.ClaimDelegatorRewardsRequest{}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+func CheckDelegatorRewardsCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "check-delegator-rewards <address>",
+		Short: "check rewards for the specified delegator",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			address, err := cli.ParseAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			var resp dposv3.CheckDelegatorRewardsResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "CheckRewardsFromAllValidators", &dposv3.CheckDelegatorRewardsRequest{Delegator: address.MarshalPB()}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 func CheckRewardsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
