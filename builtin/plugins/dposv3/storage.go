@@ -152,7 +152,7 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 }
 
 func (c *CachedDposStorage) DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
-	delegations, err := DefaultNoCache.loadDelegationList(ctx)
+	delegations, err := c.loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
@@ -181,10 +181,6 @@ func (c *CachedDposStorage) DeleteDelegation(ctx contract.Context, delegation *D
 	ctx.Delete(append(delegationsKey, delegationKey...))
 
 	return nil
-}
-
-func saveDelegationList1(ctx contract.Context, dl DelegationList) error {
-	return DefaultNoCache.SaveDelegationList(ctx, dl)
 }
 
 func (c *CachedDposStorage) SaveDelegationList(ctx contract.Context, dl DelegationList) error {
