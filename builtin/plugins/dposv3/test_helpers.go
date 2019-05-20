@@ -8,8 +8,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	// "github.com/loomnetwork/loomchain"
-	// "github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
 type testDPOSContract struct {
@@ -286,4 +284,24 @@ func (dpos *testDPOSContract) Unbond(ctx *plugin.FakeContext, validator *loom.Ad
 		},
 	)
 	return err
+}
+
+func (dpos *testDPOSContract) CheckDelegatorRewards(ctx *plugin.FakeContext, delegator *loom.Address) (*big.Int, error) {
+	claimResponse, err := dpos.Contract.CheckRewardsFromAllValidators(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&CheckDelegatorRewardsRequest{Delegator: delegator.MarshalPB()},
+	)
+	amt := claimResponse.Amount
+
+	return amt.Value.Int, err
+}
+
+func (dpos *testDPOSContract) ClaimDelegatorRewards(ctx *plugin.FakeContext) (*big.Int, error) {
+	claimResponse, err := dpos.Contract.ClaimRewardsFromAllValidators(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&ClaimDelegatorRewardsRequest{},
+	)
+	amt := claimResponse.Amount
+
+	return amt.Value.Int, err
 }
