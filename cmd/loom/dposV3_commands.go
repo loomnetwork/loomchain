@@ -988,6 +988,8 @@ func NewDPOSV3Command() *cobra.Command {
 		WhitelistCandidateCmdV3(),
 		RemoveWhitelistedCandidateCmdV3(),
 		ChangeWhitelistInfoCmdV3(),
+		CheckDelegatorRewardsCmdV3(),
+		ClaimDelegatorRewardsCmdV3(),
 		CheckDelegationCmdV3(),
 		CheckAllDelegationsCmdV3(),
 		CheckRewardsCmdV3(),
