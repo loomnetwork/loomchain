@@ -715,6 +715,12 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
+	} else if cfg.AppStore.Version == 4 {
+		logger.Info("Loading DualIAVL Store")
+		appStore, err = store.NewDualIavlStore(db, cfg.AppStore.MaxVersions, cfg.AppStore.SaveFrequency, targetVersion)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}

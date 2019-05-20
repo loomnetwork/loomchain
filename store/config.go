@@ -26,7 +26,8 @@ type AppStoreConfig struct {
 	SnapshotVersion MultiReaderIAVLStoreSnapshotVersion
 	// If true the app store will read EVM state from evm.db instead of app.db
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
-	EvmDBEnabled bool
+	EvmDBEnabled  bool
+	SaveFrequency int64
 }
 
 func DefaultConfig() *AppStoreConfig {
@@ -42,6 +43,7 @@ func DefaultConfig() *AppStoreConfig {
 		NodeCacheSize:        10000,
 		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
 		EvmDBEnabled:         false,
+		SaveFrequency:        10,
 	}
 }
 
