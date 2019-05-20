@@ -18,7 +18,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
@@ -46,6 +46,7 @@ import (
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
+	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -1385,6 +1386,7 @@ func main() {
 		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
+		userdeployer.NewUserDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	err := RootCmd.Execute()
