@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -68,19 +69,20 @@ func TestDualIavlStore(t *testing.T) {
 	store, err := NewDualIavlStore(diskDb, 10, diskSaveFrequency, 0)
 	require.NoError(t, err)
 
-	for _, testVersion := range tests {
+	for index, testVersion := range tests {
 		for _, test := range testVersion {
 			store.Set([]byte(test.key), []byte(test.value))
 		}
 		_, version, err := store.SaveVersion()
 		require.NoError(t, err)
 		for _, test := range testVersion {
-			require.True(t, diskDb.Has([]byte(test.key)))
+			require.True(t, store.Has([]byte(test.key)))
 		}
 
-		for v, tv := range tests {
-			updated := int64(v)/diskSaveFrequency < version/diskSaveFrequency || version%diskSaveFrequency == 0
-			for _, test := range tv {
+		for i := 0; i <= index; index++ {
+			updated := int64(i+1)/diskSaveFrequency < version/diskSaveFrequency || version%diskSaveFrequency == 0
+			fmt.Println("updated", updated)
+			for _, test := range tests[i] {
 				require.Equal(t, updated, appDb.Has([]byte(test.key)))
 			}
 		}
