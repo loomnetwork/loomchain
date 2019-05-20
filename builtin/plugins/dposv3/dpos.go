@@ -1489,7 +1489,9 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 		return nil, err
 	}
 
-	for _, d := range delegations {
+	var currentDelegations = make(DelegationList, len(delegations))
+	copy(currentDelegations, delegations)
+	for _, d := range currentDelegations {
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
