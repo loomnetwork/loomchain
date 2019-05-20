@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 const (
 	lcAppDir          = "/home/piers/go/src/github.com/loomnetwork/loomchain"
 	pdAppDir          = "/media/piers/3CA744637F048E2E/appDbtest"
-	diskSaveFrequency = 5
+	diskSaveFrequency = 3
 )
 
 var (
@@ -57,8 +56,8 @@ var (
 			{"99", "nine nine"},
 		},
 		{
-			{"10", "eleven"},
-			{"1010", "eleven eleven"},
+			{"10", "ten"},
+			{"1010", "ten ten"},
 		},
 	}
 )
@@ -79,9 +78,11 @@ func TestDualIavlStore(t *testing.T) {
 			require.True(t, store.Has([]byte(test.key)))
 		}
 
-		for i := 0; i <= index; index++ {
-			updated := int64(i+1)/diskSaveFrequency < version/diskSaveFrequency || version%diskSaveFrequency == 0
-			fmt.Println("updated", updated)
+		_, err = appDb.tree.Load()
+		require.NoError(t, err)
+		for i := 1; i <= index; i++ {
+			updated := int64(i)/diskSaveFrequency < version/diskSaveFrequency || version%diskSaveFrequency == 0
+			//fmt.Println("updated", updated)
 			for _, test := range tests[i] {
 				require.Equal(t, updated, appDb.Has([]byte(test.key)))
 			}

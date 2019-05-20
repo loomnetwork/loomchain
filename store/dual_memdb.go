@@ -7,7 +7,7 @@ import (
 type dualMemDb struct {
 	db.MemDB
 	diskDb    *db.DB
-	diskBatch db.Batch
+	diskBatch *difBatch
 }
 
 func newDualMemDb(diskDb *db.DB) *dualMemDb {
@@ -30,7 +30,7 @@ func (dmdb *dualMemDb) writeToDisk() {
 	dmdb.Mutex().Lock()
 	defer dmdb.Mutex().Unlock()
 	dmdb.diskBatch.WriteSync()
-	dmdb.diskBatch = NewDifBatch(dmdb.diskDb)
+	dmdb.diskBatch.Reset()
 }
 
 type dualBatch struct {
@@ -98,4 +98,8 @@ func (b *difBatch) fillBatch(batch db.Batch) {
 			batch.Set([]byte(key), value)
 		}
 	}
+}
+
+func (b *difBatch) Reset() {
+	b.differences = make(map[string][]byte)
 }
