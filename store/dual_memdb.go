@@ -2,16 +2,25 @@ package store
 
 import (
 	"github.com/tendermint/tendermint/libs/db"
+
+	"github.com/loomnetwork/loomchain/log"
 )
 
 type dualMemDb struct {
 	db.MemDB
-	diskDb    *db.DB
+	diskDb    db.DB
 	diskBatch *difBatch
 }
 
-func newDualMemDb(diskDb *db.DB) *dualMemDb {
+func newDualMemDb(diskDb db.DB) *dualMemDb {
 	memDb := db.NewMemDB()
+
+	log.Info("copy appdb into memory, this might take a while")
+	for iter := diskDb.Iterator(nil, nil); iter.Valid(); iter.Next() {
+		memDb.Set(iter.Key(), iter.Value())
+	}
+	log.Info("finished copying appdb into memroy")
+
 	return &dualMemDb{
 		MemDB:     *memDb,
 		diskDb:    diskDb,
@@ -56,10 +65,10 @@ func (b *dualBatch) WriteSync() {
 	b.batchActive.WriteSync()
 }
 
-func NewDifBatch(_db *db.DB) *difBatch {
+func NewDifBatch(_db db.DB) *difBatch {
 	return &difBatch{
 		differences: make(map[string][]byte),
-		writeDb:     *_db,
+		writeDb:     _db,
 	}
 }
 

@@ -1,9 +1,10 @@
 package store
 
 import (
-	"log"
 	"testing"
 	"time"
+
+	"github.com/loomnetwork/loomchain/log"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/db"
@@ -64,6 +65,9 @@ var (
 )
 
 func TestDualIavlStore(t *testing.T) {
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "dual-iavlstore")
+
 	diskDb := db.NewMemDB()
 	appDb, err := NewIAVLStore(diskDb, 0, 0)
 	store, err := NewDualIavlStore(diskDb, 10, diskSaveFrequency, 0)
@@ -96,8 +100,8 @@ func TestCopyIAVL(t *testing.T) {
 	//appDb, err := db.NewGoLevelDBWithOpts("app", pdAppDir, nil)
 	require.NoError(t, err)
 	require.NotNil(t, appDb)
-	log.Println("appdb---------------------")
-	log.Println("appdb stats", appDb.Stats())
+	log.Info("appdb---------------------")
+	log.Info("appdb stats", appDb.Stats())
 	//appDb.Print()
 	memDb := db.NewMemDB()
 	{
@@ -109,9 +113,9 @@ func TestCopyIAVL(t *testing.T) {
 
 		now := time.Now()
 		elapsed := now.Sub(startTime)
-		log.Printf("Finished reeading in database, time taken %v seconds", elapsed)
+		log.Info("Finished reeading in database, time taken %v seconds", elapsed)
 
-		log.Printf("memdb----------------------")
+		log.Info("memdb----------------------")
 		//memDb.Print()
 		memDb.Stats()
 	}
@@ -126,7 +130,7 @@ func TestCopyIAVL(t *testing.T) {
 		}
 		now := time.Now()
 		elapsed := now.Sub(startTime)
-		log.Printf("Finished reeading in database, time taken %v seconds", elapsed)
+		log.Info("Finished reeading in database, time taken %v seconds", elapsed)
 		appDbNew.Stats()
 	}
 }

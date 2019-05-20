@@ -14,7 +14,7 @@ type DualIavlStore struct {
 }
 
 func NewDualIavlStore(db dbtm.DB, memoryVersions, diskSaveFrequency, targetVersion int64) (*DualIavlStore, error) {
-	dualDb := newDualMemDb(&db)
+	dualDb := newDualMemDb(db)
 	tree := iavl.NewMutableTree(dualDb, 10000)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
