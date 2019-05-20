@@ -124,7 +124,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	}
 	for k := range tierInfo.Tiers {
 		if tierInfo.Tiers[k].Id == req.TierId {
-			whitelistingFees = tierInfo.Tiers[k].Fee
+			whitelistingFees = &types.BigUInt{Value: *loom.NewBigUIntFromInt(int64(tierInfo.Tiers[k].Fee))}
 		}
 
 	}
