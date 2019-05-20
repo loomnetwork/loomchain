@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	loomCmds = []string{"loom","blueprint-cli"}
+	loomCmds = []string{"loom", "blueprint-cli"}
 )
 
 type engineCmd struct {
