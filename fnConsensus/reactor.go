@@ -422,7 +422,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	// Have we achived Maj23 already?
+	// Have we achieved Maj23 already?
 	aggregateExecutionResponse := voteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 	if aggregateExecutionResponse != nil {
 		f.safeSubmitMultiSignedMessage(fn, nil,
@@ -490,12 +490,12 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				return
 			}
 
-			// Propogate your last Maj23, to remedy any issue
+			// Propagate your last Maj23, to remedy any issue
 			f.broadcastMsgSync(FnMajChannel, nil, marshalledBytesOfPreviousVoteSet)
 
 			time.Sleep(VoteSetPropogationDelay)
 
-			// Propogate your current voteSet, to get newly joined node to sign it
+			// Propagate your current voteSet, to get newly joined node to sign it
 			f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytesOfCurrentVoteSet)
 		}
 	} else {
