@@ -47,7 +47,6 @@ type Config struct {
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
 	DPOSVersion        int64
-	BootLegacyDPoS     bool
 
 	// Controls whether or not empty blocks should be generated periodically if there are no txs or
 	// AppHash changes. Defaults to true.
@@ -370,7 +369,6 @@ func DefaultConfig() *Config {
 		Oracle:         "",
 		DeployEnabled:  true,
 		CallEnabled:    true,
-		BootLegacyDPoS: false,
 		DPOSVersion:    1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
@@ -486,7 +484,6 @@ ReceiptsVersion: {{ .ReceiptsVersion }}
 EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
-BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
 #
 # Network

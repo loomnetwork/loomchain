@@ -63,13 +63,10 @@ all: loom builtin
 
 oracles: tgoracle pcoracle
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/coin/plugin
-
-contracts/dpos.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/dpos/plugin
 
 contracts/dpos.so.2.0.0:
 	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/dposv2/plugin
