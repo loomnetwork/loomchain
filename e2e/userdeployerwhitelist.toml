@@ -23,6 +23,16 @@
   Condition = "contains"
   Expected = ['Please specify tierId <default>']
 
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} userdeployer getdeployers -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} userdeployer getContracts default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
 #Checks whitelisting fees is debited from user after adding dpeloyer
  [[TestCases]]
    Dir = ""
