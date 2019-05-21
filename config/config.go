@@ -95,7 +95,8 @@ type Config struct {
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 	// Blockstore config
-	BlockStore *store.BlockStoreConfig
+	BlockStore      *store.BlockStoreConfig
+	BlockIndexStore *store.BlockIndexStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -138,8 +139,9 @@ type Config struct {
 }
 
 type Metrics struct {
-	EventHandling bool
-	Database      bool
+	BlockIndexStore bool
+	EventHandling   bool
+	Database        bool
 }
 
 type FnConsensusConfig struct {
@@ -206,8 +208,9 @@ func DefaultDBBackendConfig() *DBBackendConfig {
 
 func DefaultMetrics() *Metrics {
 	return &Metrics{
-		EventHandling: true,
-		Database:      true,
+		BlockIndexStore: false,
+		EventHandling:   true,
+		Database:        true,
 	}
 }
 
@@ -381,6 +384,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
+	cfg.BlockIndexStore = store.DefaultBlockIndexStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
@@ -538,6 +542,7 @@ BlockchainLogLevel: "{{ .BlockchainLogLevel }}"
 LogStateDB: {{ .LogStateDB }}
 LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
+  BlockIndexStore: {{ .Metrics.BlockIndexStore }} 
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
 #
@@ -706,6 +711,13 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
+BlockIndexStore:  
+  Enabled: {{ .BlockIndexStore.Enabled }}
+  # goleveldb | cleveldb | memdb
+  DBBackend: {{ .BlockIndexStore.DBBackend }}
+  DBName: {{ .BlockIndexStore.DBName }}
+  CacheSizeMegs: {{ .BlockIndexStore.CacheSizeMegs }}
+  WriteBufferMegs: {{ .BlockIndexStore.WriteBufferMegs }}
 #
 # Cashing store 
 #
