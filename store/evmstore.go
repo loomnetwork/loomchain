@@ -43,8 +43,8 @@ type EvmStore struct {
 func NewEvmStore(evmDB db.DBWrapper) *EvmStore {
 	evmStore := &EvmStore{
 		evmDB: evmDB,
+		cache: make(map[string]cacheItem),
 	}
-	evmStore.Rollback()
 	return evmStore
 }
 
@@ -178,13 +178,13 @@ func (s *EvmStore) Commit(version int64) []byte {
 		}
 	}
 	batch.Write()
-	s.Rollback()
+	s.cache = make(map[string]cacheItem)
 	s.lastSavedRoot = currentRoot
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
-	s.Rollback()
+	s.cache = make(map[string]cacheItem)
 	// find the last saved root
 	root, _ := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
@@ -199,10 +199,6 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	s.rootHash = root
 	s.lastSavedRoot = root
 	return nil
-}
-
-func (s *EvmStore) Rollback() {
-	s.cache = make(map[string]cacheItem)
 }
 
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
