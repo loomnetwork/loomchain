@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 )
 
 type testDPOSContract struct {
@@ -21,12 +22,16 @@ func deployDPOSContract(
 ) (*testDPOSContract, error) {
 	dposContract := &DPOS{}
 	contractAddr := ctx.CreateContract(contract.MakePluginContract(dposContract))
-	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
+	dposCtx := ctx.WithAddress(contractAddr)
+	contractCtx := contract.WrapPluginContext(dposCtx)
 
 	err := dposContract.Init(contractCtx, &InitRequest{
 		Params: params,
 		// may also want to set validators
 	})
+
+	// Enable the feature flag which enables the reward rounding fix
+	dposCtx.SetFeature(loomchain.DPOSVersion3_1, true)
 
 	return &testDPOSContract{
 		Contract: dposContract,

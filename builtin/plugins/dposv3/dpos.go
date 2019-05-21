@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 )
 
 const (
@@ -505,6 +506,10 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 /// This unbonds the full amount of the rewards delegation from all validators
 /// and returns the total amount which will be available to the
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) {
+		return nil, errors.New("DPOS v3.1 not activated.")
+	}
+
 	delegator := ctx.Message().Sender
 	validators, err := ValidatorList(ctx)
 	if err != nil {
@@ -1347,6 +1352,7 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, state *State) ([]*DelegationResult, error) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
+	distributedRewards := common.BigZero()
 
 	delegations, err := cachedDelegations.loadDelegationList(ctx)
 	if err != nil {
@@ -1385,7 +1391,6 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 				delegatorRewards[validatorKey] = delegatorsShare
 
 				// Distribute rewards to referrers
-
 				for _, d := range delegations {
 					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 {
 						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
@@ -1410,6 +1415,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
 
 						// referrer fees are delegater to limbo validator
+						distributedRewards.Add(distributedRewards, &referrerReward)
 						cachedDelegations.IncreaseRewardDelegation(ctx, LimboValidatorAddress(ctx).MarshalPB(), referrerAddress, referrerReward)
 
 						// any referrer bonus amount is subtracted from the validatorShare
@@ -1417,6 +1423,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 					}
 				}
 
+				distributedRewards.Add(distributedRewards, &validatorShare)
 				cachedDelegations.IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
 				// If a validator has some non-zero WhitelistAmount,
@@ -1425,6 +1432,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 					amount := calculateWeightedWhitelistAmount(*statistic)
 					whitelistDistribution := calculateShare(amount, statistic.DelegationTotal.Value, *delegatorsShare)
 					// increase a delegator's distribution
+					distributedRewards.Add(distributedRewards, &whitelistDistribution)
 					cachedDelegations.IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, whitelistDistribution)
 				}
 
@@ -1439,7 +1447,9 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 				// `IncreaseRewardDelegation` is called, but because we will not
 				// use `state.TotalRewardDistributions` as part of any invariants,
 				// we will live with this situation.
-				state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
+				if !ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) {
+					state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
+				}
 			} else {
 				slashValidatorDelegations(ctx, cachedDelegations, statistic, candidateAddress)
 			}
@@ -1448,9 +1458,13 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 		}
 	}
 
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, cachedDelegations, formerValidatorTotals, delegatorRewards)
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, cachedDelegations, formerValidatorTotals, delegatorRewards, distributedRewards)
 	if err != nil {
 		return nil, err
+	}
+
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) {
+		state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, distributedRewards)
 	}
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
@@ -1536,7 +1550,7 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 // the delegators, 2) finalize the bonding process for any delegations received
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedDposStorage, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedDposStorage, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, distributedRewards *loom.BigUInt) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
 	candidates, err := loadCandidateList(ctx)
@@ -1587,7 +1601,22 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
 				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
 				// increase a delegator's distribution
+				distributedRewards.Add(distributedRewards, &delegatorDistribution)
 				cachedDelegations.IncreaseRewardDelegation(ctx, delegation.Validator, delegation.Delegator, delegatorDistribution)
+
+				// If the reward delegation is updated by the
+				// IncreaseRewardDelegation command, we must be sure to use this
+				// updated version in the rest of the loop. No other delegations
+				// (non-rewards) have the possibility of being updated outside
+				// of this loop.
+				if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) && d.Index == REWARD_DELEGATION_INDEX {
+					delegation, err = GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+					if err == contract.ErrNotFound {
+						continue
+					} else if err != nil {
+						return nil, err
+					}
+				}
 			}
 		}
 
