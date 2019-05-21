@@ -167,15 +167,15 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	}
 
 	// nil root indicates that latest saved root below target version is not found
-	if root == nil && targetVersion != 0 {
+	if root == nil && targetVersion > 0 {
 		return errors.Errorf("failed to load EVM root for version %d", targetVersion)
 	}
 
 	// To ensure that evm root is corresponding with iavl tree height,
-	// copy current root of Patricia tree to vmvmroot in evm.db.
+	// store current root of Patricia tree (root hash) in EvmStore cache.
 	// LoomEthDb uses vmvmroot as a key to current root of Patricia tree
 	// TODO: This needs to be refactored to avoid writing to the DB on load.
-	s.evmDB.Set(util.PrefixKey(vmPrefix, rootKey), root)
+	s.Set(util.PrefixKey(vmPrefix, rootKey), root)
 	return nil
 }
 
@@ -205,23 +205,32 @@ func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }
 
-func NewEvmStoreSnapshot(snapshot db.Snapshot, vmvmroot []byte) *EvmStoreSnapshot {
+func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
 	return &EvmStoreSnapshot{
 		Snapshot: snapshot,
-		vmvmroot: vmvmroot,
+		rootHash: rootHash,
 	}
 }
 
 type EvmStoreSnapshot struct {
 	db.Snapshot
-	vmvmroot []byte
+	rootHash []byte
 }
 
 func (s *EvmStoreSnapshot) Get(key []byte) []byte {
 	if bytes.Equal(key, util.PrefixKey(vmPrefix, rootKey)) {
-		return s.vmvmroot
+		return s.rootHash
 	}
 	return s.Snapshot.Get(key)
+}
+
+func (s *EvmStoreSnapshot) Has(key []byte) bool {
+	// snapshot always has a root hash
+	// nil or empty root hash is considered valid root hash
+	if bytes.Equal(key, util.PrefixKey(vmPrefix, rootKey)) {
+		return true
+	}
+	return s.Snapshot.Has(key)
 }
 
 func remove(keys []string, key string) []string {
