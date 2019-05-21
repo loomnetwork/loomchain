@@ -1599,6 +1599,20 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 				// increase a delegator's distribution
 				distributedRewards.Add(distributedRewards, &delegatorDistribution)
 				cachedDelegations.IncreaseRewardDelegation(ctx, delegation.Validator, delegation.Delegator, delegatorDistribution)
+
+				// If the reward delegation is updated by the
+				// IncreaseRewardDelegation command, we must be sure to use this
+				// updated version in the rest of the loop. No other delegations
+				// (non-rewards) have the possibility of being updated outside
+				// of this loop.
+				if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) && d.Index == REWARD_DELEGATION_INDEX {
+					delegation, err = GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+					if err == contract.ErrNotFound {
+						continue
+					} else if err != nil {
+						return nil, err
+					}
+				}
 			}
 		}
 
@@ -1643,15 +1657,6 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 				return nil, err
 			}
 		} else {
-			if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) && d.Index == REWARD_DELEGATION_INDEX {
-				delegation, err = GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-				if err == contract.ErrNotFound {
-					continue
-				} else if err != nil {
-					return nil, err
-				}
-			}
-
 			// After a delegation update, zero out UpdateAmount
 			delegation.UpdateAmount = loom.BigZeroPB()
 			delegation.State = BONDED
