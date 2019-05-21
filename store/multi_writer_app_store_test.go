@@ -168,7 +168,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 
 	snapshot = store.GetSnapshot()
 	rangeData = snapshot.Range(vmPrefix)
-	require.Equal(3+2, len(rangeData))                       // +2 for evm root stored by EVM store
+	require.Equal(3+1, len(rangeData))                       // +1 for evm root stored by EVM store
 	require.Equal(0, len(snapshot.Get(vmPrefixKey("abcd")))) // has been deleted
 	require.Equal(0, len(snapshot.Get([]byte("ssssvvv"))))   // has been deleted
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
