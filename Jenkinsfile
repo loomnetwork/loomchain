@@ -160,5 +160,7 @@ builders['osx'] = {
 }
 
 throttle(['loom-sdk']) {
-  parallel builders
+  timeout(time: 60, unit: 'MINUTES'){
+    parallel builders
+  }
 }
