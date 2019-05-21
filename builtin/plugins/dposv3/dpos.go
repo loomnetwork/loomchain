@@ -506,6 +506,10 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 /// This unbonds the full amount of the rewards delegation from all validators
 /// and returns the total amount which will be available to the
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) {
+		return nil, errors.New("DPOS v3.1 not activated.")
+	}
+
 	delegator := ctx.Message().Sender
 	validators, err := ValidatorList(ctx)
 	if err != nil {
@@ -1657,6 +1661,15 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 				return nil, err
 			}
 		} else {
+			if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) && d.Index == REWARD_DELEGATION_INDEX {
+				delegation, err = GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+				if err == contract.ErrNotFound {
+					continue
+				} else if err != nil {
+					return nil, err
+				}
+			}
+
 			// After a delegation update, zero out UpdateAmount
 			delegation.UpdateAmount = loom.BigZeroPB()
 			delegation.State = BONDED

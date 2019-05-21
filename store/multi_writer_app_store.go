@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"fmt"
 	"sync/atomic"
 	"unsafe"
 
@@ -42,6 +43,12 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 		evmStoreEnabled: evmStoreEnabled,
 		appStore:        appStore,
 		evmStore:        evmStore,
+	}
+	appStoreEvmRoot := store.appStore.Get(rootKey)
+	evmStoreEvmRoot := store.evmStore.Get(rootHashKey)
+	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
+		return nil, fmt.Errorf("EVM roots mismatch, version:%d, evm.db:%X, app.db:%X",
+			appStore.Version(), evmStoreEvmRoot, appStoreEvmRoot)
 	}
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
@@ -139,8 +146,8 @@ func (s *MultiWriterAppStore) Prune() error {
 
 func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
 	// TODO: Need to ensure that the EvmStore and ImmutableTree are from the same height.
-	evmDbSnapshot := s.evmStore.GetSnapshot()
 	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
+	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
 	featureKey := util.PrefixKey(featureKey, evmDBFeature)
 	featureFlag := false
 	_, data := appStoreTree.Get(featureKey)
