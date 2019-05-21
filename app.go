@@ -275,6 +275,7 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
+	store.BlockIndexStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	OriginHandler
@@ -289,11 +290,12 @@ var _ abci.Application = &Application{}
 
 //Metrics
 var (
-	deliverTxLatency    metrics.Histogram
-	checkTxLatency      metrics.Histogram
-	commitBlockLatency  metrics.Histogram
-	requestCount        metrics.Counter
-	committedBlockCount metrics.Counter
+	deliverTxLatency     metrics.Histogram
+	checkTxLatency       metrics.Histogram
+	commitBlockLatency   metrics.Histogram
+	requestCount         metrics.Counter
+	committedBlockCount  metrics.Counter
+	validatorFuncLatency metrics.Histogram
 )
 
 func init() {
@@ -330,6 +332,13 @@ func init() {
 		Name:      "block_count",
 		Help:      "Number of committed blocks.",
 	}, fieldKeys)
+
+	validatorFuncLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "validator_election_latency",
+		Help:      "Total duration of validator election in seconds.",
+	}, []string{})
 }
 
 func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
@@ -473,11 +482,16 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		if err != nil {
 			panic(err)
 		}
+		t2 := time.Now()
 		validators, err := validatorManager.EndBlock(req)
+
+		diffsecs := time.Since(t2).Seconds()
+		validatorFuncLatency.Observe(diffsecs)
+
+		log.Info(fmt.Sprintf("validator manager took %f seconds-----\n", diffsecs))
 		if err != nil {
 			panic(err)
 		}
-
 		storeTx.Commit()
 
 		return abci.ResponseEndBlock{
@@ -598,6 +612,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
@@ -620,6 +635,10 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	if err := a.Store.Prune(); err != nil {
 		log.Error("failed to prune app.db", "err", err)
+	}
+
+	if a.BlockIndexStore != nil {
+		a.BlockIndexStore.SetBlockHashAtHeight(uint64(height), a.curBlockHash)
 	}
 
 	return abci.ResponseCommit{

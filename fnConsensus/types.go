@@ -328,7 +328,9 @@ func (f *FnExecutionResponse) Compare(remoteResponse *FnExecutionResponse) bool 
 	return true
 }
 
-func (f *FnExecutionResponse) AddSignature(individualResponse *FnIndividualExecutionResponse, validatorIndex int) error {
+func (f *FnExecutionResponse) AddSignature(
+	individualResponse *FnIndividualExecutionResponse,
+	validatorIndex int) error {
 	if f.SignatureBitArray.GetIndex(validatorIndex) {
 		return ErrFnResponseSignatureAlreadyPresent
 	}
@@ -340,7 +342,9 @@ func (f *FnExecutionResponse) AddSignature(individualResponse *FnIndividualExecu
 	return nil
 }
 
-func (f *FnExecutionResponse) ToMajResponse(signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet) *FnAggregateExecutionResponse {
+func (f *FnExecutionResponse) ToMajResponse(
+	signingThreshold SigningThreshold,
+	currentValidatorSet *types.ValidatorSet) *FnAggregateExecutionResponse {
 	hashMap := make(map[string]int64)
 	var highestVotedHash []byte
 	var highestVotingPowerObserved int64 = -1

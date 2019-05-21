@@ -10,6 +10,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/loomnetwork/loomchain/evm"
+
 	"github.com/loomnetwork/loomchain/auth"
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -88,11 +90,13 @@ type Config struct {
 	// Transfer gateway
 	TransferGateway         *gateway.TransferGatewayConfig
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
+	TronTransferGateway     *gateway.TransferGatewayConfig
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 	// Blockstore config
-	BlockStore *store.BlockStoreConfig
+	BlockStore      *store.BlockStoreConfig
+	BlockIndexStore *store.BlockIndexStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -128,13 +132,16 @@ type Config struct {
 
 	Auth *auth.Config
 
+	EvmStore *evm.EvmStoreConfig
+
 	// Dragons
 	EVMDebugEnabled bool
 }
 
 type Metrics struct {
-	EventHandling bool
-	Database      bool
+	BlockIndexStore bool
+	EventHandling   bool
+	Database        bool
 }
 
 type FnConsensusConfig struct {
@@ -150,7 +157,8 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 }
 
 type DBBackendConfig struct {
-	CacheSizeMegs int
+	CacheSizeMegs   int
+	WriteBufferMegs int
 }
 
 type KarmaConfig struct {
@@ -193,14 +201,16 @@ type DeployerWhitelistConfig struct {
 
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
-		CacheSizeMegs: 2042, //2 Gigabytes
+		CacheSizeMegs:   1042, //1 Gigabyte
+		WriteBufferMegs: 500,  //500 megabyte
 	}
 }
 
 func DefaultMetrics() *Metrics {
 	return &Metrics{
-		EventHandling: true,
-		Database:      true,
+		BlockIndexStore: false,
+		EventHandling:   true,
+		Database:        true,
 	}
 }
 
@@ -252,6 +262,7 @@ type Env struct {
 	GoLoom       string `json:"goloom"`
 	GoEthereum   string `json:"goethereum"`
 	GoPlugin     string `json:"goplugin"`
+	Btcd         string `json:"btcd"`
 	PluginPath   string `json:"pluginpath"`
 	Peers        string `json:"peers"`
 }
@@ -364,6 +375,7 @@ func DefaultConfig() *Config {
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
+	cfg.TronTransferGateway = gateway.DefaultTronConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
@@ -372,6 +384,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
+	cfg.BlockIndexStore = store.DefaultBlockIndexStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
@@ -380,6 +393,7 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -390,6 +404,7 @@ func DefaultConfig() *Config {
 func (c *Config) AddressMapperContractEnabled() bool {
 	return c.TransferGateway.ContractEnabled ||
 		c.LoomCoinTransferGateway.ContractEnabled ||
+		c.TronTransferGateway.ContractEnabled ||
 		c.PlasmaCash.ContractEnabled ||
 		c.Auth.AddressMapperContractRequired()
 }
@@ -527,6 +542,7 @@ BlockchainLogLevel: "{{ .BlockchainLogLevel }}"
 LogStateDB: {{ .LogStateDB }}
 LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
+  BlockIndexStore: {{ .Metrics.BlockIndexStore }} 
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
 #
@@ -567,14 +583,14 @@ TransferGateway:
   {{if .TransferGateway.BatchSignFnConfig -}}
   BatchSignFnConfig:
     Enabled: {{ .TransferGateway.BatchSignFnConfig.Enabled }}
-    LogLevel: "{{ .TransferGateway.BatchSignFnConfig.LogLevel }}"		
+    LogLevel: "{{ .TransferGateway.BatchSignFnConfig.LogLevel }}"
     LogDestination: "{{ .TransferGateway.BatchSignFnConfig.LogDestination }}"
     MainnetPrivateKeyPath: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
-    MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
-  {{end}}
-  #
-  # Loomcoin Transfer Gateway
-  #
+    MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
+  {{- end}}
+#
+# Loomcoin Transfer Gateway
+#
 LoomCoinTransferGateway:
   # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
   ContractEnabled: {{ .LoomCoinTransferGateway.ContractEnabled }}
@@ -610,12 +626,54 @@ LoomCoinTransferGateway:
   {{if .LoomCoinTransferGateway.BatchSignFnConfig -}}
   BatchSignFnConfig:
     Enabled: {{ .LoomCoinTransferGateway.BatchSignFnConfig.Enabled }}
-    LogLevel: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogLevel }}"		
+    LogLevel: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogLevel }}"
     LogDestination: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogDestination }}"
     MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
-    MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
-  {{end}}
-
+    MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
+  {{- end}}
+#
+# Tron Transfer Gateway
+#
+TronTransferGateway:
+  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+  ContractEnabled: {{ .TronTransferGateway.ContractEnabled }}
+  # Enables the in-process Transfer Gateway Oracle.
+  # If this is enabled ContractEnabled must be set to true.
+  OracleEnabled: {{ .TronTransferGateway.OracleEnabled }}
+  # URI of Tron node the Oracle should connect to, and retrieve Mainnet events from.
+  TronURI: "{{ .TronTransferGateway.TronURI }}"
+  # Address of Transfer Gateway contract on Mainnet
+  # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
+  MainnetContractHexAddress: "{{ .TronTransferGateway.MainnetContractHexAddress }}"
+  # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
+  # can be a relative, or absolute path
+  MainnetPrivateKeyPath: "{{ .TronTransferGateway.MainnetPrivateKeyPath }}"
+  # Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
+  # the DAppChain Transfer Gateway contract
+  DAppChainPrivateKeyPath: "{{ .TronTransferGateway.DAppChainPrivateKeyPath }}"
+  DAppChainReadURI: "{{ .TronTransferGateway.DAppChainReadURI }}"
+  DAppChainWriteURI: "{{ .TronTransferGateway.DAppChainWriteURI }}"
+  # Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
+  DAppChainEventsURI: "{{ .TronTransferGateway.DAppChainEventsURI }}"
+  DAppChainPollInterval: {{ .TronTransferGateway.DAppChainPollInterval }}
+  MainnetPollInterval: {{ .TronTransferGateway.MainnetPollInterval }}
+  # Oracle log verbosity (debug, info, error, etc.)
+  OracleLogLevel: "{{ .TronTransferGateway.OracleLogLevel }}"
+  OracleLogDestination: "{{ .TronTransferGateway.OracleLogDestination }}"
+  # Number of seconds to wait before starting the Oracle.
+  OracleStartupDelay: {{ .TronTransferGateway.OracleStartupDelay }}
+  # Number of seconds to wait between reconnection attempts.
+  OracleReconnectInterval: {{ .TronTransferGateway.OracleReconnectInterval }}
+  # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
+  OracleQueryAddress: "{{ .TronTransferGateway.OracleQueryAddress }}"
+  {{if .TronTransferGateway.BatchSignFnConfig -}}
+  BatchSignFnConfig:
+    Enabled: {{ .TronTransferGateway.BatchSignFnConfig.Enabled }}
+    LogLevel: "{{ .TronTransferGateway.BatchSignFnConfig.LogLevel }}"
+    LogDestination: "{{ .TronTransferGateway.BatchSignFnConfig.LogDestination }}"
+    MainnetPrivateKeyPath: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
+    MainnetPrivateKeyHsmEnabled: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
+  {{- end}}
 #
 # ChainConfig
 #
@@ -653,6 +711,13 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
+BlockIndexStore:  
+  Enabled: {{ .BlockIndexStore.Enabled }}
+  # goleveldb | cleveldb | memdb
+  DBBackend: {{ .BlockIndexStore.DBBackend }}
+  DBName: {{ .BlockIndexStore.DBName }}
+  CacheSizeMegs: {{ .BlockIndexStore.CacheSizeMegs }}
+  WriteBufferMegs: {{ .BlockIndexStore.WriteBufferMegs }}
 #
 # Cashing store 
 #
@@ -732,7 +797,7 @@ DPOSv2OracleConfig:
 # App store
 #
 AppStore:
-  # 1 - IAVL, 2 - MultiReaderIAVL, defaults to 1
+  # 1 - IAVL, 2 - MultiReaderIAVL, 3 - MultiWriterAppStore, defaults to 1
   # WARNING: Once a node is initialized with a specific version it can't be switched to another
   #          version without rebuilding the node.
   Version: {{ .AppStore.Version }}
@@ -756,6 +821,9 @@ AppStore:
   # Snapshot type to use, only supported by MultiReaderIAVL store
   # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
   SnapshotVersion: {{ .AppStore.SnapshotVersion }}
+  # If true the app store will read EVM state from evm.db instead of app.db
+  # This config works with AppStore Version 3 (MultiWriterAppStore) only
+  EvmDBEnabled: {{ .AppStore.EvmDBEnabled }}
 {{if .EventStore -}}
 #
 # EventStore
@@ -764,6 +832,21 @@ EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
+
+{{if .EvmStore -}}
+#
+# EvmStore
+#
+EvmStore:
+  # DBName defines evm database file name
+  DBName: {{.EvmStore.DBName}}
+  # DBBackend defines backend EVM store type
+  # available backend types are 'goleveldb', or 'cleveldb'
+  DBBackend: {{.EvmStore.DBBackend}}
+  # CacheSizeMegs defines cache size (in megabytes) of EVM store
+  CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
+{{end}}
+
 # 
 #  FnConsensus reactor on/off switch + config
 #

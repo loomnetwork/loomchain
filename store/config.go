@@ -1,7 +1,7 @@
 package store
 
 type AppStoreConfig struct {
-	// 1 - IAVL, 2 - MultiReaderIAVL, defaults to 1
+	// 1 - IAVL, 2 - MultiReaderIAVL, 3 - MultiWriterAppStore, defaults to 1
 	Version int64
 	// If true the app store will be compacted before it's loaded to reclaim disk space.
 	CompactOnLoad bool
@@ -24,6 +24,9 @@ type AppStoreConfig struct {
 	// Snapshot type to use, only supported by MultiReaderIAVL store
 	// (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
 	SnapshotVersion MultiReaderIAVLStoreSnapshotVersion
+	// If true the app store will read EVM state from evm.db instead of app.db
+	// This config works with AppStore Version 3 (MultiWriterAppStore) only
+	EvmDBEnabled bool
 }
 
 func DefaultConfig() *AppStoreConfig {
@@ -38,6 +41,7 @@ func DefaultConfig() *AppStoreConfig {
 		NodeDBVersion:        NodeDBV1,
 		NodeCacheSize:        10000,
 		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
+		EvmDBEnabled:         false,
 	}
 }
 

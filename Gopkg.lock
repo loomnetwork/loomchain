@@ -20,12 +20,15 @@
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [[projects]]
-  branch = "master"
-  digest = "1:093bf93a65962e8191e3e8cd8fc6c363f83d43caca9739c906531ba7210a9904"
-  name = "github.com/btcsuite/btcd"
-  packages = ["btcec"]
+  digest = "1:d17099fb1aae071174db067e43a02780bbe534a279e0506783acd33c4f4b131c"
+  name = "github.com/btcsuite/btcutil"
+  packages = [
+    ".",
+    "base58",
+    "bech32",
+  ]
   pruneopts = "UT"
-  revision = "7d2daa5bfef28c5e282571bc06416516936115ee"
+  revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
 [[projects]]
   branch = "master"
@@ -190,6 +193,14 @@
   pruneopts = "UT"
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:c26190a2fc1f9b2a760195476b64d1dc4b4ff44a1698b0ae37c29891eaf0209f"
+  name = "github.com/posener/wstest"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "04b166ca0bf1313d8abf8625b59c5979c7bc59a2"
+  version = "v1.1"
 
 [[projects]]
   digest = "1:c4556a44e350b50a490544d9b06e9fba9c286c21d6c0e47f54f3a9214597298c"
@@ -416,12 +427,15 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
+    "github.com/btcsuite/btcutil/base58",
     "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
+    "github.com/gorilla/websocket",
     "github.com/hashicorp/golang-lru",
     "github.com/loomnetwork/mamamerkle",
     "github.com/phonkee/go-pubsub",
     "github.com/pkg/errors",
+    "github.com/posener/wstest",
     "github.com/spf13/viper",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
@@ -431,6 +445,7 @@
     "github.com/syndtr/goleveldb/leveldb/filter",
     "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/util",
+    "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/go-amino",
     "github.com/tendermint/iavl",
     "github.com/tendermint/tendermint/abci/server",

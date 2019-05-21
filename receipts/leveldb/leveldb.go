@@ -68,10 +68,10 @@ func WriteReceipt(
 
 		pEvent := types.EventData(*event)
 		pEvent.BlockHash = block.CurrentHash
-		pEvent.TransactionIndex = uint64(block.NumTxs-1)
+		pEvent.TransactionIndex = uint64(block.NumTxs - 1)
 		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
 	}
-	txReceipt.TransactionIndex = block.NumTxs-1
+	txReceipt.TransactionIndex = block.NumTxs - 1
 	return txReceipt, nil
 }
 
