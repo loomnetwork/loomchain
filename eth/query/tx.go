@@ -49,7 +49,6 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 }
 
 func GetTxByBlockAndIndex(
-	state loomchain.State,
 	blockStore store.BlockStore,
 	height,
 	index uint64,

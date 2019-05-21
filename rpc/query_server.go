@@ -880,9 +880,8 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 	if err != nil {
 		return txObj, err
 	}
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-	return query.GetTxByBlockAndIndex(snapshot, s.BlockStore, uint64(height), txIndex)
+
+	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
@@ -901,7 +900,7 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	if err != nil {
 		return txObj, err
 	}
-	return query.GetTxByBlockAndIndex(snapshot, s.BlockStore, height, txIndex)
+	return query.GetTxByBlockAndIndex(s.BlockStore, height, txIndex)
 }
 
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
