@@ -1443,7 +1443,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 				// `IncreaseRewardDelegation` is called, but because we will not
 				// use `state.TotalRewardDistributions` as part of any invariants,
 				// we will live with this situation.
-				if !ctx.FeatureEnabled(loomchain.DPOSV3RewardsFeature, false) {
+				if !ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) {
 					state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
 				}
 			} else {
@@ -1459,7 +1459,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 		return nil, err
 	}
 
-	if ctx.FeatureEnabled(loomchain.DPOSV3RewardsFeature, false) {
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) {
 		state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, distributedRewards)
 	}
 
@@ -1643,7 +1643,7 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 				return nil, err
 			}
 		} else {
-			if ctx.FeatureEnabled(loomchain.DPOSV3RewardsFeature, false) && d.Index == REWARD_DELEGATION_INDEX {
+			if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) && d.Index == REWARD_DELEGATION_INDEX {
 				delegation, err = GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 				if err == contract.ErrNotFound {
 					continue
