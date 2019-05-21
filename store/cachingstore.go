@@ -32,7 +32,7 @@ var (
 	separator = "|"
 )
 
-// KeyVersionTable keeps cached versions of a key
+// KeyVersionTable keeps versions of a cached key
 type KeyVersionTable map[int64]bool
 
 // KeyTable keeps KeyVersionTable records of all cached keys
