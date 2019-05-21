@@ -1,0 +1,34 @@
+[[TestCases]]
+  Dir = ""
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
+  Condition = "contains"
+  Expected = ["100000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve user-deployer-whitelist 10000 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} userdeployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 default -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} userdeployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 default -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['deployer already exists']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} userdeployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 tierId -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['Please specify tierId <default>']
+
+#Checks whitelisting fees is debited from user after adding dpeloyer
+ [[TestCases]]
+   Dir = ""
+   RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
+   Condition = "contains"
+   Expected = ["99999990000000000000000000"]
+   Delay = 500
+
+
