@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/tendermint/tendermint/libs/db"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
@@ -244,6 +245,9 @@ func newInitCommand() *cobra.Command {
 					return err
 				}
 				destroyReceiptsDB(cfg)
+				if err := destroyBlockIndexDB(cfg); err != nil {
+					return err
+				}
 			}
 			validator, err := backend.Init()
 			if err != nil {
@@ -284,6 +288,9 @@ func newResetCommand() *cobra.Command {
 			}
 
 			destroyReceiptsDB(cfg)
+			if err := destroyBlockIndexDB(cfg); err != nil {
+				return err
+			}
 
 			return nil
 		},
@@ -648,6 +655,17 @@ func destroyReceiptsDB(cfg *config.Config) {
 		receptHandler := leveldb.LevelDbReceipts{}
 		receptHandler.ClearData()
 	}
+}
+
+func destroyBlockIndexDB(cfg *config.Config) error {
+	// todo support for cleveldb
+	if cfg.BlockIndexStore.Enabled && cfg.BlockIndexStore.DBBackend == string(db.GoLevelDBBackend) {
+		err := os.RemoveAll(filepath.Join(cfg.RootPath(), cfg.BlockIndexStore.DBName+".db"))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
@@ -1161,6 +1179,21 @@ func loadApp(
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
+	var blockIndexStore store.BlockIndexStore
+	if cfg.BlockIndexStore.Enabled {
+		blockIndexStore, err = store.NewBlockIndexStore(
+			cfg.BlockIndexStore.DBBackend,
+			cfg.BlockIndexStore.DBName,
+			cfg.RootPath(),
+			cfg.BlockIndexStore.CacheSizeMegs,
+			cfg.BlockIndexStore.WriteBufferMegs,
+			cfg.Metrics.BlockIndexStore,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
@@ -1169,6 +1202,7 @@ func loadApp(
 			router,
 			postCommitMiddlewares,
 		),
+		BlockIndexStore:             blockIndexStore,
 		EventHandler:                eventHandler,
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
@@ -1307,6 +1341,7 @@ func initQueryService(
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
+		BlockIndexStore:        app.BlockIndexStore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 	}
