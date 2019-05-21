@@ -25,19 +25,19 @@ type KeyTable map[string]KeyVersionTable
 
 func versionedKey(key string, version int64) string {
 	v := strconv.FormatInt(version, 10)
-	return string(key) + separator + v
+	return v + separator + string(key)
 }
 
 func unversionedKey(key string) (string, int64, error) {
-	k := strings.Split(key, separator)
+	k := strings.SplitN(key, separator, 2)
 	if len(k) != 2 {
 		return "", 0, fmt.Errorf("Invalid versioned key %s", string(key))
 	}
-	n, err := strconv.ParseInt(k[1], 10, 64)
+	n, err := strconv.ParseInt(k[0], 10, 64)
 	if err != nil {
 		return "", 0, err
 	}
-	return k[0], n, nil
+	return k[1], n, nil
 }
 
 // getKeyVersion returns the latest version number (limited by version argument) of a particular key
@@ -132,7 +132,12 @@ func NewVersionedCachingStore(source VersionedKVStore, config *CachingStoreConfi
 		}
 		kvTable, exist := keyTable[key]
 		if exist {
-			delete(kvTable, version)
+			// remove all previous versions of the key
+			for k, exist := range kvTable {
+				if exist && k <= version {
+					delete(kvTable, version)
+				}
+			}
 			if len(kvTable) == 0 {
 				delete(keyTable, key)
 			}
