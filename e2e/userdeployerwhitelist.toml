@@ -9,27 +9,27 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} userdeployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 default -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} userdeployer add {{index $.AccountAddressList 1}} default -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} userdeployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 default -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} userdeployer add {{index $.AccountAddressList 1}} default -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['deployer already exists']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} userdeployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 tierId -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} userdeployer add {{index $.AccountAddressList 1}} tierId -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['Please specify tierId <default>']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} userdeployer getdeployers -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} userdeployer getdeployers {{index $.AccountAddressList 0}}"
   Condition = "contains"
-  Expected = ['']
+  Expected = ['default:{{index $.AccountAddressList 1}}','"Flags": "EVM"']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} userdeployer getContracts default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} userdeployer getContracts {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
@@ -40,5 +40,4 @@
    Condition = "contains"
    Expected = ["99999999999999999999999990"]
    Delay = 500
-
 
