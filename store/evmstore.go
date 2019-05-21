@@ -13,6 +13,7 @@ import (
 
 var (
 	defaultRoot = []byte{1}
+	rootHashKey = util.PrefixKey(vmPrefix, rootKey)
 )
 
 func evmRootKey(blockHeight int64) []byte {
@@ -32,8 +33,9 @@ func getVersionFromEvmRootKey(key []byte) (int64, error) {
 
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
-	evmDB db.DBWrapper
-	cache map[string]cacheItem
+	evmDB    db.DBWrapper
+	cache    map[string]cacheItem
+	rootHash []byte
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
@@ -112,6 +114,10 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 }
 
 func (s *EvmStore) Has(key []byte) bool {
+	// EvmStore always has Patricia root
+	if bytes.Equal(key, rootHashKey) {
+		return true
+	}
 	if item, ok := s.cache[string(key)]; ok {
 		return !item.Deleted
 	}
@@ -119,6 +125,10 @@ func (s *EvmStore) Has(key []byte) bool {
 }
 
 func (s *EvmStore) Get(key []byte) []byte {
+	if bytes.Equal(key, rootHashKey) {
+		return s.rootHash
+	}
+
 	if item, ok := s.cache[string(key)]; ok {
 		return item.Value
 	}
@@ -126,15 +136,23 @@ func (s *EvmStore) Get(key []byte) []byte {
 }
 
 func (s *EvmStore) Delete(key []byte) {
-	s.setCache(key, nil, true)
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = nil
+	} else {
+		s.setCache(key, nil, true)
+	}
 }
 
 func (s *EvmStore) Set(key, val []byte) {
-	s.setCache(key, val, false)
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = val
+	} else {
+		s.setCache(key, val, false)
+	}
 }
 
 func (s *EvmStore) Commit(version int64) []byte {
-	currentRoot := s.Get(util.PrefixKey(vmPrefix, rootKey))
+	currentRoot := append([]byte(""), s.rootHash...)
 	latestSavedRoot, _ := s.getLatestSavedRoot(0)
 	// default root is an indicator for empty root
 	if bytes.Equal(currentRoot, []byte("")) {
@@ -171,11 +189,7 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 		return errors.Errorf("failed to load EVM root for version %d", targetVersion)
 	}
 
-	// To ensure that evm root is corresponding with iavl tree height,
-	// store current root of Patricia tree (root hash) in EvmStore cache.
-	// LoomEthDb uses vmvmroot as a key to current root of Patricia tree
-	// TODO: This needs to be refactored to avoid writing to the DB on load.
-	s.Set(util.PrefixKey(vmPrefix, rootKey), root)
+	s.rootHash = root
 	return nil
 }
 
@@ -218,7 +232,7 @@ type EvmStoreSnapshot struct {
 }
 
 func (s *EvmStoreSnapshot) Get(key []byte) []byte {
-	if bytes.Equal(key, util.PrefixKey(vmPrefix, rootKey)) {
+	if bytes.Equal(key, rootHashKey) {
 		return s.rootHash
 	}
 	return s.Snapshot.Get(key)
@@ -227,7 +241,7 @@ func (s *EvmStoreSnapshot) Get(key []byte) []byte {
 func (s *EvmStoreSnapshot) Has(key []byte) bool {
 	// snapshot always has a root hash
 	// nil or empty root hash is considered valid root hash
-	if bytes.Equal(key, util.PrefixKey(vmPrefix, rootKey)) {
+	if bytes.Equal(key, rootHashKey) {
 		return true
 	}
 	return s.Snapshot.Has(key)
