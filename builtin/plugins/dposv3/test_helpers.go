@@ -31,7 +31,7 @@ func deployDPOSContract(
 	})
 
 	// Enable the feature flag which enables the reward rounding fix
-	dposCtx.SetFeature(loomchain.DPOSV3RewardsFeature, true)
+	dposCtx.SetFeature(loomchain.DPOSVersion3_1, true)
 
 	return &testDPOSContract{
 		Contract: dposContract,

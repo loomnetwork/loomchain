@@ -1466,7 +1466,7 @@ func TestRewardRoundingFix(t *testing.T) {
 
 	// Enable the feature flag which enables the reward rounding fix
 	dposCtx := pctx.WithAddress(dpos.Address)
-	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSV3RewardsFeature, false))
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion3_1, false))
 
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 
