@@ -12,6 +12,7 @@ def builders = [:]
 def disabled = [:]
 
 builders['linux'] = {
+  timeout(time: 60, unit: 'MINUTES')
   node('linux-any') {
     timestamps {
       def thisBuild = null
@@ -88,6 +89,7 @@ builders['linux'] = {
 }
 
 builders['osx'] = {
+  timeout(time: 60, unit: 'MINUTES')
   node('osx-any') {
     timestamps {
       def thisBuild = null
