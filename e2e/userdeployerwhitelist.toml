@@ -38,7 +38,7 @@
    Dir = ""
    RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
    Condition = "contains"
-   Expected = ["99999990000000000000000000"]
+   Expected = ["99999999999999999999999990"]
    Delay = 500
 
 
