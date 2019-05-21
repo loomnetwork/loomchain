@@ -183,7 +183,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 func (uw *UserDeployerWhitelist) GetUserDeployers(ctx contract.StaticContext,
 	req *GetUserDeployersRequest) (*GetUserDeployersResponse, error) {
 	var userState UserState
-	err := ctx.Get(UserStateKey(ctx.Message().Sender), &userState)
+	err := ctx.Get(UserStateKey(loom.UnmarshalAddressPB(req.UserAddr)), &userState)
 	if err != nil {
 		return nil, err
 	}

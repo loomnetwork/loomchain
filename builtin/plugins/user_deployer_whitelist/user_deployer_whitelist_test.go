@@ -1,9 +1,10 @@
 package user_deployer_whitelist
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/loomnetwork/go-loom"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
@@ -33,8 +34,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	fee := uint64(100)
 
 	tier := &udwtypes.Tier{
-		Id: udwtypes.TierID_DEFAULT,
-		Fee: fee,
+		Id:   udwtypes.TierID_DEFAULT,
+		Fee:  fee,
 		Name: "Tier1",
 	}
 	tierList := []*udwtypes.Tier{}
@@ -121,12 +122,12 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	resp2, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
 		&coin.BalanceOfRequest{
-    	Owner: addr3.MarshalPB(),
-	})
+			Owner: addr3.MarshalPB(),
+		})
 
 	require.Nil(t, err)
 	//Whitelisted fees is debited and final balance of user's loom coin is initial balance - whitelisting fees
-	assert.Equal(t, fee, resp1.Balance.Value.Uint64() - resp2.Balance.Value.Uint64())
+	assert.Equal(t, fee, resp1.Balance.Value.Uint64()-resp2.Balance.Value.Uint64())
 
 	//Error Cases
 	//Trying to Add Duplicate Deployer
@@ -148,7 +149,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
 
 	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
-		deployerCtx.WithSender(addr3)), &GetUserDeployersRequest{})
+		deployerCtx), &GetUserDeployersRequest{UserAddr:addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
 
