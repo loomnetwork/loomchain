@@ -33,9 +33,10 @@ func getVersionFromEvmRootKey(key []byte) (int64, error) {
 
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
-	evmDB    db.DBWrapper
-	cache    map[string]cacheItem
-	rootHash []byte
+	evmDB         db.DBWrapper
+	cache         map[string]cacheItem
+	rootHash      []byte
+	lastSavedRoot []byte
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
@@ -88,6 +89,11 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 			}
 			rangeCache[key] = c.Value
 		}
+	}
+
+	// Make Range return root hash (vmvmroot) from EvmStore.rootHash
+	if _, exist := rangeCache[string(rootHashKey)]; exist {
+		rangeCache[string(rootHashKey)] = s.rootHash
 	}
 
 	ret := make(plugin.RangeData, 0)
@@ -152,14 +158,14 @@ func (s *EvmStore) Set(key, val []byte) {
 }
 
 func (s *EvmStore) Commit(version int64) []byte {
-	currentRoot := append([]byte(""), s.rootHash...)
-	latestSavedRoot, _ := s.getLatestSavedRoot(0)
+	currentRoot := make([]byte, len(s.rootHash))
+	copy(currentRoot, s.rootHash)
 	// default root is an indicator for empty root
-	if bytes.Equal(currentRoot, []byte("")) {
+	if bytes.Equal(currentRoot, []byte{}) {
 		currentRoot = defaultRoot
 	}
 	// save Patricia root of EVM state only if it changes
-	if !bytes.Equal(currentRoot, latestSavedRoot) {
+	if !bytes.Equal(currentRoot, s.lastSavedRoot) {
 		s.Set(evmRootKey(version), currentRoot)
 	}
 
@@ -173,15 +179,16 @@ func (s *EvmStore) Commit(version int64) []byte {
 	}
 	batch.Write()
 	s.Rollback()
+	s.lastSavedRoot = currentRoot
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	s.Rollback()
-	// find the lastest saved root
-	root, _ := s.getLatestSavedRoot(targetVersion)
+	// find the last saved root
+	root, _ := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
-		root = []byte("")
+		root = []byte{}
 	}
 
 	// nil root indicates that latest saved root below target version is not found
@@ -190,6 +197,7 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	}
 
 	s.rootHash = root
+	s.lastSavedRoot = root
 	return nil
 }
 
@@ -197,7 +205,7 @@ func (s *EvmStore) Rollback() {
 	s.cache = make(map[string]cacheItem)
 }
 
-func (s *EvmStore) getLatestSavedRoot(targetVersion int64) ([]byte, int64) {
+func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
@@ -215,7 +223,7 @@ func (s *EvmStore) getLatestSavedRoot(targetVersion int64) ([]byte, int64) {
 }
 
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
-	targetRoot, _ := s.getLatestSavedRoot(version)
+	targetRoot, _ := s.getLastSavedRoot(version)
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }
 
