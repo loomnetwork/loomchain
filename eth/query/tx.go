@@ -9,9 +9,6 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/receipts/common"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -48,7 +45,7 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	if err != nil {
 		return eth.JsonTxObject{}, err
 	}
-	return GetTxObjectFromBlockResult(blockResult, int64(txResults.Index))
+	return GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
 }
 
 func GetTxByBlockAndIndex(
@@ -68,37 +65,16 @@ func GetTxByBlockAndIndex(
 		return txObj, errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
 	}
 
-	txObj, err = GetTxObjectFromBlockResult(blockResult, int64(index))
-	if err != nil {
-		return txObj, err
-	}
-	txObj.TransactionIndex = eth.EncInt(int64(index))
-
 	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
 	if txResult == nil {
 		return txObj, errors.Wrapf(err, "cant find tx result, hash %X", blockResult.Block.Data.Txs[index].Hash())
 	}
-	if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info == utils.DeployEvm {
-		txHashList, err := common.GetTxHashList(state, uint64(height))
-		if err != nil {
-			return txObj, errors.Wrapf(err, "tx-hahs list at height %v", height)
-		}
-		evmIndex := -1
-		for i := uint64(0); i <= index; i++ {
-			tx := blockResult.Block.Data.Txs[i]
-			txResult, err := blockStore.GetTxResult(tx.Hash())
-			if err != nil {
-				return txObj, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
-			}
-			if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info == utils.DeployEvm {
-				evmIndex++
-			}
-		}
-		if evmIndex < 0 || evmIndex >= len(txHashList) {
-			return txObj, errors.Errorf("cannot find EVM tx with index %v", index)
-		}
-		txObj.Hash = eth.EncBytes(txHashList[evmIndex])
+
+	txObj, err = GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+	if err != nil {
+		return txObj, err
 	}
+	txObj.TransactionIndex = eth.EncInt(int64(index))
 
 	return txObj, nil
 }

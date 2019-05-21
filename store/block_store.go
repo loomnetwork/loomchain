@@ -285,6 +285,7 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 		return nil, err
 	}
 	respDeliverTx := abci.ResponseDeliverTx{
+		Data: txResult.TxResult.Data,
 		Info: txResult.TxResult.Info,
 	}
 	results := &ctypes.ResultTx{

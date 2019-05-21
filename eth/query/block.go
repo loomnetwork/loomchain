@@ -14,7 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -76,29 +75,16 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
 
-	evmIndex := 0
-	txHashList, err := common.GetTxHashList(state, uint64(height))
-	if err != nil {
-		return resp, errors.Wrapf(err, "tx-hahs list at height %v", height)
-	}
-
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txObj, err := GetTxObjectFromBlockResult(blockResult, int64(index))
-			if err != nil {
-				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
-			}
-
 			txResult, err := blockStore.GetTxResult(tx.Hash())
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
 			}
-			if txResult.TxResult.Info == utils.CallEVM || txResult.TxResult.Info == utils.DeployEvm {
-				if evmIndex >= len(txHashList) {
-					return resp, fmt.Errorf("evm txs exceed tx-hash count %v ", len(txHashList))
-				}
-				txObj.Hash = eth.EncBytes(txHashList[evmIndex])
-				evmIndex++
+
+			txObj, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+			if err != nil {
+				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
@@ -113,7 +99,7 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
-func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (eth.JsonTxObject, error) {
+func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64) (eth.JsonTxObject, error) {
 	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
@@ -136,6 +122,7 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 	}
 
 	var input []byte
+	txHash := tx.Hash()
 	switch txTx.Id {
 	case deployId:
 		{
@@ -144,6 +131,18 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 				return eth.JsonTxObject{}, err
 			}
 			input = deployTx.Code
+			if deployTx.VmType == vm.VMType_EVM {
+				var resp vm.DeployResponse
+				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
+					return eth.JsonTxObject{}, err
+				}
+
+				var respData vm.DeployResponseData
+				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
+					return eth.JsonTxObject{}, err
+				}
+				txHash = respData.TxHash
+			}
 		}
 	case callId:
 		{
@@ -152,6 +151,9 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 				return eth.JsonTxObject{}, err
 			}
 			input = callTx.Input
+			if callTx.VmType == vm.VMType_EVM {
+				txHash = txResult.TxResult.Data
+			}
 		}
 	case migrationTx:
 		input = msg.Data
@@ -159,9 +161,9 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 		return eth.JsonTxObject{}, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 
-	return eth.JsonTxObject{
+	txObj := eth.JsonTxObject{
 		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
-		Hash:             eth.EncBytes(tx.Hash()),
+		Hash:             eth.EncBytes(txHash),
 		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
 		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
 		TransactionIndex: eth.EncInt(int64(index)),
@@ -171,7 +173,9 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 		GasPrice:         eth.EncInt(0),
 		Gas:              eth.EncInt(0),
 		Input:            eth.EncBytes(input),
-	}, nil
+	}
+
+	return txObj, nil
 }
 
 func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
