@@ -1661,15 +1661,6 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 				return nil, err
 			}
 		} else {
-			if ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) && d.Index == REWARD_DELEGATION_INDEX {
-				delegation, err = GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-				if err == contract.ErrNotFound {
-					continue
-				} else if err != nil {
-					return nil, err
-				}
-			}
-
 			// After a delegation update, zero out UpdateAmount
 			delegation.UpdateAmount = loom.BigZeroPB()
 			delegation.State = BONDED
