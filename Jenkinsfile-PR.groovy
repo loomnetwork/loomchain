@@ -12,7 +12,6 @@ def builders = [:]
 def disabled = [:]
 
 builders['linux'] = {
-  timeout(time: 60, unit: 'MINUTES')
   node('linux-any') {
     timestamps {
       def thisBuild = null
@@ -73,7 +72,6 @@ builders['linux'] = {
 }
 
 disabled['windows'] = {
-  timeout(time: 60, unit: 'MINUTES')
   node('windows-any') {
       timestamps {
       def thisBuild = null
@@ -128,7 +126,6 @@ disabled['windows'] = {
 }
 
 builders['osx'] = {
-  timeout(time: 60, unit: 'MINUTES')
   node('osx-any') {
     timestamps {
       def thisBuild = null
@@ -189,5 +186,7 @@ builders['osx'] = {
 }
 
 throttle(['loom-sdk']) {
-  parallel builders
+  timeout(time: 60, unit: 'MINUTES'){
+    parallel builders
+  }
 }
