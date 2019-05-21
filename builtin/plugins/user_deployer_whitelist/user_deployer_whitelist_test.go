@@ -147,15 +147,6 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
 
-	err = coinContract.TransferFrom(contractpb.WrapPluginContext(coinCtx), &coin.TransferFromRequest{
-		From: userWhitelistDeployerAddr.MarshalPB(),
-		To:   addr3.MarshalPB(),
-		Amount: &types.BigUInt{
-			Value: *loom.NewBigUIntFromInt(int64(100)),
-		},
-	})
-	assert.NotNil(t, err)
-
 	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetUserDeployersRequest{})
 	require.NoError(t, err)
