@@ -57,7 +57,7 @@ WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH
 
 E2E_TESTS_TIMEOUT = 28m
 
-.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
@@ -84,6 +84,9 @@ tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 loomcoin_tgoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+
+tron_tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 pcoracle:
