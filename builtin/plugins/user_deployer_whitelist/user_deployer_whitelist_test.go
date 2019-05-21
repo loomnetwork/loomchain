@@ -1,6 +1,7 @@
 package user_deployer_whitelist
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,12 +30,11 @@ var (
 )
 
 func TestUserDeployerWhitelistContract(t *testing.T) {
-	fees := sciNot(100, 18)
+	fee := uint64(100)
+
 	tier := &udwtypes.Tier{
 		Id: udwtypes.TierID_DEFAULT,
-		Fee: &types.BigUInt{
-			Value: *fees,
-		},
+		Fee: fee,
 		Name: "Tier1",
 	}
 	tierList := []*udwtypes.Tier{}
@@ -97,6 +96,12 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
+	//Get initial balance of user
+	resp1, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
+		&coin.BalanceOfRequest{
+			Owner: addr3.MarshalPB(),
+		})
+
 	approvalAmount := sciNot(1000, 18)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr3)), &coin.ApproveRequest{
@@ -114,14 +119,14 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
-	resp1, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.BalanceOfRequest{
-		Owner: addr1.MarshalPB(),
+	resp2, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
+		&coin.BalanceOfRequest{
+    	Owner: addr3.MarshalPB(),
 	})
 
-	//Whitelisted fees is debited and balance of user's loom coin equals 0 as user has balance equal to
-	// whitelisted fees
-	assert.Equal(t, 0, int(resp1.Balance.Value.Int64()))
 	require.Nil(t, err)
+	//Whitelisted fees is debited and final balance of user's loom coin is initial balance - whitelisting fees
+	assert.Equal(t, fee, resp1.Balance.Value.Uint64() - resp2.Balance.Value.Uint64())
 
 	//Error Cases
 	//Trying to Add Duplicate Deployer
@@ -141,15 +146,6 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		})
 
 	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
-
-	//Trying To Add Deployer, if User Balance is less than  whitelisting fees
-	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
-		&WhitelistUserDeployerRequest{
-			DeployerAddr: addr5.MarshalPB(),
-			TierId:       0,
-		})
-
-	require.EqualError(t, ErrInsufficientBalance, err.Error(), "User Does not Have Sufficient Balance to Add Deployer")
 
 	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetUserDeployersRequest{})
