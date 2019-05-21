@@ -32,8 +32,10 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	if msg.From == nil {
-		return r, fmt.Errorf("msg.From was nil")
+	if state.FeatureEnabled(loomchain.TxChecks1_1, false) {
+		if msg.From == nil {
+			return r, fmt.Errorf("invalid tx: MessageTx.From not specified")
+		}
 	}
 
 	origin := auth.Origin(state.Context())
@@ -113,13 +115,17 @@ func (h *CallTxHandler) ProcessTx(
 
 	origin := auth.Origin(state.Context())
 
-	if msg.From == nil {
-		return r, fmt.Errorf("msg.From was nil")
+	if state.FeatureEnabled(loomchain.TxChecks1_1, false) {
+		if msg.From == nil {
+			return r, fmt.Errorf("invalid tx: MessageTx.From not specified")
+		}
 	}
 	caller := loom.UnmarshalAddressPB(msg.From)
 
-	if msg.To == nil {
-		return r, fmt.Errorf("msg.To was nil")
+	if state.FeatureEnabled(loomchain.TxChecks1_1, false) {
+		if msg.To == nil {
+			return r, fmt.Errorf("invalid tx: MessageTx.To not specified")
+		}
 	}
 	addr := loom.UnmarshalAddressPB(msg.To)
 
