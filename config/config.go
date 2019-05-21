@@ -707,6 +707,13 @@ ChainConfig:
 #
 DeployerWhitelist:
   ContractEnabled: {{ .DeployerWhitelist.ContractEnabled }}
+
+#
+# UserDeployerWhitelist
+#
+UserDeployerWhitelist:
+  ContractEnabled: {{ .UserDeployerWhitelist.ContractEnabled }}
+
 #
 # Plasma Cash
 #
