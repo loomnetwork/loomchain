@@ -917,14 +917,14 @@ func TestElectWhitelists(t *testing.T) {
 	rewards3, err := dpos.CheckRewardDelegation(pctx.WithSender(addr3), &addr3)
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 1% of delegation after one year
-	assert.Equal(t, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(990000000)}), 1)
-	assert.Equal(t, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), -1)
+	assert.Equal(t, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), 1)
+	assert.Equal(t, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1010000000)}), -1)
 
 	rewards4, err := dpos.CheckRewardDelegation(pctx.WithSender(addr4), &addr4)
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 2% of delegation after one year
-	assert.Equal(t, rewards4.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1990000000)}), 1)
-	assert.Equal(t, rewards4.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), -1)
+	assert.Equal(t, rewards4.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), 1)
+	assert.Equal(t, rewards4.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(2010000000)}), -1)
 
 	// Let's withdraw rewards and see how the balances change.
 
@@ -957,16 +957,15 @@ func TestElectWhitelists(t *testing.T) {
 		Owner: addr3.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(990000000)}), 1)
-	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), -1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), 1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(1010000000)}), -1)
 
 	balanceAfterClaim, err = coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
 		Owner: addr4.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(1990000000)}), 1)
-	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), -1)
-
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), 1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(2010000000)}), -1)
 }
 
 func TestElect(t *testing.T) {
@@ -1467,7 +1466,6 @@ func TestRewardRoundingFix(t *testing.T) {
 
 	// Enable the feature flag which enables the reward rounding fix
 	dposCtx := pctx.WithAddress(dpos.Address)
-	dposCtx.SetFeature(loomchain.DPOSV3RewardsFeature, true)
 	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSV3RewardsFeature, false))
 
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
