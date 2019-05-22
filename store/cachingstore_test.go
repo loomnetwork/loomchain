@@ -12,11 +12,13 @@ import (
 
 type MockStore struct {
 	storage map[string][]byte
+	version int64
 }
 
 func NewMockStore() *MockStore {
 	return &MockStore{
 		storage: make(map[string][]byte),
+		version: 0,
 	}
 }
 
@@ -45,11 +47,12 @@ func (m *MockStore) Hash() []byte {
 }
 
 func (m *MockStore) Version() int64 {
-	return 0
+	return m.version
 }
 
 func (m *MockStore) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, nil
+	m.version = m.version + 1
+	return nil, m.version, nil
 }
 
 func (m *MockStore) Prune() error {

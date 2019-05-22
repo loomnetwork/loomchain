@@ -158,7 +158,7 @@ func NewVersionedCachingStore(
 		VersionedKVStore: source,
 		cache:            versionedBigCache,
 		logger:           cacheLogger,
-		version:          version,
+		version:          version + 1,
 	}, nil
 }
 
