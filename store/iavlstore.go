@@ -30,15 +30,16 @@ func init() {
 			Subsystem: subsystem,
 			Name:      "prune_duration",
 			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
-		}, []string{"error"})
+		}, []string{"error"},
+	)
 	iavlSaveVersionDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "save_version",
 			Help:      "How long IAVLStore.SaveVersion() took to execute (in seconds)",
-		}, []string{"error"})
-
+		}, []string{"error"},
+	)
 }
 
 type IAVLStore struct {

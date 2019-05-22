@@ -24,16 +24,14 @@ var (
 )
 
 func init() {
-	const namespace = "loomchain"
-	const subsystem = "evmstore"
-
 	commitDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
+			Namespace: "loomchain",
+			Subsystem: "evmstore",
 			Name:      "commit",
 			Help:      "How long EvmStore.Commit() took to execute (in seconds)",
-		}, []string{"version"})
+		}, []string{"version"},
+	)
 }
 
 func evmRootKey(blockHeight int64) []byte {

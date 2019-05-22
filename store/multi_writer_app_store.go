@@ -35,16 +35,14 @@ var (
 )
 
 func init() {
-	const namespace = "loomchain"
-	const subsystem = "multi_writer_appstore"
-
 	saveVersionDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
 			Name:      "save_version",
 			Help:      "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
-		}, []string{"error"})
+		}, []string{"error"},
+	)
 }
 
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
