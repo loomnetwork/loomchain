@@ -39,6 +39,11 @@ func NewDeployRecorderPostCommitMiddleware(
 			return next(state, txBytes, res)
 		}
 
+		// This is checkTx, so bail out early.
+		if len(res.Data) == 0 {
+			return next(state, txBytes, res)
+		}
+
 		var tx loomchain.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
 			return errors.New("throttle: unmarshal tx")
