@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/tendermint/tendermint/libs/db"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
@@ -245,6 +246,9 @@ func newInitCommand() *cobra.Command {
 					return err
 				}
 				destroyReceiptsDB(cfg)
+				if err := destroyBlockIndexDB(cfg); err != nil {
+					return err
+				}
 			}
 			validator, err := backend.Init()
 			if err != nil {
@@ -285,6 +289,9 @@ func newResetCommand() *cobra.Command {
 			}
 
 			destroyReceiptsDB(cfg)
+			if err := destroyBlockIndexDB(cfg); err != nil {
+				return err
+			}
 
 			return nil
 		},
@@ -651,6 +658,17 @@ func destroyReceiptsDB(cfg *config.Config) {
 	}
 }
 
+func destroyBlockIndexDB(cfg *config.Config) error {
+	// todo support for cleveldb
+	if cfg.BlockIndexStore.Enabled && cfg.BlockIndexStore.DBBackend == string(db.GoLevelDBBackend) {
+		err := os.RemoveAll(filepath.Join(cfg.RootPath(), cfg.BlockIndexStore.DBName+".db"))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
 	db, err := cdb.LoadDB(
 		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
@@ -727,10 +745,6 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	// NOTE: Shouldn't wrap the MultiReaderIAVLStore in a CachingStore yet, otherwise the
-	// MultiReaderIAVLStore loses its advantages. Wrapping the MultiWriterAppStore doesn't make
-	// sense either since the caching store doesn't handle snapshots properly, which means the cache
-	// is never actually read from.
 	if cfg.CachingStoreConfig.CachingEnabled &&
 		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
 		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
@@ -738,6 +752,12 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 		logger.Info("CachingStore enabled")
+	} else if cfg.CachingStoreConfig.CachingEnabled && cfg.AppStore.Version == 3 {
+		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
+		if err != nil {
+			return nil, err
+		}
+		logger.Info("VersionedCachingStore enabled")
 	}
 
 	return appStore, nil
@@ -1169,6 +1189,21 @@ func loadApp(
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
+	var blockIndexStore store.BlockIndexStore
+	if cfg.BlockIndexStore.Enabled {
+		blockIndexStore, err = store.NewBlockIndexStore(
+			cfg.BlockIndexStore.DBBackend,
+			cfg.BlockIndexStore.DBName,
+			cfg.RootPath(),
+			cfg.BlockIndexStore.CacheSizeMegs,
+			cfg.BlockIndexStore.WriteBufferMegs,
+			cfg.Metrics.BlockIndexStore,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// We need to make sure nonce post commit middleware is last
 	// as it doesn't pass control to other middlewares after it.
 	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
@@ -1181,6 +1216,7 @@ func loadApp(
 			router,
 			postCommitMiddlewares,
 		),
+		BlockIndexStore:             blockIndexStore,
 		EventHandler:                eventHandler,
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
@@ -1319,6 +1355,7 @@ func initQueryService(
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
+		BlockIndexStore:        app.BlockIndexStore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 	}

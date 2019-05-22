@@ -6,11 +6,11 @@
   Expected = [
     "Attempting to deploy 2 contracts",
     "not authorized to deploy Go contract, deploying contact coin",
-    "not authorized to deploy Go contract, deploying contact dpos",
+    "not authorized to deploy Go contract, deploying contact dposV3",
   ]
-  # Default genesis.json file including coin and dpos contracts.
+  # Default genesis.json file including coin and dposV3 contracts.
   Datafiles = [
-    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"coin\",\"location\":\"coin:1.0.0\",\"init\":null},{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
+    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"coin\",\"location\":\"coin:1.0.0\",\"init\":null},{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dposV3\",\"location\":\"dposV3:3.0.0\",\"init\":{\"params\":{\"validatorCount\":\"21\",\"electionCycleLength\":\"604800\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
   ]
 
 [[TestCases]]
@@ -20,11 +20,11 @@
   Expected = [
     "Attempting to deploy 2 contracts",
     "Contract coin deplyed to address",
-    "Contract dpos deplyed to address",
+    "Contract dposV3 deplyed to address",
     "2 contract(s) successfully deployed"
   ]
-  # Default genesis.json file including coin and dpos contracts.
+  # Default genesis.json file including coin and dposV3 contracts.
   Datafiles = [
-    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"coin\",\"location\":\"coin:1.0.0\",\"init\":null},{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
+    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"coin\",\"location\":\"coin:1.0.0\",\"init\":null},{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dposV3\",\"location\":\"dposV3:3.0.0\",\"init\":{\"params\":{\"validatorCount\":\"21\",\"electionCycleLength\":\"604800\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
   ]
 

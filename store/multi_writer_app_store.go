@@ -2,14 +2,19 @@ package store
 
 import (
 	"bytes"
+	"fmt"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
 )
 
@@ -25,7 +30,20 @@ var (
 	evmDBFeature = []byte("db:evm")
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
+
+	saveVersionDuration metrics.Histogram
 )
+
+func init() {
+	saveVersionDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
+			Name:      "save_version",
+			Help:      "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
+		}, []string{"error"},
+	)
+}
 
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
 // or just the EvmStore, depending on the evmStoreEnabled flag.
@@ -42,6 +60,16 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 		evmStoreEnabled: evmStoreEnabled,
 		appStore:        appStore,
 		evmStore:        evmStore,
+	}
+	appStoreEvmRoot := store.appStore.Get(rootKey)
+	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
+	if appStoreEvmRoot == nil {
+		appStoreEvmRoot = store.appStore.Get(util.PrefixKey(vmPrefix, rootKey))
+	}
+	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
+	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
+		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
+			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
 	}
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
@@ -104,6 +132,12 @@ func (s *MultiWriterAppStore) Version() int64 {
 }
 
 func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		saveVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	currentRoot := s.evmStore.Commit(s.Version() + 1)
 	if s.isEvmDBEnabled() {
 		// Tie up Patricia tree with IAVL tree.
@@ -139,8 +173,8 @@ func (s *MultiWriterAppStore) Prune() error {
 
 func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
 	// TODO: Need to ensure that the EvmStore and ImmutableTree are from the same height.
-	evmDbSnapshot := s.evmStore.GetSnapshot()
 	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
+	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
 	featureKey := util.PrefixKey(featureKey, evmDBFeature)
 	featureFlag := false
 	_, data := appStoreTree.Get(featureKey)

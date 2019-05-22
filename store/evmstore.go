@@ -3,17 +3,36 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"sort"
+	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 var (
 	defaultRoot = []byte{1}
+	rootHashKey = util.PrefixKey(vmPrefix, rootKey)
+
+	commitDuration metrics.Histogram
 )
+
+func init() {
+	commitDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "evmstore",
+			Name:      "commit",
+			Help:      "How long EvmStore.Commit() took to execute (in seconds)",
+		}, []string{"version"},
+	)
+}
 
 func evmRootKey(blockHeight int64) []byte {
 	b := make([]byte, 8)
@@ -21,18 +40,29 @@ func evmRootKey(blockHeight int64) []byte {
 	return util.PrefixKey(vmPrefix, []byte(evmRootPrefix), b)
 }
 
+func getVersionFromEvmRootKey(key []byte) (int64, error) {
+	v, err := util.UnprefixKey(key, util.PrefixKey(vmPrefix, []byte(evmRootPrefix)))
+	if err != nil {
+		return 0, err
+	}
+	version := int64(binary.BigEndian.Uint64(v))
+	return version, nil
+}
+
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
-	evmDB db.DBWrapper
-	cache map[string]cacheItem
+	evmDB         db.DBWrapper
+	cache         map[string]cacheItem
+	rootHash      []byte
+	lastSavedRoot []byte
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
 func NewEvmStore(evmDB db.DBWrapper) *EvmStore {
 	evmStore := &EvmStore{
 		evmDB: evmDB,
+		cache: make(map[string]cacheItem),
 	}
-	evmStore.Rollback()
 	return evmStore
 }
 
@@ -79,6 +109,11 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 		}
 	}
 
+	// Make Range return root hash (vmvmroot) from EvmStore.rootHash
+	if _, exist := rangeCache[string(rootHashKey)]; exist {
+		rangeCache[string(rootHashKey)] = s.rootHash
+	}
+
 	ret := make(plugin.RangeData, 0)
 	// Sorting makes RangeData deterministic
 	sort.Strings(rangeCacheKeys)
@@ -103,6 +138,10 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 }
 
 func (s *EvmStore) Has(key []byte) bool {
+	// EvmStore always has Patricia root
+	if bytes.Equal(key, rootHashKey) {
+		return true
+	}
 	if item, ok := s.cache[string(key)]; ok {
 		return !item.Deleted
 	}
@@ -110,6 +149,10 @@ func (s *EvmStore) Has(key []byte) bool {
 }
 
 func (s *EvmStore) Get(key []byte) []byte {
+	if bytes.Equal(key, rootHashKey) {
+		return s.rootHash
+	}
+
 	if item, ok := s.cache[string(key)]; ok {
 		return item.Value
 	}
@@ -117,20 +160,37 @@ func (s *EvmStore) Get(key []byte) []byte {
 }
 
 func (s *EvmStore) Delete(key []byte) {
-	s.setCache(key, nil, true)
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = nil
+	} else {
+		s.setCache(key, nil, true)
+	}
 }
 
 func (s *EvmStore) Set(key, val []byte) {
-	s.setCache(key, val, false)
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = val
+	} else {
+		s.setCache(key, val, false)
+	}
 }
 
 func (s *EvmStore) Commit(version int64) []byte {
-	// Save versioning roots
-	currentRoot := s.Get(util.PrefixKey(vmPrefix, rootKey))
-	if currentRoot == nil {
+	defer func(begin time.Time) {
+		lvs := []string{"version", fmt.Sprintf("%d", version)}
+		commitDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	currentRoot := make([]byte, len(s.rootHash))
+	copy(currentRoot, s.rootHash)
+	// default root is an indicator for empty root
+	if bytes.Equal(currentRoot, []byte{}) {
 		currentRoot = defaultRoot
 	}
-	s.Set(evmRootKey(version), currentRoot)
+	// save Patricia root of EVM state only if it changes
+	if !bytes.Equal(currentRoot, s.lastSavedRoot) {
+		s.Set(evmRootKey(version), currentRoot)
+	}
 
 	batch := s.evmDB.NewBatch()
 	for key, item := range s.cache {
@@ -141,34 +201,77 @@ func (s *EvmStore) Commit(version int64) []byte {
 		}
 	}
 	batch.Write()
-	s.Rollback()
+	s.cache = make(map[string]cacheItem)
+	s.lastSavedRoot = currentRoot
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
-	s.Rollback()
-	// To ensure that evm root is corresponding with iavl tree height,
-	// copy current root of Patricia tree to vmvmroot in evm.db.
-	// LoomEthDb uses vmvmroot as a key to current root of Patricia tree.
-	root := s.evmDB.Get(evmRootKey(targetVersion))
-	if root == nil && targetVersion != 0 {
-		return errors.Errorf("failed to load EVM root for version %d", targetVersion)
-		// defaultRoot indicates that the Patricia tree is empty at targetVersion,
-		// so we need to set vmroot to empty
-	} else if bytes.Equal(root, defaultRoot) {
-		root = []byte("")
+	s.cache = make(map[string]cacheItem)
+	// find the last saved root
+	root, _ := s.getLastSavedRoot(targetVersion)
+	if bytes.Equal(root, defaultRoot) {
+		root = []byte{}
 	}
-	// TODO: This needs to be refactored to avoid writing to the DB on load.
-	s.evmDB.Set(util.PrefixKey(vmPrefix, rootKey), root)
+
+	// nil root indicates that latest saved root below target version is not found
+	if root == nil && targetVersion > 0 {
+		return errors.Errorf("failed to load EVM root for version %d", targetVersion)
+	}
+
+	s.rootHash = root
+	s.lastSavedRoot = root
 	return nil
 }
 
-func (s *EvmStore) Rollback() {
-	s.cache = make(map[string]cacheItem)
+func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
+	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		if util.HasPrefix(iter.Key(), util.PrefixKey(vmPrefix, evmRootPrefix)) {
+			version, err := getVersionFromEvmRootKey(iter.Key())
+			if err != nil {
+				return nil, 0
+			}
+			if version <= targetVersion || targetVersion == 0 {
+				return iter.Value(), version
+			}
+		}
+	}
+	return nil, 0
 }
 
-func (s *EvmStore) GetSnapshot() db.Snapshot {
-	return s.evmDB.GetSnapshot()
+func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
+	targetRoot, _ := s.getLastSavedRoot(version)
+	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
+}
+
+func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
+	return &EvmStoreSnapshot{
+		Snapshot: snapshot,
+		rootHash: rootHash,
+	}
+}
+
+type EvmStoreSnapshot struct {
+	db.Snapshot
+	rootHash []byte
+}
+
+func (s *EvmStoreSnapshot) Get(key []byte) []byte {
+	if bytes.Equal(key, rootHashKey) {
+		return s.rootHash
+	}
+	return s.Snapshot.Get(key)
+}
+
+func (s *EvmStoreSnapshot) Has(key []byte) bool {
+	// snapshot always has a root hash
+	// nil or empty root hash is considered valid root hash
+	if bytes.Equal(key, rootHashKey) {
+		return true
+	}
+	return s.Snapshot.Has(key)
 }
 
 func remove(keys []string, key string) []string {

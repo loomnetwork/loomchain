@@ -46,6 +46,7 @@ builders['linux'] = {
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loomcoin_tgoracle
+            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tron_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/dposv2_oracle
             gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/loom
             gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/linux/latest/loom-cleveldb
@@ -54,6 +55,7 @@ builders['linux'] = {
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/latest/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/latest/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/latest/loomcoin_tgoracle
+            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/linux/latest/tron_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/latest/dposv2_oracle
             gsutil cp install.sh gs://private.delegatecall.com/install.sh
             docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
@@ -120,6 +122,7 @@ builders['osx'] = {
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loomcoin_tgoracle
+            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/tron_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/dposv2_oracle
             gsutil cp loom gs://private.delegatecall.com/loom/osx/latest/loom
             gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/osx/latest/loom-cleveldb
@@ -128,6 +131,7 @@ builders['osx'] = {
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/latest/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/latest/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/latest/loomcoin_tgoracle
+            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/osx/latest/tron_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/osx/latest/dposv2_oracle
           '''
         }
@@ -156,5 +160,7 @@ builders['osx'] = {
 }
 
 throttle(['loom-sdk']) {
-  parallel builders
+  timeout(time: 60, unit: 'MINUTES'){
+    parallel builders
+  }
 }
