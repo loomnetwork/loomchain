@@ -300,7 +300,6 @@ var (
 
 func init() {
 	fieldKeys := []string{"method", "error"}
-	deliverTxFieldKeys := []string{"method", "error", "evm"}
 	requestCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
@@ -312,7 +311,7 @@ func init() {
 		Subsystem: "application",
 		Name:      "delivertx_latency_microseconds",
 		Help:      "Total duration of delivertx in microseconds.",
-	}, deliverTxFieldKeys)
+	}, []string{"method", "error", "evm"})
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
@@ -536,8 +535,12 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	var err error
 	isEvmTx := false
 	defer func(begin time.Time) {
-		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil), "evm", fmt.Sprintf("%t", isEvmTx)}
-		requestCount.With(lvs...).Add(1)
+		lvs := []string{
+			"method", "DeliverTx",
+			"error", fmt.Sprint(err != nil),
+			"evm", fmt.Sprintf("%t", isEvmTx),
+		}
+		requestCount.With(lvs[:2]...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
