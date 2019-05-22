@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
 )
 
@@ -26,7 +30,20 @@ var (
 	evmDBFeature = []byte("db:evm")
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
+
+	saveVersionDuration metrics.Histogram
 )
+
+func init() {
+	saveVersionDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
+			Name:      "save_version",
+			Help:      "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
+		}, []string{"error"},
+	)
+}
 
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
 // or just the EvmStore, depending on the evmStoreEnabled flag.
@@ -111,6 +128,12 @@ func (s *MultiWriterAppStore) Version() int64 {
 }
 
 func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		saveVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	currentRoot := s.evmStore.Commit(s.Version() + 1)
 	if s.isEvmDBEnabled() {
 		// Tie up Patricia tree with IAVL tree.
