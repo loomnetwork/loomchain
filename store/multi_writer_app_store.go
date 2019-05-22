@@ -62,6 +62,10 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 		evmStore:        evmStore,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
+	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
+	if appStoreEvmRoot == nil {
+		appStoreEvmRoot = store.appStore.Get(util.PrefixKey(vmPrefix, rootKey))
+	}
 	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
