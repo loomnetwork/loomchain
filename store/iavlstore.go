@@ -2,7 +2,6 @@ package store
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
@@ -37,7 +36,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "save_version",
-			Help:      "How long IAVLStore.SaveVersion() took to execute (in miliseconds)",
+			Help:      "How long IAVLStore.SaveVersion() took to execute (in seconds)",
 		}, []string{"error"})
 
 }
@@ -130,7 +129,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
-		iavlSaveVersionDuration.With(lvs...).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+		iavlSaveVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	oldVersion := s.Version()
