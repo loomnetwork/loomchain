@@ -49,7 +49,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 1}} 6 -k {{index $.NodePrivKeyPathList 0}}"
 
-# [[TestCases]]
-#   RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 0}}"
-#   Condition = "contains"
-#   Expected = ["27000"]
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["0270"]
