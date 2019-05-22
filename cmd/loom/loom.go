@@ -1033,6 +1033,8 @@ func loadApp(
 		}
 		txMiddleWare = append(txMiddleWare, dwMiddleware)
 
+		fmt.Println("E2E_DEBUG: Enabling PostCommit Middleware")
+
 		deployRecorderMiddleware, err := throttle.NewDeployRecorderPostCommitMiddleware(contextFactory)
 		if err != nil {
 			return nil, err

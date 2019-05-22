@@ -1,6 +1,8 @@
 package throttle
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -34,9 +36,13 @@ func NewDeployRecorderPostCommitMiddleware(
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
 	) error {
+		fmt.Println("E2E_DEBUG Inside PostCommitMiddleware")
+
 		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
 			return next(state, txBytes, res)
 		}
+
+		fmt.Println("E2E_DEBUG PostCommitMiddleware DeployerWhitelistFeature is enabled")
 
 		var nonceTx auth.NonceTx
 		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
@@ -51,6 +57,8 @@ func NewDeployRecorderPostCommitMiddleware(
 		if tx.Id != deployId {
 			return next(state, txBytes, res)
 		}
+
+		fmt.Println("E2E_DEBUG PostCommitMiddleware Tx is deployment")
 
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
@@ -76,6 +84,8 @@ func NewDeployRecorderPostCommitMiddleware(
 		if err := udw.RecordContractDeployment(ctx, origin, loom.UnmarshalAddressPB(deployResponse.Contract), deployTx.VmType); err != nil {
 			return errors.Wrapf(err, "error while recording deployment")
 		}
+
+		fmt.Println("E2E_DEBUG PostCommitMiddleware Done reacording")
 
 		return next(state, txBytes, res)
 	}), nil
