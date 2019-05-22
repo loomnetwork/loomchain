@@ -1024,8 +1024,6 @@ func loadApp(
 		))
 	}
 
-	fmt.Printf("E2E_DEBUG: cfg.DeployerWhitelist.ContractEnabled: %t\n", cfg.DeployerWhitelist.ContractEnabled)
-
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contextFactory := getContractCtx("deployerwhitelist", vmManager)
 		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
@@ -1033,8 +1031,6 @@ func loadApp(
 			return nil, err
 		}
 		txMiddleWare = append(txMiddleWare, dwMiddleware)
-
-		fmt.Println("E2E_DEBUG: Enabling PostCommit Middleware")
 
 		deployRecorderMiddleware, err := throttle.NewDeployRecorderPostCommitMiddleware(contextFactory)
 		if err != nil {
