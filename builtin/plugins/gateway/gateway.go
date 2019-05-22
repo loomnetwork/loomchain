@@ -77,6 +77,7 @@ type (
 	TrustedValidators = tgtypes.TransferGatewayTrustedValidators
 
 	ValidatorAuthConfig = tgtypes.TransferGatewayValidatorAuthConfig
+	NonceHasBeenReset   = tgtypes.TransferGatewayNonceHasBeenReset
 
 	GetValidatorAuthStrategyRequest  = tgtypes.TransferGatewayGetValidatorAuthStrategyRequest
 	GetValidatorAuthStrategyResponse = tgtypes.TransferGatewayGetValidatorAuthStrategyResponse
@@ -105,6 +106,7 @@ var (
 	verifyCreatorsPerm  = []byte("verify-creators")
 
 	validatorAuthConfigKey = []byte("validator-authcfg")
+	nonceHasBeenResetKey   = []byte("nonce-reset")
 
 	// Tron's TRX fake fixed address to map to dApp's contract
 	TRXTokenAddr = loom.MustParseAddress("tron:0x0000000000000000000000000000000000000001")
@@ -139,6 +141,28 @@ const (
 
 	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
 )
+
+func nonceStatusKey(owner loom.Address) []byte {
+	return util.PrefixKey(nonceHasBeenResetKey, owner.Bytes())
+}
+
+func resetNonce(ctx contract.Context, owner loom.Address) error {
+	key := nonceStatusKey(owner)
+	nonceStatus := NonceHasBeenReset{
+		IsReset: true,
+	}
+	return ctx.Set(key, &nonceStatus)
+}
+
+func hasNonceBeenReset(ctx contract.StaticContext, owner loom.Address) (bool, error) {
+	key := nonceStatusKey(owner)
+	var nonceStatus NonceHasBeenReset
+	err := ctx.Get(key, &nonceStatus)
+	if err != nil {
+		return false, err
+	}
+	return nonceStatus.IsReset, nil
+}
 
 func localAccountKey(owner loom.Address) []byte {
 	return util.PrefixKey(localAccountKeyPrefix, owner.Bytes())
