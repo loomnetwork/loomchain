@@ -1052,7 +1052,8 @@ func loadApp(
 		}
 		txMiddleWare = append(txMiddleWare, dwMiddleware)
 
-		deployRecorderMiddleware, err := throttle.NewDeployRecorderPostCommitMiddleware(contextFactory)
+		contextFactory1 := getContractCtx("user-deployer-whitelist", vmManager)
+		deployRecorderMiddleware, err := throttle.NewDeployRecorderPostCommitMiddleware(contextFactory1)
 		if err != nil {
 			return nil, err
 		}
