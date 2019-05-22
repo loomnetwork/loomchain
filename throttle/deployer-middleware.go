@@ -39,13 +39,8 @@ func NewDeployRecorderPostCommitMiddleware(
 			return next(state, txBytes, res)
 		}
 
-		var nonceTx auth.NonceTx
-		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
-			return errors.Wrap(err, "throttle: unwrap nonce Tx")
-		}
-
 		var tx loomchain.Transaction
-		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
+		if err := proto.Unmarshal(txBytes, &tx); err != nil {
 			return errors.New("throttle: unmarshal tx")
 		}
 
