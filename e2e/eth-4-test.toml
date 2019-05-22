@@ -43,13 +43,13 @@
              ]
 
 [[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x2","0x0"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "contains"
-  Expected = [
-              '"blockNumber": "0x2"',
-              '"jsonrpc": "2.0"',
-              '"id": 83'
-             ]
+    RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x2","0x0"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+    Condition = "contains"
+    Expected = [
+            '"blockNumber": "0x2"',
+            '"transactionIndex": "0x0',
+            '"input": "0x6060604052341561000f57600080fd5b60d3806'
+              ]
 
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x2","0x1"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
