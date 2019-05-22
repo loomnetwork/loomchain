@@ -11,8 +11,7 @@ func TestContractDPOS(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
-		validators int // TODO this is more like # of nodes than validators
-		// # of validators is set in genesis params...
+		validators int
 		accounts int
 		genFile  string
 		yamlFile string

@@ -4,7 +4,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 transfer dposV2 90 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin transfer dposV2 90 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 0}}"
