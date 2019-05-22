@@ -17,7 +17,6 @@ import (
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
@@ -87,9 +86,9 @@ type Config struct {
 	DeployerWhitelist *DeployerWhitelistConfig
 
 	// Transfer gateway
-	TransferGateway         *gateway.TransferGatewayConfig
-	LoomCoinTransferGateway *gateway.TransferGatewayConfig
-	TronTransferGateway     *gateway.TransferGatewayConfig
+	TransferGateway         *TransferGatewayConfig
+	LoomCoinTransferGateway *TransferGatewayConfig
+	TronTransferGateway     *TransferGatewayConfig
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
@@ -254,16 +253,17 @@ func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
 //Structure for LOOM ENV
 
 type Env struct {
-	Version      string `json:"version"`
-	Build        string `json:"build"`
-	BuildVariant string `json:"buildvariant"`
-	GitSha       string `json:"gitsha"`
-	GoLoom       string `json:"goloom"`
-	GoEthereum   string `json:"goethereum"`
-	GoPlugin     string `json:"goplugin"`
-	Btcd         string `json:"btcd"`
-	PluginPath   string `json:"pluginpath"`
-	Peers        string `json:"peers"`
+	Version         string `json:"version"`
+	Build           string `json:"build"`
+	BuildVariant    string `json:"buildvariant"`
+	GitSha          string `json:"gitsha"`
+	GoLoom          string `json:"goloom"`
+	TransferGateway string `json:"transfergateway"`
+	GoEthereum      string `json:"goethereum"`
+	GoPlugin        string `json:"goplugin"`
+	Btcd            string `json:"btcd"`
+	PluginPath      string `json:"pluginpath"`
+	Peers           string `json:"peers"`
 }
 
 // TODO: Move to loomchain/rpc package
@@ -371,9 +371,18 @@ func DefaultConfig() *Config {
 		CallEnabled:   true,
 		DPOSVersion:   1,
 	}
-	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
-	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
-	cfg.TronTransferGateway = gateway.DefaultTronConfig(cfg.RPCProxyPort)
+	cfg.TransferGateway = &TransferGatewayConfig{
+		ContractEnabled: false,
+		Unsafe:          false,
+	}
+	cfg.LoomCoinTransferGateway = &TransferGatewayConfig{
+		ContractEnabled: false,
+		Unsafe:          false,
+	}
+	cfg.TronTransferGateway = &TransferGatewayConfig{
+		ContractEnabled: false,
+		Unsafe:          false,
+	}
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
@@ -415,6 +424,7 @@ func (c *Config) Clone() *Config {
 	clone := *c
 	clone.TransferGateway = c.TransferGateway.Clone()
 	clone.LoomCoinTransferGateway = c.LoomCoinTransferGateway.Clone()
+	clone.TronTransferGateway = c.TronTransferGateway.Clone()
 	clone.PlasmaCash = c.PlasmaCash.Clone()
 	clone.AppStore = c.AppStore.Clone()
 	clone.HsmConfig = c.HsmConfig.Clone()
