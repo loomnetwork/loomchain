@@ -804,14 +804,33 @@ func (ts *GatewayTestSuite) TestWithdrawalRestrictions() {
 	ethHelper, err := deployETHContract(fakeCtx)
 	require.NoError(err)
 
-	// Deploy ERC721 Solidity contract to DAppChain EVM
-	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
-	require.NoError(err)
-
-	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
 	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	// Deploy ERC20 Solidity contract to DAppChain EVM
+	erc20Addr, err := deployTokenContract(fakeCtx, "SampleERC20Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr2, erc20Addr))
+	erc20 := newERC20Context(gwHelper.ContractCtx(fakeCtx), erc20Addr)
+	
+	initialAmount := big.NewInt(100)
+	require.NoError(erc20.mintToGateway(initialAmount))	
+	// err = gwHelper.Contract.WithdrawToken(
+	// 	gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr)),
+	// 	&WithdrawTokenRequest{
+	// 		TokenContract: ethTokenAddr.MarshalPB(),
+	// 		TokenKind:     TokenKind_ERC721,
+	// 		TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token1)},
+	// 		Recipient:     ts.ethAddr2.MarshalPB(),
+	// 	},
+	// )
+	// require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
 
 	// Mint some tokens/ETH and distribute to users
 	token1 := big.NewInt(123)
