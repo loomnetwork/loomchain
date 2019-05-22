@@ -91,6 +91,15 @@ func (gw *UnsafeGateway) AddAuthorizedContractMapping(ctx contract.Context, req 
 		return ErrNotAuthorized
 	}
 
+	// Delete existing key to prevent orphanage mapping
+	var existingMapping ContractAddressMapping
+	if err := ctx.Get(contractAddrMappingKey(foreignAddr), &existingMapping); err == nil {
+		ctx.Delete(contractAddrMappingKey(loom.UnmarshalAddressPB(existingMapping.To)))
+	}
+	if err := ctx.Get(contractAddrMappingKey(localAddr), &existingMapping); err == nil {
+		ctx.Delete(contractAddrMappingKey(loom.UnmarshalAddressPB(existingMapping.To)))
+	}
+
 	err = ctx.Set(contractAddrMappingKey(foreignAddr), &ContractAddressMapping{
 		From: req.ForeignContract,
 		To:   req.LocalContract,
