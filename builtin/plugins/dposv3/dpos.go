@@ -80,8 +80,6 @@ type (
 	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
 	CheckDelegationRequest            = dtypes.CheckDelegationRequest
 	CheckDelegationResponse           = dtypes.CheckDelegationResponse
-	TotalDelegationRequest            = dtypes.TotalDelegationRequest
-	TotalDelegationResponse           = dtypes.TotalDelegationResponse
 	CheckRewardsRequest               = dtypes.CheckRewardsRequest
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
 	CheckRewardDelegationRequest      = dtypes.CheckRewardDelegationRequest
