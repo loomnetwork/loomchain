@@ -77,7 +77,12 @@ func GetBlockByNumber(
 
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txObj, err := GetTxObjectFromBlockResult(blockResult, int64(index))
+			txResult, err := blockStore.GetTxResult(tx.Hash())
+			if err != nil {
+				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+			}
+
+			txObj, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
@@ -94,7 +99,9 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
-func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (eth.JsonTxObject, error) {
+func GetTxObjectFromBlockResult(
+	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
+) (eth.JsonTxObject, error) {
 	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
@@ -117,6 +124,7 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 	}
 
 	var input []byte
+	txHash := tx.Hash()
 	switch txTx.Id {
 	case deployId:
 		{
@@ -125,6 +133,18 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 				return eth.JsonTxObject{}, err
 			}
 			input = deployTx.Code
+			if deployTx.VmType == vm.VMType_EVM {
+				var resp vm.DeployResponse
+				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
+					return eth.JsonTxObject{}, err
+				}
+
+				var respData vm.DeployResponseData
+				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
+					return eth.JsonTxObject{}, err
+				}
+				txHash = respData.TxHash
+			}
 		}
 	case callId:
 		{
@@ -133,6 +153,9 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 				return eth.JsonTxObject{}, err
 			}
 			input = callTx.Input
+			if callTx.VmType == vm.VMType_EVM {
+				txHash = txResult.TxResult.Data
+			}
 		}
 	case migrationTx:
 		input = msg.Data
@@ -142,7 +165,7 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, index int64) (e
 
 	return eth.JsonTxObject{
 		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
-		Hash:             eth.EncBytes(tx.Hash()),
+		Hash:             eth.EncBytes(txHash),
 		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
 		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
 		TransactionIndex: eth.EncInt(int64(index)),

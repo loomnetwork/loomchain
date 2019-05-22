@@ -880,6 +880,7 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 	if err != nil {
 		return txObj, err
 	}
+
 	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex)
 }
 
@@ -888,12 +889,13 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	block eth.BlockHeight, index eth.Quantity,
 ) (txObj eth.JsonTxObject, err error) {
 	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
 		return txObj, err
 	}
-	snapshot.Release()
+	snapshot.Release() // don't need to hold on to it any longer
 
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
