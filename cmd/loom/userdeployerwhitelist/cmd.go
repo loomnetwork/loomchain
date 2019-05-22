@@ -70,7 +70,7 @@ func addUserDeployerCmd() *cobra.Command {
 }
 
 const getUserDeployersCmdExample = `
-loom userdeployer getdeployers
+loom userdeployer getdeployers 0x7262d4c97c7B93937E4810D289b7320e9dA82856 
 `
 
 func getDeployerInfo(deployer *dwtypes.Deployer) deployerInfo {
@@ -95,8 +95,13 @@ func getUserDeployersCmd() *cobra.Command {
 		Example: getUserDeployersCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			req := &udwtypes.GetUserDeployersRequest{}
+			addr, err := parseAddress(args[0])
+			if err != nil {
+				return err
+			}
+			req := &udwtypes.GetUserDeployersRequest{
+				UserAddr: addr.MarshalPB(),
+			}
 			var resp udwtypes.GetUserDeployersResponse
 			if err := cli.StaticCallContractWithFlags(&flag, dwContractName,
 				"GetUserDeployers", req, &resp); err != nil {
