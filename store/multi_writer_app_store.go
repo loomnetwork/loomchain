@@ -96,7 +96,7 @@ func (s *MultiWriterAppStore) Range(prefix []byte) plugin.RangeData {
 		panic(errors.New("Range over nil prefix not implemented"))
 	}
 
-	if bytes.Equal(prefix, vmPrefix) {
+	if bytes.Equal(prefix, vmPrefix) || util.HasPrefix(prefix, vmPrefix) {
 		return s.evmStore.Range(prefix)
 	}
 	return s.appStore.Range(prefix)
