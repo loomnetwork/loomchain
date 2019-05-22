@@ -10,3 +10,6 @@ UserDeployerWhitelist:
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
 BootLegacyDPoS: true
+GoContractDeployerWhitelist:
+  Enabled: true
+DeployEnabled: true
