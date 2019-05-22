@@ -366,10 +366,10 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:         "",
-		DeployEnabled:  true,
-		CallEnabled:    true,
-		DPOSVersion:    1,
+		Oracle:        "",
+		DeployEnabled: true,
+		CallEnabled:   true,
+		DPOSVersion:   1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
