@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -133,7 +134,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
-		saveVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+		saveVersionDuration.With(lvs...).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
 	}(time.Now())
 
 	currentRoot := s.evmStore.Commit(s.Version() + 1)

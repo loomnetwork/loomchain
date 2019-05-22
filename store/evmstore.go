@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -180,7 +181,7 @@ func (s *EvmStore) Set(key, val []byte) {
 func (s *EvmStore) Commit(version int64) []byte {
 	defer func(begin time.Time) {
 		lvs := []string{"version", fmt.Sprintf("%d", version)}
-		commitDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+		commitDuration.With(lvs...).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
 	}(time.Now())
 
 	currentRoot := make([]byte, len(s.rootHash))

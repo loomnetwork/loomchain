@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
@@ -16,7 +17,8 @@ import (
 )
 
 var (
-	pruneTime metrics.Histogram
+	pruneTime               metrics.Histogram
+	iavlSaveVersionDuration metrics.Histogram
 )
 
 func init() {
@@ -29,6 +31,13 @@ func init() {
 			Subsystem: subsystem,
 			Name:      "prune_duration",
 			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
+		}, []string{"error"})
+	iavlSaveVersionDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "save_version",
+			Help:      "How long IAVLStore.SaveVersion() took to execute (in miliseconds)",
 		}, []string{"error"})
 
 }
@@ -118,6 +127,12 @@ func (s *IAVLStore) Version() int64 {
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		iavlSaveVersionDuration.With(lvs...).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
 	oldVersion := s.Version()
 	hash, version, err := s.tree.SaveVersion()
 	if err != nil {
