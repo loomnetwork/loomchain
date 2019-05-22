@@ -45,10 +45,10 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 		evmStore:        evmStore,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
-	evmStoreEvmRoot := store.evmStore.Get(rootHashKey)
+	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
-		return nil, fmt.Errorf("EVM roots mismatch, version:%d, evm.db:%X, app.db:%X",
-			appStore.Version(), evmStoreEvmRoot, appStoreEvmRoot)
+		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
+			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
 	}
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
