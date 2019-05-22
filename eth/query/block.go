@@ -99,7 +99,9 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
-func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64) (eth.JsonTxObject, error) {
+func GetTxObjectFromBlockResult(
+	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
+) (eth.JsonTxObject, error) {
 	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
@@ -161,7 +163,7 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, txResult *ctype
 		return eth.JsonTxObject{}, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 
-	txObj := eth.JsonTxObject{
+	return eth.JsonTxObject{
 		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
 		Hash:             eth.EncBytes(txHash),
 		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
@@ -173,9 +175,7 @@ func GetTxObjectFromBlockResult(blockResult *ctypes.ResultBlock, txResult *ctype
 		GasPrice:         eth.EncInt(0),
 		Gas:              eth.EncInt(0),
 		Input:            eth.EncBytes(input),
-	}
-
-	return txObj, nil
+	}, nil
 }
 
 func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {

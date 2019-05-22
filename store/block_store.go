@@ -284,15 +284,13 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 	if err != nil {
 		return nil, err
 	}
-	respDeliverTx := abci.ResponseDeliverTx{
-		Data: txResult.TxResult.Data,
-		Info: txResult.TxResult.Info,
-	}
-	results := &ctypes.ResultTx{
-		Index:    txResult.Index,
-		TxResult: respDeliverTx,
-	}
-	return results, nil
+	return &ctypes.ResultTx{
+		Index: txResult.Index,
+		TxResult: abci.ResponseDeliverTx{
+			Data: txResult.TxResult.Data,
+			Info: txResult.TxResult.Info,
+		},
+	}, nil
 }
 
 func blockMetaKey(height int64) string {

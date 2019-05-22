@@ -48,30 +48,26 @@ func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	return GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
 }
 
-func GetTxByBlockAndIndex(
-	blockStore store.BlockStore,
-	height,
-	index uint64,
-) (txObj eth.JsonTxObject, err error) {
+func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (eth.JsonTxObject, error) {
 	iHeight := int64(height)
 
 	blockResult, err := blockStore.GetBlockByHeight(&iHeight)
 	if blockResult == nil || blockResult.Block == nil {
-		return txObj, errors.Errorf("no block results found at height %v", height)
+		return eth.JsonTxObject{}, errors.Errorf("no block results found at height %v", height)
 	}
 
 	if len(blockResult.Block.Data.Txs) <= int(index) {
-		return txObj, errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
+		return eth.JsonTxObject{}, errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
 	}
 
 	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
-	if txResult == nil {
-		return txObj, errors.Wrapf(err, "cant find tx result, hash %X", blockResult.Block.Data.Txs[index].Hash())
+	if err != nil {
+		return eth.JsonTxObject{}, errors.Wrapf(err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
 	}
 
-	txObj, err = GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+	txObj, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
 	if err != nil {
-		return txObj, err
+		return eth.JsonTxObject{}, err
 	}
 	txObj.TransactionIndex = eth.EncInt(int64(index))
 

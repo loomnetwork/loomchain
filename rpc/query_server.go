@@ -895,6 +895,7 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	if err != nil {
 		return txObj, err
 	}
+	snapshot.Release() // don't need to hold on to it any longer
 
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
