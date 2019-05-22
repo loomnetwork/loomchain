@@ -71,9 +71,9 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 		node.PrivKeyPath = nodeKeyFile
 	}
 
+	// Initialize the override validators
 	var overrideValidators []*fnConsensus.OverrideValidatorParsable
 	for _, val := range genValidators {
-		// address := loom.LocalAddressFromPublicKey(val.PubKey.Bytes())
 		address := val.Address
 		overrideValidators = append(overrideValidators, &fnConsensus.OverrideValidatorParsable{
 			Address:     address.String(),
