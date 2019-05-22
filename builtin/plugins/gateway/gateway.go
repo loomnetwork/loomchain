@@ -1875,17 +1875,32 @@ func saveLocalAccount(ctx contract.Context, acct *LocalAccount) error {
 	return nil
 }
 
-func loadForeignAccount(ctx contract.StaticContext, owner loom.Address) (*ForeignAccount, error) {
+func loadForeignAccount(ctx contract.Context, owner loom.Address) (*ForeignAccount, error) {
 	account := ForeignAccount{Owner: owner.MarshalPB()}
 	err := ctx.Get(foreignAccountKey(owner), &account)
 	if err != nil && err != contract.ErrNotFound {
 		return nil, errors.Wrapf(err, "failed to load account for %v", owner)
+	}
+
+	// The first time after the Distributed Gateway is deployed
+	// and the account is loaded, the account's nonce should be reset
+	hasBeenReset, err := hasNonceBeenReset(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+	if ctx.FeatureEnabled(loomchain.DistributedGateway, false) && !hasBeenReset {
+		account.WithdrawalNonce = 0
+		err := resetNonce(ctx, owner)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &account, nil
 }
 
 func saveForeignAccount(ctx contract.Context, acct *ForeignAccount) error {
 	ownerAddr := loom.UnmarshalAddressPB(acct.Owner)
+
 	if err := ctx.Set(foreignAccountKey(ownerAddr), acct); err != nil {
 		return errors.Wrapf(err, "failed to save account for %v", ownerAddr)
 	}
