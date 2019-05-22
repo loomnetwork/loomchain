@@ -1025,6 +1025,8 @@ func loadApp(
 		))
 	}
 
+	fmt.Printf("E2E_DEBUG: cfg.DeployerWhitelist.ContractEnabled: %t", cfg.DeployerWhitelist.ContractEnabled)
+
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contextFactory := getContractCtx("deployerwhitelist", vmManager)
 		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
