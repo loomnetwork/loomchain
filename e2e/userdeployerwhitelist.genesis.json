@@ -33,12 +33,35 @@
         {
             "vm": "plugin",
             "format": "plugin",
+            "name": "chainconfig",
+            "location": "chainconfig:1.0.0",
+            "init": {
+                "owner": {
+                    "chainId": "default",
+                    "local": "S7Mg3vyaNSnqchAyvZWoYF7S1UM="
+                },
+                "params": {
+                    "voteThreshold":"100",
+                    "numBlockConfirmations":"1"
+                },
+                "features": [
+                    {
+                        "name":"mw:deploy-wl",
+                        "status":"WAITING",
+                        "autoEnable": true
+                    }
+                ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
             "name": "deployerwhitelist",
             "location": "deployerwhitelist:1.0.0",
             "init": {
                 "owner": {
                     "chainId": "default",
-                    "local": "/zuJE9ek5sKSAIO+YAlxEWaspzc="
+                    "local": "S7Mg3vyaNSnqchAyvZWoYF7S1UM="
                 },
                 "deployers": [
                     {
@@ -64,7 +87,7 @@
                 "tier_info": {
                     "tiers": [
                         {
-                            "id": 0 ,
+                            "id": 0,
                             "fee": "10",
                             "name": "tier1"
                         }
