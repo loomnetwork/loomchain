@@ -101,18 +101,21 @@ func (c *versionedBigCache) Get(key []byte, version int64) ([]byte, error) {
 	return c.cache.Get(string(versionedKey))
 }
 
-// VersionedCachingStore wraps a write-through cache around a VersionedKVStore.
+// versionedCachingStore wraps a write-through cache around a VersionedKVStore.
 // It is compatible with MultiWriterAppStore only.
-type VersionedCachingStore struct {
+type versionedCachingStore struct {
 	VersionedKVStore
 	cache   *versionedBigCache
 	version int64
 	logger  *loom.Logger
 }
 
-func NewVersionedCachingStore(source VersionedKVStore, config *CachingStoreConfig, version int64) (*VersionedCachingStore, error) {
+// NewVersionedCachingStore wraps the source VersionedKVStore in a cache.
+func NewVersionedCachingStore(
+	source VersionedKVStore, config *CachingStoreConfig, version int64,
+) (VersionedKVStore, error) {
 	if config == nil {
-		return nil, fmt.Errorf("[VersionedCachingStore] config can't be null for caching store")
+		return nil, fmt.Errorf("[VersionedCachingStore] missing config for caching store")
 	}
 
 	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
@@ -151,7 +154,7 @@ func NewVersionedCachingStore(source VersionedKVStore, config *CachingStoreConfi
 
 	versionedBigCache := newVersionedBigCache(cache)
 
-	return &VersionedCachingStore{
+	return &versionedCachingStore{
 		VersionedKVStore: source,
 		cache:            versionedBigCache,
 		logger:           cacheLogger,
@@ -159,7 +162,7 @@ func NewVersionedCachingStore(source VersionedKVStore, config *CachingStoreConfi
 	}, nil
 }
 
-func (c *VersionedCachingStore) Delete(key []byte) {
+func (c *versionedCachingStore) Delete(key []byte) {
 	var err error
 
 	defer func(begin time.Time) {
@@ -178,7 +181,7 @@ func (c *VersionedCachingStore) Delete(key []byte) {
 	c.VersionedKVStore.Delete(key)
 }
 
-func (c *VersionedCachingStore) Set(key, val []byte) {
+func (c *versionedCachingStore) Set(key, val []byte) {
 	var err error
 
 	defer func(begin time.Time) {
@@ -197,18 +200,22 @@ func (c *VersionedCachingStore) Set(key, val []byte) {
 	c.VersionedKVStore.Set(key, val)
 }
 
-func (c *VersionedCachingStore) SaveVersion() ([]byte, int64, error) {
+func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
 	hash, version, err := c.VersionedKVStore.SaveVersion()
 	if err == nil {
+		// Cache version is always 1 block ahead of KV store version, that way when
+		// GetSnapshot() is called it won't return the current unpersisted state of the cache,
+		// but rather the last persisted version.
 		c.version = version + 1
 	}
 	return hash, version, err
 }
 
-func (c *VersionedCachingStore) GetSnapshot() Snapshot {
+func (c *versionedCachingStore) GetSnapshot() Snapshot {
 	return newVersionedCachingStoreSnapshot(
 		c.VersionedKVStore.GetSnapshot(),
-		c.cache, c.version-1, c.logger)
+		c.cache, c.version-1, c.logger,
+	)
 }
 
 // CachingStoreSnapshot is a read-only CachingStore with specified version

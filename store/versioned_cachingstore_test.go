@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +14,8 @@ func TestCachingStoreVersion(t *testing.T) {
 
 	mockStore := NewMockStore()
 
-	cachingStore, err := NewVersionedCachingStore(mockStore, defaultConfig, version)
+	versionedStore, err := NewVersionedCachingStore(mockStore, defaultConfig, version)
+	cachingStore := versionedStore.(*versionedCachingStore)
 
 	require.NoError(t, err)
 
