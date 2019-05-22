@@ -1006,7 +1006,6 @@ func loadApp(
 
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
 		loomchain.LogPostCommitMiddleware,
-		auth.NonceTxPostNonceMiddleware,
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
@@ -1025,7 +1024,7 @@ func loadApp(
 		))
 	}
 
-	fmt.Printf("E2E_DEBUG: cfg.DeployerWhitelist.ContractEnabled: %t", cfg.DeployerWhitelist.ContractEnabled)
+	fmt.Printf("E2E_DEBUG: cfg.DeployerWhitelist.ContractEnabled: %t\n", cfg.DeployerWhitelist.ContractEnabled)
 
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contextFactory := getContractCtx("deployerwhitelist", vmManager)
@@ -1173,6 +1172,10 @@ func loadApp(
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
+
+	// We need to make sure nonce post commit middleware is last
+	// as it doesn't pass control to other middlewares after it.
+	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
 
 	return &loomchain.Application{
 		Store: appStore,
