@@ -311,7 +311,7 @@ func init() {
 		Subsystem: "application",
 		Name:      "delivertx_latency_microseconds",
 		Help:      "Total duration of delivertx in microseconds.",
-	}, fieldKeys)
+	}, []string{"method", "error", "evm"})
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
@@ -533,9 +533,14 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 }
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	var err error
+	isEvmTx := false
 	defer func(begin time.Time) {
-		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
-		requestCount.With(lvs...).Add(1)
+		lvs := []string{
+			"method", "DeliverTx",
+			"error", fmt.Sprint(err != nil),
+			"evm", fmt.Sprintf("%t", isEvmTx),
+		}
+		requestCount.With(lvs[:4]...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
@@ -543,6 +548,9 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+	}
+	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+		isEvmTx = true
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
