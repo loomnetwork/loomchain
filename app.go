@@ -300,7 +300,7 @@ var (
 
 func init() {
 	fieldKeys := []string{"method", "error"}
-	deliverTxfieldKeys := []string{"method", "error", "evm"}
+	deliverTxFieldKeys := []string{"method", "error", "evm"}
 	requestCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
@@ -312,7 +312,7 @@ func init() {
 		Subsystem: "application",
 		Name:      "delivertx_latency_microseconds",
 		Help:      "Total duration of delivertx in microseconds.",
-	}, deliverTxfieldKeys)
+	}, deliverTxFieldKeys)
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
