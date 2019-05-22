@@ -65,7 +65,7 @@ func (gw *UnsafeGateway) ResetOwnerKey(ctx contract.Context, req *AddOracleReque
 }
 
 // AddAuthorizedContractMapping allows overriding the existing contract mapping
-func (gw *UnsafeGateway) UnsafeAddAuthorizedContractMapping(ctx contract.Context, req *AddContractMappingRequest) error {
+func (gw *UnsafeGateway) AddAuthorizedContractMapping(ctx contract.Context, req *AddContractMappingRequest) error {
 	if req.ForeignContract == nil || req.LocalContract == nil {
 		return ErrInvalidRequest
 	}
