@@ -19,6 +19,7 @@ type (
 	VerifiedContractCreator            = tgtypes.TransferGatewayVerifiedContractCreator
 	ContractMappingConfirmed           = tgtypes.TransferGatewayContractMappingConfirmed
 	AddContractMappingRequest          = tgtypes.TransferGatewayAddContractMappingRequest
+	RemoveContractMappingRequest       = tgtypes.TransferGatewayRemoveContractMappingRequest
 	UnverifiedContractCreatorsRequest  = tgtypes.TransferGatewayUnverifiedContractCreatorsRequest
 	UnverifiedContractCreatorsResponse = tgtypes.TransferGatewayUnverifiedContractCreatorsResponse
 	VerifyContractCreatorsRequest      = tgtypes.TransferGatewayVerifyContractCreatorsRequest

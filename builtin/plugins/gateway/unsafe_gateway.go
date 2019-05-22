@@ -94,10 +94,20 @@ func (gw *UnsafeGateway) AddAuthorizedContractMapping(ctx contract.Context, req 
 	// Delete existing key to prevent orphanage mapping
 	var existingMapping ContractAddressMapping
 	if err := ctx.Get(contractAddrMappingKey(foreignAddr), &existingMapping); err == nil {
-		ctx.Delete(contractAddrMappingKey(loom.UnmarshalAddressPB(existingMapping.To)))
+		err = gw.RemoveContractMapping(ctx, &RemoveContractMappingRequest{
+			ForeignContract: existingMapping.To,
+		})
+		if err != nil {
+			return err
+		}
 	}
 	if err := ctx.Get(contractAddrMappingKey(localAddr), &existingMapping); err == nil {
-		ctx.Delete(contractAddrMappingKey(loom.UnmarshalAddressPB(existingMapping.To)))
+		err = gw.RemoveContractMapping(ctx, &RemoveContractMappingRequest{
+			ForeignContract: existingMapping.To,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	err = ctx.Set(contractAddrMappingKey(foreignAddr), &ContractAddressMapping{
@@ -125,5 +135,35 @@ func (gw *UnsafeGateway) AddAuthorizedContractMapping(ctx contract.Context, req 
 	}
 
 	ctx.EmitTopics(payload, contractMappingConfirmedEventTopic)
+	return nil
+}
+
+func (gw *UnsafeGateway) RemoveContractMapping(ctx contract.Context, req *RemoveContractMappingRequest) error {
+	if req.ForeignContract == nil {
+		return ErrInvalidRequest
+	}
+	foreignAddr := loom.UnmarshalAddressPB(req.ForeignContract)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	callerAddr := ctx.Message().Sender
+
+	// Only the Gateway owner is allowed to bypass contract ownership checks
+	if callerAddr.Compare(loom.UnmarshalAddressPB(state.Owner)) != 0 {
+		return ErrNotAuthorized
+	}
+
+	var existingMapping ContractAddressMapping
+	err = ctx.Get(contractAddrMappingKey(foreignAddr), &existingMapping)
+	if err != nil {
+		return err
+	}
+	// delete both keys
+	ctx.Delete(contractAddrMappingKey(loom.UnmarshalAddressPB(existingMapping.From)))
+	ctx.Delete(contractAddrMappingKey(loom.UnmarshalAddressPB(existingMapping.To)))
+
 	return nil
 }
