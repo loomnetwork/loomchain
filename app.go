@@ -540,7 +540,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 			"error", fmt.Sprint(err != nil),
 			"evm", fmt.Sprintf("%t", isEvmTx),
 		}
-		requestCount.With(lvs[:2]...).Add(1)
+		requestCount.With(lvs[:4]...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
