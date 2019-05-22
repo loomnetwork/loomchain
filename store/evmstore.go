@@ -3,18 +3,38 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"sort"
+	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 var (
 	defaultRoot = []byte{1}
 	rootHashKey = util.PrefixKey(vmPrefix, rootKey)
+
+	commitDuration metrics.Histogram
 )
+
+func init() {
+	const namespace = "loomchain"
+	const subsystem = "evmstore"
+
+	commitDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "commit",
+			Help:      "How long EvmStore.Commit() took to execute (in miliseconds)",
+		}, []string{"version"})
+}
 
 func evmRootKey(blockHeight int64) []byte {
 	b := make([]byte, 8)
@@ -158,6 +178,11 @@ func (s *EvmStore) Set(key, val []byte) {
 }
 
 func (s *EvmStore) Commit(version int64) []byte {
+	defer func(begin time.Time) {
+		lvs := []string{"version", fmt.Sprintf("%d", version)}
+		commitDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	currentRoot := make([]byte, len(s.rootHash))
 	copy(currentRoot, s.rootHash)
 	// default root is an indicator for empty root
