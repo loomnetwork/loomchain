@@ -12,11 +12,13 @@ import (
 
 type MockStore struct {
 	storage map[string][]byte
+	version int64
 }
 
 func NewMockStore() *MockStore {
 	return &MockStore{
 		storage: make(map[string][]byte),
+		version: 0,
 	}
 }
 
@@ -45,11 +47,12 @@ func (m *MockStore) Hash() []byte {
 }
 
 func (m *MockStore) Version() int64 {
-	return 0
+	return m.version
 }
 
 func (m *MockStore) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, nil
+	m.version = m.version + 1
+	return nil, m.version, nil
 }
 
 func (m *MockStore) Prune() error {
@@ -57,10 +60,15 @@ func (m *MockStore) Prune() error {
 }
 
 func (m *MockStore) GetSnapshot() Snapshot {
-	// NOTE: This isn't right, but won't be hard to implement properly, just need to copy the map.
-	// Not done yet because tests don't need it.
+	snapshotStore := make(map[string][]byte)
+	for k, v := range m.storage {
+		snapshotStore[k] = v
+	}
+	mstore := &MockStore{
+		storage: snapshotStore,
+	}
 	return &mockStoreSnapshot{
-		MockStore: m,
+		MockStore: mstore,
 	}
 }
 
@@ -101,34 +109,24 @@ func TestCachingStore(t *testing.T) {
 	cachingStore.Delete([]byte("key1"))
 	storedValue = mockStore.Get([]byte("key1"))
 	assert.Equal(t, true, storedValue == nil, "cachingStore need to delete value from underlying storage")
-	cachedValue, err = cachingStore.cache.Get("key1")
+	_, err = cachingStore.cache.Get("key1")
 	require.EqualError(t, err, bigcache.ErrEntryNotFound.Error())
 }
 
-func TestReadOnlyCachingStore(t *testing.T) {
+func TestCachingStoreSnapshot(t *testing.T) {
 	defaultConfig := DefaultCachingStoreConfig()
 	defaultConfig.CachingEnabled = true
-
 	mockStore := NewMockStore()
 
 	cachingStore, err := NewCachingStore(mockStore, defaultConfig)
 	require.NoError(t, err)
 
-	readOnlyCachingStore := NewReadOnlyCachingStore(cachingStore)
-
 	mockStore.Set([]byte("key1"), []byte("value1"))
-	cachedValue := readOnlyCachingStore.Get([]byte("key1"))
-	assert.Equal(t, "value1", string(cachedValue), "readOnlyCachingStore need to fetch key correctly from backing store")
+	cachingStoreSnapshot := cachingStore.GetSnapshot()
+	cachedValue := cachingStoreSnapshot.Get([]byte("key1"))
+	assert.Equal(t, "value1", string(cachedValue), "cachingStoreSnapshot need to fetch key correctly from backing store")
 
 	mockStore.Set([]byte("key1"), []byte("value2"))
-	cachedValue = readOnlyCachingStore.Get([]byte("key1"))
-	assert.Equal(t, "value1", string(cachedValue), "readOnlyCachingStore need to fetch key from cache and not backing store")
-
-	require.Panics(t, func() {
-		readOnlyCachingStore.Set([]byte("key1"), []byte("value1"))
-	})
-
-	require.Panics(t, func() {
-		readOnlyCachingStore.Delete([]byte("key1"))
-	})
+	cachedValue = cachingStoreSnapshot.Get([]byte("key1"))
+	assert.Equal(t, "value1", string(cachedValue), "cachingStoreSnapshot need to fetch key from cache and not backing store")
 }

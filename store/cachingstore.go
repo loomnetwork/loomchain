@@ -120,15 +120,6 @@ func init() {
 
 }
 
-// CachingStore wraps a write-through cache around a VersionedKVStore.
-// NOTE: Writes update the cache, reads do not, to read from the cache use the store returned by
-//       ReadOnly().
-type CachingStore struct {
-	VersionedKVStore
-	cache  *bigcache.BigCache
-	logger *loom.Logger
-}
-
 func DefaultCachingStoreConfig() *CachingStoreConfig {
 	return &CachingStoreConfig{
 		CachingEnabled:            true,
@@ -146,15 +137,15 @@ func DefaultCachingStoreConfig() *CachingStoreConfig {
 
 func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*bigcache.Config, error) {
 	if config.MaxKeys == 0 || config.MaxSizeOfValueInBytes == 0 {
-		return nil, fmt.Errorf("[CachingStore] max keys and/or max size of value cannot be zero")
+		return nil, fmt.Errorf("[CachingStoreConfig] max keys and/or max size of value cannot be zero")
 	}
 
 	if config.EvictionTimeInSeconds == 0 {
-		return nil, fmt.Errorf("[CachingStore] eviction time cannot be zero")
+		return nil, fmt.Errorf("[CachingStoreConfig] eviction time cannot be zero")
 	}
 
 	if config.Shards == 0 {
-		return nil, fmt.Errorf("[CachingStore] caching shards cannot be zero")
+		return nil, fmt.Errorf("[CachingStoreConfig] caching shards cannot be zero")
 	}
 
 	configTemplate := bigcache.DefaultConfig(time.Duration(config.EvictionTimeInSeconds) * time.Second)
@@ -169,6 +160,15 @@ func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*
 	configTemplate.Logger = CachingStoreLogger{logger: logger}
 
 	return &configTemplate, nil
+}
+
+// CachingStore wraps a write-through cache around a VersionedKVStore.
+// NOTE: Writes update the cache, reads do not, to read from the cache use the store returned by
+//       ReadOnly().
+type CachingStore struct {
+	VersionedKVStore
+	cache  *bigcache.BigCache
+	logger *loom.Logger
 }
 
 func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig) (*CachingStore, error) {
@@ -227,27 +227,31 @@ func (c *CachingStore) Set(key, val []byte) {
 	c.VersionedKVStore.Set(key, val)
 }
 
+func (c *CachingStore) GetSnapshot() Snapshot {
+	return newReadOnlyCachingStore(c)
+}
+
 // ReadOnlyCachingStore prevents any modification to the underlying backing store,
 // and uses the cache for reads.
-type ReadOnlyCachingStore struct {
+type readOnlyCachingStore struct {
 	*CachingStore
 }
 
-func NewReadOnlyCachingStore(cachingStore *CachingStore) *ReadOnlyCachingStore {
-	return &ReadOnlyCachingStore{
+func newReadOnlyCachingStore(cachingStore *CachingStore) *readOnlyCachingStore {
+	return &readOnlyCachingStore{
 		CachingStore: cachingStore,
 	}
 }
 
-func (c *ReadOnlyCachingStore) Delete(key []byte) {
+func (c *readOnlyCachingStore) Delete(key []byte) {
 	panic("[ReadOnlyCachingStore] Delete() not implemented")
 }
 
-func (c *ReadOnlyCachingStore) Set(key, val []byte) {
+func (c *readOnlyCachingStore) Set(key, val []byte) {
 	panic("[ReadOnlyCachingStore] Set() not implemented")
 }
 
-func (c *ReadOnlyCachingStore) Has(key []byte) bool {
+func (c *readOnlyCachingStore) Has(key []byte) bool {
 	var err error
 
 	defer func(begin time.Time) {
@@ -287,7 +291,7 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 	return exists
 }
 
-func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
+func (c *readOnlyCachingStore) Get(key []byte) []byte {
 	var err error
 
 	defer func(begin time.Time) {
@@ -324,15 +328,15 @@ func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
 	return data
 }
 
-func (c *ReadOnlyCachingStore) SaveVersion() ([]byte, int64, error) {
+func (c *readOnlyCachingStore) SaveVersion() ([]byte, int64, error) {
 	return nil, 0, errors.New("[ReadOnlyCachingStore] SaveVersion() not implemented")
 }
 
-func (c *ReadOnlyCachingStore) Prune() error {
+func (c *readOnlyCachingStore) Prune() error {
 	return errors.New("[ReadOnlyCachingStore] Prune() not implemented")
 }
 
 // Implements Snapshot interface
-func (c *ReadOnlyCachingStore) Release() {
+func (c *readOnlyCachingStore) Release() {
 	// noop
 }
