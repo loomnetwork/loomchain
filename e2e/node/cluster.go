@@ -71,6 +71,16 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 		node.PrivKeyPath = nodeKeyFile
 	}
 
+	var overrideValidators []*fnConsensus.OverrideValidatorParsable
+	for _, val := range genValidators {
+		// address := loom.LocalAddressFromPublicKey(val.PubKey.Bytes())
+		address := val.Address
+		overrideValidators = append(overrideValidators, &fnConsensus.OverrideValidatorParsable{
+			Address:     address.String(),
+			VotingPower: 100,
+		})
+	}
+
 	idToP2P := make(map[int64]string)
 	idToRPCPort := make(map[int64]int)
 	idToProxyPort := make(map[int64]int)
@@ -122,15 +132,10 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 	for _, node := range nodes {
 		var peers []string
 		var persistentPeers []string
-		overrideValidators := make([]*fnConsensus.OverrideValidatorParsable, 0, len(nodes))
-		for i, n := range nodes {
+		for _, n := range nodes {
 			if node.ID != n.ID {
 				peers = append(peers, fmt.Sprintf("tcp://%s@%s", n.NodeKey, idToP2P[n.ID]))
 				persistentPeers = append(persistentPeers, fmt.Sprintf("tcp://%s@%s", n.NodeKey, idToP2P[n.ID]))
-			}
-			overrideValidators[i] = &fnConsensus.OverrideValidatorParsable{
-				Address:     node.Address,
-				VotingPower: 100,
 			}
 		}
 		node.Peers = strings.Join(peers, ",")

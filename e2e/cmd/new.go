@@ -90,6 +90,7 @@ func newNewCommand() *cobra.Command {
 				}
 			}
 
+			fmt.Println("CREATING CLUSTER")
 			if err = node.CreateCluster(nodes, accounts, fnconsensus); err != nil {
 				return err
 			}
