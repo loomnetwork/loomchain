@@ -3,13 +3,11 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"sort"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
@@ -56,20 +54,17 @@ type EvmStore struct {
 	cache         map[string]cacheItem
 	rootHash      []byte
 	lastSavedRoot []byte
-	rootCache     *lru.Cache
+	rootCache     map[int64][]byte
+	maxRootCache  int64
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
 func NewEvmStore(evmDB db.DBWrapper) *EvmStore {
-	// TODO: the number of cached version should be a configuration
-	rootCache, err := lru.New(int(1000))
-	if err != nil {
-		panic(err)
-	}
 	evmStore := &EvmStore{
-		evmDB:     evmDB,
-		cache:     make(map[string]cacheItem),
-		rootCache: rootCache,
+		evmDB:        evmDB,
+		cache:        make(map[string]cacheItem),
+		rootCache:    make(map[int64][]byte),
+		maxRootCache: int64(1000), // This should be configurable
 	}
 	return evmStore
 }
@@ -199,7 +194,7 @@ func (s *EvmStore) Commit(version int64) []byte {
 		s.Set(evmRootKey(version), currentRoot)
 	}
 
-	s.rootCache.Add(version, currentRoot)
+	s.rootCache[version%s.maxRootCache] = currentRoot
 
 	batch := s.evmDB.NewBatch()
 	for key, item := range s.cache {
@@ -222,7 +217,7 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	if bytes.Equal(root, defaultRoot) {
 		root = []byte{}
 	}
-	s.rootCache.Add(targetVersion, root)
+	s.rootCache[targetVersion%s.maxRootCache] = root
 
 	// nil root indicates that latest saved root below target version is not found
 	if root == nil && targetVersion > 0 {
@@ -254,11 +249,8 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
 	var targetRoot []byte
 	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
-	val, ok := s.rootCache.Get(version)
-	if ok {
-		fmt.Println("Cache Hit")
-		targetRoot = val.([]byte)
-	} else {
+	targetRoot, exist := s.rootCache[version%s.maxRootCache]
+	if !exist {
 		targetRoot, _ = s.getLastSavedRoot(version)
 	}
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
