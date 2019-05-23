@@ -41,7 +41,7 @@ func init() {
 			Subsystem: "multi_writer_appstore",
 			Name:      "save_version",
 			Help:      "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
-		}, []string{"error"},
+		}, []string{},
 	)
 }
 
@@ -134,8 +134,7 @@ func (s *MultiWriterAppStore) Version() int64 {
 func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"error", fmt.Sprint(err != nil)}
-		saveVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+		saveVersionDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	currentRoot := s.evmStore.Commit(s.Version() + 1)

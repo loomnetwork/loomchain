@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"sort"
 	"time"
 
@@ -30,7 +29,7 @@ func init() {
 			Subsystem: "evmstore",
 			Name:      "commit",
 			Help:      "How long EvmStore.Commit() took to execute (in seconds)",
-		}, []string{"version"},
+		}, []string{},
 	)
 }
 
@@ -177,8 +176,7 @@ func (s *EvmStore) Set(key, val []byte) {
 
 func (s *EvmStore) Commit(version int64) []byte {
 	defer func(begin time.Time) {
-		lvs := []string{"version", fmt.Sprintf("%d", version)}
-		commitDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+		commitDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	currentRoot := make([]byte, len(s.rootHash))
