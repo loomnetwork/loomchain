@@ -40,7 +40,7 @@ func addUserDeployerCmd() *cobra.Command {
 		Example: addUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -74,7 +74,7 @@ func getUserDeployersCmd() *cobra.Command {
 		Example: getUserDeployersCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -115,7 +115,7 @@ func getDeployedContractsCmd() *cobra.Command {
 		Example: getDeployedContractsCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return err
 			}
