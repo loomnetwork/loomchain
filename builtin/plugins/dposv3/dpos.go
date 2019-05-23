@@ -474,7 +474,7 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 /// if they claim all rewards that are owed to them
 func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
 	if req.Delegator == nil {
-		return nil, logStaticDposError(ctx, errors.New("CheckRewardsFromAllValidators called with req.ValidatorAddress == nil"), req.String())
+		return nil, logStaticDposError(ctx, errors.New("CheckRewardsFromAllValidators called with req.Delegator == nil"), req.String())
 	}
 	delegator := req.Delegator
 	validators, err := ValidatorList(ctx)
