@@ -74,7 +74,7 @@ func NewDeployRecorderPostCommitMiddleware(
 			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
 		}
 
-		if err := udw.RecordContractDeployment(ctx, origin, loom.UnmarshalAddressPB(deployResponse.Contract), deployTx.VmType); err != nil {
+		if err := udw.RecordContractDeployment(ctx, origin, loom.UnmarshalAddressPB(deployResponse.Contract)); err != nil {
 			return errors.Wrapf(err, "error while recording deployment")
 		}
 
