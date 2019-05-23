@@ -30,6 +30,7 @@ var (
 	evmRootPrefix = []byte("evmroot")
 
 	saveVersionDuration metrics.Histogram
+	getSnapshotDuration metrics.Histogram
 )
 
 func init() {
@@ -39,6 +40,15 @@ func init() {
 			Subsystem: "multi_writer_appstore",
 			Name:      "save_version",
 			Help:      "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
+		}, []string{},
+	)
+
+	getSnapshotDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
+			Name:      "get_snapshot",
+			Help:      "How long MultiWriterAppStore.GetSnapshot() took to execute (in seconds)",
 		}, []string{},
 	)
 }
@@ -63,6 +73,10 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
 	if appStoreEvmRoot == nil {
 		appStoreEvmRoot = store.appStore.Get(util.PrefixKey(vmPrefix, rootKey))
+		// if root is still nil, evm state is empty, set appStoreEvmRoot to default root
+		if appStoreEvmRoot == nil && store.appStore.Version() > 0 {
+			appStoreEvmRoot = defaultRoot
+		}
 	}
 	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
@@ -169,6 +183,9 @@ func (s *MultiWriterAppStore) Prune() error {
 }
 
 func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
+	defer func(begin time.Time) {
+		getSnapshotDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
 	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
 	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
 	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree)

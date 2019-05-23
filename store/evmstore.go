@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
@@ -54,13 +55,19 @@ type EvmStore struct {
 	cache         map[string]cacheItem
 	rootHash      []byte
 	lastSavedRoot []byte
+	rootCache     *lru.Cache
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
-func NewEvmStore(evmDB db.DBWrapper) *EvmStore {
+func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int) *EvmStore {
+	rootCache, err := lru.New(numCachedRoots)
+	if err != nil {
+		panic(err)
+	}
 	evmStore := &EvmStore{
-		evmDB: evmDB,
-		cache: make(map[string]cacheItem),
+		evmDB:     evmDB,
+		cache:     make(map[string]cacheItem),
+		rootCache: rootCache,
 	}
 	return evmStore
 }
@@ -190,6 +197,8 @@ func (s *EvmStore) Commit(version int64) []byte {
 		s.Set(evmRootKey(version), currentRoot)
 	}
 
+	s.rootCache.Add(version, currentRoot)
+
 	batch := s.evmDB.NewBatch()
 	for key, item := range s.cache {
 		if !item.Deleted {
@@ -211,6 +220,7 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	if bytes.Equal(root, defaultRoot) {
 		root = []byte{}
 	}
+	s.rootCache.Add(targetVersion, root)
 
 	// nil root indicates that latest saved root below target version is not found
 	if root == nil && targetVersion > 0 {
@@ -240,7 +250,14 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 }
 
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
-	targetRoot, _ := s.getLastSavedRoot(version)
+	var targetRoot []byte
+	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
+	val, exist := s.rootCache.Get(version)
+	if exist {
+		targetRoot = val.([]byte)
+	} else {
+		targetRoot, _ = s.getLastSavedRoot(version)
+	}
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }
 
