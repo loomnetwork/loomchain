@@ -90,10 +90,10 @@
   Condition = "contains"
   Excluded = ["{{index $.NodePubKeyList 1}}"]
 
-#[[TestCases]]
-#  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
-#  Condition = "excludes"
-#  Excludes = ["{{index $.NodePubKeyList 0}}"]
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  Condition = "excludes"
+  Excludes = ["{{index $.NodeBase64AddressList 0}}"]
 
 [[TestCases]]
   RunCmd = "check_validators"

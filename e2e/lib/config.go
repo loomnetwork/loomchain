@@ -36,6 +36,7 @@ type Config struct {
 	TronAccountPubKeyList      []string
 
 	NodeAddressList         []string
+	NodeBase64AddressList   []string
 	NodePubKeyList          []string
 	NodePrivKeyPathList     []string
 	NodeRPCAddressList      []string
