@@ -5,21 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/cli"
-	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/spf13/cobra"
 )
 
 var (
 	dwContractName = "user-deployer-whitelist"
 )
-
-type deployerInfo struct {
-	Address string
-	Flags   string
-}
 
 func NewUserDeployCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -73,20 +66,6 @@ const getUserDeployersCmdExample = `
 loom dev list-deployers 0x7262d4c97c7B93937E4810D289b7320e9dA82856 
 `
 
-func getDeployerInfo(deployer *dwtypes.Deployer) deployerInfo {
-	flagsInt := dw.UnpackFlags(deployer.Flags)
-	flags := []string{}
-	for _, flag := range flagsInt {
-		flags = append(flags, dwtypes.Flags_name[int32(flag)])
-	}
-	f := strings.Join(flags, "|")
-	deployerInfo := deployerInfo{
-		Address: deployer.Address.ChainId + ":" + deployer.Address.Local.String(),
-		Flags:   f,
-	}
-	return deployerInfo
-}
-
 func getUserDeployersCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -107,11 +86,11 @@ func getUserDeployersCmd() *cobra.Command {
 				"GetUserDeployers", req, &resp); err != nil {
 				return err
 			}
-			deployerInfos := []deployerInfo{}
+			deployerAddresses := []string{}
 			for _, deployer := range resp.Deployers {
-				deployerInfos = append(deployerInfos, getDeployerInfo(deployer))
+				deployerAddresses = append(deployerAddresses, deployer.Address.ChainId+":"+deployer.Address.Local.String())
 			}
-			output, err := json.MarshalIndent(deployerInfos, "", "  ")
+			output, err := json.MarshalIndent(deployerAddresses, "", "  ")
 			if err != nil {
 				return err
 			}
