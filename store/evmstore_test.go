@@ -24,7 +24,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	require := t.Require()
 	evmDb, err := db.LoadMemDB()
 	require.NoError(err)
-	evmStore := NewEvmStore(evmDb)
+	evmStore := NewEvmStore(evmDb, 100)
 	for i := 0; i <= 100; i++ {
 		key := []byte(fmt.Sprintf("Key%d", i))
 		evmStore.Set(key, key)
@@ -64,7 +64,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreBasicMethods() {
 	// Test Get|Set|Has|Delete methods
 	evmDb, err := db.LoadMemDB()
 	require.NoError(err)
-	evmStore := NewEvmStore(evmDb)
+	evmStore := NewEvmStore(evmDb, 100)
 	key1 := []byte("hello")
 	key2 := []byte("hello2")
 	value1 := []byte("world")
@@ -92,7 +92,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangePrefix() {
 	// Test Range Prefix
 	evmDb, err := db.LoadMemDB()
 	require.NoError(err)
-	evmStore := NewEvmStore(evmDb)
+	evmStore := NewEvmStore(evmDb, 100)
 	for i := 0; i <= 100; i++ {
 		key := []byte(fmt.Sprintf("Key%d", i))
 		evmStore.Set(key, key)

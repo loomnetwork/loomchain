@@ -11,7 +11,7 @@ type EvmStoreConfig struct {
 	// WriteBufferMegs for the goleveldb backend EVM Store
 	WriteBufferMegs int
 	// NumCachedRoots defines a number of in-memory cached EVM roots
-	NumCachedRoots int64
+	NumCachedRoots int
 }
 
 func DefaultEvmStoreConfig() *EvmStoreConfig {
