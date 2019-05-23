@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"sort"
 	"time"
 
@@ -221,6 +222,7 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	if bytes.Equal(root, defaultRoot) {
 		root = []byte{}
 	}
+	s.rootCache.Add(targetVersion, root)
 
 	// nil root indicates that latest saved root below target version is not found
 	if root == nil && targetVersion > 0 {
@@ -233,10 +235,6 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 }
 
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
-	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
-	if root, ok := s.rootCache.Get(targetVersion); ok {
-		return root.([]byte), targetVersion
-	}
 	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
@@ -254,7 +252,15 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 }
 
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
-	targetRoot, _ := s.getLastSavedRoot(version)
+	var targetRoot []byte
+	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
+	val, ok := s.rootCache.Get(version)
+	if ok {
+		fmt.Println("Cache Hit")
+		targetRoot = val.([]byte)
+	} else {
+		targetRoot, _ = s.getLastSavedRoot(version)
+	}
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }
 
