@@ -11,7 +11,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
@@ -149,7 +148,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
 
 	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
-		deployerCtx), &GetUserDeployersRequest{UserAddr:addr3.MarshalPB()})
+		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
 
@@ -162,9 +161,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.Nil(t, getDeployedContractsResponse)
 
 	err = RecordContractDeployment(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
-		addr1, contractAddr, vm.VMType_EVM)
+		addr1, contractAddr)
 	require.Nil(t, err)
-
 	// addr1 is deployer
 	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
