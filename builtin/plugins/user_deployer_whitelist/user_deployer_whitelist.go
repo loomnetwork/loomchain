@@ -9,7 +9,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/pkg/errors"
 )
 
@@ -103,7 +102,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 }
 
 /* Add User Deployer - Adds Deployer in UserState
-This method will be called by User who wants to whitelist deployers
+This method will be called by User who wants to whitelist deployer, takes deployer Address as input
 Afer adding a deployer User state will change, it will contains deployer information - (
 address + flags) corresponding to UserKey
 After adding a deployer, deployer state will also change it contains mapping of deployer key corresponding to
@@ -160,7 +159,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	adddeprequest := &dwtypes.AddUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
-	var resp Deployer
+	var resp dwtypes.AddUserDeployerResponse
 	//Retrieving Deployer Address and Corresponding Flags after Deployer Addition
 	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, &resp); err != nil {
 		return errors.Wrap(err, "failed to whitelist deployer")
@@ -176,8 +175,8 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
 	}
 	deployer := &UserDeployerState{
-		Address: resp.Address,
-		Flags:   deployer_whitelist.PackFlags(uint32(deployer_whitelist.AllowEVMDeployFlag)),
+		Address: resp.Deployer.Address,
+		Flags:   resp.Deployer.Flags,
 	}
 	//Storing Full Deployer object corresponding to Deployer Key - Deployer State
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
