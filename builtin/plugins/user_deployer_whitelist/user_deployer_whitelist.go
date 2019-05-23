@@ -176,7 +176,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	}
 	deployer := &UserDeployerState{
 		Address: resp.Deployer.Address,
-		Flags:   resp.Deployer.Flags,
 	}
 	//Storing Full Deployer object corresponding to Deployer Key - Deployer State
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
@@ -209,7 +208,6 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 		}
 		deployers = append(deployers, &Deployer{
 			Address: deployerAddr,
-			Flags:   userDeployerState.Flags,
 		})
 	}
 	return &GetUserDeployersResponse{

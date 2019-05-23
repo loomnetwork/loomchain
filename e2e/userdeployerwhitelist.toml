@@ -26,7 +26,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev list-deployers {{index $.AccountAddressList 0}}"
   Condition = "contains"
-  Expected = ['default:{{index $.AccountAddressList 1}}','"Flags": "EVM"']
+  Expected = ['default:{{index $.AccountAddressList 1}}']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
