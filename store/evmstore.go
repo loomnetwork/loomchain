@@ -19,7 +19,9 @@ var (
 	defaultRoot = []byte{1}
 	rootHashKey = util.PrefixKey(vmPrefix, rootKey)
 
-	commitDuration metrics.Histogram
+	commitDuration              metrics.Histogram
+	evmStoreGetSnapshotDuration metrics.Histogram
+	getLastSavedRootDuration    metrics.Histogram
 )
 
 func init() {
@@ -29,6 +31,24 @@ func init() {
 			Subsystem: "evmstore",
 			Name:      "commit",
 			Help:      "How long EvmStore.Commit() took to execute (in seconds)",
+		}, []string{},
+	)
+
+	getLastSavedRootDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "evmstore",
+			Name:      "get_last_saved_root",
+			Help:      "How long EvmStore.getLastSavedRoot() took to execute (in seconds)",
+		}, []string{},
+	)
+
+	evmStoreGetSnapshotDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "evmstore",
+			Name:      "get_snapshot",
+			Help:      "How long EvmStore.GetSnapshot() took to execute (in seconds)",
 		}, []string{},
 	)
 }
@@ -223,6 +243,9 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 }
 
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
+	defer func(begin time.Time) {
+		getLastSavedRootDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
 	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
@@ -240,6 +263,9 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 }
 
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
+	defer func(begin time.Time) {
+		evmStoreGetSnapshotDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
 	targetRoot, _ := s.getLastSavedRoot(version)
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }

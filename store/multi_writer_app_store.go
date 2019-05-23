@@ -30,6 +30,7 @@ var (
 	evmRootPrefix = []byte("evmroot")
 
 	saveVersionDuration metrics.Histogram
+	getSnapshotDuration metrics.Histogram
 )
 
 func init() {
@@ -39,6 +40,15 @@ func init() {
 			Subsystem: "multi_writer_appstore",
 			Name:      "save_version",
 			Help:      "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
+		}, []string{},
+	)
+
+	getSnapshotDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
+			Name:      "get_snapshot",
+			Help:      "How long MultiWriterAppStore.GetSnapshot() took to execute (in seconds)",
 		}, []string{},
 	)
 }
@@ -169,6 +179,9 @@ func (s *MultiWriterAppStore) Prune() error {
 }
 
 func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
+	defer func(begin time.Time) {
+		getSnapshotDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
 	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
 	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
 	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree)
