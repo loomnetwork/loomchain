@@ -123,7 +123,7 @@ func (s *IAVLStore) Version() int64 {
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered in f", r)
+			log.Error("Parnic in SaveVersion", "err", r)
 		}
 	}()
 	oldVersion := s.Version()
@@ -135,7 +135,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 			}
 			log.Info("version after new version no change to disk db, version", version)
-			s.tempDB.Print()
+			//s.tempDB.Print()
 			return hash, version, nil
 		} else {
 			s.saveCount = 0
@@ -147,7 +147,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
 	log.Info("version after write to database", version)
-	s.tempDB.Print()
+	//s.tempDB.Print()
 	return hash, version, nil
 }
 
@@ -190,7 +190,8 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
 func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency uint64) (*IAVLStore, error) {
-	tree := iavl.NewMutableTree(db, 10000)
+	ndb := iavl.NewNodeDB3(db, 10000, saveFrequency > 0, nil)
+	tree := iavl.NewMutableTreeWithNodeDB(ndb)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
 		return nil, err
