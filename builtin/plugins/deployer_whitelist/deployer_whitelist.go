@@ -23,6 +23,7 @@ type (
 	Deployer               = dwtypes.Deployer
 
 	AddUserDeployerRequest = dwtypes.AddUserDeployerRequest
+	AddUserDeployerResponse = dwtypes.AddUserDeployerResponse
 )
 
 const (
@@ -99,7 +100,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 	return nil
 }
 
-func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserDeployerRequest) (*Deployer, error) {
+func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserDeployerRequest) (*AddUserDeployerResponse,	error) {
 	userWhitelistContract, err := ctx.Resolve("user-deployer-whitelist")
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to resolve user_deployer_whitelist contract")
@@ -124,7 +125,9 @@ func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserD
 		Flags:   PackFlags(uint32(AllowEVMDeployFlag)),
 	}
 
-	return deployer, ctx.Set(deployerKey(deployerAddr), deployer)
+	return &AddUserDeployerResponse{
+		Deployer: deployer,
+	}, ctx.Set(deployerKey(deployerAddr), deployer)
 }
 
 // AddDeployer
