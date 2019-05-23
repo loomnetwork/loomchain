@@ -59,7 +59,7 @@ func addUserDeployerCmd() *cobra.Command {
 			}
 			req := &udwtypes.WhitelistUserDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
-				TierId:       tierId,
+				TierID:       tierId,
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "AddUserDeployer", req, nil)
 		},
