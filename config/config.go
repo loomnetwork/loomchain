@@ -115,11 +115,12 @@ type Config struct {
 	AppStore *store.AppStoreConfig
 
 	// Should pretty much never be changed
-	RootDir     string
-	DBName      string
-	DBBackend   string
-	GenesisFile string
-	PluginsDir  string
+	RootDir         string
+	DBName          string
+	DBBackend       string
+	GenesisFile     string
+	PluginsDir      string
+	DBSaveFrequency uint64
 
 	DBBackendConfig *DBBackendConfig
 
@@ -339,6 +340,7 @@ func DefaultConfig() *Config {
 		RootDir:                    ".",
 		DBName:                     "app",
 		DBBackend:                  db.GoLevelDBBackend,
+		DBSaveFrequency:            0,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		RPCListenAddress:           "tcp://127.0.0.1:46657", // TODO this is an ephemeral port in linux, we should move this

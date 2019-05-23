@@ -683,7 +683,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			}
 		} else {
 			logger.Info("Loading IAVL Store")
-			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.DBSaveFrequency)
 			if err != nil {
 				return nil, err
 			}
@@ -703,7 +703,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.DBSaveFrequency)
 		if err != nil {
 			return nil, err
 		}
@@ -712,6 +712,12 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.EvmDBEnabled)
+		if err != nil {
+			return nil, err
+		}
+	} else if cfg.AppStore.Version == 4 {
+		logger.Info("Loading NewDelayIavlStore Store")
+		appStore, err = store.NewDelayIavlStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.DBSaveFrequency)
 		if err != nil {
 			return nil, err
 		}

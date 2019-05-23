@@ -34,8 +34,11 @@ func init() {
 }
 
 type IAVLStore struct {
-	tree        *iavl.MutableTree
-	maxVersions int64 // maximum number of versions to keep when pruning
+	tree          *iavl.MutableTree
+	maxVersions   int64 // maximum number of versions to keep when pruning
+	saveFrequency uint64
+	saveCount     uint64
+	tempDB        dbm.DB
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -118,11 +121,33 @@ func (s *IAVLStore) Version() int64 {
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in f", r)
+		}
+	}()
 	oldVersion := s.Version()
+	if s.saveFrequency > 0 {
+		s.saveCount++
+		if s.saveCount%s.saveFrequency != 0 {
+			hash, version, err := s.tree.NewVersion()
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
+			}
+			log.Info("version after new version no change to disk db, version", version)
+			s.tempDB.Print()
+			return hash, version, nil
+		} else {
+			s.saveCount = 0
+		}
+	}
+
 	hash, version, err := s.tree.SaveVersion()
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
+	log.Info("version after write to database", version)
+	s.tempDB.Print()
 	return hash, version, nil
 }
 
@@ -164,7 +189,7 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
-func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, error) {
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency uint64) (*IAVLStore, error) {
 	tree := iavl.NewMutableTree(db, 10000)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
@@ -177,8 +202,10 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 	}
 
 	return &IAVLStore{
-		tree:        tree,
-		maxVersions: maxVersions,
+		tree:          tree,
+		maxVersions:   maxVersions,
+		saveFrequency: saveFrequency,
+		tempDB:        db,
 	}, nil
 }
 

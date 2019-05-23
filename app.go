@@ -593,6 +593,11 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in f", r)
+		}
+	}()
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
