@@ -121,7 +121,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
 	}
-	if req.TierId != udwtypes.TierID_DEFAULT {
+	if req.TierID != udwtypes.TierID_DEFAULT {
 		return ErrInvalidTier
 	}
 	//Check for deployer is not already whitelisted
@@ -133,7 +133,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		return err
 	}
 	for k := range tierInfo.Tiers {
-		if tierInfo.Tiers[k].Id == req.TierId {
+		if tierInfo.Tiers[k].TierID == req.TierID {
 			whitelistingFees = &types.BigUInt{Value: *loom.NewBigUIntFromInt(int64(tierInfo.Tiers[k].Fee))}
 		}
 

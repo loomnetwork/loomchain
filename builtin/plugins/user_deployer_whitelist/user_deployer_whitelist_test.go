@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/loomnetwork/go-loom"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -14,6 +12,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,11 +30,10 @@ var (
 
 func TestUserDeployerWhitelistContract(t *testing.T) {
 	fee := uint64(100)
-
 	tier := &udwtypes.Tier{
-		Id:   udwtypes.TierID_DEFAULT,
-		Fee:  fee,
-		Name: "Tier1",
+		TierID: udwtypes.TierID_DEFAULT,
+		Fee:    fee,
+		Name:   "Tier1",
 	}
 	tierList := []*udwtypes.Tier{}
 	tierList = append(tierList, tier)
@@ -114,7 +112,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr1.MarshalPB(),
-			TierId:       0,
+			TierID:       0,
 		})
 
 	require.Nil(t, err)
@@ -133,7 +131,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr1.MarshalPB(),
-			TierId:       0,
+			TierID:       0,
 		})
 
 	require.EqualError(t, ErrDeployerAlreadyExists, err.Error(), "Trying to Add Deployer which Already Exists for User")
@@ -142,7 +140,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr2.MarshalPB(),
-			TierId:       1,
+			TierID:       1,
 		})
 
 	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
