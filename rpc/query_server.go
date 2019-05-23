@@ -319,7 +319,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 		reg := s.CreateRegistry(snapshot)
 		_, err := reg.GetRecord(addr)
 		if err != nil {
-			return "", errors.Wrapf(err, "retrieving record from registry for %v", address)
+			return eth.ZeroedData, nil
 		}
 		return eth.Data(goGetCode), nil
 	}
