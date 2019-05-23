@@ -50,21 +50,21 @@ func getVersionFromEvmRootKey(key []byte) (int64, error) {
 
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
-	evmDB         db.DBWrapper
-	cache         map[string]cacheItem
-	rootHash      []byte
-	lastSavedRoot []byte
-	rootCache     map[int64][]byte
-	maxRootCache  int64
+	evmDB          db.DBWrapper
+	cache          map[string]cacheItem
+	rootHash       []byte
+	lastSavedRoot  []byte
+	rootCache      map[int64][]byte
+	numCachedRoots int64
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
-func NewEvmStore(evmDB db.DBWrapper) *EvmStore {
+func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int64) *EvmStore {
 	evmStore := &EvmStore{
-		evmDB:        evmDB,
-		cache:        make(map[string]cacheItem),
-		rootCache:    make(map[int64][]byte),
-		maxRootCache: int64(1000), // This should be configurable
+		evmDB:          evmDB,
+		cache:          make(map[string]cacheItem),
+		rootCache:      make(map[int64][]byte),
+		numCachedRoots: numCachedRoots,
 	}
 	return evmStore
 }
@@ -194,7 +194,7 @@ func (s *EvmStore) Commit(version int64) []byte {
 		s.Set(evmRootKey(version), currentRoot)
 	}
 
-	s.rootCache[version%s.maxRootCache] = currentRoot
+	s.rootCache[version%s.numCachedRoots] = currentRoot
 
 	batch := s.evmDB.NewBatch()
 	for key, item := range s.cache {
@@ -217,7 +217,7 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	if bytes.Equal(root, defaultRoot) {
 		root = []byte{}
 	}
-	s.rootCache[targetVersion%s.maxRootCache] = root
+	s.rootCache[targetVersion%s.numCachedRoots] = root
 
 	// nil root indicates that latest saved root below target version is not found
 	if root == nil && targetVersion > 0 {
@@ -249,7 +249,7 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
 	var targetRoot []byte
 	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
-	targetRoot, exist := s.rootCache[version%s.maxRootCache]
+	targetRoot, exist := s.rootCache[version%s.numCachedRoots]
 	if !exist {
 		targetRoot, _ = s.getLastSavedRoot(version)
 	}

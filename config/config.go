@@ -366,10 +366,10 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:         "",
-		DeployEnabled:  true,
-		CallEnabled:    true,
-		DPOSVersion:    1,
+		Oracle:        "",
+		DeployEnabled: true,
+		CallEnabled:   true,
+		DPOSVersion:   1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -841,6 +841,8 @@ EvmStore:
   DBBackend: {{.EvmStore.DBBackend}}
   # CacheSizeMegs defines cache size (in megabytes) of EVM store
   CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
+  # NumCachedRoots defines a number of in-memory cached EVM roots
+  NumCachedRoots: {{.EvmStore.NumCachedRoots}}
 {{end}}
 
 # 
