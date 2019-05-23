@@ -38,7 +38,7 @@ func init() {
 			Subsystem: subsystem,
 			Name:      "save_version",
 			Help:      "How long IAVLStore.SaveVersion() took to execute (in seconds)",
-		}, []string{"error"},
+		}, []string{},
 	)
 }
 
@@ -129,8 +129,7 @@ func (s *IAVLStore) Version() int64 {
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"error", fmt.Sprint(err != nil)}
-		iavlSaveVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+		iavlSaveVersionDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	oldVersion := s.Version()
