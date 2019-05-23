@@ -102,8 +102,14 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	return nil
 }
 
-// Add User Deployer - Adds Deployer in UserState
-//This method will be called by User who wants to whitelist deployers
+/* Add User Deployer - Adds Deployer in UserState
+This method will be called by User who wants to whitelist deployers
+Afer adding a deployer User state will change, it will contains deployer information - (
+address + flags) corresponding to UserKey
+After adding a deployer, deployer state will also change it contains mapping of deployer key corresponding to
+deployerinfo
+If Loomcoin balance of user is >= whitelisting fees, deployed is whitelisted otherwise error is returned.
+*/
 
 func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
 	var userState UserState
@@ -183,6 +189,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 }
 
 // GetUserDeployers returns whitelisted deployers corresponding to specific user
+//Gets Deployer data from user state
 func (uw *UserDeployerWhitelist) GetUserDeployers(
 	ctx contract.StaticContext, req *GetUserDeployersRequest,
 ) (*GetUserDeployersResponse, error) {
@@ -212,6 +219,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 }
 
 // GetDeployedContracts return contract addresses deployed by particular deployer
+//Gets Deployed Contracts from deployer state corresponding to deployer key
 func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	ctx contract.StaticContext, req *GetDeployedContractsRequest,
 ) (*GetDeployedContractsResponse, error) {
@@ -229,8 +237,10 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}, nil
 }
 
-// RecordContractDeployment will record contract deployer address, newly deployed contract and on which vm it is deployed.
-// If key is not part of whitelisted key, Ignore.
+/* RecordContractDeployment will record contract deployer address,newly deployed contract and on which vm it is deployed.
+If key is not part of whitelisted key, Ignore.
+Stores deployed contract information in Deployer State corresponding to deployer key
+*/
 func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address) error {
 	var userDeployer UserDeployerState
 	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
