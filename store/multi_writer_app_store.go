@@ -49,16 +49,17 @@ type MultiWriterAppStore struct {
 	appStore                   *IAVLStore
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
-	evmStoreEnabled            bool
+	saveEVMStateToIAVL         bool
 	onlySaveEvmStateToEvmStore bool
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
-func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEnabled bool) (*MultiWriterAppStore, error) {
+func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool) (*MultiWriterAppStore, error) {
 	store := &MultiWriterAppStore{
-		evmStoreEnabled: evmStoreEnabled,
-		appStore:        appStore,
-		evmStore:        evmStore,
+		appStore:                   appStore,
+		evmStore:                   evmStore,
+		saveEVMStateToIAVL:         saveEVMStateToIAVL,
+		onlySaveEvmStateToEvmStore: !saveEVMStateToIAVL,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
 	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
@@ -70,15 +71,17 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
 			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
 	}
-	store.onlySaveEvmStateToEvmStore = evmStoreEnabled || bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
+
+	// feature flag overrides SaveEVMStateToIAVL
+	if !store.onlySaveEvmStateToEvmStore {
+		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
+	}
+
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
 }
 
 func (s *MultiWriterAppStore) Delete(key []byte) {
-	if bytes.Equal(key, evmDBFeatureKey) {
-		s.onlySaveEvmStateToEvmStore = s.evmStoreEnabled
-	}
 	if util.HasPrefix(key, vmPrefix) {
 		s.evmStore.Delete(key)
 		if !s.onlySaveEvmStateToEvmStore {
@@ -90,8 +93,8 @@ func (s *MultiWriterAppStore) Delete(key []byte) {
 }
 
 func (s *MultiWriterAppStore) Set(key, val []byte) {
-	if bytes.Equal(key, evmDBFeatureKey) {
-		s.onlySaveEvmStateToEvmStore = s.evmStoreEnabled || bytes.Equal(val, []byte{1})
+	if !s.onlySaveEvmStateToEvmStore && bytes.Equal(key, evmDBFeatureKey) {
+		s.onlySaveEvmStateToEvmStore = bytes.Equal(val, []byte{1})
 	}
 	if util.HasPrefix(key, vmPrefix) {
 		s.evmStore.Set(key, val)

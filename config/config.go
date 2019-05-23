@@ -366,10 +366,10 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:         "",
-		DeployEnabled:  true,
-		CallEnabled:    true,
-		DPOSVersion:    1,
+		Oracle:        "",
+		DeployEnabled: true,
+		CallEnabled:   true,
+		DPOSVersion:   1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -817,9 +817,9 @@ AppStore:
   # Snapshot type to use, only supported by MultiReaderIAVL store
   # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
   SnapshotVersion: {{ .AppStore.SnapshotVersion }}
-  # If true the app store will read EVM state from evm.db instead of app.db
+  # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
-  EvmDBEnabled: {{ .AppStore.EvmDBEnabled }}
+  SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
 {{if .EventStore -}}
 #
 # EventStore
