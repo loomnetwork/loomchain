@@ -17,7 +17,6 @@ import (
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
-	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -363,12 +362,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 				contract.Init = jsonInit
 			// in case we need to define custom setups for a new contract, insert
 			// a new case here
-			case "user-deployer-whitelist":
-				jsonInit, err := modifyUserDeployerInit(contract.Init)
-				if err != nil {
-					return err
-				}
-				contract.Init = jsonInit
 			default:
 			}
 
@@ -467,19 +460,6 @@ func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.Ra
 	init.Oracle = &types.Address{
 		ChainId: "default",
 		Local:   localOracle,
-	}
-	return marshalInit(&init)
-}
-
-func modifyUserDeployerInit(contractInit json.RawMessage) (json.RawMessage, error) {
-	var init udwtypes.InitRequest
-	unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
-	if err != nil {
-		return []byte{}, err
-	}
-	buf := bytes.NewBuffer(contractInit)
-	if err := unmarshaler.Unmarshal(buf, &init); err != nil {
-		return []byte{}, err
 	}
 	return marshalInit(&init)
 }
