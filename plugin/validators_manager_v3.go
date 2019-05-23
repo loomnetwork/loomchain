@@ -56,7 +56,7 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
-			m.ctx.Logger().Info("DPOS BeginBlock", "DowntimeEvidence", fmt.Sprintf("%v+", voteInfo), "validatorAddress", voteInfo.Validator.Address)
+			m.ctx.Logger().Debug("DPOS BeginBlock", "DowntimeEvidence", fmt.Sprintf("%v+", voteInfo), "validatorAddress", voteInfo.Validator.Address)
 			// err := m.SlashInactivity(voteInfo.Validator.Address)
 			// if err != nil {
 			// 	return err
@@ -69,13 +69,13 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		// implemented in tendermint but we don't get access to this via the
 		// ABCI. Instead, we're just given a validator address and block height.
 		// The conflicting vote data is kept within the consensus engine itself.
-		m.ctx.Logger().Info("DPOS BeginBlock", "ByzantineEvidence", fmt.Sprintf("%v+", evidence))
+		m.ctx.Logger().Debug("DPOS BeginBlock", "ByzantineEvidence", fmt.Sprintf("%v+", evidence))
 
 		// TODO what prevents someone from resubmitting evidence?
 		// evidence.ValidateBasic() seems to already be called by Tendermint,
 		// I think it takes care of catching duplicates as well...
 		if evidence.Height > (currentHeight - 100) {
-			m.ctx.Logger().Info("DPOS BeginBlock Byzantine Slashing", "FreshEvidenceHeight", evidence.Height, "CurrentHeight", currentHeight)
+			m.ctx.Logger().Debug("DPOS BeginBlock Byzantine Slashing", "FreshEvidenceHeight", evidence.Height, "CurrentHeight", currentHeight)
 			//err := m.SlashDoubleSign(evidence.Validator.Address)
 			//if err != nil {
 			//	return err
