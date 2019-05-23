@@ -71,10 +71,8 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 
 	supply := loom.NewBigUIntFromInt(0)
 	for _, initAcct := range req.Accounts {
-		if ctx.FeatureEnabled(loomchain.TxChecks1_1, false) {
-			if initAcct.Owner == nil {
-				return errors.New("missing coin owner address")
-			}
+		if initAcct.Owner == nil {
+			return errors.New("missing coin owner address")
 		}
 		owner := loom.UnmarshalAddressPB(initAcct.Owner)
 		balance := loom.NewBigUIntFromInt(int64(initAcct.Balance))

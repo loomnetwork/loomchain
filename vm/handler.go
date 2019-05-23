@@ -113,20 +113,18 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	origin := auth.Origin(state.Context())
-
 	if state.FeatureEnabled(loomchain.TxChecks1_1, false) {
 		if msg.From == nil {
 			return r, fmt.Errorf("invalid tx: MessageTx.From not specified")
 		}
-	}
-	caller := loom.UnmarshalAddressPB(msg.From)
-
-	if state.FeatureEnabled(loomchain.TxChecks1_1, false) {
 		if msg.To == nil {
 			return r, fmt.Errorf("invalid tx: MessageTx.To not specified")
 		}
 	}
+
+	origin := auth.Origin(state.Context())
+
+	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
 
 	if caller.Compare(origin) != 0 {
