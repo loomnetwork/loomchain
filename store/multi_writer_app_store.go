@@ -74,7 +74,7 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 	if appStoreEvmRoot == nil {
 		appStoreEvmRoot = store.appStore.Get(util.PrefixKey(vmPrefix, rootKey))
 		// if root is still nil, evm state is empty, set appStoreEvmRoot to default root
-		if appStoreEvmRoot == nil {
+		if appStoreEvmRoot == nil && store.appStore.Version() > 0 {
 			appStoreEvmRoot = defaultRoot
 		}
 	}
