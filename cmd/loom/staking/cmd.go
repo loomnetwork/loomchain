@@ -78,7 +78,7 @@ func ListDelegationsCmd() *cobra.Command {
 		Example: listDelegationsCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
@@ -144,7 +144,7 @@ func TotalDelegationCmd() *cobra.Command {
 		Example: totalDelegationCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
@@ -194,11 +194,11 @@ func CheckDelegationsCmd() *cobra.Command {
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.CheckDelegationResponseV2
-			validatorAddress, err := cli.ParseAddress(args[0])
+			validatorAddress, err := cli.ParseAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
-			delegatorAddress, err := cli.ParseAddress(args[1])
+			delegatorAddress, err := cli.ParseAddress(args[1], &flags)
 			if err != nil {
 				return err
 			}
@@ -241,7 +241,7 @@ func GetMappingCmd() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp address_mapper.AddressMapperGetMappingResponse
-			from, err := cli.ParseAddress(args[0])
+			from, err := cli.ParseAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -307,7 +307,7 @@ func GetBalanceCmd() *cobra.Command {
 		Example: getBalanceCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
@@ -361,7 +361,7 @@ func WithdrawalReceiptCmd() *cobra.Command {
 		Example: getWithdrawalReceiptExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -417,7 +417,7 @@ func CheckAllDelegationsCmd() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		Example: checkAllDelegationsExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}

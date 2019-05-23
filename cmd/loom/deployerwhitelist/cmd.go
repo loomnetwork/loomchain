@@ -47,7 +47,7 @@ func addDeployerCmd() *cobra.Command {
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], &flag)
 			if err != nil {
 				return err
 			}
@@ -94,7 +94,7 @@ func removeDeployerCmd() *cobra.Command {
 		Short:   "Remove deployer from whitelist",
 		Example: removeDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func getDeployerCmd() *cobra.Command {
 		Short:   "Show current permissions of a deployer",
 		Example: getDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
