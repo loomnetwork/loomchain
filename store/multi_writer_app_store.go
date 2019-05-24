@@ -49,7 +49,6 @@ type MultiWriterAppStore struct {
 	appStore                   *IAVLStore
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
-	saveEVMStateToIAVL         bool
 	onlySaveEvmStateToEvmStore bool
 }
 
@@ -58,7 +57,6 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	store := &MultiWriterAppStore{
 		appStore:                   appStore,
 		evmStore:                   evmStore,
-		saveEVMStateToIAVL:         saveEVMStateToIAVL,
 		onlySaveEvmStateToEvmStore: !saveEVMStateToIAVL,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
