@@ -28,6 +28,9 @@ const (
 	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"
 
+	// Enables post commit middleware for user-deployer-whitelist
+	UserDeployerWhitelistFeature = "mw:userdeploy-wl"
+
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
 
