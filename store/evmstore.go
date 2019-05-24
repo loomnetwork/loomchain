@@ -235,9 +235,7 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	start := util.PrefixKey(vmPrefix, evmRootPrefix)
 	end := evmRootKey(targetVersion)
-	// increase last byte of end by one
-	lastByte := end[len(end)-1] + 1
-	end[len(end)-1] = lastByte
+	end[len(end)-1]++ // increase last byte by one
 
 	iter := s.evmDB.ReverseIterator(start, end)
 	defer iter.Close()
