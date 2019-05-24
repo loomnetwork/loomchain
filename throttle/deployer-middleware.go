@@ -32,13 +32,12 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
 	) error {
-
-		// If it isn't EVM deployment, no need to proceed further
-		if res.Info != utils.DeployEvm {
+		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
 			return next(state, txBytes, res)
 		}
 
-		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
+		// If it isn't EVM deployment, no need to proceed further
+		if res.Info != utils.DeployEvm {
 			return next(state, txBytes, res)
 		}
 
@@ -47,30 +46,15 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 			return next(state, txBytes, res)
 		}
 
-		var tx loomchain.Transaction
-		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return errors.New("throttle: unmarshal tx")
-		}
-
-		var msg vm.MessageTx
-		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-			return errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-		}
-
-		var deployTx vm.DeployTx
-		if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-			return errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
+		var deployResponse vm.DeployResponse
+		if err := proto.Unmarshal(res.Data, &deployResponse); err != nil {
+			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
 		}
 
 		origin := auth.Origin(state.Context())
 		ctx, err := createDeployerWhitelistCtx(state)
 		if err != nil {
 			return err
-		}
-
-		var deployResponse vm.DeployResponse
-		if err := proto.Unmarshal(res.Data, &deployResponse); err != nil {
-			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
 		}
 
 		if err := udw.RecordEVMContractDeployment(ctx, origin, loom.UnmarshalAddressPB(deployResponse.Contract)); err != nil {
