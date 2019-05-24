@@ -1151,7 +1151,7 @@ func TestClaimRewardsFromMultipleValidators(t *testing.T) {
 	}
 
 	// the total rewards should be approx 3x of the individual rewards (0.5% * 3 * 1e18)
-	amt, err := dpos.CheckDelegatorRewards(pctx.WithSender(delegatorAddress1), &delegatorAddress1)
+	amt, err := dpos.CheckDelegatorRewards(pctx.WithSender(delegatorAddress2), &delegatorAddress1)
 	assert.True(t, amt.Cmp(big.NewInt(1e18*0.5/1000*2.99)) > 0)
 	assert.True(t, amt.Cmp(big.NewInt(1e18*0.5/1000*3.01)) < 0)
 

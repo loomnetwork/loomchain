@@ -473,7 +473,10 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 /// Returns the total amount which will be available to the user's balance
 /// if they claim all rewards that are owed to them
 func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
-	delegator := ctx.Message().Sender
+	if req.Delegator == nil {
+		return nil, logStaticDposError(ctx, errors.New("CheckRewardsFromAllValidators called with req.Delegator == nil"), req.String())
+	}
+	delegator := req.Delegator
 	validators, err := ValidatorList(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
@@ -483,7 +486,7 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 	chainID := ctx.Block().ChainID
 	for _, v := range validators {
 		valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
-		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator.MarshalPB())
+		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator)
 		if err == contract.ErrNotFound {
 			// Skip reward delegations that were not found.
 			continue
