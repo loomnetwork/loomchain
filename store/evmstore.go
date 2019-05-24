@@ -56,6 +56,7 @@ type EvmStore struct {
 	rootHash      []byte
 	lastSavedRoot []byte
 	rootCache     *lru.Cache
+	version       int64
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
@@ -210,13 +211,14 @@ func (s *EvmStore) Commit(version int64) []byte {
 	batch.Write()
 	s.cache = make(map[string]cacheItem)
 	s.lastSavedRoot = currentRoot
+	s.version = version
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	s.cache = make(map[string]cacheItem)
 	// find the last saved root
-	root, _ := s.getLastSavedRoot(targetVersion)
+	root, version := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
 		root = []byte{}
 	}
@@ -229,21 +231,26 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 
 	s.rootHash = root
 	s.lastSavedRoot = root
+	s.version = version
 	return nil
 }
 
+func (s *EvmStore) Version() ([]byte, int64) {
+	return s.rootHash, s.version
+}
+
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
-	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
+	start := util.PrefixKey(vmPrefix, evmRootPrefix)
+	end := prefixRangeEnd(evmRootKey(targetVersion))
+	iter := s.evmDB.ReverseIterator(start, end)
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		if util.HasPrefix(iter.Key(), util.PrefixKey(vmPrefix, evmRootPrefix)) {
-			version, err := getVersionFromEvmRootKey(iter.Key())
-			if err != nil {
-				return nil, 0
-			}
-			if version <= targetVersion || targetVersion == 0 {
-				return iter.Value(), version
-			}
+		version, err := getVersionFromEvmRootKey(iter.Key())
+		if err != nil {
+			return nil, 0
+		}
+		if version <= targetVersion || targetVersion == 0 {
+			return iter.Value(), version
 		}
 	}
 	return nil, 0
