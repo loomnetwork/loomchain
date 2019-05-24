@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/syndtr/goleveldb/leveldb"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
@@ -29,4 +30,9 @@ func (m *MemDB) NewIterator(start, end []byte) dbm.Iterator {
 
 func (m *MemDB) Release() {
 	// Noop
+}
+
+func (m *MemDB) DB() *leveldb.DB {
+	//Noop
+	return nil
 }

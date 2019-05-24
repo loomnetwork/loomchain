@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 
+	"github.com/syndtr/goleveldb/leveldb"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
@@ -17,6 +18,7 @@ type DBWrapper interface {
 	Compact() error
 	// GetSnapshot creates a new snapshot in a thread-safe manner.
 	GetSnapshot() Snapshot
+	DB() *leveldb.DB
 }
 
 // Snapshot is not guaranteed to be thread-safe.

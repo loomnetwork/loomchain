@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -30,6 +31,11 @@ func (g *GoLevelDB) GetSnapshot() Snapshot {
 	return &GoLevelDBSnapshot{
 		Snapshot: snap,
 	}
+}
+
+func (g *GoLevelDB) DB() *leveldb.DB {
+	return g.GoLevelDB.DB()
+
 }
 
 func LoadGoLevelDB(name, dir string, cacheSizeMeg int, bufferSizeMeg int, collectMetrics bool) (*GoLevelDB, error) {

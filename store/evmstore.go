@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	dbutil "github.com/syndtr/goleveldb/leveldb/util"
 )
 
 var (
@@ -233,17 +234,21 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 }
 
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
-	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
-	defer iter.Close()
-	for ; iter.Valid(); iter.Next() {
-		if util.HasPrefix(iter.Key(), util.PrefixKey(vmPrefix, evmRootPrefix)) {
-			version, err := getVersionFromEvmRootKey(iter.Key())
-			if err != nil {
-				return nil, 0
-			}
-			if version <= targetVersion || targetVersion == 0 {
-				return iter.Value(), version
-			}
+	// use GoLevelDB iterator because Tendermint iterator has a problem with our prefix system
+	// Tendermint iterator takes 0 byte as a null-terminated string
+	goLevelDB := s.evmDB.DB()
+	evmRootPrefix := util.PrefixKey(vmPrefix, []byte(evmRootPrefix))
+	levelDBPrefix := dbutil.BytesPrefix(evmRootPrefix)
+	iter := goLevelDB.NewIterator(levelDBPrefix, nil)
+	defer iter.Release()
+	do := iter.Last()
+	for ; do; do = iter.Prev() {
+		version, err := getVersionFromEvmRootKey(iter.Key())
+		if err != nil {
+			return nil, 0
+		}
+		if version <= targetVersion || targetVersion == 0 {
+			return iter.Value(), version
 		}
 	}
 	return nil, 0
