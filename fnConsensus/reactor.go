@@ -247,6 +247,7 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 	validatorArray := make([]*types.Validator, 0, len(f.cfg.OverrideValidators))
 
 	for _, overrideValidator := range f.cfg.OverrideValidators {
+		// tmState.Validators is the tendermint address, not the loom address.
 		validatorIndex, validator := tmState.Validators.GetByAddress(overrideValidator.Address)
 		if validatorIndex == -1 {
 			return fmt.Errorf("validator specified in override config, doesnt exist in TM validator set")

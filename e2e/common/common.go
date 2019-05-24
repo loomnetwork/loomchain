@@ -30,7 +30,7 @@ var (
 	LogAppDb = flag.Bool("log-app-db", false, "Log app db usage to file")
 )
 
-func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account, numEthAccounts int) (*lib.Config, error) {
+func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account, numEthAccounts int, useFnConsensus bool) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		}
 	}
 
-	if err = node.CreateCluster(nodes, accounts); err != nil {
+	if err = node.CreateCluster(nodes, accounts, useFnConsensus); err != nil {
 		return nil, err
 	}
 
