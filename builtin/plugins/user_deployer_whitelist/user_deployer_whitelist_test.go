@@ -158,7 +158,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, getDeployedContractsResponse)
 
-	err = RecordContractDeployment(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
+	err = RecordEVMContractDeployment(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		addr1, contractAddr)
 	require.Nil(t, err)
 	// addr1 is deployer
