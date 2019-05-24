@@ -1,6 +1,8 @@
 package user_deployer_whitelist
 
 import (
+	"strconv"
+
 	"github.com/loomnetwork/go-loom"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
@@ -25,7 +27,8 @@ type (
 	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
 	UserState                    = udwtypes.UserState
 	InitRequest                  = udwtypes.InitRequest
-	TierInfo                     = udwtypes.TierInfo
+	Tier                         = udwtypes.Tier
+	TierID                       = udwtypes.TierID
 	Address                      = types.Address
 )
 
@@ -74,6 +77,10 @@ func UserStateKey(user loom.Address) []byte {
 	return util.PrefixKey([]byte(userStatePrefix), user.Bytes())
 }
 
+func TierInfoKey(tierID TierID) []byte {
+	return util.PrefixKey(tierInfoKey, []byte(strconv.FormatInt(int64(tierID), 10)))
+}
+
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "user-deployer-whitelist",
@@ -82,11 +89,13 @@ func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 }
 
 func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	if req.Owner == nil {
 		return ErrOwnerNotSpecified
 	}
 
-	if req.TierInfo == nil {
+	if req.Tier == nil {
 		return ErrMissingTierInfo
 	}
 
@@ -95,10 +104,21 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	// TODO: Add relevant methods to manage owner and permissions later on.
 	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
 
-	if err := ctx.Set(tierInfoKey, req.TierInfo); err != nil {
-		return err
-	}
+	for _, tier := range req.Tier {
+		fees := loom.NewBigUIntFromInt(int64(tier.Fee))
+		fees.Mul(fees, div)
+		Tier := &Tier{
+			TierID: tier.TierID,
+			Fee: &types.BigUInt{
+				Value: *fees,
+			},
+			Name: tier.Name,
+		}
 
+		if err := ctx.Set(TierInfoKey(tier.TierID), Tier); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -114,7 +134,7 @@ If Loomcoin balance of user is >= whitelisting fees, deployed is whitelisted oth
 func (uw *UserDeployerWhitelist) AddUserDeployer(
 	ctx contract.Context, req *WhitelistUserDeployerRequest) error {
 	var userState UserState
-	var tierInfo TierInfo
+	var tierInfo Tier
 	var whitelistingFees *types.BigUInt
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
 	if err != nil {
@@ -131,15 +151,12 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	if ctx.Has(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
 		return ErrDeployerAlreadyExists
 	}
-	if err := ctx.Get(tierInfoKey, &tierInfo); err != nil {
+	if err := ctx.Get(TierInfoKey(req.TierID), &tierInfo); err != nil {
 		return err
 	}
-	for k := range tierInfo.Tiers {
-		if tierInfo.Tiers[k].TierID == req.TierID {
-			whitelistingFees = &types.BigUInt{Value: *loom.NewBigUIntFromInt(int64(tierInfo.Tiers[k].Fee))}
-		}
 
-	}
+	whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
+
 	coinAddr, err := ctx.Resolve("coin")
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of coin contract")
