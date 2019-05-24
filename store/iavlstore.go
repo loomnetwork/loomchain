@@ -121,11 +121,18 @@ func (s *IAVLStore) Version() int64 {
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
-	defer func() {
+	var err error
+	defer func(err error) {
 		if r := recover(); r != nil {
-			log.Error("Parnic in SaveVersion", "err", r)
+			if err == nil {
+				err = errors.Errorf("panic in SaveVersion %v", r)
+			} else {
+				err = errors.Wrapf(err, "panic in SaveVersion %v", r)
+			}
+
 		}
-	}()
+	}(err)
+	log.Info("database size", "size", s.tree.Size())
 	oldVersion := s.Version()
 	if s.saveFrequency > 0 {
 		s.saveCount++
@@ -134,7 +141,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 			if err != nil {
 				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 			}
-			log.Info("version after new version no change to disk db, version", version)
+			log.Info("version after new version no change to disk db", "version", version)
 			//s.tempDB.Print()
 			return hash, version, nil
 		} else {
@@ -146,12 +153,23 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
-	log.Info("version after write to database", version)
+	log.Info("version after write to database", "version", version)
 	//s.tempDB.Print()
 	return hash, version, nil
 }
 
 func (s *IAVLStore) Prune() error {
+	var err error
+	defer func(err error) {
+		if r := recover(); r != nil {
+			if err == nil {
+				err = errors.Errorf("panic in DeleteVersion %v", r)
+			} else {
+				err = errors.Wrapf(err, "panic in DeleteVersion %v", r)
+			}
+
+		}
+	}(err)
 	// keep all the versions
 	if s.maxVersions == 0 {
 		return nil
@@ -163,15 +181,20 @@ func (s *IAVLStore) Prune() error {
 		return nil
 	}
 
-	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
 		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	if s.tree.VersionExists(oldVer) {
-		if err = s.tree.DeleteVersion(oldVer); err != nil {
-			return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
+		if s.saveFrequency == 0 {
+			if err = s.tree.DeleteVersion(oldVer); err != nil {
+				return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
+			}
+		} else {
+			if err = s.tree.DeleteMemoryVersion(oldVer, true); err != nil {
+				return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
+			}
 		}
 	}
 	return nil
