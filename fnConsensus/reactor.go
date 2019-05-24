@@ -753,7 +753,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		message, signature, err := f.safeGetMessageAndSignature(fn, nil)
 		if err != nil {
-			f.Logger.Error("FnConsensusReactor: fn.GetMessageAndSignature returned an error, ignoring..")
+			f.Logger.Error("FnConsensusReactor: received error while executing fn.GetMessageAndSignature", "fnID", fnID, "error", err)
 			return
 		}
 
