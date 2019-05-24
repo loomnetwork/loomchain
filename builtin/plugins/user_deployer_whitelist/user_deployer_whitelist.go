@@ -234,11 +234,10 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}, nil
 }
 
-/* RecordContractDeployment will record contract deployer address,newly deployed contract and on which vm it is deployed.
-If key is not part of whitelisted key, Ignore.
-Stores deployed contract information in Deployer State corresponding to deployer key
-*/
-func RecordContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address) error {
+// RecordEVMContractDeployment will record contract deployer address,newly deployed contract.
+// If key is not part of whitelisted key, Ignore.
+// Stores deployed contract information in Deployer State corresponding to deployer key
+func RecordEVMContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address) error {
 	var userDeployer UserDeployerState
 	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
 	// If key is not part of whitelisted keys then error will be logged
