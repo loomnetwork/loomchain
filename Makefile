@@ -4,7 +4,8 @@ GOLint = \
 PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
-PKG_TRANSFER_GATEWAY = github.com/loomnetwork/transfer-gateway
+# Allow location of transfer-gateway package to be overriden via env var
+PKG_TRANSFER_GATEWAY?=github.com/loomnetwork/transfer-gateway
 
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src
 
@@ -19,7 +20,7 @@ HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
-TRANSFER_GATEWAY_DIR=$(GOPATH)/src/github.com/loomnetwork/transfer-gateway
+TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
