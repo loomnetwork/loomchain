@@ -32,7 +32,7 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
 	) error {
-		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
+		if !state.FeatureEnabled(loomchain.UserDeployerWhitelistFeature, false) {
 			return next(state, txBytes, res)
 		}
 
