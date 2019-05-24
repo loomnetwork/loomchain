@@ -89,13 +89,11 @@ func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 }
 
 func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error {
-	div := loom.NewBigUIntFromInt(10)
-	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	if req.Owner == nil {
 		return ErrOwnerNotSpecified
 	}
 
-	if req.Tier == nil {
+	if req.TierInfo == nil {
 		return ErrMissingTierInfo
 	}
 
@@ -104,9 +102,8 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	// TODO: Add relevant methods to manage owner and permissions later on.
 	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
 
-	for _, tier := range req.Tier {
+	for _, tier := range req.TierInfo {
 		fees := loom.NewBigUIntFromInt(int64(tier.Fee))
-		fees.Mul(fees, div)
 		Tier := &Tier{
 			TierID: tier.TierID,
 			Fee: &types.BigUInt{

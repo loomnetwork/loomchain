@@ -89,7 +89,7 @@
                     "chainId": "default",
                     "local": "S7Mg3vyaNSnqchAyvZWoYF7S1UM="
                 },
-                "tier": [
+                "tier_info": [
                         {
                             "id": 0,
                             "fee": "10",

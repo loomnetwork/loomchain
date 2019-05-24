@@ -30,17 +30,13 @@ var (
 
 func TestUserDeployerWhitelistContract(t *testing.T) {
 	fee := uint64(100)
-	tier := &udwtypes.Tier{
+	tier := &udwtypes.InitialTier{
 		TierID: udwtypes.TierID_DEFAULT,
 		Fee:    fee,
 		Name:   "Tier1",
 	}
-	tierList := []*udwtypes.Tier{}
+	tierList := []*udwtypes.InitialTier{}
 	tierList = append(tierList, tier)
-	tierInfo := &udwtypes.TierInfo{
-		Tiers: tierList,
-	}
-
 	pctx := createCtx()
 	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
 	deployContract := &deployer_whitelist.DeployerWhitelist{}
@@ -75,7 +71,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	err = deployerContract.Init(contractpb.WrapPluginContext(deployerCtx), &InitRequest{
 		Owner:    nil,
-		TierInfo: tierInfo,
+		TierInfo: tierList,
 	})
 
 	require.EqualError(t, ErrOwnerNotSpecified, err.Error(), "Owner Not specified at the time of Initialization")
@@ -89,7 +85,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	err = deployerContract.Init(contractpb.WrapPluginContext(deployerCtx), &InitRequest{
 		Owner:    addr4.MarshalPB(),
-		TierInfo: tierInfo,
+		TierInfo: tierList,
 	})
 
 	require.Nil(t, err)
