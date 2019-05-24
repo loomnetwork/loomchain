@@ -41,7 +41,9 @@ func DefaultConfig() *AppStoreConfig {
 		NodeDBVersion:        NodeDBV1,
 		NodeCacheSize:        10000,
 		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
-		SaveEVMStateToIAVL:   true,
+		// SaveEVMStateToIAVL is true because we have not migrated EVM state to evm.db on Plasmachain.
+		// After EVM state migration has been done, this should be set to false by default for new chains.
+		SaveEVMStateToIAVL: true,
 	}
 }
 
