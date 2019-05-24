@@ -26,6 +26,7 @@ type (
 	UserState                    = udwtypes.UserState
 	InitRequest                  = udwtypes.InitRequest
 	TierInfo                     = udwtypes.TierInfo
+	Address                      = types.Address
 )
 
 var (
@@ -110,7 +111,8 @@ deployerinfo
 If Loomcoin balance of user is >= whitelisting fees, deployed is whitelisted otherwise error is returned.
 */
 
-func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
+func (uw *UserDeployerWhitelist) AddUserDeployer(
+	ctx contract.Context, req *WhitelistUserDeployerRequest) error {
 	var userState UserState
 	var tierInfo TierInfo
 	var whitelistingFees *types.BigUInt
@@ -159,9 +161,8 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	adddeprequest := &dwtypes.AddUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
-	var resp dwtypes.AddUserDeployerResponse
 	//Retrieving Deployer Address and Corresponding Flags after Deployer Addition
-	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, &resp); err != nil {
+	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, nil); err != nil {
 		return errors.Wrap(err, "failed to whitelist deployer")
 	}
 	if err := ctx.Get(UserStateKey(userAddr), &userState); err != nil {
@@ -175,7 +176,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
 	}
 	deployer := &UserDeployerState{
-		Address: resp.Deployer.Address,
+		Address: req.DeployerAddr,
 	}
 	//Storing Full Deployer object corresponding to Deployer Key - Deployer State
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
@@ -199,16 +200,15 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 	if err != nil {
 		return nil, err
 	}
-	deployers := []*Deployer{}
+	deployers := []*Address{}
 	for _, deployerAddr := range userState.Deployers {
 		var userDeployerState UserDeployerState
 		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployerState)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 		}
-		deployers = append(deployers, &Deployer{
-			Address: deployerAddr,
-		})
+		deployers = append(deployers, userDeployerState.Address)
+
 	}
 	return &GetUserDeployersResponse{
 		Deployers: deployers,
