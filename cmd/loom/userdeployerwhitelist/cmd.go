@@ -88,7 +88,7 @@ func getUserDeployersCmd() *cobra.Command {
 			}
 			deployerAddresses := []string{}
 			for _, deployer := range resp.Deployers {
-				deployerAddresses = append(deployerAddresses, deployer.Address.ChainId+":"+deployer.Address.Local.String())
+				deployerAddresses = append(deployerAddresses, deployer.ChainId+":"+deployer.Local.String())
 			}
 			output, err := json.MarshalIndent(deployerAddresses, "", "  ")
 			if err != nil {
