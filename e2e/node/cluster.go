@@ -165,10 +165,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 			node.Config.Oracle = "default:" + account[0].Address
 		}
 
-		node.Config.LoomCoinTransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
-		node.Config.LoomCoinTransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
-		node.Config.TransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
-		node.Config.TransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
+		configureGateways(&node.Config, proxyAppPort)
 
 		node.Config.ChainConfig.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
 		node.Config.ChainConfig.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
