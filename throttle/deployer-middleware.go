@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -20,12 +21,9 @@ var (
 	ErrNotAuthorized = errors.New("[DeployerWhitelistMiddleware] not authorized")
 )
 
-// NewDeployRecorderPostCommitMiddleware returns post-commit middleware that
+// NewEVMDeployRecorderPostCommitMiddleware returns post-commit middleware that
 // Records deploymentAddress and vmType
-// Note that to get vmType we need to decode txBytes, even though information is there
-// in the TxHandlerResult.Info. as accessing TxHandlerResult.Info, require us to
-// access evm tag enabled go files
-func NewDeployRecorderPostCommitMiddleware(
+func NewEVMDeployRecorderPostCommitMiddleware(
 	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) (loomchain.PostCommitMiddleware, error) {
 	return loomchain.PostCommitMiddlewareFunc(func(
@@ -34,8 +32,12 @@ func NewDeployRecorderPostCommitMiddleware(
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
 	) error {
-
 		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
+			return next(state, txBytes, res)
+		}
+
+		// If it isn't EVM deployment, no need to proceed further
+		if res.Info != utils.DeployEvm {
 			return next(state, txBytes, res)
 		}
 
@@ -44,23 +46,9 @@ func NewDeployRecorderPostCommitMiddleware(
 			return next(state, txBytes, res)
 		}
 
-		var tx loomchain.Transaction
-		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return errors.New("throttle: unmarshal tx")
-		}
-
-		if tx.Id != deployId {
-			return next(state, txBytes, res)
-		}
-
-		var msg vm.MessageTx
-		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-			return errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-		}
-
-		var deployTx vm.DeployTx
-		if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-			return errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
+		var deployResponse vm.DeployResponse
+		if err := proto.Unmarshal(res.Data, &deployResponse); err != nil {
+			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
 		}
 
 		origin := auth.Origin(state.Context())
@@ -69,12 +57,7 @@ func NewDeployRecorderPostCommitMiddleware(
 			return err
 		}
 
-		var deployResponse vm.DeployResponse
-		if err := proto.Unmarshal(res.Data, &deployResponse); err != nil {
-			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
-		}
-
-		if err := udw.RecordContractDeployment(ctx, origin, loom.UnmarshalAddressPB(deployResponse.Contract)); err != nil {
+		if err := udw.RecordEVMContractDeployment(ctx, origin, loom.UnmarshalAddressPB(deployResponse.Contract)); err != nil {
 			return errors.Wrapf(err, "error while recording deployment")
 		}
 

@@ -1056,11 +1056,11 @@ func loadApp(
 
 	if cfg.UserDeployerWhitelist.ContractEnabled {
 		contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
-		deployRecorderMiddleware, err := throttle.NewDeployRecorderPostCommitMiddleware(contextFactory)
+		evmDeployRecorderMiddleware, err := throttle.NewEVMDeployRecorderPostCommitMiddleware(contextFactory)
 		if err != nil {
 			return nil, err
 		}
-		postCommitMiddlewares = append(postCommitMiddlewares, deployRecorderMiddleware)
+		postCommitMiddlewares = append(postCommitMiddlewares, evmDeployRecorderMiddleware)
 	}
 
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
