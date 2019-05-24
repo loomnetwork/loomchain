@@ -3,11 +3,11 @@
 package replay
 
 import (
-	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
-	gateway_v1 "github.com/loomnetwork/loomchain/builtin/plugins/gateway/v1"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway"
+	gateway_v1 "github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway/v1"
 )
 
 func ContractOverrides() plugin.ContractOverrideMap {
