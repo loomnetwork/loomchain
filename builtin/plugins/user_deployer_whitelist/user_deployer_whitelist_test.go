@@ -29,7 +29,11 @@ var (
 )
 
 func TestUserDeployerWhitelistContract(t *testing.T) {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	fee := uint64(100)
+	whitelistingfees := loom.NewBigUIntFromInt(int64(fee))
+	whitelistingfees = whitelistingfees.Mul(whitelistingfees, div)
 	tier := &udwtypes.InitialTier{
 		TierID: udwtypes.TierID_DEFAULT,
 		Fee:    fee,
@@ -120,7 +124,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 	//Whitelisted fees is debited and final balance of user's loom coin is initial balance - whitelisting fees
-	assert.Equal(t, fee, resp1.Balance.Value.Uint64()-resp2.Balance.Value.Uint64())
+	assert.Equal(t, whitelistingfees.Uint64() , resp1.Balance.Value.Uint64() - resp2.Balance.Value.Uint64())
 
 	//Error Cases
 	//Trying to Add Duplicate Deployer
