@@ -89,6 +89,8 @@ func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
 }
 
 func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	if req.Owner == nil {
 		return ErrOwnerNotSpecified
 	}
@@ -104,6 +106,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 
 	for _, tier := range req.TierInfo {
 		fees := loom.NewBigUIntFromInt(int64(tier.Fee))
+		fees.Mul(fees, div)
 		Tier := &Tier{
 			TierID: tier.TierID,
 			Fee: &types.BigUInt{
