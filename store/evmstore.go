@@ -3,12 +3,12 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"sort"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
@@ -30,7 +30,7 @@ func init() {
 			Subsystem: "evmstore",
 			Name:      "commit",
 			Help:      "How long EvmStore.Commit() took to execute (in seconds)",
-		}, []string{"version"},
+		}, []string{},
 	)
 }
 
@@ -55,13 +55,20 @@ type EvmStore struct {
 	cache         map[string]cacheItem
 	rootHash      []byte
 	lastSavedRoot []byte
+	rootCache     *lru.Cache
+	version       int64
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
-func NewEvmStore(evmDB db.DBWrapper) *EvmStore {
+func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int) *EvmStore {
+	rootCache, err := lru.New(numCachedRoots)
+	if err != nil {
+		panic(err)
+	}
 	evmStore := &EvmStore{
-		evmDB: evmDB,
-		cache: make(map[string]cacheItem),
+		evmDB:     evmDB,
+		cache:     make(map[string]cacheItem),
+		rootCache: rootCache,
 	}
 	return evmStore
 }
@@ -177,8 +184,7 @@ func (s *EvmStore) Set(key, val []byte) {
 
 func (s *EvmStore) Commit(version int64) []byte {
 	defer func(begin time.Time) {
-		lvs := []string{"version", fmt.Sprintf("%d", version)}
-		commitDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+		commitDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	currentRoot := make([]byte, len(s.rootHash))
@@ -192,6 +198,8 @@ func (s *EvmStore) Commit(version int64) []byte {
 		s.Set(evmRootKey(version), currentRoot)
 	}
 
+	s.rootCache.Add(version, currentRoot)
+
 	batch := s.evmDB.NewBatch()
 	for key, item := range s.cache {
 		if !item.Deleted {
@@ -203,16 +211,18 @@ func (s *EvmStore) Commit(version int64) []byte {
 	batch.Write()
 	s.cache = make(map[string]cacheItem)
 	s.lastSavedRoot = currentRoot
+	s.version = version
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	s.cache = make(map[string]cacheItem)
 	// find the last saved root
-	root, _ := s.getLastSavedRoot(targetVersion)
+	root, version := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
 		root = []byte{}
 	}
+	s.rootCache.Add(targetVersion, root)
 
 	// nil root indicates that latest saved root below target version is not found
 	if root == nil && targetVersion > 0 {
@@ -221,28 +231,40 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 
 	s.rootHash = root
 	s.lastSavedRoot = root
+	s.version = version
 	return nil
 }
 
+func (s *EvmStore) Version() ([]byte, int64) {
+	return s.rootHash, s.version
+}
+
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
-	iter := s.evmDB.ReverseIterator(util.PrefixKey(vmPrefix, evmRootPrefix), nil)
+	start := util.PrefixKey(vmPrefix, evmRootPrefix)
+	end := prefixRangeEnd(evmRootKey(targetVersion))
+	iter := s.evmDB.ReverseIterator(start, end)
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
-		if util.HasPrefix(iter.Key(), util.PrefixKey(vmPrefix, evmRootPrefix)) {
-			version, err := getVersionFromEvmRootKey(iter.Key())
-			if err != nil {
-				return nil, 0
-			}
-			if version <= targetVersion || targetVersion == 0 {
-				return iter.Value(), version
-			}
+		version, err := getVersionFromEvmRootKey(iter.Key())
+		if err != nil {
+			return nil, 0
+		}
+		if version <= targetVersion || targetVersion == 0 {
+			return iter.Value(), version
 		}
 	}
 	return nil, 0
 }
 
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
-	targetRoot, _ := s.getLastSavedRoot(version)
+	var targetRoot []byte
+	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
+	val, exist := s.rootCache.Get(version)
+	if exist {
+		targetRoot = val.([]byte)
+	} else {
+		targetRoot, _ = s.getLastSavedRoot(version)
+	}
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }
 

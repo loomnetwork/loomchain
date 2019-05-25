@@ -591,38 +591,6 @@ func CheckRewardsCmdV3() *cobra.Command {
 	return cmd
 }
 
-func TotalDelegationCmdV3() *cobra.Command {
-	var flags cli.ContractCallFlags
-	cmd := &cobra.Command{
-		Use:   "total-delegation [delegator]",
-		Short: "check how much a delegator has delegated in total (to all validators)",
-		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
-			if err != nil {
-				return err
-			}
-
-			var resp dposv3.TotalDelegationResponse
-			err = cli.StaticCallContractWithFlags(
-				&flags, DPOSV3ContractName, "TotalDelegation",
-				&dposv3.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp,
-			)
-			if err != nil {
-				return err
-			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
-			return nil
-		},
-	}
-	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
-	return cmd
-}
-
 func CheckAllDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -1003,7 +971,6 @@ func NewDPOSV3Command() *cobra.Command {
 		SetSlashingPercentagesCmdV3(),
 		ChangeFeeCmdV3(),
 		TimeUntilElectionCmdV3(),
-		TotalDelegationCmdV3(),
 		GetStateCmdV3(),
 		SetMinCandidateFeeCmdV3(),
 	)

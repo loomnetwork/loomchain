@@ -791,7 +791,7 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 	if err != nil {
 		return nil, err
 	}
-	evmStore := store.NewEvmStore(db)
+	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots)
 	if err := evmStore.LoadVersion(targetVersion); err != nil {
 		return nil, err
 	}

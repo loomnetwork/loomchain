@@ -18,6 +18,7 @@ func newNewCommand() *cobra.Command {
 	var genesisFile, configFile string
 	var logAppDb bool
 	var force bool
+	var useFnConsensus bool
 	command := &cobra.Command{
 		Use:           "new",
 		Short:         "Create n nodes to run loom",
@@ -89,13 +90,14 @@ func newNewCommand() *cobra.Command {
 				}
 			}
 
-			if err = node.CreateCluster(nodes, accounts); err != nil {
+			if err = node.CreateCluster(nodes, accounts, useFnConsensus); err != nil {
 				return err
 			}
 
 			for _, node := range nodes {
 				conf.Nodes[fmt.Sprintf("%d", node.ID)] = node
 				conf.NodeAddressList = append(conf.NodeAddressList, node.Address)
+				conf.NodeBase64AddressList = append(conf.NodeBase64AddressList, node.Local)
 				conf.NodePubKeyList = append(conf.NodePubKeyList, node.PubKey)
 				conf.NodePrivKeyPathList = append(conf.NodePrivKeyPathList, node.PrivKeyPath)
 				conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, node.ProxyAppAddress)
@@ -122,6 +124,7 @@ func newNewCommand() *cobra.Command {
 	flags.StringVar(&loompath, "loom-path", "loom", "Loom binary path")
 	flags.IntVarP(&k, "account", "k", 1, "Number of account to be created")
 	flags.BoolVarP(&logAppDb, "log-app-db", "a", false, "Log the app state database usage")
+	flags.BoolVarP(&useFnConsensus, "fnconsensus", "", false, "Enable fnconsensus via the reactor")
 	flags.BoolVarP(&force, "force", "f", false, "Force to create new cluster")
 	flags.StringVar(&logLevel, "log-level", "debug", "Log level")
 	flags.StringVar(&logDest, "log-destination", "file://loom.log", "Log Destination")
