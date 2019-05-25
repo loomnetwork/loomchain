@@ -2,6 +2,6 @@ ReceiptsVersion: 2
 DeployEnabled: false
 AppStore:
   Version: 3
-  EvmDBEnabled: true
+  SaveEVMStateToIAVL: false
 CachingStoreConfig:
   CachingEnabled: true

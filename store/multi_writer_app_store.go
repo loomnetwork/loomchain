@@ -56,18 +56,18 @@ func init() {
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
 // or just the EvmStore, depending on the evmStoreEnabled flag.
 type MultiWriterAppStore struct {
-	appStore        *IAVLStore
-	evmStore        *EvmStore
-	lastSavedTree   unsafe.Pointer // *iavl.ImmutableTree
-	evmStoreEnabled bool
+	appStore                   *IAVLStore
+	evmStore                   *EvmStore
+	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
+	onlySaveEvmStateToEvmStore bool
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
-func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEnabled bool) (*MultiWriterAppStore, error) {
+func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool) (*MultiWriterAppStore, error) {
 	store := &MultiWriterAppStore{
-		evmStoreEnabled: evmStoreEnabled,
-		appStore:        appStore,
-		evmStore:        evmStore,
+		appStore:                   appStore,
+		evmStore:                   evmStore,
+		onlySaveEvmStateToEvmStore: !saveEVMStateToIAVL,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
 	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
@@ -83,6 +83,12 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
 			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
 	}
+
+	// feature flag overrides SaveEVMStateToIAVL
+	if !store.onlySaveEvmStateToEvmStore {
+		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
+	}
+
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
 }
@@ -90,7 +96,7 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, evmStoreEna
 func (s *MultiWriterAppStore) Delete(key []byte) {
 	if util.HasPrefix(key, vmPrefix) {
 		s.evmStore.Delete(key)
-		if !s.onlySaveEvmStateToEvmStore() {
+		if !s.onlySaveEvmStateToEvmStore {
 			s.appStore.Delete(key)
 		}
 	} else {
@@ -99,9 +105,12 @@ func (s *MultiWriterAppStore) Delete(key []byte) {
 }
 
 func (s *MultiWriterAppStore) Set(key, val []byte) {
+	if !s.onlySaveEvmStateToEvmStore && bytes.Equal(key, evmDBFeatureKey) {
+		s.onlySaveEvmStateToEvmStore = bytes.Equal(val, []byte{1})
+	}
 	if util.HasPrefix(key, vmPrefix) {
 		s.evmStore.Set(key, val)
-		if !s.onlySaveEvmStateToEvmStore() {
+		if !s.onlySaveEvmStateToEvmStore {
 			s.appStore.Set(key, val)
 		}
 	} else {
@@ -150,7 +159,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 	}(time.Now())
 
 	currentRoot := s.evmStore.Commit(s.Version() + 1)
-	if s.onlySaveEvmStateToEvmStore() {
+	if s.onlySaveEvmStateToEvmStore {
 		// Tie up Patricia tree with IAVL tree.
 		// Do this after the feature flag is enabled so that we can detect
 		// inconsistency in evm.db across the cluster
@@ -189,17 +198,6 @@ func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
 	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
 	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
 	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree)
-}
-
-func (s *MultiWriterAppStore) onlySaveEvmStateToEvmStore() bool {
-	// TODO: Avoid hitting the app store every time this function is called, should cache the
-	// initial value in LoadVersion() and then update it in Set()/Delete().
-	featureFlag := false
-	data := s.appStore.Get(evmDBFeatureKey)
-	if bytes.Equal(data, []byte{1}) {
-		featureFlag = true
-	}
-	return s.evmStoreEnabled || featureFlag
 }
 
 type multiWriterStoreSnapshot struct {
