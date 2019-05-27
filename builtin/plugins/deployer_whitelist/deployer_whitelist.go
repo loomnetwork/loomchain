@@ -21,9 +21,8 @@ type (
 	RemoveDeployerRequest  = dwtypes.RemoveDeployerRequest
 	RemoveDeployerResponse = dwtypes.RemoveDeployerResponse
 	Deployer               = dwtypes.Deployer
+	AddUserDeployerRequest = dwtypes.AddUserDeployerRequest
 
-	AddUserDeployerRequest  = dwtypes.AddUserDeployerRequest
-	AddUserDeployerResponse = dwtypes.AddUserDeployerResponse
 )
 
 const (
