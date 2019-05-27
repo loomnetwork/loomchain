@@ -583,11 +583,12 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
+
+	// Failed transactions should be commited too
 	if err != nil {
-		storeTx.Rollback()
-		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
-		receiptHandler.DiscardCurrentReceipt()
-		return r, err
+		receiptHandler.CommitCurrentReceipt()
+		storeTx.Commit()
+		return r, nil
 	}
 
 	if !isCheckTx {
