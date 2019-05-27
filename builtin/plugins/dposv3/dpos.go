@@ -383,6 +383,11 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
 		}
+
+		// Emit event for the new delegation
+		if err := c.emitDelegatorRedelegatesEvent(ctx, delegation); err != nil {
+			return err
+		}
 	}
 
 	if err := SetDelegation(ctx, priorDelegation); err != nil {
@@ -394,7 +399,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.FormerValidatorAddress, req.Amount)
 	}
 
-	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
+	return c.emitDelegatorRedelegatesEvent(ctx, priorDelegation)
 }
 
 func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDelegationsRequest) error {
@@ -2103,11 +2108,9 @@ func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegation *Del
 	return nil
 }
 
-func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
+func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegation *Delegation) error {
 	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
-		Address:  delegator,
-		Amount:   amount,
-		Referrer: referrer,
+		Delegation: delegation,
 	})
 	if err != nil {
 		return err
