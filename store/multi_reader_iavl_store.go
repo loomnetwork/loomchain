@@ -46,6 +46,8 @@ var (
 	valueDBVersionKey   = util.PrefixKey(valueDBHeaderPrefix, []byte("v"))
 )
 
+var _ = LoomIAVLStore(&MultiReaderIAVLStore{})
+
 // MultiReaderIAVLStore supports multiple concurrent readers more efficiently (in theory) than the
 // original IAVLStore.
 //

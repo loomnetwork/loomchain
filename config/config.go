@@ -692,6 +692,9 @@ AppStore:
   # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
   SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
+  # If true the MultiWriterAppStore will use MultiReaderIAVLStore instead of IAVLStore
+  # This config works with AppStore Version 3 (MultiWriterAppStore) only
+  MultiReaderIAVLStore: {{ .AppStore.MultiReaderIAVLStore }}
 {{if .EventStore -}}
 #
 # EventStore

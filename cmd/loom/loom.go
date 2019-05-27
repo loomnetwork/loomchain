@@ -608,15 +608,33 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		var loomIAVLStore store.LoomIAVLStore
+		if cfg.AppStore.MultiReaderIAVLStore {
+			logger.Info("Loading MultiReaderIAVL Store")
+			valueDB, err := cdb.LoadDB(
+				cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(),
+				cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+			)
+			if err != nil {
+				return nil, err
+			}
+			loomIAVLStore, err = store.NewMultiReaderIAVLStore(db, valueDB, cfg.AppStore)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			loomIAVLStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		evmStore, err := loadEvmStore(cfg, loomIAVLStore.Version())
 		if err != nil {
 			return nil, err
 		}
-		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
-		if err != nil {
-			return nil, err
-		}
-		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
+		appStore, err = store.NewMultiWriterAppStore(loomIAVLStore, evmStore,
+			cfg.AppStore.SaveEVMStateToIAVL, cfg.AppStore.MultiReaderIAVLStore)
 		if err != nil {
 			return nil, err
 		}
