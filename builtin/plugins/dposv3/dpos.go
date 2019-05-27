@@ -394,11 +394,6 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	// If the former delegator redelegated the rewards delegation, emit a claimedrewards event
-	if req.Index == REWARD_DELEGATION_INDEX {
-		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.FormerValidatorAddress, req.Amount)
-	}
-
 	return c.emitDelegatorRedelegatesEvent(ctx, priorDelegation)
 }
 
@@ -526,6 +521,8 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 
 	total := big.NewInt(0)
 	chainID := ctx.Block().ChainID
+	var claimedFromValidators []*types.Address
+	var amounts []*types.BigUInt
 	for _, v := range validators {
 		valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
 		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator.MarshalPB())
@@ -536,18 +533,35 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 			return nil, err
 		}
 
+		claimedFromValidators = append(claimedFromValidators, valAddress.MarshalPB())
+		amounts = append(amounts, delegation.Amount)
+
 		// Set to UNBONDING and UpdateAmount == Amount, to fully unbond it.
 		delegation.State = UNBONDING
 		delegation.UpdateAmount = delegation.Amount
-		SetDelegation(ctx, delegation)
+
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return nil, err
+		}
+
+		err = c.emitDelegatorUnbondsEvent(ctx, delegation)
+		if err != nil {
+			return nil, err
+		}
 
 		// Add to the sum
 		total.Add(total, delegation.Amount.Value.Int)
 	}
 
-	amount := loom.NewBigUInt(total)
+	amount := &types.BigUInt{Value: *loom.NewBigUInt(total)}
+
+	err = c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), claimedFromValidators, amounts, amount)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ClaimDelegatorRewardsResponse{
-		Amount: &types.BigUInt{Value: *amount},
+		Amount: amount,
 	}, nil
 }
 
@@ -2160,13 +2174,14 @@ func (c *DPOS) emitReferrerRegistersEvent(ctx contract.Context, name string, add
 	return nil
 }
 
-func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *types.Address, validator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *types.Address, validators []*types.Address, amounts []*types.BigUInt, total *types.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposDelegatorClaimsRewardsEvent{
-		Delegator: delegator,
-		Validator: validator,
-		Amount:    amount,
-		Time:      ctx.Block().Time,
-		Height:    ctx.Block().Height,
+		Delegator:           delegator,
+		Validators:          validators,
+		Amounts:             amounts,
+		TotalRewardsClaimed: total,
+		Time:                ctx.Block().Time,
+		Height:              ctx.Block().Height,
 	})
 	if err != nil {
 		return err
