@@ -416,12 +416,12 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		}
 	}
 
-	_, err := consolidateDelegations(ctx, req.ValidatorAddress, delegator.MarshalPB())
+	newDelegation, consolidatedDelegations, unconsolidatedDelegationsCount, err := consolidateDelegations(ctx, req.ValidatorAddress, delegator.MarshalPB())
 	if err != nil {
 		return err
 	}
 
-	return c.emitDelegatorConsolidatesEvent(ctx, delegator.MarshalPB(), req.ValidatorAddress)
+	return c.emitDelegatorConsolidatesEvent(ctx, newDelegation, consolidatedDelegations, unconsolidatedDelegationsCount)
 }
 
 // returns the number of delegations which were not consolidated in the event there is no error
@@ -429,32 +429,34 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 // a delegator redelegates (to increase locktime reward, for example), this
 // redelegation will likely be done via a wallet and thus a wallet can still
 // insert its referrer id into the referrer field during redelegation.
-func consolidateDelegations(ctx contract.Context, validator, delegator *types.Address) (int, error) {
+func consolidateDelegations(ctx contract.Context, validator, delegator *types.Address) (*Delegation, []*Delegation, int, error) {
 	// cycle through all delegations and delete those which are BONDED and
 	// unlocked while accumulating their amounts
 	delegations, err := returnMatchingDelegations(ctx, validator, delegator)
 	if err != nil {
-		return -1, err
+		return nil, nil, -1, err
 	}
 
-	unconsolidatedDelegations := 0
+	unconsolidatedDelegationsCount := 0
 	totalDelegationAmount := common.BigZero()
+	var consolidatedDelegations []*Delegation
 	for _, delegation := range delegations {
 		if delegation.LockTime > uint64(ctx.Now().Unix()) || delegation.State != BONDED {
-			unconsolidatedDelegations++
+			unconsolidatedDelegationsCount++
 			continue
 		}
 
 		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
+		consolidatedDelegations = append(consolidatedDelegations, delegation)
 
 		if err = DeleteDelegation(ctx, delegation); err != nil {
-			return -1, err
+			return nil, nil, -1, err
 		}
 	}
 
 	index, err := GetNextDelegationIndex(ctx, *validator, *delegator)
 	if err != nil {
-		return -1, err
+		return nil, nil, -1, err
 	}
 
 	// create new conolidated delegation
@@ -469,10 +471,10 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 		Index:        index,
 	}
 	if err := SetDelegation(ctx, delegation); err != nil {
-		return -1, err
+		return nil, nil, -1, err
 	}
 
-	return unconsolidatedDelegations, nil
+	return delegation, consolidatedDelegations, unconsolidatedDelegationsCount, nil
 }
 
 /// Returns the total amount which will be available to the user's balance
@@ -942,7 +944,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		cand.State = UNREGISTERING
 
 		// unbond all validator self-delegations by first consolidating & then unbonding single delegation
-		lockedDelegations, err := consolidateDelegations(ctx, candidateAddress.MarshalPB(), candidateAddress.MarshalPB())
+		_, _, lockedDelegations, err := consolidateDelegations(ctx, candidateAddress.MarshalPB(), candidateAddress.MarshalPB())
 		if err != nil {
 			return err
 		}
@@ -2115,10 +2117,15 @@ func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegation *D
 	return nil
 }
 
-func (c *DPOS) emitDelegatorConsolidatesEvent(ctx contract.Context, delegator, validator *types.Address) error {
+func (c *DPOS) emitDelegatorConsolidatesEvent(
+	ctx contract.Context,
+	newDelegation *Delegation,
+	consolidatedDelegations []*Delegation,
+	unconsolidatedDelegationsCount int) error {
 	marshalled, err := proto.Marshal(&DposDelegatorConsolidatesEvent{
-		Address:   delegator,
-		Validator: validator,
+		NewDelegation:                  newDelegation,
+		ConsolidatedDelegations:        consolidatedDelegations,
+		UnconsolidatedDelegationsCount: int64(unconsolidatedDelegationsCount),
 	})
 	if err != nil {
 		return err
