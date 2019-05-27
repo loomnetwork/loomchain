@@ -62,8 +62,8 @@ const (
 )
 
 var (
-	modifyPerm  = []byte("modp")
-	tierKey = []byte("ti")
+	modifyPerm = []byte("modp")
+	tierKey    = []byte("ti")
 )
 
 type UserDeployerWhitelist struct {
@@ -92,12 +92,12 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	if req.Owner == nil {
 		return ErrOwnerNotSpecified
 	}
-        if req.TierInfo == nil {
+	if req.TierInfo == nil {
 		return ErrMissingTierInfo
 	}
-        div := loom.NewBigUIntFromInt(10)
+	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-        ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
 
 	// TODO: Add relevant methods to manage owner and permissions later on.
 	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
@@ -156,8 +156,8 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	if err := ctx.Get(TierKey(req.TierID), &tierInfo); err != nil {
 		return err
 	}
-        whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
-        userAddr := ctx.Message().Sender
+	whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
+	userAddr := ctx.Message().Sender
 	//Amount equal to whitelisting fees is debited from users loomcoin balance,
 	// whitelisting fees is transferred to user deployer whitelist contract
 	coinReq := &coin.TransferFromRequest{
