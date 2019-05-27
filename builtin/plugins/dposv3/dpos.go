@@ -275,7 +275,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
+	return c.emitDelegatorDelegatesEvent(ctx, delegation)
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
@@ -2091,11 +2091,9 @@ func (c *DPOS) emitUpdateCandidateInfoEvent(ctx contract.Context, candidate *typ
 	return nil
 }
 
-func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
+func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegation *Delegation) error {
 	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
-		Address:  delegator,
-		Amount:   amount,
-		Referrer: referrer,
+		Delegation: delegation,
 	})
 	if err != nil {
 		return err
