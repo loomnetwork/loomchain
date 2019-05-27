@@ -63,7 +63,7 @@ const (
 
 var (
 	modifyPerm  = []byte("modp")
-	tierInfoKey = []byte("ti")
+	tierKey = []byte("ti")
 )
 
 type UserDeployerWhitelist struct {
@@ -77,8 +77,8 @@ func UserStateKey(user loom.Address) []byte {
 	return util.PrefixKey([]byte(userStatePrefix), user.Bytes())
 }
 
-func TierInfoKey(tierID TierID) []byte {
-	return util.PrefixKey(tierInfoKey, []byte(strconv.FormatInt(int64(tierID), 10)))
+func TierKey(tierID TierID) []byte {
+	return util.PrefixKey(tierKey, []byte(strconv.FormatInt(int64(tierID), 10)))
 }
 
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
@@ -115,7 +115,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 			Name: tier.Name,
 		}
 
-		if err := ctx.Set(TierInfoKey(tier.TierID), Tier); err != nil {
+		if err := ctx.Set(TierKey(tier.TierID), Tier); err != nil {
 			return err
 		}
 	}
@@ -136,12 +136,16 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	var userState UserState
 	var tierInfo Tier
 	var whitelistingFees *types.BigUInt
+	if req.DeployerAddr == nil {
+		return ErrInvalidRequest
+	}
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of deployer_whitelist")
 	}
-	if req.DeployerAddr == nil {
-		return ErrInvalidRequest
+	coinAddr, err := ctx.Resolve("coin")
+	if err != nil {
+		return errors.Wrap(err, "unable to get address of coin contract")
 	}
 	if req.TierID != udwtypes.TierID_DEFAULT {
 		return ErrInvalidTier
@@ -151,17 +155,11 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	if ctx.Has(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
 		return ErrDeployerAlreadyExists
 	}
-	if err := ctx.Get(TierInfoKey(req.TierID), &tierInfo); err != nil {
+	if err := ctx.Get(TierKey(req.TierID), &tierInfo); err != nil {
 		return err
 	}
-
-	whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
-
-	coinAddr, err := ctx.Resolve("coin")
-	if err != nil {
-		return errors.Wrap(err, "unable to get address of coin contract")
-	}
-	userAddr := ctx.Message().Sender
+        whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
+        userAddr := ctx.Message().Sender
 	//Amount equal to whitelisting fees is debited from users loomcoin balance,
 	// whitelisting fees is transferred to user deployer whitelist contract
 	coinReq := &coin.TransferFromRequest{
