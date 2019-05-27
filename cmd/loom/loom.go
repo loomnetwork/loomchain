@@ -730,7 +730,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.EvmDBEnabled)
+		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
 			return nil, err
 		}
