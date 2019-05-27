@@ -139,6 +139,9 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
 	}
+	if req.TierID != udwtypes.TierID_DEFAULT {
+		return ErrInvalidTier
+	}
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of deployer_whitelist")
@@ -146,9 +149,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	coinAddr, err := ctx.Resolve("coin")
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of coin contract")
-	}
-	if req.TierID != udwtypes.TierID_DEFAULT {
-		return ErrInvalidTier
 	}
 	//Check for deployer is not already whitelisted
 	//Further code runs if deployer is not already whitelisted
