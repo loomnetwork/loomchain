@@ -27,6 +27,9 @@ type AppStoreConfig struct {
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
 	SaveEVMStateToIAVL bool
+	// If true the MultiWriterAppStore will use MultiReaderIAVLStore instead of IAVLStore
+	// This config works with AppStore Version 3 (MultiWriterAppStore) only
+	MultiReaderIAVLStore bool
 }
 
 func DefaultConfig() *AppStoreConfig {
@@ -44,6 +47,9 @@ func DefaultConfig() *AppStoreConfig {
 		// SaveEVMStateToIAVL is true because we have not migrated EVM state to evm.db on Plasmachain.
 		// After EVM state migration has been done, this should be set to false by default for new chains.
 		SaveEVMStateToIAVL: true,
+		// This makes MultiWriterAppStore use MultiReaderIAVLStore instead of IAVLStore.
+		// It is set to false by default because we don't use MultiReaderIAVLStore in production.
+		MultiReaderIAVLStore: false,
 	}
 }
 

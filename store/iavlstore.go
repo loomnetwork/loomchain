@@ -42,6 +42,8 @@ func init() {
 	)
 }
 
+var _ = LoomIAVLStore(&IAVLStore{})
+
 type IAVLStore struct {
 	tree        *iavl.MutableTree
 	maxVersions int64 // maximum number of versions to keep when pruning
