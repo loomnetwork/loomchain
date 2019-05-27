@@ -59,11 +59,11 @@ const (
 	deployerStatePrefix = "ds"
 	//This state stores deployers corresponding to the user
 	userStatePrefix = "us"
+	tierKeyPrefix   = "ti"
 )
 
 var (
 	modifyPerm = []byte("modp")
-	tierKey    = []byte("ti")
 )
 
 type UserDeployerWhitelist struct {
@@ -78,7 +78,7 @@ func UserStateKey(user loom.Address) []byte {
 }
 
 func TierKey(tierID TierID) []byte {
-	return util.PrefixKey(tierKey, []byte(strconv.FormatInt(int64(tierID), 10)))
+	return util.PrefixKey([]byte(tierKeyPrefix), []byte(strconv.FormatInt(int64(tierID), 10)))
 }
 
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
@@ -105,7 +105,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	for _, tier := range req.TierInfo {
 		fees := loom.NewBigUIntFromInt(int64(tier.Fee))
 		fees.Mul(fees, div)
-		Tier := &Tier{
+		tier := &Tier{
 			TierID: tier.TierID,
 			Fee: &types.BigUInt{
 				Value: *fees,
@@ -113,7 +113,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 			Name: tier.Name,
 		}
 
-		if err := ctx.Set(TierKey(tier.TierID), Tier); err != nil {
+		if err := ctx.Set(TierKey(tier.TierID), tier); err != nil {
 			return err
 		}
 	}
@@ -123,7 +123,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 /* Add User Deployer - Adds Deployer in UserState
 This method will be called by User who wants to whitelist deployer, takes deployer Address as input
 Afer adding a deployer User state will change, it will contains deployer information - (
-address + flags) corresponding to UserKey
+address + TierId) corresponding to UserKey
 After adding a deployer, deployer state will also change it contains mapping of deployer key corresponding to
 deployerinfo
 If Loomcoin balance of user is >= whitelisting fees, deployed is whitelisted otherwise error is returned.
@@ -190,6 +190,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	}
 	deployer := &UserDeployerState{
 		Address: req.DeployerAddr,
+		TierId:  req.TierID,
 	}
 	//Storing Full Deployer object corresponding to Deployer Key - Deployer State
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
@@ -213,14 +214,14 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 	if err != nil {
 		return nil, err
 	}
-	deployers := []*Address{}
+	deployers := []*UserDeployerState{}
 	for _, deployerAddr := range userState.Deployers {
 		var userDeployerState UserDeployerState
 		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployerState)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 		}
-		deployers = append(deployers, userDeployerState.Address)
+		deployers = append(deployers, &userDeployerState)
 
 	}
 	return &GetUserDeployersResponse{
