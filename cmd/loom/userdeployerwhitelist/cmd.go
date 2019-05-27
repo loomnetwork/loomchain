@@ -14,6 +14,11 @@ var (
 	dwContractName = "user-deployer-whitelist"
 )
 
+type UserdeployerInfo struct {
+	Address string
+	TierId  string
+}
+
 func NewUserDeployCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dev <command>",
@@ -36,7 +41,7 @@ func addUserDeployerCmd() *cobra.Command {
 	var TierID string
 	cmd := &cobra.Command{
 		Use:     "add-deployer <deployer address>",
-		Short:   "Add deployer corresponding to the user in tier Id <tierId> with evm permission to deployer list",
+		Short:   "Authorize an account to deploy contracts on behalf of a user (the caller)",
 		Example: addUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,10 +74,10 @@ loom dev list-deployers 0x7262d4c97c7B93937E4810D289b7320e9dA82856
 func getUserDeployersCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "list-deployers",
-		Short:   "Get deployer objects corresponding to the user with EVM permision to deployer list",
+		Use:     "list-deployers <user address>",
+		Short:   "List accounts a user is allowed to deploy from",
 		Example: getUserDeployersCmdExample,
-		Args:    cobra.MinimumNArgs(0),
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ParseAddress(args[0])
 			if err != nil {
@@ -86,11 +91,11 @@ func getUserDeployersCmd() *cobra.Command {
 				"GetUserDeployers", req, &resp); err != nil {
 				return err
 			}
-			deployerAddresses := []string{}
+			deployerInfo := []UserdeployerInfo{}
 			for _, deployer := range resp.Deployers {
-				deployerAddresses = append(deployerAddresses, deployer.ChainId+":"+deployer.Local.String())
+				deployerInfo = append(deployerInfo, getUserDeployerInfo(deployer))
 			}
-			output, err := json.MarshalIndent(deployerAddresses, "", "  ")
+			output, err := json.MarshalIndent(deployerInfo, "", "  ")
 			if err != nil {
 				return err
 			}
@@ -111,7 +116,7 @@ func getDeployedContractsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "list-contracts <deployer address>",
-		Short:   "Contract addresses deployed by particular deployer",
+		Short:   "List contracts deployed by a specific account",
 		Example: getDeployedContractsCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -143,4 +148,12 @@ func getDeployedContractsCmd() *cobra.Command {
 
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
+}
+
+func getUserDeployerInfo(deployer *udwtypes.UserDeployerState) UserdeployerInfo {
+	deployerInfo := UserdeployerInfo{
+		Address: deployer.Address.ChainId + ":" + deployer.Address.Local.String(),
+		TierId:  deployer.TierId.String(),
+	}
+	return deployerInfo
 }
