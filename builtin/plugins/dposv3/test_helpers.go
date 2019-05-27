@@ -310,3 +310,13 @@ func (dpos *testDPOSContract) ClaimDelegatorRewards(ctx *plugin.FakeContext) (*b
 
 	return amt.Value.Int, err
 }
+
+func (dpos *testDPOSContract) ConsolidateDelegations(ctx *plugin.FakeContext, validator *loom.Address) error {
+	err := dpos.Contract.ConsolidateDelegations(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&ConsolidateDelegationsRequest{
+			ValidatorAddress: validator.MarshalPB(),
+		},
+	)
+	return err
+}
