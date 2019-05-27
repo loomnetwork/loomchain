@@ -589,12 +589,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		SetDelegation(ctx, delegation)
 	}
 
-	// If the delegator unbonded the rewards delegation, emit a claimedrewards event
-	if delegation.Index == REWARD_DELEGATION_INDEX {
-		c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), req.ValidatorAddress, req.Amount)
-	}
-
-	return c.emitDelegatorUnbondsEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorUnbondsEvent(ctx, delegation)
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
@@ -2133,10 +2128,9 @@ func (c *DPOS) emitDelegatorConsolidatesEvent(ctx contract.Context, delegator, v
 	return nil
 }
 
-func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegation *Delegation) error {
 	marshalled, err := proto.Marshal(&DposDelegatorUnbondsEvent{
-		Address: delegator,
-		Amount:  amount,
+		Delegation: delegation,
 	})
 	if err != nil {
 		return err
