@@ -40,27 +40,27 @@ loom deployer add 0x7262d4c97c7B93937E4810D289b7320e9dA82857 all
 `
 
 func addDeployerCmd() *cobra.Command {
-	var flag cli.ContractCallFlags
+	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "add <deployer address> <permission (go|evm|migration|all)>",
 		Short:   "Add deployer with permision to deployer list",
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
 
-			var flags uint32
+			var permFlags uint32
 			if strings.EqualFold(args[1], "evm") {
-				flags = uint32(dw.AllowEVMDeployFlag)
+				permFlags = uint32(dw.AllowEVMDeployFlag)
 			} else if strings.EqualFold(args[1], "go") {
-				flags = uint32(dw.AllowGoDeployFlag)
+				permFlags = uint32(dw.AllowGoDeployFlag)
 			} else if strings.EqualFold(args[1], "migration") {
-				flags = uint32(dw.AllowMigrationFlag)
+				permFlags = uint32(dw.AllowMigrationFlag)
 			} else if strings.EqualFold(args[1], "all") {
-				flags = dw.PackFlags(
+				permFlags = dw.PackFlags(
 					uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag),
 					uint32(dw.AllowMigrationFlag),
 				)
@@ -72,14 +72,14 @@ func addDeployerCmd() *cobra.Command {
 
 			req := &dwtypes.AddDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
-				Flags:        flags,
+				Flags:        permFlags,
 			}
 
-			return cli.CallContractWithFlags(&flag, dwContractName, "AddDeployer", req, nil)
+			return cli.CallContractWithFlags(&flags, dwContractName, "AddDeployer", req, nil)
 		},
 	}
 
-	cli.AddContractCallFlags(cmd.Flags(), &flag)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -94,7 +94,7 @@ func removeDeployerCmd() *cobra.Command {
 		Short:   "Remove deployer from whitelist",
 		Example: removeDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func getDeployerCmd() *cobra.Command {
 		Short:   "Show current permissions of a deployer",
 		Example: getDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := parseAddress(args[0])
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}

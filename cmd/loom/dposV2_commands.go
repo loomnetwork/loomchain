@@ -255,7 +255,7 @@ func DelegateCmdV2() *cobra.Command {
 		Short: "delegate tokens to a validator",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -295,11 +295,11 @@ func RedelegateCmdV2() *cobra.Command {
 		Short: "Redelegate tokens from one validator to another",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			validatorAddress, err := cli.ParseAddress(args[0])
+			validatorAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
-			formerValidatorAddress, err := cli.ParseAddress(args[1])
+			formerValidatorAddress, err := cli.ParseAddress(args[1], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -330,7 +330,7 @@ func WhitelistCandidateCmdV2() *cobra.Command {
 		Short: "Whitelist candidate & credit candidate's self delegation without token deposit",
 		Args:  cobra.MinimumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			candidateAddress, err := cli.ParseAddress(args[0])
+			candidateAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -364,7 +364,7 @@ func RemoveWhitelistedCandidateCmdV2() *cobra.Command {
 		Short: "remove a candidate's whitelist entry",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			candidateAddress, err := cli.ParseAddress(args[0])
+			candidateAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -388,7 +388,7 @@ func ChangeWhitelistLockTimeTierCmdV2() *cobra.Command {
 		Short: "Changes a whitelisted candidate's whitelist lock time tier",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			candidateAddress, err := cli.ParseAddress(args[0])
+			candidateAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -422,7 +422,7 @@ func ChangeWhitelistAmountCmdV2() *cobra.Command {
 		Short: "Changes a whitelisted candidate's whitelist amount",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			candidateAddress, err := cli.ParseAddress(args[0])
+			candidateAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -451,11 +451,11 @@ func CheckDelegationCmdV2() *cobra.Command {
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.CheckDelegationResponseV2
-			validatorAddress, err := cli.ParseAddress(args[0])
+			validatorAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
-			delegatorAddress, err := cli.ParseAddress(args[1])
+			delegatorAddress, err := cli.ResolveAccountAddress(args[1], &flags)
 			if err != nil {
 				return err
 			}
@@ -488,7 +488,7 @@ func UnbondCmdV2() *cobra.Command {
 		Short: "De-allocate tokens from a validator",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -516,7 +516,7 @@ func ClaimDistributionCmdV2() *cobra.Command {
 		Short: "claim dpos distributions due to a validator or delegator",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -577,7 +577,7 @@ func CheckDistributionCmd() *cobra.Command {
 		Short: "check rewards distribution",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -611,7 +611,7 @@ func TotalDelegationCmd() *cobra.Command {
 		Short: "check how much a delegator has delegated in total (to all validators)",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -643,7 +643,7 @@ func CheckAllDelegationsCmd() *cobra.Command {
 		Short: "display all of a particular delegator's delegations",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -698,11 +698,11 @@ func TimeUntilElectionCmd() *cobra.Command {
 func ListDelegationsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "list_delegations",
+		Use:   "list_delegations <candidate address>",
 		Short: "list a candidate's delegations & delegation total",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -878,7 +878,7 @@ func SetOracleAddressCmdV2() *cobra.Command {
 		Short: "Set oracle address",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			oracleAddress, err := cli.ParseAddress(args[0])
+			oracleAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
