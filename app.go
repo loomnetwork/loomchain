@@ -584,10 +584,9 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 
-	// Failed transactions should be commited too
+	// Failed transactions should have a receipt commited
 	if err != nil {
 		receiptHandler.CommitCurrentReceipt()
-		storeTx.Commit()
 		return r, nil
 	}
 
