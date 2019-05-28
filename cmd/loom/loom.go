@@ -608,7 +608,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		var loomIAVLStore store.LoomIAVLStore
+		var loomIAVLStore store.VersionedKVStore
 		if cfg.AppStore.MultiReaderIAVLStore {
 			logger.Info("Loading MultiReaderIAVL Store")
 			valueDB, err := cdb.LoadDB(
