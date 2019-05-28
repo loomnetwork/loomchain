@@ -120,8 +120,8 @@ type Config struct {
 	DBBackend          string
 	GenesisFile        string
 	PluginsDir         string
-	DBSaveFrequency    uint64
-	DBVersionFrequency uint64
+	DBSaveFrequency    uint64 // how often the IVAL tree will be saved to the disk. 0 means every block
+	DBVersionFrequency uint64 // versions other than multiples of N will be eventually pruned providing maxVersions >0.
 	DBBackendConfig    *DBBackendConfig
 
 	// Event store
