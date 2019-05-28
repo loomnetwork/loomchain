@@ -137,7 +137,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 	var appHeight int64
-
+	var evmDBName string
 	cmd := &cobra.Command{
 		Use:   "evm-dump-2",
 		Short: "Dumps EVM state stored at a specific block height from MultiWriterAppStore",
@@ -153,7 +153,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 			}
 			evmDB, err := cdb.LoadDB(
 				"goleveldb",
-				"evm",
+				evmDBName,
 				cfg.RootPath(),
 				256,
 				4,
@@ -262,5 +262,6 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
+	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Dump EVM state as it was the specified app height")
 	return cmd
 }
