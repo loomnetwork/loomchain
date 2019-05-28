@@ -133,7 +133,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 
 		}
 	}(err)
-	log.Info("database size", "size", s.tree.Size())
+	//log.Info("database size", "size", s.tree.Size())
 	oldVersion := s.Version()
 	if s.saveFrequency > 0 {
 		s.saveCount++
@@ -142,7 +142,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 			if err != nil {
 				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 			}
-			log.Info("version after new version no change to disk db", "version", version)
+			//log.Info("version after new version no change to disk db", "version", version)
 			//s.tempDB.Print()
 			return hash, version, nil
 		} else {
@@ -154,7 +154,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
-	log.Info("version after write to database", "version", version)
+	//log.Info("version after write to database", "version", version)
 	//s.tempDB.Print()
 	return hash, version, nil
 }
@@ -181,8 +181,7 @@ func (s *IAVLStore) Prune() error {
 	if oldVer < 1 {
 		return nil
 	}
-
-	if s.versionFrequency != 0 && uint64(latestVer)%s.versionFrequency == 0 {
+	if s.versionFrequency != 0 && uint64(oldVer)%s.versionFrequency == 0 {
 		return nil
 	}
 
@@ -190,7 +189,7 @@ func (s *IAVLStore) Prune() error {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
 		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	log.Info("prunning version", "version", latestVer)
+	//log.Info("prunning version", "version", latestVer)
 	if s.tree.VersionExists(oldVer) {
 		if s.saveFrequency == 0 {
 			if err = s.tree.DeleteVersion(oldVer); err != nil {
@@ -217,6 +216,8 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
+// saveFrequency says how often the IVAL tree will be saved to the disk. 0 means every block.
+// versionFrequency = N, indicates that versions other than multiples of N will be eventually pruned.
 func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency uint64) (*IAVLStore, error) {
 	ndb := iavl.NewNodeDB3(db, 10000, saveFrequency > 0, nil)
 	tree := iavl.NewMutableTreeWithNodeDB(ndb)
