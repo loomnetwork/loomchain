@@ -39,7 +39,6 @@ type IAVLStore struct {
 	saveFrequency    uint64
 	versionFrequency uint64
 	saveCount        uint64
-	tempDB           dbm.DB
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -142,8 +141,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 			if err != nil {
 				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 			}
-			//log.Info("version after new version no change to disk db", "version", version)
-			//s.tempDB.Print()
+
 			return hash, version, nil
 		} else {
 			s.saveCount = 0
@@ -154,8 +152,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
-	//log.Info("version after write to database", "version", version)
-	//s.tempDB.Print()
+
 	return hash, version, nil
 }
 
@@ -181,6 +178,7 @@ func (s *IAVLStore) Prune() error {
 	if oldVer < 1 {
 		return nil
 	}
+
 	if s.versionFrequency != 0 && uint64(oldVer)%s.versionFrequency == 0 {
 		return nil
 	}
@@ -189,7 +187,7 @@ func (s *IAVLStore) Prune() error {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
 		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	//log.Info("prunning version", "version", latestVer)
+
 	if s.tree.VersionExists(oldVer) {
 		if s.saveFrequency == 0 {
 			if err = s.tree.DeleteVersion(oldVer); err != nil {
@@ -236,7 +234,6 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, ve
 		maxVersions:      maxVersions,
 		saveFrequency:    saveFrequency,
 		versionFrequency: versionFrequency,
-		tempDB:           db,
 	}, nil
 }
 

@@ -38,16 +38,49 @@ func TestDualIavlStore(t *testing.T) {
 	}
 
 	t.Run("normal", testNormal)
-	t.Run("max versions - version frequency", testMaxVersionFrequency)
+	t.Run("max versions & max versions", testMaxVersionFrequency)
+	t.Run("max versions", testMaxVersions)
+	t.Run("save frequency", testSaveFrequency)
+	t.Run("max versions, max versions & save frequency", testMaxVersionFrequencySaveFrequency)
 }
 
 func testNormal(t *testing.T) {
-	t.Skip()
 	diskDb := db.NewMemDB()
 	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
+	diskTree := iavl.NewMutableTree(diskDb, 0)
+	_, err = diskTree.Load()
+	require.NoError(t, err)
+	for _, entry := range store.Range(nil) {
+		_, value := tree.Get(entry.Key)
+		require.Zero(t, bytes.Compare(value, entry.Value))
+		_, diskValue := diskTree.Get(entry.Key)
+		require.Zero(t, bytes.Compare(value, diskValue))
+	}
+	tree.Iterate(func(key []byte, value []byte) bool {
+		require.Zero(t, bytes.Compare(value, store.Get(key)))
+		_, diskValue := diskTree.Get(key)
+		require.Zero(t, bytes.Compare(value, diskValue))
+		return true
+	})
+}
+
+func testMaxVersions(t *testing.T) {
+	const maxVersions = 5
+
+	diskDb := db.NewMemDB()
+	store, err := NewDelayIavlStore(diskDb, maxVersions, 0, 0, 0)
+	require.NoError(t, err)
+	executeBlocks(t, blocks, *store)
+
+	for i := 1; i <= numBlocks; i++ {
+		require.Equal(t,
+			i > numBlocks-maxVersions,
+			store.tree.VersionExists(int64(i)),
+		)
+	}
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
@@ -76,9 +109,77 @@ func testMaxVersionFrequency(t *testing.T) {
 
 	for i := 1; i <= numBlocks; i++ {
 		require.Equal(t,
-			i%versionFrequency == 0 || i > numBlocks-maxVersions,
+			i > numBlocks-maxVersions || i%versionFrequency == 0,
 			store.tree.VersionExists(int64(i)),
 		)
+	}
+	diskTree := iavl.NewMutableTree(diskDb, 0)
+	_, err = diskTree.Load()
+	require.NoError(t, err)
+	for _, entry := range store.Range(nil) {
+		_, value := tree.Get(entry.Key)
+		require.Zero(t, bytes.Compare(value, entry.Value))
+		_, diskValue := diskTree.Get(entry.Key)
+		require.Zero(t, bytes.Compare(value, diskValue))
+	}
+	tree.Iterate(func(key []byte, value []byte) bool {
+		require.Zero(t, bytes.Compare(value, store.Get(key)))
+		_, diskValue := diskTree.Get(key)
+		require.Zero(t, bytes.Compare(value, diskValue))
+		return true
+	})
+}
+
+func testSaveFrequency(t *testing.T) {
+	const saveFrequency = 7
+
+	diskDb := db.NewMemDB()
+	store, err := NewDelayIavlStore(diskDb, 0, 0, saveFrequency, 0)
+	require.NoError(t, err)
+	executeBlocks(t, blocks, *store)
+
+	diskTree := iavl.NewMutableTree(diskDb, 0)
+	_, err = diskTree.Load()
+	require.NoError(t, err)
+	for i := 1; i <= numBlocks; i++ {
+		require.Equal(t,
+			i/saveFrequency < numBlocks/saveFrequency || i%saveFrequency == 0,
+			diskTree.VersionExists(int64(i)),
+		)
+	}
+	for _, entry := range store.Range(nil) {
+		_, value := tree.Get(entry.Key)
+		require.Zero(t, bytes.Compare(value, entry.Value))
+	}
+	tree.Iterate(func(key []byte, value []byte) bool {
+		require.Zero(t, bytes.Compare(value, store.Get(key)))
+		return true
+	})
+}
+
+func testMaxVersionFrequencySaveFrequency(t *testing.T) {
+	const saveFrequency = 7
+	const versionFrequency = 5
+	const maxVersions = 3
+
+	diskDb := db.NewMemDB()
+	store, err := NewDelayIavlStore(diskDb, maxVersions, 0, saveFrequency, versionFrequency)
+	require.NoError(t, err)
+	executeBlocks(t, blocks, *store)
+
+	diskTree := iavl.NewMutableTree(diskDb, 0)
+	_, err = diskTree.Load()
+	require.NoError(t, err)
+	for i := 1; i <= numBlocks; i++ {
+		lastSave := (numBlocks / saveFrequency) * saveFrequency
+		if i <= lastSave {
+			require.Equal(t,
+				(i%versionFrequency == 0 || i > lastSave-maxVersions-1),
+				diskTree.VersionExists(int64(i)),
+			)
+		} else {
+			require.False(t, diskTree.VersionExists(int64(i)))
+		}
 	}
 	for _, entry := range store.Range(nil) {
 		_, value := tree.Get(entry.Key)
