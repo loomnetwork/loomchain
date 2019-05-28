@@ -33,7 +33,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "evm-dump",
-		Short: "Dumps EVM state stored at a specific block height",
+		Short: "Dumps EVM state stored at a specific block height from IAVLStore",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := common.ParseConfig()
 			if err != nil {
@@ -175,7 +175,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				return err
 			}
 
-			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false)
+			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false, false)
 			if err != nil {
 				return err
 			}
