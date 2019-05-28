@@ -1,7 +1,8 @@
 package user_deployer_whitelist
 
 import (
-	"strconv"
+	"bytes"
+	"encoding/binary"
 
 	"github.com/loomnetwork/go-loom"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
@@ -78,7 +79,9 @@ func UserStateKey(user loom.Address) []byte {
 }
 
 func TierKey(tierID TierID) []byte {
-	return util.PrefixKey([]byte(tierKeyPrefix), []byte(strconv.FormatInt(int64(tierID), 10)))
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, tierID)
+	return util.PrefixKey([]byte(tierKeyPrefix), buf.Bytes())
 }
 
 func (uw *UserDeployerWhitelist) Meta() (plugin.Meta, error) {
