@@ -586,6 +586,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	// Failed transactions should have a receipt commited
 	if err != nil {
+		storeTx.Rollback()
 		receiptHandler.CommitCurrentReceipt()
 		return r, nil
 	}
