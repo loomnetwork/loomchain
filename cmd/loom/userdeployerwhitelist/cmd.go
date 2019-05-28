@@ -153,7 +153,7 @@ func getDeployedContractsCmd() *cobra.Command {
 func getUserDeployerInfo(deployer *udwtypes.UserDeployerState) UserdeployerInfo {
 	deployerInfo := UserdeployerInfo{
 		Address: deployer.Address.ChainId + ":" + deployer.Address.Local.String(),
-		TierId:  deployer.TierId.String(),
+		TierId:  deployer.TierID.String(),
 	}
 	return deployerInfo
 }

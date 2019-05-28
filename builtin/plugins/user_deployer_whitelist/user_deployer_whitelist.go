@@ -193,7 +193,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	}
 	deployer := &UserDeployerState{
 		Address: req.DeployerAddr,
-		TierId:  req.TierID,
+		TierID:  req.TierID,
 	}
 	//Storing Full Deployer object corresponding to Deployer Key - Deployer State
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
