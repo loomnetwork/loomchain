@@ -2180,8 +2180,6 @@ func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *
 		Validators:          validators,
 		Amounts:             amounts,
 		TotalRewardsClaimed: total,
-		Time:                ctx.Block().Time,
-		Height:              ctx.Block().Height,
 	})
 	if err != nil {
 		return err
