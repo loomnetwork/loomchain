@@ -507,10 +507,6 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 /// This unbonds the full amount of the rewards delegation from all validators
 /// and returns the total amount which will be available to the
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
-	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_1, false) {
-		return nil, errors.New("DPOS v3.1 not activated.")
-	}
-
 	delegator := ctx.Message().Sender
 	validators, err := ValidatorList(ctx)
 	if err != nil {

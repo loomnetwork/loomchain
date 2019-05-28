@@ -44,11 +44,11 @@ func GetSourceCmd() *cobra.Command {
 func GetUserStateCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "get-user-state <user> <address>",
+		Use:   "get-user-state <user address>",
 		Short: "list the karma sources for user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -73,11 +73,11 @@ func GetUserStateCmd() *cobra.Command {
 func GetUserTotalCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "get-total <user> <target>",
+		Use:   "get-total <user address> <target>",
 		Short: "Check amount of karma user has, target can be either CALL or DEPLOY",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -110,11 +110,11 @@ func GetUserTotalCmd() *cobra.Command {
 func DepositCoinCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "deposit-coin <user> <amount>",
+		Use:   "deposit-coin <user address> <amount>",
 		Short: "deposit coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			user, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -143,11 +143,11 @@ func DepositCoinCmd() *cobra.Command {
 func WithdrawCoinCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "withdraw-coin <user> <amount>",
+		Use:   "withdraw-coin <user address> <amount>",
 		Short: "withdraw coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			user, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -230,7 +230,7 @@ func AddKarmaCmd() *cobra.Command {
 		Short: "add new source of karma to a user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ParseAddress(args[0])
+			user, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -269,13 +269,13 @@ func AddKarmaCmd() *cobra.Command {
 func SetActiveCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-active <contract>",
+		Use:   "set-active <contract address>",
 		Short: "set contract as active",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			contract, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			contract, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
-				return errors.Wrap(err, "resolve address arg")
+				return errors.Wrap(err, "failed to resolve contract address")
 			}
 			err = cli.CallContractWithFlags(&flags, KarmaContractName, "SetActive", contract.MarshalPB(), nil)
 			if err != nil {
@@ -292,13 +292,13 @@ func SetActiveCmd() *cobra.Command {
 func SetInactiveCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-inactive <contract>",
+		Use:   "set-inactive <contract address>",
 		Short: "set contract as inactive",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			contract, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			contract, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
-				return errors.Wrap(err, "resolve address arg")
+				return errors.Wrap(err, "failed to resolve contract address")
 			}
 			err = cli.CallContractWithFlags(&flags, KarmaContractName, "SetInactive", contract.MarshalPB(), nil)
 			if err != nil {
@@ -373,7 +373,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		Short: "Delete one or more Karma sources for a user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ParseAddress(args[0])
+			user, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -462,7 +462,7 @@ func UpdateOracleCmd() *cobra.Command {
 		Short: "change the oracle or set initial oracle",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			newOracle, err := cli.ParseAddress(args[0])
+			newOracle, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return errors.Wrap(err, "resolve new oracle address arg")
 			}

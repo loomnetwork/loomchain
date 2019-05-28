@@ -5,7 +5,6 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -78,7 +77,7 @@ func ListDelegationsCmd() *cobra.Command {
 		Example: listDelegationsCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -139,26 +138,14 @@ loom staking total-delegation eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
 func TotalDelegationCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "total-delegation (delegator address)",
+		Use:     "total-delegation <delegator address>",
 		Short:   "Display total staking amount that has delegated to all validators",
 		Example: totalDelegationCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
-			}
-
-			if addr.ChainID == "eth" {
-				var resp address_mapper.AddressMapperGetMappingResponse
-				var req = address_mapper.AddressMapperGetMappingRequest{
-					From: addr.MarshalPB(),
-				}
-				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
-				if err != nil {
-					return err
-				}
-				addr = loom.UnmarshalAddressPB(resp.To)
 			}
 
 			var resp dposv2.TotalDelegationResponse
@@ -194,11 +181,11 @@ func CheckDelegationsCmd() *cobra.Command {
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.CheckDelegationResponseV2
-			validatorAddress, err := cli.ParseAddress(args[0])
+			validatorAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
-			delegatorAddress, err := cli.ParseAddress(args[1])
+			delegatorAddress, err := cli.ResolveAccountAddress(args[1], &flags)
 			if err != nil {
 				return err
 			}
@@ -241,7 +228,7 @@ func GetMappingCmd() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp address_mapper.AddressMapperGetMappingResponse
-			from, err := cli.ParseAddress(args[0])
+			from, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -307,21 +294,9 @@ func GetBalanceCmd() *cobra.Command {
 		Example: getBalanceCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0], cli.TxFlags.ChainID, cli.TxFlags.URI)
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
-			}
-
-			if addr.ChainID == "eth" {
-				var resp address_mapper.AddressMapperGetMappingResponse
-				var req = address_mapper.AddressMapperGetMappingRequest{
-					From: addr.MarshalPB(),
-				}
-				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
-				if err != nil {
-					return err
-				}
-				addr = loom.UnmarshalAddressPB(resp.To)
 			}
 
 			var resp coin.BalanceOfResponse
@@ -361,21 +336,9 @@ func WithdrawalReceiptCmd() *cobra.Command {
 		Example: getWithdrawalReceiptExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
-			}
-
-			if addr.ChainID == "eth" {
-				var resp address_mapper.AddressMapperGetMappingResponse
-				var req = address_mapper.AddressMapperGetMappingRequest{
-					From: addr.MarshalPB(),
-				}
-				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
-				if err != nil {
-					return err
-				}
-				addr = loom.UnmarshalAddressPB(resp.To)
 			}
 
 			var resp tgtypes.TransferGatewayWithdrawalReceiptResponse
@@ -417,21 +380,9 @@ func CheckAllDelegationsCmd() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		Example: checkAllDelegationsExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
-			}
-
-			if addr.ChainID == "eth" {
-				var resp address_mapper.AddressMapperGetMappingResponse
-				var req = address_mapper.AddressMapperGetMappingRequest{
-					From: addr.MarshalPB(),
-				}
-				err = cli.StaticCallContractWithFlags(&flags, addressMapperContractName, "GetMapping", &req, &resp)
-				if err != nil {
-					return err
-				}
-				addr = loom.UnmarshalAddressPB(resp.To)
 			}
 
 			var resp dposv2.CheckAllDelegationsResponse
@@ -466,7 +417,9 @@ func ListCandidatesCmd() *cobra.Command {
 		Example: listCandidatesExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListCandidateResponseV2
-			err := cli.StaticCallContractWithFlags(&flags, dPOSV2ContractName, "ListCandidates", &dposv2.ListCandidateRequestV2{}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				&flags, dPOSV2ContractName, "ListCandidates", &dposv2.ListCandidateRequestV2{}, &resp,
+			)
 			if err != nil {
 				return err
 			}

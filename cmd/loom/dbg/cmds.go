@@ -3,6 +3,7 @@ package dbg
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"strconv"
 
 	"github.com/gogo/protobuf/proto"
@@ -15,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/blockchain"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
@@ -121,6 +124,44 @@ func newDumpBlockTxsCommand() *cobra.Command {
 	return cmd
 }
 
+func newDumpBlockStoreTxsCommand() *cobra.Command {
+	var height int64
+	cmd := &cobra.Command{
+		Use:     "dump-block-store-txs",
+		Short:   "Displays all the txs from a block in blockstore.db",
+		Example: "loom dump-block-store-txs <path/to/chaindata> --height 12345",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			blockStoreDB := dbm.NewDB("blockstore", "leveldb", path.Join(args[0], "data"))
+			defer blockStoreDB.Close()
+
+			blockStore := blockchain.NewBlockStore(blockStoreDB)
+			latestHeight := blockchain.LoadBlockStoreStateJSON(blockStoreDB).Height
+
+			if height > latestHeight {
+				return fmt.Errorf(
+					"failed to load block at height %d, latest block store height is %d",
+					height, latestHeight,
+				)
+			}
+
+			block := blockStore.LoadBlock(height)
+			for _, tx := range block.Txs {
+				str, err := decodeMessageTx(tx)
+				if err != nil {
+					log.Error("failed to decode tx", "err", err)
+				} else {
+					fmt.Println(str)
+				}
+			}
+			fmt.Printf("Found %d txs in block %d\n", block.NumTxs, height)
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&height, "height", 1, "Block height for which txs should be displayed")
+	return cmd
+}
+
 // NewDebugCommand creates a new instance of the top-level debug command
 func NewDebugCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -130,6 +171,7 @@ func NewDebugCommand() *cobra.Command {
 	cmd.AddCommand(
 		newDumpMempoolCommand(),
 		newDumpBlockTxsCommand(),
+		newDumpBlockStoreTxsCommand(),
 	)
 	return cmd
 }
