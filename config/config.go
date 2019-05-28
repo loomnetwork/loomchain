@@ -115,14 +115,14 @@ type Config struct {
 	AppStore *store.AppStoreConfig
 
 	// Should pretty much never be changed
-	RootDir         string
-	DBName          string
-	DBBackend       string
-	GenesisFile     string
-	PluginsDir      string
-	DBSaveFrequency uint64
-
-	DBBackendConfig *DBBackendConfig
+	RootDir            string
+	DBName             string
+	DBBackend          string
+	GenesisFile        string
+	PluginsDir         string
+	DBSaveFrequency    uint64
+	DBVersionFrequency uint64
+	DBBackendConfig    *DBBackendConfig
 
 	// Event store
 	EventStore      *events.EventStoreConfig
@@ -341,6 +341,7 @@ func DefaultConfig() *Config {
 		DBName:                     "app",
 		DBBackend:                  db.GoLevelDBBackend,
 		DBSaveFrequency:            0,
+		DBVersionFrequency:         1,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		RPCListenAddress:           "tcp://127.0.0.1:46657", // TODO this is an ephemeral port in linux, we should move this
@@ -877,6 +878,8 @@ Auth:
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
+DBVersionFrequency: "{{ .DBVersionFrequency }}" 
+DBSaveFrequency: "{{ .DBSaveFrequency }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
 #

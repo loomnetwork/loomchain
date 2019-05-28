@@ -34,11 +34,12 @@ func init() {
 }
 
 type IAVLStore struct {
-	tree          *iavl.MutableTree
-	maxVersions   int64 // maximum number of versions to keep when pruning
-	saveFrequency uint64
-	saveCount     uint64
-	tempDB        dbm.DB
+	tree             *iavl.MutableTree
+	maxVersions      int64 // maximum number of versions to keep when pruning
+	saveFrequency    uint64
+	versionFrequency uint64
+	saveCount        uint64
+	tempDB           dbm.DB
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -181,11 +182,15 @@ func (s *IAVLStore) Prune() error {
 		return nil
 	}
 
+	if s.versionFrequency != 0 && uint64(latestVer)%s.versionFrequency == 0 {
+		return nil
+	}
+
 	defer func(begin time.Time) {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
 		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-
+	log.Info("prunning version", "version", latestVer)
 	if s.tree.VersionExists(oldVer) {
 		if s.saveFrequency == 0 {
 			if err = s.tree.DeleteVersion(oldVer); err != nil {
@@ -212,7 +217,7 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
-func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency uint64) (*IAVLStore, error) {
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency uint64) (*IAVLStore, error) {
 	ndb := iavl.NewNodeDB3(db, 10000, saveFrequency > 0, nil)
 	tree := iavl.NewMutableTreeWithNodeDB(ndb)
 	_, err := tree.LoadVersion(targetVersion)
@@ -226,10 +231,11 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency uin
 	}
 
 	return &IAVLStore{
-		tree:          tree,
-		maxVersions:   maxVersions,
-		saveFrequency: saveFrequency,
-		tempDB:        db,
+		tree:             tree,
+		maxVersions:      maxVersions,
+		saveFrequency:    saveFrequency,
+		versionFrequency: versionFrequency,
+		tempDB:           db,
 	}, nil
 }
 

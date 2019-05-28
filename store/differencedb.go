@@ -4,9 +4,9 @@ import (
 	"github.com/tendermint/tendermint/libs/db"
 )
 
-func NewDelayIavlStore(diskDb db.DB, maxVersions, targetVersion int64, saveFrequency uint64) (*IAVLStore, error) {
+func NewDelayIavlStore(diskDb db.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency uint64) (*IAVLStore, error) {
 	difDb := &differenceDb{diskDb}
-	return NewIAVLStore(difDb, maxVersions, targetVersion, saveFrequency)
+	return NewIAVLStore(difDb, maxVersions, targetVersion, saveFrequency, versionFrequency)
 }
 
 type differenceDb struct {

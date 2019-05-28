@@ -3,6 +3,8 @@ Peers: ""
 ChainID: ""
 RootDir: ""
 DBName: ""
+DBSaveFrequency: 100
+DBVersionFrequency: 10
 GenesisFile: ""
 PluginsDir: ""
 ContractLogLevel: ""
