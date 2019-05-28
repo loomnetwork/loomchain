@@ -53,23 +53,10 @@ func init() {
 	)
 }
 
-type LoomIAVLStore interface {
-	Delete(key []byte)
-	Set(key, val []byte)
-	Has(key []byte) bool
-	Get(key []byte) []byte
-	Range(prefix []byte) plugin.RangeData
-	Hash() []byte
-	Version() int64
-	SaveVersion() ([]byte, int64, error)
-	Prune() error
-	GetSnapshot() Snapshot
-}
-
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
 // or just the EvmStore, depending on the evmStoreEnabled flag.
 type MultiWriterAppStore struct {
-	appStore                   LoomIAVLStore
+	appStore                   VersionedKVStore
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
@@ -77,7 +64,7 @@ type MultiWriterAppStore struct {
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
-func NewMultiWriterAppStore(appStore LoomIAVLStore, evmStore *EvmStore, saveEVMStateToIAVL, multiReaderIAVLStore bool) (*MultiWriterAppStore, error) {
+func NewMultiWriterAppStore(appStore VersionedKVStore, evmStore *EvmStore, saveEVMStateToIAVL, multiReaderIAVLStore bool) (*MultiWriterAppStore, error) {
 	store := &MultiWriterAppStore{
 		appStore:                   appStore,
 		evmStore:                   evmStore,

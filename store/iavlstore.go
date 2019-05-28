@@ -42,7 +42,7 @@ func init() {
 	)
 }
 
-var _ = LoomIAVLStore(&IAVLStore{})
+var _ = VersionedKVStore(&IAVLStore{})
 
 type IAVLStore struct {
 	tree        *iavl.MutableTree
