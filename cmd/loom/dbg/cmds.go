@@ -201,11 +201,11 @@ func newSetAppHeightCommand() *cobra.Command {
 	return cmd
 }
 
-func newGetAppHeightCommand() *cobra.Command {
+func newResetAppHeightCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get-app-height",
-		Short:   "Get app height to be loaded on the next run from app.db",
-		Example: "loom debug get-app-height <path/to/app.db>",
+		Use:     "reset-app-height",
+		Short:   "Reset app height to be loaded on the next run from app.db",
+		Example: "loom debug reset-app-height <path/to/app.db>",
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcDBPath, err := filepath.Abs(args[0])
@@ -242,7 +242,7 @@ func NewDebugCommand() *cobra.Command {
 		newDumpBlockTxsCommand(),
 		newDumpBlockStoreTxsCommand(),
 		newSetAppHeightCommand(),
-		newGetAppHeightCommand(),
+		newResetAppHeightCommand(),
 	)
 	return cmd
 }
