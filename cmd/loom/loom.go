@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -74,6 +75,10 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
+)
+
+var (
+	appHeightKey = []byte("appheight")
 )
 
 var RootCmd = &cobra.Command{
@@ -377,6 +382,21 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// Load app height from app.db
+			appDB, err := cdb.LoadDB(
+				cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
+				cfg.DBBackendConfig.WriteBufferMegs, false,
+			)
+			if err != nil {
+				return err
+			}
+			height := appDB.Get(appHeightKey)
+			if height != nil {
+				appDB.Delete(appHeightKey)
+				appHeight = int64(binary.BigEndian.Uint64(height))
+			}
+			appDB.Close()
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
