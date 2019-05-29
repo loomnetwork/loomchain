@@ -1,17 +1,17 @@
 package karma
 
 import (
-	"github.com/loomnetwork/loomchain"
-	"testing"
-    "time"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
 )
 
 var (
@@ -147,7 +147,6 @@ func TestKarmaValidateOracle(t *testing.T) {
 	require.NoError(t, err)
 }
 
-
 func TestKarmaCoin(t *testing.T) {
 	pctx := createCtx()
 	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
@@ -172,7 +171,7 @@ func TestKarmaCoin(t *testing.T) {
 	err = karmaContract.Init(contractpb.WrapPluginContext(karmaCtx), &karmaInit)
 	require.Nil(t, err)
 	//Get initial balance of user
-	initalBal,err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr3)),
+	initalBal, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr3)),
 		&coin.BalanceOfRequest{
 			Owner: addr3.MarshalPB(),
 		})
