@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	"github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -42,6 +43,9 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	}
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contracts = append(contracts, deployer_whitelist.Contract)
+	}
+	if cfg.UserDeployerWhitelist.ContractEnabled {
+		contracts = append(contracts, user_deployer_whitelist.Contract)
 	}
 
 	if cfg.AddressMapperContractEnabled() {
