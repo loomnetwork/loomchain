@@ -123,20 +123,11 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	return nil
 }
 
-/* Add User Deployer - Adds Deployer in UserState
-This method will be called by User who wants to whitelist deployer, takes deployer Address as input
-Afer adding a deployer User state will change, it will contains deployer information - (
-address + TierId) corresponding to UserKey
-After adding a deployer, deployer state will also change it contains mapping of deployer key corresponding to
-deployerinfo
-If Loomcoin balance of user is >= whitelisting fees, deployed is whitelisted otherwise error is returned.
-*/
-
-func (uw *UserDeployerWhitelist) AddUserDeployer(
-	ctx contract.Context, req *WhitelistUserDeployerRequest) error {
-	var userState UserState
-	var tierInfo Tier
-	var whitelistingFees *types.BigUInt
+// AddUserDeployer should be called by a third-party dev to authorize an account to deploy EVM contracts
+// on their behalf. In order to authorize an account the caller must approve the contract to withdraw
+// the fee for whitelisting (charged in LOOM coin) before calling this method, the fee will be
+// deducted from the caller if the requested account is successfuly authorized.
+func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
 	}
@@ -151,18 +142,19 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of coin contract")
 	}
-	//Check for deployer is not already whitelisted
-	//Further code runs if deployer is not already whitelisted
+	// Check the deployer account is not already whitelisted
 	if ctx.Has(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
 		return ErrDeployerAlreadyExists
 	}
+	var tierInfo Tier
 	if err := ctx.Get(TierKey(req.TierID), &tierInfo); err != nil {
 		return err
 	}
+
+	var whitelistingFees *types.BigUInt
 	whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
 	userAddr := ctx.Message().Sender
-	//Amount equal to whitelisting fees is debited from users loomcoin balance,
-	// whitelisting fees is transferred to user deployer whitelist contract
+	// Debit the whitelisting fee the caller's LOOM balance
 	coinReq := &coin.TransferFromRequest{
 		To:     ctx.ContractAddress().MarshalPB(),
 		From:   userAddr.MarshalPB(),
@@ -177,12 +169,13 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 	adddeprequest := &dwtypes.AddUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
-	//Retrieving Deployer Address and Corresponding Flags after Deployer Addition
 	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", adddeprequest, nil); err != nil {
 		return errors.Wrap(err, "failed to whitelist deployer")
 	}
+
+	var userState UserState
 	if err := ctx.Get(UserStateKey(userAddr), &userState); err != nil {
-		//This is taking care of boundary case also that user is whitelisting deployers for first time
+		// This is taking care of boundary case also that user is whitelisting deployers for first time
 		if err != contract.ErrNotFound {
 			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 		}
@@ -195,7 +188,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 		Address: req.DeployerAddr,
 		TierID:  req.TierID,
 	}
-	//Storing Full Deployer object corresponding to Deployer Key - Deployer State
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
 	if err != nil {
 		return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
@@ -204,8 +196,8 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(
 
 }
 
-// GetUserDeployers returns whitelisted deployers corresponding to specific user
-//Gets Deployer data from user state
+// GetUserDeployers returns the list of accounts authorized to deploy EVM contracts on behalf of the
+// specified user.
 func (uw *UserDeployerWhitelist) GetUserDeployers(
 	ctx contract.StaticContext, req *GetUserDeployersRequest,
 ) (*GetUserDeployersResponse, error) {
@@ -232,8 +224,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 	}, nil
 }
 
-// GetDeployedContracts return contract addresses deployed by particular deployer
-//Gets Deployed Contracts from deployer state corresponding to deployer key
+// GetDeployedContracts returns the list of EVM contracts deployed by a particular deployer account.
 func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	ctx contract.StaticContext, req *GetDeployedContractsRequest,
 ) (*GetDeployedContractsResponse, error) {
@@ -251,10 +242,9 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}, nil
 }
 
-// RecordEVMContractDeployment will record contract deployer address,newly deployed contract.
-// If key is not part of whitelisted key, Ignore.
-// Stores deployed contract information in Deployer State corresponding to deployer key
-func RecordEVMContractDeployment(ctx contract.Context, deployerAddress loom.Address, contractAddr loom.Address) error {
+// RecordEVMContractDeployment is called by the EVMDeployRecorderPostCommitMiddleware after an EVM
+// contract is successfully deployed to record the deployment in the UserDeployerWhitelist contract.
+func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contractAddr loom.Address) error {
 	var userDeployer UserDeployerState
 	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
 	// If key is not part of whitelisted keys then error will be logged

@@ -22,7 +22,7 @@ BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
-GO_LOOM_GIT_REV = feature/add-consumer-whitelist
+GO_LOOM_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
@@ -194,7 +194,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/posener/wstest \
 		github.com/btcsuite/btcd
 
-
+	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
