@@ -188,6 +188,7 @@ func executeBlocks(t require.TestingT, blocks []*iavl.Program, store IAVLStore) 
 }
 
 func generateBlocks(t require.TestingT) {
+	blocks = nil
 	blocks = iavl.GenerateBlocks(numBlocks, blockSize)
 	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
 	for _, program := range blocks {

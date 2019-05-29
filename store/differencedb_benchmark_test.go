@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,17 +24,24 @@ func BenchmarkIavlStore(b *testing.B) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "dual-iavlstore")
 
+	testno = 0
 	require.NoError(b, os.RemoveAll("testdata"))
 	_, err := os.Stat("testdata")
 	require.True(b, os.IsNotExist(err))
 
 	diskDbType = "goleveldb"
-	numBlocks = 10000
-	blockSize = 100
-	generateBlocks(b)
-	saveFrequency = 500
-	versionFrequency = 100
+	numBlocks = 20000
+	blockSize = 1000
+	saveFrequency = 1000
+	versionFrequency = 0
 	maxVersions = 2
+	paddingLength := 1000
+	padding := strings.Repeat("A", paddingLength)
+
+	generateBlocks(b)
+	paddoutBlocks(padding)
+	fmt.Println("num blocks", numBlocks, "block size", blockSize, "save frequency", saveFrequency,
+		"version frequecny", versionFrequency, "max versions", maxVersions, "padding", paddingLength)
 
 	benchmarkIavlStore(b, "normal", benchmarkNormal)
 	benchmarkIavlStore(b, "maxVersionFrequencySaveFrequency", benchmarkMaxVersionFrequencySaveFrequency)
@@ -40,7 +49,8 @@ func BenchmarkIavlStore(b *testing.B) {
 	files, err := ioutil.ReadDir("./testdata")
 	require.NoError(b, err)
 	for _, f := range files {
-		fmt.Println("size of "+f.Name()+" : ", f.Size())
+		require.True(b, f.IsDir())
+		fmt.Println("size of "+f.Name()+" : ", DirSize(b, f))
 	}
 
 }
@@ -67,4 +77,31 @@ func benchmarkMaxVersionFrequencySaveFrequency(b *testing.B) {
 	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency))
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
+}
+
+func paddoutBlocks(padding string) {
+	for _, block := range blocks {
+		for i := range block.Instructions {
+			block.Instructions[i].PadValue(padding)
+		}
+	}
+}
+
+func DirSize(b *testing.B, fi os.FileInfo) int64 {
+	var size int64
+	cwd, err := os.Getwd()
+	require.NoError(b, err)
+
+	path := filepath.Join(cwd, "testdata", fi.Name())
+	err = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	require.NoError(b, err)
+	return size
 }
