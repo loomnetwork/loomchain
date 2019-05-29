@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/binary"
 
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
 )
@@ -10,6 +11,8 @@ import (
 const (
 	// LevelDBFilename is the default name for the block index store DB
 	LevelDBFilename = "block_index"
+
+	hashPrefix = "hash"
 )
 
 var (
@@ -17,6 +20,10 @@ var (
 	// have an entry for the given hash.
 	ErrNotFound = errors.New("block hash not found")
 )
+
+func hashKey(hash []byte) []byte {
+	return util.PrefixKey([]byte(hashPrefix), []byte(hash))
+}
 
 // BlockIndexStore persists block hash -> height index to a DB.
 type BlockIndexStore interface {
@@ -64,7 +71,7 @@ type blockIndexStoreDB struct {
 }
 
 func (bis *blockIndexStoreDB) GetBlockHeightByHash(hash []byte) (uint64, error) {
-	height := bis.db.Get(hash)
+	height := bis.db.Get(hashKey(hash))
 	if height == nil {
 		return 0, ErrNotFound
 	}
@@ -74,7 +81,7 @@ func (bis *blockIndexStoreDB) GetBlockHeightByHash(hash []byte) (uint64, error) 
 func (bis *blockIndexStoreDB) SetBlockHashAtHeight(height uint64, hash []byte) {
 	heightBuffer := make([]byte, 8)
 	binary.BigEndian.PutUint64(heightBuffer, height)
-	bis.db.Set(hash, heightBuffer)
+	bis.db.Set(hashKey(hash), heightBuffer)
 }
 
 func (bis *blockIndexStoreDB) Close() {
