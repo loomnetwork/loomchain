@@ -23,7 +23,6 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tmlibs/db"
 )
 
 var (
@@ -184,7 +183,7 @@ func newSetAppHeightCommand() *cobra.Command {
 			}
 			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
 			dbDir := path.Dir(srcDBPath)
-			appDB, err := db.NewGoLevelDB(dbName, dbDir)
+			appDB, err := dbm.NewGoLevelDB(dbName, dbDir)
 			if err != nil {
 				return err
 			}
@@ -214,7 +213,7 @@ func newGetAppHeightCommand() *cobra.Command {
 			}
 			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
 			dbDir := path.Dir(srcDBPath)
-			appDB, err := db.NewGoLevelDB(dbName, dbDir)
+			appDB, err := dbm.NewGoLevelDB(dbName, dbDir)
 			if err != nil {
 				return err
 			}
@@ -243,7 +242,7 @@ func newDeleteAppHeightCommand() *cobra.Command {
 			}
 			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
 			dbDir := path.Dir(srcDBPath)
-			appDB, err := db.NewGoLevelDB(dbName, dbDir)
+			appDB, err := dbm.NewGoLevelDB(dbName, dbDir)
 			if err != nil {
 				return err
 			}
