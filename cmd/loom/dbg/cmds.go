@@ -201,11 +201,40 @@ func newSetAppHeightCommand() *cobra.Command {
 	return cmd
 }
 
-func newResetAppHeightCommand() *cobra.Command {
+func newGetAppHeightCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "reset-app-height",
-		Short:   "Reset app height to be loaded on the next run from app.db",
-		Example: "loom debug reset-app-height <path/to/app.db>",
+		Use:     "get-app-height",
+		Short:   "Get app height to be loaded on the next run from app.db",
+		Example: "loom debug get-app-height <path/to/app.db>",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+			appDB, err := db.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return err
+			}
+			defer appDB.Close()
+			height := appDB.Get(appHeightKey)
+			if height == nil {
+				return fmt.Errorf("app height not found")
+			}
+			fmt.Println(binary.BigEndian.Uint64(height))
+			return nil
+		},
+	}
+	return cmd
+}
+
+func newDeleteAppHeightCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "delete-app-height",
+		Short:   "Delete app height from app.db",
+		Example: "loom debug delete-app-height <path/to/app.db>",
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcDBPath, err := filepath.Abs(args[0])
@@ -224,7 +253,6 @@ func newResetAppHeightCommand() *cobra.Command {
 				return fmt.Errorf("app height not found")
 			}
 			appDB.DeleteSync(appHeightKey)
-			fmt.Println(binary.BigEndian.Uint64(height))
 			return nil
 		},
 	}
@@ -242,7 +270,8 @@ func NewDebugCommand() *cobra.Command {
 		newDumpBlockTxsCommand(),
 		newDumpBlockStoreTxsCommand(),
 		newSetAppHeightCommand(),
-		newResetAppHeightCommand(),
+		newGetAppHeightCommand(),
+		newDeleteAppHeightCommand(),
 	)
 	return cmd
 }
