@@ -1,8 +1,9 @@
 package karma
 
 import (
+	"github.com/loomnetwork/loomchain"
 	"testing"
-
+    "time"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
@@ -146,80 +147,80 @@ func TestKarmaValidateOracle(t *testing.T) {
 	require.NoError(t, err)
 }
 
+
 func TestKarmaCoin(t *testing.T) {
+	pctx := createCtx()
+	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			{Owner: user, Balance: uint64(100)},
+		},
+	})
+	require.Nil(t, err)
 	karmaInit := ktypes.KarmaInitRequest{
 		Sources: deploySource,
 		Oracle:  oracle,
 		Users:   usersTestCoin,
 	}
-
-	coinInit := coin.InitRequest{
-		Accounts: []*coin.InitialAccount{
-			{Owner: user, Balance: uint64(100)},
-		},
-	}
-
-	state, reg, pluginVm := MockStateWithKarmaAndCoinT(t, &karmaInit, &coinInit)
-	karmaAddr, err := reg.Resolve("karma")
-	require.NoError(t, err)
-	ctx := contractpb.WrapPluginContext(
-		CreateFakeStateContext(state, reg, addr3, karmaAddr, pluginVm),
-	)
 	karmaContract := &Karma{}
-
-	coinAddr, err := reg.Resolve("coin")
-	require.NoError(t, err)
-	coinContract := &coin.Coin{}
-	coinCtx := contractpb.WrapPluginContext(
-		CreateFakeStateContext(state, reg, user_addr, coinAddr, pluginVm),
-	)
-
-	require.NoError(t, coinContract.Approve(coinCtx, &coin.ApproveRequest{
+	karmaAddr := pctx.CreateContract(Contract)
+	karmaCtx := pctx.WithAddress(karmaAddr)
+	require.Nil(t, err)
+	err = karmaContract.Init(contractpb.WrapPluginContext(karmaCtx), &karmaInit)
+	require.Nil(t, err)
+	//Get initial balance of user
+	initalBal,err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr3)),
+		&coin.BalanceOfRequest{
+			Owner: addr3.MarshalPB(),
+		})
+	require.Nil(t, err)
+	approvalAmount := sciNot(1000, 18)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr3)), &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
-	}))
-
-	initalBal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
+		Amount:  &types.BigUInt{Value: *approvalAmount},
+	})
+	require.Nil(t, err)
+	depositAmount := sciNot(17, 18)
+	err = karmaContract.DepositCoin(contractpb.WrapPluginContext(karmaCtx), &ktypes.KarmaUserAmount{User: user,
+		Amount: &types.BigUInt{Value: *depositAmount}})
 	require.NoError(t, err)
-
-	userState, err := karmaContract.GetUserState(ctx, user)
+	userState, err := karmaContract.GetUserState(contractpb.WrapPluginContext(karmaCtx), user)
 	require.NoError(t, err)
-
-	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
-	require.NoError(t, err)
-	balAfterDeposit, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
+	balAfterDeposit, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
 	expected := common.BigZero()
-	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17))
+	substractionAmount := sciNot(17, 18)
+	expected = expected.Sub(&initalBal.Balance.Value, substractionAmount)
 	require.Equal(t, 0, expected.Cmp(&balAfterDeposit.Balance.Value))
-
-	userState, err = karmaContract.GetUserState(ctx, user)
+	userState, err = karmaContract.GetUserState(contractpb.WrapPluginContext(karmaCtx), user)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(userState.SourceStates))
 	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
-	require.Equal(t, int64(17), userState.SourceStates[0].Count.Value.Int64())
-
-	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
+	require.Equal(t, substractionAmount.Int64(), userState.SourceStates[0].Count.Value.Int64())
+	substractionAmount = sciNot(5, 18)
+	err = karmaContract.WithdrawCoin(contractpb.WrapPluginContext(karmaCtx), &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *substractionAmount}})
 	require.NoError(t, err)
-	balAfterWithdrawal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
+	balAfterWithdrawal, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
-	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17-5))
+	substractionAmount = sciNot(17-5, 18)
+	expected = expected.Sub(&initalBal.Balance.Value, substractionAmount)
 	require.Equal(t, 0, expected.Cmp(&balAfterWithdrawal.Balance.Value))
-
-	userState, err = karmaContract.GetUserState(ctx, user)
+	userState, err = karmaContract.GetUserState(contractpb.WrapPluginContext(karmaCtx), user)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(userState.SourceStates))
 	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
-	require.Equal(t, int64(12), userState.SourceStates[0].Count.Value.Int64())
-
-	total, err := karmaContract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
+	require.Equal(t, substractionAmount.Int64(), userState.SourceStates[0].Count.Value.Int64())
+	total, err := karmaContract.GetUserKarma(contractpb.WrapPluginContext(karmaCtx), &ktypes.KarmaUserTarget{
 		User:   user,
 		Target: ktypes.KarmaSourceTarget_DEPLOY,
 	})
 	require.NoError(t, err)
 	total = total
-
-	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(500)}})
+	withdrawAmount := sciNot(500, 18)
+	err = karmaContract.WithdrawCoin(contractpb.WrapPluginContext(karmaCtx), &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *withdrawAmount}})
 	require.Error(t, err)
 }
 
@@ -300,4 +301,18 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(70), karmaTotal.Count.Value.Int64())
+}
+
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
+}
+
+func createCtx() *plugin.FakeContext {
+	return plugin.CreateFakeContext(loom.Address{}, loom.Address{}).WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+	})
 }
