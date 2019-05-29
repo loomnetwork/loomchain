@@ -50,9 +50,8 @@ func newVersionedBigCache(config *CachingStoreConfig, cacheLogger *loom.Logger) 
 		return nil, err
 	}
 	versionedCache := &versionedBigCache{
-		cacheLogger:   cacheLogger,
-		keyTableMutex: sync.RWMutex{},
-		keyTable:      map[string]KeyVersionTable{},
+		cacheLogger: cacheLogger,
+		keyTable:    map[string]KeyVersionTable{},
 	}
 
 	// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
