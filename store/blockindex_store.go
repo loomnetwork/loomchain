@@ -3,7 +3,6 @@ package store
 import (
 	"encoding/binary"
 
-	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
 )
@@ -11,8 +10,6 @@ import (
 const (
 	// LevelDBFilename is the default name for the block index store DB
 	LevelDBFilename = "block_index"
-
-	hashPrefix = "h/"
 )
 
 var (
@@ -22,7 +19,7 @@ var (
 )
 
 func hashKey(hash []byte) []byte {
-	return util.PrefixKey([]byte(hashPrefix), []byte(hash))
+	return append([]byte("BH:"), hash...)
 }
 
 // BlockIndexStore persists block hash -> height index to a DB.
