@@ -16,7 +16,7 @@ import (
 var (
 	keyTable      = KeyTable{}
 	separator     = "|"
-	keyTableMutex = &sync.Mutex{}
+	keyTableMutex = &sync.RWMutex{}
 )
 
 // KeyVersionTable keeps versions of a cached key
@@ -44,8 +44,8 @@ func unversionedKey(key string) (string, int64, error) {
 
 // getKeyVersion returns the latest version number (limited by version argument) of a particular key
 func getKeyVersion(key []byte, version int64) int64 {
-	keyTableMutex.Lock()
-	defer keyTableMutex.Unlock()
+	keyTableMutex.RLock()
+	defer keyTableMutex.RUnlock()
 	kvTable, exist := keyTable[string(key)]
 	if !exist {
 		return 0
