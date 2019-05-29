@@ -12,7 +12,7 @@ const (
 	// LevelDBFilename is the default name for the block index store DB
 	LevelDBFilename = "block_index"
 
-	hashPrefix = "hash"
+	hashPrefix = "h/"
 )
 
 var (
