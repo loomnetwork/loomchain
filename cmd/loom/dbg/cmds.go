@@ -1,10 +1,13 @@
 package dbg
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -20,6 +23,11 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tmlibs/db"
+)
+
+var (
+	appHeightKey = []byte("appheight")
 )
 
 func newDumpMempoolCommand() *cobra.Command {
@@ -162,6 +170,95 @@ func newDumpBlockStoreTxsCommand() *cobra.Command {
 	return cmd
 }
 
+func newSetAppHeightCommand() *cobra.Command {
+	var height int64
+	cmd := &cobra.Command{
+		Use:     "set-app-height",
+		Short:   "Save a specific height for the next run into app.db",
+		Example: "loom debug set-app-height <path/to/app.db> --height 12345",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+			appDB, err := db.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return err
+			}
+			defer appDB.Close()
+			heightBuffer := make([]byte, 8)
+			binary.BigEndian.PutUint64(heightBuffer, uint64(height))
+			appDB.SetSync(appHeightKey, heightBuffer)
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&height, "height", 0, "Block height to be loaded for the next run")
+	cmd.MarkFlagRequired("height")
+	return cmd
+}
+
+func newGetAppHeightCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get-app-height",
+		Short:   "Get app height to be loaded on the next run from app.db",
+		Example: "loom debug get-app-height <path/to/app.db>",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+			appDB, err := db.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return err
+			}
+			defer appDB.Close()
+			height := appDB.Get(appHeightKey)
+			if height == nil {
+				return fmt.Errorf("app height not found")
+			}
+			fmt.Println(binary.BigEndian.Uint64(height))
+			return nil
+		},
+	}
+	return cmd
+}
+
+func newDeleteAppHeightCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "delete-app-height",
+		Short:   "Delete app height from app.db",
+		Example: "loom debug delete-app-height <path/to/app.db>",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+			appDB, err := db.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return err
+			}
+			defer appDB.Close()
+			height := appDB.Get(appHeightKey)
+			if height == nil {
+				return fmt.Errorf("app height not found")
+			}
+			appDB.DeleteSync(appHeightKey)
+			return nil
+		},
+	}
+	return cmd
+}
+
 // NewDebugCommand creates a new instance of the top-level debug command
 func NewDebugCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -172,6 +269,9 @@ func NewDebugCommand() *cobra.Command {
 		newDumpMempoolCommand(),
 		newDumpBlockTxsCommand(),
 		newDumpBlockStoreTxsCommand(),
+		newSetAppHeightCommand(),
+		newGetAppHeightCommand(),
+		newDeleteAppHeightCommand(),
 	)
 	return cmd
 }
