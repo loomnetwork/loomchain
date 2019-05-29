@@ -11,12 +11,15 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 )
 
-const (
+var (
 	numBlocks = 20
 	blockSize = 20
-)
 
-var (
+	saveFrequency    = 7
+	versionFrequency = 5
+	maxVersions      = 3
+	diskDbType       = "memdb"
+
 	blocks []*iavl.Program
 	tree   *iavl.MutableTree
 )
@@ -30,12 +33,7 @@ var (
 func TestDualIavlStore(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "dual-iavlstore")
-
-	blocks = iavl.GenerateBlocks(numBlocks, blockSize)
-	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
-	for _, program := range blocks {
-		require.NoError(t, program.Execute(tree))
-	}
+	generateBlocks(t)
 
 	t.Run("normal", testNormal)
 	t.Run("max versions & max versions", testMaxVersionFrequency)
@@ -45,7 +43,7 @@ func TestDualIavlStore(t *testing.T) {
 }
 
 func testNormal(t *testing.T) {
-	diskDb := db.NewMemDB()
+	diskDb := getDiskDb(t, "testNormal")
 	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
@@ -68,10 +66,8 @@ func testNormal(t *testing.T) {
 }
 
 func testMaxVersions(t *testing.T) {
-	const maxVersions = 5
-
-	diskDb := db.NewMemDB()
-	store, err := NewDelayIavlStore(diskDb, maxVersions, 0, 0, 0)
+	diskDb := getDiskDb(t, "testMaxVersions")
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -99,11 +95,8 @@ func testMaxVersions(t *testing.T) {
 }
 
 func testMaxVersionFrequency(t *testing.T) {
-	const versionFrequency = 6
-	const maxVersions = 5
-
-	diskDb := db.NewMemDB()
-	store, err := NewDelayIavlStore(diskDb, maxVersions, 0, 0, versionFrequency)
+	diskDb := getDiskDb(t, "testMaxVersionFrequency")
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency))
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -131,10 +124,8 @@ func testMaxVersionFrequency(t *testing.T) {
 }
 
 func testSaveFrequency(t *testing.T) {
-	const saveFrequency = 7
-
-	diskDb := db.NewMemDB()
-	store, err := NewDelayIavlStore(diskDb, 0, 0, saveFrequency, 0)
+	diskDb := getDiskDb(t, "testSaveFrequency")
+	store, err := NewDelayIavlStore(diskDb, 0, 0, uint64(saveFrequency), 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -158,12 +149,8 @@ func testSaveFrequency(t *testing.T) {
 }
 
 func testMaxVersionFrequencySaveFrequency(t *testing.T) {
-	const saveFrequency = 7
-	const versionFrequency = 5
-	const maxVersions = 3
-
-	diskDb := db.NewMemDB()
-	store, err := NewDelayIavlStore(diskDb, maxVersions, 0, saveFrequency, versionFrequency)
+	diskDb := getDiskDb(t, "testMaxVersionFrequencySaveFrequency")
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency))
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -191,11 +178,30 @@ func testMaxVersionFrequencySaveFrequency(t *testing.T) {
 	})
 }
 
-func executeBlocks(t *testing.T, blocks []*iavl.Program, store IAVLStore) {
+func executeBlocks(t require.TestingT, blocks []*iavl.Program, store IAVLStore) {
 	for _, block := range blocks {
 		require.NoError(t, block.Execute(store.tree))
 		_, _, err := store.SaveVersion()
 		require.NoError(t, err)
 		require.NoError(t, store.Prune())
+	}
+}
+
+func generateBlocks(t require.TestingT) {
+	blocks = iavl.GenerateBlocks(numBlocks, blockSize)
+	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
+	for _, program := range blocks {
+		require.NoError(t, program.Execute(tree))
+	}
+}
+
+func getDiskDb(t require.TestingT, name string) db.DB {
+	if diskDbType == "goleveldb" {
+		diskDb, err := db.NewGoLevelDB(name, "./testdata")
+		require.NoError(t, err)
+		return diskDb
+
+	} else {
+		return db.NewMemDB()
 	}
 }
