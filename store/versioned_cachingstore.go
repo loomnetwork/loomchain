@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/allegro/bigcache"
@@ -13,8 +14,9 @@ import (
 )
 
 var (
-	keyTable  = KeyTable{}
-	separator = "|"
+	keyTable      = KeyTable{}
+	separator     = "|"
+	keyTableMutex = &sync.Mutex{}
 )
 
 // KeyVersionTable keeps versions of a cached key
@@ -42,6 +44,8 @@ func unversionedKey(key string) (string, int64, error) {
 
 // getKeyVersion returns the latest version number (limited by version argument) of a particular key
 func getKeyVersion(key []byte, version int64) int64 {
+	keyTableMutex.Lock()
+	defer keyTableMutex.Unlock()
 	kvTable, exist := keyTable[string(key)]
 	if !exist {
 		return 0
@@ -57,6 +61,8 @@ func getKeyVersion(key []byte, version int64) int64 {
 
 // addKeyVersion adds version number of a key to KeyVersionTable
 func addKeyVersion(key []byte, version int64) {
+	keyTableMutex.Lock()
+	defer keyTableMutex.Unlock()
 	kvTable, exist := keyTable[string(key)]
 	if !exist {
 		kvTable = KeyVersionTable{}
@@ -127,6 +133,8 @@ func NewVersionedCachingStore(
 
 	// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
 	bigcacheConfig.OnRemove = func(key string, entry []byte) {
+		keyTableMutex.Lock()
+		defer keyTableMutex.Unlock()
 		key, version, err := unversionedKey(key)
 		if err != nil {
 			cacheLogger.Error(fmt.Sprintf(
