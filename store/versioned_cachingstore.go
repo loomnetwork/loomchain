@@ -40,7 +40,7 @@ func unversionedKey(key string) (string, int64, error) {
 type versionedBigCache struct {
 	cache         *bigcache.BigCache
 	cacheLogger   *loom.Logger
-	keyTableMutex *sync.RWMutex
+	keyTableMutex sync.RWMutex
 	keyTable      map[string]KeyVersionTable
 }
 
@@ -51,7 +51,7 @@ func newVersionedBigCache(config *CachingStoreConfig, cacheLogger *loom.Logger) 
 	}
 	versionedCache := &versionedBigCache{
 		cacheLogger:   cacheLogger,
-		keyTableMutex: &sync.RWMutex{},
+		keyTableMutex: sync.RWMutex{},
 		keyTable:      map[string]KeyVersionTable{},
 	}
 
