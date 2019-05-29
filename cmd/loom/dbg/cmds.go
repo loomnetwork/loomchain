@@ -223,7 +223,7 @@ func newGetAppHeightCommand() *cobra.Command {
 			if height == nil {
 				return fmt.Errorf("app height not found")
 			}
-			appDB.Delete(appHeightKey)
+			appDB.DeleteSync(appHeightKey)
 			fmt.Println(binary.BigEndian.Uint64(height))
 			return nil
 		},

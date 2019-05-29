@@ -393,7 +393,7 @@ func newRunCommand() *cobra.Command {
 			}
 			height := appDB.Get(appHeightKey)
 			if height != nil {
-				appDB.Delete(appHeightKey)
+				appDB.DeleteSync(appHeightKey)
 				appHeight = int64(binary.BigEndian.Uint64(height))
 			}
 			appDB.Close()
