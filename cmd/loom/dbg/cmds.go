@@ -191,7 +191,7 @@ func newSetAppHeightCommand() *cobra.Command {
 			defer appDB.Close()
 			heightBuffer := make([]byte, 8)
 			binary.BigEndian.PutUint64(heightBuffer, uint64(height))
-			appDB.Set(appHeightKey, heightBuffer)
+			appDB.SetSync(appHeightKey, heightBuffer)
 			return nil
 		},
 	}
