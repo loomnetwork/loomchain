@@ -132,9 +132,9 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 
 		}
 	}(err)
-	//log.Info("database size", "size", s.tree.Size())
+
 	oldVersion := s.Version()
-	if s.saveFrequency > 0 {
+	if s.saveFrequency > 0 && !s.tree.MaxChacheSizeExceeded() {
 		s.saveCount++
 		if s.saveCount%s.saveFrequency != 0 {
 			hash, version, err := s.tree.NewVersion()
@@ -216,8 +216,8 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // the last version that was saved will be loaded.
 // saveFrequency says how often the IVAL tree will be saved to the disk. 0 means every block.
 // versionFrequency = N, indicates that versions other than multiples of N will be eventually pruned.
-func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency uint64) (*IAVLStore, error) {
-	ndb := iavl.NewNodeDB3(db, 10000, saveFrequency > 0, nil)
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize uint64) (*IAVLStore, error) {
+	ndb := iavl.NewNodeDB3(db, minCacheSize, maxCacheSize, saveFrequency > 0, nil)
 	tree := iavl.NewMutableTreeWithNodeDB(ndb)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {

@@ -5,6 +5,8 @@ RootDir: ""
 DBName: ""
 DBSaveFrequency: 100
 DBVersionFrequency: 10
+DBMaxCache: 100000
+DBMinCache: 1000
 GenesisFile: ""
 PluginsDir: ""
 ContractLogLevel: ""
