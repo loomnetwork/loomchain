@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/tendermint/iavl"
 )
 
 var (
@@ -61,16 +59,14 @@ type MultiWriterAppStore struct {
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
-	multiReaderIAVLStore       bool
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
-func NewMultiWriterAppStore(appStore VersionedKVStore, evmStore *EvmStore, saveEVMStateToIAVL, multiReaderIAVLStore bool) (*MultiWriterAppStore, error) {
+func NewMultiWriterAppStore(appStore VersionedKVStore, evmStore *EvmStore, saveEVMStateToIAVL bool) (*MultiWriterAppStore, error) {
 	store := &MultiWriterAppStore{
 		appStore:                   appStore,
 		evmStore:                   evmStore,
 		onlySaveEvmStateToEvmStore: !saveEVMStateToIAVL,
-		multiReaderIAVLStore:       multiReaderIAVLStore,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
 	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
@@ -90,9 +86,6 @@ func NewMultiWriterAppStore(appStore VersionedKVStore, evmStore *EvmStore, saveE
 	// feature flag overrides SaveEVMStateToIAVL
 	if !store.onlySaveEvmStateToEvmStore {
 		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
-	}
-	if !multiReaderIAVLStore {
-		store.setLastSavedTreeToVersion(appStore.Version())
 	}
 
 	return store, nil
@@ -180,29 +173,8 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 
 	}
 	hash, version, err := s.appStore.SaveVersion()
-	if !s.multiReaderIAVLStore {
-		s.setLastSavedTreeToVersion(version)
-	}
 
 	return hash, version, err
-}
-
-func (s *MultiWriterAppStore) setLastSavedTreeToVersion(version int64) error {
-	var err error
-	var tree *iavl.ImmutableTree
-
-	appStore := s.appStore.(*IAVLStore)
-	if version == 0 {
-		tree = iavl.NewImmutableTree(nil, 0)
-	} else {
-		tree, err = appStore.tree.GetImmutable(version)
-		if err != nil {
-			return errors.Wrapf(err, "failed to load immutable tree for version %v", version)
-		}
-	}
-
-	atomic.StorePointer(&s.lastSavedTree, unsafe.Pointer(tree))
-	return nil
 }
 
 func (s *MultiWriterAppStore) Prune() error {

@@ -391,6 +391,7 @@ func (ts *IAVLStoreTestSuite) SetupTest() {
 
 func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
 	prefixes, entries := populateStore(ts.store)
+	ts.store.SaveVersion()
 	ts.VerifyRange(ts.store, prefixes, entries)
 
 	// snapshot shouldn't see data that hasn't been saved to disk,

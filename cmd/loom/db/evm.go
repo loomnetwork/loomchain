@@ -175,7 +175,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				return err
 			}
 
-			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false, false)
+			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false)
 			if err != nil {
 				return err
 			}

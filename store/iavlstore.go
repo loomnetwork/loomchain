@@ -175,8 +175,9 @@ func (s *IAVLStore) Prune() error {
 }
 
 func (s *IAVLStore) GetSnapshot() Snapshot {
+	tree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
 	return &iavlStoreSnapshot{
-		ImmutableTree: (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree)),
+		ImmutableTree: tree,
 	}
 }
 
@@ -214,10 +215,14 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 		maxVersions = 2
 	}
 
-	return &IAVLStore{
+	s := &IAVLStore{
 		tree:        tree,
 		maxVersions: maxVersions,
-	}, nil
+	}
+
+	s.setLastSavedTreeToVersion(tree.Version())
+
+	return s, nil
 }
 
 type iavlStoreSnapshot struct {
@@ -235,7 +240,6 @@ func (s *iavlStoreSnapshot) Has(key []byte) bool {
 
 func (s *iavlStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
-
 	keys, values, _, err := s.ImmutableTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {
 		log.Error("failed to get range", "err", err)
