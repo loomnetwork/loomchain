@@ -22,6 +22,7 @@ import (
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/spf13/viper"
 
@@ -98,7 +99,7 @@ type Config struct {
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 	// Blockstore config
 	BlockStore      *store.BlockStoreConfig
-	BlockIndexStore *store.BlockIndexStoreConfig
+	BlockIndexStore *blockindex.BlockIndexStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -395,7 +396,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
-	cfg.BlockIndexStore = store.DefaultBlockIndexStoreConfig()
+	cfg.BlockIndexStore = blockindex.DefaultBlockIndexStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)

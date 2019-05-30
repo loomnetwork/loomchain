@@ -65,6 +65,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
@@ -1192,9 +1193,9 @@ func loadApp(
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
-	var blockIndexStore store.BlockIndexStore
+	var blockIndexStore blockindex.BlockIndexStore
 	if cfg.BlockIndexStore.Enabled {
-		blockIndexStore, err = store.NewBlockIndexStore(
+		blockIndexStore, err = blockindex.NewBlockIndexStore(
 			cfg.BlockIndexStore.DBBackend,
 			cfg.BlockIndexStore.DBName,
 			cfg.RootPath(),

@@ -29,6 +29,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
@@ -114,7 +115,7 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	store.BlockIndexStore
+	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
 }

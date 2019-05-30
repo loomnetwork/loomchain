@@ -1,4 +1,4 @@
-package store
+package blockindex
 
 import (
 	"encoding/binary"
