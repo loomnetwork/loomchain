@@ -649,14 +649,13 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled &&
-		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
+	if cfg.CachingStoreConfig.CachingEnabled && cfg.CachingStoreConfig.DebugForceEnable {
 		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
 		if err != nil {
 			return nil, err
 		}
 		logger.Info("CachingStore enabled")
-	} else if cfg.CachingStoreConfig.CachingEnabled && cfg.AppStore.Version == 3 {
+	} else if cfg.CachingStoreConfig.CachingEnabled && (cfg.AppStore.Version == 1 || cfg.AppStore.Version == 3) {
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err

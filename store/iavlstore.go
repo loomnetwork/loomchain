@@ -2,7 +2,9 @@ package store
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -45,8 +47,9 @@ func init() {
 var _ = VersionedKVStore(&IAVLStore{})
 
 type IAVLStore struct {
-	tree        *iavl.MutableTree
-	maxVersions int64 // maximum number of versions to keep when pruning
+	tree          *iavl.MutableTree
+	lastSavedTree unsafe.Pointer // *iavl.ImmutableTree
+	maxVersions   int64          // maximum number of versions to keep when pruning
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -139,6 +142,9 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
+	if err := s.setLastSavedTreeToVersion(version); err != nil {
+		return nil, 0, err
+	}
 	return hash, version, nil
 }
 
@@ -169,10 +175,26 @@ func (s *IAVLStore) Prune() error {
 }
 
 func (s *IAVLStore) GetSnapshot() Snapshot {
-	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
 	return &iavlStoreSnapshot{
-		IAVLStore: s,
+		ImmutableTree: (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree)),
 	}
+}
+
+func (s *IAVLStore) setLastSavedTreeToVersion(version int64) error {
+	var err error
+	var tree *iavl.ImmutableTree
+
+	if version == 0 {
+		tree = iavl.NewImmutableTree(nil, 0)
+	} else {
+		tree, err = s.tree.GetImmutable(version)
+		if err != nil {
+			return errors.Wrapf(err, "failed to load immutable tree for version %v", version)
+		}
+	}
+
+	atomic.StorePointer(&s.lastSavedTree, unsafe.Pointer(tree))
+	return nil
 }
 
 // NewIAVLStore creates a new IAVLStore.
@@ -199,9 +221,49 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 }
 
 type iavlStoreSnapshot struct {
-	*IAVLStore
+	*iavl.ImmutableTree
+}
+
+func (s *iavlStoreSnapshot) Get(key []byte) []byte {
+	_, val := s.ImmutableTree.Get(key)
+	return val
+}
+
+func (s *iavlStoreSnapshot) Has(key []byte) bool {
+	return s.ImmutableTree.Has(key)
+}
+
+func (s *iavlStoreSnapshot) Range(prefix []byte) plugin.RangeData {
+	ret := make(plugin.RangeData, 0)
+	keys, values, _, err := s.ImmutableTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	if err != nil {
+		log.Error("failed to get range", "err", err)
+		panic(err)
+	}
+
+	for i, k := range keys {
+		// Tree range gives all keys that has prefix but it does not check zero byte
+		// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
+		if util.HasPrefix(k, prefix) {
+			k, err = util.UnprefixKey(k, prefix)
+			if err != nil {
+				log.Error("failed to unprefix key", "key", k, "prefix", prefix, "err", err)
+				k = nil
+			}
+
+		} else {
+			continue // Skip this key as it does not have the prefix
+		}
+		re := &plugin.RangeEntry{
+			Key:   k,
+			Value: values[i],
+		}
+		ret = append(ret, re)
+	}
+
+	return ret
 }
 
 func (s *iavlStoreSnapshot) Release() {
-	// noop
+	s.ImmutableTree = nil
 }
