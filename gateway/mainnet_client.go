@@ -8,11 +8,11 @@ import (
 	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/loomnetwork/go-ethereum/accounts/abi"
-	"github.com/loomnetwork/go-ethereum/core/types"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/pkg/errors"
 )
@@ -21,6 +21,7 @@ import (
 type MainnetClient struct {
 	*ethclient.Client
 	rpcClient *rpc.Client
+	erc20ABI  abi.ABI
 }
 
 type ERC20DepositInfo struct {
@@ -33,12 +34,12 @@ type ERC20DepositInfo struct {
 }
 
 // ConnectToMainnet connects a client to the given URL.
-func ConnectToMainnet(url string) (*MainnetClient, error) {
+func ConnectToMainnet(url string, erc20ABI abi.ABI) (*MainnetClient, error) {
 	rpcClient, err := rpc.DialContext(context.Background(), url)
 	if err != nil {
 		return nil, err
 	}
-	return &MainnetClient{ethclient.NewClient(rpcClient), rpcClient}, nil
+	return &MainnetClient{ethclient.NewClient(rpcClient), rpcClient, erc20ABI}, nil
 }
 
 type MainnetContractCreationTx struct {
@@ -46,7 +47,7 @@ type MainnetContractCreationTx struct {
 	ContractAddress common.Address
 }
 
-func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI abi.ABI, erc20ContractAddress common.Address, txHash common.Hash) ([]*ERC20DepositInfo, error) {
+func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, gatewayAddress common.Address, txHash common.Hash) ([]*ERC20DepositInfo, error) {
 	r := &struct {
 		Logs []types.Log `json:"logs"`
 	}{}
@@ -58,7 +59,7 @@ func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI ab
 		return nil, ethereum.NotFound
 	}
 
-	transferEvent, ok := erc20ABI.Events["Transfer"]
+	transferEvent, ok := c.erc20ABI.Events["Transfer"]
 	if !ok {
 		return nil, errors.New("incompatible erc20 abi, no transfer event exists")
 	}
@@ -67,10 +68,6 @@ func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI ab
 	erc20Deposits := make([]*ERC20DepositInfo, 0, len(r.Logs))
 	for _, log := range r.Logs {
 		if !bytes.Equal(transferEventHash.Bytes(), log.Topics[0].Bytes()) {
-			continue
-		}
-
-		if erc20ContractAddress.Hex() != log.Address.Hex() {
 			continue
 		}
 
@@ -92,6 +89,11 @@ func (c *MainnetClient) GetERC20DepositByTxHash(ctx context.Context, erc20ABI ab
 			return nil, err
 		}
 		to := common.HexToAddress(result[0].(string))
+
+		// We are going to capture deposits made only to our gateway contract
+		if gatewayAddress.Hex() != to.Hex() {
+			continue
+		}
 
 		erc20Deposits = append(erc20Deposits, &ERC20DepositInfo{
 			From:          from,

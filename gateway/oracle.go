@@ -14,11 +14,12 @@ import (
 	"time"
 
 	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/loomnetwork/go-ethereum/accounts/abi"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/client/erc20"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
@@ -219,11 +220,6 @@ func createOracle(cfg *TransferGatewayConfig, chainID string,
 	hashPool := newRecentHashPool(time.Duration(cfg.MainnetPollInterval) * time.Second * 4)
 	hashPool.startCleanupRoutine()
 
-	erc20ABI, err := abi.JSON(strings.NewReader(erc20.ERC20ABI))
-	if err != nil {
-		return nil, err
-	}
-
 	return &Oracle{
 		cfg:                          *cfg,
 		chainID:                      chainID,
@@ -253,8 +249,6 @@ func createOracle(cfg *TransferGatewayConfig, chainID string,
 		withdrawerBlacklist: withdrawerBlacklist,
 		// Oracle will do receipt signing when BatchSignFnConfig is disabled
 		receiptSigningEnabled: receiptSigningEnabled,
-
-		erc20ABI: erc20ABI,
 	}, nil
 }
 
@@ -288,7 +282,11 @@ func (orc *Oracle) connect() error {
 	switch orc.gatewayType {
 	case gwcontract.EthereumGateway, gwcontract.LoomCoinGateway:
 		if orc.ethClient == nil {
-			orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI)
+			erc20ABI, err := abi.JSON(strings.NewReader(erc20.ERC20ABI))
+			if err != nil {
+				return err
+			}
+			orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI, erc20ABI)
 			if err != nil {
 				return errors.Wrap(err, "failed to connect to Ethereum mainnet network")
 			}
@@ -431,7 +429,7 @@ func (orc *Oracle) pollMainnet() error {
 		return err
 	}
 
-	if err := orc.processEventsByTxHash(solLoomAddr); err != nil {
+	if err := orc.processEventsByTxHash(common.HexToAddress(orc.cfg.MainnetContractHexAddress), solLoomAddr); err != nil {
 		return err
 	}
 
@@ -467,7 +465,7 @@ func (orc *Oracle) pollDAppChain() error {
 	return nil
 }
 
-func (orc *Oracle) getLoomCoinDepositFromTxHash(solLoomAddr common.Address) ([]*MainnetEvent, [][]byte, error) {
+func (orc *Oracle) getERC20DepositFromTxHash(gatewayAddr common.Address, solLoomAddr common.Address) ([]*MainnetEvent, [][]byte, error) {
 	unprocessedTxHashesResponse, err := orc.goGateway.UnprocessedLoomCoinDepositTxHash()
 	if err != nil {
 		return nil, nil, err
@@ -479,7 +477,8 @@ func (orc *Oracle) getLoomCoinDepositFromTxHash(solLoomAddr common.Address) ([]*
 	invalidTxHashes := make([][]byte, 0, len(unprocessedTxHashes))
 
 	for _, unprocessedTxHash := range unprocessedTxHashes {
-		erc20Deposits, err := orc.ethClient.GetERC20DepositByTxHash(context.TODO(), orc.erc20ABI, solLoomAddr, common.BytesToHash(unprocessedTxHash))
+		// Fetch All ERC20 deposits made to gateway contract
+		erc20Deposits, err := orc.ethClient.GetERC20DepositByTxHash(context.TODO(), gatewayAddr, common.BytesToHash(unprocessedTxHash))
 		if err != nil {
 			if err == ethereum.NotFound {
 				invalidTxHashes = append(invalidTxHashes, unprocessedTxHash)
@@ -497,11 +496,21 @@ func (orc *Oracle) getLoomCoinDepositFromTxHash(solLoomAddr common.Address) ([]*
 		// So, let's only take first element of deposit array.
 		erc20Deposit := erc20Deposits[0]
 
+		var tokenKind tgtypes.TransferGatewayTokenKind
+
+		// If event is originated from loomcoin ERC20 contract, then set
+		// token kind to LoomCoin, else set token kind to ERC20
+		if erc20Deposit.ERC20Contract.Hex() == solLoomAddr.Hex() {
+			tokenKind = TokenKind_LoomCoin
+		} else {
+			tokenKind = TokenKind_ERC20
+		}
+
 		mainnetEvents = append(mainnetEvents, &MainnetEvent{
 			EthBlock: erc20Deposit.BlockNumber,
 			Payload: &MainnetDepositEvent{
 				Deposit: &MainnetTokenDeposited{
-					TokenKind:   TokenKind_LoomCoin,
+					TokenKind:   tokenKind,
 					TokenOwner:  loom.Address{ChainID: "eth", Local: erc20Deposit.From.Bytes()}.MarshalPB(),
 					TokenAmount: &ltypes.BigUInt{Value: *loom.NewBigUInt(erc20Deposit.Amount)},
 					TxHash:      unprocessedTxHash,
@@ -704,8 +713,8 @@ func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 	return 0, errors.Errorf("invalid gateway type %v", orc.gatewayType)
 }
 
-func (orc *Oracle) processEventsByTxHash(solLoomAddr common.Address) error {
-	loomcoinDepositEvents, invalidTxHashes, err := orc.getLoomCoinDepositFromTxHash(solLoomAddr)
+func (orc *Oracle) processEventsByTxHash(gatewayAddr common.Address, solLoomAddr common.Address) error {
+	loomcoinDepositEvents, invalidTxHashes, err := orc.getERC20DepositFromTxHash(gatewayAddr, solLoomAddr)
 	if err != nil {
 		return err
 	}
