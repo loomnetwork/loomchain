@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/allegro/bigcache"
@@ -13,15 +14,11 @@ import (
 )
 
 var (
-	keyTable  = KeyTable{}
 	separator = "|"
 )
 
 // KeyVersionTable keeps versions of a cached key
 type KeyVersionTable map[int64]bool
-
-// KeyTable keeps KeyVersionTable records of all cached keys
-type KeyTable map[string]KeyVersionTable
 
 func versionedKey(key string, version int64) string {
 	v := strconv.FormatInt(version, 10)
@@ -40,9 +37,88 @@ func unversionedKey(key string) (string, int64, error) {
 	return k[1], n, nil
 }
 
+type versionedBigCache struct {
+	cache         *bigcache.BigCache
+	cacheLogger   *loom.Logger
+	keyTableMutex sync.RWMutex
+	keyTable      map[string]KeyVersionTable
+}
+
+func newVersionedBigCache(config *CachingStoreConfig, cacheLogger *loom.Logger) (*versionedBigCache, error) {
+	bigcacheConfig, err := convertToBigCacheConfig(config, cacheLogger)
+	if err != nil {
+		return nil, err
+	}
+	versionedCache := &versionedBigCache{
+		cacheLogger: cacheLogger,
+		keyTable:    map[string]KeyVersionTable{},
+	}
+
+	// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
+	bigcacheConfig.OnRemove = versionedCache.onRemove
+
+	cache, err := bigcache.NewBigCache(*bigcacheConfig)
+	if err != nil {
+		return nil, err
+	}
+	versionedCache.cache = cache
+	return versionedCache, nil
+}
+
+func (c *versionedBigCache) onRemove(key string, entry []byte) {
+	c.keyTableMutex.Lock()
+	defer c.keyTableMutex.Unlock()
+	key, version, err := unversionedKey(key)
+	if err != nil {
+		c.cacheLogger.Error(fmt.Sprintf(
+			"[VersionedBigCache] error while unversioning key: %s, error: %v",
+			string(key), err.Error()))
+	}
+	kvTable, exist := c.keyTable[key]
+	if exist {
+		// remove all previous versions of the key
+		for k, exist := range kvTable {
+			if exist && k <= version {
+				delete(kvTable, version)
+			}
+		}
+		if len(kvTable) == 0 {
+			delete(c.keyTable, key)
+		}
+	}
+}
+
+func (c *versionedBigCache) Delete(key []byte, version int64) error {
+	versionedKey := versionedKey(string(key), version)
+	// delete data in cache if it does exist
+	c.cache.Delete(string(versionedKey))
+	// add key to inidicate that this is the latest version but
+	// the data has been deleted
+	c.addKeyVersion(key, version)
+	return nil
+}
+
+func (c *versionedBigCache) Set(key, val []byte, version int64) error {
+	versionedKey := versionedKey(string(key), version)
+	err := c.cache.Set(string(versionedKey), val)
+	if err != nil {
+		return err
+	}
+	c.addKeyVersion(key, version)
+	return nil
+}
+
+func (c *versionedBigCache) Get(key []byte, version int64) ([]byte, error) {
+	latestVersion := c.getKeyVersion(key, version)
+	versionedKey := versionedKey(string(key), latestVersion)
+	return c.cache.Get(string(versionedKey))
+}
+
 // getKeyVersion returns the latest version number (limited by version argument) of a particular key
-func getKeyVersion(key []byte, version int64) int64 {
-	kvTable, exist := keyTable[string(key)]
+func (c *versionedBigCache) getKeyVersion(key []byte, version int64) int64 {
+	c.keyTableMutex.RLock()
+	defer c.keyTableMutex.RUnlock()
+	kvTable, exist := c.keyTable[string(key)]
 	if !exist {
 		return 0
 	}
@@ -56,49 +132,15 @@ func getKeyVersion(key []byte, version int64) int64 {
 }
 
 // addKeyVersion adds version number of a key to KeyVersionTable
-func addKeyVersion(key []byte, version int64) {
-	kvTable, exist := keyTable[string(key)]
+func (c *versionedBigCache) addKeyVersion(key []byte, version int64) {
+	c.keyTableMutex.Lock()
+	defer c.keyTableMutex.Unlock()
+	kvTable, exist := c.keyTable[string(key)]
 	if !exist {
 		kvTable = KeyVersionTable{}
 	}
 	kvTable[version] = true
-	keyTable[string(key)] = kvTable
-}
-
-type versionedBigCache struct {
-	cache *bigcache.BigCache
-}
-
-func newVersionedBigCache(cache *bigcache.BigCache) *versionedBigCache {
-	return &versionedBigCache{
-		cache: cache,
-	}
-}
-
-func (c *versionedBigCache) Delete(key []byte, version int64) error {
-	versionedKey := versionedKey(string(key), version)
-	// delete data in cache if it does exist
-	c.cache.Delete(string(versionedKey))
-	// add key to inidicate that this is the latest version but
-	// the data has been deleted
-	addKeyVersion(key, version)
-	return nil
-}
-
-func (c *versionedBigCache) Set(key, val []byte, version int64) error {
-	versionedKey := versionedKey(string(key), version)
-	err := c.cache.Set(string(versionedKey), val)
-	if err != nil {
-		return err
-	}
-	addKeyVersion(key, version)
-	return nil
-}
-
-func (c *versionedBigCache) Get(key []byte, version int64) ([]byte, error) {
-	latestVersion := getKeyVersion(key, version)
-	versionedKey := versionedKey(string(key), latestVersion)
-	return c.cache.Get(string(versionedKey))
+	c.keyTable[string(key)] = kvTable
 }
 
 // versionedCachingStore wraps a write-through cache around a VersionedKVStore.
@@ -120,39 +162,10 @@ func NewVersionedCachingStore(
 
 	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
 
-	bigcacheConfig, err := convertToBigCacheConfig(config, cacheLogger)
+	versionedBigCache, err := newVersionedBigCache(config, cacheLogger)
 	if err != nil {
 		return nil, err
 	}
-
-	// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
-	bigcacheConfig.OnRemove = func(key string, entry []byte) {
-		key, version, err := unversionedKey(key)
-		if err != nil {
-			cacheLogger.Error(fmt.Sprintf(
-				"[VersionedBigCache] error while unversioning key: %s, error: %v",
-				string(key), err.Error()))
-		}
-		kvTable, exist := keyTable[key]
-		if exist {
-			// remove all previous versions of the key
-			for k, exist := range kvTable {
-				if exist && k <= version {
-					delete(kvTable, version)
-				}
-			}
-			if len(kvTable) == 0 {
-				delete(keyTable, key)
-			}
-		}
-	}
-
-	cache, err := bigcache.NewBigCache(*bigcacheConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	versionedBigCache := newVersionedBigCache(cache)
 
 	return &versionedCachingStore{
 		VersionedKVStore: source,

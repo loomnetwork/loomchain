@@ -86,6 +86,9 @@ type Config struct {
 	//DeployerWhitelist
 	DeployerWhitelist *DeployerWhitelistConfig
 
+	// UserDeployerWhitelist
+	UserDeployerWhitelist *UserDeployerWhitelistConfig
+
 	// Transfer gateway
 	TransferGateway         *gateway.TransferGatewayConfig
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
@@ -198,6 +201,10 @@ type DeployerWhitelistConfig struct {
 	ContractEnabled bool
 }
 
+type UserDeployerWhitelistConfig struct {
+	ContractEnabled bool
+}
+
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
 		CacheSizeMegs:   1042, //1 Gigabyte
@@ -247,6 +254,12 @@ func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 
 func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
 	return &DeployerWhitelistConfig{
+		ContractEnabled: false,
+	}
+}
+
+func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
+	return &UserDeployerWhitelistConfig{
 		ContractEnabled: false,
 	}
 }
@@ -387,6 +400,7 @@ func DefaultConfig() *Config {
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
 	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
+	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
@@ -695,6 +709,13 @@ ChainConfig:
 #
 DeployerWhitelist:
   ContractEnabled: {{ .DeployerWhitelist.ContractEnabled }}
+
+#
+# UserDeployerWhitelist
+#
+UserDeployerWhitelist:
+  ContractEnabled: {{ .UserDeployerWhitelist.ContractEnabled }}
+
 #
 # Plasma Cash
 #

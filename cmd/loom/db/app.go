@@ -1,9 +1,16 @@
 package db
 
 import (
+	"fmt"
+	"path"
+	"path/filepath"
+	"strings"
+
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/spf13/cobra"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func newPruneDBCommand() *cobra.Command {
@@ -34,6 +41,39 @@ func newCompactDBCommand() *cobra.Command {
 				return err
 			}
 			return store.CompactDatabase(cfg.DBName, cfg.RootPath())
+		},
+	}
+	return cmd
+}
+
+func newGetAppHeightCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "app-height <path/to/app.db>",
+		Short: "Show the last height of app.db",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+
+			db, err := dbm.NewGoLevelDBWithOpts(dbName, dbDir, &opt.Options{
+				ReadOnly: true,
+			})
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+
+			iavlStore, err := store.NewIAVLStore(db, 0, 0)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("app.db at height: %d \n", iavlStore.Version())
+			return nil
 		},
 	}
 	return cmd

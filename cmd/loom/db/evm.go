@@ -5,6 +5,10 @@ package db
 import (
 	"context"
 	"fmt"
+	"math"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -137,7 +141,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 	var appHeight int64
-
+	var evmDBName string
 	cmd := &cobra.Command{
 		Use:   "evm-dump-2",
 		Short: "Dumps EVM state stored at a specific block height from MultiWriterAppStore",
@@ -153,7 +157,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 			}
 			evmDB, err := cdb.LoadDB(
 				"goleveldb",
-				"evm",
+				evmDBName,
 				cfg.RootPath(),
 				256,
 				4,
@@ -171,7 +175,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				return err
 			}
 
-			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false, false)
+			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false)
 			if err != nil {
 				return err
 			}
@@ -262,5 +266,45 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
+	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Dump EVM state as it was the specified app height")
+	return cmd
+}
+
+func newGetEvmHeightCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "evm-height <path/to/evm.db>",
+		Short: "Show the last height of evm.db",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve evm.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+
+			db, err := cdb.LoadDB(
+				"goleveldb",
+				dbName,
+				dbDir,
+				256,
+				4,
+				false,
+			)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+
+			evmStore := store.NewEvmStore(db, 100)
+			if err := evmStore.LoadVersion(math.MaxInt64); err != nil {
+				return err
+			}
+			root, version := evmStore.Version()
+
+			fmt.Printf("evm.db at height: %d root: %X\n", version, root)
+			return nil
+		},
+	}
 	return cmd
 }

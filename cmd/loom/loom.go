@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -19,7 +20,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
@@ -47,6 +48,7 @@ import (
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
+	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -73,6 +75,10 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
+)
+
+var (
+	appHeightKey = []byte("appheight")
 )
 
 var RootCmd = &cobra.Command{
@@ -376,6 +382,21 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// Load app height from app.db
+			appDB, err := cdb.LoadDB(
+				cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
+				cfg.DBBackendConfig.WriteBufferMegs, false,
+			)
+			if err != nil {
+				return err
+			}
+			height := appDB.Get(appHeightKey)
+			if height != nil {
+				appDB.DeleteSync(appHeightKey)
+				appHeight = int64(binary.BigEndian.Uint64(height))
+			}
+			appDB.Close()
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
@@ -1041,6 +1062,10 @@ func loadApp(
 		loomchain.RecoveryTxMiddleware,
 	}
 
+	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
+		loomchain.LogPostCommitMiddleware,
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
 		cfg.Auth,
 		getContractCtx("addressmapper", vmManager),
@@ -1064,6 +1089,16 @@ func loadApp(
 			return nil, err
 		}
 		txMiddleWare = append(txMiddleWare, dwMiddleware)
+
+	}
+
+	if cfg.UserDeployerWhitelist.ContractEnabled {
+		contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
+		evmDeployRecorderMiddleware, err := throttle.NewEVMDeployRecorderPostCommitMiddleware(contextFactory)
+		if err != nil {
+			return nil, err
+		}
+		postCommitMiddlewares = append(postCommitMiddlewares, evmDeployRecorderMiddleware)
 	}
 
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
@@ -1191,10 +1226,6 @@ func loadApp(
 		return m, nil
 	}
 
-	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
-		loomchain.LogPostCommitMiddleware,
-		auth.NonceTxPostNonceMiddleware,
-	}
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
@@ -1213,6 +1244,10 @@ func loadApp(
 			return nil, err
 		}
 	}
+
+	// We need to make sure nonce post commit middleware is last
+	// as it doesn't pass control to other middlewares after it.
+	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
 
 	return &loomchain.Application{
 		Store: appStore,
@@ -1432,6 +1467,7 @@ func main() {
 		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
+		userdeployer.NewUserDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	err := RootCmd.Execute()

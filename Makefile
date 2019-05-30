@@ -148,7 +148,7 @@ lint:
 	cd $(GOPATH)/src/github.com/loomnetwork/loomchain
 	@golangci-lint run | tee lintreport
 
-linterrors:		
+linterrors:
 	chmod +x parselintreport.sh
 	./parselintreport.sh
 
