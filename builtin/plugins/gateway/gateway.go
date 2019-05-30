@@ -580,12 +580,9 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 func (gw *Gateway) handleDeposit(ctx contract.Context, ev *MainnetEvent, checkTxHash bool) error {
 	var err error
 
-	// This should be already checked in Process* function, so returning false here means function
-	// was invoked from somewhere else.
-	payload, ok := ev.Payload.(*tgtypes.TransferGatewayMainnetEvent_Deposit)
-	if !ok {
-		return fmt.Errorf("[Transfer Gateway] unknown event payload type %T", payload)
-	}
+	// This should be already checked in Process* function, so it is okay,
+	// if we dont check this again.
+	payload := ev.Payload.(*tgtypes.TransferGatewayMainnetEvent_Deposit)
 
 	if !isTokenKindAllowed(gw.Type, payload.Deposit.TokenKind) {
 		return ErrInvalidRequest

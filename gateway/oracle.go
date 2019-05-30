@@ -720,12 +720,12 @@ func (orc *Oracle) processEventsByTxHash(gatewayAddr common.Address, solLoomAddr
 	}
 
 	if len(invalidTxHashes) > 0 {
-		if err := orc.goGateway.ClearInvalidTxHashes(invalidTxHashes); err != nil {
+		if err := orc.goGateway.ClearInvalidDepositTxHashes(invalidTxHashes); err != nil {
 			return err
 		}
 	}
 
-	if err := orc.goGateway.ProcessDepositByTxHash(loomcoinDepositEvents); err != nil {
+	if err := orc.goGateway.ProcessDepositEventByTxHash(loomcoinDepositEvents); err != nil {
 		return err
 	}
 

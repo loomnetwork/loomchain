@@ -125,11 +125,11 @@ func (gw *DAppChainGateway) LastMainnetBlockNum() (uint64, error) {
 	return resp.State.LastMainnetBlockNum, nil
 }
 
-func (gw *DAppChainGateway) ClearInvalidTxHashes(txHashes [][]byte) error {
+func (gw *DAppChainGateway) ClearInvalidDepositTxHashes(txHashes [][]byte) error {
 	req := &ClearInvalidDepositTxHashRequest{
 		TxHashes: txHashes,
 	}
-	if _, err := gw.contract.Call("ClearInvalidLoomCoinDepositTxHash", req, gw.signer, nil); err != nil {
+	if _, err := gw.contract.Call("ClearInvalidDepositTxHash", req, gw.signer, nil); err != nil {
 		gw.logger.Error("failed to commit ClearInvalidLoomCoinDepositTxHash tx", "err", err)
 		return err
 	}
@@ -137,7 +137,7 @@ func (gw *DAppChainGateway) ClearInvalidTxHashes(txHashes [][]byte) error {
 	return nil
 }
 
-func (gw *DAppChainGateway) ProcessDepositByTxHash(events []*MainnetEvent) error {
+func (gw *DAppChainGateway) ProcessDepositEventByTxHash(events []*MainnetEvent) error {
 	// TODO: limit max message size to under 1MB
 	req := &ProcessEventBatchRequest{
 		Events: events,
