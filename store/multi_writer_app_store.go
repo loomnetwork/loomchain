@@ -12,7 +12,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
@@ -283,62 +282,4 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 
 	// Otherwise iterate over the IAVL tree
 	return s.appStoreSnapshot.Range(prefix)
-}
-
-type multiWriterIAVLStoreSnapshot struct {
-	appStoreTree *iavl.ImmutableTree
-}
-
-func newMultiWriterIAVLStoreSnapshot(appStoreTree *iavl.ImmutableTree) Snapshot {
-	return &multiWriterIAVLStoreSnapshot{
-		appStoreTree: appStoreTree,
-	}
-}
-
-func (s *multiWriterIAVLStoreSnapshot) Release() {
-	s.appStoreTree = nil
-}
-
-func (s *multiWriterIAVLStoreSnapshot) Has(key []byte) bool {
-	return s.appStoreTree.Has(key)
-}
-
-func (s *multiWriterIAVLStoreSnapshot) Get(key []byte) []byte {
-	_, val := s.appStoreTree.Get(key)
-	return val
-}
-
-func (s *multiWriterIAVLStoreSnapshot) Range(prefix []byte) plugin.RangeData {
-	if len(prefix) == 0 {
-		panic(errors.New("Range over nil prefix not implemented"))
-	}
-
-	ret := make(plugin.RangeData, 0)
-
-	// Otherwise iterate over the IAVL tree
-	keys, values, _, err := s.appStoreTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
-	if err != nil {
-		log.Error("failed to get range", "prefix", string(prefix), "err", err)
-		return ret
-	}
-
-	for i, k := range keys {
-		// Tree range gives all keys that has prefix but it does not check zero byte
-		// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
-		if util.HasPrefix(k, prefix) {
-			k, err = util.UnprefixKey(k, prefix)
-			if err != nil {
-				panic(err)
-			}
-		} else { // Skip this key as it does not have the prefix
-			continue
-		}
-
-		ret = append(ret, &plugin.RangeEntry{
-			Key:   k,
-			Value: values[i],
-		})
-	}
-
-	return ret
 }
