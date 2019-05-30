@@ -226,7 +226,6 @@ var (
 
 	ErrUnprocessedTxHashAlreadyExists = errors.New("TG015: unprocessed tx hash already exists")
 	ErrNoUnprocessedTxHashExists      = errors.New("TG016: no unprocessed tx hash exists")
-	ErrCheckTxHashIsDisabled          = errors.New("TG017: check txhash feature is disabled")
 )
 
 type GatewayType int
@@ -453,16 +452,11 @@ func (gw *Gateway) ProcessDepositEventByTxHash(ctx contract.Context, req *Proces
 		return ErrNotAuthorized
 	}
 
-	checkTxHash := ctx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false)
-	if !checkTxHash {
-		return ErrCheckTxHashIsDisabled
-	}
-
 	for _, ev := range req.Events {
 		switch payload := ev.Payload.(type) {
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
 			// We need to pass ev here, as emitProcessEvent expects it.
-			if err := gw.handleDeposit(ctx, ev, checkTxHash); err != nil {
+			if err := gw.handleDeposit(ctx, ev, true); err != nil {
 				return err
 			}
 		case nil:
