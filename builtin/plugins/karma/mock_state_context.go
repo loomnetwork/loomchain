@@ -20,7 +20,7 @@ type FakeStateContext struct {
 func CreateFakeStateContext(state loomchain.State, reg registry.Registry, caller, address loom.Address, pluginVm vm.VM) *FakeStateContext {
 	fakeContext := plugin.CreateFakeContext(caller, address)
 	return &FakeStateContext{
-		FakeContext: *fakeContext.WithSender(caller),
+		FakeContext: *fakeContext,
 		state:       state.WithPrefix(loom.DataPrefix(address)),
 		registry:    reg,
 		VM:          pluginVm,
