@@ -203,18 +203,9 @@ func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
 	defer func(begin time.Time) {
 		getSnapshotDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	var appStoreSnapshot Snapshot
-	var version int64
-	if !s.multiReaderIAVLStore {
-		appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
-		version = appStoreTree.Version()
-		appStoreSnapshot = newMultiWriterIAVLStoreSnapshot(appStoreTree)
-	} else {
-		appStoreSnapshot = s.appStore.GetSnapshot()
-		version = s.appStore.Version()
-	}
 
-	evmDbSnapshot := s.evmStore.GetSnapshot(version)
+	appStoreSnapshot := s.appStore.GetSnapshot()
+	evmDbSnapshot := s.evmStore.GetSnapshot(s.appStore.Version())
 	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreSnapshot)
 }
 
