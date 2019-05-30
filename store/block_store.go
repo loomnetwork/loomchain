@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -283,10 +284,14 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 	if err != nil {
 		return nil, err
 	}
-	results := &ctypes.ResultTx{
-		Index: txResult.Index,
-	}
-	return results, nil
+	return &ctypes.ResultTx{
+		Index:  txResult.Index,
+		Height: txResult.Height,
+		TxResult: abci.ResponseDeliverTx{
+			Data: txResult.TxResult.Data,
+			Info: txResult.TxResult.Info,
+		},
+	}, nil
 }
 
 func blockMetaKey(height int64) string {

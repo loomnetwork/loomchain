@@ -29,6 +29,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
@@ -114,6 +115,7 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
+	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
 }
@@ -318,7 +320,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 		reg := s.CreateRegistry(snapshot)
 		_, err := reg.GetRecord(addr)
 		if err != nil {
-			return "", errors.Wrapf(err, "retrieving record from registry for %v", address)
+			return eth.ZeroedData, nil
 		}
 		return eth.Data(goGetCode), nil
 	}
@@ -783,14 +785,14 @@ func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount 
 		return txCount, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
+	height, err := s.getBlockHeightFromHash(blockHash)
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, height)
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	count, err := query.GetNumTxBlock(s.BlockStore, snapshot, int64(height))
 	if err != nil {
 		return txCount, err
 	}
@@ -820,17 +822,14 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 		return resp, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	// TODO: Reading from the TM block store could take a while, might be more efficient to release
-	//       the current snapshot and get a new one after pulling out whatever we need from the TM
-	//       block store.
-	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
+	height, err := s.getBlockHeightFromHash(blockHash)
 	if err != nil {
 		return resp, err
 	}
-	return query.GetBlockByNumber(s.BlockStore, snapshot, height, full)
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -873,17 +872,16 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 		return txObj, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, blockHash)
+	height, err := s.getBlockHeightFromHash(blockHash)
 	if err != nil {
 		return txObj, err
 	}
-	snapshot.Release()
 
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
 		return txObj, err
 	}
+
 	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex)
 }
 
@@ -892,12 +890,13 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	block eth.BlockHeight, index eth.Quantity,
 ) (txObj eth.JsonTxObject, err error) {
 	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
 		return txObj, err
 	}
-	snapshot.Release()
+	snapshot.Release() // don't need to hold on to it any longer
 
 	txIndex, err := eth.DecQuantityToUint(index)
 	if err != nil {
@@ -1059,4 +1058,15 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 
 func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
+}
+
+func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
+	if nil != s.BlockIndexStore {
+		return s.BlockIndexStore.GetBlockHeightByHash(hash)
+	} else {
+		snapshot := s.StateProvider.ReadOnlyState()
+		defer snapshot.Release()
+		height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, hash)
+		return uint64(height), err
+	}
 }

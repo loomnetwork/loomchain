@@ -5,13 +5,13 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	"github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -29,10 +29,6 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 		contracts = append(contracts, dposv2.Contract, dposv3.Contract)
 	}
 
-	if cfg.DPOSVersion == 1 || cfg.BootLegacyDPoS {
-		//Plasmachain or old legacy chain need dposv1 to be able to bootstrap the chain.
-		contracts = append(contracts, dpos.Contract)
-	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
@@ -47,6 +43,9 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	}
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contracts = append(contracts, deployer_whitelist.Contract)
+	}
+	if cfg.UserDeployerWhitelist.ContractEnabled {
+		contracts = append(contracts, user_deployer_whitelist.Contract)
 	}
 
 	if cfg.AddressMapperContractEnabled() {

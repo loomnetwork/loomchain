@@ -4,6 +4,11 @@ ChainConfig:
   ContractEnabled: true
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
+AppStore:
+  Version: 3
+  SaveEVMStateToIAVL: false
+CachingStoreConfig:
+  CachingEnabled: true
 
 Auth:
   Chains:

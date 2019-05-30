@@ -35,6 +35,13 @@ Karma:
   MaxCallCount:  10
   SessionDuration: 60
 
+BlockIndexStore:
+  Enabled: true
+  DBBackend: "goleveldb"
+  DBName: "block_index"
+  CacheSizeMegs: 128
+  WriteBufferMegs: 64
+
 ChainConfig:
   ContractEnabled: true
 
@@ -55,6 +62,7 @@ HsmConfig:
   HsmSignKeyDomain: 1
 
 Metrics:
+  BlockIndexStore: false
   EventHandling: true
 
 GoContractDeployerWhitelist:

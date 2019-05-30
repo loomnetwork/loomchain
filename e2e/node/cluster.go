@@ -20,6 +20,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 	"github.com/pkg/errors"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
@@ -33,7 +34,7 @@ func init() {
 	portGen = &portGenerator{}
 }
 
-func CreateCluster(nodes []*Node, account []*Account) error {
+func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 	// rewrite chaindata/config/genesis.json
 	var genValidators []tmtypes.GenesisValidator
 	for _, node := range nodes {
@@ -68,6 +69,16 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		}
 		nodeKeyFile := path.Join(node.Dir, "node_privkey")
 		node.PrivKeyPath = nodeKeyFile
+	}
+
+	// Initialize the override validators
+	var overrideValidators []*fnConsensus.OverrideValidatorParsable
+	for _, val := range genValidators {
+		address := val.Address
+		overrideValidators = append(overrideValidators, &fnConsensus.OverrideValidatorParsable{
+			Address:     address.String(),
+			VotingPower: 100,
+		})
 	}
 
 	idToP2P := make(map[int64]string)
@@ -135,6 +146,12 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 
 		if err := node.SetConfigFromYaml(account); err != nil {
 			return errors.Wrapf(err, "reading loom yaml file %s", node.BaseYaml)
+		}
+
+		if fnconsensus {
+			node.Config.FnConsensus.Enabled = true
+			node.Config.FnConsensus.Reactor.FnVoteSigningThreshold = "All"
+			node.Config.FnConsensus.Reactor.OverrideValidators = overrideValidators
 		}
 
 		node.Config.Peers = strings.Join(peers, ",")

@@ -28,9 +28,9 @@ func AddIdentityMappingCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var mapping address_mapper.AddIdentityMappingRequest
-			user, err := cli.ParseAddress(args[0])
+			user, err := cli.ParseAddress(args[0], callFlags.ChainID)
 			if err != nil {
-				return errors.Wrapf(err, "resolve address arg %v", args[0])
+				return errors.Wrapf(err, "failed to parse address %v", args[0])
 			}
 			mapping.From = user.MarshalPB()
 
@@ -91,7 +91,7 @@ func GetMapping() *cobra.Command {
 		Short: "Get mapping address",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp amtypes.AddressMapperGetMappingResponse
-			from, err := cli.ParseAddress(args[0])
+			from, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
 				return err
 			}

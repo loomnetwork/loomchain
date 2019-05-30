@@ -57,19 +57,16 @@ WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH
 
 E2E_TESTS_TIMEOUT = 28m
 
-.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
 oracles: tgoracle pcoracle
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/coin/plugin
-
-contracts/dpos.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/dpos/plugin
 
 contracts/dpos.so.2.0.0:
 	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/dposv2/plugin
@@ -84,6 +81,9 @@ tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 loomcoin_tgoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+
+tron_tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 pcoracle:
@@ -148,7 +148,7 @@ lint:
 	cd $(GOPATH)/src/github.com/loomnetwork/loomchain
 	@golangci-lint run | tee lintreport
 
-linterrors:		
+linterrors:
 	chmod +x parselintreport.sh
 	./parselintreport.sh
 
@@ -194,8 +194,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/posener/wstest \
 		github.com/btcsuite/btcd
 
-	# for when you want to reference a different branch of go-loom
-	#cd $(PLUGIN_DIR) && git checkout tg-tron-types && git pull origin tg-tron-types
+	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
+	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GRPC_DIR) && git checkout v1.20.1

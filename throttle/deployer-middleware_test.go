@@ -22,8 +22,6 @@ var (
 	guest = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-type contextFactory func(state loomchain.State) (contractpb.Context, error)
-
 func TestDeployerWhitelistMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(loomchain.DeployerWhitelistFeature, true)

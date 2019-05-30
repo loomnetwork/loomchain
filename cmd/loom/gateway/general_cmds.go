@@ -26,7 +26,7 @@ import (
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	am "github.com/loomnetwork/go-loom/client/address_mapper"
-	"github.com/loomnetwork/go-loom/client/dposv2"
+	"github.com/loomnetwork/go-loom/client/dposv3"
 	gw "github.com/loomnetwork/go-loom/client/gateway"
 	"github.com/loomnetwork/go-loom/client/native_coin"
 
@@ -398,7 +398,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			}
 
 			// Connect to DPOS - REPLACE ALL DPOS IDENTITIES WITH SIGNERS
-			dpos, err := dposv2.ConnectToDAppChainDPOSContract(rpcClient)
+			dpos, err := dposv3.ConnectToDAppChainDPOSContract(rpcClient)
 			if err != nil {
 				return err
 			}
@@ -435,7 +435,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			}
 			fmt.Println("User balance before:", balanceBefore)
 
-			unclaimedRewards, err := dpos.CheckDistributions(id)
+			unclaimedRewards, err := dpos.CheckRewardsFromAllValidators(id, id.LoomAddr)
 			if err != nil {
 				return err
 			}
@@ -443,7 +443,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 
 			balanceAfter := balanceBefore
 			if unclaimedRewards != nil {
-				resp, err := dpos.ClaimRewards(id, id.LoomAddr)
+				resp, err := dpos.ClaimRewardsFromAllValidators(id)
 				if err != nil {
 					return err
 				}

@@ -6,3 +6,8 @@ ChainConfig:
   EnableFeatureInterval: 15
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
+AppStore:
+  Version: 3
+  SaveEVMStateToIAVL: false
+CachingStore:
+  CachingEnabled: true

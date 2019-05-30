@@ -36,12 +36,11 @@ type Config struct {
 	TronAccountPubKeyList      []string
 
 	NodeAddressList         []string
+	NodeBase64AddressList   []string
 	NodePubKeyList          []string
 	NodePrivKeyPathList     []string
 	NodeRPCAddressList      []string
 	NodeProxyAppAddressList []string
-	// yaml file
-	loglevel string
 }
 
 func WriteConfig(conf Config, filename string) error {

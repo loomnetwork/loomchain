@@ -79,22 +79,6 @@
   Expected = ['"Flags": "GO|EVM|MIGRATION"', '"Flags": "EVM"']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['not authorized']
-  Datafiles = [
-    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
-  ]
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = ['1 contract(s) successfully deployed']
-  Datafiles = [
-    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
-  ]
-
-[[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ['not authorized']

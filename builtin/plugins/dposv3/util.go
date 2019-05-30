@@ -2,8 +2,8 @@ package dposv3
 
 import (
 	"errors"
-	"math/big"
 	"fmt"
+	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"

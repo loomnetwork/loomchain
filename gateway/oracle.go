@@ -667,7 +667,7 @@ func (orc *Oracle) fetchMainnetContractCreator(unverified *UnverifiedContractCre
 		// Got to prefix with 41 instead of 0x
 		var address = fmt.Sprintf("41%s", unverified.ContractAddress.Local.Hex())
 		gwContract, err := orc.tronClient.GetContract(context.TODO(), address)
-		if err == TronContractNotFound {
+		if err == ErrTronContractNotFound {
 			return verifiedCreator, nil
 		} else if err != nil {
 			return nil, err

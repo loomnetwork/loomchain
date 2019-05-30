@@ -7,6 +7,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
+	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -18,6 +20,50 @@ var (
 	// the permission to deploy contract.
 	ErrNotAuthorized = errors.New("[DeployerWhitelistMiddleware] not authorized")
 )
+
+// NewEVMDeployRecorderPostCommitMiddleware returns post-commit middleware that
+// Records deploymentAddress and vmType
+func NewEVMDeployRecorderPostCommitMiddleware(
+	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
+) (loomchain.PostCommitMiddleware, error) {
+	return loomchain.PostCommitMiddlewareFunc(func(
+		state loomchain.State,
+		txBytes []byte,
+		res loomchain.TxHandlerResult,
+		next loomchain.PostCommitHandler,
+	) error {
+		if !state.FeatureEnabled(loomchain.UserDeployerWhitelistFeature, false) {
+			return next(state, txBytes, res)
+		}
+
+		// If it isn't EVM deployment, no need to proceed further
+		if res.Info != utils.DeployEvm {
+			return next(state, txBytes, res)
+		}
+
+		// This is checkTx, so bail out early.
+		if len(res.Data) == 0 {
+			return next(state, txBytes, res)
+		}
+
+		var deployResponse vm.DeployResponse
+		if err := proto.Unmarshal(res.Data, &deployResponse); err != nil {
+			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
+		}
+
+		origin := auth.Origin(state.Context())
+		ctx, err := createDeployerWhitelistCtx(state)
+		if err != nil {
+			return err
+		}
+
+		if err := udw.RecordEVMContractDeployment(ctx, origin, loom.UnmarshalAddressPB(deployResponse.Contract)); err != nil {
+			return errors.Wrapf(err, "error while recording deployment")
+		}
+
+		return next(state, txBytes, res)
+	}), nil
+}
 
 func NewDeployerWhitelistMiddleware(
 	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),

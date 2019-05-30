@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	pruneTime metrics.Histogram
+	pruneTime               metrics.Histogram
+	iavlSaveVersionDuration metrics.Histogram
 )
 
 func init() {
@@ -29,8 +30,16 @@ func init() {
 			Subsystem: subsystem,
 			Name:      "prune_duration",
 			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
-		}, []string{"error"})
-
+		}, []string{"error"},
+	)
+	iavlSaveVersionDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "save_version",
+			Help:      "How long IAVLStore.SaveVersion() took to execute (in seconds)",
+		}, []string{},
+	)
 }
 
 type IAVLStore struct {
@@ -118,6 +127,11 @@ func (s *IAVLStore) Version() int64 {
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
+	var err error
+	defer func(begin time.Time) {
+		iavlSaveVersionDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	oldVersion := s.Version()
 	hash, version, err := s.tree.SaveVersion()
 	if err != nil {

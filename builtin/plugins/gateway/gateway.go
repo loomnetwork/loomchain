@@ -2198,13 +2198,13 @@ var UnsafeLoomCoinContract plugin.Contract = contract.MakePluginContract(&Unsafe
 	Type: LoomCoinGateway,
 }})
 
-var TronContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
-	Type: TronGateway,
-}})
-
-var UnsafeTronContract plugin.Contract = contract.MakePluginContract(&Gateway{
+var TronContract plugin.Contract = contract.MakePluginContract(&Gateway{
 	Type: TronGateway,
 })
+
+var UnsafeTronContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
+	Type: TronGateway,
+}})
 
 func emitProcessEventError(ctx contract.Context, errorMessage string, event *MainnetEvent) error {
 	eventError, err := proto.Marshal(&MainnetProcessEventError{

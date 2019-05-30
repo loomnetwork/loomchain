@@ -30,7 +30,7 @@ var (
 	LogAppDb = flag.Bool("log-app-db", false, "Log app db usage to file")
 )
 
-func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account, numEthAccounts int) (*lib.Config, error) {
+func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account, numEthAccounts int, useFnConsensus bool) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
 	if err != nil {
 		return nil, err
@@ -116,13 +116,14 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		}
 	}
 
-	if err = node.CreateCluster(nodes, accounts); err != nil {
+	if err = node.CreateCluster(nodes, accounts, useFnConsensus); err != nil {
 		return nil, err
 	}
 
 	for _, n := range nodes {
 		conf.Nodes[fmt.Sprintf("%d", n.ID)] = n
 		conf.NodeAddressList = append(conf.NodeAddressList, n.Address)
+		conf.NodeBase64AddressList = append(conf.NodeBase64AddressList, n.Local)
 		conf.NodePubKeyList = append(conf.NodePubKeyList, n.PubKey)
 		conf.NodePrivKeyPathList = append(conf.NodePrivKeyPathList, n.PrivKeyPath)
 		conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, n.ProxyAppAddress)

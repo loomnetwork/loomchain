@@ -13,6 +13,10 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
 
+	// Enables precise rewards calculations in DPOSv3
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_1 = "dpos:v3.1"
+
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
 	DPOSVersion2_1 = "dpos:v2.1"
@@ -24,6 +28,9 @@ const (
 	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"
 
+	// Enables post commit middleware for user-deployer-whitelist
+	UserDeployerWhitelistFeature = "mw:userdeploy-wl"
+
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
 
@@ -33,7 +40,8 @@ const (
 	// Enables usage of ctx.Validators() in ChainConfig contract.
 	ChainCfgVersion1_1 = "chaincfg:v1.1"
 
-	// Enables application to persist and retrive EVM state in/from evm.db
+	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
+	// state to both evm.db & app.db.
 	EvmDBFeature = "db:evm"
 
 	// Enables Coin v1.1 contract (also applies to ETHCoin)

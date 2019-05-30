@@ -12,7 +12,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -43,29 +42,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		},
 	}
 
-	if cfg.DPOSVersion == 1 {
-		dposInit, err := marshalInit(&dpos.InitRequest{
-			Params: &dpos.Params{
-				WitnessCount:        21,
-				ElectionCycleLength: 604800, // one week
-				MinPowerFraction:    5,      // 20%
-			},
-			Validators: []*loom.Validator{
-				validator,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		contracts = append(contracts, config.ContractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "dpos",
-			Location:   "dpos:1.0.0",
-			Init:       dposInit,
-		})
-	} else if cfg.DPOSVersion == 2 {
+	if cfg.DPOSVersion == 2 {
 		dposV2Init, err := marshalInit(&dposv2.InitRequest{
 			Params: &dposv2.Params{
 				ValidatorCount:      21,

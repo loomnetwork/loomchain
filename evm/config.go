@@ -10,6 +10,8 @@ type EvmStoreConfig struct {
 	CacheSizeMegs int
 	// WriteBufferMegs for the goleveldb backend EVM Store
 	WriteBufferMegs int
+	// NumCachedRoots defines a number of in-memory cached EVM roots
+	NumCachedRoots int
 }
 
 func DefaultEvmStoreConfig() *EvmStoreConfig {
@@ -18,6 +20,7 @@ func DefaultEvmStoreConfig() *EvmStoreConfig {
 		DBBackend:       "goleveldb",
 		CacheSizeMegs:   256,
 		WriteBufferMegs: 4,
+		NumCachedRoots:  100,
 	}
 }
 

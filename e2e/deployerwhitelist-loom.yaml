@@ -7,4 +7,3 @@ ChainConfig:
   ContractEnabled: true
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
-BootLegacyDPoS: true

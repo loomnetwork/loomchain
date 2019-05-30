@@ -1,13 +1,18 @@
 package dbg
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"path"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/log"
@@ -15,8 +20,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/blockchain"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
+)
+
+var (
+	appHeightKey = []byte("appheight")
 )
 
 func newDumpMempoolCommand() *cobra.Command {
@@ -121,6 +132,133 @@ func newDumpBlockTxsCommand() *cobra.Command {
 	return cmd
 }
 
+func newDumpBlockStoreTxsCommand() *cobra.Command {
+	var height int64
+	cmd := &cobra.Command{
+		Use:     "dump-block-store-txs",
+		Short:   "Displays all the txs from a block in blockstore.db",
+		Example: "loom dump-block-store-txs <path/to/chaindata> --height 12345",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			blockStoreDB := dbm.NewDB("blockstore", "leveldb", path.Join(args[0], "data"))
+			defer blockStoreDB.Close()
+
+			blockStore := blockchain.NewBlockStore(blockStoreDB)
+			latestHeight := blockchain.LoadBlockStoreStateJSON(blockStoreDB).Height
+
+			if height > latestHeight {
+				return fmt.Errorf(
+					"failed to load block at height %d, latest block store height is %d",
+					height, latestHeight,
+				)
+			}
+
+			block := blockStore.LoadBlock(height)
+			for _, tx := range block.Txs {
+				str, err := decodeMessageTx(tx)
+				if err != nil {
+					log.Error("failed to decode tx", "err", err)
+				} else {
+					fmt.Println(str)
+				}
+			}
+			fmt.Printf("Found %d txs in block %d\n", block.NumTxs, height)
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&height, "height", 1, "Block height for which txs should be displayed")
+	return cmd
+}
+
+func newSetAppHeightCommand() *cobra.Command {
+	var height int64
+	cmd := &cobra.Command{
+		Use:     "set-app-height",
+		Short:   "Save a specific height for the next run into app.db",
+		Example: "loom debug set-app-height <path/to/app.db> --height 12345",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+			appDB, err := dbm.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return err
+			}
+			defer appDB.Close()
+			heightBuffer := make([]byte, 8)
+			binary.BigEndian.PutUint64(heightBuffer, uint64(height))
+			appDB.SetSync(appHeightKey, heightBuffer)
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&height, "height", 0, "Block height to be loaded for the next run")
+	cmd.MarkFlagRequired("height")
+	return cmd
+}
+
+func newGetAppHeightCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "get-app-height",
+		Short:   "Get app height to be loaded on the next run from app.db",
+		Example: "loom debug get-app-height <path/to/app.db>",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+			appDB, err := dbm.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return err
+			}
+			defer appDB.Close()
+			height := appDB.Get(appHeightKey)
+			if height == nil {
+				return fmt.Errorf("app height not found")
+			}
+			fmt.Println(binary.BigEndian.Uint64(height))
+			return nil
+		},
+	}
+	return cmd
+}
+
+func newDeleteAppHeightCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "delete-app-height",
+		Short:   "Delete app height from app.db",
+		Example: "loom debug delete-app-height <path/to/app.db>",
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcDBPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(srcDBPath), ".db")
+			dbDir := path.Dir(srcDBPath)
+			appDB, err := dbm.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return err
+			}
+			defer appDB.Close()
+			height := appDB.Get(appHeightKey)
+			if height == nil {
+				return fmt.Errorf("app height not found")
+			}
+			appDB.DeleteSync(appHeightKey)
+			return nil
+		},
+	}
+	return cmd
+}
+
 // NewDebugCommand creates a new instance of the top-level debug command
 func NewDebugCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -130,6 +268,10 @@ func NewDebugCommand() *cobra.Command {
 	cmd.AddCommand(
 		newDumpMempoolCommand(),
 		newDumpBlockTxsCommand(),
+		newDumpBlockStoreTxsCommand(),
+		newSetAppHeightCommand(),
+		newGetAppHeightCommand(),
+		newDeleteAppHeightCommand(),
 	)
 	return cmd
 }
@@ -156,6 +298,8 @@ func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 	}
 
 	var vmType vm.VMType
+	var methodName string
+
 	if loomTx.Id == 1 {
 		var deployTx vm.DeployTx
 		if err := proto.Unmarshal(msgTx.Data, &deployTx); err != nil {
@@ -168,6 +312,20 @@ func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 			return "", errors.Wrap(err, "failed to unmarshal CallTx")
 		}
 		vmType = callTx.VmType
+
+		if vmType == vm.VMType_PLUGIN {
+			var preq plugin.Request
+			if err := proto.Unmarshal(callTx.Input, &preq); err != nil {
+				return "", errors.Wrap(err, "failed to unmarshal Request")
+			}
+
+			var methodCall plugin.ContractMethodCall
+			if err := proto.Unmarshal(preq.Body, &methodCall); err != nil {
+				return "", errors.Wrap(err, "failed to unmarshal ContractMethodCall")
+			}
+
+			methodName = methodCall.Method
+		}
 	}
 
 	var vmName string
@@ -178,12 +336,13 @@ func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 	}
 
 	return fmt.Sprintf(
-		"[txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s",
+		"[txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s [mn] %s",
 		tx.Hash(),
 		loom.UnmarshalAddressPB(msgTx.From).String(),
 		nonceTx.Sequence,
 		loomTx.Id,
 		loom.UnmarshalAddressPB(msgTx.To).String(),
 		vmName,
+		methodName,
 	), nil
 }

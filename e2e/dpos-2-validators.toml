@@ -1,33 +1,33 @@
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Delay = 1000
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
+  Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 register_candidateV2 {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 21 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 21 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.NodeAddressList 0}} 10 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 0}} 10 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.NodeAddressList 0}} 11 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 0}} 11 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "check_validators"
@@ -35,21 +35,21 @@
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.NodeAddressList 1}} 21 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 1}} 21 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
+  Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV2 6 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 6 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 delegateV2 {{index $.NodeAddressList 1}} 6 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 1}} 6 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dposV2 total_delegation {{index $.NodeAddressList 0}} 6"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
   Condition = "contains"
-  Expected = ["27000"]
+  Expected = ["0270"]

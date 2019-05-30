@@ -23,8 +23,8 @@ import (
 
 var (
 	// maximum number of event per fetching
-	eventSize            = 20
-	TronContractNotFound = errors.New("contract not found")
+	eventSize               = 20
+	ErrTronContractNotFound = errors.New("contract not found")
 )
 
 // TronClient defines typed wrappers for the Tron HTTP API.
@@ -100,7 +100,7 @@ func (c *TronClient) GetContract(ctx context.Context, contractAddress string) (*
 	}
 
 	if tronContract.ContractAddress == "" || tronContract.OriginalAddress == "" {
-		return nil, TronContractNotFound
+		return nil, ErrTronContractNotFound
 	}
 
 	return &tronContract, nil
@@ -151,7 +151,7 @@ func (c *TronClient) filterEvents(contractAddress string, eventName string, from
 	var events []tronEvent
 	var fingerprint string
 	// tron uses base58 address to query event
-	// TODO: maybe move thise helper to go-loom
+	// TODO: maybe move this helper to go-loom
 	base58Addr := AddressHexToBase58(contractAddress)
 MAIN_LOOP:
 	for {
@@ -179,7 +179,7 @@ MAIN_LOOP:
 			break
 		}
 
-		// add slightly delay to prevent spaming the event server
+		// add slightly delay to prevent spamming the event server
 		time.Sleep(c.eventPollDelay)
 	}
 	return events, nil

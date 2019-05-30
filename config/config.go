@@ -22,6 +22,7 @@ import (
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/spf13/viper"
 
@@ -47,7 +48,6 @@ type Config struct {
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
 	DPOSVersion        int64
-	BootLegacyDPoS     bool
 
 	// Controls whether or not empty blocks should be generated periodically if there are no txs or
 	// AppHash changes. Defaults to true.
@@ -87,6 +87,9 @@ type Config struct {
 	//DeployerWhitelist
 	DeployerWhitelist *DeployerWhitelistConfig
 
+	// UserDeployerWhitelist
+	UserDeployerWhitelist *UserDeployerWhitelistConfig
+
 	// Transfer gateway
 	TransferGateway         *gateway.TransferGatewayConfig
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
@@ -95,7 +98,8 @@ type Config struct {
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 	// Blockstore config
-	BlockStore *store.BlockStoreConfig
+	BlockStore      *store.BlockStoreConfig
+	BlockIndexStore *blockindex.BlockIndexStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -138,8 +142,9 @@ type Config struct {
 }
 
 type Metrics struct {
-	EventHandling bool
-	Database      bool
+	BlockIndexStore bool
+	EventHandling   bool
+	Database        bool
 }
 
 type FnConsensusConfig struct {
@@ -197,6 +202,10 @@ type DeployerWhitelistConfig struct {
 	ContractEnabled bool
 }
 
+type UserDeployerWhitelistConfig struct {
+	ContractEnabled bool
+}
+
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
 		CacheSizeMegs:   1042, //1 Gigabyte
@@ -206,8 +215,9 @@ func DefaultDBBackendConfig() *DBBackendConfig {
 
 func DefaultMetrics() *Metrics {
 	return &Metrics{
-		EventHandling: true,
-		Database:      true,
+		BlockIndexStore: false,
+		EventHandling:   true,
+		Database:        true,
 	}
 }
 
@@ -245,6 +255,12 @@ func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 
 func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
 	return &DeployerWhitelistConfig{
+		ContractEnabled: false,
+	}
+}
+
+func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
+	return &UserDeployerWhitelistConfig{
 		ContractEnabled: false,
 	}
 }
@@ -364,11 +380,10 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:         "",
-		DeployEnabled:  true,
-		CallEnabled:    true,
-		BootLegacyDPoS: false,
-		DPOSVersion:    1,
+		Oracle:        "",
+		DeployEnabled: true,
+		CallEnabled:   true,
+		DPOSVersion:   1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -381,10 +396,12 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
+	cfg.BlockIndexStore = blockindex.DefaultBlockIndexStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
 	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
+	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
@@ -482,7 +499,6 @@ ReceiptsVersion: {{ .ReceiptsVersion }}
 EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
-BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
 #
 # Network
@@ -538,6 +554,7 @@ BlockchainLogLevel: "{{ .BlockchainLogLevel }}"
 LogStateDB: {{ .LogStateDB }}
 LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
+  BlockIndexStore: {{ .Metrics.BlockIndexStore }} 
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
 #
@@ -693,6 +710,13 @@ ChainConfig:
 #
 DeployerWhitelist:
   ContractEnabled: {{ .DeployerWhitelist.ContractEnabled }}
+
+#
+# UserDeployerWhitelist
+#
+UserDeployerWhitelist:
+  ContractEnabled: {{ .UserDeployerWhitelist.ContractEnabled }}
+
 #
 # Plasma Cash
 #
@@ -706,6 +730,13 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
+BlockIndexStore:  
+  Enabled: {{ .BlockIndexStore.Enabled }}
+  # goleveldb | cleveldb | memdb
+  DBBackend: {{ .BlockIndexStore.DBBackend }}
+  DBName: {{ .BlockIndexStore.DBName }}
+  CacheSizeMegs: {{ .BlockIndexStore.CacheSizeMegs }}
+  WriteBufferMegs: {{ .BlockIndexStore.WriteBufferMegs }}
 #
 # Cashing store 
 #
@@ -724,7 +755,6 @@ CachingStoreConfig:
   Verbose: {{ .CachingStoreConfig.Verbose }} 
   LogLevel: "{{ .CachingStoreConfig.LogLevel }}" 
   LogDestination: "{{ .CachingStoreConfig.LogDestination }}" 
-
 #
 # Prometheus Push Gateway
 #
@@ -809,9 +839,9 @@ AppStore:
   # Snapshot type to use, only supported by MultiReaderIAVL store
   # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
   SnapshotVersion: {{ .AppStore.SnapshotVersion }}
-  # If true the app store will read EVM state from evm.db instead of app.db
+  # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
-  EvmDBEnabled: {{ .AppStore.EvmDBEnabled }}
+  SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
 {{if .EventStore -}}
 #
 # EventStore
@@ -833,6 +863,8 @@ EvmStore:
   DBBackend: {{.EvmStore.DBBackend}}
   # CacheSizeMegs defines cache size (in megabytes) of EVM store
   CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
+  # NumCachedRoots defines a number of in-memory cached EVM roots
+  NumCachedRoots: {{.EvmStore.NumCachedRoots}}
 {{end}}
 
 # 

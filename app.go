@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
@@ -275,6 +276,7 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
+	blockindex.BlockIndexStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	OriginHandler
@@ -289,11 +291,12 @@ var _ abci.Application = &Application{}
 
 //Metrics
 var (
-	deliverTxLatency    metrics.Histogram
-	checkTxLatency      metrics.Histogram
-	commitBlockLatency  metrics.Histogram
-	requestCount        metrics.Counter
-	committedBlockCount metrics.Counter
+	deliverTxLatency     metrics.Histogram
+	checkTxLatency       metrics.Histogram
+	commitBlockLatency   metrics.Histogram
+	requestCount         metrics.Counter
+	committedBlockCount  metrics.Counter
+	validatorFuncLatency metrics.Histogram
 )
 
 func init() {
@@ -309,7 +312,7 @@ func init() {
 		Subsystem: "application",
 		Name:      "delivertx_latency_microseconds",
 		Help:      "Total duration of delivertx in microseconds.",
-	}, fieldKeys)
+	}, []string{"method", "error", "evm"})
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
@@ -330,6 +333,13 @@ func init() {
 		Name:      "block_count",
 		Help:      "Number of committed blocks.",
 	}, fieldKeys)
+
+	validatorFuncLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "validator_election_latency",
+		Help:      "Total duration of validator election in seconds.",
+	}, []string{})
 }
 
 func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
@@ -473,11 +483,16 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		if err != nil {
 			panic(err)
 		}
+		t2 := time.Now()
 		validators, err := validatorManager.EndBlock(req)
+
+		diffsecs := time.Since(t2).Seconds()
+		validatorFuncLatency.Observe(diffsecs)
+
+		log.Info(fmt.Sprintf("validator manager took %f seconds-----\n", diffsecs))
 		if err != nil {
 			panic(err)
 		}
-
 		storeTx.Commit()
 
 		return abci.ResponseEndBlock{
@@ -519,9 +534,14 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 }
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	var err error
+	isEvmTx := false
 	defer func(begin time.Time) {
-		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
-		requestCount.With(lvs...).Add(1)
+		lvs := []string{
+			"method", "DeliverTx",
+			"error", fmt.Sprint(err != nil),
+			"evm", fmt.Sprintf("%t", isEvmTx),
+		}
+		requestCount.With(lvs[:4]...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
@@ -529,6 +549,9 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+	}
+	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+		isEvmTx = true
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
@@ -598,6 +621,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
@@ -620,6 +644,10 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	if err := a.Store.Prune(); err != nil {
 		log.Error("failed to prune app.db", "err", err)
+	}
+
+	if a.BlockIndexStore != nil {
+		a.BlockIndexStore.SetBlockHashAtHeight(uint64(height), a.curBlockHash)
 	}
 
 	return abci.ResponseCommit{
@@ -645,20 +673,11 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-	// FIXME: Figure out a less ugly way to do this
-	var readOnlyStore store.Snapshot
-	// TODO: Caching store needs to be updated to handle real snapshots from MultiReaderIAVLStore
-	if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
-		readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
-	} else {
-		readOnlyStore = a.Store.GetSnapshot()
-	}
-
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
 		nil,
-		readOnlyStore,
+		a.Store.GetSnapshot(),
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,

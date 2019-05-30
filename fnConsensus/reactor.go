@@ -247,6 +247,7 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 	validatorArray := make([]*types.Validator, 0, len(f.cfg.OverrideValidators))
 
 	for _, overrideValidator := range f.cfg.OverrideValidators {
+		// tmState.Validators is the tendermint address, not the loom address.
 		validatorIndex, validator := tmState.Validators.GetByAddress(overrideValidator.Address)
 		if validatorIndex == -1 {
 			return fmt.Errorf("validator specified in override config, doesnt exist in TM validator set")
@@ -422,7 +423,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	// Have we achived Maj23 already?
+	// Have we achieved Maj23 already?
 	aggregateExecutionResponse := voteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 	if aggregateExecutionResponse != nil {
 		f.safeSubmitMultiSignedMessage(fn, nil,
@@ -490,12 +491,12 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				return
 			}
 
-			// Propogate your last Maj23, to remedy any issue
+			// Propagate your last Maj23, to remedy any issue
 			f.broadcastMsgSync(FnMajChannel, nil, marshalledBytesOfPreviousVoteSet)
 
 			time.Sleep(VoteSetPropogationDelay)
 
-			// Propogate your current voteSet, to get newly joined node to sign it
+			// Propagate your current voteSet, to get newly joined node to sign it
 			f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytesOfCurrentVoteSet)
 		}
 	} else {
@@ -525,7 +526,11 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 }
 
-func (f *FnConsensusReactor) compareFnVoteSets(remoteVoteSet *FnVoteSet, currentVoteSet *FnVoteSet, currentNonce int64, currentValidators *types.ValidatorSet) int {
+func (f *FnConsensusReactor) compareFnVoteSets(
+	remoteVoteSet *FnVoteSet,
+	currentVoteSet *FnVoteSet,
+	currentNonce int64,
+	currentValidators *types.ValidatorSet) int {
 	if currentVoteSet == nil {
 		if currentNonce == remoteVoteSet.Nonce {
 			return 1
@@ -703,7 +708,11 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 	if currentNonce != remoteVoteSet.Nonce {
 		if currentNonce > remoteVoteSet.Nonce {
-			f.Logger.Info("FnConsensusReactor: Already seen this nonce, ignoring", "currentNonce", currentNonce, "remoteNonce", remoteVoteSet.Nonce)
+			f.Logger.Info(
+				"FnConsensusReactor: Already seen this nonce, ignoring",
+				"currentNonce", currentNonce,
+				"remoteNonce", remoteVoteSet.Nonce,
+			)
 			return
 		}
 	}
@@ -744,7 +753,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		message, signature, err := f.safeGetMessageAndSignature(fn, nil)
 		if err != nil {
-			f.Logger.Error("FnConsensusReactor: fn.GetMessageAndSignature returned an error, ignoring..")
+			f.Logger.Error("FnConsensusReactor: received error while executing fn.GetMessageAndSignature", "fnID", fnID, "error", err)
 			return
 		}
 
