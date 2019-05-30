@@ -6,13 +6,35 @@
             "name": "coin",
             "location": "coin:1.0.0",
             "init": {
-        }
+            }
         },
         {
             "vm": "plugin",
             "format": "plugin",
-            "name": "dposV2",
-            "location": "dposV2:2.0.0",
+            "name": "chainconfig",
+            "location": "chainconfig:1.0.0",
+            "init": {
+                "owner": {
+                    "chainId":"default",
+                    "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
+                },
+                "params": {
+                    "voteThreshold":"0",
+                    "numBlockConfirmations":"0"
+                },
+                "features": [
+                  {
+                    "name":"dpos:v3",
+                    "status":"WAITING"
+                  }
+                ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dposV3",
+            "location": "dposV3:3.0.0",
             "init": {
                 "params": {
                     "validatorCount": "21",
