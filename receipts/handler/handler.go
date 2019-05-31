@@ -223,3 +223,9 @@ func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 		r.currentReceipt.Status = common.StatusTxFail
 	}
 }
+
+func (r *ReceiptHandler) GetBloomFilter(height uint64) []byte {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.leveldbReceipts.GetBloomFilter(height)
+}

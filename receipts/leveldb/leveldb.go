@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	loom_types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
@@ -26,7 +27,17 @@ var (
 	headKey          = []byte("leveldb:head")
 	tailKey          = []byte("leveldb:tail")
 	currentDbSizeKey = []byte("leveldb:size")
+	BloomPrefix      = []byte("bloomFilter")
+	TxHashPrefix     = []byte("txHash")
 )
+
+func bloomFilterKey(height uint64) []byte {
+	return util.PrefixKey(BloomPrefix, BlockHeightToBytes(height))
+}
+
+func txHashKey(height uint64) []byte {
+	return util.PrefixKey(TxHashPrefix, BlockHeightToBytes(height))
+}
 
 func WriteReceipt(
 	block loom_types.BlockHeader,
@@ -214,7 +225,12 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		return errors.Wrap(err, "append tx list")
 	}
 	filter := bloom.GenBloomFilter(events)
-	common.SetBloomFilter(state, filter, height)
+
+	if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
+		lr.SetBloomFilter(filter, height)
+	} else {
+		common.SetBloomFilter(state, filter, height)
+	}
 
 	if err := lr.tran.Commit(); err != nil {
 		return errors.Wrap(err, "committing level db transaction")
@@ -305,4 +321,47 @@ func setDBParams(tr *leveldb.Transaction, size uint64, head, tail []byte) error 
 	sizeB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sizeB, size)
 	return tr.Put(currentDbSizeKey, sizeB, nil)
+}
+
+func (lr *LevelDbReceipts) GetBloomFilter(height uint64) []byte {
+	filter, err := lr.db.Get(bloomFilterKey(height), nil)
+	if err != nil {
+		return nil
+	}
+	return filter
+}
+
+func (lr *LevelDbReceipts) SetBloomFilter(filter []byte, height uint64) {
+	lr.db.Put(bloomFilterKey(height), filter, nil)
+}
+
+func (lr *LevelDbReceipts) GetTxHashList(height uint64) ([][]byte, error) {
+	protHashList, err := lr.db.Get(txHashKey(height), nil)
+	if err != nil {
+		return nil, err
+	}
+	txHashList := types.EthTxHashList{}
+	err = proto.Unmarshal(protHashList, &txHashList)
+	return txHashList.EthTxHash, err
+}
+
+func (lr *LevelDbReceipts) AppendTxHashList(txHash [][]byte, height uint64) error {
+	txHashList, err := lr.GetTxHashList(height)
+	if err != nil {
+		return errors.Wrap(err, "getting tx hash list")
+	}
+	txHashList = append(txHashList, txHash...)
+
+	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
+	if err != nil {
+		return errors.Wrap(err, "marshal tx hash list")
+	}
+	lr.db.Put(txHashKey(height), postTxHashList, nil)
+	return nil
+}
+
+func BlockHeightToBytes(height uint64) []byte {
+	heightB := make([]byte, 8)
+	binary.LittleEndian.PutUint64(heightB, height)
+	return heightB
 }

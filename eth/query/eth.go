@@ -88,7 +88,12 @@ func GetBlockLogs(
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,
 ) ([]*ptypes.EthFilterLog, error) {
-	bloomFilter := common.GetBloomFilter(state, height)
+	var bloomFilter []byte
+	if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
+		bloomFilter = readReceipts.GetBloomFilter(height)
+	} else {
+		bloomFilter = common.GetBloomFilter(state, height)
+	}
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
 			txHashList, err := common.GetTxHashList(state, height)
