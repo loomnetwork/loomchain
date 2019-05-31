@@ -3,6 +3,7 @@ package userdeployerwhitelist
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
@@ -28,6 +29,8 @@ func NewUserDeployCommand() *cobra.Command {
 		addUserDeployerCmd(),
 		getUserDeployersCmd(),
 		getDeployedContractsCmd(),
+		getTierInfoCmd(),
+		ModifyTierInfoCmd(),
 	)
 	return cmd
 }
@@ -146,6 +149,82 @@ func getDeployedContractsCmd() *cobra.Command {
 		},
 	}
 
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const getTierInfoCmdExample = `
+loom dev get-tierinfo --tier default
+`
+
+func getTierInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	var TierID string
+	cmd := &cobra.Command{
+		Use:     "get-tierinfo",
+		Short:   "get Tier Info corresponding to a Tier",
+		Example: getTierInfoCmdExample,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var tierId udwtypes.TierID
+			if strings.EqualFold(TierID, udwtypes.TierID_DEFAULT.String()) {
+				tierId = udwtypes.TierID_DEFAULT
+			} else {
+				return fmt.Errorf("Please specify tierId <default>")
+			}
+			req := &udwtypes.GetTierInfoRequest{
+				TierID: tierId,
+			}
+			var resp udwtypes.GetTierInfoResponse
+			if err := cli.StaticCallContractWithFlags(&flags, dwContractName,
+				"GetTierInfo", req, &resp); err != nil {
+				return err
+			}
+			output, err := json.MarshalIndent(resp.Tier, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&TierID, "tier", "t", "default", "tier ID")
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const modifyTierInfoCmdExample = `
+loom dev modify-tierinfo 100 Tier1 --tier default
+`
+
+func ModifyTierInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	var TierID string
+	cmd := &cobra.Command{
+		Use:     "modify-tierinfo <fees> <name>",
+		Short:   "Modify Tier Info",
+		Example: modifyTierInfoCmdExample,
+		Args:    cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var tierId udwtypes.TierID
+			if strings.EqualFold(TierID, udwtypes.TierID_DEFAULT.String()) {
+				tierId = udwtypes.TierID_DEFAULT
+			} else {
+				return fmt.Errorf("Please specify tierId <default>")
+			}
+			fees, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+			req := &udwtypes.ModifyTierInfoRequest{
+				Fee:    uint64(fees),
+				Name:   args[1],
+				TierID: tierId,
+			}
+			return cli.CallContractWithFlags(&flags, dwContractName, "ModifyTierInfo", req, nil)
+		},
+	}
+	cmd.Flags().StringVarP(&TierID, "tier", "t", "default", "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
