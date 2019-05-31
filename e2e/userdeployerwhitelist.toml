@@ -60,3 +60,12 @@
    Expected = ["99999990000000000000000000"]
    Delay = 500
 
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dev modify-tierinfo 200 Tier2 --tier default -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dev get-tierinfo --tier default"
+  Condition = "contains"
+  Expected = ['10000000000000000000', '"name": "tier1"']
