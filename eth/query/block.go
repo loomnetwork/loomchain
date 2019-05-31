@@ -30,7 +30,11 @@ var (
 )
 
 func GetBlockByNumber(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
+	blockStore store.BlockStore,
+	state loomchain.ReadOnlyState,
+	height int64,
+	full bool,
+	readReceipts loomchain.ReadReceiptHandler,
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
 	if height > state.Block().Height {
@@ -73,8 +77,14 @@ func GetBlockByNumber(
 	// These three fields are null for pending blocks.
 	blockInfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
 	blockInfo.Number = eth.EncInt(height)
-	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
+	var bloomFilter []byte
+	if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
+		bloomFilter = readReceipts.GetBloomFilter(uint64(height))
+	} else {
+		bloomFilter = common.GetBloomFilter(state, uint64(height))
+	}
 
+	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			txResult, err := blockStore.GetTxResult(tx.Hash())
@@ -254,10 +264,18 @@ func DeprecatedGetBlockByNumber(
 		blockinfo.Number = height
 	}
 
-	bloomFilter := common.GetBloomFilter(state, uint64(height))
+	var bloomFilter []byte
+	var txHashList [][]byte
+	if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
+		bloomFilter = readReceipts.GetBloomFilter(uint64(height))
+		txHashList, err = readReceipts.GetTxHashList(uint64(height))
+	} else {
+		bloomFilter = common.GetBloomFilter(state, uint64(height))
+		txHashList, err = common.GetTxHashList(state, uint64(height))
+	}
+
 	blockinfo.LogsBloom = bloomFilter
 
-	txHashList, err := common.GetTxHashList(state, uint64(height))
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx hash")
 	}

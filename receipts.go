@@ -15,6 +15,7 @@ type ReadReceiptHandler interface {
 	GetPendingTxHashList() [][]byte
 	GetCurrentReceipt() *types.EvmTxReceipt
 	GetBloomFilter(height uint64) []byte
+	GetTxHashList(height uint64) ([][]byte, error)
 }
 
 type ReceiptHandlerStore interface {

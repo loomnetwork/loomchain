@@ -221,15 +221,21 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		return errors.Wrap(err, "saving receipt db params")
 	}
 
-	if err := common.AppendTxHashList(state, txHashArray, height); err != nil {
-		return errors.Wrap(err, "append tx list")
-	}
 	filter := bloom.GenBloomFilter(events)
 
-	if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
-		lr.SetBloomFilter(filter, height)
-	} else {
+	// if the feature is not enabled, write to both app.db and receipts.db
+	if !state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
+		if err := common.AppendTxHashList(state, txHashArray, height); err != nil {
+			return errors.Wrap(err, "append tx list")
+		}
 		common.SetBloomFilter(state, filter, height)
+	}
+
+	if err := lr.AppendTxHashList(txHashArray, height); err != nil {
+		return errors.Wrap(err, "append tx list")
+	}
+	if err := lr.SetBloomFilter(filter, height); err != nil {
+		return errors.Wrap(err, "set bloom filter")
 	}
 
 	if err := lr.tran.Commit(); err != nil {
@@ -331,13 +337,13 @@ func (lr *LevelDbReceipts) GetBloomFilter(height uint64) []byte {
 	return filter
 }
 
-func (lr *LevelDbReceipts) SetBloomFilter(filter []byte, height uint64) {
-	lr.db.Put(bloomFilterKey(height), filter, nil)
+func (lr *LevelDbReceipts) SetBloomFilter(filter []byte, height uint64) error {
+	return lr.tran.Put(bloomFilterKey(height), filter, nil)
 }
 
 func (lr *LevelDbReceipts) GetTxHashList(height uint64) ([][]byte, error) {
 	protHashList, err := lr.db.Get(txHashKey(height), nil)
-	if err != nil {
+	if err != nil && err != leveldb.ErrNotFound {
 		return nil, err
 	}
 	txHashList := types.EthTxHashList{}
@@ -356,7 +362,7 @@ func (lr *LevelDbReceipts) AppendTxHashList(txHash [][]byte, height uint64) erro
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}
-	lr.db.Put(txHashKey(height), postTxHashList, nil)
+	lr.tran.Put(txHashKey(height), postTxHashList, nil)
 	return nil
 }
 

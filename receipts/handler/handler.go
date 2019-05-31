@@ -229,3 +229,9 @@ func (r *ReceiptHandler) GetBloomFilter(height uint64) []byte {
 	defer r.mutex.RUnlock()
 	return r.leveldbReceipts.GetBloomFilter(height)
 }
+
+func (r *ReceiptHandler) GetTxHashList(height uint64) ([][]byte, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.leveldbReceipts.GetTxHashList(height)
+}

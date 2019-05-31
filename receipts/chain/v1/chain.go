@@ -65,6 +65,10 @@ func (r *ReceiptHandler) ClearData() error {
 func (r *ReceiptHandler) CommitCurrentReceipt() {
 }
 
+func (r *ReceiptHandler) GetTxHashList(height uint64) ([][]byte, error) {
+	return nil, nil
+}
+
 func (r *ReceiptHandler) DiscardCurrentReceipt() {
 }
 func (r *ReceiptHandler) GetBloomFilter(height uint64) []byte {

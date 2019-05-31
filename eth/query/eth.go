@@ -96,7 +96,13 @@ func GetBlockLogs(
 	}
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			txHashList, err := common.GetTxHashList(state, height)
+			var txHashList [][]byte
+			var err error
+			if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
+				txHashList, err = readReceipts.GetTxHashList(height)
+			} else {
+				txHashList, err = common.GetTxHashList(state, height)
+			}
 			if err != nil {
 				return nil, errors.Wrapf(err, "txhash for block height %d", height)
 			}
