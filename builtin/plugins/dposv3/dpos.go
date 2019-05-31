@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	defaultDowntimePeriod          = 4096
 	defaultRegistrationRequirement = 1250000
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
@@ -84,6 +85,8 @@ type (
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
 	CheckRewardDelegationRequest      = dtypes.CheckRewardDelegationRequest
 	CheckRewardDelegationResponse     = dtypes.CheckRewardDelegationResponse
+	DowntimeRecordRequest             = dtypes.DowntimeRecordRequest
+	DowntimeRecordResponse            = dtypes.DowntimeRecordResponse
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
@@ -100,6 +103,7 @@ type (
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
 	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
+	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
@@ -174,6 +178,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 	if params.MaxYearlyReward == nil {
 		params.MaxYearlyReward = &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)}
+	}
+	if params.DowntimePeriod == 0 {
+		params.DowntimePeriod = defaultDowntimePeriod
 	}
 
 	state := &State{
@@ -1209,6 +1216,15 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	return state.Validators, nil
 }
 
+func GetCandidateList(ctx contract.StaticContext) (CandidateList, error) {
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return candidates, nil
+}
+
 func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListDelegations", "request", req)
 
@@ -1270,6 +1286,65 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 // ***************************
 // REWARDS & SLASHING
 // ***************************
+
+func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates []*Candidate) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if uint64(currentHeight) % state.Params.DowntimePeriod == 1 {
+		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
+
+		for _, candidate := range candidates {
+			statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+			if err != nil && err != contract.ErrNotFound {
+				return err
+			}
+			statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks << 16
+			if err := SetStatistic(ctx, statistic); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) error {
+	statistic, err := GetStatistic(ctx, validatorAddr)
+	if err != nil {
+		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
+	}
+
+	statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks + 1
+	ctx.Logger().Info("DPOS UpdateDowntimeRecord", "validator", statistic.Address, "down-blocks", statistic.RecentlyMissedBlocks & 0xFFFF)
+
+	return SetStatistic(ctx, statistic)
+}
+
+func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordRequest) (*DowntimeRecordResponse, error) {
+	ctx.Logger().Debug("DPOSv3 DowntimeRecord", "request", req)
+	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.Validator))
+	if err != nil {
+		return nil, logStaticDposError(ctx, contract.ErrNotFound, req.String())
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DowntimeRecordResponse{
+		Periods: []uint64{
+			statistic.RecentlyMissedBlocks & 0xFFFF,
+			(statistic.RecentlyMissedBlocks >> 16) & 0xFFFF,
+			(statistic.RecentlyMissedBlocks >> 32) & 0xFFFF,
+			(statistic.RecentlyMissedBlocks >> 48) & 0xFFFF,
+		},
+		PeriodLength: state.Params.DowntimePeriod,
+	}, nil
+}
 
 // only called for validators, never delegators
 func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
@@ -1884,6 +1959,25 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 	}
 
 	state.Params.ElectionCycleLength = req.ElectionCycle
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 SetDowntimePeriod", "sender", sender, "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	state.Params.DowntimePeriod = req.DowntimePeriod
 
 	return saveState(ctx, state)
 }
