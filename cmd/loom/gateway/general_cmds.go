@@ -471,7 +471,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 					fmt.Println("Time until elections: ", timeToElections)
 
 					// Get delegation state after we slept
-					rewardsDelegation, err := dpos.GetRewardsDelegation(id)
+					rewardsDelegation, err := dpos.GetRewardsDelegation(id, id.LoomAddr)
 					if err != nil {
 						return err
 					}

@@ -1734,7 +1734,7 @@ func (c *DPOS) CheckRewardDelegation(ctx contract.StaticContext, req *CheckRewar
 	ctx.Logger().Debug("DPOSv3 CheckRewardDelegation", "delegator", delegator, "request", req)
 
 	if req.ValidatorAddress == nil {
-		return nil, logStaticDposError(ctx, errors.New("CheckRewardDelegation called with req.ValdiatorAddress == nil"), req.String())
+		return nil, logStaticDposError(ctx, errors.New("CheckRewardDelegation called with req.ValidatorAddress == nil"), req.String())
 	}
 
 	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *req.ValidatorAddress, *delegator.MarshalPB())
