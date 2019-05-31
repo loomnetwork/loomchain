@@ -168,6 +168,36 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
+
+	//Modify Tier Info
+	err = deployerContract.ModifyTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
+		&ModifyTierInfoRequest{
+			Name:   "Tier2",
+			TierID: udwtypes.TierID_DEFAULT,
+			Fee:    uint64(200),
+		})
+
+	require.NoError(t, err)
+
+	//Error Test case Modify Tier Info with UnAuthorized User
+	err = deployerContract.ModifyTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr5)),
+		&ModifyTierInfoRequest{
+			Name:   "Tier2",
+			TierID: udwtypes.TierID_DEFAULT,
+			Fee:    uint64(200),
+		})
+
+	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be Modified Only by Owner")
+
+	//Get Tier Info
+	resp, err := deployerContract.GetTierInfo(contractpb.WrapPluginContext(deployerCtx),
+		&udwtypes.GetTierInfoRequest{
+			TierID: udwtypes.TierID_DEFAULT,
+		})
+	fees := sciNot(200, 18)
+	require.NoError(t, err)
+	require.Equal(t, fees, &resp.Tier.Fee.Value)
+	require.Equal(t, "Tier2", resp.Tier.Name)
 }
 
 func sciNot(m, n int64) *loom.BigUInt {

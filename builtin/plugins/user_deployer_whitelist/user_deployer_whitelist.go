@@ -22,6 +22,9 @@ type (
 	GetDeployedContractsResponse = udwtypes.GetDeployedContractsResponse
 	GetDeployerResponse          = dwtypes.GetDeployerResponse
 	GetDeployerRequest           = dwtypes.GetDeployerRequest
+	GetTierInfoRequest           = udwtypes.GetTierInfoRequest
+	GetTierInfoResponse          = udwtypes.GetTierInfoResponse
+	ModifyTierInfoRequest        = udwtypes.ModifyTierInfoRequest
 	Deployer                     = dwtypes.Deployer
 	UserDeployerState            = udwtypes.UserDeployerState
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
@@ -240,6 +243,50 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	return &GetDeployedContractsResponse{
 		ContractAddresses: userDeployer.Contracts,
 	}, nil
+}
+
+// GetTierInfo returns the TierInfo corresponding to a TierID
+func (uw *UserDeployerWhitelist) GetTierInfo(
+	ctx contract.StaticContext, req *GetTierInfoRequest,
+) (*GetTierInfoResponse, error) {
+	if req.TierID != udwtypes.TierID_DEFAULT {
+		return nil, ErrInvalidTier
+	}
+	var tier Tier
+	err := ctx.Get(TierKey(req.TierID), &tier)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get Tier Information")
+	}
+	return &GetTierInfoResponse{
+		Tier: &tier,
+	}, nil
+}
+
+// ModifyTierInfo Modify the TierInfo corresponding to a TierID
+func (uw *UserDeployerWhitelist) ModifyTierInfo(
+	ctx contract.Context, req *ModifyTierInfoRequest) error {
+	if req.TierID != udwtypes.TierID_DEFAULT {
+		return ErrInvalidTier
+	}
+	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+	fees := loom.NewBigUIntFromInt(int64(req.Fee))
+	fees.Mul(fees, div)
+	tier := &Tier{
+		TierID: req.TierID,
+		Fee: &types.BigUInt{
+			Value: *fees,
+		},
+		Name: req.Name,
+	}
+	err := ctx.Set(TierKey(req.TierID), tier)
+	if err != nil {
+		return errors.Wrap(err, "Failed to modify TierInfo")
+	}
+	return nil
 }
 
 // RecordEVMContractDeployment is called by the EVMDeployRecorderPostCommitMiddleware after an EVM
