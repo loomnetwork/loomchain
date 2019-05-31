@@ -429,7 +429,7 @@ func (orc *Oracle) pollMainnet() error {
 		return err
 	}
 
-	if err := orc.processEventsByTxHash(common.HexToAddress(orc.cfg.MainnetContractHexAddress), solLoomAddr); err != nil {
+	if err := orc.processEventsByTxHash(latestBlock, common.HexToAddress(orc.cfg.MainnetContractHexAddress), solLoomAddr); err != nil {
 		return err
 	}
 
@@ -465,7 +465,7 @@ func (orc *Oracle) pollDAppChain() error {
 	return nil
 }
 
-func (orc *Oracle) getERC20DepositFromTxHash(currentBlock uint64, numConfirmationRequired int, gatewayAddr common.Address, solLoomAddr common.Address) ([]*MainnetEvent, [][]byte, error) {
+func (orc *Oracle) getERC20DepositFromTxHash(currentConfirmedBlock uint64, gatewayAddr common.Address, solLoomAddr common.Address) ([]*MainnetEvent, [][]byte, error) {
 	unprocessedTxHashesResponse, err := orc.goGateway.UnprocessedLoomCoinDepositTxHash()
 	if err != nil {
 		return nil, nil, err
@@ -508,8 +508,7 @@ func (orc *Oracle) getERC20DepositFromTxHash(currentBlock uint64, numConfirmatio
 
 		// if we didnt receive enough block confirmation
 		// or tx hash is from block, we havent reached yet, Ignore it.
-		if erc20Deposit.BlockNumber > currentBlock ||
-			currentBlock-erc20Deposit.BlockNumber < numConfirmationRequired {
+		if erc20Deposit.BlockNumber > currentConfirmedBlock {
 			continue
 		}
 
@@ -720,8 +719,8 @@ func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 	return 0, errors.Errorf("invalid gateway type %v", orc.gatewayType)
 }
 
-func (orc *Oracle) processEventsByTxHash(gatewayAddr common.Address, solLoomAddr common.Address) error {
-	loomcoinDepositEvents, invalidTxHashes, err := orc.getERC20DepositFromTxHash(gatewayAddr, solLoomAddr)
+func (orc *Oracle) processEventsByTxHash(currentConfirmedBlock uint64, gatewayAddr common.Address, solLoomAddr common.Address) error {
+	loomcoinDepositEvents, invalidTxHashes, err := orc.getERC20DepositFromTxHash(currentConfirmedBlock, gatewayAddr, solLoomAddr)
 	if err != nil {
 		return err
 	}
