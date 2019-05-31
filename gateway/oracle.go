@@ -465,7 +465,7 @@ func (orc *Oracle) pollDAppChain() error {
 	return nil
 }
 
-func (orc *Oracle) getERC20DepositFromTxHash(gatewayAddr common.Address, solLoomAddr common.Address) ([]*MainnetEvent, [][]byte, error) {
+func (orc *Oracle) getERC20DepositFromTxHash(currentBlock uint64, numConfirmationRequired int, gatewayAddr common.Address, solLoomAddr common.Address) ([]*MainnetEvent, [][]byte, error) {
 	unprocessedTxHashesResponse, err := orc.goGateway.UnprocessedLoomCoinDepositTxHash()
 	if err != nil {
 		return nil, nil, err
@@ -504,6 +504,13 @@ func (orc *Oracle) getERC20DepositFromTxHash(gatewayAddr common.Address, solLoom
 			tokenKind = TokenKind_LoomCoin
 		} else {
 			tokenKind = TokenKind_ERC20
+		}
+
+		// if we didnt receive enough block confirmation
+		// or tx hash is from block, we havent reached yet, Ignore it.
+		if erc20Deposit.BlockNumber > currentBlock ||
+			currentBlock-erc20Deposit.BlockNumber < numConfirmationRequired {
+			continue
 		}
 
 		mainnetEvents = append(mainnetEvents, &MainnetEvent{
