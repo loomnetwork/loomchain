@@ -31,27 +31,30 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	height := uint64(1)
 	state := common.MockState(height)
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
+	commit := 1 // number of commits
 	// store 5 receipts
 	require.NoError(t, handler.CommitBlock(state, receipts1, height))
-	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1)
+	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1, commit)
 	confirmStateConsistency(t, state, receipts1, height)
 
 	// db reaching max
 	height = 2
 	state2 := common.MockStateAt(state, height)
 	receipts2 := common.MakeDummyReceipts(t, 7, height)
+	commit = 2
 	// store another 7 receipts
 	require.NoError(t, handler.CommitBlock(state2, receipts2, height))
-	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...))
+	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...), commit)
 	confirmStateConsistency(t, state2, receipts2, height)
 
 	// db at max
 	height = 3
 	state3 := common.MockStateAt(state, height)
 	receipts3 := common.MakeDummyReceipts(t, 5, height)
+	commit = 3
 	// store another 5 receipts
 	require.NoError(t, handler.CommitBlock(state3, receipts3, height))
-	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...))
+	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...), commit)
 	confirmStateConsistency(t, state3, receipts3, height)
 
 	require.NoError(t, handler.Close())
@@ -75,10 +78,11 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	height := uint64(1)
 	state := common.MockState(height)
 	receipts1 := common.MakeDummyReceipts(t, maxSize+1, height)
+	commit := 1
 	// store 11 receipts, which is more than max that can be stored
 	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 
-	confirmDbConsistency(t, handler, maxSize, receipts1[1].TxHash, receipts1[10].TxHash, receipts1[1:])
+	confirmDbConsistency(t, handler, maxSize, receipts1[1].TxHash, receipts1[10].TxHash, receipts1[1:], commit)
 	confirmStateConsistency(t, state, receipts1, height)
 
 	require.NoError(t, handler.Close())
@@ -90,7 +94,8 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	require.Error(t, err)
 }
 
-func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, head, tail []byte, receipts []*types.EvmTxReceipt) {
+func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
+	size uint64, head, tail []byte, receipts []*types.EvmTxReceipt, commit int) {
 	var err error
 	dbSize, dbHead, dbTail, err := getDBParams(handler.db)
 	require.NoError(t, err)
@@ -115,10 +120,11 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, h
 		require.EqualValues(t, receipts[i].BlockNumber, getDBReceipt.BlockNumber)
 		require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, getDBReceipt.TxHash))
 	}
+	metadataCount := uint64(commit * 2)
 
 	dbActualSize, err := countDbEntries(handler.db)
 	require.NoError(t, err)
-	require.EqualValues(t, size+dbConfigKeys, dbActualSize)
+	require.EqualValues(t, size+dbConfigKeys+metadataCount, dbActualSize)
 
 	require.EqualValues(t, 0, bytes.Compare(head, receipts[0].TxHash))
 	require.EqualValues(t, 0, bytes.Compare(tail, receipts[len(receipts)-1].TxHash))
