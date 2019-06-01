@@ -109,6 +109,12 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
+	// When no deployer attached to user then should return 0 deployers instead of error
+	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
+		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(getUserDeployersResponse.Deployers))
+
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr1.MarshalPB(),
@@ -145,18 +151,18 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
 
-	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
+	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
 
-	// addr3 is not a deployer so response should be Nil
+	// When no contracts attached should return 0 contracts instead of error
 	getDeployedContractsResponse, err := deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
-		DeployerAddr: addr3.MarshalPB(),
+		DeployerAddr: addr1.MarshalPB(),
 	})
-	require.Error(t, err)
-	require.Nil(t, getDeployedContractsResponse)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
 
 	err = RecordEVMContractDeployment(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		addr1, contractAddr)

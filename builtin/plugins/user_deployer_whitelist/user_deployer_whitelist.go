@@ -205,11 +205,16 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 	if req.UserAddr == nil {
 		return nil, ErrInvalidRequest
 	}
+	deployers := []*UserDeployerState{}
 	err := ctx.Get(UserStateKey(loom.UnmarshalAddressPB(req.UserAddr)), &userState)
 	if err != nil {
+		if err == contract.ErrNotFound {
+			return &GetUserDeployersResponse{
+				Deployers: deployers,
+			}, nil
+		}
 		return nil, err
 	}
-	deployers := []*UserDeployerState{}
 	for _, deployerAddr := range userState.Deployers {
 		var userDeployerState UserDeployerState
 		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployerState)
