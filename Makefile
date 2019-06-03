@@ -105,7 +105,7 @@ pcoracle:
 dposv2_oracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
-loom: proto
+loom: proto $(TRANSFER_GATEWAY_DIR)
 	go build $(GOFLAGS_GATEWAY) $(PKG)/cmd/$@
 
 loom-generic: proto
@@ -126,10 +126,10 @@ gamechain-windows: proto
 loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
-plasmachain: proto
+plasmachain: proto $(TRANSFER_GATEWAY_DIR)
 	go build $(GOFLAGS_PLASMACHAIN) -o $@ $(PKG)/cmd/loom
 
-plasmachain-cleveldb: proto c-leveldb
+plasmachain-cleveldb: proto c-leveldb $(TRANSFER_GATEWAY_DIR)
 	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
 plasmachain-windows:
