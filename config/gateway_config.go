@@ -8,6 +8,18 @@ import (
 
 type TransferGatewayConfig = gateway.TransferGatewayConfig
 
+func DefaultTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return gateway.DefaultConfig(rpcProxyPort)
+}
+
+func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return gateway.DefaultLoomCoinTGConfig(rpcProxyPort)
+}
+
+func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return gateway.DefaultTronConfig(rpcProxyPort)
+}
+
 const transferGatewayLoomYamlTemplate = `
 #
 # Transfer Gateway
