@@ -3,17 +3,19 @@
 package config
 
 type TransferGatewayConfig struct {
-	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	ContractEnabled bool
-	// Loads the Unsafe gateway methods
-	Unsafe bool
 }
 
-func DefaultTransferGatewayConfig(rpcProxyPort int32) *TransferGatewayConfig {
-	return &TransferGatewayConfig{
-		ContractEnabled: false,
-		Unsafe:          false,
-	}
+func DefaultTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return &TransferGatewayConfig{}
+}
+
+func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return &TransferGatewayConfig{}
+}
+
+func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return &TransferGatewayConfig{}
 }
 
 // Clone returns a deep clone of the config.
