@@ -27,6 +27,8 @@ import (
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
@@ -37,7 +39,11 @@ import (
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
-	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
@@ -70,10 +76,6 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
@@ -962,6 +964,11 @@ func loadApp(
 		Manager: vmManager,
 	}
 
+	ethTxHandler := &vm.EthTxHandler{
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
+	}
+
 	migrationTxHandler := &tx_handler.MigrationTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
@@ -1026,6 +1033,8 @@ func loadApp(
 			return tx.VmType == vm.VMType_EVM
 		case 3:
 			return false
+		case 4:
+			return true
 		default:
 			return false
 		}
@@ -1034,11 +1043,13 @@ func loadApp(
 	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
 	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
+	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(ethTxHandler))
 
 	// TODO: Write this in more elegant way
 	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
 	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
+	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, ethTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
