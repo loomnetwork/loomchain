@@ -23,7 +23,7 @@ const (
 	LoomSignedTxType     SignedTxType = "loom"
 	EthereumSignedTxType SignedTxType = "eth"
 	TronSignedTxType     SignedTxType = "tron"
-	EthereumTransaction  SignedTxType = "ethereumTransaction"
+	EthereumTransaction  SignedTxType = "native-eth"
 )
 
 // AccountType is used to specify which address should be used on-chain to identify a tx sender.
@@ -42,7 +42,7 @@ var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
 	LoomSignedTxType:     verifyEd25519,
 	EthereumSignedTxType: VerifySolidity66Byte,
 	TronSignedTxType:     verifyTron,
-	//EthereumTransaction:  VerifyEthereumTransacton,
+	EthereumTransaction:  VerifyEthereumTransacton,
 }
 
 type originRecoveryFunc func(tx SignedTx) ([]byte, error)

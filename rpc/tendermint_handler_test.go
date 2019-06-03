@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 )
@@ -46,6 +47,15 @@ var (
 				[]byte("contract bytecode"),
 			),
 		},
+		{
+			types.NewContractCreation(
+				1,
+				bigZero,
+				0,
+				bigZero,
+				[]byte("6060604052341561000f57600080fd5b60d38061001d6000396000f3006060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058202b229fba38c096f9c9c81ba2633fb4a7b418032de7862b60d1509a4054e2d6bb0029"),
+			),
+		},
 	}
 )
 
@@ -56,8 +66,8 @@ func TestTendermintPRCFunc(t *testing.T) {
 	qs := &MockQueryService{}
 	mt := &MockTendermintRpc{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, nil, mt)
-
-	signer := types.MakeSigner(DefaultChainConfig(), blockNumber)
+	chainConfig := utils.DefaultChainConfig()
+	signer := types.MakeSigner(&chainConfig, blockNumber)
 	for _, testTx := range ethTestTxs {
 		ethKey, err := crypto.GenerateKey()
 		require.NoError(t, err)
@@ -86,7 +96,11 @@ func TestTendermintPRCFunc(t *testing.T) {
 func compareTxs(t *testing.T, tx1, tx2 *types.Transaction) {
 	require.Equal(t, tx1.Nonce(), tx2.Nonce())
 	require.Equal(t, 0, bytes.Compare(tx1.Data(), tx2.Data()))
-	require.Equal(t, 0, bytes.Compare(tx1.To().Bytes(), tx2.To().Bytes()))
+	if tx1.To() == nil {
+		require.Nil(t, tx2.To())
+	} else {
+		require.Equal(t, 0, bytes.Compare(tx1.To().Bytes(), tx2.To().Bytes()))
+	}
 	require.Equal(t, 0, tx1.Value().Cmp(tx2.Value()))
 }
 

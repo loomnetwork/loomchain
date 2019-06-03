@@ -2,12 +2,10 @@ package rpc
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	ecommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
 	ttypes "github.com/tendermint/tendermint/types"
@@ -16,12 +14,14 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
+
+	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
 const (
-	ethChainID = "eth"
+	ethChainID = "native-eth"
 )
 
 var (
@@ -45,21 +45,18 @@ func NewTendermintRPCFunc(funcName string, tm TendermintRpc) eth.RPCFunc {
 
 func (t *TendermintPRCFunc) UnmarshalParamsAndCall(input eth.JsonRpcRequest, conn *websocket.Conn) (json.RawMessage, *eth.Error) {
 	var tmTx ttypes.Tx
-	switch t.name {
-	case "eth_sendRawTransaction":
-		var err *eth.Error
-		var lErr error
-		ethTx, err := t.TranslateSendRawTransactionParams(input)
-		if err != nil {
-			return nil, err
-		}
-		tmTx, lErr = ethereumToTendermintTx(ethTx)
-		if lErr != nil {
-			return nil, eth.NewErrorf(eth.EcServer, "Parse parameters", "convert ethereum tx to tendermint tx, error %v", lErr)
-		}
-
-	default:
+	if t.name != "eth_sendRawTransaction" {
 		return nil, eth.NewError(eth.EcParseError, "Parse parameters", "unknown method")
+	}
+
+	var jErr *eth.Error
+	ethTx, jErr := t.TranslateSendRawTransactionParams(input)
+	if jErr != nil {
+		return nil, jErr
+	}
+	tmTx, err := ethereumToTendermintTx(ethTx)
+	if err != nil {
+		return nil, eth.NewErrorf(eth.EcServer, "Parse parameters", "convert ethereum tx to tendermint tx, error %v", err)
 	}
 
 	r, err := t.tm.BroadcastTxSync(tmTx)
@@ -107,52 +104,35 @@ func EthToLoomAddress(ethAddr ecommon.Address) loom.Address {
 }
 
 func ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
-	var tx types.Transaction
-	if err := tx.UnmarshalJSON(txBytes); err != nil {
-		return nil, eth.NewErrorf(eth.EcParseError, "Parse params", "unmarshalling ethereum transaction, %v", err)
+	ethTx := &vm.EthTx{
+		EthereumTransaction: txBytes,
 	}
 
 	var err error
 	msg := &vm.MessageTx{}
-	txTx := &ltypes.Transaction{}
-	if tx.To() == nil {
-		deployTx := &vm.DeployTx{
-			VmType: vm.VMType_EVM,
-			Code:   txBytes,
-			Name:   "",
-			Value:  &ltypes.BigUInt{Value: loom.BigUInt{tx.Value()}},
-		}
-		msg.Data, err = proto.Marshal(deployTx)
-		txTx.Id = deployId
-	} else {
-		callTx := &vm.CallTx{
-			VmType: vm.VMType_EVM,
-			Input:  txBytes,
-			Value:  &ltypes.BigUInt{Value: loom.BigUInt{tx.Value()}},
-		}
-		msg.Data, err = proto.Marshal(callTx)
-		txTx.Id = callId
+	msg.Data, err = proto.Marshal(ethTx)
+	if err != nil {
+		return nil, err
 	}
-	msg.To = EthToLoomAddress(*tx.To()).MarshalPB()
-	//fmt.Println("to", EthToLoomAddress(*tx.To()))
-	//chainConfig := evm.DefaultChainConfig()
-	//ethSigner := etypes.MakeSigner(&chainConfig, blockNumber)
-	//sender, err :=  etypes.Sender(ethSigner, tx)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//fmt.Println("sender", sender.String())
-	//msg.From = EthToLoomAddress(sender).MarshalPB()
-	loomKey, err := crypto.GenerateKey()
-	loomSigner := &auth.EthSigner66Byte{PrivateKey: loomKey}
-	msg.From = loom.Address{
-		ChainID: "ethTransaction",
-		Local:   loomSigner.PublicKey(),
-	}.MarshalPB()
-	fmt.Println("loomsinger.Publickey", loomSigner.PublicKey())
-	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(loomKey.PublicKey).Hex())
-	fmt.Println("loomsinger.local", local)
 
+	var tx types.Transaction
+	if err := tx.UnmarshalJSON(txBytes); err != nil {
+		return nil, eth.NewErrorf(eth.EcParseError, "Parse params", "unmarshalling ethereum transaction, %v", err)
+	}
+	if msg.To != nil {
+		msg.To = EthToLoomAddress(*tx.To()).MarshalPB()
+	}
+	chainConfig := utils.DefaultChainConfig()
+	ethSigner := types.MakeSigner(&chainConfig, blockNumber)
+	from, err := types.Sender(ethSigner, &tx)
+	if err != nil {
+		return nil, err
+	}
+	msg.From = EthToLoomAddress(from).MarshalPB()
+
+	txTx := &ltypes.Transaction{
+		Id: ethID,
+	}
 	txTx.Data, err = proto.Marshal(msg)
 	if err != nil {
 		return nil, err
@@ -165,14 +145,14 @@ func ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	nonceTxBytes, err := proto.Marshal(nonceTx)
+
+	signedTx := &auth.SignedTx{}
+	signedTx.Inner, err = proto.Marshal(nonceTx)
 	if err != nil {
 		return nil, err
 	}
 
-	//loomKey, err := crypto.GenerateKey()
-	//loomSigner := &auth.EthSigner66Byte{PrivateKey: loomKey}
-	return proto.Marshal(auth.SignTx(loomSigner, nonceTxBytes))
+	return proto.Marshal(signedTx)
 }
 
 /**/
