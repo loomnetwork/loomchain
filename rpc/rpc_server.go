@@ -5,15 +5,16 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+
+	"github.com/loomnetwork/loomchain/log"
 )
 
 var cdc = amino.NewCodec()
@@ -43,7 +44,7 @@ func RPCServer(
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	hub := newHub()
 	go hub.run()
-	ethHandler := MakeEthQueryServiceHandler(qsvc, logger, hub)
+	ethHandler := MakeEthQueryServiceHandler(qsvc, logger, hub, RuntimeTendermintRpc{})
 
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
 	// and /rpc endpoints.

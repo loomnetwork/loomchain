@@ -10,7 +10,13 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	sha3 "github.com/miguelmota/go-solidity-sha3"
+	"github.com/phonkee/go-pubsub"
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -31,11 +37,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	sha3 "github.com/miguelmota/go-solidity-sha3"
-	pubsub "github.com/phonkee/go-pubsub"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 const (
