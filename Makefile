@@ -4,6 +4,8 @@ GOLint = \
 PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
+# Allow location of transfer-gateway package to be overriden via env var
+PKG_TRANSFER_GATEWAY?=github.com/loomnetwork/transfer-gateway
 
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src
 
@@ -18,11 +20,14 @@ HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
+TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
+# Specifies the loomnetwork/transfer-gateway branch/revision to use.
+TG_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
@@ -38,17 +43,24 @@ GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
 GO_LOOM_GIT_SHA = `cd ${PLUGIN_DIR} && git rev-parse --verify ${GO_LOOM_GIT_REV}`
+TG_GIT_SHA = `cd ${TRANSFER_GATEWAY_DIR} && git rev-parse --verify ${TG_GIT_REV}`
 ETHEREUM_GIT_SHA = `cd ${GO_ETHEREUM_DIR} && git rev-parse --verify ${ETHEREUM_GIT_REV}`
 HASHICORP_GIT_SHA = `cd ${HASHICORP_DIR} && git rev-parse --verify ${HASHICORP_GIT_REV}`
 GAMECHAIN_GIT_SHA = `cd ${GAMECHAIN_DIR} && git rev-parse --verify HEAD`
 BTCD_GIT_SHA = `cd ${BTCD_DIR} && git rev-parse --verify ${BTCD_GIT_REV}`
 
-GOFLAGS_BASE = -X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA) -X $(PKG).GoLoomGitSHA=$(GO_LOOM_GIT_SHA) -X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) -X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA) -X $(PKG).BtcdGitSHA=$(BTCD_GIT_SHA)
+GOFLAGS_BASE = \
+	-X $(PKG).Build=$(BUILD_NUMBER) \
+	-X $(PKG).GitSHA=$(GIT_SHA) \
+	-X $(PKG).GoLoomGitSHA=$(GO_LOOM_GIT_SHA) \
+	-X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) \
+	-X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA) \
+	-X $(PKG).BtcdGitSHA=$(BTCD_GIT_SHA)
 GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_BASE = -X $(PKG_BATTLEGROUND).BuildDate=$(BUILD_DATE) -X $(PKG_BATTLEGROUND).BuildGitSha=$(GAMECHAIN_GIT_SHA) -X $(PKG_BATTLEGROUND).BuildNumber=$(BUILD_NUMBER)
 GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
-GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
-GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
+GOFLAGS_PLASMACHAIN = -tags "evm plasmachain gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=plasmachain"
+GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gateway gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=plasmachain"
 GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
@@ -77,14 +89,14 @@ contracts/dpos.so.3.0.0:
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/plasma_cash/plugin
 
-tgoracle:
-	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+tgoracle: $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
 
-loomcoin_tgoracle:
-	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+loomcoin_tgoracle: $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
 
-tron_tgoracle:
-	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
 
 pcoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
@@ -166,6 +178,9 @@ $(GO_ETHEREUM_DIR):
 
 $(SSHA3_DIR):
 	git clone -q git@github.com:loomnetwork/go-solidity-sha3.git $@
+
+$(TRANSFER_GATEWAY_DIR):
+	git clone -q git@github.com:loomnetwork/transfer-gateway.git $@
 
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
