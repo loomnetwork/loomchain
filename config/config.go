@@ -385,18 +385,9 @@ func DefaultConfig() *Config {
 		CallEnabled:   true,
 		DPOSVersion:   1,
 	}
-	cfg.TransferGateway = &TransferGatewayConfig{
-		ContractEnabled: false,
-		Unsafe:          false,
-	}
-	cfg.LoomCoinTransferGateway = &TransferGatewayConfig{
-		ContractEnabled: false,
-		Unsafe:          false,
-	}
-	cfg.TronTransferGateway = &TransferGatewayConfig{
-		ContractEnabled: false,
-		Unsafe:          false,
-	}
+	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
+	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
+	cfg.TronTransferGateway = DefaultTronTGConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
