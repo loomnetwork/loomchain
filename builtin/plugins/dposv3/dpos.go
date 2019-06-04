@@ -764,7 +764,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 RegisterCandidate", "candidate", candidateAddress, "request", req)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -864,7 +864,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 	ctx.Logger().Info("DPOSv3 ChangeFee", "request", req)
 
 	candidateAddress := ctx.Message().Sender
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -896,7 +896,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 	ctx.Logger().Info("DPOSv3 UpdateCandidateInfo", "request", req)
 
 	candidateAddress := ctx.Message().Sender
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -931,7 +931,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress, "request", req)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -995,7 +995,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesRequest) (*ListCandidatesResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListCandidates", "request", req.String())
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
@@ -1216,15 +1216,6 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	return state.Validators, nil
 }
 
-func GetCandidateList(ctx contract.StaticContext) (CandidateList, error) {
-	candidates, err := loadCandidateList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return candidates, nil
-}
-
 func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListDelegations", "request", req)
 
@@ -1264,7 +1255,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListAllDelegations", "request", req)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1293,7 +1284,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 		return err
 	}
 
-	if uint64(currentHeight) % state.Params.DowntimePeriod == 1 {
+	if (uint64(currentHeight) % state.Params.DowntimePeriod) == 0 {
 		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
 
 		for _, candidate := range candidates {
@@ -1325,6 +1316,10 @@ func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) erro
 
 func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordRequest) (*DowntimeRecordResponse, error) {
 	ctx.Logger().Debug("DPOSv3 DowntimeRecord", "request", req)
+	if req.Validator == nil {
+		return nil, errors.New("request made with req.Validator == nil")
+	}
+
 	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.Validator))
 	if err != nil {
 		return nil, logStaticDposError(ctx, contract.ErrNotFound, req.String())
@@ -1625,7 +1620,7 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedDposStorage, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, distributedRewards *loom.BigUInt) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1964,22 +1959,26 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 }
 
 func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodRequest) error {
-	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 SetDowntimePeriod", "sender", sender, "request", req)
+	if ctx.FeatureEnabled(loomchain.DPOSSlashing, false) {
+		sender := ctx.Message().Sender
+		ctx.Logger().Info("DPOSv3 SetDowntimePeriod", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
+		state, err := loadState(ctx)
+		if err != nil {
+			return err
+		}
+
+		// ensure that function is only executed when called by oracle
+		if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return logDposError(ctx, errOnlyOracle, req.String())
+		}
+
+		state.Params.DowntimePeriod = req.DowntimePeriod
+
+		return saveState(ctx, state)
+	} else {
+		return logDposError(ctx, errors.New("Function can only be called after slashing feature is enabled."), req.String())
 	}
-
-	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
-		return logDposError(ctx, errOnlyOracle, req.String())
-	}
-
-	state.Params.DowntimePeriod = req.DowntimePeriod
-
-	return saveState(ctx, state)
 }
 
 func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardRequest) error {
