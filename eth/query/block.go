@@ -34,6 +34,7 @@ func GetBlockByNumber(
 	height int64,
 	full bool,
 	readReceipts loomchain.ReadReceiptHandler,
+	evmAuxStore *store.EvmAuxStore,
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
 	if height > state.Block().Height {
@@ -76,8 +77,7 @@ func GetBlockByNumber(
 	// These three fields are null for pending blocks.
 	blockInfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
 	blockInfo.Number = eth.EncInt(height)
-	bloomFilter := readReceipts.GetBloomFilter(uint64(height))
-
+	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
@@ -238,7 +238,7 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 
 func DeprecatedGetBlockByNumber(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
-	readReceipts loomchain.ReadReceiptHandler,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore,
 ) ([]byte, error) {
 	var blockresult *ctypes.ResultBlock
 	iHeight := height
@@ -257,8 +257,8 @@ func DeprecatedGetBlockByNumber(
 	} else {
 		blockinfo.Number = height
 	}
-	bloomFilter := readReceipts.GetBloomFilter(uint64(height))
-	txHashList, err := readReceipts.GetTxHashList(uint64(height))
+	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
+	txHashList, err := evmAuxStore.GetTxHashList(uint64(height))
 
 	blockinfo.LogsBloom = bloomFilter
 
@@ -306,7 +306,7 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 
 func DeprecatedGetBlockByHash(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte, full bool,
-	readReceipts loomchain.ReadReceiptHandler,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore,
 ) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
@@ -326,7 +326,7 @@ func DeprecatedGetBlockByHash(
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if info.BlockMetas[i] != nil {
 				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)
+					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts, evmAuxStore)
 				}
 			}
 		}

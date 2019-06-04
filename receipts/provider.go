@@ -5,6 +5,7 @@ import (
 	legacy_v1 "github.com/loomnetwork/loomchain/receipts/chain/v1"
 	legacy_v2 "github.com/loomnetwork/loomchain/receipts/chain/v2"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
 
@@ -22,14 +23,17 @@ type ReceiptHandlerProvider struct {
 	eventHandler loomchain.EventHandler
 	resolveCfg   ResolveReceiptHandlerCfg
 	handler      ReceiptReaderWriter
+	evmAuxStore  *store.EvmAuxStore
 }
 
 func NewReceiptHandlerProvider(
 	eventHandler loomchain.EventHandler, resolveCfg ResolveReceiptHandlerCfg,
+	evmAuxStore *store.EvmAuxStore,
 ) *ReceiptHandlerProvider {
 	return &ReceiptHandlerProvider{
 		eventHandler: eventHandler,
 		resolveCfg:   resolveCfg,
+		evmAuxStore:  evmAuxStore,
 	}
 }
 
@@ -62,7 +66,7 @@ func (h *ReceiptHandlerProvider) resolve(blockHeight int64, v2Feature bool) (Rec
 			h.handler = legacy_v2.NewReceiptHandler(h.eventHandler)
 
 		default:
-			handler, err := handler.NewReceiptHandler(ver, h.eventHandler, maxPersistentReceipts)
+			handler, err := handler.NewReceiptHandler(ver, h.eventHandler, maxPersistentReceipts, h.evmAuxStore)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create receipt handler at height %d", blockHeight)
 			}

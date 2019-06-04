@@ -24,7 +24,8 @@ func NewEthBlockPoll(height uint64) *EthBlockPoll {
 	return p
 }
 
-func (p *EthBlockPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
+func (p *EthBlockPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (EthPoll, interface{}, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
@@ -36,7 +37,8 @@ func (p *EthBlockPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnl
 	return p, eth.EncBytesArray(results), err
 }
 
-func (p *EthBlockPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (p *EthBlockPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (interface{}, error) {
 	_, results, err := getBlockHashes(blockStore, state, p.startBlock)
 	return eth.EncBytesArray(results), err
 }
@@ -59,7 +61,8 @@ func getBlockHashes(blockStore store.BlockStore, state loomchain.ReadOnlyState, 
 	return lastBlockRead, blockHashes, nil
 }
 
-func (p *EthBlockPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthBlockPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}

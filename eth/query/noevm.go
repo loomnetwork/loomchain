@@ -9,16 +9,18 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 )
 
-func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyState, _ loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyState,
+	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) ([]byte, error) {
 	return nil, nil
 }
 
-func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool) (eth.JsonBlockObject, error) {
+func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool,
+	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) (eth.JsonBlockObject, error) {
 	return eth.JsonBlockObject{}, nil
 }
 
 func DeprecatedGetBlockByNumber(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ loomchain.ReadReceiptHandler,
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore,
 ) ([]byte, error) {
 	return nil, nil
 }
@@ -28,7 +30,7 @@ func GetPendingBlock(_ int64, _ bool, _ loomchain.ReadReceiptHandler) ([]byte, e
 }
 
 func DeprecatedGetBlockByHash(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ []byte, _ bool, _ loomchain.ReadReceiptHandler,
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ []byte, _ bool, _ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore,
 ) ([]byte, error) {
 	return nil, nil
 }

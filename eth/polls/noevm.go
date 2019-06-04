@@ -23,22 +23,25 @@ func (s EthSubscriptions) AddTxPoll(_ uint64) string {
 	return ""
 }
 
-func (s *EthSubscriptions) LegacyPoll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) ([]byte, error) {
+func (s *EthSubscriptions) LegacyPoll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string,
+	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) ([]byte, error) {
 	return nil, nil
 }
 
 func (s *EthSubscriptions) Remove(_ string) {
 }
 
-func (s EthSubscriptions) Poll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) Poll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string,
+	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) (interface{}, error) {
 	return nil, nil
 }
 
-func (s EthSubscriptions) AllLogs(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) AllLogs(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string,
+	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) (interface{}, error) {
 	return nil, nil
 }
 
-func (s EthSubscriptions) AddLogPoll(_ eth.EthFilter, _ uint64) (string, error) {
+func (s EthSubscriptions) AddLogPoll(_ eth.EthFilter, _ uint64, _ *store.EvmAuxStore) (string, error) {
 	return "", nil
 }
 

@@ -4,40 +4,25 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"os"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	loom_types "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-)
-
-const (
-	Db_Filename = "receipts_db"
 )
 
 var (
 	headKey          = []byte("leveldb:head")
 	tailKey          = []byte("leveldb:tail")
 	currentDbSizeKey = []byte("leveldb:size")
-	BloomPrefix      = []byte("bloomFilter")
-	TxHashPrefix     = []byte("txHash")
 )
-
-func bloomFilterKey(height uint64) []byte {
-	return util.PrefixKey(BloomPrefix, BlockHeightToBytes(height))
-}
-
-func txHashKey(height uint64) []byte {
-	return util.PrefixKey(TxHashPrefix, BlockHeightToBytes(height))
-}
 
 func WriteReceipt(
 	block loom_types.BlockHeader,
@@ -87,7 +72,7 @@ func WriteReceipt(
 }
 
 func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	txReceiptProto, err := lr.db.Get(txHash, nil)
+	txReceiptProto, err := lr.evmAuxStore.Get(txHash, nil)
 	if err != nil {
 		return types.EvmTxReceipt{}, errors.Wrapf(err, "get receipt for %s", string(txHash))
 	}
@@ -97,26 +82,22 @@ func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error)
 }
 
 type LevelDbReceipts struct {
-	MaxDbSize uint64
-	db        *leveldb.DB
-	tran      *leveldb.Transaction
+	MaxDbSize   uint64
+	evmAuxStore *store.EvmAuxStore
+	tran        *leveldb.Transaction
 }
 
-func NewLevelDbReceipts(maxReceipts uint64) (*LevelDbReceipts, error) {
-	db, err := leveldb.OpenFile(Db_Filename, nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "opening %s", Db_Filename)
-	}
+func NewLevelDbReceipts(evmAuxStore *store.EvmAuxStore, maxReceipts uint64) (*LevelDbReceipts, error) {
 	return &LevelDbReceipts{
-		MaxDbSize: maxReceipts,
-		db:        db,
-		tran:      nil,
+		MaxDbSize:   maxReceipts,
+		evmAuxStore: evmAuxStore,
+		tran:        nil,
 	}, nil
 }
 
 func (lr LevelDbReceipts) Close() error {
-	if lr.db != nil {
-		return lr.db.Close()
+	if lr.evmAuxStore != nil {
+		return lr.evmAuxStore.Close()
 	}
 	return nil
 }
@@ -126,12 +107,12 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		return nil
 	}
 
-	size, headHash, tailHash, err := getDBParams(lr.db)
+	size, headHash, tailHash, err := getDBParams(lr.evmAuxStore)
 	if err != nil {
 		return errors.Wrap(err, "getting db params.")
 	}
 
-	lr.tran, err = lr.db.OpenTransaction()
+	lr.tran, err = lr.evmAuxStore.OpenTransaction()
 	if err != nil {
 		return errors.Wrap(err, "opening leveldb transaction")
 	}
@@ -231,10 +212,10 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		common.SetBloomFilter(state, filter, height)
 	}
 
-	if err := lr.AppendTxHashList(txHashArray, height); err != nil {
+	if err := lr.evmAuxStore.AppendTxHashList(lr.tran, txHashArray, height); err != nil {
 		return errors.Wrap(err, "append tx list")
 	}
-	if err := lr.SetBloomFilter(filter, height); err != nil {
+	if err := lr.evmAuxStore.SetBloomFilter(lr.tran, filter, height); err != nil {
 		return errors.Wrap(err, "set bloom filter")
 	}
 
@@ -245,9 +226,7 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	return nil
 }
 
-func (lr *LevelDbReceipts) ClearData() {
-	os.RemoveAll(Db_Filename)
-}
+func (lr *LevelDbReceipts) ClearData() {}
 
 func (lr *LevelDbReceipts) closeTransaction() {
 	if lr.tran != nil {
@@ -278,7 +257,7 @@ func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]
 	return head, itemsDeleted, nil
 }
 
-func getDBParams(db *leveldb.DB) (size uint64, head, tail []byte, err error) {
+func getDBParams(db *store.EvmAuxStore) (size uint64, head, tail []byte, err error) {
 	notEmpty, err := db.Has(currentDbSizeKey, nil)
 	if err != nil {
 		return size, head, tail, err
@@ -327,47 +306,4 @@ func setDBParams(tr *leveldb.Transaction, size uint64, head, tail []byte) error 
 	sizeB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sizeB, size)
 	return tr.Put(currentDbSizeKey, sizeB, nil)
-}
-
-func (lr *LevelDbReceipts) GetBloomFilter(height uint64) []byte {
-	filter, err := lr.db.Get(bloomFilterKey(height), nil)
-	if err != nil {
-		return nil
-	}
-	return filter
-}
-
-func (lr *LevelDbReceipts) SetBloomFilter(filter []byte, height uint64) error {
-	return lr.tran.Put(bloomFilterKey(height), filter, nil)
-}
-
-func (lr *LevelDbReceipts) GetTxHashList(height uint64) ([][]byte, error) {
-	protHashList, err := lr.db.Get(txHashKey(height), nil)
-	if err != nil && err != leveldb.ErrNotFound {
-		return nil, err
-	}
-	txHashList := types.EthTxHashList{}
-	err = proto.Unmarshal(protHashList, &txHashList)
-	return txHashList.EthTxHash, err
-}
-
-func (lr *LevelDbReceipts) AppendTxHashList(txHash [][]byte, height uint64) error {
-	txHashList, err := lr.GetTxHashList(height)
-	if err != nil {
-		return errors.Wrap(err, "getting tx hash list")
-	}
-	txHashList = append(txHashList, txHash...)
-
-	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
-	if err != nil {
-		return errors.Wrap(err, "marshal tx hash list")
-	}
-	lr.tran.Put(txHashKey(height), postTxHashList, nil)
-	return nil
-}
-
-func BlockHeightToBytes(height uint64) []byte {
-	heightB := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightB, height)
-	return heightB
 }

@@ -71,9 +71,6 @@ func (r *ReceiptHandler) GetTxHashList(height uint64) ([][]byte, error) {
 
 func (r *ReceiptHandler) DiscardCurrentReceipt() {
 }
-func (r *ReceiptHandler) GetBloomFilter(height uint64) []byte {
-	return nil
-}
 
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	return nil

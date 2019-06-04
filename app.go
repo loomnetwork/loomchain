@@ -276,6 +276,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandlerProvider
 	store.BlockIndexStore
+	EvmAuxStore              *store.EvmAuxStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	OriginHandler

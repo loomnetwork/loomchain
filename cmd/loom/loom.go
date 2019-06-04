@@ -38,6 +38,7 @@ import (
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
+	goleveldb "github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
@@ -79,6 +80,10 @@ import (
 
 var (
 	appHeightKey = []byte("appheight")
+)
+
+const (
+	evmAuxDBName = "receipts_db"
 )
 
 var RootCmd = &cobra.Command{
@@ -818,6 +823,14 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 	return evmStore, nil
 }
 
+func loadEvmAuxStore() (*store.EvmAuxStore, error) {
+	evmAuxDB, err := goleveldb.OpenFile(evmAuxDBName, nil)
+	if err != nil {
+		return nil, err
+	}
+	return store.NewEvmAuxStore(evmAuxDB), nil
+}
+
 func loadApp(
 	chainID string,
 	cfg *config.Config,
@@ -875,6 +888,12 @@ func loadApp(
 		return nil, err
 	}
 
+	// load EVM Auxiliary Store
+	evmAuxStore, err := loadEvmAuxStore()
+	if err != nil {
+		return nil, err
+	}
+
 	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
 		var receiptVer handler.ReceiptHandlerVersion
 		if v2Feature {
@@ -887,7 +906,7 @@ func loadApp(
 			}
 		}
 		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-	})
+	}, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -1248,6 +1267,7 @@ func loadApp(
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
+		EvmAuxStore:                 evmAuxStore,
 	}, nil
 }
 
@@ -1381,6 +1401,7 @@ func initQueryService(
 		BlockIndexStore:        app.BlockIndexStore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
+		EvmAuxStore:            app.EvmAuxStore,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

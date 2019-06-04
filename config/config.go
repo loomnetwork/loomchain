@@ -373,7 +373,7 @@ func DefaultConfig() *Config {
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
 		RegistryVersion:            int32(registry.RegistryV1),
-		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
+		ReceiptsVersion:            int32(receipts.ReceiptHandlerLevelDb),
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,

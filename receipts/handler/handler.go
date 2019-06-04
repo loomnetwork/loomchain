@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
 
@@ -50,7 +51,8 @@ type ReceiptHandler struct {
 	currentReceipt *types.EvmTxReceipt
 }
 
-func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler, maxReceipts uint64) (*ReceiptHandler, error) {
+func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler,
+	maxReceipts uint64, evmAuxStore *store.EvmAuxStore) (*ReceiptHandler, error) {
 	rh := &ReceiptHandler{
 		v:              version,
 		eventHandler:   eventHandler,
@@ -64,7 +66,7 @@ func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.Eve
 	case ReceiptHandlerChain:
 		rh.chainReceipts = &chain.StateDBReceipts{}
 	case ReceiptHandlerLevelDb:
-		leveldbHandler, err := leveldb.NewLevelDbReceipts(maxReceipts)
+		leveldbHandler, err := leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts)
 		if err != nil {
 			return nil, errors.Wrap(err, "new leved db receipt handler")
 		}
@@ -205,7 +207,8 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 		r.mutex.RUnlock()
 	case ReceiptHandlerLevelDb:
 		r.mutex.RLock()
-		receipt, err = leveldb.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
+		receipt, err = leveldb.WriteReceipt(state.Block(), caller, addr, events, status,
+			r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
 		r.mutex.RUnlock()
 	default:
 		err = loomchain.ErrInvalidVersion
@@ -222,16 +225,4 @@ func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 	if r.currentReceipt != nil {
 		r.currentReceipt.Status = common.StatusTxFail
 	}
-}
-
-func (r *ReceiptHandler) GetBloomFilter(height uint64) []byte {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-	return r.leveldbReceipts.GetBloomFilter(height)
-}
-
-func (r *ReceiptHandler) GetTxHashList(height uint64) ([][]byte, error) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-	return r.leveldbReceipts.GetTxHashList(height)
 }

@@ -55,10 +55,6 @@ func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
 	return nil
 }
 
-func (r *ReceiptHandler) GetBloomFilter(height uint64) []byte {
-	return nil
-}
-
 func (r *ReceiptHandler) GetTxHashList(height uint64) ([][]byte, error) {
 	return nil, nil
 }
