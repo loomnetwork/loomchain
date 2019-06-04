@@ -14,7 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 )
@@ -77,12 +76,7 @@ func GetBlockByNumber(
 	// These three fields are null for pending blocks.
 	blockInfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
 	blockInfo.Number = eth.EncInt(height)
-	var bloomFilter []byte
-	if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
-		bloomFilter = readReceipts.GetBloomFilter(uint64(height))
-	} else {
-		bloomFilter = common.GetBloomFilter(state, uint64(height))
-	}
+	bloomFilter := readReceipts.GetBloomFilter(uint64(height))
 
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	for index, tx := range blockResult.Block.Data.Txs {
@@ -263,16 +257,8 @@ func DeprecatedGetBlockByNumber(
 	} else {
 		blockinfo.Number = height
 	}
-
-	var bloomFilter []byte
-	var txHashList [][]byte
-	if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
-		bloomFilter = readReceipts.GetBloomFilter(uint64(height))
-		txHashList, err = readReceipts.GetTxHashList(uint64(height))
-	} else {
-		bloomFilter = common.GetBloomFilter(state, uint64(height))
-		txHashList, err = common.GetTxHashList(state, uint64(height))
-	}
+	bloomFilter := readReceipts.GetBloomFilter(uint64(height))
+	txHashList, err := readReceipts.GetTxHashList(uint64(height))
 
 	blockinfo.LogsBloom = bloomFilter
 

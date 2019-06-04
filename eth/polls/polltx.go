@@ -6,7 +6,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
@@ -45,13 +44,7 @@ func (p *EthTxPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnl
 func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64, readReceipts loomchain.ReadReceiptHandler) (uint64, [][]byte, error) {
 	var txHashes [][]byte
 	for height := lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
-		var txHashList [][]byte
-		var err error
-		if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
-			txHashList, err = readReceipts.GetTxHashList(height)
-		} else {
-			txHashList, err = common.GetTxHashList(state, height)
-		}
+		txHashList, err := readReceipts.GetTxHashList(height)
 
 		if err != nil {
 			return lastBlockRead, nil, errors.Wrapf(err, "reading tx hashes at height %d", height)
@@ -71,13 +64,7 @@ func (p *EthTxPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.Read
 
 	var txHashes [][]byte
 	for height := p.lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
-		var txHashList [][]byte
-		var err error
-		if state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
-			txHashList, err = readReceipts.GetTxHashList(height)
-		} else {
-			txHashList, err = common.GetTxHashList(state, height)
-		}
+		txHashList, err := readReceipts.GetTxHashList(height)
 		if err != nil {
 			return p, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
 		}
