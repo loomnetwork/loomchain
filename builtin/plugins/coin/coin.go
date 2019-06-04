@@ -41,6 +41,7 @@ type (
 
 var (
 	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ZeroBaseMintingAmount = errors.New("Base Minting Amount cannot be zero")
 )
 
 var (
@@ -71,6 +72,9 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	deflationFactor := req.DeflationFactor
+	if req.BaseMintingAmount == 0 {
+		return ZeroBaseMintingAmount
+	}
 	baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
 	baseMintingAmount.Mul(baseMintingAmount, div)
 	deflation := &DeflationInfo{
