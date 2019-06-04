@@ -10,7 +10,12 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
+	goleveldb "github.com/syndtr/goleveldb/leveldb"
 	abci "github.com/tendermint/tendermint/abci/types"
+)
+
+const (
+	Db_Filename = "receipts_db"
 )
 
 func MakeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
@@ -65,4 +70,13 @@ func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
 	header := abci.Header{}
 	header.Height = int64(newHeight)
 	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
+}
+
+func MockEvmAuxStore() (*store.EvmAuxStore, error) {
+	evmAuxDB, err := goleveldb.OpenFile(Db_Filename, nil)
+	if err != nil {
+		return nil, err
+	}
+	evmAuxStore := store.NewEvmAuxStore(evmAuxDB)
+	return evmAuxStore, nil
 }

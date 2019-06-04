@@ -18,6 +18,10 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
+const (
+	Db_Filename = "receipts_db"
+)
+
 var (
 	headKey          = []byte("leveldb:head")
 	tailKey          = []byte("leveldb:tail")
@@ -226,7 +230,9 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	return nil
 }
 
-func (lr *LevelDbReceipts) ClearData() {}
+func (lr *LevelDbReceipts) ClearData() {
+	lr.evmAuxStore.ClearData()
+}
 
 func (lr *LevelDbReceipts) closeTransaction() {
 	if lr.tran != nil {

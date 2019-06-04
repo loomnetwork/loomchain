@@ -10,8 +10,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 const (
@@ -23,8 +23,11 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	_, err := os.Stat(Db_Filename)
 	require.True(t, os.IsNotExist(err))
 
+	evmAuxStore, err := common.MockEvmAuxStore()
+	require.NoError(t, err)
+
 	maxSize := uint64(10)
-	handler, err := NewLevelDbReceipts(maxSize)
+	handler, err := NewLevelDbReceipts(evmAuxStore, maxSize)
 	require.NoError(t, err)
 
 	// start db
@@ -71,8 +74,11 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	_, err := os.Stat(Db_Filename)
 	require.True(t, os.IsNotExist(err))
 
+	evmAuxStore, err := common.MockEvmAuxStore()
+	require.NoError(t, err)
+
 	maxSize := uint64(10)
-	handler, err := NewLevelDbReceipts(maxSize)
+	handler, err := NewLevelDbReceipts(evmAuxStore, maxSize)
 	require.NoError(t, err)
 
 	height := uint64(1)
@@ -97,7 +103,7 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 	size uint64, head, tail []byte, receipts []*types.EvmTxReceipt, commit int) {
 	var err error
-	dbSize, dbHead, dbTail, err := getDBParams(handler.db)
+	dbSize, dbHead, dbTail, err := getDBParams(handler.evmAuxStore)
 	require.NoError(t, err)
 
 	require.EqualValues(t, size, uint64(len(receipts)))
@@ -122,7 +128,7 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 	}
 	metadataCount := uint64(commit * 2)
 
-	dbActualSize, err := countDbEntries(handler.db)
+	dbActualSize, err := countDbEntries(handler.evmAuxStore)
 	require.NoError(t, err)
 	require.EqualValues(t, size+dbConfigKeys+metadataCount, dbActualSize)
 
@@ -134,7 +140,7 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 		if previous.Receipt != nil {
 			require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.NextTxHash))
 		}
-		txReceiptItemProto, err := handler.db.Get(receipts[i].TxHash, nil)
+		txReceiptItemProto, err := handler.evmAuxStore.Get(receipts[i].TxHash, nil)
 		require.NoError(t, err)
 		require.NoError(t, proto.Unmarshal(txReceiptItemProto, &previous))
 		require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.Receipt.TxHash))
@@ -153,8 +159,10 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	os.RemoveAll(Db_Filename)
 	_, err := os.Stat(Db_Filename)
 	require.True(t, os.IsNotExist(err))
+	evmAuxStore, err := common.MockEvmAuxStore()
+	require.NoError(t, err)
 	maxSize := uint64(10)
-	handler, err := NewLevelDbReceipts(maxSize)
+	handler, err := NewLevelDbReceipts(evmAuxStore, maxSize)
 	require.NoError(t, err)
 	height := uint64(1)
 	state := common.MockState(height)
@@ -188,7 +196,7 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 }
 
 //nolint:deadcode
-func dumpDbEntries(db *leveldb.DB) error {
+func dumpDbEntries(db *store.EvmAuxStore) error {
 	fmt.Println("\nDumping leveldb")
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
@@ -199,7 +207,7 @@ func dumpDbEntries(db *leveldb.DB) error {
 	return iter.Error()
 }
 
-func countDbEntries(db *leveldb.DB) (uint64, error) {
+func countDbEntries(db *store.EvmAuxStore) (uint64, error) {
 	count := uint64(0)
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()

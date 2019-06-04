@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/binary"
+	"os"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -11,6 +12,7 @@ import (
 )
 
 var (
+	Db_Filename  = "receipts_db"
 	BloomPrefix  = []byte("bloomFilter")
 	TxHashPrefix = []byte("txHash")
 )
@@ -72,4 +74,8 @@ func (s *EvmAuxStore) AppendTxHashList(tran *leveldb.Transaction, txHash [][]byt
 	}
 	tran.Put(evmTxHashKey(height), postTxHashList, nil)
 	return nil
+}
+
+func (s *EvmAuxStore) ClearData() {
+	os.RemoveAll(Db_Filename)
 }
