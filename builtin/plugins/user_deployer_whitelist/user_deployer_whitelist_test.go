@@ -166,13 +166,22 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	err = RecordEVMContractDeployment(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		addr1, contractAddr)
 	require.Nil(t, err)
-	// addr1 is deployer
+	// When one contract is deployed, length = 1
 	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
 		DeployerAddr: addr1.MarshalPB(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
+
+	// when deployer is not in ctx, still return don't return error but empty list of contracts
+	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
+		DeployerAddr: addr3.MarshalPB(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
+
 }
 
 func sciNot(m, n int64) *loom.BigUInt {

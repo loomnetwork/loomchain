@@ -238,6 +238,9 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	var userDeployer UserDeployerState
 	err := ctx.Get(DeployerStateKey(deployerAddr), &userDeployer)
 	if err != nil {
+		if err == contract.ErrNotFound {
+			return &GetDeployedContractsResponse{}, nil
+		}
 		return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 	}
 	return &GetDeployedContractsResponse{
