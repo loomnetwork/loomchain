@@ -1098,6 +1098,18 @@ func loadApp(
 		return m, nil
 	}
 
+	createCoinDeflationManager := func(state loomchain.State) (loomchain.CoinDeflationManager, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		m, err := plugin.NewCoinDeflationManager(pvm.(*plugin.PluginVM), state)
+		if err != nil {
+			return nil, err
+		}
+		return m, nil
+	}
+
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
@@ -1134,6 +1146,7 @@ func loadApp(
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
+		CreateCoinDeflationManager:  createCoinDeflationManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
