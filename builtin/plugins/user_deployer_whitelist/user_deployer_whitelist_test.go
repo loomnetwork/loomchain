@@ -17,15 +17,14 @@ import (
 )
 
 var (
-	addr1         = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	addr3         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
-	addr4         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
-	addr5         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
-	contractAddr  = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01ab")
-	user          = addr3.MarshalPB()
-	deployer_addr = addr1.MarshalPB()
-	chainID       = "default"
+	addr1        = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr3        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
+	addr4        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
+	addr5        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
+	contractAddr = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01ab")
+	user         = addr3.MarshalPB()
+	chainID      = "default"
 )
 
 func TestUserDeployerWhitelistContract(t *testing.T) {

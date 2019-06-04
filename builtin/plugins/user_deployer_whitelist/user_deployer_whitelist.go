@@ -209,9 +209,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 	err := ctx.Get(UserStateKey(loom.UnmarshalAddressPB(req.UserAddr)), &userState)
 	if err != nil {
 		if err == contract.ErrNotFound {
-			return &GetUserDeployersResponse{
-				Deployers: deployers,
-			}, nil
+			return &GetUserDeployersResponse{}, nil
 		}
 		return nil, err
 	}
