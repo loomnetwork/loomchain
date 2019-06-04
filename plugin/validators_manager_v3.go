@@ -40,7 +40,7 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		return nil
 	}
 
-	candidates, err := dposv3.GetCandidateList(m.ctx)
+	candidates, err := dposv3.LoadCandidateList(m.ctx)
 	if err != nil {
 		return err
 	}
@@ -57,9 +57,9 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
-			address, err := dposv3.GetLocalAddressFromTendermintAddress(m.ctx, voteInfo.Validator.Address, candidates)
+			address, err := dposv3.GetLocalCandidateAddressFromTendermintAddress(m.ctx, voteInfo.Validator.Address, candidates)
 			if err == nil && m.ctx.FeatureEnabled(loomchain.DPOSSlashing, false) {
-				err = dposv3.UpdateDowntimeRecord(m.ctx, loom.UnmarshalAddressPB(address))
+				err = dposv3.UpdateDowntimeRecord(m.ctx, *address)
 			}
 
 			m.ctx.Logger().Debug("DPOS BeginBlock", "DowntimeEvidence", fmt.Sprintf("%v+", voteInfo), "validatorAddress", address, "addressError", err)
