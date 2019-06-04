@@ -219,6 +219,24 @@ func MintByCDM(ctx contract.Context, to loom.Address) error {
 	return mint(ctx, to, &amount)
 }
 
+//MintDeflationModifyByCDM Method to modify deflation parameter, only callable by manager,
+// when feature flag is going to be enabled
+func MintDeflationModifyByCDM(ctx contract.Context, deflationFactor float64) error {
+	if ctx.FeatureEnabled(loomchain.CoinDeflationManagerFeature, false) {
+		var deflationInfo DeflationInfo
+		err := ctx.Get(deflationInfoKey, &deflationInfo)
+		if err != nil {
+			return errUtil.Wrap(err, "Failed to Get DeflationInfo")
+		}
+		deflationInfo.DeflationFactor = deflationFactor
+		err = ctx.Set(deflationInfoKey, &deflationInfo)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ERC20 methods
 
 func (c *Coin) TotalSupply(
