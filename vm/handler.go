@@ -51,7 +51,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, err
 	}
 
-	var ethTx *etypes.Transaction
+	ethTx := &etypes.Transaction{}
 	if err := ethTx.UnmarshalJSON(tx.EthereumTransaction); err != nil {
 		return r, err
 	}
