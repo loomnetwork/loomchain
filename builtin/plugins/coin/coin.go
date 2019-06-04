@@ -70,11 +70,11 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-	deflationFactor := req.Deflationfactor
+	deflationFactor := req.DeflationFactor
 	baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
 	baseMintingAmount.Mul(baseMintingAmount, div)
 	deflation := &DeflationInfo{
-		Deflationfactor: deflationFactor,
+		DeflationFactor: deflationFactor,
 		BaseMintingAmount: &types.BigUInt{
 			Value: *baseMintingAmount,
 		},
