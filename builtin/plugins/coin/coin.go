@@ -206,6 +206,19 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 	return ctx.Set(economyKey, econ)
 }
 
+//MintByCDM : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
+func MintByCDM(ctx contract.Context, to loom.Address) error {
+	var deflationInfo DeflationInfo
+	err := ctx.Get(deflationInfoKey, &deflationInfo)
+	if err != nil {
+		return errUtil.Wrap(err, "Failed to Get DeflationInfo")
+	}
+	depreciation := loom.NewBigUIntFromInt(int64(deflationInfo.DeflationFactor * float64(ctx.Block().Height)))
+	amount := deflationInfo.BaseMintingAmount.Value
+	amount.Sub(&amount, depreciation)
+	return mint(ctx, to, &amount)
+}
+
 // ERC20 methods
 
 func (c *Coin) TotalSupply(
