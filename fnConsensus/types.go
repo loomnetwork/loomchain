@@ -759,7 +759,8 @@ func (voteSet *FnVoteSet) IsValid(chainID string, currentValidatorSet *types.Val
 	}
 
 	if !bytes.Equal(voteSet.ValidatorsHash, currentValidatorSet.Hash()) {
-		return errors.New("voteSet.ValidatorHash doesnt match node's validator hash")
+		return fmt.Errorf("voteSet.ValidatorHash doesn't match node's validator hash, Expected: %v, Got: %v",
+			currentValidatorSet.Hash(), voteSet.ValidatorsHash)
 	}
 
 	if numValidators != len(voteSet.ValidatorAddresses) {

@@ -12,6 +12,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/log"
@@ -297,6 +298,8 @@ func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 	}
 
 	var vmType vm.VMType
+	var methodName string
+
 	if loomTx.Id == 1 {
 		var deployTx vm.DeployTx
 		if err := proto.Unmarshal(msgTx.Data, &deployTx); err != nil {
@@ -309,6 +312,20 @@ func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 			return "", errors.Wrap(err, "failed to unmarshal CallTx")
 		}
 		vmType = callTx.VmType
+
+		if vmType == vm.VMType_PLUGIN {
+			var preq plugin.Request
+			if err := proto.Unmarshal(callTx.Input, &preq); err != nil {
+				return "", errors.Wrap(err, "failed to unmarshal Request")
+			}
+
+			var methodCall plugin.ContractMethodCall
+			if err := proto.Unmarshal(preq.Body, &methodCall); err != nil {
+				return "", errors.Wrap(err, "failed to unmarshal ContractMethodCall")
+			}
+
+			methodName = methodCall.Method
+		}
 	}
 
 	var vmName string
@@ -319,12 +336,13 @@ func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 	}
 
 	return fmt.Sprintf(
-		"[txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s",
+		"[txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s [mn] %s",
 		tx.Hash(),
 		loom.UnmarshalAddressPB(msgTx.From).String(),
 		nonceTx.Sequence,
 		loomTx.Id,
 		loom.UnmarshalAddressPB(msgTx.To).String(),
 		vmName,
+		methodName,
 	), nil
 }

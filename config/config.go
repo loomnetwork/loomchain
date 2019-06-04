@@ -17,11 +17,11 @@ import (
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/spf13/viper"
 
@@ -90,15 +90,15 @@ type Config struct {
 	UserDeployerWhitelist *UserDeployerWhitelistConfig
 
 	// Transfer gateway
-	TransferGateway         *gateway.TransferGatewayConfig
-	LoomCoinTransferGateway *gateway.TransferGatewayConfig
-	TronTransferGateway     *gateway.TransferGatewayConfig
+	TransferGateway         *TransferGatewayConfig
+	LoomCoinTransferGateway *TransferGatewayConfig
+	TronTransferGateway     *TransferGatewayConfig
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 	// Blockstore config
 	BlockStore      *store.BlockStoreConfig
-	BlockIndexStore *store.BlockIndexStoreConfig
+	BlockIndexStore *blockindex.BlockIndexStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -267,16 +267,17 @@ func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
 //Structure for LOOM ENV
 
 type Env struct {
-	Version      string `json:"version"`
-	Build        string `json:"build"`
-	BuildVariant string `json:"buildvariant"`
-	GitSha       string `json:"gitsha"`
-	GoLoom       string `json:"goloom"`
-	GoEthereum   string `json:"goethereum"`
-	GoPlugin     string `json:"goplugin"`
-	Btcd         string `json:"btcd"`
-	PluginPath   string `json:"pluginpath"`
-	Peers        string `json:"peers"`
+	Version         string `json:"version"`
+	Build           string `json:"build"`
+	BuildVariant    string `json:"buildvariant"`
+	GitSha          string `json:"gitsha"`
+	GoLoom          string `json:"goloom"`
+	TransferGateway string `json:"transfergateway"`
+	GoEthereum      string `json:"goethereum"`
+	GoPlugin        string `json:"goplugin"`
+	Btcd            string `json:"btcd"`
+	PluginPath      string `json:"pluginpath"`
+	Peers           string `json:"peers"`
 }
 
 // TODO: Move to loomchain/rpc package
@@ -384,9 +385,9 @@ func DefaultConfig() *Config {
 		CallEnabled:   true,
 		DPOSVersion:   1,
 	}
-	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
-	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
-	cfg.TronTransferGateway = gateway.DefaultTronConfig(cfg.RPCProxyPort)
+	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
+	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
+	cfg.TronTransferGateway = DefaultTronTGConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
@@ -395,7 +396,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
-	cfg.BlockIndexStore = store.DefaultBlockIndexStoreConfig()
+	cfg.BlockIndexStore = blockindex.DefaultBlockIndexStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
@@ -429,6 +430,7 @@ func (c *Config) Clone() *Config {
 	clone := *c
 	clone.TransferGateway = c.TransferGateway.Clone()
 	clone.LoomCoinTransferGateway = c.LoomCoinTransferGateway.Clone()
+	clone.TronTransferGateway = c.TronTransferGateway.Clone()
 	clone.PlasmaCash = c.PlasmaCash.Clone()
 	clone.AppStore = c.AppStore.Clone()
 	clone.HsmConfig = c.HsmConfig.Clone()
@@ -556,135 +558,7 @@ Metrics:
   BlockIndexStore: {{ .Metrics.BlockIndexStore }} 
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
-#
-# Transfer Gateway
-#
-TransferGateway:
-  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
-  ContractEnabled: {{ .TransferGateway.ContractEnabled }}
-  # Enables the in-process Transfer Gateway Oracle.
-  # If this is enabled ContractEnabled must be set to true.
-  OracleEnabled: {{ .TransferGateway.OracleEnabled }}
-  # URI of Ethereum node the Oracle should connect to, and retrieve Mainnet events from.
-  EthereumURI: "{{ .TransferGateway.EthereumURI }}"
-  # Address of Transfer Gateway contract on Mainnet
-  # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
-  MainnetContractHexAddress: "{{ .TransferGateway.MainnetContractHexAddress }}"
-  # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
-  # can be a relative, or absolute path
-  MainnetPrivateKeyPath: "{{ .TransferGateway.MainnetPrivateKeyPath }}"
-  # Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
-  # the DAppChain Transfer Gateway contract
-  DAppChainPrivateKeyPath: "{{ .TransferGateway.DAppChainPrivateKeyPath }}"
-  DAppChainReadURI: "{{ .TransferGateway.DAppChainReadURI }}"
-  DAppChainWriteURI: "{{ .TransferGateway.DAppChainWriteURI }}"
-  # Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
-  DAppChainEventsURI: "{{ .TransferGateway.DAppChainEventsURI }}"
-  DAppChainPollInterval: {{ .TransferGateway.DAppChainPollInterval }}
-  MainnetPollInterval: {{ .TransferGateway.MainnetPollInterval }}
-  # Oracle log verbosity (debug, info, error, etc.)
-  OracleLogLevel: "{{ .TransferGateway.OracleLogLevel }}"
-  OracleLogDestination: "{{ .TransferGateway.OracleLogDestination }}"
-  # Number of seconds to wait before starting the Oracle.
-  OracleStartupDelay: {{ .TransferGateway.OracleStartupDelay }}
-  # Number of seconds to wait between reconnection attempts.
-  OracleReconnectInterval: {{ .TransferGateway.OracleReconnectInterval }}
-  # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
-  OracleQueryAddress: "{{ .TransferGateway.OracleQueryAddress }}"
-  {{if .TransferGateway.BatchSignFnConfig -}}
-  BatchSignFnConfig:
-    Enabled: {{ .TransferGateway.BatchSignFnConfig.Enabled }}
-    LogLevel: "{{ .TransferGateway.BatchSignFnConfig.LogLevel }}"
-    LogDestination: "{{ .TransferGateway.BatchSignFnConfig.LogDestination }}"
-    MainnetPrivateKeyPath: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
-    MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
-  {{- end}}
-#
-# Loomcoin Transfer Gateway
-#
-LoomCoinTransferGateway:
-  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
-  ContractEnabled: {{ .LoomCoinTransferGateway.ContractEnabled }}
-  # Enables the in-process Transfer Gateway Oracle.
-  # If this is enabled ContractEnabled must be set to true.
-  OracleEnabled: {{ .LoomCoinTransferGateway.OracleEnabled }}
-  # URI of Ethereum node the Oracle should connect to, and retrieve Mainnet events from.
-  EthereumURI: "{{ .LoomCoinTransferGateway.EthereumURI }}"
-  # Address of Transfer Gateway contract on Mainnet
-  # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
-  MainnetContractHexAddress: "{{ .LoomCoinTransferGateway.MainnetContractHexAddress }}"
-  # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
-  # can be a relative, or absolute path
-  MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.MainnetPrivateKeyPath }}"
-  # Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
-  # the DAppChain Transfer Gateway contract
-  DAppChainPrivateKeyPath: "{{ .LoomCoinTransferGateway.DAppChainPrivateKeyPath }}"
-  DAppChainReadURI: "{{ .LoomCoinTransferGateway.DAppChainReadURI }}"
-  DAppChainWriteURI: "{{ .LoomCoinTransferGateway.DAppChainWriteURI }}"
-  # Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
-  DAppChainEventsURI: "{{ .LoomCoinTransferGateway.DAppChainEventsURI }}"
-  DAppChainPollInterval: {{ .LoomCoinTransferGateway.DAppChainPollInterval }}
-  MainnetPollInterval: {{ .LoomCoinTransferGateway.MainnetPollInterval }}
-  # Oracle log verbosity (debug, info, error, etc.)
-  OracleLogLevel: "{{ .LoomCoinTransferGateway.OracleLogLevel }}"
-  OracleLogDestination: "{{ .LoomCoinTransferGateway.OracleLogDestination }}"
-  # Number of seconds to wait before starting the Oracle.
-  OracleStartupDelay: {{ .LoomCoinTransferGateway.OracleStartupDelay }}
-  # Number of seconds to wait between reconnection attempts.
-  OracleReconnectInterval: {{ .LoomCoinTransferGateway.OracleReconnectInterval }}
-  # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
-  OracleQueryAddress: "{{ .LoomCoinTransferGateway.OracleQueryAddress }}"
-  {{if .LoomCoinTransferGateway.BatchSignFnConfig -}}
-  BatchSignFnConfig:
-    Enabled: {{ .LoomCoinTransferGateway.BatchSignFnConfig.Enabled }}
-    LogLevel: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogLevel }}"
-    LogDestination: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogDestination }}"
-    MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
-    MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
-  {{- end}}
-#
-# Tron Transfer Gateway
-#
-TronTransferGateway:
-  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
-  ContractEnabled: {{ .TronTransferGateway.ContractEnabled }}
-  # Enables the in-process Transfer Gateway Oracle.
-  # If this is enabled ContractEnabled must be set to true.
-  OracleEnabled: {{ .TronTransferGateway.OracleEnabled }}
-  # URI of Tron node the Oracle should connect to, and retrieve Mainnet events from.
-  TronURI: "{{ .TronTransferGateway.TronURI }}"
-  # Address of Transfer Gateway contract on Mainnet
-  # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
-  MainnetContractHexAddress: "{{ .TronTransferGateway.MainnetContractHexAddress }}"
-  # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
-  # can be a relative, or absolute path
-  MainnetPrivateKeyPath: "{{ .TronTransferGateway.MainnetPrivateKeyPath }}"
-  # Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
-  # the DAppChain Transfer Gateway contract
-  DAppChainPrivateKeyPath: "{{ .TronTransferGateway.DAppChainPrivateKeyPath }}"
-  DAppChainReadURI: "{{ .TronTransferGateway.DAppChainReadURI }}"
-  DAppChainWriteURI: "{{ .TronTransferGateway.DAppChainWriteURI }}"
-  # Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
-  DAppChainEventsURI: "{{ .TronTransferGateway.DAppChainEventsURI }}"
-  DAppChainPollInterval: {{ .TronTransferGateway.DAppChainPollInterval }}
-  MainnetPollInterval: {{ .TronTransferGateway.MainnetPollInterval }}
-  # Oracle log verbosity (debug, info, error, etc.)
-  OracleLogLevel: "{{ .TronTransferGateway.OracleLogLevel }}"
-  OracleLogDestination: "{{ .TronTransferGateway.OracleLogDestination }}"
-  # Number of seconds to wait before starting the Oracle.
-  OracleStartupDelay: {{ .TronTransferGateway.OracleStartupDelay }}
-  # Number of seconds to wait between reconnection attempts.
-  OracleReconnectInterval: {{ .TronTransferGateway.OracleReconnectInterval }}
-  # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
-  OracleQueryAddress: "{{ .TronTransferGateway.OracleQueryAddress }}"
-  {{if .TronTransferGateway.BatchSignFnConfig -}}
-  BatchSignFnConfig:
-    Enabled: {{ .TronTransferGateway.BatchSignFnConfig.Enabled }}
-    LogLevel: "{{ .TronTransferGateway.BatchSignFnConfig.LogLevel }}"
-    LogDestination: "{{ .TronTransferGateway.BatchSignFnConfig.LogDestination }}"
-    MainnetPrivateKeyPath: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
-    MainnetPrivateKeyHsmEnabled: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
-  {{- end}}
+
 #
 # ChainConfig
 #
@@ -912,4 +786,4 @@ PluginsDir: "{{ .PluginsDir }}"
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
-`
+` + transferGatewayLoomYamlTemplate
