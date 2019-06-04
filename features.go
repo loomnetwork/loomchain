@@ -46,4 +46,6 @@ const (
 
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
+
+	TGHotWalletClearTxHashFeature = "tg:hw:clear-txhash"
 )

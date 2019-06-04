@@ -609,9 +609,10 @@ func (gw *Gateway) handleDeposit(ctx contract.Context, ev *MainnetEvent, checkTx
 		tokenAddr = loom.UnmarshalAddressPB(payload.Deposit.TokenContract)
 	}
 
-	// TODO: This should be behind feature flag
-	if err := clearDepositTxHashIfExists(ctx, loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)); err != nil {
-		return err
+	if ctx.FeatureEnabled(loomchain.TGHotWalletClearTxHashFeature, false) {
+		if err := clearDepositTxHashIfExists(ctx, loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)); err != nil {
+			return err
+		}
 	}
 
 	err = transferTokenDeposit(
