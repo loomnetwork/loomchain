@@ -34,6 +34,7 @@ type (
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
+	DeflationInfo        = ctypes.DeflationInfo
 
 	BurnRequest = ctypes.BurnRequest
 )
@@ -43,8 +44,9 @@ var (
 )
 
 var (
-	economyKey = []byte("economy")
-	decimals   = 18
+	economyKey       = []byte("economy")
+	deflationInfoKey = []byte("deflation")
+	decimals         = 18
 )
 
 func accountKey(addr loom.Address) []byte {
@@ -68,7 +70,19 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-
+	deflationFactor := req.Deflationfactor
+	baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
+	baseMintingAmount.Mul(baseMintingAmount, div)
+	deflation := &DeflationInfo{
+		Deflationfactor: deflationFactor,
+		BaseMintingAmount: &types.BigUInt{
+			Value: *baseMintingAmount,
+		},
+	}
+	err := ctx.Set(deflationInfoKey, deflation)
+	if err != nil {
+		return err
+	}
 	supply := loom.NewBigUIntFromInt(0)
 	for _, initAcct := range req.Accounts {
 		owner := loom.UnmarshalAddressPB(initAcct.Owner)
