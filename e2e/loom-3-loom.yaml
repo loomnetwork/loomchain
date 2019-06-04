@@ -9,7 +9,6 @@ AppStore:
   SaveEVMStateToIAVL: false
 CachingStoreConfig:
   CachingEnabled: true
-
 Auth:
   Chains:
     eth:
