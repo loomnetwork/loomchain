@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/registry"
-
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -260,6 +259,10 @@ type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 }
 
+type CoinDeflationManager interface {
+	MintCoins(blockHeight int64) error
+}
+
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -277,8 +280,9 @@ type Application struct {
 	EventHandler
 	ReceiptHandlerProvider
 	blockindex.BlockIndexStore
-	CreateValidatorManager   ValidatorsManagerFactoryFunc
-	CreateChainConfigManager ChainConfigManagerFactoryFunc
+	CreateValidatorManager     ValidatorsManagerFactoryFunc
+	CreateChainConfigManager   ChainConfigManagerFactoryFunc
+	CreateCoinDeflationManager func(state State) (CoinDeflationManager, error)
 	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
@@ -435,6 +439,17 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 	if chainConfigManager != nil {
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
+			panic(err)
+		}
+	}
+
+	coinDeflationManager, err := a.CreateCoinDeflationManager(state)
+	if err != nil {
+		panic(err)
+	}
+
+	if coinDeflationManager != nil {
+		if err := coinDeflationManager.MintCoins(a.height()); err != nil {
 			panic(err)
 		}
 	}
