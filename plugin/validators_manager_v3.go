@@ -45,7 +45,7 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		return err
 	}
 
-	if m.ctx.FeatureEnabled(loomchain.DPOSSlashing, false) {
+	if m.ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
 		err := dposv3.ShiftDowntimeWindow(m.ctx, currentHeight, candidates)
 		if err != nil {
 			return err
@@ -58,7 +58,7 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
 			address, err := dposv3.GetLocalCandidateAddressFromTendermintAddress(m.ctx, voteInfo.Validator.Address, candidates)
-			if err == nil && m.ctx.FeatureEnabled(loomchain.DPOSSlashing, false) {
+			if err == nil && m.ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
 				err = dposv3.UpdateDowntimeRecord(m.ctx, *address)
 			}
 

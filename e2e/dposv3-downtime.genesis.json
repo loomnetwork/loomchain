@@ -28,7 +28,11 @@
                     "status":"WAITING"
                   },
                   {
-                    "name":"dpos:slashing",
+                    "name":"dpos:v3.1",
+                    "status":"WAITING"
+                  },
+                  {
+                    "name":"dpos:v3.2",
                     "status":"WAITING"
                   }
                 ]

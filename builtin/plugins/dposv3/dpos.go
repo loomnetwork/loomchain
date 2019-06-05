@@ -1962,7 +1962,7 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 }
 
 func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSSlashing, false) {
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
 		sender := ctx.Message().Sender
 		ctx.Logger().Info("DPOSv3 SetDowntimePeriod", "sender", sender, "request", req)
 
