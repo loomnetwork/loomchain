@@ -282,9 +282,9 @@ type Application struct {
 	EventHandler
 	ReceiptHandlerProvider
 	blockindex.BlockIndexStore
-	CreateValidatorManager     ValidatorsManagerFactoryFunc
-	CreateChainConfigManager   ChainConfigManagerFactoryFunc
-	CreateCoinPolicyManager CoinPolicyManagerFactoryFunc
+	CreateValidatorManager   ValidatorsManagerFactoryFunc
+	CreateChainConfigManager ChainConfigManagerFactoryFunc
+	CreateCoinPolicyManager  CoinPolicyManagerFactoryFunc
 	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
@@ -445,14 +445,15 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		}
 	}
 
-	coinPolicyManager, err := a.CreateCoinPolicyManager(state)
-	if err != nil {
-		panic(err)
-	}
-
-	if coinPolicyManager != nil {
-		if err := coinPolicyManager.MintCoins(); err != nil {
+	if state.FeatureEnabled(CoinPolicyFeature, false) {
+		coinPolicyManager, err := a.CreateCoinPolicyManager(state)
+		if err != nil {
 			panic(err)
+		}
+		if coinPolicyManager != nil {
+			if err := coinPolicyManager.MintCoins(); err != nil {
+				panic(err)
+			}
 		}
 	}
 
