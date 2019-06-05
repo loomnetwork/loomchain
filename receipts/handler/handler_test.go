@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -24,8 +25,8 @@ var (
 func TestReceiptsHandlerChain(t *testing.T) {
 	testHandlerDepreciated(t, ReceiptHandlerChain)
 
-	_ = os.RemoveAll(common.Db_Filename)
-	_, err := os.Stat(common.Db_Filename)
+	_ = os.RemoveAll(evmaux.EvmAuxDBName)
+	_, err := os.Stat(evmaux.EvmAuxDBName)
 	require.True(t, os.IsNotExist(err))
 	testHandler(t, ReceiptHandlerLevelDb)
 }

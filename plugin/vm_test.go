@@ -222,6 +222,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
 	require.EqualValues(t, 0, bytes.Compare(vmAddr2.Local, receipt.ContractAddress))
 	require.EqualValues(t, int64(1), receipt.BlockNumber)
+	evmAuxStore.Close()
 }
 
 //This test should handle the case of pending transactions being readable
@@ -250,6 +251,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
 	require.EqualValues(t, 0, bytes.Compare(vmAddr2.Local, receipt.ContractAddress))
 	require.EqualValues(t, int64(1), receipt.BlockNumber)
+	evmAuxStore.Close()
 }
 
 func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner loom.Address) (loom.Address, error) {

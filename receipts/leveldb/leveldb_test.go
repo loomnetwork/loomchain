@@ -19,8 +19,8 @@ const (
 )
 
 func TestReceiptsCyclicDB(t *testing.T) {
-	os.RemoveAll(Db_Filename)
-	_, err := os.Stat(Db_Filename)
+	os.RemoveAll(evmaux.EvmAuxDBName)
+	_, err := os.Stat(evmaux.EvmAuxDBName)
 	require.True(t, os.IsNotExist(err))
 
 	evmAuxStore, err := common.MockEvmAuxStore()
@@ -62,16 +62,16 @@ func TestReceiptsCyclicDB(t *testing.T) {
 
 	require.NoError(t, handler.Close())
 
-	_, err = os.Stat(Db_Filename)
+	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.NoError(t, err)
 	handler.ClearData()
-	_, err = os.Stat(Db_Filename)
+	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.Error(t, err)
 }
 
 func TestReceiptsCommitAllInOneBlock(t *testing.T) {
-	os.RemoveAll(Db_Filename)
-	_, err := os.Stat(Db_Filename)
+	os.RemoveAll(evmaux.EvmAuxDBName)
+	_, err := os.Stat(evmaux.EvmAuxDBName)
 	require.True(t, os.IsNotExist(err))
 
 	evmAuxStore, err := common.MockEvmAuxStore()
@@ -93,10 +93,10 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 
 	require.NoError(t, handler.Close())
 
-	_, err = os.Stat(Db_Filename)
+	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.NoError(t, err)
 	handler.ClearData()
-	_, err = os.Stat(Db_Filename)
+	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.Error(t, err)
 }
 
@@ -116,7 +116,7 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 		return
 	}
 
-	_, err = os.Stat(Db_Filename)
+	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.False(t, os.IsNotExist(err))
 
 	for i := 0; i < len(receipts); i++ {
@@ -156,8 +156,8 @@ func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*ty
 }
 
 func TestConfirmTransactionReceipts(t *testing.T) {
-	os.RemoveAll(Db_Filename)
-	_, err := os.Stat(Db_Filename)
+	os.RemoveAll(evmaux.EvmAuxDBName)
+	_, err := os.Stat(evmaux.EvmAuxDBName)
 	require.True(t, os.IsNotExist(err))
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
@@ -188,10 +188,10 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 		}
 	}
 	require.NoError(t, handler.Close())
-	_, err = os.Stat(Db_Filename)
+	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.NoError(t, err)
 	handler.ClearData()
-	_, err = os.Stat(Db_Filename)
+	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.Error(t, err)
 }
 
