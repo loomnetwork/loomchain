@@ -11,6 +11,7 @@ import (
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
@@ -147,7 +148,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 	}
 
 	if cfg.ChainConfig.ContractEnabled {
-
 		ownerAddr := loom.LocalAddressFromPublicKey(validator.PubKey)
 		contractOwner := &types.Address{
 			ChainId: "default",
@@ -155,13 +155,21 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		}
 		chainConfigInitRequest := cctypes.InitRequest{
 			Owner: contractOwner,
-			Params: &cctypes.Params{
-				VoteThreshold:         67,
-				NumBlockConfirmations: 10,
-			},
 			Features: []*cctypes.Feature{
 				&cctypes.Feature{
-					Name:   "test",
+					Name:   loomchain.DPOSVersion3_1,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.ChainCfgVersion1_1,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.CoinVersion1_1Feature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
 			},
@@ -182,7 +190,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 	}
 
 	if cfg.DeployerWhitelist.ContractEnabled {
-
 		ownerAddr := loom.LocalAddressFromPublicKey(validator.PubKey)
 		contractOwner := &types.Address{
 			ChainId: "default",
