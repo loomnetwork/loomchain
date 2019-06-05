@@ -35,7 +35,7 @@ var (
 )
 
 func TestQueryChain(t *testing.T) {
-	testQueryChain(t, handler.ReceiptHandlerChain)
+	testQueryChain(t, handler.ReceiptHandlerLevelDb)
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
@@ -43,9 +43,11 @@ func TestQueryChain(t *testing.T) {
 }
 
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
+	evmAuxStore, err := common.MockEvmAuxStore()
+	require.NoError(t, err)
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, handler.DefaultMaxReceipts)
+	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler
 	writer = receiptHandler
 
@@ -89,7 +91,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := DeprecatedQueryChain(allFilter, blockStore, state30, receiptHandler)
+	result, err := DeprecatedQueryChain(allFilter, blockStore, state30, receiptHandler, evmAuxStore)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
@@ -97,7 +99,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(allFilter))
 	require.NoError(t, err)
-	filterLogs, err := QueryChain(blockStore, state30, ethFilter, receiptHandler)
+	filterLogs, err := QueryChain(blockStore, state30, ethFilter, receiptHandler, evmAuxStore)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
 	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
 
@@ -172,7 +174,7 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	testGetLogs(t, handler.ReceiptHandlerChain)
+	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
@@ -181,13 +183,15 @@ func TestGetLogs(t *testing.T) {
 }
 
 func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
+	evmAuxStore, err := common.MockEvmAuxStore()
+	require.NoError(t, err)
 	os.RemoveAll(leveldb.Db_Filename)
-	_, err := os.Stat(leveldb.Db_Filename)
+	_, err = os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
 
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, handler.DefaultMaxReceipts)
+	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler
 	writer = receiptHandler
 
