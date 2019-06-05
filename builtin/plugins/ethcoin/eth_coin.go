@@ -1,6 +1,7 @@
 package ethcoin
 
 import (
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	ectypes "github.com/loomnetwork/go-loom/builtin/types/ethcoin"
@@ -12,6 +13,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	TransferEventTopic = "coin:transfer"
+	ApprovalEventTopic = "coin:approval"
+)
+
 type (
 	InitRequest          = ectypes.ETHCoinInitRequest
 	MintToGatewayRequest = ectypes.ETHCoinMintToGatewayRequest
@@ -21,8 +27,10 @@ type (
 	BalanceOfResponse    = ctypes.BalanceOfResponse
 	TransferRequest      = ctypes.TransferRequest
 	TransferResponse     = ctypes.TransferResponse
+	TransferEvent        = ctypes.TransferEvent
 	ApproveRequest       = ctypes.ApproveRequest
 	ApproveResponse      = ctypes.ApproveResponse
+	ApprovalEvent        = ctypes.ApprovalEvent
 	AllowanceRequest     = ctypes.AllowanceRequest
 	AllowanceResponse    = ctypes.AllowanceResponse
 	TransferFromRequest  = ctypes.TransferFromRequest
@@ -109,6 +117,13 @@ func Mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 	if err := saveAccount(ctx, account); err != nil {
 		return err
 	}
+
+	// Minting events are transfer events with the empty address as `from`
+	mintAddress := loom.RootAddress(ctx.Block().ChainID)
+	if err := emitTransferEvent(ctx, mintAddress, to, amount); err != nil {
+		return err
+	}
+
 	return ctx.Set(economyKey, econ)
 }
 
@@ -239,7 +254,8 @@ func transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt)
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return emitTransferEvent(ctx, from, to, amount)
 }
 
 func (c *ETHCoin) Approve(ctx contract.Context, req *ApproveRequest) error {
@@ -257,7 +273,7 @@ func (c *ETHCoin) Approve(ctx contract.Context, req *ApproveRequest) error {
 		return err
 	}
 
-	return nil
+	return emitApprovalEvent(ctx, owner, spender, &req.Amount.Value)
 }
 
 func (c *ETHCoin) Allowance(ctx contract.StaticContext, req *AllowanceRequest) (*AllowanceResponse, error) {
@@ -337,7 +353,8 @@ func (c *ETHCoin) transferFrom(ctx contract.Context, req *TransferFromRequest) e
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return emitTransferEvent(ctx, from, to, &amount)
 }
 
 func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, error) {
@@ -417,7 +434,8 @@ func legacyTransfer(ctx contract.Context, from, to loom.Address, amount *loom.Bi
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return emitTransferEvent(ctx, from, to, amount)
 }
 
 func (c *ETHCoin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
@@ -473,5 +491,36 @@ func (c *ETHCoin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequ
 	if err != nil {
 		return err
 	}
+
+	return emitTransferEvent(ctx, from, to, &amount)
+}
+
+// Events
+
+func emitTransferEvent(ctx contract.Context, from, spender loom.Address, amount *loom.BigUInt) error {
+	marshalled, err := proto.Marshal(&TransferEvent{
+		From:   from.MarshalPB(),
+		To:     spender.MarshalPB(),
+		Amount: &types.BigUInt{Value: *amount},
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, TransferEventTopic)
+	return nil
+}
+
+func emitApprovalEvent(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
+	marshalled, err := proto.Marshal(&ApprovalEvent{
+		From:    from.MarshalPB(),
+		Spender: to.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *amount},
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, ApprovalEventTopic)
 	return nil
 }
