@@ -6,7 +6,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
-  Expected = [ 'dpos:slashing' ]
+  Expected = [ 'dpos:v3.2' ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
