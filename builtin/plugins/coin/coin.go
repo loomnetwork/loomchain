@@ -212,8 +212,8 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 	return ctx.Set(economyKey, econ)
 }
 
-//MintByCDM : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
-func MintByCDM(ctx contract.Context, blockHeight int64) error {
+//Mint : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
+func Mint(ctx contract.Context, blockHeight int64) error {
 	var policy Policy
 	err := ctx.Get(policyKey, &policy)
 	if err != nil {
@@ -225,9 +225,9 @@ func MintByCDM(ctx contract.Context, blockHeight int64) error {
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
 }
 
-//MintDeflationModifyByCDM Method to modify deflation parameter, only callable by manager,
+//ModifyMintParameter Method to modify deflation parameter, only callable by manager,
 // when feature flag is going to be enabled
-func MintDeflationModifyByCDM(ctx contract.Context, deflationFactor float64) error {
+func ModifyMintParameter(ctx contract.Context, deflationFactor float64) error {
 	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
 		var policy Policy
 		err := ctx.Get(policyKey, &policy)
