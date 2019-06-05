@@ -269,6 +269,8 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
 type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
+type CoinDeflationManagerFactoryFunc func(state State) (CoinDeflationManager, error)
+
 type Application struct {
 	lastBlockHeader abci.Header
 	curBlockHeader  abci.Header
@@ -282,7 +284,7 @@ type Application struct {
 	blockindex.BlockIndexStore
 	CreateValidatorManager     ValidatorsManagerFactoryFunc
 	CreateChainConfigManager   ChainConfigManagerFactoryFunc
-	CreateCoinDeflationManager func(state State) (CoinDeflationManager, error)
+	CreateCoinDeflationManager CoinDeflationManagerFactoryFunc
 	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
