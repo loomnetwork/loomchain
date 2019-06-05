@@ -796,7 +796,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	}
 	if txResult.TxResult.Info == utils.CallEVM {
 		resp.To = resp.ContractAddress
-		resp.ContractAddress = eth.Data(nil)
+		resp.ContractAddress = eth.Data("")
 	}
 
 	return eth.EncTxReceipt(txReceipt), nil
