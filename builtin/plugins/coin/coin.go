@@ -73,6 +73,7 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	//Checks if Coin Policy Feature is enabled before loading Coin Monetary Supply Policy
 	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
 		deflationFactor := req.DeflationFactor
+		deflationFactorDecimals := req.DeflationFactorDecimals
 		if req.BaseMintingAmount <= 0 {
 			return InvalidBaseMintingAmount
 		}
@@ -80,7 +81,8 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		baseMintingAmount.Mul(baseMintingAmount, div)
 		mintingAddress := req.MintingAccount
 		policy := &Policy{
-			DeflationFactor: deflationFactor,
+			DeflationFactor:         deflationFactor,
+			DeflationFactorDecimals: deflationFactorDecimals,
 			BaseMintingAmount: &types.BigUInt{
 				Value: *baseMintingAmount,
 			},
@@ -222,7 +224,7 @@ func Mint(ctx contract.Context) error {
 	if err != nil {
 		return errUtil.Wrap(err, "Failed to Get PolicyInfo")
 	}
-	depreciation := loom.NewBigUIntFromInt(int64(policy.DeflationFactor * float64(ctx.Block().Height)))
+	depreciation := loom.NewBigUIntFromInt(int64((policy.DeflationFactor * uint64(ctx.Block().Height)) / policy.DeflationFactorDecimals))
 	amount := policy.BaseMintingAmount.Value
 	amount.Sub(&amount, depreciation)
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
