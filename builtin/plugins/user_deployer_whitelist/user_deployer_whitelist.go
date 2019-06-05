@@ -205,11 +205,14 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 	if req.UserAddr == nil {
 		return nil, ErrInvalidRequest
 	}
+	deployers := []*UserDeployerState{}
 	err := ctx.Get(UserStateKey(loom.UnmarshalAddressPB(req.UserAddr)), &userState)
 	if err != nil {
+		if err == contract.ErrNotFound {
+			return &GetUserDeployersResponse{}, nil
+		}
 		return nil, err
 	}
-	deployers := []*UserDeployerState{}
 	for _, deployerAddr := range userState.Deployers {
 		var userDeployerState UserDeployerState
 		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployerState)
@@ -235,6 +238,9 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	var userDeployer UserDeployerState
 	err := ctx.Get(DeployerStateKey(deployerAddr), &userDeployer)
 	if err != nil {
+		if err == contract.ErrNotFound {
+			return &GetDeployedContractsResponse{}, nil
+		}
 		return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 	}
 	return &GetDeployedContractsResponse{
