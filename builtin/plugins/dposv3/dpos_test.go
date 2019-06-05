@@ -2263,6 +2263,92 @@ func TestApplyPowerCap(t *testing.T) {
 	}
 }
 
+func TestDowntimeFunctions(t *testing.T) {
+	pctx := createCtx()
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(addr2, 1000000000000000000),
+		},
+	})
+
+	periodLength := uint64(12)
+	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          21,
+		RegistrationRequirement: registrationFee,
+		DowntimePeriod:          periodLength,
+	})
+	require.Nil(t, err)
+	dposCtx := pctx.WithAddress(dpos.Address)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	candidates, err := LoadCandidateList(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(candidates))
+
+	for i := int64(0); i < int64(periodLength * 4); i++ {
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+		require.Nil(t, err)
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	}
+
+	rec1, err := dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, periodLength, rec1.PeriodLength)
+	assert.Equal(t, []uint64{periodLength-1, periodLength, periodLength, periodLength}, rec1.Periods)
+	rec2, err := dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, periodLength, rec2.PeriodLength)
+	assert.Equal(t, []uint64{0,0,0,0}, rec2.Periods)
+
+	for i := int64(0); i < int64(periodLength); i++ {
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr2)
+		require.Nil(t, err)
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	}
+
+	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, []uint64{0, periodLength-1, periodLength, periodLength}, rec1.Periods)
+	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, []uint64{periodLength-1,1,0,0}, rec2.Periods)
+
+	ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates)
+
+	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, []uint64{0, 0, periodLength-1, periodLength}, rec1.Periods)
+	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, []uint64{0, periodLength-1, 1, 0}, rec2.Periods)
+
+	ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates)
+
+	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, []uint64{0, 0, 0, periodLength-1}, rec1.Periods)
+	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, []uint64{0, 0, periodLength-1, 1}, rec2.Periods)
+}
+
 // UTILITIES
 
 func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
