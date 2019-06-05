@@ -61,7 +61,7 @@ func (sr *StateDBReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []by
 	receiptState := store.PrefixKVReader(common.ReceiptPrefix, state)
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := types.EvmTxReceipt{}
-	if txReceiptProto == nil {
+	if txReceiptProto == nil || len(txReceiptProto) == 0 {
 		return txReceipt, common.ErrTxReceiptNotFound
 	}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)

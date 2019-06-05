@@ -10,7 +10,14 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	sha3 "github.com/miguelmota/go-solidity-sha3"
+	"github.com/phonkee/go-pubsub"
+	"github.com/pkg/errors"
+	abci "github.com/tendermint/tendermint/abci/types"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -32,12 +39,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	sha3 "github.com/miguelmota/go-solidity-sha3"
-	pubsub "github.com/phonkee/go-pubsub"
-	"github.com/pkg/errors"
-	abci "github.com/tendermint/tendermint/abci/types"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 const (
@@ -752,6 +753,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, err
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
+	snapshot.Release()
 	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
 		return resp, err
 	}
@@ -765,6 +767,22 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		}
 		resp = eth.TxObjToReceipt(txObj)
 
+		txResult, err := s.BlockStore.GetTxResult(txHash)
+		if err != nil || txResult == nil {
+			// return empty response if cannot find hash
+			resp.Status = eth.EncInt(StatusTxFail)
+			return resp, nil
+		}
+		if txResult.TxResult.Code == abci.CodeTypeOK {
+			resp.Status = eth.EncInt(StatusTxSuccess)
+		} else {
+			resp.Status = eth.EncInt(StatusTxFail)
+		}
+		if txResult.TxResult.Info == utils.CallEVM {
+			resp.To = resp.ContractAddress
+			resp.ContractAddress = eth.Data("")
+		}
+		return resp, nil
 	} else {
 		if len(txReceipt.Logs) > 0 {
 			height := int64(txReceipt.BlockNumber)
@@ -782,21 +800,6 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 			}
 		}
 		resp = eth.EncTxReceipt(txReceipt)
-	}
-	snapshot.Release()
-
-	txResult, err := s.BlockStore.GetTxResult(txHash)
-	if err != nil || txResult == nil {
-		return resp, nil
-	}
-	if txResult.TxResult.Code == abci.CodeTypeOK {
-		resp.Status = eth.EncInt(StatusTxSuccess)
-	} else {
-		resp.Status = eth.EncInt(StatusTxFail)
-	}
-	if txResult.TxResult.Info == utils.CallEVM {
-		resp.To = resp.ContractAddress
-		resp.ContractAddress = eth.Data("")
 	}
 
 	return eth.EncTxReceipt(txReceipt), nil
