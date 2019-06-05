@@ -18,16 +18,12 @@ var (
 type CoinDeflationManager struct {
 	ctx   contract.Context
 	state loomchain.State
-	owner loom.Address
 }
 
 // NewCoinDeflationManager attempts to create an instance of CoinDeflationManager.
 func NewCoinDeflationManager(pvm *PluginVM, state loomchain.State) (*CoinDeflationManager, error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("coin")
-	//Used to derive coin contract owner from contract registry
-	//Assumption coins will be minted to coin contract owner Address
-	rec, err := pvm.Registry.GetRecord(contractAddr)
 	if err != nil {
 		if err == regcommon.ErrNotFound {
 			return nil, ErrCoinContractNotFound
@@ -39,14 +35,13 @@ func NewCoinDeflationManager(pvm *PluginVM, state loomchain.State) (*CoinDeflati
 	return &CoinDeflationManager{
 		ctx:   ctx,
 		state: state,
-		owner: loom.UnmarshalAddressPB(rec.Owner),
 	}, nil
 }
 
 //MintCoins method of coin_deflation_Manager will be called from Block
 func (c *CoinDeflationManager) MintCoins(blockHeight int64) error {
 	if c.state.FeatureEnabled(loomchain.CoinDeflationManagerFeature, false) {
-		err := coin.MintByCDM(c.ctx, c.owner, blockHeight)
+		err := coin.MintByCDM(c.ctx,blockHeight)
 		if err != nil {
 			return err
 		}
