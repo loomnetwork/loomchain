@@ -20,6 +20,11 @@ type CoinPolicyManager struct {
 	state loomchain.State
 }
 
+func NewNoopCoinPolicyManager() *CoinPolicyManager {
+	var manager *CoinPolicyManager
+	return manager
+}
+
 // NewCoinPolicyManager attempts to create an instance of CoinPolicyManager.
 func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyManager, error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
@@ -40,11 +45,9 @@ func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyMana
 
 //MintCoins method of coin_deflation_Manager will be called from Block
 func (c *CoinPolicyManager) MintCoins() error {
-	if c.state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
-		err := coin.Mint(c.ctx)
-		if err != nil {
-			return err
-		}
+	err := coin.Mint(c.ctx)
+	if err != nil {
+		return err
 	}
 	return nil
 }
