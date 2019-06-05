@@ -231,7 +231,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	receiptHandler, err := handler.NewReceiptHandler(
-		handler.DefaultReceiptStorage,
+		handler.ReceiptHandlerLevelDb,
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
 		handler.DefaultMaxReceipts,
 		evmAuxStore,

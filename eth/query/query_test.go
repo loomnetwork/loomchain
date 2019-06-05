@@ -171,6 +171,7 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
+	ClearEvmAuxData()
 	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 
 	ClearEvmAuxData()
@@ -180,7 +181,6 @@ func TestGetLogs(t *testing.T) {
 func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
-	ClearEvmAuxData()
 
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)

@@ -91,12 +91,10 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 func TestTxPoll(t *testing.T) {
 	ClearEvmAuxData()
-	testLegacyTxPoll(t, handler.ReceiptHandlerChain)
-
-	ClearEvmAuxData()
 	testLegacyTxPoll(t, handler.ReceiptHandlerLevelDb)
 
-	testTxPoll(t, handler.ReceiptHandlerChain)
+	ClearEvmAuxData()
+	testTxPoll(t, handler.ReceiptHandlerLevelDb)
 
 	ClearEvmAuxData()
 	testTxPoll(t, handler.ReceiptHandlerLevelDb)
@@ -207,7 +205,8 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func TestTimeout(t *testing.T) {
-	testTimeout(t, handler.ReceiptHandlerChain)
+	ClearEvmAuxData()
+	testTimeout(t, handler.ReceiptHandlerLevelDb)
 
 	ClearEvmAuxData()
 	testTimeout(t, handler.ReceiptHandlerLevelDb)
