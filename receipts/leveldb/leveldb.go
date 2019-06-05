@@ -13,7 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -76,7 +76,7 @@ func WriteReceipt(
 }
 
 func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	txReceiptProto, err := lr.evmAuxStore.Get(txHash, nil)
+	txReceiptProto, err := lr.evmAuxStore.Get(txHash)
 	if err != nil {
 		return types.EvmTxReceipt{}, errors.Wrapf(err, "get receipt for %s", string(txHash))
 	}
@@ -87,11 +87,11 @@ func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error)
 
 type LevelDbReceipts struct {
 	MaxDbSize   uint64
-	evmAuxStore *store.EvmAuxStore
+	evmAuxStore *evmaux.EvmAuxStore
 	tran        *leveldb.Transaction
 }
 
-func NewLevelDbReceipts(evmAuxStore *store.EvmAuxStore, maxReceipts uint64) (*LevelDbReceipts, error) {
+func NewLevelDbReceipts(evmAuxStore *evmaux.EvmAuxStore, maxReceipts uint64) (*LevelDbReceipts, error) {
 	return &LevelDbReceipts{
 		MaxDbSize:   maxReceipts,
 		evmAuxStore: evmAuxStore,
@@ -116,7 +116,9 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		return errors.Wrap(err, "getting db params.")
 	}
 
-	lr.tran, err = lr.evmAuxStore.OpenTransaction()
+	db := lr.evmAuxStore.DB()
+
+	lr.tran, err = db.OpenTransaction()
 	if err != nil {
 		return errors.Wrap(err, "opening leveldb transaction")
 	}
@@ -263,8 +265,8 @@ func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]
 	return head, itemsDeleted, nil
 }
 
-func getDBParams(db *store.EvmAuxStore) (size uint64, head, tail []byte, err error) {
-	notEmpty, err := db.Has(currentDbSizeKey, nil)
+func getDBParams(db *evmaux.EvmAuxStore) (size uint64, head, tail []byte, err error) {
+	notEmpty, err := db.Has(currentDbSizeKey)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -272,7 +274,7 @@ func getDBParams(db *store.EvmAuxStore) (size uint64, head, tail []byte, err err
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	sizeB, err := db.Get(currentDbSizeKey, nil)
+	sizeB, err := db.Get(currentDbSizeKey)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -281,7 +283,7 @@ func getDBParams(db *store.EvmAuxStore) (size uint64, head, tail []byte, err err
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	head, err = db.Get(headKey, nil)
+	head, err = db.Get(headKey)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -289,7 +291,7 @@ func getDBParams(db *store.EvmAuxStore) (size uint64, head, tail []byte, err err
 		return 0, []byte{}, []byte{}, errors.New("no head for non zero size receipt db")
 	}
 
-	tail, err = db.Get(tailKey, nil)
+	tail, err = db.Get(tailKey)
 	if err != nil {
 		return size, head, tail, err
 	}

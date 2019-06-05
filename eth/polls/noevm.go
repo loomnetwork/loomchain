@@ -6,6 +6,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
 
 type EthSubscriptions struct {
@@ -23,28 +24,28 @@ func (s EthSubscriptions) AddTxPoll(_ uint64) string {
 	return ""
 }
 
-func (s *EthSubscriptions) LegacyPoll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string,
-	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) ([]byte, error) {
+func (s *EthSubscriptions) LegacyPoll(_ loomchain.ReadOnlyState, _ string,
+	_ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
 func (s *EthSubscriptions) Remove(_ string) {
 }
 
-func (s EthSubscriptions) Poll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string,
-	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) (interface{}, error) {
+func (s EthSubscriptions) Poll(_ loomchain.ReadOnlyState, _ string,
+	_ loomchain.ReadReceiptHandler) (interface{}, error) {
 	return nil, nil
 }
 
-func (s EthSubscriptions) AllLogs(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string,
-	_ loomchain.ReadReceiptHandler, _ *store.EvmAuxStore) (interface{}, error) {
+func (s EthSubscriptions) AllLogs(_ loomchain.ReadOnlyState, _ string,
+	_ loomchain.ReadReceiptHandler) (interface{}, error) {
 	return nil, nil
 }
 
-func (s EthSubscriptions) AddLogPoll(_ eth.EthFilter, _ uint64, _ *store.EvmAuxStore) (string, error) {
+func (s EthSubscriptions) AddLogPoll(_ eth.EthFilter, _ uint64) (string, error) {
 	return "", nil
 }
 
-func NewEthSubscriptions() *EthSubscriptions {
+func NewEthSubscriptions(_ *evmaux.EvmAuxStore, _ store.BlockStore) *EthSubscriptions {
 	return &EthSubscriptions{}
 }

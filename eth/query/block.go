@@ -16,6 +16,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
 
 const (
@@ -34,7 +35,7 @@ func GetBlockByNumber(
 	height int64,
 	full bool,
 	readReceipts loomchain.ReadReceiptHandler,
-	evmAuxStore *store.EvmAuxStore,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
 	if height > state.Block().Height {
@@ -238,7 +239,7 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 
 func DeprecatedGetBlockByNumber(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	var blockresult *ctypes.ResultBlock
 	iHeight := height
@@ -306,7 +307,7 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 
 func DeprecatedGetBlockByHash(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte, full bool,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64

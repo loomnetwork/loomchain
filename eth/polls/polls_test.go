@@ -37,14 +37,15 @@ func TestLogPoll(t *testing.T) {
 }
 
 func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+	ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
+	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	require.NoError(t, err)
-
-	sub := NewEthSubscriptions()
+	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	allFilter := eth.JsonFilter{
 		FromBlock: "earliest",
 		ToBlock:   "pending",
@@ -56,11 +57,9 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	id, err := sub.AddLogPoll(ethFilter, 1)
 	require.NoError(t, err)
 
-	blockStore := store.NewMockBlockStore()
 	state5 := common.MockStateAt(state, uint64(5))
-	result, err := sub.LegacyPoll(blockStore, state5, id, receiptHandler, evmAuxStore)
+	result, err := sub.LegacyPoll(state5, id, receiptHandler)
 	require.NoError(t, err)
-
 	var envolope types.EthFilterEnvelope
 	var logs *types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -68,9 +67,8 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 1, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
-
 	state40 := common.MockStateAt(state, uint64(40))
-	result, err = sub.LegacyPoll(blockStore, state40, id, receiptHandler, evmAuxStore)
+	result, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -81,23 +79,22 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.LegacyPoll(blockStore, state50, id, receiptHandler, evmAuxStore)
+	result, err = sub.LegacyPoll(state50, id, receiptHandler)
 	require.NoError(t, err)
-
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
-
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(blockStore, state60, id, receiptHandler, evmAuxStore)
+	result, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 	evmAuxStore.ClearData()
 }
 
 func TestTxPoll(t *testing.T) {
+	ClearEvmAuxData()
 	testLegacyTxPoll(t, handler.ReceiptHandlerChain)
 
 	_ = os.RemoveAll(leveldb.Db_Filename)
@@ -114,22 +111,23 @@ func TestTxPoll(t *testing.T) {
 }
 
 func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+	ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
+	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	require.NoError(t, err)
 
-	sub := NewEthSubscriptions()
+	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler)
 	id := sub.AddTxPoll(uint64(5))
 
-	blockStore := store.NewMockBlockStore()
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.LegacyPoll(blockStore, state27, id, receiptHandler, evmAuxStore)
+	result, err := sub.LegacyPoll(state27, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -138,7 +136,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.LegacyPoll(blockStore, state50, id, receiptHandler, evmAuxStore)
+	result, err = sub.LegacyPoll(state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -148,27 +146,28 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(blockStore, state60, id, receiptHandler, evmAuxStore)
+	result, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
+	evmAuxStore.ClearData()
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+	ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
+	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	require.NoError(t, err)
 
-	sub := NewEthSubscriptions()
+	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler)
 	id := sub.AddTxPoll(uint64(5))
 
-	blockStore := store.NewMockBlockStore()
-
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.Poll(blockStore, state27, id, receiptHandler, evmAuxStore)
+	result, err := sub.Poll(state27, id, receiptHandler)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok := result.([]eth.Data)
@@ -176,7 +175,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(data), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.Poll(blockStore, state50, id, receiptHandler, evmAuxStore)
+	result, err = sub.Poll(state50, id, receiptHandler)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -184,7 +183,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 1, len(data), "wrong number of logs returned")
 
 	state105 := common.MockStateAt(state, uint64(105))
-	result, err = sub.Poll(blockStore, state105, id, receiptHandler, evmAuxStore)
+	result, err = sub.Poll(state105, id, receiptHandler)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -192,7 +191,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 5, len(data), "wrong number of logs returned")
 
 	state115 := common.MockStateAt(state, uint64(115))
-	result, err = sub.Poll(blockStore, state115, id, receiptHandler, evmAuxStore)
+	result, err = sub.Poll(state115, id, receiptHandler)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -200,7 +199,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 10, len(data), "wrong number of logs returned")
 
 	state140 := common.MockStateAt(state, uint64(140))
-	result, err = sub.Poll(blockStore, state140, id, receiptHandler, evmAuxStore)
+	result, err = sub.Poll(state140, id, receiptHandler)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -209,9 +208,10 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state220 := common.MockStateAt(state, uint64(220))
 	sub.Remove(id)
-	result, err = sub.Poll(blockStore, state220, id, receiptHandler, evmAuxStore)
+	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
+	evmAuxStore.ClearData()
 }
 
 func TestTimeout(t *testing.T) {
@@ -224,8 +224,10 @@ func TestTimeout(t *testing.T) {
 }
 
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
+	ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
+	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
@@ -233,7 +235,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NoError(t, err)
 
 	BlockTimeout = 10
-	sub := NewEthSubscriptions()
+	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler)
 
 	var envolope types.EthFilterEnvelope
@@ -243,8 +245,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state5 := common.MockStateAt(state, uint64(5))
 	_ = sub.AddTxPoll(uint64(5))
 
-	blockStore := store.NewMockBlockStore()
-	result, err := sub.LegacyPoll(blockStore, state5, id, receiptHandler, evmAuxStore)
+	result, err := sub.LegacyPoll(state5, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -254,7 +255,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state12 := common.MockStateAt(state, uint64(12))
 	_ = sub.AddTxPoll(uint64(12))
 
-	result, err = sub.LegacyPoll(blockStore, state12, id, receiptHandler, evmAuxStore)
+	result, err = sub.LegacyPoll(state12, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -264,9 +265,10 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.LegacyPoll(blockStore, state40, id, receiptHandler, evmAuxStore)
+	result, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
+	evmAuxStore.ClearData()
 }
 
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
@@ -343,7 +345,10 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 }
 
 func TestAddRemove(t *testing.T) {
-	s := NewEthSubscriptions()
+	evmAuxStore, err := common.MockEvmAuxStore()
+	require.NoError(t, err)
+	blockStore := store.NewMockBlockStore()
+	s := NewEthSubscriptions(evmAuxStore, blockStore)
 
 	jsonFilter := eth.JsonFilter{
 		FromBlock: "0x0",
@@ -360,4 +365,9 @@ func TestAddRemove(t *testing.T) {
 	s.Remove(id)
 	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
+}
+
+func ClearEvmAuxData() {
+	evmAuxStore, _ := common.MockEvmAuxStore()
+	evmAuxStore.ClearData()
 }

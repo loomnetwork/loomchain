@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
 	goleveldb "github.com/syndtr/goleveldb/leveldb"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -72,11 +73,11 @@ func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
 	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
 }
 
-func MockEvmAuxStore() (*store.EvmAuxStore, error) {
+func MockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
 	evmAuxDB, err := goleveldb.OpenFile(Db_Filename, nil)
 	if err != nil {
 		return nil, err
 	}
-	evmAuxStore := store.NewEvmAuxStore(evmAuxDB)
+	evmAuxStore := evmaux.NewEvmAuxStore(evmAuxDB)
 	return evmAuxStore, nil
 }

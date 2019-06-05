@@ -30,6 +30,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
@@ -115,7 +116,7 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	*store.EvmAuxStore
+	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
@@ -620,7 +621,7 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	return s.EthPolls.LegacyPoll(s.BlockStore, snapshot, id, r, s.EvmAuxStore)
+	return s.EthPolls.LegacyPoll(snapshot, id, r)
 }
 
 // Forget the filter.
@@ -984,7 +985,7 @@ func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) 
 	}
 
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.Poll(s.BlockStore, state, string(id), r, s.EvmAuxStore)
+	return s.EthPolls.Poll(state, string(id), r)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
@@ -999,7 +1000,7 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.EthPolls.AllLogs(s.BlockStore, state, string(id), r, s.EvmAuxStore)
+	return s.EthPolls.AllLogs(state, string(id), r)
 }
 
 // Sets up new filter for polling

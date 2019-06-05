@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
@@ -276,7 +277,7 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
-	EvmAuxStore *store.EvmAuxStore
+	EvmAuxStore *evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
 	CreateChainConfigManager ChainConfigManagerFactoryFunc

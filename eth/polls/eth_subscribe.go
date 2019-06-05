@@ -5,6 +5,8 @@ package polls
 import (
 	"fmt"
 
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
+
 	"github.com/loomnetwork/loomchain/store"
 
 	"github.com/loomnetwork/loomchain"
@@ -17,27 +19,28 @@ var (
 )
 
 type EthPoll interface {
-	AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
-		readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (interface{}, error)
-	Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
-		readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (EthPoll, interface{}, error)
-	LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
-		readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (EthPoll, []byte, error)
+	AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error)
+	Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error)
+	LegacyPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error)
 }
 
 type EthSubscriptions struct {
 	polls map[string]EthPoll
 
-	lastPoll   map[string]uint64
-	timestamps map[uint64][]string
-	lastPrune  uint64
+	lastPoll    map[string]uint64
+	timestamps  map[uint64][]string
+	lastPrune   uint64
+	evmAuxStore *evmaux.EvmAuxStore
+	blockStore  store.BlockStore
 }
 
-func NewEthSubscriptions() *EthSubscriptions {
+func NewEthSubscriptions(evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore) *EthSubscriptions {
 	p := &EthSubscriptions{
-		polls:      make(map[string]EthPoll),
-		lastPoll:   make(map[string]uint64),
-		timestamps: make(map[uint64][]string),
+		polls:       make(map[string]EthPoll),
+		lastPoll:    make(map[string]uint64),
+		timestamps:  make(map[uint64][]string),
+		evmAuxStore: evmAuxStore,
+		blockStore:  blockStore,
 	}
 	return p
 }
@@ -80,11 +83,13 @@ func (s EthSubscriptions) AddLogPoll(filter eth.EthFilter, height uint64) (strin
 	return s.Add(&EthLogPoll{
 		filter:        filter,
 		lastBlockRead: uint64(0),
+		blockStore:    s.blockStore,
+		evmAuxStore:   s.evmAuxStore,
 	}, height), nil
 }
 
 func (s EthSubscriptions) LegacyAddLogPoll(filter string, height uint64) (string, error) {
-	newPoll, err := NewEthLogPoll(filter)
+	newPoll, err := NewEthLogPoll(filter, s.evmAuxStore, s.blockStore)
 	if err != nil {
 		return "", err
 	}
@@ -92,40 +97,40 @@ func (s EthSubscriptions) LegacyAddLogPoll(filter string, height uint64) (string
 }
 
 func (s EthSubscriptions) AddBlockPoll(height uint64) string {
-	return s.Add(NewEthBlockPoll(height), height)
+	return s.Add(NewEthBlockPoll(height, s.evmAuxStore, s.blockStore), height)
 }
 
 func (s EthSubscriptions) AddTxPoll(height uint64) string {
-	return s.Add(NewEthTxPoll(height), height)
+	return s.Add(NewEthTxPoll(height, s.evmAuxStore, s.blockStore), height)
 }
 
-func (s EthSubscriptions) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (interface{}, error) {
+func (s EthSubscriptions) AllLogs(state loomchain.ReadOnlyState, id string,
+	readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		return poll.AllLogs(blockStore, state, id, readReceipts, evmAuxStore)
+		return poll.AllLogs(state, id, readReceipts)
 	}
 }
 
-func (s EthSubscriptions) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) (interface{}, error) {
+func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string,
+	readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		newPoll, result, err := poll.Poll(blockStore, state, id, readReceipts, evmAuxStore)
+		newPoll, result, err := poll.Poll(state, id, readReceipts)
 		s.polls[id] = newPoll
 		s.resetTimestamp(id, uint64(state.Block().Height))
 		return result, err
 	}
 }
 
-func (s EthSubscriptions) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore) ([]byte, error) {
+func (s EthSubscriptions) LegacyPoll(state loomchain.ReadOnlyState, id string,
+	readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		newPoll, result, err := poll.LegacyPoll(blockStore, state, id, readReceipts, evmAuxStore)
+		newPoll, result, err := poll.LegacyPoll(state, id, readReceipts)
 		s.polls[id] = newPoll
 		s.resetTimestamp(id, uint64(state.Block().Height))
 		return result, err

@@ -11,7 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
-	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 )
 
@@ -52,7 +52,7 @@ type ReceiptHandler struct {
 }
 
 func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler,
-	maxReceipts uint64, evmAuxStore *store.EvmAuxStore) (*ReceiptHandler, error) {
+	maxReceipts uint64, evmAuxStore *evmaux.EvmAuxStore) (*ReceiptHandler, error) {
 	rh := &ReceiptHandler{
 		v:              version,
 		eventHandler:   eventHandler,

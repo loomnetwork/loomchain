@@ -14,12 +14,13 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func QueryChain(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
 	if err != nil {
@@ -35,7 +36,7 @@ func QueryChain(
 
 func DeprecatedQueryChain(
 	query string, blockStore store.BlockStore, state loomchain.ReadOnlyState,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *store.EvmAuxStore,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
@@ -64,7 +65,7 @@ func GetBlockLogRange(
 	from, to uint64,
 	ethFilter eth.EthBlockFilter,
 	readReceipts loomchain.ReadReceiptHandler,
-	evmAuxStore *store.EvmAuxStore,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
 		return nil, fmt.Errorf("to block before end block")
@@ -87,11 +88,10 @@ func GetBlockLogs(
 	ethFilter eth.EthBlockFilter,
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,
-	evmAuxStore *store.EvmAuxStore,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 
 	bloomFilter := evmAuxStore.GetBloomFilter(height)
-
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
 			txHashList, err := evmAuxStore.GetTxHashList(height)

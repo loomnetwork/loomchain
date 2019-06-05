@@ -10,7 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
 )
 
@@ -140,7 +140,7 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 		if previous.Receipt != nil {
 			require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.NextTxHash))
 		}
-		txReceiptItemProto, err := handler.evmAuxStore.Get(receipts[i].TxHash, nil)
+		txReceiptItemProto, err := handler.evmAuxStore.Get(receipts[i].TxHash)
 		require.NoError(t, err)
 		require.NoError(t, proto.Unmarshal(txReceiptItemProto, &previous))
 		require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.Receipt.TxHash))
@@ -196,8 +196,9 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 }
 
 //nolint:deadcode
-func dumpDbEntries(db *store.EvmAuxStore) error {
+func dumpDbEntries(evmAuxStore *evmaux.EvmAuxStore) error {
 	fmt.Println("\nDumping leveldb")
+	db := evmAuxStore.DB()
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
 	for iter.Next() {
@@ -207,8 +208,9 @@ func dumpDbEntries(db *store.EvmAuxStore) error {
 	return iter.Error()
 }
 
-func countDbEntries(db *store.EvmAuxStore) (uint64, error) {
+func countDbEntries(evmAuxStore *evmaux.EvmAuxStore) (uint64, error) {
 	count := uint64(0)
+	db := evmAuxStore.DB()
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
 	for iter.Next() {

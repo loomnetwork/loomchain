@@ -1,4 +1,4 @@
-package store
+package evmaux
 
 import (
 	"encoding/binary"
@@ -32,15 +32,31 @@ func BlockHeightToBytes(height uint64) []byte {
 }
 
 type EvmAuxStore struct {
-	*leveldb.DB
+	db *leveldb.DB
 }
 
 func NewEvmAuxStore(db *leveldb.DB) *EvmAuxStore {
-	return &EvmAuxStore{DB: db}
+	return &EvmAuxStore{db: db}
 }
 
-func (s EvmAuxStore) GetBloomFilter(height uint64) []byte {
-	filter, err := s.Get(bloomFilterKey(height), nil)
+func (s *EvmAuxStore) Get(key []byte) ([]byte, error) {
+	return s.db.Get(key, nil)
+}
+
+func (s *EvmAuxStore) Set(key, val []byte) error {
+	return s.db.Put(key, val, nil)
+}
+
+func (s *EvmAuxStore) Has(key []byte) (bool, error) {
+	return s.db.Has(key, nil)
+}
+
+func (s *EvmAuxStore) Close() error {
+	return s.db.Close()
+}
+
+func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {
+	filter, err := s.db.Get(bloomFilterKey(height), nil)
 	if err != nil {
 		return nil
 	}
@@ -48,7 +64,7 @@ func (s EvmAuxStore) GetBloomFilter(height uint64) []byte {
 }
 
 func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
-	protHashList, err := s.Get(evmTxHashKey(height), nil)
+	protHashList, err := s.db.Get(evmTxHashKey(height), nil)
 	if err != nil && err != leveldb.ErrNotFound {
 		return nil, err
 	}
@@ -76,6 +92,9 @@ func (s *EvmAuxStore) AppendTxHashList(tran *leveldb.Transaction, txHash [][]byt
 	return nil
 }
 
+func (s *EvmAuxStore) DB() *leveldb.DB {
+	return s.db
+}
 func (s *EvmAuxStore) ClearData() {
 	os.RemoveAll(Db_Filename)
 }

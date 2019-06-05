@@ -5,7 +5,7 @@ import (
 	legacy_v1 "github.com/loomnetwork/loomchain/receipts/chain/v1"
 	legacy_v2 "github.com/loomnetwork/loomchain/receipts/chain/v2"
 	"github.com/loomnetwork/loomchain/receipts/handler"
-	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 )
 
@@ -23,12 +23,12 @@ type ReceiptHandlerProvider struct {
 	eventHandler loomchain.EventHandler
 	resolveCfg   ResolveReceiptHandlerCfg
 	handler      ReceiptReaderWriter
-	evmAuxStore  *store.EvmAuxStore
+	evmAuxStore  *evmaux.EvmAuxStore
 }
 
 func NewReceiptHandlerProvider(
 	eventHandler loomchain.EventHandler, resolveCfg ResolveReceiptHandlerCfg,
-	evmAuxStore *store.EvmAuxStore,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) *ReceiptHandlerProvider {
 	return &ReceiptHandlerProvider{
 		eventHandler: eventHandler,

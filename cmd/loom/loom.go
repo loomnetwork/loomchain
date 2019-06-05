@@ -67,6 +67,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
@@ -713,12 +714,12 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 	return evmStore, nil
 }
 
-func loadEvmAuxStore() (*store.EvmAuxStore, error) {
+func loadEvmAuxStore() (*evmaux.EvmAuxStore, error) {
 	evmAuxDB, err := goleveldb.OpenFile(evmAuxDBName, nil)
 	if err != nil {
 		return nil, err
 	}
-	return store.NewEvmAuxStore(evmAuxDB), nil
+	return evmaux.NewEvmAuxStore(evmAuxDB), nil
 }
 
 func loadApp(
@@ -1282,7 +1283,7 @@ func initQueryService(
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
 		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
-		EthPolls:               *polls.NewEthSubscriptions(),
+		EthPolls:               *polls.NewEthSubscriptions(app.EvmAuxStore, blockstore),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
