@@ -260,7 +260,7 @@ type ChainConfigManager interface {
 }
 
 type CoinPolicyManager interface {
-	MintCoins(blockHeight int64) error
+	MintCoins() error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -451,7 +451,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	if coinPolicyManager != nil {
-		if err := coinPolicyManager.MintCoins(a.height()); err != nil {
+		if err := coinPolicyManager.MintCoins(); err != nil {
 			panic(err)
 		}
 	}

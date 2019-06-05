@@ -38,10 +38,10 @@ func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyMana
 	}, nil
 }
 
-//MintCoins method of coin_policy_manager will be called from Block
-func (c *CoinPolicyManager) MintCoins(blockHeight int64) error {
+//MintCoins method of coin_deflation_Manager will be called from Block
+func (c *CoinPolicyManager) MintCoins() error {
 	if c.state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
-		err := coin.MintByCDM(c.ctx,blockHeight)
+		err := coin.Mint(c.ctx)
 		if err != nil {
 			return err
 		}

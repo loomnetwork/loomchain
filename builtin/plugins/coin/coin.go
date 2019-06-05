@@ -213,13 +213,13 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 }
 
 //Mint : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
-func Mint(ctx contract.Context, blockHeight int64) error {
+func Mint(ctx contract.Context) error {
 	var policy Policy
 	err := ctx.Get(policyKey, &policy)
 	if err != nil {
 		return errUtil.Wrap(err, "Failed to Get PolicyInfo")
 	}
-	depreciation := loom.NewBigUIntFromInt(int64(policy.DeflationFactor * float64(blockHeight)))
+	depreciation := loom.NewBigUIntFromInt(int64(policy.DeflationFactor * float64(ctx.Block().Height)))
 	amount := policy.BaseMintingAmount.Value
 	amount.Sub(&amount, depreciation)
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
@@ -227,20 +227,16 @@ func Mint(ctx contract.Context, blockHeight int64) error {
 
 //ModifyMintParameter Method to modify deflation parameter, only callable by manager,
 // when feature flag is going to be enabled
-func ModifyMintParameter(ctx contract.Context, deflationFactor float64) error {
-	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
-		var policy Policy
-		err := ctx.Get(policyKey, &policy)
-		if err != nil {
-			return errUtil.Wrap(err, "Failed to Get PolicyInfo")
-		}
-		policy.DeflationFactor = deflationFactor
-		err = ctx.Set(policyKey, &policy)
-		if err != nil {
-			return err
-		}
+func ModifyMintParameter(ctx contract.Context, policy ctypes.Policy) error {
+	if policy.MintingAccount == nil || policy.BaseMintingAmount == nil {
+		return errors.New("MintingAccount or BaseMintingAmount is not given")
+	}
+	err := ctx.Set(policyKey, &policy)
+	if err != nil {
+		return err
 	}
 	return nil
+
 }
 
 // ERC20 methods
