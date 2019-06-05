@@ -1,9 +1,6 @@
 package rpc
 
 import (
-	"encoding/hex"
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/gogo/protobuf/proto"
@@ -55,7 +52,6 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadca
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("from mock", hex.EncodeToString(from))
 	mt.txs = append([]EthTxInfo{{ethTx, common.BytesToAddress(from)}}, mt.txs...)
 	return &ctypes.ResultBroadcastTx{}, nil
 }

@@ -4,7 +4,6 @@ package rpc
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"net/http/httptest"
 	"strings"
@@ -75,19 +74,15 @@ func TestTendermintPRCFunc(t *testing.T) {
 
 		local, err := types.Sender(signer, tx)
 		require.NoError(t, err)
-		fmt.Println("top sender", local.String())
-
 		inData, err := tx.MarshalJSON()
 
 		payload := `{"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["` + eth.EncBytes(inData) + `"],"id":99}`
-		fmt.Println("payload", payload)
 		req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(string(payload)))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		require.Equal(t, 200, rec.Result().StatusCode)
 
 		require.NoError(t, err)
-		fmt.Println("from mt sender", mt.txs[0].From.String())
 		require.Equal(t, 0, bytes.Compare(local.Bytes(), mt.txs[0].From.Bytes()))
 		compareTxs(t, testTx.tx, mt.txs[0].Tx)
 	}
