@@ -34,20 +34,20 @@ type (
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
-	DeflationInfo        = ctypes.DeflationInfo
+	Policy               = ctypes.Policy
 
 	BurnRequest = ctypes.BurnRequest
 )
 
 var (
-	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ErrSenderBalanceTooLow   = errors.New("sender balance is too low")
 	InvalidBaseMintingAmount = errors.New("Base Minting Amount cannot be less than equal to zero")
 )
 
 var (
-	economyKey       = []byte("economy")
-	deflationInfoKey = []byte("deflation")
-	decimals         = 18
+	economyKey = []byte("economy")
+	policyKey  = []byte("policy")
+	decimals   = 18
 )
 
 func accountKey(addr loom.Address) []byte {
@@ -77,13 +77,15 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	}
 	baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
 	baseMintingAmount.Mul(baseMintingAmount, div)
-	deflation := &DeflationInfo{
+	mintingAddress := req.MintingAccount
+	policy := &Policy{
 		DeflationFactor: deflationFactor,
 		BaseMintingAmount: &types.BigUInt{
 			Value: *baseMintingAmount,
 		},
+		MintingAccount: mintingAddress,
 	}
-	err := ctx.Set(deflationInfoKey, deflation)
+	err := ctx.Set(policyKey, policy)
 	if err != nil {
 		return err
 	}
@@ -211,29 +213,29 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 }
 
 //MintByCDM : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
-func MintByCDM(ctx contract.Context, to loom.Address,blockHeight int64) error {
-	var deflationInfo DeflationInfo
-	err := ctx.Get(deflationInfoKey, &deflationInfo)
+func MintByCDM(ctx contract.Context, blockHeight int64) error {
+	var policy Policy
+	err := ctx.Get(policyKey, &policy)
 	if err != nil {
-		return errUtil.Wrap(err, "Failed to Get DeflationInfo")
+		return errUtil.Wrap(err, "Failed to Get PolicyInfo")
 	}
-	depreciation := loom.NewBigUIntFromInt(int64(deflationInfo.DeflationFactor * float64(blockHeight)))
-	amount := deflationInfo.BaseMintingAmount.Value
+	depreciation := loom.NewBigUIntFromInt(int64(policy.DeflationFactor * float64(blockHeight)))
+	amount := policy.BaseMintingAmount.Value
 	amount.Sub(&amount, depreciation)
-	return mint(ctx, to, &amount)
+	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
 }
 
 //MintDeflationModifyByCDM Method to modify deflation parameter, only callable by manager,
 // when feature flag is going to be enabled
 func MintDeflationModifyByCDM(ctx contract.Context, deflationFactor float64) error {
-	if ctx.FeatureEnabled(loomchain.CoinDeflationManagerFeature, false) {
-		var deflationInfo DeflationInfo
-		err := ctx.Get(deflationInfoKey, &deflationInfo)
+	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
+		var policy Policy
+		err := ctx.Get(policyKey, &policy)
 		if err != nil {
-			return errUtil.Wrap(err, "Failed to Get DeflationInfo")
+			return errUtil.Wrap(err, "Failed to Get PolicyInfo")
 		}
-		deflationInfo.DeflationFactor = deflationFactor
-		err = ctx.Set(deflationInfoKey, &deflationInfo)
+		policy.DeflationFactor = deflationFactor
+		err = ctx.Set(policyKey, &policy)
 		if err != nil {
 			return err
 		}
