@@ -35,8 +35,7 @@ type (
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
 	Policy               = ctypes.Policy
-
-	BurnRequest = ctypes.BurnRequest
+	BurnRequest          = ctypes.BurnRequest
 )
 
 var (
@@ -71,23 +70,26 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-	deflationFactor := req.DeflationFactor
-	if req.BaseMintingAmount <= 0 {
-		return InvalidBaseMintingAmount
-	}
-	baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
-	baseMintingAmount.Mul(baseMintingAmount, div)
-	mintingAddress := req.MintingAccount
-	policy := &Policy{
-		DeflationFactor: deflationFactor,
-		BaseMintingAmount: &types.BigUInt{
-			Value: *baseMintingAmount,
-		},
-		MintingAccount: mintingAddress,
-	}
-	err := ctx.Set(policyKey, policy)
-	if err != nil {
-		return err
+	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
+		deflationFactor := req.DeflationFactor
+		if req.BaseMintingAmount <= 0 {
+			return InvalidBaseMintingAmount
+		}
+		baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
+		baseMintingAmount.Mul(baseMintingAmount, div)
+		mintingAddress := req.MintingAccount
+		policy := &Policy{
+			DeflationFactor: deflationFactor,
+			BaseMintingAmount: &types.BigUInt{
+				Value: *baseMintingAmount,
+			},
+			MintingAccount: mintingAddress,
+		}
+		err := ctx.Set(policyKey, policy)
+		if err != nil {
+			return err
+		}
+
 	}
 	supply := loom.NewBigUIntFromInt(0)
 	for _, initAcct := range req.Accounts {
