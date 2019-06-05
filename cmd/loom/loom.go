@@ -1098,12 +1098,12 @@ func loadApp(
 		return m, nil
 	}
 
-	createCoinDeflationManager := func(state loomchain.State) (loomchain.CoinDeflationManager, error) {
+	createCoinDeflationManager := func(state loomchain.State) (loomchain.CoinPolicyManager, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-		m, err := plugin.NewCoinDeflationManager(pvm.(*plugin.PluginVM), state)
+		m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state)
 		if err != nil {
 			return nil, err
 		}
@@ -1146,7 +1146,7 @@ func loadApp(
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
-		CreateCoinDeflationManager:  createCoinDeflationManager,
+		CreateCoinPolicyManager:     createCoinDeflationManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,

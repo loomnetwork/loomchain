@@ -259,7 +259,7 @@ type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 }
 
-type CoinDeflationManager interface {
+type CoinPolicyManager interface {
 	MintCoins() error
 }
 
@@ -269,7 +269,7 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
 type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
-type CoinDeflationManagerFactoryFunc func(state State) (CoinDeflationManager, error)
+type CoinPolicyManagerFactoryFunc func(state State) (CoinPolicyManager, error)
 
 type Application struct {
 	lastBlockHeader abci.Header
@@ -284,7 +284,7 @@ type Application struct {
 	blockindex.BlockIndexStore
 	CreateValidatorManager     ValidatorsManagerFactoryFunc
 	CreateChainConfigManager   ChainConfigManagerFactoryFunc
-	CreateCoinDeflationManager CoinDeflationManagerFactoryFunc
+	CreateCoinPolicyManager CoinPolicyManagerFactoryFunc
 	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
@@ -445,13 +445,13 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		}
 	}
 
-	coinDeflationManager, err := a.CreateCoinDeflationManager(state)
+	coinPolicyManager, err := a.CreateCoinPolicyManager(state)
 	if err != nil {
 		panic(err)
 	}
 
-	if coinDeflationManager != nil {
-		if err := coinDeflationManager.MintCoins(); err != nil {
+	if coinPolicyManager != nil {
+		if err := coinPolicyManager.MintCoins(); err != nil {
 			panic(err)
 		}
 	}
