@@ -98,5 +98,3 @@ func compareTxs(t *testing.T, tx1, tx2 *types.Transaction) {
 	}
 	require.Equal(t, 0, tx1.Value().Cmp(tx2.Value()))
 }
-
-/**/

@@ -89,5 +89,4 @@ func tendermintToEthereumTx(tmTx types.Tx) (*etypes.Transaction, error) {
 		return nil, err
 	}
 	return &tx, nil
-
 }

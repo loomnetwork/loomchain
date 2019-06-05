@@ -154,5 +154,3 @@ func ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
 
 	return proto.Marshal(signedTx)
 }
-
-/**/
