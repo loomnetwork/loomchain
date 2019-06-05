@@ -1284,7 +1284,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 		return err
 	}
 
-	if (uint64(currentHeight) % state.Params.DowntimePeriod) == 0 {
+	if state.Params.DowntimePeriod != 0 && (uint64(currentHeight) % state.Params.DowntimePeriod) == 0 {
 		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
 
 		for _, candidate := range candidates {
