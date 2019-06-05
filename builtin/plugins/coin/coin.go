@@ -70,6 +70,7 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+	//Checks if Coin Policy Feature is enabled before loading Coin Monetary Supply Policy
 	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
 		deflationFactor := req.DeflationFactor
 		if req.BaseMintingAmount <= 0 {
