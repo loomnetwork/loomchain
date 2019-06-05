@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	Db_Filename  = "receipts_db"
+	EvmAuxDBName = "receipts_db"
+
 	BloomPrefix  = []byte("bloomFilter")
 	TxHashPrefix = []byte("txHash")
 )
@@ -96,5 +97,5 @@ func (s *EvmAuxStore) DB() *leveldb.DB {
 	return s.db
 }
 func (s *EvmAuxStore) ClearData() {
-	os.RemoveAll(Db_Filename)
+	os.RemoveAll(EvmAuxDBName)
 }

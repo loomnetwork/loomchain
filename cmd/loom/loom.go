@@ -83,10 +83,6 @@ var (
 	appHeightKey = []byte("appheight")
 )
 
-const (
-	evmAuxDBName = "receipts_db"
-)
-
 var RootCmd = &cobra.Command{
 	Use:   "loom",
 	Short: "Loom DAppChain",
@@ -715,7 +711,7 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 }
 
 func loadEvmAuxStore() (*evmaux.EvmAuxStore, error) {
-	evmAuxDB, err := goleveldb.OpenFile(evmAuxDBName, nil)
+	evmAuxDB, err := goleveldb.OpenFile(evmaux.EvmAuxDBName, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -15,10 +15,6 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-const (
-	Db_Filename = "receipts_db"
-)
-
 func MakeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
 	var dummies []*types.EvmTxReceipt
 	for i := uint64(0); i < num; i++ {
@@ -74,7 +70,7 @@ func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
 }
 
 func MockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
-	evmAuxDB, err := goleveldb.OpenFile(Db_Filename, nil)
+	evmAuxDB, err := goleveldb.OpenFile(evmaux.EvmAuxDBName, nil)
 	if err != nil {
 		return nil, err
 	}

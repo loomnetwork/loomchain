@@ -717,18 +717,10 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 		return resp, err
 	}
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(
-		snapshot.Block().Height,
-		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-	)
-	if err != nil {
-		return resp, err
-	}
-
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r, s.EvmAuxStore)
+	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
 	if err != nil {
 		return resp, err
 	}
@@ -841,14 +833,7 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	r, err := s.ReceiptHandlerProvider.ReaderAt(
-		snapshot.Block().Height,
-		snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-	)
-	if err != nil {
-		return resp, err
-	}
-	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r, s.EvmAuxStore)
+	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash

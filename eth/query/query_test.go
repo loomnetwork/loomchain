@@ -4,7 +4,6 @@ package query
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/loomnetwork/loomchain/events"
@@ -12,7 +11,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -36,13 +34,12 @@ var (
 
 func TestQueryChain(t *testing.T) {
 	testQueryChain(t, handler.ReceiptHandlerLevelDb)
-	os.RemoveAll(leveldb.Db_Filename)
-	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
+	ClearEvmAuxData()
 	testQueryChain(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
+	ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
 	eventDispatcher := events.NewLogEventDispatcher()
@@ -176,18 +173,14 @@ func TestMatchFilters(t *testing.T) {
 func TestGetLogs(t *testing.T) {
 	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 
-	os.RemoveAll(leveldb.Db_Filename)
-	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
+	ClearEvmAuxData()
 	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
-	os.RemoveAll(leveldb.Db_Filename)
-	_, err = os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
+	ClearEvmAuxData()
 
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -248,4 +241,9 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
 	require.NoError(t, receiptHandler.Close())
+}
+
+func ClearEvmAuxData() {
+	evmAuxStore, _ := common.MockEvmAuxStore()
+	evmAuxStore.ClearData()
 }

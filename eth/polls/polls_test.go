@@ -3,7 +3,6 @@
 package polls
 
 import (
-	"os"
 	"strconv"
 	"testing"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,9 +28,7 @@ var (
 func TestLogPoll(t *testing.T) {
 	testLogPoll(t, handler.ReceiptHandlerLevelDb)
 
-	_ = os.RemoveAll(leveldb.Db_Filename)
-	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
+	ClearEvmAuxData()
 	testLogPoll(t, handler.ReceiptHandlerLevelDb)
 }
 
@@ -97,16 +93,12 @@ func TestTxPoll(t *testing.T) {
 	ClearEvmAuxData()
 	testLegacyTxPoll(t, handler.ReceiptHandlerChain)
 
-	_ = os.RemoveAll(leveldb.Db_Filename)
-	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
+	ClearEvmAuxData()
 	testLegacyTxPoll(t, handler.ReceiptHandlerLevelDb)
 
 	testTxPoll(t, handler.ReceiptHandlerChain)
 
-	_ = os.RemoveAll(leveldb.Db_Filename)
-	_, err = os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
+	ClearEvmAuxData()
 	testTxPoll(t, handler.ReceiptHandlerLevelDb)
 }
 
@@ -217,9 +209,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 func TestTimeout(t *testing.T) {
 	testTimeout(t, handler.ReceiptHandlerChain)
 
-	_ = os.RemoveAll(leveldb.Db_Filename)
-	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
+	ClearEvmAuxData()
 	testTimeout(t, handler.ReceiptHandlerLevelDb)
 }
 
@@ -365,6 +355,7 @@ func TestAddRemove(t *testing.T) {
 	s.Remove(id)
 	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
+	ClearEvmAuxData()
 }
 
 func ClearEvmAuxData() {

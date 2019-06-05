@@ -18,10 +18,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-const (
-	Db_Filename = "receipts_db"
-)
-
 var (
 	headKey          = []byte("leveldb:head")
 	tailKey          = []byte("leveldb:tail")

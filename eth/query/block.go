@@ -34,7 +34,6 @@ func GetBlockByNumber(
 	state loomchain.ReadOnlyState,
 	height int64,
 	full bool,
-	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available

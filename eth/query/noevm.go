@@ -15,8 +15,7 @@ func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyStat
 	return nil, nil
 }
 
-func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool,
-	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore) (eth.JsonBlockObject, error) {
+func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ *evmaux.EvmAuxStore) (eth.JsonBlockObject, error) {
 	return eth.JsonBlockObject{}, nil
 }
 
