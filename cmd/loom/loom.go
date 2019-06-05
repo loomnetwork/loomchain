@@ -1103,11 +1103,14 @@ func loadApp(
 		if err != nil {
 			return nil, err
 		}
-		m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state)
-		if err != nil {
-			return nil, err
+		if state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
+			m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state)
+			if err != nil {
+				return nil, err
+			}
+			return m, nil
 		}
-		return m, nil
+		return plugin.NewNoopCoinPolicyManager(), nil
 	}
 
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
