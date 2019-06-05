@@ -1098,7 +1098,7 @@ func loadApp(
 		return m, nil
 	}
 
-	createCoinDeflationManager := func(state loomchain.State) (loomchain.CoinPolicyManager, error) {
+	createCoinPolicyManager := func(state loomchain.State) (loomchain.CoinPolicyManager, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
@@ -1146,7 +1146,7 @@ func loadApp(
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
-		CreateCoinPolicyManager:     createCoinDeflationManager,
+		CreateCoinPolicyManager:     createCoinPolicyManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
