@@ -54,6 +54,7 @@ type JsonTxReceipt struct {
 	CumulativeGasUsed Quantity  `json:"cumulativeGasUsed,omitempty"`
 	GasUsed           Quantity  `json:"gasUsed,omitempty"`
 	ContractAddress   Data      `json:"contractAddress,omitempty"`
+	To                Data      `json:"to,omitempty"`
 	Logs              []JsonLog `json:"logs"`
 	LogsBloom         Data      `json:"logsBloom,omitempty"`
 	Status            Quantity  `json:"status,omitempty"`

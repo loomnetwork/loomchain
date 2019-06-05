@@ -21,6 +21,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
@@ -34,6 +35,7 @@ import (
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
+	abci "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -42,7 +44,9 @@ const (
 	/**
 	 * contract GoContract {}
 	 */
-	goGetCode = "0x608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73e288d6eec7150d6a22fde33f0aa2d81e06591c4d815600a165627a7a72305820b8b6992011e1a3286b9546ca427bf9cb05db8bd25addbee7a9894131d9db12500029"
+	goGetCode       = "0x608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73e288d6eec7150d6a22fde33f0aa2d81e06591c4d815600a165627a7a72305820b8b6992011e1a3286b9546ca427bf9cb05db8bd25addbee7a9894131d9db12500029"
+	StatusTxSuccess = int64(1)
+	StatusTxFail    = int64(0)
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -751,29 +755,48 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
 		return resp, err
 	}
+
 	if err != nil {
 		txObj, err := query.GetTxByTendermintHash(s.BlockStore, txHash)
 		if err != nil {
-			return resp, errors.Wrapf(err, "cannot find tx hash %v", txHash)
+			// return empty response if cannot find hash
+			resp.Status = eth.EncInt(StatusTxFail)
+			return resp, nil
 		}
-		return eth.TxObjToReceipt(txObj), nil
-	}
+		resp = eth.TxObjToReceipt(txObj)
 
-	// accessing the TM block store might take a while and we don't need the snapshot anymore
+	} else {
+		if len(txReceipt.Logs) > 0 {
+			height := int64(txReceipt.BlockNumber)
+			var blockResult *ctypes.ResultBlock
+			blockResult, err := s.BlockStore.GetBlockByHeight(&height)
+			if err != nil {
+				// return empty response if cannot find hash
+				resp.Status = eth.EncInt(StatusTxFail)
+				return resp, nil
+			}
+			timestamp := blockResult.Block.Header.Time.Unix()
+
+			for i := 0; i < len(txReceipt.Logs); i++ {
+				txReceipt.Logs[i].BlockTime = timestamp
+			}
+		}
+		resp = eth.EncTxReceipt(txReceipt)
+	}
 	snapshot.Release()
 
-	if len(txReceipt.Logs) > 0 {
-		height := int64(txReceipt.BlockNumber)
-		var blockResult *ctypes.ResultBlock
-		blockResult, err := s.BlockStore.GetBlockByHeight(&height)
-		if err != nil {
-			return resp, err
-		}
-		timestamp := blockResult.Block.Header.Time.Unix()
-
-		for i := 0; i < len(txReceipt.Logs); i++ {
-			txReceipt.Logs[i].BlockTime = timestamp
-		}
+	txResult, err := s.BlockStore.GetTxResult(txHash)
+	if err != nil || txResult == nil {
+		return resp, nil
+	}
+	if txResult.TxResult.Code == abci.CodeTypeOK {
+		resp.Status = eth.EncInt(StatusTxSuccess)
+	} else {
+		resp.Status = eth.EncInt(StatusTxFail)
+	}
+	if txResult.TxResult.Info == utils.CallEVM {
+		resp.To = resp.ContractAddress
+		resp.ContractAddress = eth.Data(nil)
 	}
 
 	return eth.EncTxReceipt(txReceipt), nil
