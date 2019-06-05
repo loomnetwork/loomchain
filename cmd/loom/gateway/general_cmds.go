@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
+	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	am "github.com/loomnetwork/go-loom/client/address_mapper"
@@ -447,7 +448,41 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				fmt.Println("Claimed rewards:", resp)
+				fmt.Println("Started claiming of rewards:", resp)
+
+				// Need to wait until the rewards delegation is unbonded.
+				timeToElections, err := dpos.TimeUntilElections(id)
+				fmt.Println("Time until elections: ", timeToElections)
+
+				sleepTime := int64(30)
+				for {
+					timeToElections, err := dpos.TimeUntilElections(id)
+					if err != nil {
+						return err
+					}
+
+					fmt.Println("Sleeping...")
+					if timeToElections < sleepTime {
+						time.Sleep(time.Duration(timeToElections) * time.Second)
+					} else {
+						time.Sleep(time.Duration(sleepTime) * time.Second)
+					}
+
+					fmt.Println("Time until elections: ", timeToElections)
+
+					// Get delegation state after we slept
+					rewardsDelegation, err := dpos.GetRewardsDelegation(id, id.LoomAddr)
+					if err != nil {
+						return err
+					}
+
+					// Stop sleeping after the delegation has been unbonded
+					if rewardsDelegation.State == dpostypes.Delegation_BONDED {
+						break
+					}
+				}
+
+				fmt.Println("Rewards have been claimed.")
 
 				balanceAfter, err = loomcoin.BalanceOf(id)
 				if err != nil {

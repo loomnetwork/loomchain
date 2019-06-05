@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -19,7 +20,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
@@ -47,13 +48,13 @@ import (
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
+	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
 	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
-	tgateway "github.com/loomnetwork/loomchain/gateway"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/migrations"
@@ -64,6 +65,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
@@ -73,6 +75,10 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
+)
+
+var (
+	appHeightKey = []byte("appheight")
 )
 
 var RootCmd = &cobra.Command{
@@ -122,16 +128,17 @@ func newEnvCommand() *cobra.Command {
 			}
 
 			printEnv(map[string]string{
-				"version":       loomchain.FullVersion(),
-				"build":         loomchain.Build,
-				"build variant": loomchain.BuildVariant,
-				"git sha":       loomchain.GitSHA,
-				"go-loom":       loomchain.GoLoomGitSHA,
-				"go-ethereum":   loomchain.EthGitSHA,
-				"go-plugin":     loomchain.HashicorpGitSHA,
-				"go-btcd":       loomchain.BtcdGitSHA,
-				"plugin path":   cfg.PluginsPath(),
-				"peers":         cfg.Peers,
+				"version":          loomchain.FullVersion(),
+				"build":            loomchain.Build,
+				"build variant":    loomchain.BuildVariant,
+				"git sha":          loomchain.GitSHA,
+				"go-loom":          loomchain.GoLoomGitSHA,
+				"transfer-gateway": loomchain.TransferGatewaySHA,
+				"go-ethereum":      loomchain.EthGitSHA,
+				"go-plugin":        loomchain.HashicorpGitSHA,
+				"go-btcd":          loomchain.BtcdGitSHA,
+				"plugin path":      cfg.PluginsPath(),
+				"peers":            cfg.Peers,
 			})
 			return nil
 		},
@@ -377,6 +384,21 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			// Load app height from app.db
+			appDB, err := cdb.LoadDB(
+				cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
+				cfg.DBBackendConfig.WriteBufferMegs, false,
+			)
+			if err != nil {
+				return err
+			}
+			height := appDB.Get(appHeightKey)
+			if height != nil {
+				appDB.DeleteSync(appHeightKey)
+				appHeight = int64(binary.BigEndian.Uint64(height))
+			}
+			appDB.Close()
+
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
 				return err
@@ -394,27 +416,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
-				return err
-			}
-
-			if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
-				return err
-			}
-
-			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
-				return err
-			}
-
-			if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
-				return err
-			}
-
-			if err := startTronGatewayOracle(chainID, cfg.TronTransferGateway); err != nil {
-				return err
-			}
-
-			if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner); err != nil {
+			if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
 				return err
 			}
 
@@ -506,97 +508,6 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	oracle.Run()
 
 	return nil
-}
-
-func startGatewayFn(
-	chainID string,
-	fnRegistry fnConsensus.FnRegistry,
-	cfg *tgateway.TransferGatewayConfig,
-	nodeSigner glAuth.Signer,
-) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
-}
-
-func startLoomCoinGatewayFn(
-	chainID string,
-	fnRegistry fnConsensus.FnRegistry,
-	cfg *tgateway.TransferGatewayConfig,
-	nodeSigner glAuth.Signer,
-) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("loomcoin:batch_sign_withdrawal", batchSignWithdrawalFn)
-}
-
-func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.OracleEnabled {
-		return nil
-	}
-
-	orc, err := tgateway.CreateLoomCoinOracle(cfg, chainID)
-	if err != nil {
-		return err
-	}
-
-	go orc.RunWithRecovery()
-	return nil
-}
-
-func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.OracleEnabled {
-		return nil
-	}
-
-	orc, err := tgateway.CreateOracle(cfg, chainID)
-	if err != nil {
-		return err
-	}
-
-	go orc.RunWithRecovery()
-	return nil
-}
-
-func startTronGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.OracleEnabled {
-		return nil
-	}
-
-	orc, err := tgateway.CreateTronOracle(cfg, chainID)
-	if err != nil {
-		return err
-	}
-
-	go orc.RunWithRecovery()
-	return nil
-}
-
-func startTronGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("tron:batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
 func initDB(name, dir string) error {
@@ -1023,6 +934,10 @@ func loadApp(
 		loomchain.RecoveryTxMiddleware,
 	}
 
+	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
+		loomchain.LogPostCommitMiddleware,
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
 		cfg.Auth,
 		getContractCtx("addressmapper", vmManager),
@@ -1046,6 +961,16 @@ func loadApp(
 			return nil, err
 		}
 		txMiddleWare = append(txMiddleWare, dwMiddleware)
+
+	}
+
+	if cfg.UserDeployerWhitelist.ContractEnabled {
+		contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
+		evmDeployRecorderMiddleware, err := throttle.NewEVMDeployRecorderPostCommitMiddleware(contextFactory)
+		if err != nil {
+			return nil, err
+		}
+		postCommitMiddlewares = append(postCommitMiddlewares, evmDeployRecorderMiddleware)
 	}
 
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
@@ -1173,17 +1098,13 @@ func loadApp(
 		return m, nil
 	}
 
-	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
-		loomchain.LogPostCommitMiddleware,
-		auth.NonceTxPostNonceMiddleware,
-	}
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
-	var blockIndexStore store.BlockIndexStore
+	var blockIndexStore blockindex.BlockIndexStore
 	if cfg.BlockIndexStore.Enabled {
-		blockIndexStore, err = store.NewBlockIndexStore(
+		blockIndexStore, err = blockindex.NewBlockIndexStore(
 			cfg.BlockIndexStore.DBBackend,
 			cfg.BlockIndexStore.DBName,
 			cfg.RootPath(),
@@ -1195,6 +1116,10 @@ func loadApp(
 			return nil, err
 		}
 	}
+
+	// We need to make sure nonce post commit middleware is last
+	// as it doesn't pass control to other middlewares after it.
+	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
 
 	return &loomchain.Application{
 		Store: appStore,
@@ -1414,6 +1339,7 @@ func main() {
 		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
+		userdeployer.NewUserDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	err := RootCmd.Execute()

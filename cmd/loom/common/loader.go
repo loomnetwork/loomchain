@@ -8,9 +8,9 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	"github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -43,34 +43,15 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contracts = append(contracts, deployer_whitelist.Contract)
 	}
+	if cfg.UserDeployerWhitelist.ContractEnabled {
+		contracts = append(contracts, user_deployer_whitelist.Contract)
+	}
 
 	if cfg.AddressMapperContractEnabled() {
 		contracts = append(contracts, address_mapper.Contract)
 	}
 
-	if cfg.TransferGateway.ContractEnabled {
-		if cfg.TransferGateway.Unsafe {
-			contracts = append(contracts, gateway.UnsafeContract)
-		} else {
-			contracts = append(contracts, gateway.Contract)
-		}
-	}
-
-	if cfg.LoomCoinTransferGateway.ContractEnabled {
-		if cfg.LoomCoinTransferGateway.Unsafe {
-			contracts = append(contracts, gateway.UnsafeLoomCoinContract)
-		} else {
-			contracts = append(contracts, gateway.LoomCoinContract)
-		}
-	}
-
-	if cfg.TronTransferGateway.ContractEnabled {
-		if cfg.TronTransferGateway.Unsafe {
-			contracts = append(contracts, gateway.UnsafeTronContract)
-		} else {
-			contracts = append(contracts, gateway.TronContract)
-		}
-	}
+	contracts = append(contracts, loadGatewayContracts(cfg)...)
 
 	loader := plugin.NewStaticLoader(contracts...)
 	loader.SetContractOverrides(replay.ContractOverrides())
