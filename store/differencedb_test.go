@@ -44,7 +44,7 @@ func TestDualIavlStore(t *testing.T) {
 
 func testNormal(t *testing.T) {
 	diskDb := getDiskDb(t, "testNormal")
-	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0)
+	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0, 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -67,7 +67,7 @@ func testNormal(t *testing.T) {
 
 func testMaxVersions(t *testing.T) {
 	diskDb := getDiskDb(t, "testMaxVersions")
-	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, 0)
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, 0, 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -96,7 +96,7 @@ func testMaxVersions(t *testing.T) {
 
 func testMaxVersionFrequency(t *testing.T) {
 	diskDb := getDiskDb(t, "testMaxVersionFrequency")
-	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency))
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -125,7 +125,7 @@ func testMaxVersionFrequency(t *testing.T) {
 
 func testSaveFrequency(t *testing.T) {
 	diskDb := getDiskDb(t, "testSaveFrequency")
-	store, err := NewDelayIavlStore(diskDb, 0, 0, uint64(saveFrequency), 0)
+	store, err := NewDelayIavlStore(diskDb, 0, 0, uint64(saveFrequency), 0, 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 
@@ -150,7 +150,7 @@ func testSaveFrequency(t *testing.T) {
 
 func testMaxVersionFrequencySaveFrequency(t *testing.T) {
 	diskDb := getDiskDb(t, "testMaxVersionFrequencySaveFrequency")
-	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency))
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), 0, 0)
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 

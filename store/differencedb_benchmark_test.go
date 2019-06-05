@@ -30,12 +30,12 @@ func BenchmarkIavlStore(b *testing.B) {
 	require.True(b, os.IsNotExist(err))
 
 	diskDbType = "goleveldb"
-	numBlocks = 20000
-	blockSize = 1000
-	saveFrequency = 1000
+	numBlocks = 5000
+	blockSize = 20000
+	saveFrequency = 50
 	versionFrequency = 0
 	maxVersions = 2
-	paddingLength := 1000
+	paddingLength := 50
 	padding := strings.Repeat("A", paddingLength)
 
 	generateBlocks(b)
@@ -44,6 +44,8 @@ func BenchmarkIavlStore(b *testing.B) {
 		"version frequecny", versionFrequency, "max versions", maxVersions, "padding", paddingLength)
 
 	benchmarkIavlStore(b, "normal", benchmarkNormal)
+	benchmarkIavlStore(b, "benchmarkMaxVersions", benchmarkMaxVersions)
+	//benchmarkIavlStore(b, "benchmarkVarableCache", benchmarkVarableCache) Warning think bugged at the moment
 	benchmarkIavlStore(b, "maxVersionFrequencySaveFrequency", benchmarkMaxVersionFrequencySaveFrequency)
 
 	files, err := ioutil.ReadDir("./testdata")
@@ -65,16 +67,32 @@ func benchmarkIavlStore(b *testing.B, name string, fn benchFunc) {
 
 func benchmarkNormal(b *testing.B) {
 	testno++
-	diskDb := getDiskDb(b, "normal"+strconv.Itoa(testno))
-	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0)
+	diskDb := getDiskDb(b, "normal\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0, 1000, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+}
+
+func benchmarkMaxVersions(b *testing.B) {
+	testno++
+	diskDb := getDiskDb(b, "maxVers\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, 0, 1000, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+}
+
+func benchmarkVarableCache(b *testing.B) {
+	testno++
+	diskDb := getDiskDb(b, "varCache\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, 0, 100, 2000)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 }
 
 func benchmarkMaxVersionFrequencySaveFrequency(b *testing.B) {
 	testno++
-	diskDb := getDiskDb(b, "maxVersionFrequencySaveFrequency"+strconv.Itoa(testno))
-	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency))
+	diskDb := getDiskDb(b, "maxVFSF\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), 1000, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 }
