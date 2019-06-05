@@ -1291,7 +1291,10 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 			statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if err != nil && err != contract.ErrNotFound {
 				return err
+			} else if err == contract.ErrNotFound {
+				continue
 			}
+
 			statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks << 16
 			if err := SetStatistic(ctx, statistic); err != nil {
 				return err
