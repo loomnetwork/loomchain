@@ -15,13 +15,13 @@ var (
 )
 
 // CoinDeflationManager implements loomchain.CoinDeflationManager interface
-type CoinDeflationManager struct {
+type CoinPolicyManager struct {
 	ctx   contract.Context
 	state loomchain.State
 }
 
 // NewCoinDeflationManager attempts to create an instance of CoinDeflationManager.
-func NewCoinDeflationManager(pvm *PluginVM, state loomchain.State) (*CoinDeflationManager, error) {
+func NewCoinDeflationManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyManager, error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("coin")
 	if err != nil {
@@ -32,15 +32,15 @@ func NewCoinDeflationManager(pvm *PluginVM, state loomchain.State) (*CoinDeflati
 	}
 	readOnly := false
 	ctx := contract.WrapPluginContext(pvm.CreateContractContext(caller, contractAddr, readOnly))
-	return &CoinDeflationManager{
+	return &CoinPolicyManager{
 		ctx:   ctx,
 		state: state,
 	}, nil
 }
 
 //MintCoins method of coin_deflation_Manager will be called from Block
-func (c *CoinDeflationManager) MintCoins(blockHeight int64) error {
-	if c.state.FeatureEnabled(loomchain.CoinDeflationManagerFeature, false) {
+func (c *CoinPolicyManager) MintCoins(blockHeight int64) error {
+	if c.state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
 		err := coin.MintByCDM(c.ctx,blockHeight)
 		if err != nil {
 			return err
