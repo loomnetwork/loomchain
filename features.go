@@ -48,5 +48,5 @@ const (
 	CoinVersion1_1Feature = "coin:v1.1"
 
 	//Enables Coin Deflation Manager Feature
-	CoinDeflationManagerFeature = "coin:deflation"
+	CoinPolicyFeature = "coin:policy"
 )
