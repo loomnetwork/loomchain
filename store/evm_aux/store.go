@@ -14,8 +14,8 @@ import (
 var (
 	EvmAuxDBName = "receipts_db"
 
-	BloomPrefix  = []byte("bloomFilter")
-	TxHashPrefix = []byte("txHash")
+	BloomPrefix  = []byte("bf")
+	TxHashPrefix = []byte("th")
 )
 
 func bloomFilterKey(height uint64) []byte {
