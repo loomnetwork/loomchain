@@ -451,18 +451,19 @@ func SetReferrer(ctx contract.Context, name string, address *types.Address) erro
 	return ctx.Set(append(referrersKey, name...), address)
 }
 
-func GetLocalCandidateAddressFromTendermintAddress(ctx contract.StaticContext, address []byte, cl []*Candidate) (*loom.Address, error) {
+func GetLocalCandidateAddressFromTendermintAddress(
+	ctx contract.StaticContext, address []byte, cl []*Candidate,
+) (loom.Address, error) {
 	tendermintAddress := loom.LocalAddress(address)
 
 	for _, candidate := range cl {
 		candidateAddress := loom.LocalAddressFromPublicKeyV2(candidate.PubKey)
 		if candidateAddress.Compare(tendermintAddress) == 0 {
-			local_address := loom.UnmarshalAddressPB(candidate.Address)
-			return &local_address, nil
+			return loom.UnmarshalAddressPB(candidate.Address), nil
 		}
 	}
 
-	return nil, contract.ErrNotFound
+	return loom.Address{}, contract.ErrNotFound
 }
 
 func saveState(ctx contract.Context, state *State) error {
