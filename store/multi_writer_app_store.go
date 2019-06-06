@@ -26,6 +26,8 @@ var (
 	rootKey = []byte("vmroot")
 	// Using the same featurePrefix as in app.go, and the same EvmDBFeature name as in features.go
 	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte("db:evm"))
+	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
+	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 
@@ -163,7 +165,16 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 		// Tie up Patricia tree with IAVL tree.
 		// Do this after the feature flag is enabled so that we can detect
 		// inconsistency in evm.db across the cluster
-		s.appStore.Set(rootKey, currentRoot)
+		// AppStore 3.1 write EVM root to app.db only if it changes
+		if bytes.Equal(s.appStore.Get(appStoreVersion3_1), []byte{1}) {
+			oldRoot := s.appStore.Get(rootKey)
+			if bytes.Equal(oldRoot, currentRoot) {
+				s.appStore.Set(rootKey, currentRoot)
+			}
+		} else {
+			s.appStore.Set(rootKey, currentRoot)
+		}
+
 	}
 	hash, version, err := s.appStore.SaveVersion()
 	s.setLastSavedTreeToVersion(version)
