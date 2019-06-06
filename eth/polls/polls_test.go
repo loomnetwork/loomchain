@@ -28,12 +28,12 @@ var (
 func TestLogPoll(t *testing.T) {
 	testLogPoll(t, handler.ReceiptHandlerLevelDb)
 
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testLogPoll(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
@@ -90,18 +90,18 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func TestTxPoll(t *testing.T) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testLegacyTxPoll(t, handler.ReceiptHandlerLevelDb)
 
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testTxPoll(t, handler.ReceiptHandlerLevelDb)
 
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testTxPoll(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
@@ -143,7 +143,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
@@ -205,15 +205,15 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func TestTimeout(t *testing.T) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testTimeout(t, handler.ReceiptHandlerLevelDb)
 
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testTimeout(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
@@ -354,10 +354,5 @@ func TestAddRemove(t *testing.T) {
 	s.Remove(id)
 	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
-	ClearEvmAuxData()
-}
-
-func ClearEvmAuxData() {
-	evmAuxStore, _ := common.MockEvmAuxStore()
-	evmAuxStore.ClearData()
+	common.ClearEvmAuxData()
 }

@@ -34,12 +34,12 @@ var (
 
 func TestQueryChain(t *testing.T) {
 	testQueryChain(t, handler.ReceiptHandlerLevelDb)
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testQueryChain(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
 	eventDispatcher := events.NewLogEventDispatcher()
@@ -171,10 +171,10 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 
-	ClearEvmAuxData()
+	common.ClearEvmAuxData()
 	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 }
 
@@ -241,9 +241,4 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
 	require.NoError(t, receiptHandler.Close())
-}
-
-func ClearEvmAuxData() {
-	evmAuxStore, _ := common.MockEvmAuxStore()
-	evmAuxStore.ClearData()
 }

@@ -77,3 +77,8 @@ func MockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
 	evmAuxStore := evmaux.NewEvmAuxStore(evmAuxDB)
 	return evmAuxStore, nil
 }
+
+func ClearEvmAuxData() {
+	evmAuxStore, _ := MockEvmAuxStore()
+	evmAuxStore.ClearData()
+}

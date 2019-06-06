@@ -51,8 +51,10 @@ type ReceiptHandler struct {
 	currentReceipt *types.EvmTxReceipt
 }
 
-func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler,
-	maxReceipts uint64, evmAuxStore *evmaux.EvmAuxStore) (*ReceiptHandler, error) {
+func NewReceiptHandler(
+	version ReceiptHandlerVersion, eventHandler loomchain.EventHandler,
+	maxReceipts uint64, evmAuxStore *evmaux.EvmAuxStore,
+) (*ReceiptHandler, error) {
 	rh := &ReceiptHandler{
 		v:              version,
 		eventHandler:   eventHandler,
@@ -190,7 +192,9 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 }
 
 // TODO: this doesn't need the entire state passed in, just the block header
-func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error) ([]byte, error) {
+func (r *ReceiptHandler) CacheReceipt(
+	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error,
+) ([]byte, error) {
 	var status int32
 	if txErr == nil {
 		status = common.StatusTxSuccess

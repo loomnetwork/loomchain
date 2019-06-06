@@ -19,9 +19,7 @@ const (
 )
 
 func TestReceiptsCyclicDB(t *testing.T) {
-	os.RemoveAll(evmaux.EvmAuxDBName)
-	_, err := os.Stat(evmaux.EvmAuxDBName)
-	require.True(t, os.IsNotExist(err))
+	common.ClearEvmAuxData()
 
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
@@ -70,9 +68,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 }
 
 func TestReceiptsCommitAllInOneBlock(t *testing.T) {
-	os.RemoveAll(evmaux.EvmAuxDBName)
-	_, err := os.Stat(evmaux.EvmAuxDBName)
-	require.True(t, os.IsNotExist(err))
+	common.ClearEvmAuxData()
 
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
@@ -156,9 +152,8 @@ func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*ty
 }
 
 func TestConfirmTransactionReceipts(t *testing.T) {
-	os.RemoveAll(evmaux.EvmAuxDBName)
-	_, err := os.Stat(evmaux.EvmAuxDBName)
-	require.True(t, os.IsNotExist(err))
+	common.ClearEvmAuxData()
+
 	evmAuxStore, err := common.MockEvmAuxStore()
 	require.NoError(t, err)
 	maxSize := uint64(10)

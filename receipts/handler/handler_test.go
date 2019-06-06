@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
@@ -11,7 +10,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -25,9 +23,7 @@ var (
 func TestReceiptsHandlerChain(t *testing.T) {
 	testHandlerDepreciated(t, ReceiptHandlerChain)
 
-	_ = os.RemoveAll(evmaux.EvmAuxDBName)
-	_, err := os.Stat(evmaux.EvmAuxDBName)
-	require.True(t, os.IsNotExist(err))
+	common.ClearEvmAuxData()
 	testHandler(t, ReceiptHandlerLevelDb)
 }
 
