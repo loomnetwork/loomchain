@@ -48,4 +48,7 @@ const (
 
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
+
+	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
+	AppStoreVersion3_1 = "appstore:v3.1"
 )
