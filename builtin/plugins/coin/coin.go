@@ -306,7 +306,12 @@ func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
 		return err
 	}
 
-	return emitApprovalEvent(ctx, owner, spender, &req.Amount.Value)
+	// req.Amount may be nil at this point, so have to be careful when dereferencing it
+	var amount *loom.BigUInt
+	if req.Amount != nil {
+		amount = &req.Amount.Value
+	}
+	return emitApprovalEvent(ctx, owner, spender, amount)
 }
 
 func (c *Coin) Allowance(
@@ -544,10 +549,16 @@ func (c *Coin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest
 // Events
 
 func emitTransferEvent(ctx contract.Context, from, spender loom.Address, amount *loom.BigUInt) error {
+	var safeAmount *types.BigUInt
+	if amount == nil {
+		safeAmount = loom.BigZeroPB()
+	} else {
+		safeAmount = &types.BigUInt{Value: *amount}
+	}
 	marshalled, err := proto.Marshal(&TransferEvent{
 		From:   from.MarshalPB(),
 		To:     spender.MarshalPB(),
-		Amount: &types.BigUInt{Value: *amount},
+		Amount: safeAmount,
 	})
 	if err != nil {
 		return err
@@ -558,10 +569,16 @@ func emitTransferEvent(ctx contract.Context, from, spender loom.Address, amount 
 }
 
 func emitApprovalEvent(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
+	var safeAmount *types.BigUInt
+	if amount == nil {
+		safeAmount = loom.BigZeroPB()
+	} else {
+		safeAmount = &types.BigUInt{Value: *amount}
+	}
 	marshalled, err := proto.Marshal(&ApprovalEvent{
 		From:    from.MarshalPB(),
 		Spender: to.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *amount},
+		Amount:  safeAmount,
 	})
 	if err != nil {
 		return err
