@@ -111,6 +111,19 @@ func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator
 	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
 }
 
+func (dpos *testDPOSContract) DowntimeRecord(ctx *plugin.FakeContext, validator *loom.Address) (*DowntimeRecordResponse, error) {
+	resp, err := dpos.Contract.DowntimeRecord(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&DowntimeRecordRequest{
+			Validator: validator.MarshalPB(),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func (dpos *testDPOSContract) CheckAllDelegations(ctx *plugin.FakeContext, delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
 	resp, err := dpos.Contract.CheckAllDelegations(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -309,4 +322,14 @@ func (dpos *testDPOSContract) ClaimDelegatorRewards(ctx *plugin.FakeContext) (*b
 	amt := claimResponse.Amount
 
 	return amt.Value.Int, err
+}
+
+func (dpos *testDPOSContract) ConsolidateDelegations(ctx *plugin.FakeContext, validator *loom.Address) error {
+	err := dpos.Contract.ConsolidateDelegations(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&ConsolidateDelegationsRequest{
+			ValidatorAddress: validator.MarshalPB(),
+		},
+	)
+	return err
 }

@@ -315,7 +315,7 @@ func (c CandidateList) Get(addr loom.Address) *Candidate {
 }
 
 func GetCandidate(ctx contract.StaticContext, addr loom.Address) *Candidate {
-	c, err := loadCandidateList(ctx)
+	c, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil
 	}
@@ -330,7 +330,7 @@ func GetCandidate(ctx contract.StaticContext, addr loom.Address) *Candidate {
 }
 
 func GetCandidateByPubKey(ctx contract.StaticContext, pubkey []byte) *Candidate {
-	c, err := loadCandidateList(ctx)
+	c, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil
 	}
@@ -374,7 +374,7 @@ func (c *CandidateList) Delete(addr loom.Address) {
 
 // Updates Unregistration and ChangeFee States
 func updateCandidateList(ctx contract.Context) error {
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -426,7 +426,7 @@ func saveCandidateList(ctx contract.Context, cl CandidateList) error {
 	return ctx.Set(candidatesKey, &dtypes.CandidateList{Candidates: sorted})
 }
 
-func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
+func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 	var pbcl dtypes.CandidateList
 	err := ctx.Get(candidatesKey, &pbcl)
 	if err == contract.ErrNotFound {
@@ -449,6 +449,21 @@ func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 
 func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
 	return ctx.Set(append(referrersKey, name...), address)
+}
+
+func GetLocalCandidateAddressFromTendermintAddress(
+	ctx contract.StaticContext, address []byte, cl []*Candidate,
+) (loom.Address, error) {
+	tendermintAddress := loom.LocalAddress(address)
+
+	for _, candidate := range cl {
+		candidateAddress := loom.LocalAddressFromPublicKeyV2(candidate.PubKey)
+		if candidateAddress.Compare(tendermintAddress) == 0 {
+			return loom.UnmarshalAddressPB(candidate.Address), nil
+		}
+	}
+
+	return loom.Address{}, contract.ErrNotFound
 }
 
 func saveState(ctx contract.Context, state *State) error {

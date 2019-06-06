@@ -1071,6 +1071,105 @@ func TestElect(t *testing.T) {
 	assert.Equal(t, newTier, validator.LocktimeTier)
 }
 
+func TestConsolidateDelegations(t *testing.T) {
+	// Init the coin balances
+	pctx := createCtx()
+	coinAddr := pctx.CreateContract(coin.Contract)
+
+	coinContract := &coin.Coin{}
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 100000000),
+			makeAccount(delegatorAddress2, 100000000),
+			makeAccount(delegatorAddress3, 100000000),
+			makeAccount(addr1, 100000000),
+			makeAccount(addr2, 100000000),
+			makeAccount(addr3, 100000000),
+		},
+	})
+
+	// create dpos contract
+	cycleLengthSeconds := int64(100)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      10,
+		ElectionCycleLength: cycleLengthSeconds,
+		CoinContractAddress: coinAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// transfer coins to reward fund
+	amount := big.NewInt(10)
+	amount.Exp(amount, big.NewInt(19), nil)
+	coinContract.Transfer(contractpb.WrapPluginContext(coinCtx), &coin.TransferRequest{
+		To: dpos.Address.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: common.BigUInt{amount},
+		},
+	})
+
+	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// A user makes 5 delegations to the validator with tier 0
+	// and 1 with each of tier 1, 2 and 3
+	delegationAmount := loom.BigUInt{big.NewInt(1e18)}
+	tier := uint64(0)
+	for i := 0; i < 5; i++ {
+		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+			Spender: dpos.Address.MarshalPB(),
+			Amount:  &types.BigUInt{Value: delegationAmount},
+		})
+		require.Nil(t, err)
+
+		err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount.Int, &tier, nil)
+		require.Nil(t, err)
+	}
+
+	for i := 1; i < 4; i++ {
+		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+			Spender: dpos.Address.MarshalPB(),
+			Amount:  &types.BigUInt{Value: delegationAmount},
+		})
+		require.Nil(t, err)
+
+		tier := uint64(i)
+		err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount.Int, &tier, nil)
+		require.Nil(t, err)
+	}
+
+	// elections to bond them
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// check delegations number -- should be 8 (5*t0 + t1 + t2 + t3)
+	delegations, _, _, err := dpos.CheckAllDelegations(pctx.WithSender(delegatorAddress1), &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations), 8)
+
+	// advance time 2 weeks and make elections
+	pctx.SetTime(pctx.Now().Add(time.Duration(1209600+1) * time.Second))
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// consolidate the delegations -- should be 4 (t0 + t1 + t2 + t3)
+	err = dpos.ConsolidateDelegations(pctx.WithSender(delegatorAddress1), &addr1)
+	require.NoError(t, err)
+
+	delegations, _, _, err = dpos.CheckAllDelegations(pctx.WithSender(delegatorAddress1), &delegatorAddress1)
+	require.NoError(t, err)
+	require.Equal(t, len(delegations), 4)
+
+}
+
 func TestClaimRewardsFromMultipleValidators(t *testing.T) {
 	// Init the coin balances
 	pctx := createCtx()
@@ -2261,6 +2360,92 @@ func TestApplyPowerCap(t *testing.T) {
 			assert.Equal(t, test.output[i].Power, o.Power)
 		}
 	}
+}
+
+func TestDowntimeFunctions(t *testing.T) {
+	pctx := createCtx()
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(addr2, 1000000000000000000),
+		},
+	})
+
+	periodLength := uint64(12)
+	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          21,
+		RegistrationRequirement: registrationFee,
+		DowntimePeriod:          periodLength,
+	})
+	require.Nil(t, err)
+	dposCtx := pctx.WithAddress(dpos.Address)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	candidates, err := LoadCandidateList(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(candidates))
+
+	for i := int64(0); i < int64(periodLength * 4); i++ {
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+		require.Nil(t, err)
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	}
+
+	rec1, err := dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, periodLength, rec1.PeriodLength)
+	assert.Equal(t, []uint64{periodLength-1, periodLength, periodLength, periodLength}, rec1.Periods)
+	rec2, err := dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, periodLength, rec2.PeriodLength)
+	assert.Equal(t, []uint64{0,0,0,0}, rec2.Periods)
+
+	for i := int64(0); i < int64(periodLength); i++ {
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr2)
+		require.Nil(t, err)
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	}
+
+	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, []uint64{0, periodLength-1, periodLength, periodLength}, rec1.Periods)
+	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, []uint64{periodLength-1,1,0,0}, rec2.Periods)
+
+	ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates)
+
+	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, []uint64{0, 0, periodLength-1, periodLength}, rec1.Periods)
+	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, []uint64{0, periodLength-1, 1, 0}, rec2.Periods)
+
+	ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates)
+
+	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, []uint64{0, 0, 0, periodLength-1}, rec1.Periods)
+	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
+	assert.Equal(t, []uint64{0, 0, periodLength-1, 1}, rec2.Periods)
 }
 
 // UTILITIES

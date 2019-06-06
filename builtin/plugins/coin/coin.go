@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/common"
@@ -16,6 +17,11 @@ import (
 	errUtil "github.com/pkg/errors"
 )
 
+const (
+	TransferEventTopic = "coin:transfer"
+	ApprovalEventTopic = "coin:approval"
+)
+
 type (
 	InitRequest          = ctypes.InitRequest
 	MintToGatewayRequest = ctypes.MintToGatewayRequest
@@ -25,8 +31,10 @@ type (
 	BalanceOfResponse    = ctypes.BalanceOfResponse
 	TransferRequest      = ctypes.TransferRequest
 	TransferResponse     = ctypes.TransferResponse
+	TransferEvent        = ctypes.TransferEvent
 	ApproveRequest       = ctypes.ApproveRequest
 	ApproveResponse      = ctypes.ApproveResponse
+	ApprovalEvent        = ctypes.ApprovalEvent
 	AllowanceRequest     = ctypes.AllowanceRequest
 	AllowanceResponse    = ctypes.AllowanceResponse
 	TransferFromRequest  = ctypes.TransferFromRequest
@@ -186,6 +194,12 @@ func burn(ctx contract.Context, from loom.Address, amount *loom.BigUInt) error {
 		return err
 	}
 
+	// Burn events are transfer events with the empty address as `to`
+	burnAddress := loom.RootAddress(ctx.Block().ChainID)
+	if err := emitTransferEvent(ctx, from, burnAddress, amount); err != nil {
+		return err
+	}
+
 	return ctx.Set(economyKey, econ)
 }
 
@@ -215,6 +229,13 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 	if err := saveAccount(ctx, account); err != nil {
 		return err
 	}
+
+	// Minting events are transfer events with the empty address as `from`
+	mintAddress := loom.RootAddress(ctx.Block().ChainID)
+	if err := emitTransferEvent(ctx, mintAddress, to, amount); err != nil {
+		return err
+	}
+
 	return ctx.Set(economyKey, econ)
 }
 
@@ -324,7 +345,8 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return emitTransferEvent(ctx, from, to, &amount)
 }
 
 func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
@@ -342,7 +364,12 @@ func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
 		return err
 	}
 
-	return nil
+	// req.Amount may be nil at this point, so have to be careful when dereferencing it
+	var amount *loom.BigUInt
+	if req.Amount != nil {
+		amount = &req.Amount.Value
+	}
+	return emitApprovalEvent(ctx, owner, spender, amount)
 }
 
 func (c *Coin) Allowance(
@@ -425,7 +452,8 @@ func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) erro
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return emitTransferEvent(ctx, from, to, &amount)
 }
 
 func loadAccount(
@@ -515,7 +543,8 @@ func (c *Coin) legacyTransfer(ctx contract.Context, req *TransferRequest) error 
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return emitTransferEvent(ctx, from, to, &amount)
 }
 
 func (c *Coin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
@@ -571,5 +600,48 @@ func (c *Coin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest
 	if err != nil {
 		return err
 	}
+
+	return emitTransferEvent(ctx, from, to, &amount)
+}
+
+// Events
+
+func emitTransferEvent(ctx contract.Context, from, spender loom.Address, amount *loom.BigUInt) error {
+	var safeAmount *types.BigUInt
+	if amount == nil {
+		safeAmount = loom.BigZeroPB()
+	} else {
+		safeAmount = &types.BigUInt{Value: *amount}
+	}
+	marshalled, err := proto.Marshal(&TransferEvent{
+		From:   from.MarshalPB(),
+		To:     spender.MarshalPB(),
+		Amount: safeAmount,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, TransferEventTopic)
+	return nil
+}
+
+func emitApprovalEvent(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
+	var safeAmount *types.BigUInt
+	if amount == nil {
+		safeAmount = loom.BigZeroPB()
+	} else {
+		safeAmount = &types.BigUInt{Value: *amount}
+	}
+	marshalled, err := proto.Marshal(&ApprovalEvent{
+		From:    from.MarshalPB(),
+		Spender: to.MarshalPB(),
+		Amount:  safeAmount,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, ApprovalEventTopic)
 	return nil
 }
