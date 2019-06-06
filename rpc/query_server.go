@@ -737,6 +737,7 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
 func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxReceipt, err error) {
+	resp = eth.GetEmptyReceipt()
 	txHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
 		return resp, err
@@ -789,14 +790,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, nil
 	}
 
-	resp, err = completeReceipt(txResults, blockResult, &txReceipt)
-	if err != nil {
-		// return empty response if cannot find hash
-		resp := eth.JsonTxReceipt{}
-		resp.Status = eth.EncInt(int64(StatusTxFail))
-		return resp, nil
-	}
-	return resp, err
+	return completeReceipt(txResults, blockResult, &txReceipt), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblocktransactioncountbyhash
@@ -1095,15 +1089,15 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
-		return eth.JsonTxReceipt{}, err
+		return eth.GetEmptyReceipt(), err
 	}
 	blockResult, err := blockStore.GetBlockByHeight(&txResults.Height)
 	if err != nil {
-		return eth.JsonTxReceipt{}, err
+		return eth.GetEmptyReceipt(), err
 	}
 	txObj, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
 	if err != nil {
-		return eth.JsonTxReceipt{}, err
+		return eth.GetEmptyReceipt(), err
 	}
 	txHash, err := eth.DecDataToBytes(txObj.Hash)
 	if err != nil {
@@ -1113,10 +1107,10 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	if err != nil {
 		return eth.TxObjToReceipt(txObj), err
 	}
-	return completeReceipt(txResults, blockResult, &txReceipt)
+	return completeReceipt(txResults, blockResult, &txReceipt), nil
 }
 
-func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) (eth.JsonTxReceipt, error) {
+func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) eth.JsonTxReceipt {
 	if len(txReceipt.Logs) > 0 {
 		timestamp := blockResult.Block.Header.Time.Unix()
 		for i := 0; i < len(txReceipt.Logs); i++ {
@@ -1133,7 +1127,7 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 		jsonReceipt.To = jsonReceipt.ContractAddress
 		jsonReceipt.ContractAddress = eth.Data("")
 	}
-	return jsonReceipt, nil
+	return jsonReceipt
 }
 
 func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTxObject, error) {

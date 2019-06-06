@@ -105,22 +105,22 @@ func GetTxObjectFromBlockResult(
 	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), err
 	}
 
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), err
 	}
 
 	var txTx loomchain.Transaction
 	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), err
 	}
 
 	var msg vm.MessageTx
 	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), err
 	}
 
 	var input []byte
@@ -130,18 +130,18 @@ func GetTxObjectFromBlockResult(
 		{
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return eth.JsonTxObject{}, err
+				return eth.GetEmptyTxObject(), err
 			}
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
 				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
-					return eth.JsonTxObject{}, err
+					return eth.GetEmptyTxObject(), err
 				}
 
 				var respData vm.DeployResponseData
 				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
-					return eth.JsonTxObject{}, err
+					return eth.GetEmptyTxObject(), err
 				}
 				txHash = respData.TxHash
 			}
@@ -150,7 +150,7 @@ func GetTxObjectFromBlockResult(
 		{
 			var callTx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
-				return eth.JsonTxObject{}, err
+				return eth.GetEmptyTxObject(), err
 			}
 			input = callTx.Input
 			if callTx.VmType == vm.VMType_EVM {
@@ -160,7 +160,7 @@ func GetTxObjectFromBlockResult(
 	case migrationTx:
 		input = msg.Data
 	default:
-		return eth.JsonTxObject{}, fmt.Errorf("unrecognised tx type %v", txTx.Id)
+		return eth.GetEmptyTxObject(), fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 
 	return eth.JsonTxObject{

@@ -417,6 +417,40 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 	}
 }
 
+func GetEmptyTxObject() JsonTxObject {
+	return JsonTxObject{
+		Hash:             ZeroedData64bytes,
+		Nonce:            ZeroedQuantity,
+		BlockHash:        ZeroedData64bytes,
+		BlockNumber:      ZeroedQuantity,
+		TransactionIndex: ZeroedQuantity,
+		To:               ZeroedData32Bytes,
+		From:             ZeroedData32Bytes,
+		Gas:              ZeroedQuantity,
+		Value:            ZeroedQuantity,
+		GasPrice:         ZeroedQuantity,
+		Input:            ZeroedData,
+	}
+}
+
+func GetEmptyReceipt() JsonTxReceipt {
+	logs := make([]JsonLog, 0)
+	return JsonTxReceipt{
+		TxHash:            ZeroedData64bytes,
+		TransactionIndex:  ZeroedQuantity,
+		BlockHash:         ZeroedData64bytes,
+		BlockNumber:       ZeroedQuantity,
+		CallerAddress:     ZeroedData32Bytes,
+		CumulativeGasUsed: ZeroedQuantity,
+		GasUsed:           ZeroedQuantity,
+		ContractAddress:   ZeroedData32Bytes,
+		To:                ZeroedData32Bytes,
+		Logs:              logs,
+		LogsBloom:         ZeroedData256Bytes,
+		Status:            ZeroedQuantity,
+	}
+}
+
 func GetBlockZero() JsonBlockObject {
 	blockInfo := JsonBlockObject{
 		Number:           ZeroedQuantity,
