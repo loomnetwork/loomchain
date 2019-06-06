@@ -19,6 +19,10 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_1 = "dpos:v3.1"
 
+	// Enables slashing metrics
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_2 = "dpos:v3.2"
+
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
 	DPOSVersion2_1 = "dpos:v2.1"

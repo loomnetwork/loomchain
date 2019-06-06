@@ -6,6 +6,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -29,18 +30,6 @@ func NewValidatorsManagerV3(pvm *PluginVM) (*ValidatorsManagerV3, error) {
 	}, nil
 }
 
-func (m *ValidatorsManagerV3) SlashInactivity(validatorAddr []byte) error {
-	return dposv3.SlashInactivity(m.ctx, validatorAddr)
-}
-
-func (m *ValidatorsManagerV3) SlashDoubleSign(validatorAddr []byte) error {
-	return dposv3.SlashDoubleSign(m.ctx, validatorAddr)
-}
-
-func (m *ValidatorsManagerV3) Elect() error {
-	return dposv3.Elect(m.ctx)
-}
-
 func (m *ValidatorsManagerV3) ValidatorList() ([]*types.Validator, error) {
 	return dposv3.ValidatorList(m.ctx)
 }
@@ -51,12 +40,41 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		return nil
 	}
 
+	candidates, err := dposv3.LoadCandidateList(m.ctx)
+	if err != nil {
+		return err
+	}
+
+	downtimeTrackingEnabled := m.ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false)
+
+	if downtimeTrackingEnabled {
+		if err := dposv3.ShiftDowntimeWindow(m.ctx, currentHeight, candidates); err != nil {
+			return err
+		}
+	}
+
 	// A VoteInfo struct is created for every active validator. If
 	// SignedLastBlock is not true for any of the validators, slash them for
 	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
-			m.ctx.Logger().Debug("DPOS BeginBlock", "DowntimeEvidence", fmt.Sprintf("%v+", voteInfo), "validatorAddress", voteInfo.Validator.Address)
+			address, err := dposv3.GetLocalCandidateAddressFromTendermintAddress(
+				m.ctx, voteInfo.Validator.Address, candidates,
+			)
+			if err == nil && downtimeTrackingEnabled {
+				err = dposv3.UpdateDowntimeRecord(m.ctx, address)
+				if err != nil {
+					return err
+				}
+			}
+
+			m.ctx.Logger().Debug(
+				"DPOS BeginBlock",
+				"DowntimeEvidence", fmt.Sprintf("%v+", voteInfo),
+				"validatorAddress", address,
+				"err", err,
+			)
+
 			// err := m.SlashInactivity(voteInfo.Validator.Address)
 			// if err != nil {
 			// 	return err
@@ -99,7 +117,7 @@ func (m *ValidatorsManagerV3) EndBlock(req abci.RequestEndBlock) ([]abci.Validat
 
 	m.ctx.Logger().Debug("DPOSv3 EndBlock", "OldValidatorsList", fmt.Sprintf("%v+", oldValidatorList))
 
-	err = m.Elect()
+	err = dposv3.Elect(m.ctx)
 	if err != nil {
 		return nil, err
 	}
