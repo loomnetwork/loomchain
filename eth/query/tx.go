@@ -36,18 +36,6 @@ func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loom
 	}, nil
 }
 
-func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTxObject, error) {
-	txResults, err := blockStore.GetTxResult(hash)
-	if err != nil {
-		return eth.JsonTxObject{}, err
-	}
-	blockResult, err := blockStore.GetBlockByHeight(&txResults.Height)
-	if err != nil {
-		return eth.JsonTxObject{}, err
-	}
-	return GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
-}
-
 func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (eth.JsonTxObject, error) {
 	iHeight := int64(height)
 

@@ -8,12 +8,12 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	types2 "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/gogo/protobuf/proto"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
-	abci "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
@@ -46,8 +46,8 @@ const (
 	 * contract GoContract {}
 	 */
 	goGetCode       = "0x608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73e288d6eec7150d6a22fde33f0aa2d81e06591c4d815600a165627a7a72305820b8b6992011e1a3286b9546ca427bf9cb05db8bd25addbee7a9894131d9db12500029"
-	StatusTxSuccess = int64(1)
-	StatusTxFail    = int64(0)
+	StatusTxSuccess = int32(1)
+	StatusTxFail    = int32(0)
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -752,57 +752,52 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	if err != nil {
 		return resp, err
 	}
-	txReceipt, err := r.GetReceipt(snapshot, txHash)
-	snapshot.Release()
-	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
-		return resp, err
-	}
 
+	txReceipt, err := r.GetReceipt(snapshot, txHash)
+	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
+		// return empty response if cannot find hash
+		resp.Status = eth.EncInt(int64(StatusTxFail))
+		return resp, nil
+	}
 	if err != nil {
-		txObj, err := query.GetTxByTendermintHash(s.BlockStore, txHash)
+		resp, err = getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
 		if err != nil {
 			// return empty response if cannot find hash
-			resp.Status = eth.EncInt(StatusTxFail)
+			resp := eth.JsonTxReceipt{}
+			resp.Status = eth.EncInt(int64(StatusTxFail))
 			return resp, nil
 		}
-		resp = eth.TxObjToReceipt(txObj)
+		return resp, err
+	}
+	snapshot.Release()
 
-		txResult, err := s.BlockStore.GetTxResult(txHash)
-		if err != nil || txResult == nil {
-			// return empty response if cannot find hash
-			resp.Status = eth.EncInt(StatusTxFail)
-			return resp, nil
-		}
-		if txResult.TxResult.Code == abci.CodeTypeOK {
-			resp.Status = eth.EncInt(StatusTxSuccess)
-		} else {
-			resp.Status = eth.EncInt(StatusTxFail)
-		}
-		if txResult.TxResult.Info == utils.CallEVM {
-			resp.To = resp.ContractAddress
-			resp.ContractAddress = eth.Data("")
-		}
+	height := int64(txReceipt.BlockNumber)
+	blockResult, err := s.BlockStore.GetBlockByHeight(&height)
+	if err != nil {
+		// return empty response if cannot find hash
+		resp.Status = eth.EncInt(int64(StatusTxFail))
 		return resp, nil
-	} else {
-		if len(txReceipt.Logs) > 0 {
-			height := int64(txReceipt.BlockNumber)
-			var blockResult *ctypes.ResultBlock
-			blockResult, err := s.BlockStore.GetBlockByHeight(&height)
-			if err != nil {
-				// return empty response if cannot find hash
-				resp.Status = eth.EncInt(StatusTxFail)
-				return resp, nil
-			}
-			timestamp := blockResult.Block.Header.Time.Unix()
-
-			for i := 0; i < len(txReceipt.Logs); i++ {
-				txReceipt.Logs[i].BlockTime = timestamp
-			}
-		}
-		resp = eth.EncTxReceipt(txReceipt)
+	}
+	if int32(len(blockResult.Block.Data.Txs)) <= txReceipt.TransactionIndex {
+		// return empty response if cannot find hash
+		resp.Status = eth.EncInt(int64(StatusTxFail))
+		return resp, nil
+	}
+	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
+	if err != nil {
+		// return empty response if cannot find hash
+		resp.Status = eth.EncInt(int64(StatusTxFail))
+		return resp, nil
 	}
 
-	return eth.EncTxReceipt(txReceipt), nil
+	resp, err = completeReceipt(txResults, blockResult, r, &txReceipt)
+	if err != nil {
+		// return empty response if cannot find hash
+		resp := eth.JsonTxReceipt{}
+		resp.Status = eth.EncInt(int64(StatusTxFail))
+		return resp, nil
+	}
+	return resp, err
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblocktransactioncountbyhash
@@ -882,7 +877,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 			return resp, err
 		}
 
-		txObj, err = query.GetTxByTendermintHash(s.BlockStore, txHash)
+		txObj, err = getTxByTendermintHash(s.BlockStore, txHash)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to find tx with hash %v", txHash)
 		}
@@ -1096,4 +1091,60 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 		height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, hash)
 		return uint64(height), err
 	}
+}
+
+func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (eth.JsonTxReceipt, error) {
+	txResults, err := blockStore.GetTxResult(hash)
+	if err != nil {
+		return eth.JsonTxReceipt{}, err
+	}
+	blockResult, err := blockStore.GetBlockByHeight(&txResults.Height)
+	if err != nil {
+		return eth.JsonTxReceipt{}, err
+	}
+	txObj, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
+	if err != nil {
+		return eth.JsonTxReceipt{}, err
+	}
+	txHash, err := eth.DecDataToBytes(txObj.Hash)
+	if err != nil {
+		return eth.JsonTxReceipt{}, errors.Wrapf(err, "invalied loom transaction hash %h", txObj.Hash)
+	}
+	txReceipt, err := rh.GetReceipt(state, txHash)
+	if err != nil {
+		return eth.JsonTxReceipt{}, err
+	}
+	return completeReceipt(txResults, blockResult, rh, &txReceipt)
+}
+
+func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, rh loomchain.ReadReceiptHandler, txReceipt *types.EvmTxReceipt) (eth.JsonTxReceipt, error) {
+	if len(txReceipt.Logs) > 0 {
+		timestamp := blockResult.Block.Header.Time.Unix()
+		for i := 0; i < len(txReceipt.Logs); i++ {
+			txReceipt.Logs[i].BlockTime = timestamp
+		}
+	}
+	if txResults.TxResult.Code == types2.CodeTypeOK {
+		txReceipt.Status = StatusTxSuccess
+	} else {
+		txReceipt.Status = StatusTxFail
+	}
+	jsonReceipt := eth.EncTxReceipt(*txReceipt)
+	if txResults.TxResult.Info == utils.CallEVM {
+		jsonReceipt.To = jsonReceipt.ContractAddress
+		jsonReceipt.ContractAddress = eth.Data("")
+	}
+	return jsonReceipt, nil
+}
+
+func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTxObject, error) {
+	txResults, err := blockStore.GetTxResult(hash)
+	if err != nil {
+		return eth.JsonTxObject{}, err
+	}
+	blockResult, err := blockStore.GetBlockByHeight(&txResults.Height)
+	if err != nil {
+		return eth.JsonTxObject{}, err
+	}
+	return query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
 }
