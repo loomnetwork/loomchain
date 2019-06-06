@@ -96,6 +96,10 @@ ignored = [
   name = "github.com/btcsuite/btcutil"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
+[[constraint]]
+  name = "github.com/binance-chain/go-sdk"
+  version = "=1.0.4"
+
 [prune]
   go-tests = true
   unused-packages = true
