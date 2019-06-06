@@ -65,6 +65,12 @@
   Condition = "contains"
   Expected = ['not authorized']
 
+#Checks whitelisting fees cannot be less than equal to zero.
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dev modify-tierinfo 0 Tier2 --tier DEFAULT -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['WhitelistingFee cannot be less than equal to zero']
+  
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev get-tierinfo --tier default"
   Condition = "contains"
