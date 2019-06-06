@@ -72,7 +72,7 @@ func WriteReceipt(
 }
 
 func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	txReceiptProto, err := lr.evmAuxStore.Get(txHash)
+	txReceiptProto, err := lr.evmAuxStore.DB().Get(txHash, nil)
 	if err != nil {
 		return types.EvmTxReceipt{}, errors.Wrapf(err, "get receipt for %s", string(txHash))
 	}
@@ -214,7 +214,7 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		common.SetBloomFilter(state, filter, height)
 	}
 
-	if err := lr.evmAuxStore.AppendTxHashList(lr.tran, txHashArray, height); err != nil {
+	if err := lr.evmAuxStore.SetTxHashList(lr.tran, txHashArray, height); err != nil {
 		return errors.Wrap(err, "append tx list")
 	}
 	if err := lr.evmAuxStore.SetBloomFilter(lr.tran, filter, height); err != nil {
@@ -262,7 +262,7 @@ func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]
 }
 
 func getDBParams(db *evmaux.EvmAuxStore) (size uint64, head, tail []byte, err error) {
-	notEmpty, err := db.Has(currentDbSizeKey)
+	notEmpty, err := db.DB().Has(currentDbSizeKey, nil)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -270,7 +270,7 @@ func getDBParams(db *evmaux.EvmAuxStore) (size uint64, head, tail []byte, err er
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	sizeB, err := db.Get(currentDbSizeKey)
+	sizeB, err := db.DB().Get(currentDbSizeKey, nil)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -279,7 +279,7 @@ func getDBParams(db *evmaux.EvmAuxStore) (size uint64, head, tail []byte, err er
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	head, err = db.Get(headKey)
+	head, err = db.DB().Get(headKey, nil)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -287,7 +287,7 @@ func getDBParams(db *evmaux.EvmAuxStore) (size uint64, head, tail []byte, err er
 		return 0, []byte{}, []byte{}, errors.New("no head for non zero size receipt db")
 	}
 
-	tail, err = db.Get(tailKey)
+	tail, err = db.DB().Get(tailKey, nil)
 	if err != nil {
 		return size, head, tail, err
 	}

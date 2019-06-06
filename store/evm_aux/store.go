@@ -40,18 +40,6 @@ func NewEvmAuxStore(db *leveldb.DB) *EvmAuxStore {
 	return &EvmAuxStore{db: db}
 }
 
-func (s *EvmAuxStore) Get(key []byte) ([]byte, error) {
-	return s.db.Get(key, nil)
-}
-
-func (s *EvmAuxStore) Set(key, val []byte) error {
-	return s.db.Put(key, val, nil)
-}
-
-func (s *EvmAuxStore) Has(key []byte) (bool, error) {
-	return s.db.Has(key, nil)
-}
-
 func (s *EvmAuxStore) Close() error {
 	return s.db.Close()
 }
@@ -78,13 +66,7 @@ func (s *EvmAuxStore) SetBloomFilter(tran *leveldb.Transaction, filter []byte, h
 	return tran.Put(bloomFilterKey(height), filter, nil)
 }
 
-func (s *EvmAuxStore) AppendTxHashList(tran *leveldb.Transaction, txHash [][]byte, height uint64) error {
-	txHashList, err := s.GetTxHashList(height)
-	if err != nil {
-		return errors.Wrap(err, "getting tx hash list")
-	}
-	txHashList = append(txHashList, txHash...)
-
+func (s *EvmAuxStore) SetTxHashList(tran *leveldb.Transaction, txHashList [][]byte, height uint64) error {
 	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
