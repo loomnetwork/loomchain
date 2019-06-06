@@ -17,7 +17,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	levm "github.com/loomnetwork/loomchain/evm"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
@@ -297,7 +296,6 @@ func (c *contractContext) Emit(event []byte) {
 }
 
 func (c *contractContext) EmitTopics(event []byte, topics ...string) {
-	log.Debug("emitting event", "bytes", event)
 	if c.readOnly {
 		return
 	}
