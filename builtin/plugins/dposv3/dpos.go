@@ -857,14 +857,14 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:                req.PubKey,
-		Address:               candidateAddress.MarshalPB(),
-		Fee:                   req.Fee,
-		NewFee:                req.Fee,
-		Name:                  req.Name,
-		Description:           req.Description,
-		Website:               req.Website,
-		State:                 REGISTERED,
+		PubKey:      req.PubKey,
+		Address:     candidateAddress.MarshalPB(),
+		Fee:         req.Fee,
+		NewFee:      req.Fee,
+		Name:        req.Name,
+		Description: req.Description,
+		Website:     req.Website,
+		State:       REGISTERED,
 		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
@@ -1300,15 +1300,16 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 		return err
 	}
 
-	if state.Params.DowntimePeriod != 0 && (uint64(currentHeight) % state.Params.DowntimePeriod) == 0 {
+	if state.Params.DowntimePeriod != 0 && (uint64(currentHeight)%state.Params.DowntimePeriod) == 0 {
 		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
 
 		for _, candidate := range candidates {
 			statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
-			if err != nil && err != contract.ErrNotFound {
+			if err != nil {
+				if err == contract.ErrNotFound {
+					continue
+				}
 				return err
-			} else if err == contract.ErrNotFound {
-				continue
 			}
 
 			statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks << 16
@@ -1328,7 +1329,11 @@ func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) erro
 	}
 
 	statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks + 1
-	ctx.Logger().Info("DPOS UpdateDowntimeRecord", "validator", statistic.Address, "down-blocks", statistic.RecentlyMissedBlocks & 0xFFFF)
+	ctx.Logger().Debug(
+		"DPOS UpdateDowntimeRecord",
+		"validator", statistic.Address,
+		"down-blocks", statistic.RecentlyMissedBlocks&0xFFFF,
+	)
 
 	return SetStatistic(ctx, statistic)
 }
@@ -1978,26 +1983,24 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 }
 
 func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
-		sender := ctx.Message().Sender
-		ctx.Logger().Info("DPOSv3 SetDowntimePeriod", "sender", sender, "request", req)
-
-		state, err := loadState(ctx)
-		if err != nil {
-			return err
-		}
-
-		// ensure that function is only executed when called by oracle
-		if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
-			return logDposError(ctx, errOnlyOracle, req.String())
-		}
-
-		state.Params.DowntimePeriod = req.DowntimePeriod
-
-		return saveState(ctx, state)
-	} else {
-		return logDposError(ctx, errors.New("Function can only be called after slashing feature is enabled."), req.String())
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
+		return errors.New("DPOS v3.2 is not enabled")
 	}
+
+	sender := ctx.Message().Sender
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	state.Params.DowntimePeriod = req.DowntimePeriod
+
+	return saveState(ctx, state)
 }
 
 func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardRequest) error {

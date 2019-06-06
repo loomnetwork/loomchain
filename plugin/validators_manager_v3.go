@@ -6,10 +6,10 @@ import (
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"github.com/loomnetwork/loomchain"
 )
 
 // ValidatorsManager implements loomchain.ValidatorsManager interface
@@ -45,9 +45,10 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		return err
 	}
 
-	if m.ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
-		err := dposv3.ShiftDowntimeWindow(m.ctx, currentHeight, candidates)
-		if err != nil {
+	downtimeTrackingEnabled := m.ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false)
+
+	if downtimeTrackingEnabled {
+		if err := dposv3.ShiftDowntimeWindow(m.ctx, currentHeight, candidates); err != nil {
 			return err
 		}
 	}
@@ -57,12 +58,19 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
-			address, err := dposv3.GetLocalCandidateAddressFromTendermintAddress(m.ctx, voteInfo.Validator.Address, candidates)
-			if err == nil && m.ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
-				err = dposv3.UpdateDowntimeRecord(m.ctx, *address)
+			address, err := dposv3.GetLocalCandidateAddressFromTendermintAddress(
+				m.ctx, voteInfo.Validator.Address, candidates,
+			)
+			if err == nil && downtimeTrackingEnabled {
+				err = dposv3.UpdateDowntimeRecord(m.ctx, address)
 			}
 
-			m.ctx.Logger().Debug("DPOS BeginBlock", "DowntimeEvidence", fmt.Sprintf("%v+", voteInfo), "validatorAddress", address, "addressError", err)
+			m.ctx.Logger().Debug(
+				"DPOS BeginBlock",
+				"DowntimeEvidence", fmt.Sprintf("%v+", voteInfo),
+				"validatorAddress", address,
+				"err", err,
+			)
 
 			// err := m.SlashInactivity(voteInfo.Validator.Address)
 			// if err != nil {
