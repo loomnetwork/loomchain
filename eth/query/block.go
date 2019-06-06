@@ -257,11 +257,9 @@ func DeprecatedGetBlockByNumber(
 	} else {
 		blockinfo.Number = height
 	}
-	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
+	blockinfo.LogsBloom = evmAuxStore.GetBloomFilter(uint64(height))
+
 	txHashList, err := evmAuxStore.GetTxHashList(uint64(height))
-
-	blockinfo.LogsBloom = bloomFilter
-
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx hash")
 	}

@@ -29,8 +29,9 @@ func NewEthTxPoll(height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore sto
 	return p
 }
 
-func (p *EthTxPoll) Poll(state loomchain.ReadOnlyState, id string,
-	readReceipt loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
+func (p *EthTxPoll) Poll(
+	state loomchain.ReadOnlyState, id string, readReceipt loomchain.ReadReceiptHandler,
+) (EthPoll, interface{}, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
@@ -42,8 +43,9 @@ func (p *EthTxPoll) Poll(state loomchain.ReadOnlyState, id string,
 	return p, eth.EncBytesArray(results), nil
 }
 
-func (p *EthTxPoll) AllLogs(state loomchain.ReadOnlyState, id string,
-	readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (p *EthTxPoll) AllLogs(
+	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+) (interface{}, error) {
 	_, results, err := getTxHashes(state, p.startBlock, readReceipts, p.evmAuxStore)
 	return eth.EncBytesArray(results), err
 }
@@ -65,8 +67,9 @@ func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64,
 	return lastBlockRead, txHashes, nil
 }
 
-func (p *EthTxPoll) LegacyPoll(state loomchain.ReadOnlyState, id string,
-	readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthTxPoll) LegacyPoll(
+	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+) (EthPoll, []byte, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}

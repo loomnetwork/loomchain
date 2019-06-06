@@ -47,6 +47,7 @@ const (
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 
-	// Force Receipt handler to read/write BloomFilter and EVM TxHash from/to receipts.db only
-	ReceiptDBFeature = "db:receipt"
+	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
+	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
+	AuxEvmDBFeature = "db:auxevm"
 )

@@ -24,21 +24,24 @@ func (s EthSubscriptions) AddTxPoll(_ uint64) string {
 	return ""
 }
 
-func (s *EthSubscriptions) LegacyPoll(_ loomchain.ReadOnlyState, _ string,
-	_ loomchain.ReadReceiptHandler) ([]byte, error) {
+func (s *EthSubscriptions) LegacyPoll(
+	_ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler,
+) ([]byte, error) {
 	return nil, nil
 }
 
 func (s *EthSubscriptions) Remove(_ string) {
 }
 
-func (s EthSubscriptions) Poll(_ loomchain.ReadOnlyState, _ string,
-	_ loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) Poll(
+	_ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler,
+) (interface{}, error) {
 	return nil, nil
 }
 
-func (s EthSubscriptions) AllLogs(_ loomchain.ReadOnlyState, _ string,
-	_ loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) AllLogs(
+	_ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler,
+) (interface{}, error) {
 	return nil, nil
 }
 

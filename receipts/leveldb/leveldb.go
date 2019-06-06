@@ -207,7 +207,7 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	filter := bloom.GenBloomFilter(events)
 
 	// if the feature is not enabled, write to both app.db and receipts.db
-	if !state.FeatureEnabled(loomchain.ReceiptDBFeature, false) {
+	if !state.FeatureEnabled(loomchain.AuxEvmDBFeature, false) {
 		if err := common.AppendTxHashList(state, txHashArray, height); err != nil {
 			return errors.Wrap(err, "append tx list")
 		}
