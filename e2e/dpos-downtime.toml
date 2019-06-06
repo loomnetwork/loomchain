@@ -4,7 +4,17 @@
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
+  Condition = "contains"
+  Expected = [ 'dpos:v3.2' ]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 set-downtime-period 5 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
 
 [[TestCases]]
   RunCmd = "kill_and_restart_node 10 1"
@@ -76,6 +86,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 1}}", "{{index $.NodeBase64AddressList 2}}", "{{index $.NodeBase64AddressList 3}}"]
+  Delay = 16000
 
 # Checking that killed node is indeed offline
 [[TestCases]]
@@ -83,6 +94,16 @@
   Node = 1
   Condition = "contains"
   Expected = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["periods"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["periods"]
 
 # Attempting to do dPoS transaction with only 2 of 3 elected validators online
 [[TestCases]]
