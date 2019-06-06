@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	TransferEventTopic = "coin:transfer"
-	ApprovalEventTopic = "coin:approval"
+	TransferEventTopic = "ethcoin:transfer"
+	ApprovalEventTopic = "ethcoin:approval"
 )
 
 type (
