@@ -56,7 +56,7 @@ var (
 	// ErrMissingTierInfo is returned if init doesnt get atleast one tier
 	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
 	// Invalid whitelisting fees check
-	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] WhitelistingFee cannot be less than equal to zero")
+	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] WhitelistingFee cannot be equal to zero")
 )
 
 const (
@@ -276,7 +276,7 @@ func (uw *UserDeployerWhitelist) ModifyTierInfo(
 	if req.TierID != udwtypes.TierID_DEFAULT {
 		return ErrInvalidTier
 	}
-	if req.Fee <= 0 {
+	if req.Fee == 0 {
 		return ErrInvalidWhitelistingFee
         }
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
