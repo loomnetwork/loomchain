@@ -34,8 +34,8 @@ func (h *LegacyEthResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 // Publish publishes message to subscribers
 // todo Warning this function can throw an exception
 func (h *LegacyEthResetHub) Publish(message pubsub.Message) int {
-	h.mutex.RLock()
-	defer h.mutex.RUnlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 
 	count := 0
 	// iterate over all subscribers, and publish messages

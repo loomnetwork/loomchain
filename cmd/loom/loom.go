@@ -55,7 +55,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
-	tgateway "github.com/loomnetwork/loomchain/gateway"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/migrations"
@@ -129,16 +128,17 @@ func newEnvCommand() *cobra.Command {
 			}
 
 			printEnv(map[string]string{
-				"version":       loomchain.FullVersion(),
-				"build":         loomchain.Build,
-				"build variant": loomchain.BuildVariant,
-				"git sha":       loomchain.GitSHA,
-				"go-loom":       loomchain.GoLoomGitSHA,
-				"go-ethereum":   loomchain.EthGitSHA,
-				"go-plugin":     loomchain.HashicorpGitSHA,
-				"go-btcd":       loomchain.BtcdGitSHA,
-				"plugin path":   cfg.PluginsPath(),
-				"peers":         cfg.Peers,
+				"version":          loomchain.FullVersion(),
+				"build":            loomchain.Build,
+				"build variant":    loomchain.BuildVariant,
+				"git sha":          loomchain.GitSHA,
+				"go-loom":          loomchain.GoLoomGitSHA,
+				"transfer-gateway": loomchain.TransferGatewaySHA,
+				"go-ethereum":      loomchain.EthGitSHA,
+				"go-plugin":        loomchain.HashicorpGitSHA,
+				"go-btcd":          loomchain.BtcdGitSHA,
+				"plugin path":      cfg.PluginsPath(),
+				"peers":            cfg.Peers,
 			})
 			return nil
 		},
@@ -416,27 +416,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
-				return err
-			}
-
-			if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
-				return err
-			}
-
-			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
-				return err
-			}
-
-			if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
-				return err
-			}
-
-			if err := startTronGatewayOracle(chainID, cfg.TronTransferGateway); err != nil {
-				return err
-			}
-
-			if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner); err != nil {
+			if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
 				return err
 			}
 
@@ -528,97 +508,6 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	oracle.Run()
 
 	return nil
-}
-
-func startGatewayFn(
-	chainID string,
-	fnRegistry fnConsensus.FnRegistry,
-	cfg *tgateway.TransferGatewayConfig,
-	nodeSigner glAuth.Signer,
-) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
-}
-
-func startLoomCoinGatewayFn(
-	chainID string,
-	fnRegistry fnConsensus.FnRegistry,
-	cfg *tgateway.TransferGatewayConfig,
-	nodeSigner glAuth.Signer,
-) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("loomcoin:batch_sign_withdrawal", batchSignWithdrawalFn)
-}
-
-func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.OracleEnabled {
-		return nil
-	}
-
-	orc, err := tgateway.CreateLoomCoinOracle(cfg, chainID)
-	if err != nil {
-		return err
-	}
-
-	go orc.RunWithRecovery()
-	return nil
-}
-
-func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.OracleEnabled {
-		return nil
-	}
-
-	orc, err := tgateway.CreateOracle(cfg, chainID)
-	if err != nil {
-		return err
-	}
-
-	go orc.RunWithRecovery()
-	return nil
-}
-
-func startTronGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.OracleEnabled {
-		return nil
-	}
-
-	orc, err := tgateway.CreateTronOracle(cfg, chainID)
-	if err != nil {
-		return err
-	}
-
-	go orc.RunWithRecovery()
-	return nil
-}
-
-func startTronGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("tron:batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
 func initDB(name, dir string) error {

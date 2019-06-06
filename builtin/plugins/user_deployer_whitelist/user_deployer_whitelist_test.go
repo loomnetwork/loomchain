@@ -17,15 +17,14 @@ import (
 )
 
 var (
-	addr1         = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	addr3         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
-	addr4         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
-	addr5         = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
-	contractAddr  = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01ab")
-	user          = addr3.MarshalPB()
-	deployer_addr = addr1.MarshalPB()
-	chainID       = "default"
+	addr1        = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr3        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
+	addr4        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
+	addr5        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
+	contractAddr = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01ab")
+	user         = addr3.MarshalPB()
+	chainID      = "default"
 )
 
 func TestUserDeployerWhitelistContract(t *testing.T) {
@@ -109,6 +108,12 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
+	// When no deployer attached to user then should return 0 deployers instead of error
+	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
+		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(getUserDeployersResponse.Deployers))
+
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr1.MarshalPB(),
@@ -145,30 +150,30 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
 
-	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
+	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
 
-	// addr3 is not a deployer so response should be Nil
+	// When no contracts attached should return 0 contracts instead of error
 	getDeployedContractsResponse, err := deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
-		DeployerAddr: addr3.MarshalPB(),
+		DeployerAddr: addr1.MarshalPB(),
 	})
-	require.Error(t, err)
-	require.Nil(t, getDeployedContractsResponse)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
 
 	err = RecordEVMContractDeployment(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		addr1, contractAddr)
 	require.Nil(t, err)
-	// addr1 is deployer
+	// When one contract is deployed, length = 1
 	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
 		DeployerAddr: addr1.MarshalPB(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
-
+  
 	//Modify Tier Info
 	err = deployerContract.ModifyTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
 		&ModifyTierInfoRequest{
@@ -198,6 +203,13 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, fees, &resp.Tier.Fee.Value)
 	require.Equal(t, "Tier2", resp.Tier.Name)
+	// when deployer is not in ctx, still return don't return error but empty list of contracts
+	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
+		DeployerAddr: addr3.MarshalPB(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
 }
 
 func sciNot(m, n int64) *loom.BigUInt {
