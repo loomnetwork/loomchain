@@ -63,6 +63,9 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 			)
 			if err == nil && downtimeTrackingEnabled {
 				err = dposv3.UpdateDowntimeRecord(m.ctx, address)
+				if err != nil {
+					return err
+				}
 			}
 
 			m.ctx.Logger().Debug(
