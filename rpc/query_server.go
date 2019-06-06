@@ -763,7 +763,6 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		resp, err = getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
 		if err != nil {
 			// return empty response if cannot find hash
-			resp := eth.JsonTxReceipt{}
 			resp.Status = eth.EncInt(int64(StatusTxFail))
 			return resp, nil
 		}
@@ -790,7 +789,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, nil
 	}
 
-	resp, err = completeReceipt(txResults, blockResult, r, &txReceipt)
+	resp, err = completeReceipt(txResults, blockResult, &txReceipt)
 	if err != nil {
 		// return empty response if cannot find hash
 		resp := eth.JsonTxReceipt{}
@@ -1108,16 +1107,16 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	}
 	txHash, err := eth.DecDataToBytes(txObj.Hash)
 	if err != nil {
-		return eth.JsonTxReceipt{}, errors.Wrapf(err, "invalied loom transaction hash %h", txObj.Hash)
+		return eth.TxObjToReceipt(txObj), errors.Wrapf(err, "invalid loom transaction hash %h", txObj.Hash)
 	}
 	txReceipt, err := rh.GetReceipt(state, txHash)
 	if err != nil {
-		return eth.JsonTxReceipt{}, err
+		return eth.TxObjToReceipt(txObj), err
 	}
-	return completeReceipt(txResults, blockResult, rh, &txReceipt)
+	return completeReceipt(txResults, blockResult, &txReceipt)
 }
 
-func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, rh loomchain.ReadReceiptHandler, txReceipt *types.EvmTxReceipt) (eth.JsonTxReceipt, error) {
+func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) (eth.JsonTxReceipt, error) {
 	if len(txReceipt.Logs) > 0 {
 		timestamp := blockResult.Block.Header.Time.Unix()
 		for i := 0; i < len(txReceipt.Logs); i++ {
