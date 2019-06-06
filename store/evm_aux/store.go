@@ -19,16 +19,16 @@ var (
 )
 
 func bloomFilterKey(height uint64) []byte {
-	return util.PrefixKey(BloomPrefix, BlockHeightToBytes(height))
+	return util.PrefixKey(BloomPrefix, blockHeightToBytes(height))
 }
 
 func evmTxHashKey(height uint64) []byte {
-	return util.PrefixKey(TxHashPrefix, BlockHeightToBytes(height))
+	return util.PrefixKey(TxHashPrefix, blockHeightToBytes(height))
 }
 
-func BlockHeightToBytes(height uint64) []byte {
+func blockHeightToBytes(height uint64) []byte {
 	heightB := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightB, height)
+	binary.BigEndian.PutUint64(heightB, height)
 	return heightB
 }
 
