@@ -213,6 +213,9 @@ func ModifyTierInfoCmd() *cobra.Command {
 				return fmt.Errorf("Please specify tierId <default>")
 			}
 			fees, err := strconv.ParseInt(args[0], 10, 64)
+			if fees <= 0 {
+				return fmt.Errorf("Whitelisting fees cannot be less than equal to zero")
+			}
 			if err != nil {
 				return err
 			}
