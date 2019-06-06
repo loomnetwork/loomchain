@@ -16,3 +16,5 @@ Auth:
       TxType: "eth"
     tron:
       TxType: "tron"
+    binance:
+      TxType: "binance"

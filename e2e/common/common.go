@@ -101,6 +101,15 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		tronAccounts = append(tronAccounts, acct)
 	}
 
+	var binanceAccounts []*node.BinanceAccount
+	for i := 0; i < numEthAccounts; i++ {
+		acct, err := node.CreateBinanceAccount(i, conf.BaseDir)
+		if err != nil {
+			return nil, err
+		}
+		binanceAccounts = append(binanceAccounts, acct)
+	}
+
 	var nodes []*node.Node
 	for i := 0; i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl, yamlFile)
@@ -148,6 +157,13 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		conf.TronAccountPubKeyList = append(conf.TronAccountPubKeyList, tronAccount.PubKey)
 	}
 	conf.TronAccounts = tronAccounts
+
+	for _, binanceAccount := range binanceAccounts {
+		conf.BinanceAccountAddressList = append(conf.BinanceAccountAddressList, binanceAccount.Address)
+		conf.BinanceAccountPrivKeyPathList = append(conf.BinanceAccountPrivKeyPathList, binanceAccount.PrivKeyPath)
+		conf.BinanceAccountPubKeyList = append(conf.BinanceAccountPubKeyList, binanceAccount.PubKey)
+	}
+	conf.BinanceAccounts = binanceAccounts
 
 	if err := lib.WriteConfig(conf, "runner.toml"); err != nil {
 		return nil, err

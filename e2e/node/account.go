@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/binance-chain/go-sdk/keys"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/ethereum/go-ethereum/crypto"
 	loom "github.com/loomnetwork/go-loom"
@@ -76,6 +77,15 @@ type TronAccount struct {
 	Local       string
 }
 
+type BinanceAccount struct {
+	PubKey      string
+	PubKeyPath  string
+	PrivKey     *ecdsa.PrivateKey
+	PrivKeyPath string
+	Address     string
+	Local       string
+}
+
 func CreateEthAccount(id int, baseDir string) (*EthAccount, error) {
 	ethKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -121,6 +131,39 @@ func CreateTronAccount(id int, baseDir string) (*TronAccount, error) {
 		Address:     addr.String(),
 		Local:       local.String(),
 		PrivKey:     tronKey,
+		PrivKeyPath: privfile,
+	}, nil
+}
+
+func CreateBinanceAccount(id int, baseDir string) (*BinanceAccount, error) {
+	keyManager, err := keys.NewKeyManager()
+	if err != nil {
+		return nil, err
+	}
+	hexPrivKey, err := keyManager.ExportAsPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+
+	privKey, err := crypto.HexToECDSA(hexPrivKey)
+	if err != nil {
+		return nil, err
+	}
+
+	privfile := path.Join(baseDir, fmt.Sprintf("privebinancekey-%d", id))
+	if err := crypto.SaveECDSA(privfile, privKey); err != nil {
+		return nil, err
+	}
+
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privKey.PublicKey).Hex())
+	if err != nil {
+		return nil, err
+	}
+	addr := loom.Address{ChainID: "binance", Local: local}
+	return &BinanceAccount{
+		Address:     addr.String(),
+		Local:       local.String(),
+		PrivKey:     privKey,
 		PrivKeyPath: privfile,
 	}, nil
 }

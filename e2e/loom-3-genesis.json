@@ -29,6 +29,10 @@
                 {
                   "name":"auth:sigtx:tron",
                   "status":"WAITING"
+                },
+                {
+                    "name":"auth:sigtx:binance",
+                    "status":"WAITING"
                 }
               ]
           }
