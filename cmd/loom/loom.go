@@ -38,7 +38,6 @@ import (
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
-	goleveldb "github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
@@ -710,14 +709,6 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 	return evmStore, nil
 }
 
-func loadEvmAuxStore() (*evmaux.EvmAuxStore, error) {
-	evmAuxDB, err := goleveldb.OpenFile(evmaux.EvmAuxDBName, nil)
-	if err != nil {
-		return nil, err
-	}
-	return evmaux.NewEvmAuxStore(evmAuxDB), nil
-}
-
 func loadApp(
 	chainID string,
 	cfg *config.Config,
@@ -776,7 +767,7 @@ func loadApp(
 	}
 
 	// load EVM Auxiliary Store
-	evmAuxStore, err := loadEvmAuxStore()
+	evmAuxStore, err := evmaux.LoadEvmAuxStore()
 	if err != nil {
 		return nil, err
 	}
