@@ -39,6 +39,7 @@ type IAVLStore struct {
 	saveFrequency    uint64
 	versionFrequency uint64
 	saveCount        uint64
+	variableCache    bool
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -134,14 +135,29 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	}(err)
 
 	oldVersion := s.Version()
-	if s.saveFrequency > 0 && !s.tree.MaxChacheSizeExceeded() {
+	if s.variableCache {
+		if s.tree.MaxChacheSizeExceeded() {
+			hash, version, err := s.tree.SaveVersion()
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
+			}
+			return hash, version, nil
+		} else {
+			hash, version, err := s.tree.NewVersion()
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
+			}
+			return hash, version, nil
+		}
+	}
+
+	if s.saveFrequency > 0 {
 		s.saveCount++
 		if s.saveCount%s.saveFrequency != 0 {
 			hash, version, err := s.tree.NewVersion()
 			if err != nil {
 				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 			}
-
 			return hash, version, nil
 		} else {
 			s.saveCount = 0
@@ -152,7 +168,6 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
-
 	return hash, version, nil
 }
 
@@ -217,7 +232,13 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // saveFrequency says how often the IVAL tree will be saved to the disk. 0 means every block.
 // versionFrequency = N, indicates that versions other than multiples of N will be eventually pruned.
 func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize uint64) (*IAVLStore, error) {
-	ndb := iavl.NewNodeDB3(db, minCacheSize, maxCacheSize, saveFrequency > 0, nil)
+	ndb := iavl.NewNodeDB3(
+		db,
+		minCacheSize,
+		maxCacheSize,
+		(saveFrequency > 0) || (minCacheSize < maxCacheSize),
+		nil,
+	)
 	tree := iavl.NewMutableTreeWithNodeDB(ndb)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
@@ -234,6 +255,7 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, ve
 		maxVersions:      maxVersions,
 		saveFrequency:    saveFrequency,
 		versionFrequency: versionFrequency,
+		variableCache:    (minCacheSize < maxCacheSize),
 	}, nil
 }
 

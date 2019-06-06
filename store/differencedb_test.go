@@ -19,6 +19,8 @@ var (
 	versionFrequency = 5
 	maxVersions      = 3
 	diskDbType       = "memdb"
+	testMinCache     = uint64(10)
+	testMaxCache     = uint64(100)
 
 	blocks []*iavl.Program
 	tree   *iavl.MutableTree
@@ -36,10 +38,12 @@ func TestDualIavlStore(t *testing.T) {
 	generateBlocks(t)
 
 	t.Run("normal", testNormal)
+	t.Run("save frequency", testVariableCache)
 	t.Run("max versions & max versions", testMaxVersionFrequency)
 	t.Run("max versions", testMaxVersions)
 	t.Run("save frequency", testSaveFrequency)
 	t.Run("max versions, max versions & save frequency", testMaxVersionFrequencySaveFrequency)
+
 }
 
 func testNormal(t *testing.T) {
@@ -138,6 +142,25 @@ func testSaveFrequency(t *testing.T) {
 			diskTree.VersionExists(int64(i)),
 		)
 	}
+	for _, entry := range store.Range(nil) {
+		_, value := tree.Get(entry.Key)
+		require.Zero(t, bytes.Compare(value, entry.Value))
+	}
+	tree.Iterate(func(key []byte, value []byte) bool {
+		require.Zero(t, bytes.Compare(value, store.Get(key)))
+		return true
+	})
+}
+
+func testVariableCache(t *testing.T) {
+	diskDb := getDiskDb(t, "testNormal")
+	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0, testMinCache, testMaxCache)
+	require.NoError(t, err)
+	executeBlocks(t, blocks, *store)
+
+	diskTree := iavl.NewMutableTree(diskDb, 0)
+	_, err = diskTree.Load()
+	require.NoError(t, err)
 	for _, entry := range store.Range(nil) {
 		_, value := tree.Get(entry.Key)
 		require.Zero(t, bytes.Compare(value, entry.Value))
