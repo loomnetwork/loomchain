@@ -278,7 +278,7 @@ func (uw *UserDeployerWhitelist) ModifyTierInfo(
 	}
 	if req.Fee == 0 {
 		return ErrInvalidWhitelistingFee
-        }
+	}
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
