@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	goleveldb "github.com/syndtr/goleveldb/leveldb"
 )
 
 var (
@@ -30,6 +31,14 @@ func blockHeightToBytes(height uint64) []byte {
 	heightB := make([]byte, 8)
 	binary.BigEndian.PutUint64(heightB, height)
 	return heightB
+}
+
+func LoadStore() (*EvmAuxStore, error) {
+	evmAuxDB, err := goleveldb.OpenFile(EvmAuxDBName, nil)
+	if err != nil {
+		return nil, err
+	}
+	return NewEvmAuxStore(evmAuxDB), nil
 }
 
 type EvmAuxStore struct {
@@ -56,6 +65,9 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 	protHashList, err := s.db.Get(evmTxHashKey(height), nil)
 	if err != nil && err != leveldb.ErrNotFound {
 		return nil, err
+	}
+	if protHashList == nil {
+		return [][]byte{}, nil
 	}
 	txHashList := types.EthTxHashList{}
 	err = proto.Unmarshal(protHashList, &txHashList)

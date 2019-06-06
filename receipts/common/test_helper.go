@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"crypto/sha256"
+	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -69,16 +70,12 @@ func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
 	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
 }
 
-func MockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
+func NewMockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
+	os.RemoveAll(evmaux.EvmAuxDBName)
 	evmAuxDB, err := goleveldb.OpenFile(evmaux.EvmAuxDBName, nil)
 	if err != nil {
 		return nil, err
 	}
 	evmAuxStore := evmaux.NewEvmAuxStore(evmAuxDB)
 	return evmAuxStore, nil
-}
-
-func ClearEvmAuxData() {
-	evmAuxStore, _ := MockEvmAuxStore()
-	evmAuxStore.ClearData()
 }

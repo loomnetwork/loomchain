@@ -34,13 +34,10 @@ var (
 
 func TestQueryChain(t *testing.T) {
 	testQueryChain(t, handler.ReceiptHandlerLevelDb)
-	common.ClearEvmAuxData()
-	testQueryChain(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
-	common.ClearEvmAuxData()
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -171,15 +168,11 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	common.ClearEvmAuxData()
-	testGetLogs(t, handler.ReceiptHandlerLevelDb)
-
-	common.ClearEvmAuxData()
 	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
 	eventDispatcher := events.NewLogEventDispatcher()

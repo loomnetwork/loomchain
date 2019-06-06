@@ -27,14 +27,10 @@ var (
 
 func TestLogPoll(t *testing.T) {
 	testLogPoll(t, handler.ReceiptHandlerLevelDb)
-
-	common.ClearEvmAuxData()
-	testLogPoll(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	common.ClearEvmAuxData()
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
@@ -90,19 +86,12 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func TestTxPoll(t *testing.T) {
-	common.ClearEvmAuxData()
 	testLegacyTxPoll(t, handler.ReceiptHandlerLevelDb)
-
-	common.ClearEvmAuxData()
-	testTxPoll(t, handler.ReceiptHandlerLevelDb)
-
-	common.ClearEvmAuxData()
 	testTxPoll(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	common.ClearEvmAuxData()
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
@@ -139,12 +128,10 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	result, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
-	evmAuxStore.ClearData()
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	common.ClearEvmAuxData()
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
@@ -201,20 +188,14 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
-	evmAuxStore.ClearData()
 }
 
 func TestTimeout(t *testing.T) {
-	common.ClearEvmAuxData()
-	testTimeout(t, handler.ReceiptHandlerLevelDb)
-
-	common.ClearEvmAuxData()
 	testTimeout(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
-	common.ClearEvmAuxData()
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
@@ -257,7 +238,6 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	result, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
-	evmAuxStore.ClearData()
 }
 
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
@@ -334,7 +314,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 }
 
 func TestAddRemove(t *testing.T) {
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
 	s := NewEthSubscriptions(evmAuxStore, blockStore)
@@ -354,5 +334,4 @@ func TestAddRemove(t *testing.T) {
 	s.Remove(id)
 	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
-	common.ClearEvmAuxData()
 }

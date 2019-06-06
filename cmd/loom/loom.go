@@ -767,7 +767,7 @@ func loadApp(
 	}
 
 	// load EVM Auxiliary Store
-	evmAuxStore, err := evmaux.LoadEvmAuxStore()
+	evmAuxStore, err := evmaux.LoadStore()
 	if err != nil {
 		return nil, err
 	}
