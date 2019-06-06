@@ -32,6 +32,7 @@ required = [
 ignored = [
   "github.com/loomnetwork/go-loom*",
   "github.com/loomnetwork/gamechain*",
+  "github.com/loomnetwork/transfer-gateway*",
   "github.com/miguelmota/go-solidity-sha3",
   "golang.org/x/crypto*",
   "google.golang.org/grpc*",
