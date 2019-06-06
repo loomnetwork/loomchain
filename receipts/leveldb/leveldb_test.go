@@ -136,7 +136,7 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 		if previous.Receipt != nil {
 			require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.NextTxHash))
 		}
-		txReceiptItemProto, err := handler.evmAuxStore.Get(receipts[i].TxHash)
+		txReceiptItemProto, err := handler.evmAuxStore.DB().Get(receipts[i].TxHash, nil)
 		require.NoError(t, err)
 		require.NoError(t, proto.Unmarshal(txReceiptItemProto, &previous))
 		require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.Receipt.TxHash))
