@@ -6,6 +6,7 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -224,7 +225,12 @@ func Mint(ctx contract.Context) error {
 	if err != nil {
 		return errUtil.Wrap(err, "Failed to Get PolicyInfo")
 	}
-	depreciation := loom.NewBigUIntFromInt(int64((policy.DeflationFactorNumerator * uint64(ctx.Block().Height)) / policy.DeflationFactorDenominator))
+	var depreciation *common.BigUInt
+	policyNumerator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorNumerator))
+	policyDenominator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorDenominator))
+	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
+	depreciation.Mul(policyNumerator, blockHeight)
+	depreciation.Div(depreciation, policyDenominator)
 	amount := policy.BaseMintingAmount.Value
 	amount.Sub(&amount, depreciation)
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
