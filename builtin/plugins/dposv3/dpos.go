@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	defaultDowntimePeriod          = 4096
 	defaultRegistrationRequirement = 1250000
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
@@ -84,6 +85,8 @@ type (
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
 	CheckRewardDelegationRequest      = dtypes.CheckRewardDelegationRequest
 	CheckRewardDelegationResponse     = dtypes.CheckRewardDelegationResponse
+	DowntimeRecordRequest             = dtypes.DowntimeRecordRequest
+	DowntimeRecordResponse            = dtypes.DowntimeRecordResponse
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
@@ -100,6 +103,7 @@ type (
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
 	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
+	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
@@ -174,6 +178,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 	if params.MaxYearlyReward == nil {
 		params.MaxYearlyReward = &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)}
+	}
+	if params.DowntimePeriod == 0 {
+		params.DowntimePeriod = defaultDowntimePeriod
 	}
 
 	state := &State{
@@ -773,7 +780,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 RegisterCandidate", "candidate", candidateAddress, "request", req)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -850,14 +857,14 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:                req.PubKey,
-		Address:               candidateAddress.MarshalPB(),
-		Fee:                   req.Fee,
-		NewFee:                req.Fee,
-		Name:                  req.Name,
-		Description:           req.Description,
-		Website:               req.Website,
-		State:                 REGISTERED,
+		PubKey:      req.PubKey,
+		Address:     candidateAddress.MarshalPB(),
+		Fee:         req.Fee,
+		NewFee:      req.Fee,
+		Name:        req.Name,
+		Description: req.Description,
+		Website:     req.Website,
+		State:       REGISTERED,
 		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
@@ -873,7 +880,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 	ctx.Logger().Info("DPOSv3 ChangeFee", "request", req)
 
 	candidateAddress := ctx.Message().Sender
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -905,7 +912,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 	ctx.Logger().Info("DPOSv3 UpdateCandidateInfo", "request", req)
 
 	candidateAddress := ctx.Message().Sender
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -940,7 +947,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress, "request", req)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -1004,7 +1011,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesRequest) (*ListCandidatesResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListCandidates", "request", req.String())
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
@@ -1264,7 +1271,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListAllDelegations", "request", req)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1286,6 +1293,77 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 // ***************************
 // REWARDS & SLASHING
 // ***************************
+
+func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates []*Candidate) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if state.Params.DowntimePeriod != 0 && (uint64(currentHeight)%state.Params.DowntimePeriod) == 0 {
+		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
+
+		for _, candidate := range candidates {
+			statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+			if err != nil {
+				if err == contract.ErrNotFound {
+					continue
+				}
+				return err
+			}
+
+			statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks << 16
+			if err := SetStatistic(ctx, statistic); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) error {
+	statistic, err := GetStatistic(ctx, validatorAddr)
+	if err != nil {
+		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
+	}
+
+	statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks + 1
+	ctx.Logger().Debug(
+		"DPOS UpdateDowntimeRecord",
+		"validator", statistic.Address,
+		"down-blocks", statistic.RecentlyMissedBlocks&0xFFFF,
+	)
+
+	return SetStatistic(ctx, statistic)
+}
+
+func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordRequest) (*DowntimeRecordResponse, error) {
+	ctx.Logger().Debug("DPOSv3 DowntimeRecord", "request", req)
+	if req.Validator == nil {
+		return nil, errors.New("request made with req.Validator == nil")
+	}
+
+	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.Validator))
+	if err != nil {
+		return nil, logStaticDposError(ctx, contract.ErrNotFound, req.String())
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DowntimeRecordResponse{
+		Periods: []uint64{
+			statistic.RecentlyMissedBlocks & 0xFFFF,
+			(statistic.RecentlyMissedBlocks >> 16) & 0xFFFF,
+			(statistic.RecentlyMissedBlocks >> 32) & 0xFFFF,
+			(statistic.RecentlyMissedBlocks >> 48) & 0xFFFF,
+		},
+		PeriodLength: state.Params.DowntimePeriod,
+	}, nil
+}
 
 // only called for validators, never delegators
 func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
@@ -1566,7 +1644,7 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedDposStorage, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, distributedRewards *loom.BigUInt) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1900,6 +1978,27 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 	}
 
 	state.Params.ElectionCycleLength = req.ElectionCycle
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
+		return errors.New("DPOS v3.2 is not enabled")
+	}
+
+	sender := ctx.Message().Sender
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	state.Params.DowntimePeriod = req.DowntimePeriod
 
 	return saveState(ctx, state)
 }

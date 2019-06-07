@@ -130,6 +130,14 @@ a double sign fault whose penalty is greater that that of an inactivity fault.
 Slashing calculations are carried out in `plugin/validators_manager.go` and not
 in the dpos contract itself.
 
+Inactivity is calculated by counting how many blocks in a `downtimePeriod`
+(measured in blocks) a validator fails to sign. If a validator fails to sign
+more than 20% of blocks during any four consecutive `downtimePeriod`s, the
+validator is considered inactive.
+
+Inactivity leads to a loss of `inactivitySlashPercentage * stake` not only for
+validator but for delegators bonded to him as well.
+
 ## Rewards
 
 Besides disincentivizing deviations from the consensus protocol using slashing,
