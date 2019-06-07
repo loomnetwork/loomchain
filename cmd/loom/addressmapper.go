@@ -56,6 +56,15 @@ func AddIdentityMappingCmd() *cobra.Command {
 				if err != nil {
 					return errors.Wrapf(err, "bad tron private key from file% v", args[1])
 				}
+			case "binance":
+				privkey, err = crypto.LoadECDSA(args[1])
+				if err != nil {
+					return errors.Wrapf(err, "read binance private key from file %v", args[1])
+				}
+				foreignLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privkey.PublicKey).Hex())
+				if err != nil {
+					return errors.Wrapf(err, "bad binance private key from file% v", args[1])
+				}
 			}
 
 			foreignAddr := loom.Address{ChainID: chainId, Local: foreignLocalAddr}
