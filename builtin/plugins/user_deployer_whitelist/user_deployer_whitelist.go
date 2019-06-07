@@ -266,6 +266,9 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 // ModifyTierInfo Modify the TierInfo corresponding to a TierID
 func (uw *UserDeployerWhitelist) ModifyTierInfo(
 	ctx contract.Context, req *ModifyTierInfoRequest) error {
+	if req.Fee.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+		return ErrInvalidWhitelistingFee
+	}
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
