@@ -168,7 +168,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 		// AppStore 3.1 write EVM root to app.db only if it changes
 		if bytes.Equal(s.appStore.Get(appStoreVersion3_1), []byte{1}) {
 			oldRoot := s.appStore.Get(rootKey)
-			if bytes.Equal(oldRoot, currentRoot) {
+			if !bytes.Equal(oldRoot, currentRoot) {
 				s.appStore.Set(rootKey, currentRoot)
 			}
 		} else {
