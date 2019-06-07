@@ -27,6 +27,7 @@ func NewUserDeployCommand() *cobra.Command {
 	}
 	cmd.AddCommand(
 		addUserDeployerCmd(),
+		removeUserDeployerCmd(),
 		getUserDeployersCmd(),
 		getDeployedContractsCmd(),
 		getTierInfoCmd(),
@@ -66,6 +67,32 @@ func addUserDeployerCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&TierID, "tier", "t", "default", "tier ID")
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const removeUserDeployerCmdExample = `
+loom dev remove-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+`
+
+func removeUserDeployerCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "remove-deployer <deployer address>",
+		Short:   "Remove an account to deploy contracts on behalf of a user (the caller)",
+		Example: removeUserDeployerCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
+			if err != nil {
+				return err
+			}
+			req := &udwtypes.RemoveUserDeployerRequest{
+				DeployerAddr: addr.MarshalPB(),
+			}
+			return cli.CallContractWithFlags(&flags, dwContractName, "RemoveUserDeployer", req, nil)
+		},
+	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
