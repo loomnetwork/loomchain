@@ -201,6 +201,54 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 
 }
 
+// RemoveUserDeployer to remove a deployerAddr from whitelisted deployers
+func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *udwtypes.RemoveUserDeployerRequest) error {
+	if req.DeployerAddr == nil {
+		return ErrInvalidRequest
+	}
+	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
+	// check if sender is the user who whitelisted the DeployerAddr, if so remove from userState
+	userAddr := ctx.Message().Sender
+	var userState UserState
+	if err := ctx.Get(UserStateKey(userAddr), &userState); err != nil {
+		if err != contract.ErrNotFound {
+			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
+		}
+	}
+	isDeployerAddrValid := false
+	deployers := userState.Deployers
+	for i, addr := range deployers {
+		if !isDeployerAddrValid && loom.UnmarshalAddressPB(addr).String() == deployerAddr.String() {
+			isDeployerAddrValid = true
+			userState.Deployers = append(deployers[:i], deployers[i+1:]...)
+		}
+	}
+	if !isDeployerAddrValid {
+		return ErrNotAuthorized
+	}
+	if err := ctx.Set(UserStateKey(userAddr), &userState); err != nil {
+		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
+	}
+
+	// remove from deployerwhitelist contract
+	dwAddr, err := ctx.Resolve("deployerwhitelist")
+	if err != nil {
+		return errors.Wrap(err, "unable to get address of deployer_whitelist")
+	}
+	removeUserDeployerRequest := &udwtypes.RemoveUserDeployerRequest{
+		DeployerAddr: req.DeployerAddr,
+	}
+	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
+		return errors.Wrap(err, "failed to remove deployer")
+	}
+	// remove from current contract deployer address
+	if !ctx.Has(DeployerStateKey(deployerAddr)) {
+		return ErrDeployerDoesNotExist
+	}
+	ctx.Delete(DeployerStateKey(deployerAddr))
+	return nil
+}
+
 // GetUserDeployers returns the list of accounts authorized to deploy EVM contracts on behalf of the
 // specified user.
 func (uw *UserDeployerWhitelist) GetUserDeployers(
