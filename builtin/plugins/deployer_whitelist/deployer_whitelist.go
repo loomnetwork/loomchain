@@ -4,6 +4,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
+	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
@@ -11,17 +12,18 @@ import (
 )
 
 type (
-	InitRequest            = dwtypes.InitRequest
-	ListDeployersRequest   = dwtypes.ListDeployersRequest
-	ListDeployersResponse  = dwtypes.ListDeployersResponse
-	GetDeployerRequest     = dwtypes.GetDeployerRequest
-	GetDeployerResponse    = dwtypes.GetDeployerResponse
-	AddDeployerRequest     = dwtypes.AddDeployerRequest
-	AddDeployerResponse    = dwtypes.AddDeployerResponse
-	RemoveDeployerRequest  = dwtypes.RemoveDeployerRequest
-	RemoveDeployerResponse = dwtypes.RemoveDeployerResponse
-	Deployer               = dwtypes.Deployer
-	AddUserDeployerRequest = dwtypes.AddUserDeployerRequest
+	InitRequest               = dwtypes.InitRequest
+	ListDeployersRequest      = dwtypes.ListDeployersRequest
+	ListDeployersResponse     = dwtypes.ListDeployersResponse
+	GetDeployerRequest        = dwtypes.GetDeployerRequest
+	GetDeployerResponse       = dwtypes.GetDeployerResponse
+	AddDeployerRequest        = dwtypes.AddDeployerRequest
+	AddDeployerResponse       = dwtypes.AddDeployerResponse
+	RemoveDeployerRequest     = dwtypes.RemoveDeployerRequest
+	RemoveDeployerResponse    = dwtypes.RemoveDeployerResponse
+	Deployer                  = dwtypes.Deployer
+	AddUserDeployerRequest    = dwtypes.AddUserDeployerRequest
+	RemoveUserDeployerRequest = udwtypes.RemoveUserDeployerRequest
 )
 
 const (
@@ -126,7 +128,7 @@ func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserD
 	return ctx.Set(deployerKey(deployerAddr), deployer)
 }
 
-func (dw *DeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *dwtypes.RemoveUserDeployerRequest) error {
+func (dw *DeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *RemoveUserDeployerRequest) error {
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
 	}
