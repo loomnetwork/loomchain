@@ -271,8 +271,8 @@ func (uw *UserDeployerWhitelist) ModifyTierInfo(
 	}
 	tier := &Tier{
 		TierID: req.TierID,
-		Fee: req.Fee,
-		Name: req.Name,
+		Fee:    req.Fee,
+		Name:   req.Name,
 	}
 	err := ctx.Set(TierKey(req.TierID), tier)
 	if err != nil {
