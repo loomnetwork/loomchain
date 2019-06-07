@@ -136,6 +136,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 
 	oldVersion := s.Version()
 	if s.variableCache {
+		s.saveCount++
 		if s.tree.MaxChacheSizeExceeded() {
 			hash, version, err := s.tree.SaveVersion()
 			if err != nil {
@@ -204,11 +205,14 @@ func (s *IAVLStore) Prune() error {
 	}(time.Now())
 
 	if s.tree.VersionExists(oldVer) {
-		if s.saveFrequency == 0 {
+		if s.saveFrequency == 0 && !s.variableCache {
+			//fmt.Println("delete old version", oldVer)
 			if err = s.tree.DeleteVersion(oldVer); err != nil {
 				return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
 			}
+
 		} else {
+			//fmt.Println("memory delete old version", oldVer)
 			if err = s.tree.DeleteMemoryVersion(oldVer, true); err != nil {
 				return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
 			}

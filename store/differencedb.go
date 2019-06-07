@@ -4,7 +4,7 @@ import (
 	"github.com/tendermint/tendermint/libs/db"
 )
 
-func NewDelayIavlStore(diskDb db.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize uint64) (*IAVLStore, error) {
+func NewDiffIavlStore(diskDb db.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize uint64) (*IAVLStore, error) {
 	difDb := &differenceDb{diskDb}
 	return NewIAVLStore(difDb, maxVersions, targetVersion, saveFrequency, versionFrequency, minCacheSize, maxCacheSize)
 }

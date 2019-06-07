@@ -716,8 +716,8 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 	} else if cfg.AppStore.Version == 4 {
-		logger.Info("Loading NewDelayIavlStore Store")
-		appStore, err = store.NewDelayIavlStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.DBSaveFrequency, cfg.DBVersionFrequency, cfg.DBMinCache, cfg.DBMaxCache)
+		logger.Info("Loading NewDiffIavlStore Store")
+		appStore, err = store.NewDiffIavlStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.DBSaveFrequency, cfg.DBVersionFrequency, cfg.DBMinCache, cfg.DBMaxCache)
 		if err != nil {
 			return nil, err
 		}

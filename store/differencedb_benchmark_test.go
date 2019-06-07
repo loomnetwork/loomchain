@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	//"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/loomnetwork/loomchain/log"
 )
@@ -22,7 +23,7 @@ type benchFunc func(b *testing.B)
 
 func BenchmarkIavlStore(b *testing.B) {
 	log.Setup("debug", "file://-")
-	log.Root.With("module", "dual-iavlstore")
+	log.Root.With("module", "diff-iavlstore")
 
 	testno = 0
 	require.NoError(b, os.RemoveAll("testdata"))
@@ -30,12 +31,12 @@ func BenchmarkIavlStore(b *testing.B) {
 	require.True(b, os.IsNotExist(err))
 
 	diskDbType = "goleveldb"
-	numBlocks = 5000
-	blockSize = 20000
+	numBlocks = 1000
+	blockSize = 1000
 	saveFrequency = 50
-	versionFrequency = 0
+	versionFrequency = 20
 	maxVersions = 2
-	paddingLength := 50
+	paddingLength := 20
 	padding := strings.Repeat("A", paddingLength)
 
 	generateBlocks(b)
@@ -44,9 +45,13 @@ func BenchmarkIavlStore(b *testing.B) {
 		"version frequecny", versionFrequency, "max versions", maxVersions, "padding", paddingLength)
 
 	benchmarkIavlStore(b, "normal", benchmarkNormal)
-	benchmarkIavlStore(b, "benchmarkMaxVersions", benchmarkMaxVersions)
-	//benchmarkIavlStore(b, "benchmarkVarableCache", benchmarkVarableCache) Warning think bugged at the moment
-	benchmarkIavlStore(b, "maxVersionFrequencySaveFrequency", benchmarkMaxVersionFrequencySaveFrequency)
+	benchmarkIavlStore(b, "normal-dif", benchmarkNormalDif)
+	benchmarkIavlStore(b, "maxVersions-dif", benchmarkMaxVersionsDif)
+	benchmarkIavlStore(b, "maxVersions", benchmarkMaxVersions)
+	benchmarkIavlStore(b, "VarableCache-dif", benchmarkVarableCacheDif)
+	benchmarkIavlStore(b, "maxVersionFreqSaveFreq-dif", benchmarkMaxVersionFrequencySaveFrequencyDif)
+	benchmarkIavlStore(b, "maxVerSaveFrequency-diff", benchmarkVersionFrequencyDif)
+	benchmarkIavlStore(b, "SaveFrequency-diff", benchmarkSaveFrequencyDif)
 
 	files, err := ioutil.ReadDir("./testdata")
 	require.NoError(b, err)
@@ -54,7 +59,15 @@ func BenchmarkIavlStore(b *testing.B) {
 		require.True(b, f.IsDir())
 		fmt.Println("size of "+f.Name()+" : ", DirSize(b, f))
 	}
-
+	/*
+		for _, f := range files {
+			db, err := leveldb.OpenFile(f.Name(), nil)
+			require.NoError(b, err)
+			stats := leveldb.DBStats{}
+			require.NoError(b,  db.Stats(&stats))
+			fmt.Println(f.Name(), "stats", stats)
+			//require.NoError(b, db.CompactRange(util.Range{nil, nil}))
+		}*/
 }
 
 func benchmarkIavlStore(b *testing.B, name string, fn benchFunc) {
@@ -65,36 +78,84 @@ func benchmarkIavlStore(b *testing.B, name string, fn benchFunc) {
 	})
 }
 
+func benchmarkNormalDif(b *testing.B) {
+	testno++
+	diskDb := getDiskDb(b, "normal-diff\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDiffIavlStore(diskDb, 0, 0, 0, 0, 1000, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+}
+
 func benchmarkNormal(b *testing.B) {
 	testno++
-	diskDb := getDiskDb(b, "normal\t"+strconv.Itoa(testno/1000000))
-	store, err := NewDelayIavlStore(diskDb, 0, 0, 0, 0, 1000, 0)
+	diskDb := getDiskDb(b, "Normal\t"+strconv.Itoa(testno/1000000))
+	store, err := NewIAVLStore(diskDb, 0, 0, 0, 0, 1000, 0)
 	require.NoError(b, err)
-	executeBlocks(b, blocks, *store)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
 }
 
 func benchmarkMaxVersions(b *testing.B) {
 	testno++
 	diskDb := getDiskDb(b, "maxVers\t"+strconv.Itoa(testno/1000000))
-	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, 0, 1000, 0)
+	store, err := NewIAVLStore(diskDb, int64(2), 0, 0, 0, 1000, 0)
 	require.NoError(b, err)
-	executeBlocks(b, blocks, *store)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
 }
 
-func benchmarkVarableCache(b *testing.B) {
+func benchmarkMaxVersionsDif(b *testing.B) {
 	testno++
-	diskDb := getDiskDb(b, "varCache\t"+strconv.Itoa(testno/1000000))
-	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, 0, 0, 100, 2000)
+	diskDb := getDiskDb(b, "maxVers-diff\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDiffIavlStore(diskDb, int64(2), 0, 0, 0, 1000, 0)
 	require.NoError(b, err)
-	executeBlocks(b, blocks, *store)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
 }
 
-func benchmarkMaxVersionFrequencySaveFrequency(b *testing.B) {
+func benchmarkVarableCacheDif(b *testing.B) {
 	testno++
-	diskDb := getDiskDb(b, "maxVFSF\t"+strconv.Itoa(testno/1000000))
-	store, err := NewDelayIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), 1000, 0)
+	diskDb := getDiskDb(b, "varCache-diff\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDiffIavlStore(diskDb, int64(2), 0, 0, 0, 100, 2000)
 	require.NoError(b, err)
-	executeBlocks(b, blocks, *store)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+}
+
+func benchmarkMaxVersionFrequencySaveFrequencyDif(b *testing.B) {
+	testno++
+	diskDb := getDiskDb(b, "maxVFSF-diff\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDiffIavlStore(diskDb, int64(2), 0, uint64(saveFrequency), uint64(versionFrequency), 1000, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+}
+
+func benchmarkVersionFrequencyDif(b *testing.B) {
+	testno++
+	diskDb := getDiskDb(b, "verFreq-diff\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), 1000, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+}
+
+func benchmarkSaveFrequencyDif(b *testing.B) {
+	testno++
+	diskDb := getDiskDb(b, "saveFreq-diff\t"+strconv.Itoa(testno/1000000))
+	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), 0, 1000, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store, diskDb)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
 }
 
 func paddoutBlocks(padding string) {
