@@ -69,7 +69,7 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 	if err != nil && err != leveldb.ErrNotFound {
 		return nil, err
 	}
-	if protHashList == nil {
+	if err == leveldb.ErrNotFound {
 		return [][]byte{}, nil
 	}
 	txHashList := types.EthTxHashList{}
