@@ -3,9 +3,10 @@ package userdeployerwhitelist
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
-	"strings"
 
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/cli"
@@ -212,11 +213,11 @@ func setTierInfoCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if fees.Cmp(loom.NewBigUIntFromInt(0))<=0 {
+			if fees.Cmp(loom.NewBigUIntFromInt(0)) <= 0 {
 				return fmt.Errorf("Whitelisting fees must be greater than zero")
 			}
 			req := &udwtypes.ModifyTierInfoRequest{
-				Fee:   &types.BigUInt{
+				Fee: &types.BigUInt{
 					Value: *fees,
 				},
 				Name:   args[1],
