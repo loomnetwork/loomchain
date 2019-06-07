@@ -266,21 +266,12 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 // ModifyTierInfo Modify the TierInfo corresponding to a TierID
 func (uw *UserDeployerWhitelist) ModifyTierInfo(
 	ctx contract.Context, req *ModifyTierInfoRequest) error {
-	if req.Fee == 0 {
-		return ErrInvalidWhitelistingFee
-	}
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
-	div := loom.NewBigUIntFromInt(10)
-	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-	fees := loom.NewBigUIntFromInt(int64(req.Fee))
-	fees.Mul(fees, div)
 	tier := &Tier{
 		TierID: req.TierID,
-		Fee: &types.BigUInt{
-			Value: *fees,
-		},
+		Fee: req.Fee,
 		Name: req.Name,
 	}
 	err := ctx.Set(TierKey(req.TierID), tier)
