@@ -3,8 +3,10 @@ package userdeployerwhitelist
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
+
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/types"
 
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/cli"
@@ -31,7 +33,7 @@ func NewUserDeployCommand() *cobra.Command {
 		getUserDeployersCmd(),
 		getDeployedContractsCmd(),
 		getTierInfoCmd(),
-		ModifyTierInfoCmd(),
+		setTierInfoCmd(),
 	)
 	return cmd
 }
@@ -180,17 +182,17 @@ func getDeployedContractsCmd() *cobra.Command {
 	return cmd
 }
 
-const getTierInfoCmdExample = `
-loom dev get-tierinfo --tier default
+const getTierCmdExample = `
+loom dev get-tier --tier default
 `
 
 func getTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var TierID string
 	cmd := &cobra.Command{
-		Use:     "get-tierinfo",
-		Short:   "get Tier Info corresponding to a Tier",
-		Example: getTierInfoCmdExample,
+		Use:     "get-tier",
+		Short:   "Show tier details",
+		Example: getTierCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var tierId udwtypes.TierID
@@ -224,37 +226,39 @@ const modifyTierInfoCmdExample = `
 loom dev modify-tierinfo 100 Tier1 --tier default
 `
 
-func ModifyTierInfoCmd() *cobra.Command {
+func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var TierID string
+	var tierID string
 	cmd := &cobra.Command{
-		Use:     "modify-tierinfo <fees> <name>",
-		Short:   "Modify Tier Info",
+		Use:     "set-tier <fee> <tier-name>",
+		Short:   "Set tier details",
 		Example: modifyTierInfoCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var tierId udwtypes.TierID
-			if strings.EqualFold(TierID, udwtypes.TierID_DEFAULT.String()) {
+			if strings.EqualFold(tierID, udwtypes.TierID_DEFAULT.String()) {
 				tierId = udwtypes.TierID_DEFAULT
 			} else {
 				return fmt.Errorf("Please specify tierId <default>")
 			}
-			fees, err := strconv.ParseInt(args[0], 10, 64)
-			if fees <= 0 {
-				return fmt.Errorf("Whitelisting fees cannot be less than equal to zero")
-			}
+			fees, err := cli.ParseAmount(args[0])
 			if err != nil {
 				return err
 			}
+			if fees.Cmp(loom.NewBigUIntFromInt(0)) <= 0 {
+				return fmt.Errorf("Whitelisting fees must be greater than zero")
+			}
 			req := &udwtypes.ModifyTierInfoRequest{
-				Fee:    uint64(fees),
+				Fee: &types.BigUInt{
+					Value: *fees,
+				},
 				Name:   args[1],
 				TierID: tierId,
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "ModifyTierInfo", req, nil)
 		},
 	}
-	cmd.Flags().StringVarP(&TierID, "tier", "t", "default", "tier ID")
+	cmd.Flags().StringVarP(&tierID, "tier", "t", "default", "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }

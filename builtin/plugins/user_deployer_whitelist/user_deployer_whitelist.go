@@ -56,7 +56,7 @@ var (
 	// ErrMissingTierInfo is returned if init doesnt get atleast one tier
 	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
 	// Invalid whitelisting fees check
-	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] WhitelistingFee cannot be equal to zero")
+	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] Whitelisting fees must be greater than zero")
 )
 
 const (
@@ -136,9 +136,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
 	}
-	if req.TierID != udwtypes.TierID_DEFAULT {
-		return ErrInvalidTier
-	}
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of deployer_whitelist")
@@ -155,7 +152,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if err := ctx.Get(TierKey(req.TierID), &tierInfo); err != nil {
 		return err
 	}
-
 	var whitelistingFees *types.BigUInt
 	whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
 	userAddr := ctx.Message().Sender
@@ -312,9 +308,6 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 func (uw *UserDeployerWhitelist) GetTierInfo(
 	ctx contract.StaticContext, req *GetTierInfoRequest,
 ) (*GetTierInfoResponse, error) {
-	if req.TierID != udwtypes.TierID_DEFAULT {
-		return nil, ErrInvalidTier
-	}
 	var tier Tier
 	err := ctx.Get(TierKey(req.TierID), &tier)
 	if err != nil {
@@ -328,25 +321,16 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 // ModifyTierInfo Modify the TierInfo corresponding to a TierID
 func (uw *UserDeployerWhitelist) ModifyTierInfo(
 	ctx contract.Context, req *ModifyTierInfoRequest) error {
-	if req.TierID != udwtypes.TierID_DEFAULT {
-		return ErrInvalidTier
-	}
-	if req.Fee == 0 {
+	if req.Fee.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		return ErrInvalidWhitelistingFee
 	}
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
-	div := loom.NewBigUIntFromInt(10)
-	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-	fees := loom.NewBigUIntFromInt(int64(req.Fee))
-	fees.Mul(fees, div)
 	tier := &Tier{
 		TierID: req.TierID,
-		Fee: &types.BigUInt{
-			Value: *fees,
-		},
-		Name: req.Name,
+		Fee:    req.Fee,
+		Name:   req.Name,
 	}
 	err := ctx.Set(TierKey(req.TierID), tier)
 	if err != nil {

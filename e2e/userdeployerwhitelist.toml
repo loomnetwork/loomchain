@@ -19,11 +19,6 @@
   Expected = ['deployer already exists']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev add-deployer {{index $.AccountAddressList 1}} --tier tierId -k {{index $.AccountPrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = ['Please specify tierId <default>']
-
-[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev list-deployers {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = ['default:{{index $.AccountAddressList 1}}','"TierId": "DEFAULT"']
@@ -61,17 +56,17 @@
    Delay = 500
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev modify-tierinfo 200 Tier2 --tier default -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 200 Tier2 --tier default -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 #Checks whitelisting fees cannot be less than equal to zero.
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev modify-tierinfo 0 Tier2 --tier DEFAULT -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 0 Tier2 --tier DEFAULT -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['Whitelisting fees cannot be less than equal to zero']
+  Expected = ['Whitelisting fees must be greater than zero']
   
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev get-tierinfo --tier default"
+  RunCmd = "{{ $.LoomPath }} dev get-tier --tier default"
   Condition = "contains"
   Expected = ['10000000000000000000', '"name": "tier1"']

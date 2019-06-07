@@ -143,15 +143,6 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.EqualError(t, ErrDeployerAlreadyExists, err.Error(), "Trying to Add Deployer which Already Exists for User")
 
-	//Invalid Tier Id specified
-	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
-		&WhitelistUserDeployerRequest{
-			DeployerAddr: addr2.MarshalPB(),
-			TierID:       1,
-		})
-
-	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
-
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
@@ -175,7 +166,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
-  
+
 	//Modify Tier Info
 	err = deployerContract.ModifyTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
 		&ModifyTierInfoRequest{
