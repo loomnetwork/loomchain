@@ -224,13 +224,11 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		})
 
 	require.EqualError(t, ErrDeployerDoesNotExist, err.Error(), "Deployer Does not exist corresponding to the user")
-
 	// as above deployer is not removed so get should return 2
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(getUserDeployersResponse.Deployers))
-
 	// remove the deployer addr6 by addr3 should execute without error
 	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&udwtypes.RemoveUserDeployerRequest{
@@ -238,7 +236,6 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		})
 
 	require.Nil(t, err)
-
 	// as above deployer is removed so get should return 1
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
