@@ -215,19 +215,26 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 		}
 	}
-	isDeployerAddrValid := false
+
+	isInputDeployerAddrValid := false
+	survivedDeployers := make([]*Address, 0, len(userState.Deployers))
 	deployers := userState.Deployers
-	for i, addr := range deployers {
-		if !isDeployerAddrValid && loom.UnmarshalAddressPB(addr).String() == deployerAddr.String() {
-			isDeployerAddrValid = true
-			userState.Deployers = append(deployers[:i], deployers[i+1:]...)
+	for _, addr := range deployers {
+		currentDeployerAddr := loom.UnmarshalAddressPB(addr)
+		if currentDeployerAddr.Compare(deployerAddr) == 0 {
+			isInputDeployerAddrValid = true
+		} else {
+			survivedDeployers = append(survivedDeployers, addr)
 		}
 	}
-	if !isDeployerAddrValid {
-		return ErrNotAuthorized
+
+	if !isInputDeployerAddrValid {
+		return nil
 	}
+
+	userState.Deployers = survivedDeployers
 	if err := ctx.Set(UserStateKey(userAddr), &userState); err != nil {
-		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
+		return errors.Wrap(err, "failed to Save Deployers mapping in user state")
 	}
 
 	// remove from deployerwhitelist contract
@@ -235,7 +242,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of deployer_whitelist")
 	}
-	removeUserDeployerRequest := &udwtypes.RemoveUserDeployerRequest{
+	removeUserDeployerRequest := &dwtypes.RemoveUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
 	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {

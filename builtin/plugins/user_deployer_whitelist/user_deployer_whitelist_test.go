@@ -22,6 +22,7 @@ var (
 	addr3        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 	addr4        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
 	addr5        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
+	addr6        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e0112")
 	contractAddr = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01ab")
 	user         = addr3.MarshalPB()
 	chainID      = "default"
@@ -62,7 +63,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	coinCtx := pctx.WithAddress(coinAddr)
 	err = coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			{Owner: user, Balance: uint64(100)},
+			{Owner: user, Balance: uint64(300)},
 		},
 	})
 
@@ -113,7 +114,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(getUserDeployersResponse.Deployers))
-
+	// add a deployer addr1 by addr3 
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr1.MarshalPB(),
@@ -121,7 +122,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		})
 
 	require.Nil(t, err)
-
+	
+	// checking balance after deployment of addr1
 	resp2, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
 		&coin.BalanceOfRequest{
 			Owner: addr3.MarshalPB(),
@@ -210,6 +212,38 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
+	
+	// add a deployer addr6 by addr3 
+	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
+		&WhitelistUserDeployerRequest{
+			DeployerAddr: addr6.MarshalPB(),
+			TierID:       0,
+		})
+
+	require.Nil(t, err)
+
+	// remove the deployer addr6 by add1 should show error :ErrNotAuthorized
+	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr1)),
+		&udwtypes.RemoveUserDeployerRequest{
+			DeployerAddr: addr6.MarshalPB(),
+		})
+
+	require.Nil(t, err)
+	// as above deployer is not removed so get should return 1
+	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
+		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
+	require.NoError(t, err)
+	require.Equal(t, 2, len(getUserDeployersResponse.Deployers))
+
+
+	// remove the deployer addr6 by add1 should execute without error
+	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
+		&udwtypes.RemoveUserDeployerRequest{
+			DeployerAddr: addr6.MarshalPB(),
+		})
+
+	require.Nil(t, err)
+	
 }
 
 func sciNot(m, n int64) *loom.BigUInt {

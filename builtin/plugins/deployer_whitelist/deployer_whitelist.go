@@ -22,7 +22,6 @@ type (
 	RemoveDeployerResponse = dwtypes.RemoveDeployerResponse
 	Deployer               = dwtypes.Deployer
 	AddUserDeployerRequest = dwtypes.AddUserDeployerRequest
-
 )
 
 const (
@@ -125,6 +124,32 @@ func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserD
 	}
 
 	return ctx.Set(deployerKey(deployerAddr), deployer)
+}
+
+func (dw *DeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *dwtypes.RemoveUserDeployerRequest) error {
+	if req.DeployerAddr == nil {
+		return ErrInvalidRequest
+	}
+
+	//check if authorized
+	userWhitelistContract, err := ctx.Resolve("user-deployer-whitelist")
+	if err != nil {
+		return errors.Wrap(err, "unable to resolve user_deployer_whitelist contract")
+	}
+
+	if ctx.Message().Sender.Compare(userWhitelistContract) != 0 {
+		return ErrNotAuthorized
+	}
+
+	// remove deployer
+	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
+
+	if !ctx.Has(deployerKey(deployerAddr)) {
+		return ErrDeployerDoesNotExist
+	}
+	ctx.Delete(deployerKey(deployerAddr))
+
+	return nil
 }
 
 // AddDeployer
