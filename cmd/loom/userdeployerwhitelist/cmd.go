@@ -3,7 +3,6 @@ package userdeployerwhitelist
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
@@ -38,12 +37,12 @@ func NewUserDeployCommand() *cobra.Command {
 }
 
 const addUserDeployerCmdExample = `
-loom dev add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --tier default
+loom dev add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --tier 0
 `
 
 func addUserDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var TierID string
+	var tierID int
 	cmd := &cobra.Command{
 		Use:     "add-deployer <deployer address>",
 		Short:   "Authorize an account to deploy contracts on behalf of a user (the caller)",
@@ -54,20 +53,14 @@ func addUserDeployerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var tierId udwtypes.TierID
-			if strings.EqualFold(TierID, udwtypes.TierID_DEFAULT.String()) {
-				tierId = udwtypes.TierID_DEFAULT
-			} else {
-				return fmt.Errorf("Please specify tierId <default>")
-			}
 			req := &udwtypes.WhitelistUserDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
-				TierID:       tierId,
+				TierID:       udwtypes.TierID(tierID),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "AddUserDeployer", req, nil)
 		},
 	}
-	cmd.Flags().StringVarP(&TierID, "tier", "t", "default", "tier ID")
+	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
@@ -156,26 +149,20 @@ func getDeployedContractsCmd() *cobra.Command {
 }
 
 const getTierCmdExample = `
-loom dev get-tier --tier default
+loom dev get-tier --tier 0
 `
 
 func getTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var TierID string
+	var tierID int
 	cmd := &cobra.Command{
 		Use:     "get-tier",
 		Short:   "Show tier details",
 		Example: getTierCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var tierId udwtypes.TierID
-			if strings.EqualFold(TierID, udwtypes.TierID_DEFAULT.String()) {
-				tierId = udwtypes.TierID_DEFAULT
-			} else {
-				return fmt.Errorf("Please specify tierId <default>")
-			}
 			req := &udwtypes.GetTierInfoRequest{
-				TierID: tierId,
+				TierID: udwtypes.TierID(tierID),
 			}
 			var resp udwtypes.GetTierInfoResponse
 			if err := cli.StaticCallContractWithFlags(&flags, dwContractName,
@@ -190,30 +177,24 @@ func getTierInfoCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&TierID, "tier", "t", "default", "tier ID")
+	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 const modifyTierInfoCmdExample = `
-loom dev modify-tierinfo 100 Tier1 --tier default
+loom dev modify-tierinfo 100 Tier1 --tier 0
 `
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var tierID string
+	var tierID int
 	cmd := &cobra.Command{
 		Use:     "set-tier <fee> <tier-name>",
 		Short:   "Set tier details",
 		Example: modifyTierInfoCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var tierId udwtypes.TierID
-			if strings.EqualFold(tierID, udwtypes.TierID_DEFAULT.String()) {
-				tierId = udwtypes.TierID_DEFAULT
-			} else {
-				return fmt.Errorf("Please specify tierId <default>")
-			}
 			fees, err := cli.ParseAmount(args[0])
 			if err != nil {
 				return err
@@ -226,12 +207,12 @@ func setTierInfoCmd() *cobra.Command {
 					Value: *fees,
 				},
 				Name:   args[1],
-				TierID: tierId,
+				TierID: udwtypes.TierID(tierID),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "ModifyTierInfo", req, nil)
 		},
 	}
-	cmd.Flags().StringVarP(&tierID, "tier", "t", "default", "tier ID")
+	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
