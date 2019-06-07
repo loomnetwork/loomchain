@@ -34,6 +34,7 @@ type (
 	Tier                         = udwtypes.Tier
 	TierID                       = udwtypes.TierID
 	Address                      = types.Address
+	RemoveUserDeployerRequest    = udwtypes.RemoveUserDeployerRequest
 )
 
 var (
@@ -202,6 +203,10 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
 	}
+	dwAddr, err := ctx.Resolve("deployerwhitelist")
+	if err != nil {
+		return errors.Wrap(err, "unable to get address of deployer_whitelist")
+	}
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 	// check if sender is the user who whitelisted the DeployerAddr, if so remove from userState
 	userAddr := ctx.Message().Sender
@@ -225,20 +230,15 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	}
 
 	if !isInputDeployerAddrValid {
-		return nil
+		return ErrDeployerDoesNotExist
 	}
 
 	userState.Deployers = survivedDeployers
 	if err := ctx.Set(UserStateKey(userAddr), &userState); err != nil {
 		return errors.Wrap(err, "failed to Save Deployers mapping in user state")
 	}
-
 	// remove from deployerwhitelist contract
-	dwAddr, err := ctx.Resolve("deployerwhitelist")
-	if err != nil {
-		return errors.Wrap(err, "unable to get address of deployer_whitelist")
-	}
-	removeUserDeployerRequest := &dwtypes.RemoveUserDeployerRequest{
+	removeUserDeployerRequest := &RemoveUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
 	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {

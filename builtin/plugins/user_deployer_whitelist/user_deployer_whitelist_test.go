@@ -114,7 +114,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(getUserDeployersResponse.Deployers))
-	// add a deployer addr1 by addr3 
+	// add a deployer addr1 by addr3
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr1.MarshalPB(),
@@ -122,7 +122,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		})
 
 	require.Nil(t, err)
-	
+
 	// checking balance after deployment of addr1
 	resp2, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
 		&coin.BalanceOfRequest{
@@ -172,7 +172,9 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		&ModifyTierInfoRequest{
 			Name:   "Tier2",
 			TierID: udwtypes.TierID_DEFAULT,
-			Fee:    uint64(200),
+			Fee: &types.BigUInt{
+				Value: *whitelistingfees,
+			},
 		})
 
 	require.NoError(t, err)
@@ -182,7 +184,9 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		&ModifyTierInfoRequest{
 			Name:   "Tier2",
 			TierID: udwtypes.TierID_DEFAULT,
-			Fee:    uint64(200),
+			Fee: &types.BigUInt{
+				Value: *whitelistingfees,
+			},
 		})
 
 	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be Modified Only by Owner")
@@ -192,7 +196,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		&udwtypes.GetTierInfoRequest{
 			TierID: udwtypes.TierID_DEFAULT,
 		})
-	fees := sciNot(200, 18)
+	fees := sciNot(100, 18)
 	require.NoError(t, err)
 	require.Equal(t, fees, &resp.Tier.Fee.Value)
 	require.Equal(t, "Tier2", resp.Tier.Name)
@@ -203,8 +207,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
-	
-	// add a deployer addr6 by addr3 
+
+	// add a deployer addr6 by addr3
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr6.MarshalPB(),
@@ -213,28 +217,34 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
-	// remove the deployer addr6 by add1 should show error :ErrNotAuthorized
+	// remove the deployer addr6 by add1 should show error :ErrDeployerDoesNotExist
 	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr1)),
 		&udwtypes.RemoveUserDeployerRequest{
 			DeployerAddr: addr6.MarshalPB(),
 		})
 
-	require.Nil(t, err)
-	// as above deployer is not removed so get should return 1
+	require.EqualError(t, ErrDeployerDoesNotExist, err.Error(), "Deployer Does not exist corresponding to the user")
+
+	// as above deployer is not removed so get should return 2
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(getUserDeployersResponse.Deployers))
 
-
-	// remove the deployer addr6 by add1 should execute without error
+	// remove the deployer addr6 by addr3 should execute without error
 	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&udwtypes.RemoveUserDeployerRequest{
 			DeployerAddr: addr6.MarshalPB(),
 		})
 
 	require.Nil(t, err)
-	
+
+	// as above deployer is removed so get should return 1
+	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
+		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
+
 }
 
 func sciNot(m, n int64) *loom.BigUInt {
