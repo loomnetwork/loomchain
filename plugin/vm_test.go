@@ -196,7 +196,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 }
 
 func TestGetEvmTxReceipt(t *testing.T) {
-	evmAuxStore, err := rcommon.MockEvmAuxStore()
+	evmAuxStore, err := rcommon.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
@@ -227,7 +227,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 
 //This test should handle the case of pending transactions being readable
 func TestGetEvmTxReceiptNoCommit(t *testing.T) {
-	evmAuxStore, err := rcommon.MockEvmAuxStore()
+	evmAuxStore, err := rcommon.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)

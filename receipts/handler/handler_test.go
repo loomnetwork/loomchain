@@ -23,7 +23,6 @@ var (
 func TestReceiptsHandlerChain(t *testing.T) {
 	testHandlerDepreciated(t, ReceiptHandlerChain)
 
-	common.ClearEvmAuxData()
 	testHandler(t, ReceiptHandlerLevelDb)
 }
 
@@ -31,7 +30,7 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
 
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
 	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
@@ -104,7 +103,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
 
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
 	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)

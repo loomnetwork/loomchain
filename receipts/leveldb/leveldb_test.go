@@ -19,9 +19,7 @@ const (
 )
 
 func TestReceiptsCyclicDB(t *testing.T) {
-	common.ClearEvmAuxData()
-
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
 	maxSize := uint64(10)
@@ -68,9 +66,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 }
 
 func TestReceiptsCommitAllInOneBlock(t *testing.T) {
-	common.ClearEvmAuxData()
-
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
 	maxSize := uint64(10)
@@ -152,9 +148,7 @@ func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*ty
 }
 
 func TestConfirmTransactionReceipts(t *testing.T) {
-	common.ClearEvmAuxData()
-
-	evmAuxStore, err := common.MockEvmAuxStore()
+	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	maxSize := uint64(10)
 	handler, err := NewLevelDbReceipts(evmAuxStore, maxSize)
