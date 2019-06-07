@@ -170,7 +170,9 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		&ModifyTierInfoRequest{
 			Name:   "Tier2",
 			TierID: udwtypes.TierID_DEFAULT,
-			Fee:    uint64(200),
+			Fee: &types.BigUInt{
+				Value: *whitelistingfees,
+			},
 		})
 
 	require.NoError(t, err)
@@ -180,7 +182,9 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		&ModifyTierInfoRequest{
 			Name:   "Tier2",
 			TierID: udwtypes.TierID_DEFAULT,
-			Fee:    uint64(200),
+			Fee: &types.BigUInt{
+				Value: *whitelistingfees,
+			},
 		})
 
 	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be Modified Only by Owner")
@@ -190,7 +194,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		&udwtypes.GetTierInfoRequest{
 			TierID: udwtypes.TierID_DEFAULT,
 		})
-	fees := sciNot(200, 18)
+	fees := sciNot(100, 18)
 	require.NoError(t, err)
 	require.Equal(t, fees, &resp.Tier.Fee.Value)
 	require.Equal(t, "Tier2", resp.Tier.Name)
