@@ -55,6 +55,11 @@ func addUserDeployerCmd() *cobra.Command {
 				return err
 			}
 			var tierId udwtypes.TierID
+			if strings.EqualFold(TierID, udwtypes.TierID_DEFAULT.String()) {
+				tierId = udwtypes.TierID_DEFAULT
+			} else {
+				return fmt.Errorf("Please specify tierId <default>")
+			}
 			req := &udwtypes.WhitelistUserDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
 				TierID:       tierId,
