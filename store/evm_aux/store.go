@@ -55,7 +55,10 @@ func (s *EvmAuxStore) Close() error {
 
 func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {
 	filter, err := s.db.Get(bloomFilterKey(height), nil)
-	if err != nil {
+	if err != nil && err != leveldb.ErrNotFound {
+		panic(err)
+	}
+	if err == leveldb.ErrNotFound {
 		return nil
 	}
 	return filter
