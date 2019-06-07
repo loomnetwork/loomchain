@@ -30,7 +30,7 @@ func NewUserDeployCommand() *cobra.Command {
 		getUserDeployersCmd(),
 		getDeployedContractsCmd(),
 		getTierInfoCmd(),
-		SetTierInfoCmd(),
+		setTierInfoCmd(),
 	)
 	return cmd
 }
@@ -192,7 +192,7 @@ const modifyTierInfoCmdExample = `
 loom dev modify-tierinfo 100 Tier1 --tier default
 `
 
-func SetTierInfoCmd() *cobra.Command {
+func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var tierID string
 	cmd := &cobra.Command{
