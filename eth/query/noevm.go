@@ -56,7 +56,7 @@ func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64) (txObj eth.JsonTxObje
 }
 
 func QueryChain(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler,
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore,
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }

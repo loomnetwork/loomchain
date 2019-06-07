@@ -939,14 +939,16 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 // todo add EthNewBlockFilter EthNewPendingTransactionFilter EthUninstallFilter EthGetFilterChanges and EthGetFilterLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
 func (s QueryServer) EthNewBlockFilter() (eth.Quantity, error) {
-	state := s.StateProvider.ReadOnlyState()
-	return eth.Quantity(s.EthPolls.AddBlockPoll(uint64(state.Block().Height))), nil
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return eth.Quantity(s.EthPolls.AddBlockPoll(uint64(snapshot.Block().Height))), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
 func (s QueryServer) EthNewPendingTransactionFilter() (eth.Quantity, error) {
-	state := s.StateProvider.ReadOnlyState()
-	return eth.Quantity(s.EthPolls.AddTxPoll(uint64(state.Block().Height))), nil
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return eth.Quantity(s.EthPolls.AddTxPoll(uint64(snapshot.Block().Height))), nil
 }
 
 // Forget the filter.
@@ -968,14 +970,11 @@ func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) 
 	if err != nil {
 		return nil, err
 	}
-
-	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.Poll(state, string(id), r)
+	return s.EthPolls.Poll(snapshot, string(id), r)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
-	state := s.StateProvider.ReadOnlyState()
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 	r, err := s.ReceiptHandlerProvider.ReaderAt(
@@ -985,18 +984,19 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.EthPolls.AllLogs(state, string(id), r)
+	return s.EthPolls.AllLogs(snapshot, string(id), r)
 }
 
 // Sets up new filter for polling
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) {
-	state := s.StateProvider.ReadOnlyState()
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 	ethFilter, err := eth.DecLogFilter(filter)
 	if err != nil {
 		return "", errors.Wrap(err, "could decode log filter")
 	}
-	id, err := s.EthPolls.AddLogPoll(ethFilter, uint64(state.Block().Height))
+	id, err := s.EthPolls.AddLogPoll(ethFilter, uint64(snapshot.Block().Height))
 	return eth.Quantity(id), err
 }
 
