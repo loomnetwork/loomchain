@@ -7,7 +7,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	"github.com/loomnetwork/loomchain/config"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
@@ -19,9 +18,9 @@ var (
 
 // CoinPolicyManager implements loomchain.CoinPolicyManager interface
 type CoinPolicyManager struct {
-	ctx   contract.Context
-	state loomchain.State
-	cfg   *config.Config
+	ctx    contract.Context
+	state  loomchain.State
+	policy *Policy
 }
 
 type Policy = ctypes.Policy
@@ -32,7 +31,9 @@ func NewNoopCoinPolicyManager() *CoinPolicyManager {
 }
 
 // NewCoinPolicyManager attempts to create an instance of CoinPolicyManager.
-func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State, cfg *config.Config) (*CoinPolicyManager, error) {
+func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State, deflationFactorNumerator uint64,
+	deflationFactorDenominator uint64, baseMintingAmount int64, mintingAddress *types.Address) (*CoinPolicyManager,
+	error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("coin")
 	if err != nil {
@@ -41,12 +42,20 @@ func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State, cfg *config.Conf
 		}
 		return nil, err
 	}
+	policy := &Policy{
+		DeflationFactorNumerator:   deflationFactorNumerator,
+		DeflationFactorDenominator: deflationFactorDenominator,
+		BaseMintingAmount: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(baseMintingAmount),
+		},
+		MintingAccount: mintingAddress,
+	}
 	readOnly := false
 	ctx := contract.WrapPluginContext(pvm.CreateContractContext(caller, contractAddr, readOnly))
 	return &CoinPolicyManager{
-		ctx:   ctx,
-		state: state,
-		cfg:   cfg,
+		ctx:    ctx,
+		state:  state,
+		policy: policy,
 	}, nil
 }
 
@@ -61,24 +70,10 @@ func (c *CoinPolicyManager) MintCoins() error {
 
 //ModifyMintCoins method of coin_deflation_Manager will be called from Block
 func (c *CoinPolicyManager) ModifyDeflationParameter() error {
-	if c.cfg.DeflationInfo.Enabled == true {
-		addr, err := loom.ParseAddress(c.cfg.DeflationInfo.MintingAccount)
-		if err != nil {
-			return errors.Wrapf(err, "parsing deploy address %s", c.cfg.DeflationInfo.MintingAccount)
-		}
-		policy := &Policy{
-			DeflationFactorNumerator:   c.cfg.DeflationInfo.DeflationFactorNumerator,
-			DeflationFactorDenominator: c.cfg.DeflationInfo.DeflationFactorDenominator,
-			BaseMintingAmount: &types.BigUInt{
-				Value: *loom.NewBigUIntFromInt(c.cfg.DeflationInfo.BaseMintingAmount),
-			},
-			MintingAccount: addr.MarshalPB(),
-		}
-		err = coin.ModifyMintParameter(c.ctx, policy)
-		c.state.SetFeature(loomchain.CoinPolicyModificationFeature, false)
-		if err != nil {
-			return err
-		}
+	err := coin.ModifyMintParameter(c.ctx, c.policy)
+	if err != nil {
+		return err
 	}
+	c.state.SetFeature(loomchain.CoinPolicyModificationFeature, false)
 	return nil
 }
