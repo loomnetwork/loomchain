@@ -68,6 +68,7 @@ func (c *CoinPolicyManager) MintCoins() error {
 	return nil
 }
 
+//TODO: If policy already exist whether to amend it or not
 //ModifyMintCoins method of coin_deflation_Manager will be called from Block
 func (c *CoinPolicyManager) ModifyDeflationParameter() error {
 	err := coin.ModifyMintParameter(c.ctx, c.policy)
