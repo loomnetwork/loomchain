@@ -261,6 +261,7 @@ type ChainConfigManager interface {
 
 type CoinPolicyManager interface {
 	MintCoins() error
+	ModifyDeflationParameter() error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -453,6 +454,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		if coinPolicyManager != nil {
 			if err := coinPolicyManager.MintCoins(); err != nil {
 				panic(err)
+			}
+			if state.FeatureEnabled(CoinPolicyModificationFeature, false) {
+				if err := coinPolicyManager.ModifyDeflationParameter(); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}
