@@ -661,6 +661,15 @@ PrometheusPushGateway:
   PushRateInSeconds: {{ .PrometheusPushGateway.PushRateInSeconds}} 
   JobName: "{{ .PrometheusPushGateway.JobName }}"
 
+#
+# Modify Deflation Parameter
+#
+DeflationInfoConfig: 
+	Enabled: {{ .DeflationInfoConfig.Enabled }}                   
+	DeflationFactorNumerator: {{ .DeflationInfoConfig.DeflationFactorNumerator }}   
+	DeflationFactorDenominator: {{ .DeflationInfoConfig.DeflationFactorDenominator }} 
+	BaseMintingAmount:  {{ .DeflationInfoConfig.BaseMintingAmount }}         
+	MintingAccount:  {{ .DeflationInfoConfig.MintingAccount }}
 
 #
 # Hsm 
