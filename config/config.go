@@ -105,7 +105,7 @@ type Config struct {
 	//Prometheus
 	PrometheusPushGateway *PrometheusPushGatewayConfig
 
-	DeflationInfo *DeflationInfoConfig
+	DeflationInfoConfig *DeflationInfoConfig
 
 	//Contracts
 	ContractLoaders []string
@@ -424,7 +424,7 @@ func DefaultConfig() *Config {
 	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
-	cfg.DeflationInfo = DefaultDeflationInfoConfig()
+	cfg.DeflationInfoConfig = DefaultDeflationInfoConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
@@ -665,11 +665,11 @@ PrometheusPushGateway:
 # Modify Deflation Parameter
 #
 DeflationInfoConfig: 
-	Enabled: {{ .DeflationInfoConfig.Enabled }}                   
-	DeflationFactorNumerator: {{ .DeflationInfoConfig.DeflationFactorNumerator }}   
-	DeflationFactorDenominator: {{ .DeflationInfoConfig.DeflationFactorDenominator }} 
-	BaseMintingAmount:  {{ .DeflationInfoConfig.BaseMintingAmount }}         
-	MintingAccount:  {{ .DeflationInfoConfig.MintingAccount }}
+  Enabled: {{ .DeflationInfoConfig.Enabled }}                   
+  DeflationFactorNumerator: {{ .DeflationInfoConfig.DeflationFactorNumerator }}   
+  DeflationFactorDenominator: {{ .DeflationInfoConfig.DeflationFactorDenominator }} 
+  BaseMintingAmount:  {{ .DeflationInfoConfig.BaseMintingAmount }}         
+  MintingAccount:  {{ .DeflationInfoConfig.MintingAccount }}
 
 #
 # Hsm 
