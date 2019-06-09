@@ -53,10 +53,12 @@ const (
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 
-  //Enables Coin Deflation Manager Feature
+	//Enables Coin Deflation Manager Feature
 	CoinPolicyFeature = "coin:policy"
-	
-  // Force MultiWriterAppStore to write EVM root to app.db only if the root changes
-	AppStoreVersion3_1 = "appstore:v3.1"
 
+	//Enables Coin Deflation Parameters Modification Feature
+	CoinPolicyModificationFeature = "coin:policy-modification"
+
+	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
+	AppStoreVersion3_1 = "appstore:v3.1"
 )
