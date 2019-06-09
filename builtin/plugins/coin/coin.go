@@ -259,11 +259,11 @@ func Mint(ctx contract.Context) error {
 
 //ModifyMintParameter Method to modify deflation parameter, only callable by manager,
 // when feature flag is going to be enabled
-func ModifyMintParameter(ctx contract.Context, policy ctypes.Policy) error {
+func ModifyMintParameter(ctx contract.Context, policy *ctypes.Policy) error {
 	if policy.MintingAccount == nil || policy.BaseMintingAmount == nil {
 		return errors.New("MintingAccount or BaseMintingAmount is not given")
 	}
-	err := ctx.Set(policyKey, &policy)
+	err := ctx.Set(policyKey,policy)
 	if err != nil {
 		return err
 	}
