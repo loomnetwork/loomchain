@@ -105,6 +105,8 @@ type Config struct {
 	//Prometheus
 	PrometheusPushGateway *PrometheusPushGatewayConfig
 
+	DeflationInfo *DeflationInfoConfig
+
 	//Contracts
 	ContractLoaders []string
 	//Hsm
@@ -178,6 +180,14 @@ type PrometheusPushGatewayConfig struct {
 	JobName           string
 }
 
+type DeflationInfoConfig struct {
+	Enabled                    bool   //Enable Supply of DeflationInfo for modification of existing configuration
+	DeflationFactorNumerator   uint64 //Deflation Factor Numerator
+	DeflationFactorDenominator uint64 //Deflation Factor Denominator
+	BaseMintingAmount          int64  //Base Minting Amount
+	MintingAccount             string //Address to Mint coins to
+}
+
 type ChainConfigConfig struct {
 	// Allow deployment of the ChainConfig contract
 	ContractEnabled bool
@@ -236,6 +246,16 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 		PushGateWayUrl:    "http://localhost:9091",
 		PushRateInSeconds: 60,
 		JobName:           "Loommetrics",
+	}
+}
+
+func DefaultDeflationInfoConfig() *DeflationInfoConfig {
+	return &DeflationInfoConfig{
+		Enabled:                    false,
+		DeflationFactorNumerator:   1,  //Deflation Factor Numerator
+		DeflationFactorDenominator: 2,  //Deflation Factor Denominator
+		BaseMintingAmount:          10, //Base Minting Amount
+		MintingAccount:             "", //Minting Account
 	}
 }
 
@@ -404,6 +424,7 @@ func DefaultConfig() *Config {
 	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
+	cfg.DeflationInfo = DefaultDeflationInfoConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
