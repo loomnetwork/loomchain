@@ -56,17 +56,22 @@
    Delay = 500
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev set-tier 0 200 Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 0 --fees 200 --tierName Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 #Checks whitelisting fees cannot be less than equal to zero.
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev set-tier 0 0 Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 0 --fees 0 --tierName Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['fee must be greater than zero']
-  
-[[TestCases]]
+
+ [[TestCases]]
+   RunCmd = "{{ $.LoomPath }} dev set-tier 0 --tierName Tier3 -k {{index $.AccountPrivKeyPathList 0}}"
+   Condition = "contains"
+   Expected = ['']
+
+ [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev get-tier 0"
   Condition = "contains"
   Expected = ['10000000000000000000', '"name": "tier1"']
