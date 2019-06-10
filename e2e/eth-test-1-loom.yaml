@@ -1,2 +1,3 @@
-ReceiptsVersion: 2
+AppStore:
+  Version: 1
 CreateEmptyBlocks: false

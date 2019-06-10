@@ -1,3 +1,5 @@
+AppStore:
+  Version: 1
 TxLimiter:
   LimitDeploys: true
   LimitCalls: true
