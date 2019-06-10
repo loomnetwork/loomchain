@@ -56,7 +56,7 @@ var (
 	// ErrMissingTierInfo is returned if init doesnt get atleast one tier
 	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
 	// Invalid whitelisting fees check
-	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] Whitelisting fees must be greater than zero")
+	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] fee must be greater than zero")
 )
 
 const (
@@ -266,6 +266,9 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 // ModifyTierInfo Modify the TierInfo corresponding to a TierID
 func (uw *UserDeployerWhitelist) ModifyTierInfo(
 	ctx contract.Context, req *ModifyTierInfoRequest) error {
+	if req.Fee == nil {
+		return errors.New("[UserDeployerWhitelist] Invalid Fee")
+	}
 	if req.Fee.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		return ErrInvalidWhitelistingFee
 	}

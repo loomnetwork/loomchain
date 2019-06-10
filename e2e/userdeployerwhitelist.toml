@@ -64,7 +64,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev set-tier 0 Tier2 --tier 0 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['Whitelisting fees must be greater than zero']
+  Expected = ['fee must be greater than zero']
   
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev get-tier --tier 0"
