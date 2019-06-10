@@ -99,7 +99,7 @@ ignored = [
 
 [[constraint]]
   name = "github.com/binance-chain/go-sdk"
-  version = "=1.0.4"
+  version = "1.0.4"
 
 [prune]
   go-tests = true

@@ -20,13 +20,34 @@
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [[projects]]
-  digest = "1:d17099fb1aae071174db067e43a02780bbe534a279e0506783acd33c4f4b131c"
-  name = "github.com/btcsuite/btcutil"
+  digest = "1:0839570758d2b8c05764c03b216c3edb66e9fa3c723bfef6900bbe468c12a998"
+  name = "github.com/binance-chain/go-sdk"
   packages = [
-    ".",
-    "base58",
-    "bech32",
+    "common",
+    "common/bech32",
+    "common/ledger",
+    "common/types",
+    "common/uuid",
+    "keys",
+    "types/msg",
+    "types/tx",
   ]
+  pruneopts = "UT"
+  revision = "6442ea117b3a3984b76d02eeab73a1fefd1b63da"
+  version = "v1.0.4"
+
+[[projects]]
+  digest = "1:c14bdb83fff0655bd6d3958aacb8a5cb147c9081761d86023ba936dae7014458"
+  name = "github.com/binance-chain/ledger-cosmos-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "af771e468374cca2f6b3309ecc548ee8c70efb17"
+  version = "v0.9.9"
+
+[[projects]]
+  digest = "1:386de157f7d19259a7f9c81f26ce011223ce0f090353c1152ffdf730d7d10ac2"
+  name = "github.com/btcsuite/btcutil"
+  packages = ["bech32"]
   pruneopts = "UT"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
@@ -37,6 +58,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "0efaee1733e3399a3cb88fc7d2ce340bf2e863d7"
+
+[[projects]]
+  branch = "master"
+  digest = "1:0427cfa11785c899dfe0ea6987bc0c9dea61647f6bb3987163d62c867f1cad6a"
+  name = "github.com/cosmos/go-bip39"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "555e2067c45d9fcd7292bf3b8e732bc10ac8c58e"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -379,6 +408,22 @@
   version = "v2.2.1"
 
 [[projects]]
+  digest = "1:5a736f4722932d9a45d28852e85b83f68292d9af2ef0be29d4e5fe6fd89d5d96"
+  name = "github.com/zondax/hid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "302fd402163c34626286195dfa9adac758334acc"
+  version = "v0.9.0"
+
+[[projects]]
+  digest = "1:c450d0b3b9217e3926714751c2034a9171e2d769c254ef3c74e5795ad74e1b04"
+  name = "github.com/zondax/ledger-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "94455688b6fac63ee05a4a61f44d5a4095317f74"
+  version = "v0.9.0"
+
+[[projects]]
   digest = "1:255538c6fb1063c7a9211bb48c677c4799eb51b8ec46fe52d58ec64fa2a64a5d"
   name = "golang.org/x/net"
   packages = [
@@ -427,7 +472,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
-    "github.com/btcsuite/btcutil/base58",
+    "github.com/binance-chain/go-sdk/keys",
     "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/gorilla/websocket",
@@ -445,11 +490,11 @@
     "github.com/syndtr/goleveldb/leveldb/filter",
     "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/util",
-    "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/go-amino",
     "github.com/tendermint/iavl",
     "github.com/tendermint/tendermint/abci/server",
     "github.com/tendermint/tendermint/abci/types",
+    "github.com/tendermint/tendermint/blockchain",
     "github.com/tendermint/tendermint/config",
     "github.com/tendermint/tendermint/crypto",
     "github.com/tendermint/tendermint/crypto/ed25519",
