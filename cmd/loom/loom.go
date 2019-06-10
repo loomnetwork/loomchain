@@ -66,6 +66,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
@@ -765,6 +766,12 @@ func loadApp(
 		return nil, err
 	}
 
+	// load EVM Auxiliary Store
+	evmAuxStore, err := evmaux.LoadStore()
+	if err != nil {
+		return nil, err
+	}
+
 	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
 		var receiptVer handler.ReceiptHandlerVersion
 		if v2Feature {
@@ -777,7 +784,7 @@ func loadApp(
 			}
 		}
 		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-	})
+	}, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -1138,6 +1145,7 @@ func loadApp(
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
+		EvmAuxStore:                 evmAuxStore,
 	}, nil
 }
 
@@ -1262,7 +1270,7 @@ func initQueryService(
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
 		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
-		EthPolls:               *polls.NewEthSubscriptions(),
+		EthPolls:               *polls.NewEthSubscriptions(app.EvmAuxStore, blockstore),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
@@ -1271,6 +1279,7 @@ func initQueryService(
 		BlockIndexStore:        app.BlockIndexStore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
+		EvmAuxStore:            app.EvmAuxStore,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

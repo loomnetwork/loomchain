@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/loomnetwork/loomchain/eth/bloom"
-	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
@@ -15,12 +14,13 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func QueryChain(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
-	readReceipts loomchain.ReadReceiptHandler,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
 	if err != nil {
@@ -31,12 +31,12 @@ func QueryChain(
 		return nil, err
 	}
 
-	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts)
+	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
 }
 
 func DeprecatedQueryChain(
 	query string, blockStore store.BlockStore, state loomchain.ReadOnlyState,
-	readReceipts loomchain.ReadReceiptHandler,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
@@ -51,7 +51,7 @@ func DeprecatedQueryChain(
 		return nil, err
 	}
 
-	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts)
+	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +65,7 @@ func GetBlockLogRange(
 	from, to uint64,
 	ethFilter eth.EthBlockFilter,
 	readReceipts loomchain.ReadReceiptHandler,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
 		return nil, fmt.Errorf("to block before end block")
@@ -72,7 +73,7 @@ func GetBlockLogRange(
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(blockStore, state, ethFilter, height, readReceipts)
+		blockLogs, err := GetBlockLogs(blockStore, state, ethFilter, height, readReceipts, evmAuxStore)
 		if err != nil {
 			return nil, err
 		}
@@ -87,11 +88,14 @@ func GetBlockLogs(
 	ethFilter eth.EthBlockFilter,
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
-	bloomFilter := common.GetBloomFilter(state, height)
+
+	bloomFilter := evmAuxStore.GetBloomFilter(height)
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			txHashList, err := common.GetTxHashList(state, height)
+			txHashList, err := evmAuxStore.GetTxHashList(height)
+
 			if err != nil {
 				return nil, errors.Wrapf(err, "txhash for block height %d", height)
 			}

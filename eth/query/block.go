@@ -14,9 +14,9 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
 
 const (
@@ -30,7 +30,11 @@ var (
 )
 
 func GetBlockByNumber(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
+	blockStore store.BlockStore,
+	state loomchain.ReadOnlyState,
+	height int64,
+	full bool,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
 	if height > state.Block().Height {
@@ -73,8 +77,8 @@ func GetBlockByNumber(
 	// These three fields are null for pending blocks.
 	blockInfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
 	blockInfo.Number = eth.EncInt(height)
-	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
-
+	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
+	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			txResult, err := blockStore.GetTxResult(tx.Hash())
@@ -234,7 +238,7 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 
 func DeprecatedGetBlockByNumber(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
-	readReceipts loomchain.ReadReceiptHandler,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	var blockresult *ctypes.ResultBlock
 	iHeight := height
@@ -253,11 +257,9 @@ func DeprecatedGetBlockByNumber(
 	} else {
 		blockinfo.Number = height
 	}
+	blockinfo.LogsBloom = evmAuxStore.GetBloomFilter(uint64(height))
 
-	bloomFilter := common.GetBloomFilter(state, uint64(height))
-	blockinfo.LogsBloom = bloomFilter
-
-	txHashList, err := common.GetTxHashList(state, uint64(height))
+	txHashList, err := evmAuxStore.GetTxHashList(uint64(height))
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx hash")
 	}
@@ -302,7 +304,7 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 
 func DeprecatedGetBlockByHash(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte, full bool,
-	readReceipts loomchain.ReadReceiptHandler,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
@@ -322,7 +324,7 @@ func DeprecatedGetBlockByHash(
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if info.BlockMetas[i] != nil {
 				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)
+					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts, evmAuxStore)
 				}
 			}
 		}

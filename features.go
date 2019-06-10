@@ -53,6 +53,9 @@ const (
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 
+	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
+	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
+	AuxEvmDBFeature = "db:auxevm"
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
 )
