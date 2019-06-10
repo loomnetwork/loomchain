@@ -446,19 +446,17 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		}
 	}
 
-	if state.FeatureEnabled(CoinPolicyFeature, false) {
-		coinPolicyManager, err := a.CreateCoinPolicyManager(state)
-		if err != nil {
+	coinPolicyManager, err := a.CreateCoinPolicyManager(state)
+	if err != nil {
+		panic(err)
+	}
+	if coinPolicyManager != nil {
+		if err := coinPolicyManager.MintCoins(); err != nil {
 			panic(err)
 		}
-		if coinPolicyManager != nil {
-			if err := coinPolicyManager.MintCoins(); err != nil {
+		if state.FeatureEnabled(CoinPolicyModificationFeature, false) {
+			if err := coinPolicyManager.ModifyDeflationParameter(); err != nil {
 				panic(err)
-			}
-			if state.FeatureEnabled(CoinPolicyModificationFeature, false) {
-				if err := coinPolicyManager.ModifyDeflationParameter(); err != nil {
-					panic(err)
-				}
 			}
 		}
 	}
