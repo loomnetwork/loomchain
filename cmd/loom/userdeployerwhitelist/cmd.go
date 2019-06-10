@@ -182,8 +182,8 @@ func getTierInfoCmd() *cobra.Command {
 	return cmd
 }
 
-const modifyTierInfoCmdExample = `
-loom dev modify-tierinfo 100 Tier1 --tier 0
+const SetTierCmdExample = `
+loom dev set-tier 100 Tier1 --tier 0
 `
 
 func setTierInfoCmd() *cobra.Command {
@@ -192,7 +192,7 @@ func setTierInfoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-tier <fee> <tier-name>",
 		Short:   "Set tier details",
-		Example: modifyTierInfoCmdExample,
+		Example: SetTierCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fees, err := cli.ParseAmount(args[0])
@@ -202,14 +202,14 @@ func setTierInfoCmd() *cobra.Command {
 			if fees.Cmp(loom.NewBigUIntFromInt(0)) <= 0 {
 				return fmt.Errorf("fee must be greater than zero")
 			}
-			req := &udwtypes.ModifyTierInfoRequest{
+			req := &udwtypes.SetTierInfoRequest{
 				Fee: &types.BigUInt{
 					Value: *fees,
 				},
 				Name:   args[1],
 				TierID: udwtypes.TierID(tierID),
 			}
-			return cli.CallContractWithFlags(&flags, dwContractName, "ModifyTierInfo", req, nil)
+			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		},
 	}
 	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
