@@ -31,6 +31,8 @@ var (
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 
+	rangeLimit = 100
+
 	saveVersionDuration metrics.Histogram
 	getSnapshotDuration metrics.Histogram
 )
@@ -170,6 +172,14 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			oldRoot := s.appStore.Get(rootKey)
 			if !bytes.Equal(oldRoot, currentRoot) {
 				s.appStore.Set(rootKey, currentRoot)
+			}
+
+			rangeData := s.appStore.RangeWithLimit(vmPrefix, rangeLimit)
+			if len(rangeData) > 0 {
+				for _, data := range rangeData {
+					s.appStore.Delete(data.Key)
+				}
+
 			}
 		} else {
 			s.appStore.Set(rootKey, currentRoot)
