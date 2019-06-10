@@ -56,9 +56,6 @@ const (
 	//Enables Coin Deflation Manager Feature
 	CoinPolicyFeature = "coin:policy"
 
-	//Enables Coin Deflation Parameters Modification Feature
-	CoinPolicyModificationFeature = "coin:policy-modification"
-
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
 )
