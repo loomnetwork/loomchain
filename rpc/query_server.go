@@ -30,6 +30,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
@@ -115,6 +116,7 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
+	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
@@ -575,7 +577,7 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return query.DeprecatedQueryChain(filter, s.BlockStore, snapshot, r)
+	return query.DeprecatedQueryChain(filter, s.BlockStore, snapshot, r, s.EvmAuxStore)
 }
 
 // Sets up new filter for polling
@@ -619,7 +621,7 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	return s.EthPolls.LegacyPoll(s.BlockStore, snapshot, id, r)
+	return s.EthPolls.LegacyPoll(snapshot, id, r)
 }
 
 // Forget the filter.
@@ -659,15 +661,15 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	}
 	switch number {
 	case "latest":
-		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height-1, full, r)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height-1, full, r, s.EvmAuxStore)
 	case "pending":
-		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r, s.EvmAuxStore)
 	default:
 		height, err := strconv.ParseInt(number, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r, s.EvmAuxStore)
 	}
 }
 
@@ -683,7 +685,7 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	return query.DeprecatedGetBlockByHash(s.BlockStore, snapshot, hash, full, r)
+	return query.DeprecatedGetBlockByHash(s.BlockStore, snapshot, hash, full, r, s.EvmAuxStore)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -718,7 +720,7 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full)
+	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
 	if err != nil {
 		return resp, err
 	}
@@ -830,7 +832,8 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
-	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full)
+
+	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -926,7 +929,7 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	logs, err := query.QueryChain(s.BlockStore, snapshot, ethFilter, r)
+	logs, err := query.QueryChain(s.BlockStore, snapshot, ethFilter, r, s.EvmAuxStore)
 	if err != nil {
 		return resp, err
 	}
@@ -936,14 +939,16 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 // todo add EthNewBlockFilter EthNewPendingTransactionFilter EthUninstallFilter EthGetFilterChanges and EthGetFilterLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
 func (s QueryServer) EthNewBlockFilter() (eth.Quantity, error) {
-	state := s.StateProvider.ReadOnlyState()
-	return eth.Quantity(s.EthPolls.AddBlockPoll(uint64(state.Block().Height))), nil
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return eth.Quantity(s.EthPolls.AddBlockPoll(uint64(snapshot.Block().Height))), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
 func (s QueryServer) EthNewPendingTransactionFilter() (eth.Quantity, error) {
-	state := s.StateProvider.ReadOnlyState()
-	return eth.Quantity(s.EthPolls.AddTxPoll(uint64(state.Block().Height))), nil
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return eth.Quantity(s.EthPolls.AddTxPoll(uint64(snapshot.Block().Height))), nil
 }
 
 // Forget the filter.
@@ -965,14 +970,11 @@ func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) 
 	if err != nil {
 		return nil, err
 	}
-
-	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.Poll(s.BlockStore, state, string(id), r)
+	return s.EthPolls.Poll(snapshot, string(id), r)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
-	state := s.StateProvider.ReadOnlyState()
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 	r, err := s.ReceiptHandlerProvider.ReaderAt(
@@ -982,18 +984,19 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.EthPolls.AllLogs(s.BlockStore, state, string(id), r)
+	return s.EthPolls.AllLogs(snapshot, string(id), r)
 }
 
 // Sets up new filter for polling
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) {
-	state := s.StateProvider.ReadOnlyState()
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 	ethFilter, err := eth.DecLogFilter(filter)
 	if err != nil {
 		return "", errors.Wrap(err, "could decode log filter")
 	}
-	id, err := s.EthPolls.AddLogPoll(ethFilter, uint64(state.Block().Height))
+	id, err := s.EthPolls.AddLogPoll(ethFilter, uint64(snapshot.Block().Height))
 	return eth.Quantity(id), err
 }
 

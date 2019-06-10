@@ -105,6 +105,7 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 		func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
 			return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
 		},
+		nil,
 	)
 	receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
