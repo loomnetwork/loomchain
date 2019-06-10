@@ -238,7 +238,6 @@ func setTierInfoCmd() *cobra.Command {
 			if len(tierName) == 0 {
 				tierName = getTierInfoResp.Tier.Name
 			}
-
 			req := &udwtypes.SetTierInfoRequest{
 				Fee:    fee,
 				Name:   tierName,
