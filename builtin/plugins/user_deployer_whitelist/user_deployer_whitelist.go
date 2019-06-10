@@ -24,7 +24,7 @@ type (
 	GetDeployerRequest           = dwtypes.GetDeployerRequest
 	GetTierInfoRequest           = udwtypes.GetTierInfoRequest
 	GetTierInfoResponse          = udwtypes.GetTierInfoResponse
-	ModifyTierInfoRequest        = udwtypes.ModifyTierInfoRequest
+	SetTierInfoRequest           = udwtypes.SetTierInfoRequest
 	Deployer                     = dwtypes.Deployer
 	UserDeployerState            = udwtypes.UserDeployerState
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
@@ -264,8 +264,8 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 }
 
 // ModifyTierInfo Modify the TierInfo corresponding to a TierID
-func (uw *UserDeployerWhitelist) ModifyTierInfo(
-	ctx contract.Context, req *ModifyTierInfoRequest) error {
+func (uw *UserDeployerWhitelist) SetTierInfo(
+	ctx contract.Context, req *SetTierInfoRequest) error {
 	if req.Fee == nil {
 		return errors.New("[UserDeployerWhitelist] Invalid Fee")
 	}
