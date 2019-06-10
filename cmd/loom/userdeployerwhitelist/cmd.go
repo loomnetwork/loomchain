@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/loomnetwork/go-loom/client"
+
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/go-loom"
@@ -188,38 +190,65 @@ func getTierInfoCmd() *cobra.Command {
 }
 
 const SetTierCmdExample = `
-loom dev set-tier 0 100 Tier1 
+loom dev set-tier 0 --fee 100 --tierName Tier1 
 `
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
+	var Inputfee, tierName string
 	cmd := &cobra.Command{
-		Use:     "set-tier <tier> <fee> <tier-name>",
+		Use:     "set-tier <tier>",
 		Short:   "Set tier details",
 		Example: SetTierCmdExample,
-		Args:    cobra.MinimumNArgs(3),
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var fee *types.BigUInt
 			tierID, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return errors.Wrapf(err, "tierID %s does not parse as integer", args[0])
 			}
-			fees, err := cli.ParseAmount(args[1])
+			rpcClient := getDAppChainClient(&flags)
+			udwAddress, err := rpcClient.Resolve("user-deployer-whitelist")
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to resolve ethCoin address")
 			}
-			if fees.Cmp(loom.NewBigUIntFromInt(0)) <= 0 {
-				return fmt.Errorf("fee must be greater than zero")
+			udwContract := client.NewContract(rpcClient, udwAddress.Local)
+			getTierInfoReq := &udwtypes.GetTierInfoRequest{
+				TierID: udwtypes.TierID(tierID),
 			}
+			var getTierInfoResp udwtypes.GetTierInfoResponse
+			_, err = udwContract.StaticCall("GetTierInfo", getTierInfoReq, udwAddress, &getTierInfoResp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call GetTierInfo")
+			}
+			if len(Inputfee) == 0 {
+				fee = getTierInfoResp.Tier.Fee
+			} else {
+				parsedFee, err := cli.ParseAmount(Inputfee)
+				if err != nil {
+					return err
+				}
+				if parsedFee.Cmp(loom.NewBigUIntFromInt(0)) <= 0 {
+					return fmt.Errorf("fee must be greater than zero")
+				}
+				fee = &types.BigUInt{
+					Value: *parsedFee,
+				}
+			}
+			if len(tierName) == 0 {
+				tierName = getTierInfoResp.Tier.Name
+			}
+
 			req := &udwtypes.SetTierInfoRequest{
-				Fee: &types.BigUInt{
-					Value: *fees,
-				},
-				Name:   args[2],
+				Fee:    fee,
+				Name:   tierName,
 				TierID: udwtypes.TierID(tierID),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
-		},
-	}
+		}}
+
+	cmd.Flags().StringVarP(&Inputfee, "fees", "f", "", "tier ID")
+	cmd.Flags().StringVarP(&tierName, "tierName", "t", "", "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
@@ -230,4 +259,10 @@ func getUserDeployerInfo(deployer *udwtypes.UserDeployerState) UserdeployerInfo 
 		TierId:  deployer.TierID.String(),
 	}
 	return deployerInfo
+}
+
+func getDAppChainClient(callFlags *cli.ContractCallFlags) *client.DAppChainRPCClient {
+	writeURI := callFlags.URI + "/rpc"
+	readURI := callFlags.URI + "/query"
+	return client.NewDAppChainRPCClient(callFlags.ChainID, writeURI, readURI)
 }
