@@ -39,7 +39,7 @@ func NewUserDeployCommand() *cobra.Command {
 }
 
 const addUserDeployerCmdExample = `
-loom dev add-deployer 0 0x7262d4c97c7B93937E4810D289b7320e9dA82857 
+loom dev add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --tier 0 
 `
 
 func addUserDeployerCmd() *cobra.Command {
