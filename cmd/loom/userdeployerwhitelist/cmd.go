@@ -210,7 +210,7 @@ func setTierInfoCmd() *cobra.Command {
 			rpcClient := getDAppChainClient(&flags)
 			udwAddress, err := rpcClient.Resolve("user-deployer-whitelist")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve ethCoin address")
+				return errors.Wrap(err, "failed to resolve user-deployer-whitelist address")
 			}
 			udwContract := client.NewContract(rpcClient, udwAddress.Local)
 			getTierInfoReq := &udwtypes.GetTierInfoRequest{
