@@ -195,7 +195,7 @@ loom dev set-tier 0 --fee 100 --tierName Tier1
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var Inputfee, tierName string
+	var inputFee, tierName string
 	cmd := &cobra.Command{
 		Use:     "set-tier <tier>",
 		Short:   "Set tier details",
@@ -221,10 +221,10 @@ func setTierInfoCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to call GetTierInfo")
 			}
-			if len(Inputfee) == 0 {
+			if len(inputFee) == 0 {
 				fee = getTierInfoResp.Tier.Fee
 			} else {
-				parsedFee, err := cli.ParseAmount(Inputfee)
+				parsedFee, err := cli.ParseAmount(inputFee)
 				if err != nil {
 					return err
 				}
@@ -246,7 +246,7 @@ func setTierInfoCmd() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		}}
 
-	cmd.Flags().StringVarP(&Inputfee, "fees", "f", "", "tier ID")
+	cmd.Flags().StringVarP(&inputFee, "fees", "f", "", "tier ID")
 	cmd.Flags().StringVarP(&tierName, "tierName", "t", "", "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
