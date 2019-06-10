@@ -3,6 +3,8 @@ package userdeployerwhitelist
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
+	"strconv"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
@@ -37,19 +39,22 @@ func NewUserDeployCommand() *cobra.Command {
 }
 
 const addUserDeployerCmdExample = `
-loom dev add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --tier 0
+loom dev add-deployer 0 0x7262d4c97c7B93937E4810D289b7320e9dA82857 
 `
 
 func addUserDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var tierID int
 	cmd := &cobra.Command{
-		Use:     "add-deployer <deployer address>",
+		Use:     "add-deployer <tier> <deployer address>",
 		Short:   "Authorize an account to deploy contracts on behalf of a user (the caller)",
 		Example: addUserDeployerCmdExample,
-		Args:    cobra.MinimumNArgs(1),
+		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAccountAddress(args[0], &flags)
+			tierID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "tierID %s does not parse as integer", args[0])
+			}
+			addr, err := cli.ResolveAccountAddress(args[1], &flags)
 			if err != nil {
 				return err
 			}
@@ -60,7 +65,6 @@ func addUserDeployerCmd() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, dwContractName, "AddUserDeployer", req, nil)
 		},
 	}
-	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
@@ -149,18 +153,21 @@ func getDeployedContractsCmd() *cobra.Command {
 }
 
 const getTierCmdExample = `
-loom dev get-tier --tier 0
+loom dev get-tier 0
 `
 
 func getTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var tierID int
 	cmd := &cobra.Command{
-		Use:     "get-tier",
+		Use:     "get-tier <tier>",
 		Short:   "Show tier details",
 		Example: getTierCmdExample,
-		Args:    cobra.MinimumNArgs(0),
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tierID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "tierID %s does not parse as integer", args[0])
+			}
 			req := &udwtypes.GetTierInfoRequest{
 				TierID: udwtypes.TierID(tierID),
 			}
@@ -177,25 +184,27 @@ func getTierInfoCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
 const SetTierCmdExample = `
-loom dev set-tier 100 Tier1 --tier 0
+loom dev set-tier 0 100 Tier1 
 `
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var tierID int
 	cmd := &cobra.Command{
-		Use:     "set-tier <fee> <tier-name>",
+		Use:     "set-tier <tier> <fee> <tier-name>",
 		Short:   "Set tier details",
 		Example: SetTierCmdExample,
-		Args:    cobra.MinimumNArgs(2),
+		Args:    cobra.MinimumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fees, err := cli.ParseAmount(args[0])
+			tierID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "tierID %s does not parse as integer", args[0])
+			}
+			fees, err := cli.ParseAmount(args[1])
 			if err != nil {
 				return err
 			}
@@ -206,13 +215,12 @@ func setTierInfoCmd() *cobra.Command {
 				Fee: &types.BigUInt{
 					Value: *fees,
 				},
-				Name:   args[1],
+				Name:   args[2],
 				TierID: udwtypes.TierID(tierID),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		},
 	}
-	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
