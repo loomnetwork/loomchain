@@ -1107,26 +1107,11 @@ func loadApp(
 		if !state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
 			return plugin.NewNoopCoinPolicyManager(), nil
 		}
-		addr, err := loom.ParseAddress(cfg.DeflationInfoConfig.MintingAccount)
+		m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing deploy address %s", cfg.DeflationInfoConfig.MintingAccount)
+			return nil, err
 		}
-		if cfg.DeflationInfoConfig.Enabled == true {
-			m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state,
-				cfg.DeflationInfoConfig.DeflationFactorNumerator,
-				cfg.DeflationInfoConfig.DeflationFactorDenominator,
-				cfg.DeflationInfoConfig.BaseMintingAmount, addr.MarshalPB())
-			if err != nil {
-				return nil, err
-			}
-			return m, nil
-		} else {
-			m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state, 0, 0, 0, nil)
-			if err != nil {
-				return nil, err
-			}
-			return m, nil
-		}
+		return m, nil
 	}
 
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
