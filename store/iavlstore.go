@@ -87,35 +87,7 @@ func prefixRangeEnd(prefix []byte) []byte {
 }
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
-	ret := make(plugin.RangeData, 0)
-
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
-	if err != nil {
-		log.Error("failed to get range", "err", err)
-		return ret
-	}
-	for i, k := range keys {
-		// Tree range gives all keys that has prefix but it does not check zero byte
-		// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
-		if util.HasPrefix(k, prefix) {
-			k, err = util.UnprefixKey(k, prefix)
-			if err != nil {
-				log.Error("failed to unprefix key", "key", k, "prefix", prefix, "err", err)
-				k = nil
-			}
-
-		} else {
-			continue // Skip this key as it does not have the prefix
-		}
-
-		re := &plugin.RangeEntry{
-			Key:   k,
-			Value: values[i],
-		}
-		ret = append(ret, re)
-	}
-
-	return ret
+	return s.RangeWithLimit(prefix, 0)
 }
 
 func (s *IAVLStore) RangeWithLimit(prefix []byte, limit int) plugin.RangeData {
