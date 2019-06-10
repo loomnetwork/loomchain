@@ -200,7 +200,7 @@ func setTierInfoCmd() *cobra.Command {
 				return err
 			}
 			if fees.Cmp(loom.NewBigUIntFromInt(0)) <= 0 {
-				return fmt.Errorf("Whitelisting fees must be greater than zero")
+				return fmt.Errorf("fee must be greater than zero")
 			}
 			req := &udwtypes.ModifyTierInfoRequest{
 				Fee: &types.BigUInt{
