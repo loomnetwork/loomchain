@@ -9,12 +9,12 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev add-deployer {{index $.AccountAddressList 1}} --tier 0 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev add-deployer 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev add-deployer {{index $.AccountAddressList 1}} --tier 0 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev add-deployer 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['deployer already exists']
 
@@ -56,17 +56,17 @@
    Delay = 500
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev set-tier 200 Tier2 --tier 0 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 0 200 Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 #Checks whitelisting fees cannot be less than equal to zero.
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev set-tier 0 Tier2 --tier 0 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 0 0 Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['fee must be greater than zero']
   
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev get-tier --tier 0"
+  RunCmd = "{{ $.LoomPath }} dev get-tier 0"
   Condition = "contains"
   Expected = ['10000000000000000000', '"name": "tier1"']
