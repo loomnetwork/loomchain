@@ -81,7 +81,7 @@ func removeUserDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "remove-deployer <deployer address>",
-		Short:   "Remove an account to deploy contracts on behalf of a user (the caller)",
+		Short:   "Remove an account from the list of accounts authorized to deploy contracts on behalf of a user (the caller)",
 		Example: removeUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
