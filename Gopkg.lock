@@ -45,13 +45,6 @@
   version = "v0.9.9"
 
 [[projects]]
-  digest = "1:386de157f7d19259a7f9c81f26ce011223ce0f090353c1152ffdf730d7d10ac2"
-  name = "github.com/btcsuite/btcutil"
-  packages = ["bech32"]
-  pruneopts = "UT"
-  revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
-
-[[projects]]
   branch = "master"
   digest = "1:78097abc20f73ec968b3f67bf74deda55009caa4b801d0d04f36145c869ab3c3"
   name = "github.com/cevaris/ordered_map"
@@ -406,14 +399,6 @@
   pruneopts = "UT"
   revision = "cfd0e758da796489f1274da631a71ab637009c2f"
   version = "v2.2.1"
-
-[[projects]]
-  digest = "1:5a736f4722932d9a45d28852e85b83f68292d9af2ef0be29d4e5fe6fd89d5d96"
-  name = "github.com/zondax/hid"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "302fd402163c34626286195dfa9adac758334acc"
-  version = "v0.9.0"
 
 [[projects]]
   digest = "1:c450d0b3b9217e3926714751c2034a9171e2d769c254ef3c74e5795ad74e1b04"
