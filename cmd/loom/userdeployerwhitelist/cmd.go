@@ -44,17 +44,14 @@ loom dev add-deployer 0 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 
 func addUserDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
+	var tierID int
 	cmd := &cobra.Command{
-		Use:     "add-deployer <tier> <deployer address>",
+		Use:     "add-deployer <deployer address>",
 		Short:   "Authorize an account to deploy contracts on behalf of a user (the caller)",
 		Example: addUserDeployerCmdExample,
-		Args:    cobra.MinimumNArgs(2),
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tierID, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return errors.Wrapf(err, "tierID %s does not parse as integer", args[0])
-			}
-			addr, err := cli.ResolveAccountAddress(args[1], &flags)
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
 				return err
 			}
@@ -65,6 +62,7 @@ func addUserDeployerCmd() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, dwContractName, "AddUserDeployer", req, nil)
 		},
 	}
+	cmd.Flags().IntVarP(&tierID, "tier", "t", 0, "tier ID")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
