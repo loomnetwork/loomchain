@@ -3,8 +3,9 @@ package userdeployerwhitelist
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"strconv"
+
+	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
