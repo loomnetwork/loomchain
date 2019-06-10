@@ -393,8 +393,8 @@ func DefaultConfig() *Config {
 		ContractLoaders:            []string{"static", "dynamic"},
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
-		RegistryVersion:            int32(registry.RegistryV1),
-		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
+		RegistryVersion:            int32(registry.RegistryV2),
+		ReceiptsVersion:            int32(receipts.ReceiptHandlerLevelDb),
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
@@ -403,7 +403,7 @@ func DefaultConfig() *Config {
 		Oracle:        "",
 		DeployEnabled: true,
 		CallEnabled:   true,
-		DPOSVersion:   1,
+		DPOSVersion:   3,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -718,7 +718,7 @@ DPOSv2OracleConfig:
 # App store
 #
 AppStore:
-  # 1 - IAVL, 2 - MultiReaderIAVL, 3 - MultiWriterAppStore, defaults to 1
+  # 1 - IAVL, 2 - MultiReaderIAVL, 3 - MultiWriterAppStore, defaults to 3
   # WARNING: Once a node is initialized with a specific version it can't be switched to another
   #          version without rebuilding the node.
   Version: {{ .AppStore.Version }}

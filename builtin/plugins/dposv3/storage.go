@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 )
 
 const (
@@ -381,14 +382,18 @@ func updateCandidateList(ctx contract.Context) error {
 
 	// Update each candidate's fee
 	var deleteList []loom.Address
+	candidateUpdated := false
 	for _, c := range candidates {
 		if c.State == ABOUT_TO_CHANGE_FEE {
 			c.State = CHANGING_FEE
+			candidateUpdated = true
 		} else if c.State == CHANGING_FEE {
 			c.Fee = c.NewFee
 			c.State = REGISTERED
+			candidateUpdated = true
 		} else if c.State == UNREGISTERING {
 			deleteList = append(deleteList, loom.UnmarshalAddressPB(c.Address))
+			candidateUpdated = true
 		}
 	}
 
@@ -397,11 +402,14 @@ func updateCandidateList(ctx contract.Context) error {
 		candidates.Delete(candidateAddress)
 	}
 
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
+	// Only save CandidateList when it gets updated
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
+		if !candidateUpdated {
+			return nil
+		}
 	}
 
-	return nil
+	return saveCandidateList(ctx, candidates)
 }
 
 type byAddress CandidateList
