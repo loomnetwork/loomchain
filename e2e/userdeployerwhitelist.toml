@@ -9,12 +9,12 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev add-deployer 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev add-deployer 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['deployer already exists']
 
