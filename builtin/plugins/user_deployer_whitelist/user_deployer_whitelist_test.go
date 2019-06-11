@@ -141,15 +141,6 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.EqualError(t, ErrDeployerAlreadyExists, err.Error(), "Trying to Add Deployer which Already Exists for User")
 
-	//Invalid Tier Id specified
-	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
-		&WhitelistUserDeployerRequest{
-			DeployerAddr: addr2.MarshalPB(),
-			TierID:       1,
-		})
-
-	require.EqualError(t, ErrInvalidTier, err.Error(), "Tier Supplied is Invalid")
-
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
@@ -174,6 +165,39 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
 
+	//Modify Tier Info
+	err = deployerContract.SetTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
+		&SetTierInfoRequest{
+			Name:   "Tier2",
+			TierID: udwtypes.TierID_DEFAULT,
+			Fee: &types.BigUInt{
+				Value: *whitelistingfees,
+			},
+		})
+
+	require.NoError(t, err)
+
+	//Error Test case Modify Tier Info with UnAuthorized User
+	err = deployerContract.SetTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr5)),
+		&SetTierInfoRequest{
+			Name:   "Tier2",
+			TierID: udwtypes.TierID_DEFAULT,
+			Fee: &types.BigUInt{
+				Value: *whitelistingfees,
+			},
+		})
+
+	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be Modified Only by Owner")
+
+	//Get Tier Info
+	resp, err := deployerContract.GetTierInfo(contractpb.WrapPluginContext(deployerCtx),
+		&udwtypes.GetTierInfoRequest{
+			TierID: udwtypes.TierID_DEFAULT,
+		})
+	fees := sciNot(100, 18)
+	require.NoError(t, err)
+	require.Equal(t, fees, &resp.Tier.Fee.Value)
+	require.Equal(t, "Tier2", resp.Tier.Name)
 	// when deployer is not in ctx, still return don't return error but empty list of contracts
 	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
@@ -181,7 +205,6 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
-
 }
 
 func sciNot(m, n int64) *loom.BigUInt {

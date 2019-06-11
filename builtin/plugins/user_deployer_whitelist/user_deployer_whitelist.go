@@ -22,6 +22,9 @@ type (
 	GetDeployedContractsResponse = udwtypes.GetDeployedContractsResponse
 	GetDeployerResponse          = dwtypes.GetDeployerResponse
 	GetDeployerRequest           = dwtypes.GetDeployerRequest
+	GetTierInfoRequest           = udwtypes.GetTierInfoRequest
+	GetTierInfoResponse          = udwtypes.GetTierInfoResponse
+	SetTierInfoRequest           = udwtypes.SetTierInfoRequest
 	Deployer                     = dwtypes.Deployer
 	UserDeployerState            = udwtypes.UserDeployerState
 	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
@@ -52,6 +55,8 @@ var (
 	ErrInvalidTier = errors.New("[UserDeployerWhitelist] Invalid Tier")
 	// ErrMissingTierInfo is returned if init doesnt get atleast one tier
 	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
+	// Invalid whitelisting fees check
+	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] fee must be greater than zero")
 )
 
 const (
@@ -131,9 +136,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
 	}
-	if req.TierID != udwtypes.TierID_DEFAULT {
-		return ErrInvalidTier
-	}
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of deployer_whitelist")
@@ -150,7 +152,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if err := ctx.Get(TierKey(req.TierID), &tierInfo); err != nil {
 		return err
 	}
-
 	var whitelistingFees *types.BigUInt
 	whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
 	userAddr := ctx.Message().Sender
@@ -246,6 +247,40 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	return &GetDeployedContractsResponse{
 		ContractAddresses: userDeployer.Contracts,
 	}, nil
+}
+
+// GetTierInfo returns the details of a specific tier.
+func (uw *UserDeployerWhitelist) GetTierInfo(
+	ctx contract.StaticContext, req *GetTierInfoRequest,
+) (*GetTierInfoResponse, error) {
+	var tier Tier
+	err := ctx.Get(TierKey(req.TierID), &tier)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get Tier Information")
+	}
+	return &GetTierInfoResponse{
+		Tier: &tier,
+	}, nil
+}
+
+// SetTierInfo sets the details of a tier.
+func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierInfoRequest) error {
+	if req.Fee == nil || req.Fee.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+		return ErrInvalidWhitelistingFee
+	}
+	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+	tier := &Tier{
+		TierID: req.TierID,
+		Fee:    req.Fee,
+		Name:   req.Name,
+	}
+	err := ctx.Set(TierKey(req.TierID), tier)
+	if err != nil {
+		return errors.Wrap(err, "Failed to modify TierInfo")
+	}
+	return nil
 }
 
 // RecordEVMContractDeployment is called by the EVMDeployRecorderPostCommitMiddleware after an EVM
