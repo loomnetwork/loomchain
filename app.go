@@ -525,6 +525,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	}
 
 	_, err = a.processTx(txBytes, true)
+	log.Info("piers trasnaction", "block", a.curBlockHeader.Height, "err", err)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}

@@ -101,86 +101,84 @@ func GetBlockByNumber(
 
 func GetTxObjectFromBlockResult(
 	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
-) (eth.JsonTxObject, uint32, error) {
+) (eth.JsonTxObject, eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[index]
+	var contractAddress eth.Data
+	txObj := eth.JsonTxObject{
+		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
+		TransactionIndex: eth.EncInt(int64(index)),
+		Value:            eth.EncInt(0),
+		GasPrice:         eth.EncInt(0),
+		Gas:              eth.EncInt(0),
+		Hash:             eth.EncBytes(tx.Hash()),
+	}
+
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
-		return eth.GetEmptyTxObject(), 0, err
+		return eth.GetEmptyTxObject(), contractAddress, err
 	}
 
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return eth.GetEmptyTxObject(), 0, err
+		return eth.GetEmptyTxObject(), contractAddress, err
 	}
+	txObj.Nonce = eth.EncInt(int64(nonceTx.Sequence))
 
 	var txTx loomchain.Transaction
 	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
-		return eth.GetEmptyTxObject(), txTx.Id, err
+		return eth.GetEmptyTxObject(), contractAddress, err
 	}
 
 	var msg vm.MessageTx
 	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
-		return eth.GetEmptyTxObject(), txTx.Id, err
+		return eth.GetEmptyTxObject(), contractAddress, err
 	}
+	txObj.From = eth.EncAddress(msg.From)
 
 	var input []byte
-	txHash := tx.Hash()
 	switch txTx.Id {
 	case deployId:
 		{
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return eth.GetEmptyTxObject(), txTx.Id, err
+				return eth.GetEmptyTxObject(), contractAddress, err
 			}
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
 				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
-					return eth.GetEmptyTxObject(), txTx.Id, err
+					return eth.GetEmptyTxObject(), contractAddress, err
 				}
 
 				var respData vm.DeployResponseData
 				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
-					return eth.GetEmptyTxObject(), txTx.Id, err
+					return eth.GetEmptyTxObject(), contractAddress, err
 				}
-				txHash = respData.TxHash
+				contractAddress = eth.EncBytes(respData.TxHash)
 			}
 		}
 	case callId:
 		{
 			var callTx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
-				return eth.GetEmptyTxObject(), txTx.Id, err
+				return eth.GetEmptyTxObject(), contractAddress, err
 			}
 			input = callTx.Input
-			if callTx.VmType == vm.VMType_EVM {
-				txHash = txResult.TxResult.Data
+			txObj.To = eth.EncAddress(msg.To)
+			if callTx.VmType == vm.VMType_EVM && len(txResult.TxResult.Data) > 0 {
+				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
 			}
 		}
 	case migrationTx:
+		txObj.To = eth.EncAddress(msg.To)
 		input = msg.Data
 	default:
-		return eth.GetEmptyTxObject(), txTx.Id, fmt.Errorf("unrecognised tx type %v", txTx.Id)
+		return eth.GetEmptyTxObject(), contractAddress, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
+	txObj.Input = eth.EncBytes(input)
 
-	// Use tendermint tx hash if no loom tx hash is not available
-	if len(txHash) == 0 {
-		txHash = tx.Hash()
-	}
-
-	return eth.JsonTxObject{
-		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
-		Hash:             eth.EncBytes(txHash),
-		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
-		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
-		TransactionIndex: eth.EncInt(int64(index)),
-		From:             eth.EncAddress(msg.From),
-		To:               eth.EncAddress(msg.To),
-		Value:            eth.EncInt(0),
-		GasPrice:         eth.EncInt(0),
-		Gas:              eth.EncInt(0),
-		Input:            eth.EncBytes(input),
-	}, txTx.Id, nil
+	return txObj, contractAddress, nil
 }
 
 func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {

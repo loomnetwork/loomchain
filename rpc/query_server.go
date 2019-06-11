@@ -48,7 +48,6 @@ const (
 	goGetCode       = "0x608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73e288d6eec7150d6a22fde33f0aa2d81e06591c4d815600a165627a7a72305820b8b6992011e1a3286b9546ca427bf9cb05db8bd25addbee7a9894131d9db12500029"
 	StatusTxSuccess = int32(1)
 	StatusTxFail    = int32(0)
-	deployId        = uint32(1)
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -1096,17 +1095,17 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	if err != nil {
 		return eth.GetEmptyReceipt(), err
 	}
-	txObj, txId, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
+	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
 	if err != nil {
 		return eth.GetEmptyReceipt(), err
 	}
 	txHash, err := eth.DecDataToBytes(txObj.Hash)
 	if err != nil {
-		return eth.TxObjToReceipt(txObj, txId == deployId), errors.Wrapf(err, "invalid loom transaction hash %h", txObj.Hash)
+		return eth.TxObjToReceipt(txObj, contractAddr), errors.Wrapf(err, "invalid loom transaction hash %h", txObj.Hash)
 	}
 	txReceipt, err := rh.GetReceipt(state, txHash)
 	if err != nil {
-		return eth.TxObjToReceipt(txObj, txId == deployId), err
+		return eth.TxObjToReceipt(txObj, contractAddr), err
 	}
 	return completeReceipt(txResults, blockResult, &txReceipt), nil
 }
@@ -1124,7 +1123,7 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 		txReceipt.Status = StatusTxFail
 	}
 	jsonReceipt := eth.EncTxReceipt(*txReceipt)
-	if txResults.TxResult.Info == utils.CallEVM {
+	if txResults.TxResult.Info == utils.CallEVM && len(jsonReceipt.To) == 0 {
 		jsonReceipt.To = jsonReceipt.ContractAddress
 		jsonReceipt.ContractAddress = eth.Data("")
 	}

@@ -67,7 +67,7 @@ type JsonTxObject struct {
 	BlockNumber      Quantity `json:"blockNumber,omitempty"`
 	TransactionIndex Quantity `json:"transactionIndex,omitempty"`
 	From             Data     `json:"from,omitempty"`
-	To               Data     `json:"to,omitempty"`
+	To               Data     `json:"to"`
 	Value            Quantity `json:"value,omitempty"`
 	GasPrice         Quantity `json:"gasPrice,omitempty"`
 	Gas              Quantity `json:"gas,omitempty"`
@@ -130,7 +130,7 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 	}
 }
 
-func TxObjToReceipt(txObj JsonTxObject, isDeployTx bool) JsonTxReceipt {
+func TxObjToReceipt(txObj JsonTxObject, contractAddr Data) JsonTxReceipt {
 	receipt := JsonTxReceipt{
 		TransactionIndex:  txObj.TransactionIndex,
 		BlockHash:         txObj.BlockHash,
@@ -142,14 +142,9 @@ func TxObjToReceipt(txObj JsonTxObject, isDeployTx bool) JsonTxReceipt {
 		Status:            StatusTxSuccess,
 		TxHash:            txObj.Hash,
 		CallerAddress:     txObj.From,
+		To:                txObj.To,
 	}
-	if isDeployTx {
-		receipt.ContractAddress = txObj.To
-		receipt.To = Data("")
-	} else {
-		receipt.To = txObj.To
-		receipt.ContractAddress = Data("")
-	}
+	receipt.ContractAddress = contractAddr
 
 	return receipt
 }
