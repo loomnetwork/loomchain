@@ -33,7 +33,7 @@ type (
 	InitRequest                  = udwtypes.InitRequest
 	Tier                         = udwtypes.Tier
 	TierID                       = udwtypes.TierID
-	Address                      = types.Address
+	RemoveUserDeployerRequest    = udwtypes.RemoveUserDeployerRequest
 )
 
 var (
@@ -195,6 +195,60 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	}
 	return nil
 
+}
+
+// RemoveUserDeployer to remove a deployerAddr from whitelisted deployers
+func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *udwtypes.RemoveUserDeployerRequest) error {
+	if req.DeployerAddr == nil {
+		return ErrInvalidRequest
+	}
+	dwAddr, err := ctx.Resolve("deployerwhitelist")
+	if err != nil {
+		return errors.Wrap(err, "unable to get address of deployer_whitelist")
+	}
+	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
+	// check if sender is the user who whitelisted the DeployerAddr, if so remove from userState
+	userAddr := ctx.Message().Sender
+	var userState UserState
+	if err := ctx.Get(UserStateKey(userAddr), &userState); err != nil {
+		if err != contract.ErrNotFound {
+			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
+		}
+	}
+
+	isInputDeployerAddrValid := false
+	survivedDeployers := make([]*types.Address, 0, len(userState.Deployers))
+	deployers := userState.Deployers
+	for _, addr := range deployers {
+		currentDeployerAddr := loom.UnmarshalAddressPB(addr)
+		if currentDeployerAddr.Compare(deployerAddr) == 0 {
+			isInputDeployerAddrValid = true
+		} else {
+			survivedDeployers = append(survivedDeployers, addr)
+		}
+	}
+
+	if !isInputDeployerAddrValid {
+		return ErrDeployerDoesNotExist
+	}
+
+	userState.Deployers = survivedDeployers
+	if err := ctx.Set(UserStateKey(userAddr), &userState); err != nil {
+		return errors.Wrap(err, "failed to Save Deployers mapping in user state")
+	}
+	// remove from deployerwhitelist contract
+	removeUserDeployerRequest := &RemoveUserDeployerRequest{
+		DeployerAddr: req.DeployerAddr,
+	}
+	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
+		return errors.Wrap(err, "failed to remove deployer")
+	}
+	// remove from current contract deployer address
+	if !ctx.Has(DeployerStateKey(deployerAddr)) {
+		return ErrDeployerDoesNotExist
+	}
+	ctx.Delete(DeployerStateKey(deployerAddr))
+	return nil
 }
 
 // GetUserDeployers returns the list of accounts authorized to deploy EVM contracts on behalf of the
