@@ -443,7 +443,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 	if chainConfigManager != nil {
-		fmt.Println("in chain config")
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
 		}
