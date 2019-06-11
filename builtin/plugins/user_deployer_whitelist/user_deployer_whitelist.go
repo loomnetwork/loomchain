@@ -249,7 +249,7 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}, nil
 }
 
-// GetTierInfo returns the TierInfo corresponding to a TierID
+// GetTierInfo returns the details of a specific tier.
 func (uw *UserDeployerWhitelist) GetTierInfo(
 	ctx contract.StaticContext, req *GetTierInfoRequest,
 ) (*GetTierInfoResponse, error) {
@@ -263,13 +263,9 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 	}, nil
 }
 
-// ModifyTierInfo Modify the TierInfo corresponding to a TierID
-func (uw *UserDeployerWhitelist) SetTierInfo(
-	ctx contract.Context, req *SetTierInfoRequest) error {
-	if req.Fee == nil {
-		return errors.New("[UserDeployerWhitelist] Invalid Fee")
-	}
-	if req.Fee.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+// SetTierInfo sets the details of a tier.
+func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierInfoRequest) error {
+	if req.Fee == nil || req.Fee.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		return ErrInvalidWhitelistingFee
 	}
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {

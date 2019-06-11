@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/loomnetwork/go-loom/client"
-
-	"github.com/pkg/errors"
-
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/types"
-
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -173,8 +170,8 @@ func getTierInfoCmd() *cobra.Command {
 				TierID: udwtypes.TierID(tierID),
 			}
 			var resp udwtypes.GetTierInfoResponse
-			if err := cli.StaticCallContractWithFlags(&flags, dwContractName,
-				"GetTierInfo", req, &resp); err != nil {
+			err = cli.StaticCallContractWithFlags(&flags, dwContractName, "GetTierInfo", req, &resp)
+			if err != nil {
 				return err
 			}
 			output, err := json.MarshalIndent(resp.Tier, "", "  ")
@@ -189,17 +186,17 @@ func getTierInfoCmd() *cobra.Command {
 	return cmd
 }
 
-const SetTierCmdExample = `
-loom dev set-tier 0 --fee 100 --tierName Tier1 
+const setTierCmdExample = `
+loom dev set-tier 0 --fee 100 --name Tier1 
 `
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var inputFee, tierName string
 	cmd := &cobra.Command{
-		Use:     "set-tier <tier>",
+		Use:     "set-tier <tier> [options]",
 		Short:   "Set tier details",
-		Example: SetTierCmdExample,
+		Example: setTierCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var fee *types.BigUInt
@@ -246,8 +243,8 @@ func setTierInfoCmd() *cobra.Command {
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		}}
 
-	cmd.Flags().StringVarP(&inputFee, "fees", "f", "", "tier ID")
-	cmd.Flags().StringVarP(&tierName, "tierName", "t", "", "tier ID")
+	cmd.Flags().StringVarP(&inputFee, "fee", "f", "", "Tier fee")
+	cmd.Flags().StringVarP(&tierName, "name", "n", "", "Tier name")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
