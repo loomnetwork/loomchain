@@ -105,7 +105,7 @@ type Config struct {
 	//Prometheus
 	PrometheusPushGateway *PrometheusPushGatewayConfig
 
-	DeflationInfoConfig *DeflationInfoConfig
+	CoinPolicyMigrationConfig *CoinPolicyMigrationConfig
 
 	//Contracts
 	ContractLoaders []string
@@ -180,7 +180,7 @@ type PrometheusPushGatewayConfig struct {
 	JobName           string
 }
 
-type DeflationInfoConfig struct {
+type CoinPolicyMigrationConfig struct {
 	Enabled                    bool   //Enable Supply of DeflationInfo for modification of existing configuration
 	DeflationFactorNumerator   uint64 //Deflation Factor Numerator
 	DeflationFactorDenominator uint64 //Deflation Factor Denominator
@@ -249,8 +249,8 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	}
 }
 
-func DefaultDeflationInfoConfig() *DeflationInfoConfig {
-	return &DeflationInfoConfig{
+func DefaultCoinPolicyMigrationConfig() *CoinPolicyMigrationConfig {
+	return &CoinPolicyMigrationConfig{
 		Enabled:                    false,
 		DeflationFactorNumerator:   1,  //Deflation Factor Numerator
 		DeflationFactorDenominator: 2,  //Deflation Factor Denominator
@@ -424,7 +424,7 @@ func DefaultConfig() *Config {
 	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
-	cfg.DeflationInfoConfig = DefaultDeflationInfoConfig()
+	cfg.CoinPolicyMigrationConfig = DefaultCoinPolicyMigrationConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
@@ -664,12 +664,12 @@ PrometheusPushGateway:
 #
 # Modify Deflation Parameter
 #
-DeflationInfoConfig: 
-  Enabled: {{ .DeflationInfoConfig.Enabled }}                   
-  DeflationFactorNumerator: {{ .DeflationInfoConfig.DeflationFactorNumerator }}   
-  DeflationFactorDenominator: {{ .DeflationInfoConfig.DeflationFactorDenominator }} 
-  BaseMintingAmount:  {{ .DeflationInfoConfig.BaseMintingAmount }}         
-  MintingAccount:  {{ .DeflationInfoConfig.MintingAccount }}
+CoinPolicyMigrationConfig: 
+  Enabled: {{ .CoinPolicyMigrationConfig.Enabled }}                   
+  DeflationFactorNumerator: {{ .CoinPolicyMigrationConfig.DeflationFactorNumerator }}   
+  DeflationFactorDenominator: {{ .CoinPolicyMigrationConfig.DeflationFactorDenominator }} 
+  BaseMintingAmount:  {{ .CoinPolicyMigrationConfig.BaseMintingAmount }}         
+  MintingAccount:  {{ .CoinPolicyMigrationConfig.MintingAccount }}
 
 #
 # Hsm 
