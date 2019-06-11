@@ -82,7 +82,7 @@ func GetBlockByNumber(
 				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
 			}
 
-			txObj, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
@@ -101,26 +101,26 @@ func GetBlockByNumber(
 
 func GetTxObjectFromBlockResult(
 	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
-) (eth.JsonTxObject, error) {
+) (eth.JsonTxObject, uint32, error) {
 	tx := blockResult.Block.Data.Txs[index]
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
-		return eth.GetEmptyTxObject(), err
+		return eth.GetEmptyTxObject(), 0, err
 	}
 
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return eth.GetEmptyTxObject(), err
+		return eth.GetEmptyTxObject(), 0, err
 	}
 
 	var txTx loomchain.Transaction
 	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
-		return eth.GetEmptyTxObject(), err
+		return eth.GetEmptyTxObject(), txTx.Id, err
 	}
 
 	var msg vm.MessageTx
 	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
-		return eth.GetEmptyTxObject(), err
+		return eth.GetEmptyTxObject(), txTx.Id, err
 	}
 
 	var input []byte
@@ -130,18 +130,18 @@ func GetTxObjectFromBlockResult(
 		{
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return eth.GetEmptyTxObject(), err
+				return eth.GetEmptyTxObject(), txTx.Id, err
 			}
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
 				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
-					return eth.GetEmptyTxObject(), err
+					return eth.GetEmptyTxObject(), txTx.Id, err
 				}
 
 				var respData vm.DeployResponseData
 				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
-					return eth.GetEmptyTxObject(), err
+					return eth.GetEmptyTxObject(), txTx.Id, err
 				}
 				txHash = respData.TxHash
 			}
@@ -150,7 +150,7 @@ func GetTxObjectFromBlockResult(
 		{
 			var callTx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
-				return eth.GetEmptyTxObject(), err
+				return eth.GetEmptyTxObject(), txTx.Id, err
 			}
 			input = callTx.Input
 			if callTx.VmType == vm.VMType_EVM {
@@ -160,7 +160,7 @@ func GetTxObjectFromBlockResult(
 	case migrationTx:
 		input = msg.Data
 	default:
-		return eth.GetEmptyTxObject(), fmt.Errorf("unrecognised tx type %v", txTx.Id)
+		return eth.GetEmptyTxObject(), txTx.Id, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 
 	// Use tendermint tx hash if no loom tx hash is not available
@@ -180,7 +180,7 @@ func GetTxObjectFromBlockResult(
 		GasPrice:         eth.EncInt(0),
 		Gas:              eth.EncInt(0),
 		Input:            eth.EncBytes(input),
-	}, nil
+	}, txTx.Id, nil
 }
 
 func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {

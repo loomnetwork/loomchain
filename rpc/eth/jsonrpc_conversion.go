@@ -130,20 +130,28 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 	}
 }
 
-func TxObjToReceipt(txObj JsonTxObject) JsonTxReceipt {
-	return JsonTxReceipt{
+func TxObjToReceipt(txObj JsonTxObject, isDeployTx bool) JsonTxReceipt {
+	receipt := JsonTxReceipt{
 		TransactionIndex:  txObj.TransactionIndex,
 		BlockHash:         txObj.BlockHash,
 		BlockNumber:       txObj.BlockNumber,
 		CumulativeGasUsed: txObj.Gas,
 		GasUsed:           txObj.Gas,
-		ContractAddress:   txObj.To,
 		Logs:              make([]JsonLog, 0),
 		LogsBloom:         ZeroedData8Bytes,
 		Status:            StatusTxSuccess,
 		TxHash:            txObj.Hash,
 		CallerAddress:     txObj.From,
 	}
+	if isDeployTx {
+		receipt.ContractAddress = txObj.To
+		receipt.To = Data("")
+	} else {
+		receipt.To = txObj.To
+		receipt.ContractAddress = Data("")
+	}
+
+	return receipt
 }
 
 func EncEvents(logs []*types.EventData) []JsonLog {
