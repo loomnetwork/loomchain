@@ -84,7 +84,7 @@ ignored = [
   name = "github.com/tendermint/go-amino"
   version = "=0.14.0"
 
- [[constraint]]
+[[constraint]]
   name = "github.com/hashicorp/golang-lru"
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
 
