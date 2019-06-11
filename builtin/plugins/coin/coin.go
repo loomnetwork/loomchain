@@ -47,7 +47,8 @@ type (
 )
 
 var (
-	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ErrSenderBalanceTooLow    = errors.New("sender balance is too low")
+	ErrFailedToResolveGateway = errors.New("failed to resolve gateway contract")
 )
 
 var (
@@ -107,7 +108,7 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 
 // MintToGateway adds loom coins to the loom coin Gateway contract balance, and updates the total supply.
 func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
-	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
+	gatewayAddr, err := resolveGatwayAddress(ctx, "loomcoin-gateway", "binance-gateway")
 	if err != nil {
 		return errUtil.Wrap(err, "failed to mint Loom coin")
 	}
@@ -124,7 +125,7 @@ func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
 		return errors.New("owner or amount is nil")
 	}
 
-	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
+	gatewayAddr, err := resolveGatwayAddress(ctx, "loomcoin-gateway", "binance-gateway")
 	if err != nil {
 		return errUtil.Wrap(err, "failed to burn Loom coin")
 	}
@@ -134,6 +135,16 @@ func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
 	}
 
 	return burn(ctx, loom.UnmarshalAddressPB(req.Owner), &req.Amount.Value)
+}
+
+func resolveGatwayAddress(ctx contract.Context, names ...string) (loom.Address, error) {
+	for _, name := range names {
+		gatewayAddr, err := ctx.Resolve(name)
+		if !gatewayAddr.IsEmpty() {
+			return gatewayAddr, err
+		}
+	}
+	return loom.Address{}, ErrFailedToResolveGateway
 }
 
 func burn(ctx contract.Context, from loom.Address, amount *loom.BigUInt) error {
