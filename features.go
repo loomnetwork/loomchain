@@ -53,7 +53,7 @@ const (
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 
-	//Enables Coin Deflation Manager Feature
+	// Enables Coin Policy Manager Feature
 	CoinPolicyFeature = "coin:policy"
   
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
