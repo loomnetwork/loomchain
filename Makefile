@@ -185,6 +185,7 @@ $(SSHA3_DIR):
 
 $(TRANSFER_GATEWAY_DIR):
 	git clone -q git@github.com:loomnetwork/transfer-gateway.git $@
+	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV)
 
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
