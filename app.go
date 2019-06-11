@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+    "reflect"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
@@ -451,11 +451,9 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if err != nil {
 		panic(err)
 	}
-	if coinPolicyManager != nil {
-		if state.FeatureEnabled(CoinPolicyFeature, false) {
-			if err := coinPolicyManager.MintCoins(); err != nil {
-				panic(err)
-			}
+	if !reflect.ValueOf(coinPolicyManager).IsNil(){
+		if err := coinPolicyManager.MintCoins(); err != nil {
+			panic(err)
 		}
 	}
 	storeTx.Commit()
