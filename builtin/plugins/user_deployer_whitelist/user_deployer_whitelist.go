@@ -33,7 +33,6 @@ type (
 	InitRequest                  = udwtypes.InitRequest
 	Tier                         = udwtypes.Tier
 	TierID                       = udwtypes.TierID
-	Address                      = types.Address
 	RemoveUserDeployerRequest    = udwtypes.RemoveUserDeployerRequest
 )
 
@@ -218,7 +217,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	}
 
 	isInputDeployerAddrValid := false
-	survivedDeployers := make([]*Address, 0, len(userState.Deployers))
+	survivedDeployers := make([]*types.Address, 0, len(userState.Deployers))
 	deployers := userState.Deployers
 	for _, addr := range deployers {
 		currentDeployerAddr := loom.UnmarshalAddressPB(addr)
