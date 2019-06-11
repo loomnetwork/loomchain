@@ -12,15 +12,17 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
 )
 
 type ReadOnlyState interface {
@@ -525,10 +527,9 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	}
 
 	_, err = a.processTx(txBytes, true)
-	log.Info("piers trasnaction", "block", a.curBlockHeader.Height, "err", err)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
-		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error(), Data: ttypes.Tx(txBytes).Hash()}
 	}
 
 	return ok
@@ -549,7 +550,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+		return abci.ResponseDeliverTx{Code: 1, Log: err.Error(), Data: ttypes.Tx(txBytes).Hash()}
 	}
 	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 		isEvmTx = true
