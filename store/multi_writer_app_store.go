@@ -67,6 +67,7 @@ type MultiWriterAppStore struct {
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
+	evmStateDeleted            bool
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
@@ -95,6 +96,8 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	if !store.onlySaveEvmStateToEvmStore {
 		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
 	}
+
+	store.evmStateDeleted = bytes.Equal(store.appStore.Get(evmStateDeletedKey), []byte{1})
 
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
@@ -178,7 +181,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			}
 
 			// vm keys deletion process
-			if s.appStore.Get(evmStateDeletedKey) == nil {
+			if !s.evmStateDeleted {
 				rangeData := s.appStore.RangeWithLimit(vmPrefix, rangeLimit)
 				for _, data := range rangeData {
 					s.appStore.Delete(util.PrefixKey(vmPrefix, data.Key))
@@ -187,6 +190,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 				// So set the flag to stop the deletion
 				if len(rangeData) == 0 {
 					s.appStore.Set(evmStateDeletedKey, []byte{1})
+					s.evmStateDeleted = true
 				}
 			}
 		} else {
