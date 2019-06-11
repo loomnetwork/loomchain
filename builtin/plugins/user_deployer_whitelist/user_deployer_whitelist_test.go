@@ -168,8 +168,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
 
 	//Modify Tier Info
-	err = deployerContract.ModifyTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
-		&ModifyTierInfoRequest{
+	err = deployerContract.SetTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
+		&SetTierInfoRequest{
 			Name:   "Tier2",
 			TierID: udwtypes.TierID_DEFAULT,
 			Fee: &types.BigUInt{
@@ -180,8 +180,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.NoError(t, err)
 
 	//Error Test case Modify Tier Info with UnAuthorized User
-	err = deployerContract.ModifyTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr5)),
-		&ModifyTierInfoRequest{
+	err = deployerContract.SetTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr5)),
+		&SetTierInfoRequest{
 			Name:   "Tier2",
 			TierID: udwtypes.TierID_DEFAULT,
 			Fee: &types.BigUInt{

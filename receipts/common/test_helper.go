@@ -3,13 +3,16 @@ package common
 import (
 	"context"
 	"crypto/sha256"
+	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
+	goleveldb "github.com/syndtr/goleveldb/leveldb"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -65,4 +68,14 @@ func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
 	header := abci.Header{}
 	header.Height = int64(newHeight)
 	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
+}
+
+func NewMockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
+	os.RemoveAll(evmaux.EvmAuxDBName)
+	evmAuxDB, err := goleveldb.OpenFile(evmaux.EvmAuxDBName, nil)
+	if err != nil {
+		return nil, err
+	}
+	evmAuxStore := evmaux.NewEvmAuxStore(evmAuxDB)
+	return evmAuxStore, nil
 }

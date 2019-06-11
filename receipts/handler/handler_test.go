@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
@@ -11,7 +10,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -25,9 +23,6 @@ var (
 func TestReceiptsHandlerChain(t *testing.T) {
 	testHandlerDepreciated(t, ReceiptHandlerChain)
 
-	_ = os.RemoveAll(leveldb.Db_Filename)
-	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t, os.IsNotExist(err))
 	testHandler(t, ReceiptHandlerLevelDb)
 }
 
@@ -35,7 +30,10 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
 
-	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts)
+	evmAuxStore, err := common.NewMockEvmAuxStore()
+	require.NoError(t, err)
+
+	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
 	require.NoError(t, err)
 
 	writer := handler
@@ -105,7 +103,10 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
 
-	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts)
+	evmAuxStore, err := common.NewMockEvmAuxStore()
+	require.NoError(t, err)
+
+	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
 	require.NoError(t, err)
 
 	var writer loomchain.WriteReceiptHandler

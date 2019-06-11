@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 )
 
@@ -50,7 +51,10 @@ type ReceiptHandler struct {
 	currentReceipt *types.EvmTxReceipt
 }
 
-func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler, maxReceipts uint64) (*ReceiptHandler, error) {
+func NewReceiptHandler(
+	version ReceiptHandlerVersion, eventHandler loomchain.EventHandler,
+	maxReceipts uint64, evmAuxStore *evmaux.EvmAuxStore,
+) (*ReceiptHandler, error) {
 	rh := &ReceiptHandler{
 		v:              version,
 		eventHandler:   eventHandler,
@@ -64,7 +68,7 @@ func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.Eve
 	case ReceiptHandlerChain:
 		rh.chainReceipts = &chain.StateDBReceipts{}
 	case ReceiptHandlerLevelDb:
-		leveldbHandler, err := leveldb.NewLevelDbReceipts(maxReceipts)
+		leveldbHandler, err := leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts)
 		if err != nil {
 			return nil, errors.Wrap(err, "new leved db receipt handler")
 		}
@@ -188,7 +192,9 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 }
 
 // TODO: this doesn't need the entire state passed in, just the block header
-func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error) ([]byte, error) {
+func (r *ReceiptHandler) CacheReceipt(
+	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error,
+) ([]byte, error) {
 	var status int32
 	if txErr == nil {
 		status = common.StatusTxSuccess
@@ -205,7 +211,8 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 		r.mutex.RUnlock()
 	case ReceiptHandlerLevelDb:
 		r.mutex.RLock()
-		receipt, err = leveldb.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
+		receipt, err = leveldb.WriteReceipt(state.Block(), caller, addr, events, status,
+			r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
 		r.mutex.RUnlock()
 	default:
 		err = loomchain.ErrInvalidVersion

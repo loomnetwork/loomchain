@@ -473,6 +473,40 @@ func CheckDelegationCmdV3() *cobra.Command {
 	return cmd
 }
 
+func DowntimeRecordCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "downtime-record [validator address]",
+		Short: "check a validator's downtime record",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			validatorAddress, err := cli.ParseAddress(args[0], flags.ChainID)
+			if err != nil {
+				return err
+			}
+
+			var resp dposv3.DowntimeRecordResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "DowntimeRecord",
+				&dposv3.DowntimeRecordRequest{
+					Validator: validatorAddress.MarshalPB(),
+				}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 func UnbondCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -766,6 +800,32 @@ func SetElectionCycleCmdV3() *cobra.Command {
 	return cmd
 }
 
+func SetDowntimePeriodCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "set-downtime-period [downtime period]",
+		Short: "Set downtime period duration (in blocks)",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			downtimePeriod, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "SetDowntimePeriod", &dposv3.SetDowntimePeriodRequest{
+					DowntimePeriod: downtimePeriod,
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 func SetValidatorCountCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -966,8 +1026,10 @@ func NewDPOSV3Command() *cobra.Command {
 		CheckDelegationCmdV3(),
 		CheckAllDelegationsCmdV3(),
 		CheckRewardsCmdV3(),
+		DowntimeRecordCmdV3(),
 		UnbondCmdV3(),
 		RegisterReferrerCmdV3(),
+		SetDowntimePeriodCmdV3(),
 		SetElectionCycleCmdV3(),
 		SetValidatorCountCmdV3(),
 		SetMaxYearlyRewardCmdV3(),

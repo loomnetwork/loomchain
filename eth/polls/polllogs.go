@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -20,9 +21,11 @@ import (
 type EthLogPoll struct {
 	filter        eth.EthFilter
 	lastBlockRead uint64
+	evmAuxStore   *evmaux.EvmAuxStore
+	blockStore    store.BlockStore
 }
 
-func NewEthLogPoll(filter string) (*EthLogPoll, error) {
+func NewEthLogPoll(filter string, evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore) (*EthLogPoll, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(filter))
 	if err != nil {
 		return nil, err
@@ -30,11 +33,15 @@ func NewEthLogPoll(filter string) (*EthLogPoll, error) {
 	p := &EthLogPoll{
 		filter:        ethFilter,
 		lastBlockRead: uint64(0),
+		evmAuxStore:   evmAuxStore,
+		blockStore:    blockStore,
 	}
 	return p, nil
 }
 
-func (p *EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
+func (p *EthLogPoll) Poll(
+	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+) (EthPoll, interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
@@ -55,7 +62,9 @@ func (p *EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyS
 		}
 	}
 
-	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
+	eventLogs, err := query.GetBlockLogRange(
+		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+	)
 	if err != nil {
 		return p, nil, err
 	}
@@ -66,7 +75,8 @@ func (p *EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyS
 	return newLogPoll, eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
+	id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return nil, err
@@ -79,18 +89,22 @@ func (p *EthLogPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOn
 		return nil, errors.New("Filter FromBlock is greater than ToBlock")
 	}
 
-	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
+	eventLogs, err := query.GetBlockLogRange(
+		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+	)
 	if err != nil {
 		return nil, err
 	}
 	return eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
+	id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
 	}
+
 	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
 	if err != nil {
 		return p, nil, err
@@ -102,14 +116,17 @@ func (p *EthLogPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.Rea
 			return p, nil, fmt.Errorf("filter start after filter end")
 		}
 	}
-
-	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
+	eventLogs, err := query.GetBlockLogRange(
+		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+	)
 	if err != nil {
 		return p, nil, err
 	}
 	newLogPoll := &EthLogPoll{
 		filter:        p.filter,
 		lastBlockRead: end,
+		evmAuxStore:   p.evmAuxStore,
+		blockStore:    p.blockStore,
 	}
 
 	blocksMsg := types.EthFilterEnvelope_EthFilterLogList{

@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 )
 
 const (
@@ -315,7 +316,7 @@ func (c CandidateList) Get(addr loom.Address) *Candidate {
 }
 
 func GetCandidate(ctx contract.StaticContext, addr loom.Address) *Candidate {
-	c, err := loadCandidateList(ctx)
+	c, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil
 	}
@@ -330,7 +331,7 @@ func GetCandidate(ctx contract.StaticContext, addr loom.Address) *Candidate {
 }
 
 func GetCandidateByPubKey(ctx contract.StaticContext, pubkey []byte) *Candidate {
-	c, err := loadCandidateList(ctx)
+	c, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil
 	}
@@ -374,21 +375,25 @@ func (c *CandidateList) Delete(addr loom.Address) {
 
 // Updates Unregistration and ChangeFee States
 func updateCandidateList(ctx contract.Context) error {
-	candidates, err := loadCandidateList(ctx)
+	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
 
 	// Update each candidate's fee
 	var deleteList []loom.Address
+	candidateUpdated := false
 	for _, c := range candidates {
 		if c.State == ABOUT_TO_CHANGE_FEE {
 			c.State = CHANGING_FEE
+			candidateUpdated = true
 		} else if c.State == CHANGING_FEE {
 			c.Fee = c.NewFee
 			c.State = REGISTERED
+			candidateUpdated = true
 		} else if c.State == UNREGISTERING {
 			deleteList = append(deleteList, loom.UnmarshalAddressPB(c.Address))
+			candidateUpdated = true
 		}
 	}
 
@@ -397,11 +402,14 @@ func updateCandidateList(ctx contract.Context) error {
 		candidates.Delete(candidateAddress)
 	}
 
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
+	// Only save CandidateList when it gets updated
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
+		if !candidateUpdated {
+			return nil
+		}
 	}
 
-	return nil
+	return saveCandidateList(ctx, candidates)
 }
 
 type byAddress CandidateList
@@ -426,7 +434,7 @@ func saveCandidateList(ctx contract.Context, cl CandidateList) error {
 	return ctx.Set(candidatesKey, &dtypes.CandidateList{Candidates: sorted})
 }
 
-func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
+func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 	var pbcl dtypes.CandidateList
 	err := ctx.Get(candidatesKey, &pbcl)
 	if err == contract.ErrNotFound {
@@ -449,6 +457,21 @@ func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 
 func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
 	return ctx.Set(append(referrersKey, name...), address)
+}
+
+func GetLocalCandidateAddressFromTendermintAddress(
+	ctx contract.StaticContext, address []byte, cl []*Candidate,
+) (loom.Address, error) {
+	tendermintAddress := loom.LocalAddress(address)
+
+	for _, candidate := range cl {
+		candidateAddress := loom.LocalAddressFromPublicKeyV2(candidate.PubKey)
+		if candidateAddress.Compare(tendermintAddress) == 0 {
+			return loom.UnmarshalAddressPB(candidate.Address), nil
+		}
+	}
+
+	return loom.Address{}, contract.ErrNotFound
 }
 
 func saveState(ctx contract.Context, state *State) error {

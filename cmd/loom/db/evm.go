@@ -72,7 +72,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 					}
 				}
 				return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-			})
+			}, nil)
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
@@ -202,7 +202,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 					}
 				}
 				return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-			})
+			}, nil)
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
