@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"time"
-    "reflect"
+
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
@@ -442,6 +443,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 	if chainConfigManager != nil {
+		fmt.Println("in chain config")
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
 		}
@@ -451,7 +453,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if err != nil {
 		panic(err)
 	}
-	if !reflect.ValueOf(coinPolicyManager).IsNil(){
+	if !reflect.ValueOf(coinPolicyManager).IsNil() {
 		if err := coinPolicyManager.MintCoins(); err != nil {
 			panic(err)
 		}
