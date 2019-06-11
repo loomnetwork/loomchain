@@ -163,6 +163,11 @@ func GetTxObjectFromBlockResult(
 		return eth.GetEmptyTxObject(), fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 
+	// Use tendermint tx hash if no loom tx hash is not available
+	if len(txHash) == 0 {
+		txHash = tx.Hash()
+	}
+
 	return eth.JsonTxObject{
 		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
 		Hash:             eth.EncBytes(txHash),
