@@ -94,7 +94,7 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 			DeflationFactorDenominator: deflationFactorDenominator,
 			BaseMintingAmount: &types.BigUInt{
 				Value: *baseMintingAmount,
-			}, 
+			},
 			MintingAccount: mintingAddress,
 		}
 		err := ctx.Set(policyKey, policy)
@@ -263,7 +263,7 @@ func ModifyMintParameter(ctx contract.Context, policy *ctypes.Policy) error {
 	if policy.MintingAccount == nil || policy.BaseMintingAmount == nil {
 		return errors.New("MintingAccount or BaseMintingAmount is not given")
 	}
-	err := ctx.Set(policyKey,policy)
+	err := ctx.Set(policyKey, policy)
 	if err != nil {
 		return err
 	}

@@ -452,11 +452,12 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 	if coinPolicyManager != nil {
-		if err := coinPolicyManager.MintCoins(); err != nil {
-			panic(err)
+		if state.FeatureEnabled(CoinPolicyFeature, false) {
+			if err := coinPolicyManager.MintCoins(); err != nil {
+				panic(err)
+			}
 		}
 	}
-
 	storeTx.Commit()
 
 	return abci.ResponseBeginBlock{}
