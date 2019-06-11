@@ -27,4 +27,11 @@ func (c *TransferGatewayConfig) Clone() *TransferGatewayConfig {
 	return &clone
 }
 
+type OracleSerializableConfig struct {
+}
+
+DefaultDPOS2OracleConfig() *OracleSerializableConfig {
+	return &OracleSerializableConfig
+}
+
 const transferGatewayLoomYamlTemplate = ""
