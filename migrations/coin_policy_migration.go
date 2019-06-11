@@ -33,13 +33,13 @@ func GenerateCoinPolicyMigrationFn(cfg *config.Config) func(ctx *MigrationContex
 
 		div := loom.NewBigUIntFromInt(10)
 		div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-		addr, err := loom.ParseAddress(cfg.DeflationInfoConfig.MintingAccount)
-		deflationFactorNumerator := cfg.DeflationInfoConfig.DeflationFactorNumerator
-		deflationFactorDenominator := cfg.DeflationInfoConfig.DeflationFactorDenominator
-		if cfg.DeflationInfoConfig.BaseMintingAmount <= 0 {
+		addr, err := loom.ParseAddress(cfg.CoinPolicyMigrationConfig.MintingAccount)
+		deflationFactorNumerator := cfg.CoinPolicyMigrationConfig.DeflationFactorNumerator
+		deflationFactorDenominator := cfg.CoinPolicyMigrationConfig.DeflationFactorDenominator
+		if cfg.CoinPolicyMigrationConfig.BaseMintingAmount <= 0 {
 			return InvalidBaseMintingAmount
 		}
-		baseMintingAmount := loom.NewBigUIntFromInt(int64(cfg.DeflationInfoConfig.BaseMintingAmount))
+		baseMintingAmount := loom.NewBigUIntFromInt(int64(cfg.CoinPolicyMigrationConfig.BaseMintingAmount))
 		baseMintingAmount.Mul(baseMintingAmount, div)
 		policy := &Policy{
 			DeflationFactorNumerator:   deflationFactorNumerator,
