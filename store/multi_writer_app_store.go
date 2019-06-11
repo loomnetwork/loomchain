@@ -31,7 +31,10 @@ var (
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 
+	// The number of vm keys deleted per block
 	rangeLimit = 100
+	// If this flag is set, it means that all vm keys are deleted from app.db
+	evmStateDeletedKey = []byte("evmstate:deleted")
 
 	saveVersionDuration metrics.Histogram
 	getSnapshotDuration metrics.Histogram
@@ -174,12 +177,17 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 				s.appStore.Set(rootKey, currentRoot)
 			}
 
-			rangeData := s.appStore.RangeWithLimit(vmPrefix, rangeLimit)
-			if len(rangeData) > 0 {
+			// vm keys deletion process
+			if s.appStore.Get(evmStateDeletedKey) == nil {
+				rangeData := s.appStore.RangeWithLimit(vmPrefix, rangeLimit)
 				for _, data := range rangeData {
-					s.appStore.Delete(data.Key)
+					s.appStore.Delete(util.PrefixKey(vmPrefix, data.Key))
 				}
-
+				// If rangeData is empty, it means all vm keys are deleted.
+				// So set the flag to stop the deletion
+				if len(rangeData) == 0 {
+					s.appStore.Set(evmStateDeletedKey, []byte{1})
+				}
 			}
 		} else {
 			s.appStore.Set(rootKey, currentRoot)
