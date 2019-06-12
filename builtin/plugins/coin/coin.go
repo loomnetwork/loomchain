@@ -81,27 +81,28 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	//Checks if Coin Policy Feature is enabled before loading Coin Monetary Supply Policy
 	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
-		if req.Policy != nil {
-			deflationFactorNumerator := req.Policy.DeflationFactorNumerator
-			deflationFactorDenominator := req.Policy.DeflationFactorDenominator
-			if req.BaseMintingAmount <= 0 {
-				return InvalidBaseMintingAmount
-			}
-			baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
-			baseMintingAmount.Mul(baseMintingAmount, div)
-			mintingAddress := req.Policy.MintingAccount
-			policy := &Policy{
-				DeflationFactorNumerator:   deflationFactorNumerator,
-				DeflationFactorDenominator: deflationFactorDenominator,
-				BaseMintingAmount: &types.BigUInt{
-					Value: *baseMintingAmount,
-				},
-				MintingAccount: mintingAddress,
-			}
-			err := ctx.Set(policyKey, policy)
-			if err != nil {
-				return err
-			}
+		if req.Policy == nil {
+			return errors.New("Policy is not specified")
+		}
+		deflationFactorNumerator := req.Policy.DeflationFactorNumerator
+		deflationFactorDenominator := req.Policy.DeflationFactorDenominator
+		if req.BaseMintingAmount <= 0 {
+			return InvalidBaseMintingAmount
+		}
+		baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
+		baseMintingAmount.Mul(baseMintingAmount, div)
+		mintingAddress := req.Policy.MintingAccount
+		policy := &Policy{
+			DeflationFactorNumerator:   deflationFactorNumerator,
+			DeflationFactorDenominator: deflationFactorDenominator,
+			BaseMintingAmount: &types.BigUInt{
+				Value: *baseMintingAmount,
+			},
+			MintingAccount: mintingAddress,
+		}
+		err := ctx.Set(policyKey, policy)
+		if err != nil {
+			return err
 		}
 	}
 	supply := loom.NewBigUIntFromInt(0)
