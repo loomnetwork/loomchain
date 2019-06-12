@@ -15,8 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/loomnetwork/loomchain"
-
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/tendermint/tendermint/libs/db"
 
@@ -29,6 +27,7 @@ import (
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
