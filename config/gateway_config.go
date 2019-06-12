@@ -20,6 +20,10 @@ func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return gateway.DefaultTronConfig(rpcProxyPort)
 }
 
+func DefaultBinanceTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return gateway.DefaultBinanceConfig(rpcProxyPort)
+}
+
 const transferGatewayLoomYamlTemplate = `
 #
 # Transfer Gateway
@@ -149,5 +153,47 @@ TronTransferGateway:
     LogDestination: "{{ .TronTransferGateway.BatchSignFnConfig.LogDestination }}"
     MainnetPrivateKeyPath: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
+  {{- end}}
+#
+# Binance Transfer Gateway
+#
+BinanceTransferGateway:
+  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+  ContractEnabled: {{ .BinanceTransferGateway.ContractEnabled }}
+  # Enables the in-process Transfer Gateway Oracle.
+  # If this is enabled ContractEnabled must be set to true.
+  OracleEnabled: {{ .BinanceTransferGateway.OracleEnabled }}
+  # URI of Binance node the Oracle should connect to, and retrieve Mainnet events from.
+  BinanceURI: "{{ .BinanceTransferGateway.BinanceURI }}"
+  # Address of Transfer Gateway contract on Mainnet
+  MainnetHotWalletAddress: "{{ .BinanceTransferGateway.MainnetHotWalletAddress }}"
+  # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
+  # can be a relative, or absolute path
+  MainnetPrivateKeyPath: "{{ .BinanceTransferGateway.MainnetPrivateKeyPath }}"
+  # Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
+  # the DAppChain Transfer Gateway contract
+  DAppChainPrivateKeyPath: "{{ .BinanceTransferGateway.DAppChainPrivateKeyPath }}"
+  DAppChainReadURI: "{{ .BinanceTransferGateway.DAppChainReadURI }}"
+  DAppChainWriteURI: "{{ .BinanceTransferGateway.DAppChainWriteURI }}"
+  # Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
+  DAppChainEventsURI: "{{ .BinanceTransferGateway.DAppChainEventsURI }}"
+  DAppChainPollInterval: {{ .BinanceTransferGateway.DAppChainPollInterval }}
+  MainnetPollInterval: {{ .BinanceTransferGateway.MainnetPollInterval }}
+  # Oracle log verbosity (debug, info, error, etc.)
+  OracleLogLevel: "{{ .BinanceTransferGateway.OracleLogLevel }}"
+  OracleLogDestination: "{{ .BinanceTransferGateway.OracleLogDestination }}"
+  # Number of seconds to wait before starting the Oracle.
+  OracleStartupDelay: {{ .BinanceTransferGateway.OracleStartupDelay }}
+  # Number of seconds to wait between reconnection attempts.
+  OracleReconnectInterval: {{ .BinanceTransferGateway.OracleReconnectInterval }}
+  # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
+  OracleQueryAddress: "{{ .BinanceTransferGateway.OracleQueryAddress }}"
+  {{if .BinanceTransferGateway.BatchSignFnConfig -}}
+  BatchSignFnConfig:
+    Enabled: {{ .BinanceTransferGateway.BatchSignFnConfig.Enabled }}
+    LogLevel: "{{ .BinanceTransferGateway.BatchSignFnConfig.LogLevel }}"
+    LogDestination: "{{ .BinanceTransferGateway.BatchSignFnConfig.LogDestination }}"
+    MainnetPrivateKeyPath: "{{ .BinanceTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
+    MainnetPrivateKeyHsmEnabled: "{{ .BinanceTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
   {{- end}}
 `

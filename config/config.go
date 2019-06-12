@@ -93,6 +93,7 @@ type Config struct {
 	TransferGateway         *TransferGatewayConfig
 	LoomCoinTransferGateway *TransferGatewayConfig
 	TronTransferGateway     *TransferGatewayConfig
+	BinanceTransferGateway  *TransferGatewayConfig
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
@@ -388,6 +389,7 @@ func DefaultConfig() *Config {
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.TronTransferGateway = DefaultTronTGConfig(cfg.RPCProxyPort)
+	cfg.BinanceTransferGateway = DefaultBinanceTGConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
@@ -431,6 +433,7 @@ func (c *Config) Clone() *Config {
 	clone.TransferGateway = c.TransferGateway.Clone()
 	clone.LoomCoinTransferGateway = c.LoomCoinTransferGateway.Clone()
 	clone.TronTransferGateway = c.TronTransferGateway.Clone()
+	clone.BinanceTransferGateway = c.BinanceTransferGateway.Clone()
 	clone.PlasmaCash = c.PlasmaCash.Clone()
 	clone.AppStore = c.AppStore.Clone()
 	clone.HsmConfig = c.HsmConfig.Clone()
