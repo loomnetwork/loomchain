@@ -53,8 +53,8 @@ type JsonTxReceipt struct {
 	CallerAddress     Data      `json:"from,omitempty"`
 	CumulativeGasUsed Quantity  `json:"cumulativeGasUsed,omitempty"`
 	GasUsed           Quantity  `json:"gasUsed,omitempty"`
-	ContractAddress   Data      `json:"contractAddress"`
-	To                Data      `json:"to"`
+	ContractAddress   *Data     `json:"contractAddress"`
+	To                *Data     `json:"to"`
 	Logs              []JsonLog `json:"logs"`
 	LogsBloom         Data      `json:"logsBloom,omitempty"`
 	Status            Quantity  `json:"status,omitempty"`
@@ -67,7 +67,7 @@ type JsonTxObject struct {
 	BlockNumber      Quantity `json:"blockNumber,omitempty"`
 	TransactionIndex Quantity `json:"transactionIndex,omitempty"`
 	From             Data     `json:"from,omitempty"`
-	To               Data     `json:"to"`
+	To               *Data    `json:"to"`
 	Value            Quantity `json:"value,omitempty"`
 	GasPrice         Quantity `json:"gasPrice,omitempty"`
 	Gas              Quantity `json:"gas,omitempty"`
@@ -121,7 +121,7 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 		BlockNumber:       EncInt(receipt.BlockNumber),
 		CumulativeGasUsed: EncInt(int64(receipt.CumulativeGasUsed)),
 		GasUsed:           EncInt(int64(receipt.GasUsed)),
-		ContractAddress:   EncBytes(receipt.ContractAddress),
+		ContractAddress:   EncPtrBytes(receipt.ContractAddress),
 		Logs:              EncEvents(receipt.Logs),
 		LogsBloom:         EncBytes(receipt.LogsBloom),
 		Status:            EncInt(int64(receipt.Status)),
@@ -130,7 +130,7 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 	}
 }
 
-func TxObjToReceipt(txObj JsonTxObject, contractAddr Data) JsonTxReceipt {
+func TxObjToReceipt(txObj JsonTxObject, contractAddr *Data) JsonTxReceipt {
 	receipt := JsonTxReceipt{
 		TransactionIndex:  txObj.TransactionIndex,
 		BlockHash:         txObj.BlockHash,
@@ -229,6 +229,26 @@ func EncBytes(value []byte) Data {
 	return Data(strings.ToLower(bytesStr))
 }
 
+// Ptr to Hex
+func EncPtrBytes(value []byte) *Data {
+	if len(value) == 0 {
+		return nil
+	}
+	bytesStr := "0x" + hex.EncodeToString(value)
+	if bytesStr == "0x" {
+		bytesStr = "0x0"
+	}
+	data := Data(strings.ToLower(bytesStr))
+	return &data
+}
+
+func EncPtrData(value Data) *Data {
+	if len(value) == 0 {
+		return nil
+	}
+	return &value
+}
+
 func EncBytesArray(list [][]byte) []Data {
 	dataArray := []Data{}
 	for _, hash := range list {
@@ -242,6 +262,15 @@ func EncAddress(value *ltypes.Address) Data {
 		return ZeroedData
 	} else {
 		return EncBytes([]byte(value.Local))
+	}
+}
+
+func EncPtrAddress(value *ltypes.Address) *Data {
+	if value == nil {
+		return nil
+	} else {
+		data := EncBytes([]byte(value.Local))
+		return &data
 	}
 }
 
@@ -421,13 +450,14 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 }
 
 func GetEmptyTxObject() JsonTxObject {
+	to := ZeroedData32Bytes
 	return JsonTxObject{
 		Hash:             ZeroedData64bytes,
 		Nonce:            ZeroedQuantity,
 		BlockHash:        ZeroedData64bytes,
 		BlockNumber:      ZeroedQuantity,
 		TransactionIndex: ZeroedQuantity,
-		To:               ZeroedData32Bytes,
+		To:               &to,
 		From:             ZeroedData32Bytes,
 		Gas:              ZeroedQuantity,
 		Value:            ZeroedQuantity,
@@ -438,6 +468,8 @@ func GetEmptyTxObject() JsonTxObject {
 
 func GetEmptyReceipt() JsonTxReceipt {
 	logs := make([]JsonLog, 0)
+	contractAddress := ZeroedData32Bytes
+	to := ZeroedData32Bytes
 	return JsonTxReceipt{
 		TxHash:            ZeroedData64bytes,
 		TransactionIndex:  ZeroedQuantity,
@@ -446,8 +478,8 @@ func GetEmptyReceipt() JsonTxReceipt {
 		CallerAddress:     ZeroedData32Bytes,
 		CumulativeGasUsed: ZeroedQuantity,
 		GasUsed:           ZeroedQuantity,
-		ContractAddress:   ZeroedData32Bytes,
-		To:                ZeroedData32Bytes,
+		ContractAddress:   &contractAddress,
+		To:                &to,
 		Logs:              logs,
 		LogsBloom:         ZeroedData256Bytes,
 		Status:            ZeroedQuantity,

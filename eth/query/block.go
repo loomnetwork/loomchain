@@ -101,9 +101,9 @@ func GetBlockByNumber(
 
 func GetTxObjectFromBlockResult(
 	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
-) (eth.JsonTxObject, eth.Data, error) {
+) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[index]
-	var contractAddress eth.Data
+	var contractAddress *eth.Data
 	txObj := eth.JsonTxObject{
 		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
 		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
@@ -116,23 +116,23 @@ func GetTxObjectFromBlockResult(
 
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
-		return eth.GetEmptyTxObject(), contractAddress, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
 
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return eth.GetEmptyTxObject(), contractAddress, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
 	txObj.Nonce = eth.EncInt(int64(nonceTx.Sequence))
 
 	var txTx loomchain.Transaction
 	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
-		return eth.GetEmptyTxObject(), contractAddress, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
 
 	var msg vm.MessageTx
 	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
-		return eth.GetEmptyTxObject(), contractAddress, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
 	txObj.From = eth.EncAddress(msg.From)
 
@@ -142,39 +142,41 @@ func GetTxObjectFromBlockResult(
 		{
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return eth.GetEmptyTxObject(), contractAddress, err
+				return eth.GetEmptyTxObject(), nil, err
 			}
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
 				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
-					return eth.GetEmptyTxObject(), contractAddress, err
+					return eth.GetEmptyTxObject(), nil, err
 				}
 
 				var respData vm.DeployResponseData
 				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
-					return eth.GetEmptyTxObject(), contractAddress, err
+					return eth.GetEmptyTxObject(), nil, err
 				}
-				contractAddress = eth.EncBytes(respData.TxHash)
+				contractAddress = eth.EncPtrAddress(resp.Contract)
 			}
 		}
 	case callId:
 		{
 			var callTx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
-				return eth.GetEmptyTxObject(), contractAddress, err
+				return eth.GetEmptyTxObject(), nil, err
 			}
 			input = callTx.Input
-			txObj.To = eth.EncAddress(msg.To)
+			to := eth.EncAddress(msg.To)
+			txObj.To = &to
 			if callTx.VmType == vm.VMType_EVM && len(txResult.TxResult.Data) > 0 {
 				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
 			}
 		}
 	case migrationTx:
-		txObj.To = eth.EncAddress(msg.To)
+		to := eth.EncAddress(msg.To)
+		txObj.To = &to
 		input = msg.Data
 	default:
-		return eth.GetEmptyTxObject(), contractAddress, fmt.Errorf("unrecognised tx type %v", txTx.Id)
+		return eth.GetEmptyTxObject(), nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 	txObj.Input = eth.EncBytes(input)
 
