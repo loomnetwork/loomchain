@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/loomnetwork/loomchain"
+
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/tendermint/tendermint/libs/db"
 
@@ -27,7 +29,6 @@ import (
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
@@ -1112,7 +1113,7 @@ func loadApp(
 			return nil, err
 		}
 		if !state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
-			return plugin.NewNoopCoinPolicyManager(), nil
+			return nil, nil
 		}
 		m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state)
 		if err != nil {
