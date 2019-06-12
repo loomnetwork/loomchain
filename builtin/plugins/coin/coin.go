@@ -96,6 +96,10 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		if req.Policy.MintingAccount == nil {
 			return errors.New("Invalid Minting Account Address")
 		}
+		addr := loom.UnmarshalAddressPB(req.Policy.MintingAccount)
+		if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
+			return errors.New("Minting Account Address cannot be Root Address")
+		}
 		deflationFactorNumerator := req.Policy.DeflationFactorNumerator
 		deflationFactorDenominator := req.Policy.DeflationFactorDenominator
 		baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))

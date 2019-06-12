@@ -50,6 +50,9 @@ func GenerateCoinPolicyMigrationFn(cfg *config.Config) func(ctx *MigrationContex
 		if err != nil {
 			return err
 		}
+		if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
+			return errors.New("Minting Account Address cannot be Root Address")
+		}
 		if cfg.CoinPolicyMigrationConfig.BaseMintingAmount <= 0 {
 			return InvalidBaseMintingAmount
 		}
