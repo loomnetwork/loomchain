@@ -49,7 +49,7 @@ type (
 
 var (
 	ErrSenderBalanceTooLow   = errors.New("sender balance is too low")
-	InvalidBaseMintingAmount = errors.New("Base Minting Amount cannot be less than equal to zero")
+	InvalidBaseMintingAmount = errors.New("Base Minting Amount should be greater than zero")
 )
 
 var (
@@ -84,21 +84,29 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		if req.Policy == nil {
 			return errors.New("Policy is not specified")
 		}
-		deflationFactorNumerator := req.Policy.DeflationFactorNumerator
-		deflationFactorDenominator := req.Policy.DeflationFactorDenominator
+		if req.Policy.DeflationFactorNumerator <= 0 {
+			return errors.New("DeflationFactorNumerator should be greater than zero")
+		}
+		if req.Policy.DeflationFactorDenominator <= 0 {
+			return errors.New("DeflationFactorDenominator should be greater than zero")
+		}
 		if req.BaseMintingAmount <= 0 {
 			return InvalidBaseMintingAmount
 		}
+		if req.Policy.MintingAccount == nil {
+			return errors.New("Invalid Minting Account Address")
+		}
+		deflationFactorNumerator := req.Policy.DeflationFactorNumerator
+		deflationFactorDenominator := req.Policy.DeflationFactorDenominator
 		baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
 		baseMintingAmount.Mul(baseMintingAmount, div)
-		mintingAddress := req.Policy.MintingAccount
 		policy := &Policy{
 			DeflationFactorNumerator:   deflationFactorNumerator,
 			DeflationFactorDenominator: deflationFactorDenominator,
 			BaseMintingAmount: &types.BigUInt{
 				Value: *baseMintingAmount,
 			},
-			MintingAccount: mintingAddress,
+			MintingAccount: req.Policy.MintingAccount,
 		}
 		err := ctx.Set(policyKey, policy)
 		if err != nil {

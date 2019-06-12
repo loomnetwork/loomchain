@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	InvalidBaseMintingAmount = errors.New("Base Minting Amount cannot be less than equal to zero")
+	InvalidBaseMintingAmount = errors.New("Base Minting Amount should be greater than zero")
 )
 
 type (
@@ -30,12 +30,26 @@ func GenerateCoinPolicyMigrationFn(cfg *config.Config) func(ctx *MigrationContex
 		if err != nil {
 			return err
 		}
-
 		div := loom.NewBigUIntFromInt(10)
 		div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-		addr, err := loom.ParseAddress(cfg.CoinPolicyMigrationConfig.MintingAccount)
+		if len(cfg.CoinPolicyMigrationConfig.MintingAccount) == 0 {
+			return errors.New("Invalid Minting Account Address")
+		}
+		if cfg.CoinPolicyMigrationConfig.DeflationFactorNumerator <= 0 {
+			return errors.New("DeflationFactorNumerator should be greater than zero")
+		}
+		if cfg.CoinPolicyMigrationConfig.DeflationFactorDenominator <= 0 {
+			return errors.New("DeflationFactorDenominator should be greater than zero")
+		}
+		if cfg.CoinPolicyMigrationConfig.BaseMintingAmount <= 0 {
+			return InvalidBaseMintingAmount
+		}
 		deflationFactorNumerator := cfg.CoinPolicyMigrationConfig.DeflationFactorNumerator
 		deflationFactorDenominator := cfg.CoinPolicyMigrationConfig.DeflationFactorDenominator
+		addr, err := loom.ParseAddress(cfg.CoinPolicyMigrationConfig.MintingAccount)
+		if err != nil {
+			return err
+		}
 		if cfg.CoinPolicyMigrationConfig.BaseMintingAmount <= 0 {
 			return InvalidBaseMintingAmount
 		}
