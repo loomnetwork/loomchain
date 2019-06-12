@@ -23,11 +23,6 @@ type CoinPolicyManager struct {
 
 type Policy = ctypes.Policy
 
-func NewNoopCoinPolicyManager() *CoinPolicyManager {
-	var manager *CoinPolicyManager
-	return manager
-}
-
 // NewCoinPolicyManager attempts to create an instance of CoinPolicyManager.
 func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyManager,
 	error) {
