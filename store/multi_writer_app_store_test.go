@@ -222,7 +222,7 @@ func mockMultiWriterStore() (*MultiWriterAppStore, error) {
 	}
 	memDb, _ = db.LoadMemDB()
 	evmStore := NewEvmStore(memDb, 100)
-	multiWriterStore, err := NewMultiWriterAppStore(iavlStore, evmStore, false)
+	multiWriterStore, err := NewMultiWriterAppStore(iavlStore, evmStore, false, 1000)
 	if err != nil {
 		return nil, err
 	}

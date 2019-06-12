@@ -175,7 +175,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				return err
 			}
 
-			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false)
+			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false, cfg.AppStore.DeletedVMKeysPerBlock)
 			if err != nil {
 				return err
 			}

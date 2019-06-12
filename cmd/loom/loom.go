@@ -640,7 +640,9 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
+		appStore, err = store.NewMultiWriterAppStore(
+			iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL, cfg.AppStore.DeletedVMKeysPerBlock,
+		)
 		if err != nil {
 			return nil, err
 		}

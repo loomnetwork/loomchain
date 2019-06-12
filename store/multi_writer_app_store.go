@@ -30,14 +30,12 @@ var (
 	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
-
-	// The number of vm keys deleted per block
-	rangeLimit = 100
 	// If this flag is set, it means that all vm keys are deleted from app.db
 	evmStateDeletedKey = []byte("evmstate:deleted")
 
-	saveVersionDuration metrics.Histogram
-	getSnapshotDuration metrics.Histogram
+	saveVersionDuration  metrics.Histogram
+	getSnapshotDuration  metrics.Histogram
+	deleteVMKeysDuration metrics.Histogram
 )
 
 func init() {
@@ -58,6 +56,15 @@ func init() {
 			Help:      "How long MultiWriterAppStore.GetSnapshot() took to execute (in seconds)",
 		}, []string{},
 	)
+
+	deleteVMKeysDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
+			Name:      "delete_vm_keys",
+			Help:      "How long deleting vm keys took to execute (in seconds)",
+		}, []string{},
+	)
 }
 
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
@@ -68,14 +75,16 @@ type MultiWriterAppStore struct {
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
 	evmStateDeleted            bool
+	deletedVMKeysPerBlock      int
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
-func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool) (*MultiWriterAppStore, error) {
+func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool, deletedVMKeysPerBlock int) (*MultiWriterAppStore, error) {
 	store := &MultiWriterAppStore{
 		appStore:                   appStore,
 		evmStore:                   evmStore,
 		onlySaveEvmStateToEvmStore: !saveEVMStateToIAVL,
+		deletedVMKeysPerBlock:      deletedVMKeysPerBlock,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
 	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
@@ -182,7 +191,9 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 
 			// vm keys deletion process
 			if !s.evmStateDeleted {
-				rangeData := s.appStore.RangeWithLimit(vmPrefix, rangeLimit)
+				begin := time.Now()
+
+				rangeData := s.appStore.RangeWithLimit(vmPrefix, s.deletedVMKeysPerBlock)
 				for _, data := range rangeData {
 					s.appStore.Delete(util.PrefixKey(vmPrefix, data.Key))
 				}
@@ -192,6 +203,8 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 					s.appStore.Set(evmStateDeletedKey, []byte{1})
 					s.evmStateDeleted = true
 				}
+
+				deleteVMKeysDuration.Observe(time.Since(begin).Seconds())
 			}
 		} else {
 			s.appStore.Set(rootKey, currentRoot)

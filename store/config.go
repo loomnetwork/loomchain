@@ -27,21 +27,24 @@ type AppStoreConfig struct {
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
 	SaveEVMStateToIAVL bool
+	// Number of VM keys deleted per block
+	DeletedVMKeysPerBlock int
 }
 
 func DefaultConfig() *AppStoreConfig {
 	return &AppStoreConfig{
-		Version:              3,
-		CompactOnLoad:        false,
-		MaxVersions:          0,
-		PruneInterval:        0,
-		PruneBatchSize:       50,
-		LatestStateDBBackend: "goleveldb",
-		LatestStateDBName:    "app_state",
-		NodeDBVersion:        NodeDBV1,
-		NodeCacheSize:        10000,
-		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
-		SaveEVMStateToIAVL:   false,
+		Version:               3,
+		CompactOnLoad:         false,
+		MaxVersions:           0,
+		PruneInterval:         0,
+		PruneBatchSize:        50,
+		LatestStateDBBackend:  "goleveldb",
+		LatestStateDBName:     "app_state",
+		NodeDBVersion:         NodeDBV1,
+		NodeCacheSize:         10000,
+		SnapshotVersion:       MultiReaderIAVLStoreSnapshotV1,
+		SaveEVMStateToIAVL:    false,
+		DeletedVMKeysPerBlock: 1000,
 	}
 }
 
