@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
@@ -452,7 +451,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if err != nil {
 		panic(err)
 	}
-	if !reflect.ValueOf(coinPolicyManager).IsNil() {
+	if coinPolicyManager != nil {
 		if err := coinPolicyManager.MintCoins(); err != nil {
 			panic(err)
 		}
