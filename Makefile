@@ -105,11 +105,11 @@ pcoracle:
 dposv2_oracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
-loom: proto $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) $(PKG)/cmd/$@
+loom: proto
+	go build $(GOFLAGS) $(PKG)/cmd/$@
 
-loom-generic: proto
-	go build $(GOFLAGS) $(PKG)/cmd/loom
+loom-gateway: proto $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS_GATEWAY) $(PKG)/cmd/loom
 
 loom-windows:
 	$(WINDOWS_BUILD_VARS) make loom
