@@ -10,7 +10,9 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -105,7 +107,7 @@ type Config struct {
 	//Prometheus
 	PrometheusPushGateway *PrometheusPushGatewayConfig
 
-	CoinPolicyMigrationConfig *CoinPolicyMigrationConfig
+	CoinPolicyMigration *CoinPolicyMigrationConfig
 
 	//Contracts
 	ContractLoaders []string
@@ -284,6 +286,29 @@ func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
 	}
 }
 
+func (c *CoinPolicyMigrationConfig) IsValid() error {
+	if len(c.MintingAccount) == 0 {
+		return errors.New("Invalid Minting Account Address")
+	}
+	if c.DeflationFactorNumerator <= 0 {
+		return errors.New("DeflationFactorNumerator should be greater than zero")
+	}
+	if c.DeflationFactorDenominator <= 0 {
+		return errors.New("DeflationFactorDenominator should be greater than zero")
+	}
+	if c.BaseMintingAmount <= 0 {
+		return errors.New("Base Minting Amount should be greater than zero")
+	}
+	addr, err := loom.ParseAddress(c.MintingAccount)
+	if err != nil {
+		return err
+	}
+	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
+		return errors.New("Minting Account Address cannot be Root Address")
+	}
+	return nil
+}
+
 //Structure for LOOM ENV
 
 type Env struct {
@@ -425,7 +450,7 @@ func DefaultConfig() *Config {
 	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
-	cfg.CoinPolicyMigrationConfig = DefaultCoinPolicyMigrationConfig()
+	cfg.CoinPolicyMigration = DefaultCoinPolicyMigrationConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
@@ -662,12 +687,12 @@ PrometheusPushGateway:
 #
 # Modify Deflation Parameter
 #
-CoinPolicyMigrationConfig: 
-  Enabled: {{ .CoinPolicyMigrationConfig.Enabled }}                   
-  DeflationFactorNumerator: {{ .CoinPolicyMigrationConfig.DeflationFactorNumerator }}   
-  DeflationFactorDenominator: {{ .CoinPolicyMigrationConfig.DeflationFactorDenominator }} 
-  BaseMintingAmount:  {{ .CoinPolicyMigrationConfig.BaseMintingAmount }}         
-  MintingAccount:  {{ .CoinPolicyMigrationConfig.MintingAccount }}
+CoinPolicyMigration: 
+  Enabled: {{ .CoinPolicyMigration.Enabled }}                   
+  DeflationFactorNumerator: {{ .CoinPolicyMigration.DeflationFactorNumerator }}   
+  DeflationFactorDenominator: {{ .CoinPolicyMigration.DeflationFactorDenominator }} 
+  BaseMintingAmount:  {{ .CoinPolicyMigration.BaseMintingAmount }}         
+  MintingAccount:  {{ .CoinPolicyMigration.MintingAccount }}
 
 #
 # Hsm 
