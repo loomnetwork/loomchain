@@ -32,6 +32,9 @@ func GenerateCoinPolicyMigrationFn(cfg *config.Config) func(ctx *MigrationContex
 		}
 		div := loom.NewBigUIntFromInt(10)
 		div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+		if cfg.CoinPolicyMigrationConfig == nil {
+			return errors.New("Policy Configuration Not Supplied")
+		}
 		if len(cfg.CoinPolicyMigrationConfig.MintingAccount) == 0 {
 			return errors.New("Invalid Minting Account Address")
 		}
