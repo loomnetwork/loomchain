@@ -181,11 +181,18 @@ func TestKarmaCoin(t *testing.T) {
 	}))
 
 	initalBal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
-	fmt.Println(initalBal.Balance.String())
+	fmt.Println("user balance", initalBal.Balance.String())
 	require.NoError(t, err)
 
 	userState, err := karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
+
+	res, err := coinContract.Allowance(coinCtx, &coin.AllowanceRequest{
+		Owner:   user,
+		Spender: karmaAddr.MarshalPB(),
+	})
+	require.NoError(t, err)
+	fmt.Println("kama contract allowance", res.Amount.Value.String())
 
 	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
