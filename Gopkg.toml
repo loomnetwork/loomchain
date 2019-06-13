@@ -77,8 +77,8 @@ ignored = [
 
 [[override]]
   name = "github.com/tendermint/iavl"
-  source = "https://github.com/enlight/iavl.git"
-  branch = "multi-mutex-nodedb"
+  source = "https://github.com/loomnetwork/iavl.git"
+  branch = "new-store"
 
 [[override]]
   name = "github.com/tendermint/go-amino"

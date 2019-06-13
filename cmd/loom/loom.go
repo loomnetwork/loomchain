@@ -76,6 +76,15 @@ import (
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
+type AppStoreType int64
+
+const (
+	PruningStore AppStoreType = iota + 1
+	MultiReaderStore
+	MultiWriterStore
+	DifferenceStore
+)
+
 var (
 	appHeightKey = []byte("appheight")
 )
@@ -574,7 +583,8 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	var appStore store.VersionedKVStore
-	if cfg.AppStore.Version == 1 { // TODO: cleanup these hardcoded numbers
+	switch AppStoreType(cfg.AppStore.Version) {
+	case PruningStore:
 		if cfg.AppStore.PruneInterval > int64(0) {
 			logger.Info("Loading Pruning IAVL Store")
 			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
@@ -588,12 +598,12 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			}
 		} else {
 			logger.Info("Loading IAVL Store")
-			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, 0, 0, 0, 0)
 			if err != nil {
 				return nil, err
 			}
 		}
-	} else if cfg.AppStore.Version == 2 {
+	case MultiReaderStore:
 		logger.Info("Loading MultiReaderIAVL Store")
 		valueDB, err := cdb.LoadDB(
 			cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(),
@@ -606,9 +616,9 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-	} else if cfg.AppStore.Version == 3 {
+	case MultiWriterStore:
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, 0, 0, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -620,7 +630,13 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	case DifferenceStore:
+		logger.Info("Loading NewDiffIavlStore Store")
+		appStore, err = store.NewDiffIavlStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.DBSaveFrequency, cfg.DBVersionFrequency, cfg.DBMinCache, cfg.DBMaxCache)
+		if err != nil {
+			return nil, err
+		}
+	default:
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
 

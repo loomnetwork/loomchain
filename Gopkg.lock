@@ -301,13 +301,12 @@
   version = "v0.14.0"
 
 [[projects]]
-  branch = "multi-mutex-nodedb"
-  digest = "1:c463c5a9951f564b1a7713406a7b0655d7964d234bca6d7d0fbb2789be55ce51"
+  branch = "new-store"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "421b71b2dc0f0d7ad013a811383c293aa546c038"
-  source = "https://github.com/enlight/iavl.git"
+  revision = "a9958c4039804849bd9f3554a5ad1a5db36025ab"
+  source = "https://github.com/loomnetwork/iavl"
 
 [[projects]]
   digest = "1:a1eb813569fbe2ba8c6b8e25c8b7a7acbc7f01d486362043d4494cf949308096"

@@ -16,8 +16,7 @@ import (
 )
 
 var (
-	pruneTime               metrics.Histogram
-	iavlSaveVersionDuration metrics.Histogram
+	pruneTime metrics.Histogram
 )
 
 func init() {
@@ -30,21 +29,17 @@ func init() {
 			Subsystem: subsystem,
 			Name:      "prune_duration",
 			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
-		}, []string{"error"},
-	)
-	iavlSaveVersionDuration = kitprometheus.NewSummaryFrom(
-		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "save_version",
-			Help:      "How long IAVLStore.SaveVersion() took to execute (in seconds)",
-		}, []string{},
-	)
+		}, []string{"error"})
+
 }
 
 type IAVLStore struct {
-	tree        *iavl.MutableTree
-	maxVersions int64 // maximum number of versions to keep when pruning
+	tree             *iavl.MutableTree
+	maxVersions      int64 // maximum number of versions to keep when pruning
+	saveFrequency    uint64
+	versionFrequency uint64
+	saveCount        uint64
+	variableCache    bool
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -128,11 +123,48 @@ func (s *IAVLStore) Version() int64 {
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	var err error
-	defer func(begin time.Time) {
-		iavlSaveVersionDuration.Observe(time.Since(begin).Seconds())
-	}(time.Now())
+	defer func(err error) {
+		if r := recover(); r != nil {
+			if err == nil {
+				err = errors.Errorf("panic in SaveVersion %v", r)
+			} else {
+				err = errors.Wrapf(err, "panic in SaveVersion %v", r)
+			}
+
+		}
+	}(err)
 
 	oldVersion := s.Version()
+	if s.variableCache {
+		s.saveCount++
+		if s.tree.MaxChacheSizeExceeded() {
+			hash, version, err := s.tree.SaveVersion()
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
+			}
+			return hash, version, nil
+		} else {
+			hash, version, err := s.tree.NewVersion()
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
+			}
+			return hash, version, nil
+		}
+	}
+
+	if s.saveFrequency > 0 {
+		s.saveCount++
+		if s.saveCount%s.saveFrequency != 0 {
+			hash, version, err := s.tree.NewVersion()
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
+			}
+			return hash, version, nil
+		} else {
+			s.saveCount = 0
+		}
+	}
+
 	hash, version, err := s.tree.SaveVersion()
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
@@ -141,6 +173,17 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *IAVLStore) Prune() error {
+	var err error
+	defer func(err error) {
+		if r := recover(); r != nil {
+			if err == nil {
+				err = errors.Errorf("panic in DeleteVersion %v", r)
+			} else {
+				err = errors.Wrapf(err, "panic in DeleteVersion %v", r)
+			}
+
+		}
+	}(err)
 	// keep all the versions
 	if s.maxVersions == 0 {
 		return nil
@@ -152,15 +195,27 @@ func (s *IAVLStore) Prune() error {
 		return nil
 	}
 
-	var err error
+	if s.versionFrequency != 0 && uint64(oldVer)%s.versionFrequency == 0 {
+		return nil
+	}
+
 	defer func(begin time.Time) {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
 		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-
+	//fmt.Println("prune oldVer", oldVer, "latestVer", s.Version())
 	if s.tree.VersionExists(oldVer) {
-		if err = s.tree.DeleteVersion(oldVer); err != nil {
-			return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
+		if s.saveFrequency == 0 && !s.variableCache {
+			//fmt.Println("delete old version", oldVer)
+			if err = s.tree.DeleteVersion(oldVer); err != nil {
+				return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
+			}
+
+		} else {
+			//fmt.Println("memory delete old version", oldVer)
+			if err = s.tree.DeleteMemoryVersion(oldVer, true); err != nil {
+				return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
+			}
 		}
 	}
 	return nil
@@ -178,8 +233,17 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
-func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, error) {
-	tree := iavl.NewMutableTree(db, 10000)
+// saveFrequency says how often the IVAL tree will be saved to the disk. 0 means every block.
+// versionFrequency = N, indicates that versions other than multiples of N will be eventually pruned.
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize uint64) (*IAVLStore, error) {
+	ndb := iavl.NewNodeDB3(
+		db,
+		minCacheSize,
+		maxCacheSize,
+		(saveFrequency > 0) || (minCacheSize < maxCacheSize),
+		nil,
+	)
+	tree := iavl.NewMutableTreeWithNodeDB(ndb)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
 		return nil, err
@@ -191,8 +255,11 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 	}
 
 	return &IAVLStore{
-		tree:        tree,
-		maxVersions: maxVersions,
+		tree:             tree,
+		maxVersions:      maxVersions,
+		saveFrequency:    saveFrequency,
+		versionFrequency: versionFrequency,
+		variableCache:    (minCacheSize < maxCacheSize),
 	}, nil
 }
 

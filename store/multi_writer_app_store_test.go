@@ -216,7 +216,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 
 func mockMultiWriterStore() (*MultiWriterAppStore, error) {
 	memDb, _ := db.LoadMemDB()
-	iavlStore, err := NewIAVLStore(memDb, 0, 0)
+	iavlStore, err := NewIAVLStore(memDb, 0, 0, 0, 0, 0, 0)
 	if err != nil {
 		return nil, err
 	}

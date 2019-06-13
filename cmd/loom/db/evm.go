@@ -44,7 +44,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			appStore, err := store.NewIAVLStore(db, 0, appHeight)
+			appStore, err := store.NewIAVLStore(db, 0, appHeight, 0, 0, 0, 0)
 			if err != nil {
 				return err
 			}
@@ -166,7 +166,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			iavlStore, err := store.NewIAVLStore(db, 0, appHeight)
+			iavlStore, err := store.NewIAVLStore(db, 0, appHeight, 0, 0, 0, 0)
 			if err != nil {
 				return err
 			}

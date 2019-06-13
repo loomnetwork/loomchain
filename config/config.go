@@ -117,13 +117,16 @@ type Config struct {
 	AppStore *store.AppStoreConfig
 
 	// Should pretty much never be changed
-	RootDir     string
-	DBName      string
-	DBBackend   string
-	GenesisFile string
-	PluginsDir  string
-
-	DBBackendConfig *DBBackendConfig
+	RootDir            string
+	DBName             string
+	DBBackend          string
+	GenesisFile        string
+	PluginsDir         string
+	DBSaveFrequency    uint64 // how often the IVAL tree will be saved to the disk. 0 means every block
+	DBVersionFrequency uint64 // versions other than multiples of N will be eventually pruned providing maxVersions >0.
+	DBBackendConfig    *DBBackendConfig
+	DBMinCache         uint64
+	DBMaxCache         uint64 //Maximum size of the cahce, 0 ignore
 
 	// Event store
 	EventStore      *events.EventStoreConfig
@@ -354,6 +357,10 @@ func DefaultConfig() *Config {
 		RootDir:                    ".",
 		DBName:                     "app",
 		DBBackend:                  db.GoLevelDBBackend,
+		DBSaveFrequency:            0,
+		DBVersionFrequency:         1,
+		DBMinCache:                 1000,
+		DBMaxCache:                 0,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		RPCListenAddress:           "tcp://127.0.0.1:46657", // TODO this is an ephemeral port in linux, we should move this
@@ -757,6 +764,10 @@ Auth:
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
+DBVersionFrequency: "{{ .DBVersionFrequency }}" 
+DBSaveFrequency: "{{ .DBSaveFrequency }}"
+DBMinCache: "{{ .DBMinCache }}"
+DBMaxCache: "{{ .DBMaxCache }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
 #
