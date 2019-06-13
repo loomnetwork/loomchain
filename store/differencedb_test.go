@@ -143,10 +143,20 @@ func testSaveFrequency(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 1; i <= numBlocks; i++ {
-		require.Equal(t,
-			i/saveFrequency < numBlocks/saveFrequency || i%saveFrequency == 0,
-			diskTree.VersionExists(int64(i)),
-		)
+		if i/saveFrequency < numBlocks/saveFrequency || i%saveFrequency == 0 {
+			require.True(t, diskTree.VersionExists(int64(i)))
+			itree, err := tree.GetImmutable(int64(i))
+			require.NoError(t, err)
+			iDiskTree, err := diskTree.GetImmutable(int64(i))
+			require.NoError(t, err)
+			itree.Iterate(func(key []byte, value []byte) bool {
+				_, diskValue := iDiskTree.Get(key)
+				require.Zero(t, bytes.Compare(value, diskValue))
+				return true
+			})
+		} else {
+			require.False(t, diskTree.VersionExists(int64(i)))
+		}
 	}
 	for _, entry := range store.Range(nil) {
 		_, value := tree.Get(entry.Key)
@@ -156,6 +166,7 @@ func testSaveFrequency(t *testing.T) {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		return true
 	})
+
 	diskDb.Close()
 }
 
