@@ -1,13 +1,14 @@
 package coin
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -32,6 +33,105 @@ func (m *mockLoomCoinGateway) Meta() (plugin.Meta, error) {
 
 func (m *mockLoomCoinGateway) DummyMethod(ctx contractpb.Context, req *MintToGatewayRequest) error {
 	return nil
+}
+
+func TestLoadPolicy(t *testing.T) {
+	contract := &Coin{}
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx.SetFeature(loomchain.CoinPolicyFeature, true)
+	ctx := contractpb.WrapPluginContext(pctx)
+	//Valid Policy
+	err := contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: &Policy{
+			DeflationFactorDenominator: 5,
+			DeflationFactorNumerator:   1,
+			MintingAccount:             addr1.MarshalPB(),
+		},
+		BaseMintingAmount: 50,
+	})
+	require.Nil(t, err)
+	//Nil Invalid Policy
+	err = contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy:            nil,
+		BaseMintingAmount: 50,
+	})
+	require.Error(t, errors.New("Policy is not specified"), err.Error())
+	//Invalid Policy Denominator == 0
+	err = contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: &Policy{
+			DeflationFactorDenominator: 0,
+			DeflationFactorNumerator:   1,
+			MintingAccount:             addr1.MarshalPB(),
+		},
+		BaseMintingAmount: 50,
+	})
+	require.Error(t, errors.New("DeflationFactorDenominator should be greater than zero"), err.Error())
+	//Invalid Policy Numerator == 0
+	err = contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: &Policy{
+			DeflationFactorDenominator: 0,
+			DeflationFactorNumerator:   0,
+			MintingAccount:             addr1.MarshalPB(),
+		},
+		BaseMintingAmount: 50,
+	})
+	require.Error(t, errors.New("DeflationFactorNumerator should be greater than zero"), err.Error())
+	//Invalid Policy Base Minting Amount == 0
+	err = contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: &Policy{
+			DeflationFactorDenominator: 1,
+			DeflationFactorNumerator:   5,
+			MintingAccount:             addr1.MarshalPB(),
+		},
+		BaseMintingAmount: 0,
+	})
+	require.EqualError(t, errors.New("Base Minting Amount should be greater than zero"), err.Error())
+	//Invalid Policy Invalid Minting Account
+	err = contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: &Policy{
+			DeflationFactorDenominator: 1,
+			DeflationFactorNumerator:   5,
+			MintingAccount:             loom.RootAddress("chain").MarshalPB(),
+		},
+		BaseMintingAmount: 50,
+	})
+	require.Error(t, errors.New("Minting Account Address cannot be Root Address"), err.Error())
 }
 
 func TestTransfer(t *testing.T) {
