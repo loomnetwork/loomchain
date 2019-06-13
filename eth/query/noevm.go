@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyState,
@@ -17,6 +18,10 @@ func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyStat
 
 func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ *evmaux.EvmAuxStore) (eth.JsonBlockObject, error) {
 	return eth.JsonBlockObject{}, nil
+}
+
+func GetTxObjectFromBlockResult(_ *ctypes.ResultBlock, _ *ctypes.ResultTx, _ int64) (eth.JsonTxObject, *eth.Data, error) {
+	return eth.JsonTxObject{}, nil, nil
 }
 
 func DeprecatedGetBlockByNumber(
@@ -43,10 +48,6 @@ func GetBlockHeightFromHash(_ store.BlockStore, _ loomchain.ReadOnlyState, _ []b
 	return 0, nil
 }
 
-func GetNumEvmTxBlock(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64) (uint64, error) {
-	return 0, nil
-}
-
 func GetTxByHash(_ loomchain.ReadOnlyState, _ []byte, _ loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
 	return eth.JsonTxObject{}, nil
 }
@@ -59,10 +60,6 @@ func QueryChain(
 	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore,
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
-}
-
-func GetTxByTendermintHash(_ store.BlockStore, _ []byte) (eth.JsonTxObject, error) {
-	return eth.JsonTxObject{}, nil
 }
 
 func GetNumTxBlock(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64) (uint64, error) {

@@ -18,8 +18,9 @@ import (
 func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(state, txHash)
 	if err != nil {
-		return eth.JsonTxObject{}, errors.Wrap(err, "reading receipt")
+		return eth.GetEmptyTxObject(), errors.Wrap(err, "reading receipt")
 	}
+	to := eth.EncBytes(txReceipt.ContractAddress)
 	return eth.JsonTxObject{
 		Nonce:            eth.EncInt(txReceipt.Nonce),
 		Hash:             eth.EncBytes(txHash),
@@ -27,7 +28,7 @@ func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loom
 		BlockNumber:      eth.EncInt(txReceipt.BlockNumber),
 		TransactionIndex: eth.EncInt(int64(txReceipt.TransactionIndex)),
 		From:             eth.EncAddress(txReceipt.CallerAddress),
-		To:               eth.EncBytes(txReceipt.ContractAddress),
+		To:               &to,
 
 		Gas:      eth.EncInt(0),
 		GasPrice: eth.EncInt(0),
@@ -36,38 +37,26 @@ func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loom
 	}, nil
 }
 
-func GetTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTxObject, error) {
-	txResults, err := blockStore.GetTxResult(hash)
-	if err != nil {
-		return eth.JsonTxObject{}, err
-	}
-	blockResult, err := blockStore.GetBlockByHeight(&txResults.Height)
-	if err != nil {
-		return eth.JsonTxObject{}, err
-	}
-	return GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
-}
-
 func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (eth.JsonTxObject, error) {
 	iHeight := int64(height)
 
 	blockResult, err := blockStore.GetBlockByHeight(&iHeight)
 	if blockResult == nil || blockResult.Block == nil {
-		return eth.JsonTxObject{}, errors.Errorf("no block results found at height %v", height)
+		return eth.GetEmptyTxObject(), errors.Errorf("no block results found at height %v", height)
 	}
 
 	if len(blockResult.Block.Data.Txs) <= int(index) {
-		return eth.JsonTxObject{}, errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
+		return eth.GetEmptyTxObject(), errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
 	}
 
 	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
 	if err != nil {
-		return eth.JsonTxObject{}, errors.Wrapf(err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
+		return eth.GetEmptyTxObject(), errors.Wrapf(err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
 	}
 
-	txObj, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
 	if err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), err
 	}
 	txObj.TransactionIndex = eth.EncInt(int64(index))
 

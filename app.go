@@ -22,6 +22,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -529,7 +530,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
-		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error(), Data: ttypes.Tx(txBytes).Hash()}
 	}
 
 	return ok
@@ -550,7 +551,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+		return abci.ResponseDeliverTx{Code: 1, Log: err.Error(), Data: ttypes.Tx(txBytes).Hash()}
 	}
 	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 		isEvmTx = true
