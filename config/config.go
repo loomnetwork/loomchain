@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/evm"
 
 	"github.com/loomnetwork/loomchain/auth"
+	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
@@ -105,6 +106,8 @@ type Config struct {
 	//Prometheus
 	PrometheusPushGateway *PrometheusPushGatewayConfig
 
+	CoinPolicyMigrationConfig *CoinPolicyMigrationConfig
+
 	//Contracts
 	ContractLoaders []string
 	//Hsm
@@ -112,7 +115,7 @@ type Config struct {
 
 	// Oracle serializable
 	// todo Cannot be read in from file due to nested pointers to structs.
-	DPOSv2OracleConfig *OracleSerializableConfig
+	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
 	// AppStore
 	AppStore *store.AppStoreConfig
@@ -180,6 +183,14 @@ type PrometheusPushGatewayConfig struct {
 	JobName           string
 }
 
+type CoinPolicyMigrationConfig struct {
+	Enabled                    bool   //Enable Supply of DeflationInfo for modification of existing configuration
+	DeflationFactorNumerator   uint64 //Deflation Factor Numerator
+	DeflationFactorDenominator uint64 //Deflation Factor Denominator
+	BaseMintingAmount          int64  //Base Minting Amount
+	MintingAccount             string //Address to Mint coins to
+}
+
 type ChainConfigConfig struct {
 	// Allow deployment of the ChainConfig contract
 	ContractEnabled bool
@@ -238,6 +249,16 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 		PushGateWayUrl:    "http://localhost:9091",
 		PushRateInSeconds: 60,
 		JobName:           "Loommetrics",
+	}
+}
+
+func DefaultCoinPolicyMigrationConfig() *CoinPolicyMigrationConfig {
+	return &CoinPolicyMigrationConfig{
+		Enabled:                    false,
+		DeflationFactorNumerator:   1,  //Deflation Factor Numerator
+		DeflationFactorDenominator: 2,  //Deflation Factor Denominator
+		BaseMintingAmount:          10, //Base Minting Amount
+		MintingAccount:             "", //Minting Account
 	}
 }
 
@@ -398,7 +419,7 @@ func DefaultConfig() *Config {
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
 	cfg.ContractTxLimiter = throttle.DefaultContractTxLimiterConfig()
 	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
-	cfg.DPOSv2OracleConfig = DefaultDPOS2OracleConfig()
+	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.BlockIndexStore = blockindex.DefaultBlockIndexStoreConfig()
@@ -409,6 +430,7 @@ func DefaultConfig() *Config {
 	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
+	cfg.CoinPolicyMigrationConfig = DefaultCoinPolicyMigrationConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
@@ -647,6 +669,15 @@ PrometheusPushGateway:
   PushRateInSeconds: {{ .PrometheusPushGateway.PushRateInSeconds}} 
   JobName: "{{ .PrometheusPushGateway.JobName }}"
 
+#
+# Modify Deflation Parameter
+#
+CoinPolicyMigrationConfig: 
+  Enabled: {{ .CoinPolicyMigrationConfig.Enabled }}                   
+  DeflationFactorNumerator: {{ .CoinPolicyMigrationConfig.DeflationFactorNumerator }}   
+  DeflationFactorDenominator: {{ .CoinPolicyMigrationConfig.DeflationFactorDenominator }} 
+  BaseMintingAmount:  {{ .CoinPolicyMigrationConfig.BaseMintingAmount }}         
+  MintingAccount:  {{ .CoinPolicyMigrationConfig.MintingAccount }}
 
 #
 # Hsm 
@@ -668,7 +699,29 @@ HsmConfig:
   HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
   # key domain
   HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
-
+#
+# Oracle serializable 
+#
+DPOSv2OracleConfig:
+  Enabled: {{ .DPOSv2OracleConfig.Enabled }}
+  StatusServiceAddress: "{{ .DPOSv2OracleConfig.StatusServiceAddress }}"
+  MainnetPollInterval: {{ .DPOSv2OracleConfig.MainnetPollInterval }}
+{{if .DPOSv2OracleConfig.DAppChainCfg -}}
+  DAppChainCfg: 
+     WriteURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.WriteURI }}"
+     ReadURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.ReadURI }}"
+     PrivateKeyPath: "{{ .DPOSv2OracleConfig.DAppChainCfg.PrivateKeyPath }}"
+{{end}}
+{{if .DPOSv2OracleConfig.EthClientCfg -}}
+  EthClientCfg: 
+     EthereumURI: "{{ .DPOSv2OracleConfig.EthClientCfg.EthereumURI }}"
+     PrivateKeyPath: {{ .DPOSv2OracleConfig.EthClientCfg.PrivateKeyPath }}
+{{end}}
+{{if .DPOSv2OracleConfig.TimeLockWorkerCfg -}}
+  TimeLockWorkerCfg: 
+     TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
+     Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
+{{end}}
 #
 # App store
 #
