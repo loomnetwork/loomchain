@@ -33,17 +33,18 @@ type AppStoreConfig struct {
 
 func DefaultConfig() *AppStoreConfig {
 	return &AppStoreConfig{
-		Version:              3,
-		CompactOnLoad:        false,
-		MaxVersions:          0,
-		PruneInterval:        0,
-		PruneBatchSize:       50,
-		LatestStateDBBackend: "goleveldb",
-		LatestStateDBName:    "app_state",
-		NodeDBVersion:        NodeDBV1,
-		NodeCacheSize:        10000,
-		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
-		SaveEVMStateToIAVL:   false,
+		Version:               3,
+		CompactOnLoad:         false,
+		MaxVersions:           0,
+		PruneInterval:         0,
+		PruneBatchSize:        50,
+		LatestStateDBBackend:  "goleveldb",
+		LatestStateDBName:     "app_state",
+		NodeDBVersion:         NodeDBV1,
+		NodeCacheSize:         10000,
+		SnapshotVersion:       MultiReaderIAVLStoreSnapshotV1,
+		SaveEVMStateToIAVL:    false,
+		DeletedVMKeysPerBlock: 1000,
 	}
 }
 
