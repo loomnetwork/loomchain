@@ -7,6 +7,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -42,16 +43,18 @@ type (
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
-
-	BurnRequest = ctypes.BurnRequest
+	Policy               = ctypes.Policy
+	BurnRequest          = ctypes.BurnRequest
 )
 
 var (
-	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ErrSenderBalanceTooLow   = errors.New("sender balance is too low")
+	InvalidBaseMintingAmount = errors.New("Base Minting Amount should be greater than zero")
 )
 
 var (
 	economyKey = []byte("economy")
+	policyKey  = []byte("policy")
 	decimals   = 18
 )
 
@@ -76,7 +79,44 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-
+	//Checks if Coin Policy Feature is enabled before loading Coin Monetary Supply Policy
+	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
+		if req.Policy == nil {
+			return errors.New("Policy is not specified")
+		}
+		if req.Policy.DeflationFactorNumerator <= 0 {
+			return errors.New("DeflationFactorNumerator should be greater than zero")
+		}
+		if req.Policy.DeflationFactorDenominator <= 0 {
+			return errors.New("DeflationFactorDenominator should be greater than zero")
+		}
+		if req.BaseMintingAmount <= 0 {
+			return InvalidBaseMintingAmount
+		}
+		if req.Policy.MintingAccount == nil {
+			return errors.New("Invalid Minting Account Address")
+		}
+		addr := loom.UnmarshalAddressPB(req.Policy.MintingAccount)
+		if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
+			return errors.New("Minting Account Address cannot be Root Address")
+		}
+		deflationFactorNumerator := req.Policy.DeflationFactorNumerator
+		deflationFactorDenominator := req.Policy.DeflationFactorDenominator
+		baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
+		baseMintingAmount.Mul(baseMintingAmount, div)
+		policy := &Policy{
+			DeflationFactorNumerator:   deflationFactorNumerator,
+			DeflationFactorDenominator: deflationFactorDenominator,
+			BaseMintingAmount: &types.BigUInt{
+				Value: *baseMintingAmount,
+			},
+			MintingAccount: req.Policy.MintingAccount,
+		}
+		err := ctx.Set(policyKey, policy)
+		if err != nil {
+			return err
+		}
+	}
 	supply := loom.NewBigUIntFromInt(0)
 	for _, initAcct := range req.Accounts {
 		owner := loom.UnmarshalAddressPB(initAcct.Owner)
@@ -211,6 +251,38 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 	}
 
 	return ctx.Set(economyKey, econ)
+}
+
+//Mint : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
+func Mint(ctx contract.Context) error {
+	var policy Policy
+	err := ctx.Get(policyKey, &policy)
+	if err != nil {
+		return errUtil.Wrap(err, "Failed to Get PolicyInfo")
+	}
+	var depreciation *common.BigUInt
+	policyNumerator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorNumerator))
+	policyDenominator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorDenominator))
+	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
+	depreciation.Mul(policyNumerator, blockHeight)
+	depreciation.Div(depreciation, policyDenominator)
+	amount := policy.BaseMintingAmount.Value
+	amount.Sub(&amount, depreciation)
+	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
+}
+
+//ModifyMintParameter Method to modify deflation parameter, only callable by manager,
+// when feature flag is going to be enabled
+func ModifyMintParameter(ctx contract.Context, policy *ctypes.Policy) error {
+	if policy.MintingAccount == nil || policy.BaseMintingAmount == nil {
+		return errors.New("MintingAccount or BaseMintingAmount is not given")
+	}
+	err := ctx.Set(policyKey, policy)
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
 
 // ERC20 methods
