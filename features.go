@@ -1,9 +1,6 @@
 package loomchain
 
 // List of feature flags
-package loomchain
-
-// List of feature flags
 const (
 	// Enables deduping of Mainnet events in the Gateway contract by tx hash.
 	TGCheckTxHashFeature = "tg:check-txhash"
