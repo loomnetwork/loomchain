@@ -24,11 +24,19 @@ const (
 	maxCache = 500
 )
 
+type benchResult struct {
+	name            string
+	timeS           time.Duration
+	diskSize        int64
+	compactDiskSize int64
+}
+
 var (
-	testno = int(0)
+	testno  = int(0)
+	results map[string]benchResult
 )
 
-type benchFunc func(b require.TestingT)
+type benchFunc func(b require.TestingT, name string)
 
 func TestMain(m *testing.M) {
 	log.Setup("debug", "file://-")
@@ -38,10 +46,12 @@ func TestMain(m *testing.M) {
 	_, err := os.Stat("testdata")
 	os.IsNotExist(err)
 
+	results = make(map[string]benchResult)
+
 	diskDbType = "goleveldb"
 	//diskDbType = "membd"
-	numBlocks = 10
-	blockSize = 10
+	numBlocks = 10000
+	blockSize = 1000
 	saveFrequency = 100
 	versionFrequency = 20
 	maxVersions = 2
@@ -58,27 +68,72 @@ func TestMain(m *testing.M) {
 		if !f.IsDir() {
 			continue
 		}
+		fName := f.Name()
+		if len(fName) <= 3 {
+			continue
+		}
+		fName = fName[:len(fName)-3]
 
 		size, err := DirSize2(f)
 		if err != nil {
 			continue
 		}
-		fmt.Println()
-		fmt.Println("size of "+f.Name()+" : ", size)
+		//fmt.Println()
+		fmt.Println("size of "+fName+" : ", size)
 
-		ldb, err := leveldb.OpenFile("./testdata/"+f.Name(), nil)
+		ldb, err := leveldb.OpenFile("./testdata/"+fName, nil)
 		err = ldb.CompactRange(util.Range{nil, nil})
 		if err != nil {
-			fmt.Println("error compating", f.Name(), err)
+			fmt.Println("error compating", fName, err)
 		}
 		err = ldb.Close()
 		if err != nil {
-			fmt.Println("error closing", f.Name(), err)
+			fmt.Println("error closing", fName, err)
 		}
 
-		size, err = DirSize2(f)
-		fmt.Println("after compact size of "+f.Name()+" : ", size)
+		sizeCompact, err := DirSize2(f)
+		if err != nil {
+			continue
+		}
+		fmt.Println("after compact size of "+fName+" : ", sizeCompact)
+		if _, ok := results[fName]; ok {
+			r := results[fName]
+			r.diskSize = size
+			r.compactDiskSize = sizeCompact
+			results[fName] = r
+		}
 	}
+	if _, ok := results["normal"]; ok {
+		nTime := results["normal"].timeS
+		nSize := results["normal"].diskSize
+		nCompactSize := results["normal"].compactDiskSize
+
+		fmt.Println("name\ttime\tdisk size\tcompact\tratio time\tratio size\tratio compact")
+		for _, r := range results {
+			fmt.Printf(
+				"%s\t%v\t%v\t%v\t%v\t%v\t%v\n",
+				r.name,
+				r.timeS.Seconds(),
+				r.diskSize,
+				r.compactDiskSize,
+				uint64(r.timeS.Seconds()*100/nTime.Seconds()),
+				uint64(r.diskSize*100/nSize),
+				uint64(r.compactDiskSize*100/nCompactSize),
+			)
+		}
+	} else {
+		fmt.Println("name\ttime\tdisk size\tcompact")
+		for _, r := range results {
+			fmt.Printf(
+				"%s\t%v\t%v\t%v\n",
+				r.name,
+				r.timeS.Seconds(),
+				r.diskSize,
+				r.compactDiskSize,
+			)
+		}
+	}
+
 }
 func TestNormal(t *testing.T) {
 	//t.Skip()
@@ -88,6 +143,27 @@ func TestNormalDif(t *testing.T) {
 	//t.Skip()
 	testIavlStore(t, "normal-dif", benchmarkNormalDif)
 }
+
+func TestVariableCacheDifKeep(t *testing.T) {
+	//t.Skip()
+	testIavlStore(t, "varCache-dif-keep", benchmarVariableCacheDifKeep)
+}
+
+func TestVariableCacheKeep(t *testing.T) {
+	//t.Skip()
+	testIavlStore(t, "varCache-keep", benchmarkVariableCacheKeep)
+}
+
+func TestSaveFrequencyDifKeep(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "saveFreq-dif-keep", benchmarkSaveFrequencyDifKeep)
+}
+
+func TestSaveFrequencyKeep(t *testing.T) {
+	//t.Skip()
+	testIavlStore(t, "saveFreq-keep", benchmarkSaveFrequencyKeep)
+}
+
 func TestMaxVersionsDif(t *testing.T) {
 	//t.Skip()
 	testIavlStore(t, "maxVersions-dif", benchmarkMaxVersionsDif)
@@ -196,17 +272,21 @@ func BenchmarkIavlStore(b *testing.B) {
 func testIavlStore(b require.TestingT, name string, fn benchFunc) {
 	startTime := time.Now()
 
-	fn(b)
+	fn(b, name)
 
 	now := time.Now()
 	elapsed := now.Sub(startTime)
 	fmt.Println("test "+name+" took", elapsed)
+	results[name] = benchResult{
+		name:  name,
+		timeS: elapsed,
+	}
 }
 
 func benchmarkIavlStore(b *testing.B, name string, fn benchFunc) {
 	b.Run(name, func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			fn(b)
+			fn(b, name)
 		}
 	})
 }
@@ -228,9 +308,9 @@ func showDiskVersions(b require.TestingT, diskDb db.DB, testname string) {
 
 }
 
-func benchmarkNormalDif(b require.TestingT) {
+func benchmarkNormalDif(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "normal-diff")
+	diskDb := getDiskDb(b, name)
 	store, err := NewDiffIavlStore(diskDb, 0, 0, 0, 0, 1000, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -239,9 +319,9 @@ func benchmarkNormalDif(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkNormal(b require.TestingT) {
+func benchmarkNormal(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "Normal")
+	diskDb := getDiskDb(b, name)
 	store, err := NewIAVLStore(diskDb, 0, 0, 0, 0, minCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -250,9 +330,53 @@ func benchmarkNormal(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkMaxVersions(b require.TestingT) {
+func benchmarVariableCacheDifKeep(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "maxVers")
+	diskDb := getDiskDb(b, name)
+	store, err := NewDiffIavlStore(diskDb, 0, 0, 0, 0, minCache, maxCache)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+	diskDb.Close()
+}
+
+func benchmarkVariableCacheKeep(b require.TestingT, name string) {
+	testno++
+	diskDb := getDiskDb(b, name)
+	store, err := NewIAVLStore(diskDb, 0, 0, 0, 0, minCache, maxCache)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+	diskDb.Close()
+}
+
+func benchmarkSaveFrequencyDifKeep(b require.TestingT, name string) {
+	testno++
+	diskDb := getDiskDb(b, name)
+	store, err := NewDiffIavlStore(diskDb, 0, 0, uint64(saveFrequency), 0, minCache, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+	diskDb.Close()
+}
+
+func benchmarkSaveFrequencyKeep(b require.TestingT, name string) {
+	testno++
+	diskDb := getDiskDb(b, name)
+	store, err := NewIAVLStore(diskDb, 0, 0, uint64(saveFrequency), 0, minCache, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+	diskDb.Close()
+}
+
+func benchmarkMaxVersions(b require.TestingT, name string) {
+	testno++
+	diskDb := getDiskDb(b, name)
 	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -261,9 +385,9 @@ func benchmarkMaxVersions(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkMaxVersionsDif(b require.TestingT) {
+func benchmarkMaxVersionsDif(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "maxVers-diff")
+	diskDb := getDiskDb(b, name)
 	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, 0)
 	require.NoError(b, err)
 	require.NoError(b, err)
@@ -273,9 +397,9 @@ func benchmarkMaxVersionsDif(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkVarableCacheDif(b require.TestingT) {
+func benchmarkVarableCacheDif(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "varCache-diff")
+	diskDb := getDiskDb(b, name)
 	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, maxCache)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -284,9 +408,9 @@ func benchmarkVarableCacheDif(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkVarableCache(b require.TestingT) {
+func benchmarkVarableCache(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "varCache")
+	diskDb := getDiskDb(b, name)
 	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, maxCache)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -295,9 +419,9 @@ func benchmarkVarableCache(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkMaxVersionFrequencySaveFrequencyDif(b require.TestingT) {
+func benchmarkMaxVersionFrequencySaveFrequencyDif(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "maxVFSF-diff")
+	diskDb := getDiskDb(b, name)
 	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), minCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -306,9 +430,9 @@ func benchmarkMaxVersionFrequencySaveFrequencyDif(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkVersionFrequency(b require.TestingT) {
+func benchmarkVersionFrequency(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "verFreq")
+	diskDb := getDiskDb(b, name)
 	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -317,9 +441,9 @@ func benchmarkVersionFrequency(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkVersionFrequencyDif(b require.TestingT) {
+func benchmarkVersionFrequencyDif(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "verFreq-diff")
+	diskDb := getDiskDb(b, name)
 	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -328,9 +452,9 @@ func benchmarkVersionFrequencyDif(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkSaveFrequencyDif(b require.TestingT) {
+func benchmarkSaveFrequencyDif(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "saveFreq-diff")
+	diskDb := getDiskDb(b, name)
 	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), 0, minCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
@@ -339,9 +463,9 @@ func benchmarkSaveFrequencyDif(b require.TestingT) {
 	diskDb.Close()
 }
 
-func benchmarkSaveFrequency(b require.TestingT) {
+func benchmarkSaveFrequency(b require.TestingT, name string) {
 	testno++
-	diskDb := getDiskDb(b, "saveFreq")
+	diskDb := getDiskDb(b, name)
 	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), 0, minCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
