@@ -48,7 +48,7 @@ func GetBlockHeightFromHash(_ store.BlockStore, _ loomchain.ReadOnlyState, _ []b
 	return 0, nil
 }
 
-func GetTxByHash(_ loomchain.ReadOnlyState, _ []byte, _ loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
+func GetTxByHash(_ loomchain.ReadOnlyState, _ store.BlockStore, _ []byte, _ loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
 	return eth.JsonTxObject{}, nil
 }
 

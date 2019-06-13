@@ -868,7 +868,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 	if err != nil {
 		return resp, err
 	}
-	txObj, err := query.GetTxByHash(snapshot, txHash, r)
+	txObj, err := query.GetTxByHash(snapshot, s.BlockStore, txHash, r)
 	if err != nil {
 		if errors.Cause(err) != common.ErrTxReceiptNotFound {
 			return resp, err

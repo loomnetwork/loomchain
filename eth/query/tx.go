@@ -15,26 +15,12 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 )
 
-func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
+func GetTxByHash(state loomchain.ReadOnlyState, blockStore store.BlockStore, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(state, txHash)
 	if err != nil {
 		return eth.GetEmptyTxObject(), errors.Wrap(err, "reading receipt")
 	}
-	to := eth.EncBytes(txReceipt.ContractAddress)
-	return eth.JsonTxObject{
-		Nonce:            eth.EncInt(txReceipt.Nonce),
-		Hash:             eth.EncBytes(txHash),
-		BlockHash:        eth.EncBytes(txReceipt.BlockHash),
-		BlockNumber:      eth.EncInt(txReceipt.BlockNumber),
-		TransactionIndex: eth.EncInt(int64(txReceipt.TransactionIndex)),
-		From:             eth.EncAddress(txReceipt.CallerAddress),
-		To:               &to,
-
-		Gas:      eth.EncInt(0),
-		GasPrice: eth.EncInt(0),
-		Input:    "0x0", //todo investigate adding input
-		Value:    eth.EncInt(0),
-	}, nil
+	return GetTxByBlockAndIndex(blockStore, uint64(txReceipt.BlockNumber), uint64(txReceipt.TransactionIndex))
 }
 
 func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (eth.JsonTxObject, error) {
