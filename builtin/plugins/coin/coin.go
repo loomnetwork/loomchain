@@ -443,6 +443,7 @@ func loadAllowance(
 func saveAllowance(ctx contract.Context, allow *Allowance) error {
 	owner := loom.UnmarshalAddressPB(allow.Owner)
 	spender := loom.UnmarshalAddressPB(allow.Spender)
+	fmt.Println(owner, spender, allow.Amount)
 	return ctx.Set(allowanceKey(owner, spender), allow)
 }
 

@@ -1,6 +1,7 @@
 package karma
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
@@ -180,6 +181,7 @@ func TestKarmaCoin(t *testing.T) {
 	}))
 
 	initalBal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
+	fmt.Println(initalBal.Balance.String())
 	require.NoError(t, err)
 
 	userState, err := karmaContract.GetUserState(ctx, user)
