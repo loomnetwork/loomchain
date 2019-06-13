@@ -79,4 +79,3 @@ const (
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
 )
-
