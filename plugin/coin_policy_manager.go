@@ -24,8 +24,7 @@ type CoinPolicyManager struct {
 type Policy = ctypes.Policy
 
 // NewCoinPolicyManager attempts to create an instance of CoinPolicyManager.
-func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyManager,
-	error) {
+func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyManager, error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("coin")
 	if err != nil {
