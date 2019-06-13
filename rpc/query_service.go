@@ -150,7 +150,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 }
 
 // makeQueryServiceHandler returns a http handler mapping to query service
-func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger, hub *Hub) http.Handler {
+func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger, hub *Hub, tm TendermintRpc) http.Handler {
 	wsmux := http.NewServeMux()
 	routesJson := map[string]eth.RPCFunc{}
 	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
@@ -185,7 +185,7 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger, hub *Hub)
 	routesJson["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
 	routesJson["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
 
-	routesJson["eth_sendRawTransaction"] = eth.NewTendermintRPCFunc("eth_sendRawTransaction")
+	routesJson["eth_sendRawTransaction"] = NewTendermintRPCFunc("eth_sendRawTransaction", tm)
 	RegisterRPCFuncs(wsmux, routesJson, logger, hub)
 
 	mux := http.NewServeMux()

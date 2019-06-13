@@ -43,7 +43,7 @@ func RPCServer(
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	hub := newHub()
 	go hub.run()
-	ethHandler := MakeEthQueryServiceHandler(qsvc, logger, hub)
+	ethHandler := MakeEthQueryServiceHandler(qsvc, logger, hub, RuntimeTendermintRpc{})
 
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
 	// and /rpc endpoints.

@@ -858,6 +858,11 @@ func loadApp(
 		Manager: vmManager,
 	}
 
+	ethTxHandler := &vm.EthTxHandler{
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
+	}
+
 	migrationTxHandler := &tx_handler.MigrationTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
@@ -930,11 +935,13 @@ func loadApp(
 	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
 	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
+	router.HandleDeliverTx(4, loomchain.GeneratePassthroughRouteHandler(ethTxHandler))
 
 	// TODO: Write this in more elegant way
 	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
 	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
+	router.HandleCheckTx(4, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, ethTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
