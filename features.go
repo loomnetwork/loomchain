@@ -1,6 +1,9 @@
 package loomchain
 
 // List of feature flags
+package loomchain
+
+// List of feature flags
 const (
 	// Enables deduping of Mainnet events in the Gateway contract by tx hash.
 	TGCheckTxHashFeature = "tg:check-txhash"
@@ -66,12 +69,17 @@ const (
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 
+	// Enables Coin Policy Manager Feature
+	CoinPolicyFeature = "coin:policy"
+
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
 	AuxEvmDBFeature = "db:auxevm"
+
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
 )
+
