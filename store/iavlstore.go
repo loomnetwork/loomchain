@@ -87,9 +87,13 @@ func prefixRangeEnd(prefix []byte) []byte {
 }
 
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
+	return s.RangeWithLimit(prefix, 0)
+}
+
+func (s *IAVLStore) RangeWithLimit(prefix []byte, limit int) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), limit)
 	if err != nil {
 		log.Error("failed to get range", "err", err)
 		return ret

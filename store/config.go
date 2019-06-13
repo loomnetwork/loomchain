@@ -27,6 +27,8 @@ type AppStoreConfig struct {
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
 	SaveEVMStateToIAVL bool
+	// Number of VM keys deleted per block
+	DeletedVMKeysPerBlock int
 }
 
 func DefaultConfig() *AppStoreConfig {

@@ -30,9 +30,12 @@ var (
 	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
+	// If this flag is set, it means that all vm keys are deleted from app.db
+	evmStateDeletedKey = []byte("evmstate:deleted")
 
-	saveVersionDuration metrics.Histogram
-	getSnapshotDuration metrics.Histogram
+	saveVersionDuration  metrics.Histogram
+	getSnapshotDuration  metrics.Histogram
+	deleteVMKeysDuration metrics.Histogram
 )
 
 func init() {
@@ -62,14 +65,19 @@ type MultiWriterAppStore struct {
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
+	evmStateDeleted            bool
+	deletedVMKeysPerBlock      int
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
-func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool) (*MultiWriterAppStore, error) {
+func NewMultiWriterAppStore(
+	appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool, deletedVMKeysPerBlock int,
+) (*MultiWriterAppStore, error) {
 	store := &MultiWriterAppStore{
 		appStore:                   appStore,
 		evmStore:                   evmStore,
 		onlySaveEvmStateToEvmStore: !saveEVMStateToIAVL,
+		deletedVMKeysPerBlock:      deletedVMKeysPerBlock,
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
 	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
@@ -90,6 +98,8 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	if !store.onlySaveEvmStateToEvmStore {
 		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
 	}
+
+	store.evmStateDeleted = bytes.Equal(store.appStore.Get(evmStateDeletedKey), []byte{1})
 
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
@@ -165,11 +175,29 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 		// Tie up Patricia tree with IAVL tree.
 		// Do this after the feature flag is enabled so that we can detect
 		// inconsistency in evm.db across the cluster
-		// AppStore 3.1 write EVM root to app.db only if it changes
+		// AppStore 3.1 writes EVM root to app.db only if it changes
 		if bytes.Equal(s.appStore.Get(appStoreVersion3_1), []byte{1}) {
 			oldRoot := s.appStore.Get(rootKey)
 			if !bytes.Equal(oldRoot, currentRoot) {
 				s.appStore.Set(rootKey, currentRoot)
+			}
+
+			// vm keys deletion process
+			if !s.evmStateDeleted {
+				begin := time.Now()
+
+				rangeData := s.appStore.RangeWithLimit(vmPrefix, s.deletedVMKeysPerBlock)
+				for _, data := range rangeData {
+					s.appStore.Delete(util.PrefixKey(vmPrefix, data.Key))
+				}
+				// If rangeData is empty, it means all vm keys are deleted.
+				// So set the flag to stop the deletion
+				if len(rangeData) == 0 {
+					s.appStore.Set(evmStateDeletedKey, []byte{1})
+					s.evmStateDeleted = true
+				}
+
+				deleteVMKeysDuration.Observe(time.Since(begin).Seconds())
 			}
 		} else {
 			s.appStore.Set(rootKey, currentRoot)
