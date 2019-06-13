@@ -2,17 +2,13 @@ package migrations
 
 import "C"
 import (
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/pkg/errors"
-)
-
-var (
-	InvalidBaseMintingAmount = errors.New("Base Minting Amount should be greater than zero")
 )
 
 type (
@@ -32,34 +28,17 @@ func GenerateCoinPolicyMigrationFn(cfg *config.Config) func(ctx *MigrationContex
 		}
 		div := loom.NewBigUIntFromInt(10)
 		div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-		if cfg.CoinPolicyMigrationConfig == nil {
-			return errors.New("Policy Configuration Not Specified")
+		if cfg.CoinPolicyMigration == nil {
+			return errors.New("Coin Policy not specified")
 		}
-		if len(cfg.CoinPolicyMigrationConfig.MintingAccount) == 0 {
-			return errors.New("Invalid Minting Account Address")
-		}
-		if cfg.CoinPolicyMigrationConfig.DeflationFactorNumerator <= 0 {
-			return errors.New("DeflationFactorNumerator should be greater than zero")
-		}
-		if cfg.CoinPolicyMigrationConfig.DeflationFactorDenominator <= 0 {
-			return errors.New("DeflationFactorDenominator should be greater than zero")
-		}
-		if cfg.CoinPolicyMigrationConfig.BaseMintingAmount <= 0 {
-			return InvalidBaseMintingAmount
-		}
-		addr, err := loom.ParseAddress(cfg.CoinPolicyMigrationConfig.MintingAccount)
+		err = cfg.CoinPolicyMigration.IsValid()
 		if err != nil {
 			return err
 		}
-		if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
-			return errors.New("Minting Account Address cannot be Root Address")
-		}
-		if cfg.CoinPolicyMigrationConfig.BaseMintingAmount <= 0 {
-			return InvalidBaseMintingAmount
-		}
-		deflationFactorNumerator := cfg.CoinPolicyMigrationConfig.DeflationFactorNumerator
-		deflationFactorDenominator := cfg.CoinPolicyMigrationConfig.DeflationFactorDenominator
-		baseMintingAmount := loom.NewBigUIntFromInt(int64(cfg.CoinPolicyMigrationConfig.BaseMintingAmount))
+		addr, _ := loom.ParseAddress(cfg.CoinPolicyMigration.MintingAccount)
+		deflationFactorNumerator := cfg.CoinPolicyMigration.DeflationFactorNumerator
+		deflationFactorDenominator := cfg.CoinPolicyMigration.DeflationFactorDenominator
+		baseMintingAmount := loom.NewBigUIntFromInt(int64(cfg.CoinPolicyMigration.BaseMintingAmount))
 		baseMintingAmount.Mul(baseMintingAmount, div)
 		policy := &Policy{
 			DeflationFactorNumerator:   deflationFactorNumerator,
@@ -73,10 +52,8 @@ func GenerateCoinPolicyMigrationFn(cfg *config.Config) func(ctx *MigrationContex
 		if err != nil {
 			return err
 		}
-
 		// Turn on coin policy
 		ctx.State().SetFeature(loomchain.CoinPolicyFeature, true)
-
 		return nil
 	}
 }
