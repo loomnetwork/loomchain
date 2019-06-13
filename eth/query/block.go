@@ -160,6 +160,9 @@ func GetTxObjectFromBlockResult(
 					return eth.GetEmptyTxObject(), nil, err
 				}
 				contractAddress = eth.EncPtrAddress(resp.Contract)
+				if len(respData.TxHash) > 0 {
+					txObj.Hash = eth.EncBytes(respData.TxHash)
+				}
 			}
 		}
 	case callId:
