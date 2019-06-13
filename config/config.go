@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain/evm"
 
 	"github.com/loomnetwork/loomchain/auth"
-	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
@@ -115,7 +114,7 @@ type Config struct {
 
 	// Oracle serializable
 	// todo Cannot be read in from file due to nested pointers to structs.
-	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
+	DPOSv2OracleConfig *OracleSerializableConfig
 
 	// AppStore
 	AppStore *store.AppStoreConfig
@@ -419,7 +418,7 @@ func DefaultConfig() *Config {
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
 	cfg.ContractTxLimiter = throttle.DefaultContractTxLimiterConfig()
 	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
-	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
+	cfg.DPOSv2OracleConfig = DefaultDPOS2OracleConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.BlockIndexStore = blockindex.DefaultBlockIndexStoreConfig()
@@ -699,29 +698,7 @@ HsmConfig:
   HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
   # key domain
   HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
-#
-# Oracle serializable 
-#
-DPOSv2OracleConfig:
-  Enabled: {{ .DPOSv2OracleConfig.Enabled }}
-  StatusServiceAddress: "{{ .DPOSv2OracleConfig.StatusServiceAddress }}"
-  MainnetPollInterval: {{ .DPOSv2OracleConfig.MainnetPollInterval }}
-{{if .DPOSv2OracleConfig.DAppChainCfg -}}
-  DAppChainCfg: 
-     WriteURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.WriteURI }}"
-     ReadURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.ReadURI }}"
-     PrivateKeyPath: "{{ .DPOSv2OracleConfig.DAppChainCfg.PrivateKeyPath }}"
-{{end}}
-{{if .DPOSv2OracleConfig.EthClientCfg -}}
-  EthClientCfg: 
-     EthereumURI: "{{ .DPOSv2OracleConfig.EthClientCfg.EthereumURI }}"
-     PrivateKeyPath: {{ .DPOSv2OracleConfig.EthClientCfg.PrivateKeyPath }}
-{{end}}
-{{if .DPOSv2OracleConfig.TimeLockWorkerCfg -}}
-  TimeLockWorkerCfg: 
-     TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
-     Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
-{{end}}
+
 #
 # App store
 #
