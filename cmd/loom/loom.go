@@ -31,6 +31,8 @@ import (
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
+	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
+	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
@@ -423,6 +425,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startDPOSv2Oracle(chainID, cfg.DPOSv2OracleConfig); err != nil {
+				return err
+			}
+
 			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend, log.Default); err != nil {
 				return err
 			}
@@ -445,6 +451,25 @@ func recovery() {
 		log.Error("caught RPC proxy exception, exiting", r)
 		os.Exit(1)
 	}
+}
+
+func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig) error {
+	oracleCfg, err := d2OracleCfg.LoadSerializableConfig(chainID, cfg)
+	if err != nil {
+		return err
+	}
+
+	if !oracleCfg.Enabled {
+		return nil
+	}
+
+	oracle := d2Oracle.NewOracle(oracleCfg)
+	if err := oracle.Init(); err != nil {
+		return err
+	}
+
+	oracle.Run()
+	return nil
 }
 
 func startFeatureAutoEnabler(
@@ -838,6 +863,7 @@ func loadApp(
 		CreateRegistry: createRegistry,
 		Migrations: map[int32]tx_handler.MigrationFunc{
 			1: migrations.DPOSv3Migration,
+			2: migrations.GenerateCoinPolicyMigrationFn(cfg),
 		},
 	}
 
@@ -1053,6 +1079,21 @@ func loadApp(
 		return m, nil
 	}
 
+	createCoinPolicyManager := func(state loomchain.State) (loomchain.CoinPolicyManager, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		if !state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
+			return nil, nil
+		}
+		m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state)
+		if err != nil {
+			return nil, err
+		}
+		return m, nil
+	}
+
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
@@ -1089,6 +1130,7 @@ func loadApp(
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
+		CreateCoinPolicyManager:     createCoinPolicyManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
