@@ -262,10 +262,12 @@ func Mint(ctx contract.Context) error {
 	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
 	depreciation.Mul(policyNumerator, blockHeight)
 	depreciation.Div(depreciation, policyDenominator)
-	//amount := policy.BaseMintingAmount
-	//amount.Sub(&amount, depreciation)
-	//return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
-	return nil
+	amount := loom.NewBigUIntFromInt(int64(policy.BaseMintingAmount))
+	if amount.Cmp(depreciation) <= 0 {
+		return nil // No more coins to be minted on block creation
+	}
+	amount.Sub(amount, depreciation)
+	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
 }
 
 // ERC20 methods
