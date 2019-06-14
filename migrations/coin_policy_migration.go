@@ -1,6 +1,5 @@
 package migrations
 
-import "C"
 import (
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
