@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	minCache = 20
-	maxCache = 500
+	minCache = 200
+	maxCache = 2000
 )
 
 type benchResult struct {
@@ -78,10 +78,8 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			continue
 		}
-		//fmt.Println()
-		fmt.Println("size of "+fName+" : ", size)
 
-		ldb, err := leveldb.OpenFile("./testdata/"+fName, nil)
+		ldb, err := leveldb.OpenFile("./testdata/"+f.Name(), nil)
 		err = ldb.CompactRange(util.Range{nil, nil})
 		if err != nil {
 			fmt.Println("error compating", fName, err)
@@ -95,7 +93,6 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			continue
 		}
-		fmt.Println("after compact size of "+fName+" : ", sizeCompact)
 		if _, ok := results[fName]; ok {
 			r := results[fName]
 			r.diskSize = size
@@ -103,6 +100,7 @@ func TestMain(m *testing.M) {
 			results[fName] = r
 		}
 	}
+	fmt.Println()
 	if _, ok := results["normal"]; ok {
 		nTime := results["normal"].timeS
 		nSize := results["normal"].diskSize
@@ -136,69 +134,78 @@ func TestMain(m *testing.M) {
 
 }
 func TestNormal(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	testIavlStore(t, "normal", benchmarkNormal)
 }
 func TestNormalDif(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	testIavlStore(t, "normal-dif", benchmarkNormalDif)
 }
-
-func TestVariableCacheDifKeep(t *testing.T) {
-	//t.Skip()
-	testIavlStore(t, "varCache-dif-keep", benchmarVariableCacheDifKeep)
-}
-
 func TestVariableCacheKeep(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	testIavlStore(t, "varCache-keep", benchmarkVariableCacheKeep)
 }
-
+func TestVariableCacheDifKeep(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "varCache-dif-keep", benchmarVariableCacheDifKeep)
+}
 func TestSaveFrequencyDifKeep(t *testing.T) {
 	t.Skip()
 	testIavlStore(t, "saveFreq-dif-keep", benchmarkSaveFrequencyDifKeep)
 }
-
 func TestSaveFrequencyKeep(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	testIavlStore(t, "saveFreq-keep", benchmarkSaveFrequencyKeep)
 }
 
-func TestMaxVersionsDif(t *testing.T) {
-	//t.Skip()
-	testIavlStore(t, "maxVersions-dif", benchmarkMaxVersionsDif)
-}
 func TestMaxVersions(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	testIavlStore(t, "maxVersions", benchmarkMaxVersions)
 }
-func TestVarableCacheDif(t *testing.T) {
-	//t.Skip()
-	testIavlStore(t, "VarableCache-dif", benchmarkVarableCacheDif)
+func TestMaxVersionsDif(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "maxVersions-dif", benchmarkMaxVersionsDif)
 }
 func TestVarableCache(t *testing.T) {
-	//t.Skip()
-	testIavlStore(t, "VarableCache", benchmarkVarableCache)
+	t.Skip()
+	testIavlStore(t, "maxVerVarableCache", benchmarkVarableCache)
 }
-func TestMaxVersionFrequencySaveFrequencyDif(t *testing.T) {
-	//t.Skip()
-	testIavlStore(t, "maxVersionFreqSaveFreq-dif", benchmarkMaxVersionFrequencySaveFrequencyDif)
+func TestVarableCacheDif(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "maxVerVarableCache-dif", benchmarkVarableCacheDif)
+}
+func TestSaveFrequency(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "SaveFrequency", benchmarkSaveFrequency)
+}
+func TestSaveFrequencyDif(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "SaveFrequency-diff", benchmarkSaveFrequencyDif)
 }
 func TestVersionFrequency(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	testIavlStore(t, "maxVerFreq", benchmarkVersionFrequency)
 }
 func TestVersionFrequencyDif(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	testIavlStore(t, "maxVerFreq-diff", benchmarkVersionFrequencyDif)
 }
-func TestSaveFrequencyDif(t *testing.T) {
-	//t.Skip()
-	testIavlStore(t, "SaveFrequency-diff", benchmarkSaveFrequencyDif)
+
+func TestMaxVersionFrequencySaveFrequency(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "maxVerFreqSaveFreq", benchmarkMaxVersionFrequencySaveFrequency)
 }
-func TestSaveFrequency(t *testing.T) {
-	//t.Skip()
-	testIavlStore(t, "SaveFrequency", benchmarkSaveFrequency)
+func TestMaxVersionFrequencySaveFrequencyDif(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "maxVerFreqSaveFreq-dif", benchmarkMaxVersionFrequencySaveFrequencyDif)
+}
+func TestVarableCacheVersFeq(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "maxVerFreqVarableCache", benchmarkVarableCacheVersFreqDif)
+}
+func TestVarableCacheVersFeqDif(t *testing.T) {
+	t.Skip()
+	testIavlStore(t, "maxVerFreqVarableCache-dif", benchmarkVarableCacheVersFreq)
 }
 
 func BenchmarkIavlStore(b *testing.B) {
@@ -276,7 +283,6 @@ func testIavlStore(b require.TestingT, name string, fn benchFunc) {
 
 	now := time.Now()
 	elapsed := now.Sub(startTime)
-	fmt.Println("test "+name+" took", elapsed)
 	results[name] = benchResult{
 		name:  name,
 		timeS: elapsed,
@@ -299,7 +305,7 @@ func showDiskVersions(b require.TestingT, diskDb db.DB, testname string) {
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err := diskTree.Load()
 	require.NoError(b, err)
-	fmt.Println("versions found on disk on test", testname)
+	//fmt.Println("versions found on disk on test", testname)
 	for i := 1; i <= numBlocks; i++ {
 		if diskTree.VersionExists(int64(i)) {
 			fmt.Println(testname, "disk version exists for block", i)
@@ -423,6 +429,39 @@ func benchmarkMaxVersionFrequencySaveFrequencyDif(b require.TestingT, name strin
 	testno++
 	diskDb := getDiskDb(b, name)
 	store, err := NewDiffIavlStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), minCache, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+	diskDb.Close()
+}
+
+func benchmarkMaxVersionFrequencySaveFrequency(b require.TestingT, name string) {
+	testno++
+	diskDb := getDiskDb(b, name)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), minCache, 0)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+	diskDb.Close()
+}
+
+func benchmarkVarableCacheVersFreq(b require.TestingT, name string) {
+	testno++
+	diskDb := getDiskDb(b, name)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, maxCache)
+	require.NoError(b, err)
+	executeBlocks(b, blocks, *store)
+	_, _, err = store.tree.SaveVersion()
+	require.NoError(b, err)
+	diskDb.Close()
+}
+
+func benchmarkVarableCacheVersFreqDif(b require.TestingT, name string) {
+	testno++
+	diskDb := getDiskDb(b, name)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, maxCache)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
