@@ -2550,12 +2550,12 @@ func TestDedoublingDelegation(t *testing.T) {
 
 // after we migrate we want to have all delegations that were in plasma-* nodes, on plasma-0
 func TestPlasmaDelegationMigration(t *testing.T) {
-	expectedValidator := plasmaValidators[0]
+	expectedValidator := PlasmaValidators[0]
 	someDelegator := loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
 	someAmount := types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
 
 	// check that all plasma validators get reset to plasma-0
-	for _, v := range plasmaValidators {
+	for _, v := range PlasmaValidators {
 		migratedDelegation := Delegation{
 			Validator: v.MarshalPB(),
 			Delegator: someDelegator.MarshalPB(),
@@ -2574,6 +2574,101 @@ func TestPlasmaDelegationMigration(t *testing.T) {
 	}
 	migratedValidator := adjustValidatorIfInPlasmaValidators(migratedDelegationWithoutChange)
 	assert.True(t, migratedValidator.Local.Compare(someValidator.Local) == 0)
+}
+
+// On line: https://github.com/loomnetwork/loomchain/blob/e70bf8c95bd262dc0f2f838682756c2a1e184696/builtin/plugins/dposv2/dpos.go#L2364,
+// the function creates indices for storing index counter
+// with a unique key combined of validator and delegator addresses.
+// If the validator of delegation is plasma validator, it will set
+// validator to `plasma-0`. This causes the issue. If a user has multiple
+// plasma-x delegations, he or she will end up having multiple
+// plasma-0 delegations with the same index 1 during the migration
+// and when the `initializationState` is set, some delegations
+// will get lost.
+func TestPlasmaDuplicatesLostBug(t *testing.T) {
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(PlasmaValidators[0], 1000000000000000000),
+			makeAccount(PlasmaValidators[1], 1000000000000000000),
+			makeAccount(PlasmaValidators[2], 1000000000000000000),
+			makeAccount(PlasmaValidators[3], 1000000000000000000),
+			makeAccount(PlasmaValidators[4], 1000000000000000000),
+			makeAccount(PlasmaValidators[5], 1000000000000000000),
+		},
+	})
+
+	registrationFee := loom.BigZeroPB()
+
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+		Params: &Params{
+			ValidatorCount:          21,
+			RegistrationRequirement: registrationFee,
+		},
+	})
+	require.NoError(t, err)
+
+	// Registering 5 plasma candidates
+	for i, _ := range PlasmaValidators {
+		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(PlasmaValidators[i])), &coin.ApproveRequest{
+			Spender: dposAddr.MarshalPB(),
+			Amount:  registrationFee,
+		})
+
+		err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(PlasmaValidators[i])), &RegisterCandidateRequest{
+			PubKey: PlasmaPubKeys[i],
+		})
+		require.Nil(t, err)
+	}
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// We'll make 1 delegation to each of the validators
+	delegationAmount := loom.NewBigUIntFromInt(10000000)
+	totalAmount := loom.NewBigUIntFromInt(60000000)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *totalAmount},
+	})
+
+	for i, _ := range PlasmaValidators {
+		err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+			ValidatorAddress: PlasmaValidators[i].MarshalPB(),
+			Amount:           &types.BigUInt{Value: *delegationAmount},
+		})
+		require.Nil(t, err)
+	}
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// Then we'll inspect the post initialization state and notice
+	// that we have multiple delegations with the same index
+	data, err := dposContract.ViewStateDump(
+		contractpb.WrapPluginContext(dposCtx),
+		&ViewStateDumpRequest{},
+	)
+
+	newDelegations := data.NewState.Delegations
+	for i, _ := range newDelegations {
+		localVal := loom.LocalAddressFromPublicKey(PlasmaPubKeys[0])
+		assert.True(t, newDelegations[i].Validator.Local.Compare(localVal) == 0)
+		// THIS is the bug. If it were implemented properly,
+		// we'd have all delegations to plasma-0, but their index would be 1-7
+		// instead of all 1's. When the migration executes, only 1 is applied
+		// since they all have the same index.
+		assert.Equal(t, newDelegations[i].Index, uint64(1))
+	}
 }
 
 // UTILITIES
