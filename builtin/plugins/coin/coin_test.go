@@ -4,11 +4,13 @@ import (
 	"errors"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -131,6 +133,64 @@ func TestLoadPolicy(t *testing.T) {
 		},
 	})
 	require.Error(t, errors.New("Minting Account Address cannot be Root Address"), err.Error())
+}
+
+func TestMint(t *testing.T) {
+	//Initializing context for CoinPolicyFeature
+	policy := &Policy{
+		DeflationFactorDenominator: 5,
+		DeflationFactorNumerator:   1,
+		MintingAccount:             addr1.MarshalPB(),
+		BaseMintingAmount:          50,
+	}
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx.SetFeature(loomchain.CoinPolicyFeature, true)
+	ctx := contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  10,
+	}))
+	//Valid Policy
+	contract := &Coin{}
+	err := contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err)
+
+	//Minting without any error
+	resp1, err := contract.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+	err = Mint(ctx)
+	require.Nil(t, err)
+
+	// checking balance after minting
+	resp2, err := contract.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+
+	// Balance of mintingAccount should increase by specific amount after minting operation
+	var depreciation *common.BigUInt
+	policyNumerator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorNumerator))
+	policyDenominator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorDenominator))
+	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
+	depreciation = policyNumerator.Mul(policyNumerator, blockHeight)
+	depreciation.Div(depreciation, policyDenominator)
+	amount := loom.NewBigUIntFromInt(int64(policy.BaseMintingAmount))
+	amount.Sub(amount, depreciation)
+	// depreciation= 1*10/5 == 2  so amount should be 50-2 = 48
+	assert.Equal(t, amount.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
+
 }
 
 func TestTransfer(t *testing.T) {
