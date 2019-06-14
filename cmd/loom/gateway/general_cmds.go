@@ -582,3 +582,149 @@ func formatJSON(pb proto.Message) (string, error) {
 	}
 	return marshaler.MarshalToString(pb)
 }
+
+func newWithdrawLoomCoin() *cobra.Command {
+	var mainetAddress string
+	cmd := &cobra.Command{
+		Use:     "withdraw-loomcoin",
+		Short:   "test withdrawl loomcoin",
+		Example: withdrawFundsCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			privateKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+
+			signer, err := cli.GetSigner(privateKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			id, err := client.CreateIdentity(nil, signer, "default")
+			if err != nil {
+				return err
+			}
+
+			rpcClient := getDAppChainClient()
+			loomcoin, err := native_coin.ConnectToDAppChainLoomContract(rpcClient)
+			if err != nil {
+				return err
+			}
+
+			gateway, err := gw.ConnectToDAppChainBinanceGateway(rpcClient, "")
+			if err != nil {
+				return err
+			}
+
+			balanceBefore, err := loomcoin.BalanceOf(id)
+			if err != nil {
+				return err
+			}
+			fmt.Println("User balance before:", balanceBefore)
+
+			gatewayAddr, err := rpcClient.Resolve("binance-gateway")
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+
+			receipt, err := gateway.WithdrawalReceipt(id)
+			if err != nil {
+				return err
+			}
+
+			if receipt == nil {
+				var amount = loom.NewBigUIntFromInt(10)
+				fmt.Println("No pending withdrwal found...")
+				// Approve
+				err = loomcoin.Approve(id, gatewayAddr, amount.Int)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("Approved deposit on dappchain for ...", amount)
+
+				// Get the loom tokens to the gateway
+				mainnetAddress := common.HexToAddress(mainetAddress)
+				err = gateway.WithdrawLoomBinance(id, amount.Int, &mainnetAddress)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("Withdrawal initiated for...", amount)
+			} else {
+				fmt.Println("Pending withdrwal found...")
+				fmt.Println(receipt)
+			}
+
+			return nil
+
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&mainetAddress, "mainnet-address", "", "binance mainnet adress in hex")
+	return cmd
+}
+
+func newLoomCoinWithdrawalReceipt() *cobra.Command {
+	var mainetAddress string
+	cmd := &cobra.Command{
+		Use:     "loomcoin-withdraw-receipt",
+		Short:   "loomcoin withdrawal receipt",
+		Example: withdrawFundsCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			privateKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+
+			signer, err := cli.GetSigner(privateKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			id, err := client.CreateIdentity(nil, signer, "default")
+			if err != nil {
+				return err
+			}
+
+			rpcClient := getDAppChainClient()
+			loomcoin, err := native_coin.ConnectToDAppChainLoomContract(rpcClient)
+			if err != nil {
+				return err
+			}
+
+			gateway, err := gw.ConnectToDAppChainBinanceGateway(rpcClient, "")
+			if err != nil {
+				return err
+			}
+
+			balanceBefore, err := loomcoin.BalanceOf(id)
+			if err != nil {
+				return err
+			}
+			fmt.Println("User balance before:", balanceBefore)
+
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+
+			receipt, err := gateway.WithdrawalReceipt(id)
+			if err != nil {
+				return err
+			}
+
+			if receipt == nil {
+				fmt.Println("No pending withdrwal found...")
+			} else {
+				fmt.Println("Pending withdrwal found...")
+				fmt.Println(receipt)
+			}
+
+			return nil
+
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&mainetAddress, "mainnet-address", "", "binance mainnet adress in hex")
+	return cmd
+}
