@@ -260,7 +260,7 @@ func Mint(ctx contract.Context) error {
 	policyNumerator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorNumerator))
 	policyDenominator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorDenominator))
 	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
-	depreciation.Mul(policyNumerator, blockHeight)
+	depreciation = policyNumerator.Mul(policyNumerator, blockHeight)
 	depreciation.Div(depreciation, policyDenominator)
 	amount := loom.NewBigUIntFromInt(int64(policy.BaseMintingAmount))
 	if amount.Cmp(depreciation) <= 0 {
