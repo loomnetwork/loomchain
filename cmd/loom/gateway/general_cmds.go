@@ -18,18 +18,18 @@ import (
 	"fmt"
 	"strings"
 
-	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
-	"github.com/loomnetwork/go-loom/types"
-
+	bnbtypes "github.com/binance-chain/go-sdk/common/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	am "github.com/loomnetwork/go-loom/client/address_mapper"
 	"github.com/loomnetwork/go-loom/client/dposv3"
 	gw "github.com/loomnetwork/go-loom/client/gateway"
 	"github.com/loomnetwork/go-loom/client/native_coin"
+	"github.com/loomnetwork/go-loom/types"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -585,6 +585,7 @@ func formatJSON(pb proto.Message) (string, error) {
 
 func newWithdrawLoomCoin() *cobra.Command {
 	var mainetAddress string
+	var receipient string
 	cmd := &cobra.Command{
 		Use:     "withdraw-loomcoin",
 		Short:   "test withdrawl loomcoin",
@@ -633,7 +634,7 @@ func newWithdrawLoomCoin() *cobra.Command {
 			}
 
 			if receipt == nil {
-				var amount = loom.NewBigUIntFromInt(10)
+				var amount = loom.NewBigUIntFromInt(1000000000)
 				fmt.Println("No pending withdrwal found...")
 				// Approve
 				err = loomcoin.Approve(id, gatewayAddr, amount.Int)
@@ -645,7 +646,12 @@ func newWithdrawLoomCoin() *cobra.Command {
 
 				// Get the loom tokens to the gateway
 				mainnetAddress := common.HexToAddress(mainetAddress)
-				err = gateway.WithdrawLoomBinance(id, amount.Int, &mainnetAddress)
+				recipientHex, err := Bech32ToHex(receipient)
+				if err != nil {
+					return err
+				}
+				recipientAddress := common.HexToAddress(recipientHex)
+				err = gateway.WithdrawLoomBinance(id, amount.Int, mainnetAddress, recipientAddress)
 				if err != nil {
 					return err
 				}
@@ -662,7 +668,18 @@ func newWithdrawLoomCoin() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&mainetAddress, "mainnet-address", "", "binance mainnet adress in hex")
+	cmdFlags.StringVar(&receipient, "binance-recipient", "", "binance address in Bech32 format")
 	return cmd
+}
+
+func Bech32ToHex(bech32Addr string) (string, error) {
+	bnbtypes.Network = bnbtypes.TestNetwork
+	addressBytes, err := bnbtypes.AccAddressFromBech32(bech32Addr)
+	if err != nil {
+		return "", err
+	}
+	hexAddr := hex.EncodeToString(addressBytes)
+	return hexAddr, err
 }
 
 func newLoomCoinWithdrawalReceipt() *cobra.Command {
