@@ -84,13 +84,13 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		if req.Policy == nil {
 			return errors.New("Policy is not specified")
 		}
-		if req.Policy.DeflationFactorNumerator <= 0 {
+		if req.Policy.DeflationFactorNumerator == 0 {
 			return errors.New("DeflationFactorNumerator should be greater than zero")
 		}
-		if req.Policy.DeflationFactorDenominator <= 0 {
+		if req.Policy.DeflationFactorDenominator == 0 {
 			return errors.New("DeflationFactorDenominator should be greater than zero")
 		}
-		if req.BaseMintingAmount <= 0 {
+		if req.BaseMintingAmount == 0 {
 			return InvalidBaseMintingAmount
 		}
 		if req.Policy.MintingAccount == nil {
