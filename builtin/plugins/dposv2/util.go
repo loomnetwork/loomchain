@@ -3,6 +3,7 @@ package dposv2
 import (
 	"math/big"
 
+	"encoding/base64"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -14,7 +15,7 @@ import (
 const billionthsBasisPointRatio = 100000
 
 var (
-	plasmaValidators = []loom.Address{
+	PlasmaValidators = []loom.Address{
 		loom.MustParseAddress("default:0x0e99fc16e32e568971908f2ce54b967a42663a26"), // plasma-0
 		loom.MustParseAddress("default:0xac3211caecc45940a6d2ba006ca465a647d8464f"), // plasma-1
 		loom.MustParseAddress("default:0x69c48768dbac492908161be787b7a5658192df35"), // plasma-2
@@ -22,6 +23,21 @@ var (
 		loom.MustParseAddress("default:0x4a1b8b15e50ce63cc6f65603ea79be09206cae70"), // plasma-4
 		loom.MustParseAddress("default:0x0ce7b61c97a6d5083356f115288f9266553e191e"), // plasma-5
 	}
+	plasma_0, _   = base64.StdEncoding.DecodeString("tjiLc0c2cbcDFjz/aW1j+r39sNsDwMLP1aO6UQhXvuk=")
+	plasma_1, _   = base64.StdEncoding.DecodeString("0SiG28GKnzTH4B/gQMpSVr/r7BfobB+sKzmP+X50g0o=")
+	plasma_2, _   = base64.StdEncoding.DecodeString("fSUZhwy4iYKi4MTnlqIvqRcjiYI+sQrbTcVnUMSnM9E=")
+	plasma_3, _   = base64.StdEncoding.DecodeString("7e9iIJRppRs2u9RWZchLFbVvh/UXSus8sez1923gdyU=")
+	plasma_4, _   = base64.StdEncoding.DecodeString("HnV3NSK2+ywytglQLhso8VdBCkGdFdhVqJ8ggT9VF8k=")
+	plasma_5, _   = base64.StdEncoding.DecodeString("ycMgCVxkI9tRxfv3jElE4tTOI2AYJssglkGNZnda9xc=")
+	PlasmaPubKeys = [][]byte{
+		plasma_0,
+		plasma_1,
+		plasma_2,
+		plasma_3,
+		plasma_4,
+		plasma_5,
+	}
+
 	doubledDelegator = loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
 	doubledValidator = loom.MustParseAddress("default:0xa38c27e8cf4a443e805065065aefb250b1e1cef2")
 	basisPoints      = loom.BigUInt{big.NewInt(1e4)} // do not change
@@ -52,9 +68,9 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 /// If the validator is one of the plasma nodes, it sets it to plasma-0
 func adjustValidatorIfInPlasmaValidators(delegation Delegation) *types.Address {
 	validator := delegation.Validator
-	for _, plasmaValidator := range plasmaValidators {
+	for _, plasmaValidator := range PlasmaValidators {
 		if validator.Local.Compare(plasmaValidator.Local) == 0 {
-			return plasmaValidators[0].MarshalPB()
+			return PlasmaValidators[0].MarshalPB()
 		}
 	}
 	return validator
