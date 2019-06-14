@@ -52,8 +52,8 @@ func TestLoadPolicy(t *testing.T) {
 			DeflationFactorDenominator: 5,
 			DeflationFactorNumerator:   1,
 			MintingAccount:             addr1.MarshalPB(),
+			BaseMintingAmount:          50,
 		},
-		BaseMintingAmount: 50,
 	})
 	require.Nil(t, err)
 	//Nil Invalid Policy
@@ -64,8 +64,7 @@ func TestLoadPolicy(t *testing.T) {
 				Balance: uint64(31),
 			},
 		},
-		Policy:            nil,
-		BaseMintingAmount: 50,
+		Policy: nil,
 	})
 	require.Error(t, errors.New("Policy is not specified"), err.Error())
 	//Invalid Policy Denominator == 0
@@ -80,8 +79,8 @@ func TestLoadPolicy(t *testing.T) {
 			DeflationFactorDenominator: 0,
 			DeflationFactorNumerator:   1,
 			MintingAccount:             addr1.MarshalPB(),
+			BaseMintingAmount:          50,
 		},
-		BaseMintingAmount: 50,
 	})
 	require.Error(t, errors.New("DeflationFactorDenominator should be greater than zero"), err.Error())
 	//Invalid Policy Numerator == 0
@@ -96,8 +95,8 @@ func TestLoadPolicy(t *testing.T) {
 			DeflationFactorDenominator: 0,
 			DeflationFactorNumerator:   0,
 			MintingAccount:             addr1.MarshalPB(),
+			BaseMintingAmount:          50,
 		},
-		BaseMintingAmount: 50,
 	})
 	require.Error(t, errors.New("DeflationFactorNumerator should be greater than zero"), err.Error())
 	//Invalid Policy Base Minting Amount == 0
@@ -112,8 +111,8 @@ func TestLoadPolicy(t *testing.T) {
 			DeflationFactorDenominator: 1,
 			DeflationFactorNumerator:   5,
 			MintingAccount:             addr1.MarshalPB(),
+			BaseMintingAmount:          0,
 		},
-		BaseMintingAmount: 0,
 	})
 	require.EqualError(t, errors.New("Base Minting Amount should be greater than zero"), err.Error())
 	//Invalid Policy Invalid Minting Account
@@ -128,8 +127,8 @@ func TestLoadPolicy(t *testing.T) {
 			DeflationFactorDenominator: 1,
 			DeflationFactorNumerator:   5,
 			MintingAccount:             loom.RootAddress("chain").MarshalPB(),
+			BaseMintingAmount:          50,
 		},
-		BaseMintingAmount: 50,
 	})
 	require.Error(t, errors.New("Minting Account Address cannot be Root Address"), err.Error())
 }
