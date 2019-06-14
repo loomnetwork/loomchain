@@ -188,7 +188,7 @@ type CoinPolicyMigrationConfig struct {
 	Enabled                    bool   //Enable Supply of DeflationInfo for modification of existing configuration
 	DeflationFactorNumerator   uint64 //Deflation Factor Numerator
 	DeflationFactorDenominator uint64 //Deflation Factor Denominator
-	BaseMintingAmount          int64  //Base Minting Amount
+	BaseMintingAmount          uint64 //Base Minting Amount
 	MintingAccount             string //Address to Mint coins to
 }
 
@@ -292,13 +292,13 @@ func (c *CoinPolicyMigrationConfig) IsValid() error {
 	if len(c.MintingAccount) == 0 {
 		return errors.New("Invalid Minting Account Address")
 	}
-	if c.DeflationFactorNumerator <= 0 {
+	if c.DeflationFactorNumerator == 0 {
 		return errors.New("DeflationFactorNumerator should be greater than zero")
 	}
-	if c.DeflationFactorDenominator <= 0 {
+	if c.DeflationFactorDenominator == 0 {
 		return errors.New("DeflationFactorDenominator should be greater than zero")
 	}
-	if c.BaseMintingAmount <= 0 {
+	if c.BaseMintingAmount == 0 {
 		return errors.New("Base Minting Amount should be greater than zero")
 	}
 	addr, err := loom.ParseAddress(c.MintingAccount)
