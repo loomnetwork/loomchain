@@ -5,7 +5,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/pkg/errors"
@@ -38,15 +37,12 @@ func GenerateCoinPolicyMigrationFn(cfg *config.Config) func(ctx *MigrationContex
 		addr, _ := loom.ParseAddress(cfg.CoinPolicyMigration.MintingAccount)
 		deflationFactorNumerator := cfg.CoinPolicyMigration.DeflationFactorNumerator
 		deflationFactorDenominator := cfg.CoinPolicyMigration.DeflationFactorDenominator
-		baseMintingAmount := loom.NewBigUIntFromInt(int64(cfg.CoinPolicyMigration.BaseMintingAmount))
-		baseMintingAmount.Mul(baseMintingAmount, div)
+		baseMintingAmount := cfg.CoinPolicyMigration.BaseMintingAmount
 		policy := &Policy{
 			DeflationFactorNumerator:   deflationFactorNumerator,
 			DeflationFactorDenominator: deflationFactorDenominator,
-			BaseMintingAmount: &types.BigUInt{
-				Value: *baseMintingAmount,
-			},
-			MintingAccount: addr.MarshalPB(),
+			BaseMintingAmount:          baseMintingAmount,
+			MintingAccount:             addr.MarshalPB(),
 		}
 		err = coinCtx.Set(policyKey, policy)
 		if err != nil {

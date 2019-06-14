@@ -90,7 +90,7 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		if req.Policy.DeflationFactorDenominator == 0 {
 			return errors.New("DeflationFactorDenominator should be greater than zero")
 		}
-		if req.BaseMintingAmount == 0 {
+		if req.Policy.BaseMintingAmount == 0 {
 			return InvalidBaseMintingAmount
 		}
 		if req.Policy.MintingAccount == nil {
@@ -102,15 +102,11 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		}
 		deflationFactorNumerator := req.Policy.DeflationFactorNumerator
 		deflationFactorDenominator := req.Policy.DeflationFactorDenominator
-		baseMintingAmount := loom.NewBigUIntFromInt(int64(req.BaseMintingAmount))
-		baseMintingAmount.Mul(baseMintingAmount, div)
 		policy := &Policy{
 			DeflationFactorNumerator:   deflationFactorNumerator,
 			DeflationFactorDenominator: deflationFactorDenominator,
-			BaseMintingAmount: &types.BigUInt{
-				Value: *baseMintingAmount,
-			},
-			MintingAccount: req.Policy.MintingAccount,
+			BaseMintingAmount:          req.Policy.BaseMintingAmount,
+			MintingAccount:             req.Policy.MintingAccount,
 		}
 		err := ctx.Set(policyKey, policy)
 		if err != nil {
@@ -266,13 +262,15 @@ func Mint(ctx contract.Context) error {
 	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
 	depreciation.Mul(policyNumerator, blockHeight)
 	depreciation.Div(depreciation, policyDenominator)
-	amount := policy.BaseMintingAmount.Value
-	amount.Sub(&amount, depreciation)
-	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
+	//amount := policy.BaseMintingAmount
+	//amount.Sub(&amount, depreciation)
+	//return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), &amount)
+	return nil
 }
 
 //ModifyMintParameter Method to modify deflation parameter, only callable by manager,
 // when feature flag is going to be enabled
+/*
 func ModifyMintParameter(ctx contract.Context, policy *ctypes.Policy) error {
 	if policy.MintingAccount == nil || policy.BaseMintingAmount == nil {
 		return errors.New("MintingAccount or BaseMintingAmount is not given")
@@ -284,6 +282,7 @@ func ModifyMintParameter(ctx contract.Context, policy *ctypes.Policy) error {
 	return nil
 
 }
+*/
 
 // ERC20 methods
 
