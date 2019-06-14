@@ -768,6 +768,118 @@ func TestDelegate(t *testing.T) {
 	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(&delegationAmount.Value) == 0)
 }
 
+// This bug was found by Ohm and shows that a partial redelegation to a validator
+// with an existing delegation causes the delegation amount to be ovewritten with the
+// amount being partially redelegated, instead of being increased
+func TestPartialRedelegationBug(t *testing.T) {
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr1 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey1),
+	}
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex2)
+	addr2 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey2),
+	}
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(addr2, 1000000000000000000),
+		},
+	})
+
+	registrationFee := loom.BigZeroPB()
+
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+		Params: &Params{
+			ValidatorCount:          2,
+			RegistrationRequirement: registrationFee,
+		},
+	})
+	require.NoError(t, err)
+
+	// Registering 2 candidates
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+		PubKey: pubKey1,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+		PubKey: pubKey2,
+	})
+	require.Nil(t, err)
+
+	partialRedelegationAmount := loom.NewBigUIntFromInt(5000000)
+	delegationAmount := loom.NewBigUIntFromInt(10000000)
+	biggerDelegationAmount := loom.NewBigUIntFromInt(20000000)
+	totalAmount := loom.NewBigUIntFromInt(30000000)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *totalAmount},
+	})
+	require.Nil(t, err)
+
+	// Make delegation to validator 1
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *delegationAmount},
+	})
+	require.Nil(t, err)
+
+	// Delegate to validator 2 (double the first's)
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+		ValidatorAddress: addr2.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *biggerDelegationAmount},
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// Both validators elected
+	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	require.Equal(t, len(listValidatorsResponse.Statistics), 2)
+
+	// redelegate part of the 10k delegation to the 20k delegation
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       addr2.MarshalPB(),
+		Amount:                 &types.BigUInt{Value: *partialRedelegationAmount},
+	})
+	require.Nil(t, err)
+
+	// Redelegation takes effect within a single election period
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	checkDelegation1, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	checkDelegation2, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr2.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+
+	// We'd expect that now addr1 has a 5m delegation and addr2 has 25m
+	assert.Equal(t, big.NewInt(5000000), checkDelegation1.Delegation.Amount.Value.Int)
+	// unfortunately, addr2 has only 5m, since its amount
+	// was overwritten in L350-367 of dposv2/dpos.go  (1feca6)
+	assert.Equal(t, big.NewInt(5000000), checkDelegation2.Delegation.Amount.Value.Int)
+	assert.NotEqual(t, big.NewInt(25000000), checkDelegation2.Delegation.Amount.Value.Int)
+}
+
 func TestRedelegate(t *testing.T) {
 	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
