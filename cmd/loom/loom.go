@@ -1004,37 +1004,6 @@ func loadApp(
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
-	oracle, err := loom.ParseAddress(cfg.Oracle)
-	if err != nil {
-		oracle = loom.Address{}
-	}
-	deployerAddressList, err := cfg.TxLimiter.DeployerAddresses()
-	if err != nil {
-		return nil, err
-	}
-	deployerAddressList = append(deployerAddressList, oracle)
-
-	originHandler := throttle.NewOriginValidator(
-		uint64(cfg.TxLimiter.CallSessionDuration),
-		deployerAddressList,
-		cfg.TxLimiter.LimitDeploys,
-		cfg.TxLimiter.LimitCalls,
-	)
-
-	// Technically ThrottleTxMiddleWare has been replaced by OriginHandler but to replay a couple
-	// of old PlasmaChain production blocks correctly we have to keep this middleware around.
-	// TODO: Implement height-based middleware overrides so this middleware is only activated for
-	//       two blocks in PlasmaChain builds.
-	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
-		},
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).CallEnabled
-		},
-		oracle,
-	))
-
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
 		if err != nil {
@@ -1117,7 +1086,6 @@ func loadApp(
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
-		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
