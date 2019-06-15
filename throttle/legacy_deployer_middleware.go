@@ -11,6 +11,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// GetGoDeployTxMiddleWare creates middlware that only allows Go contract deployment tx to go through
+// if they originate from one of the allowed deployer accounts. This middleware has been superseded
+// by the DeployerWhitelist contract & middleware, though it's still in use on some clusters.
 func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
