@@ -152,7 +152,6 @@
   pruneopts = "UT"
   revision = "bd379c19d9638c72aea2c79b4ac0b973561e1783"
 
-
 [[projects]]
   digest = "1:c568d7727aa262c32bdf8a3f7db83614f7af0ed661474b24588de635c20024c7"
   name = "github.com/magiconair/properties"
@@ -310,11 +309,11 @@
 
 [[projects]]
   branch = "hack1"
-  digest = "1:0d88ff8b3199707e101baccee83b1935171e3efa51cfda9e879787566be0585d"
+  digest = "1:24c0dc01fbabb1b1ec8ea585f709712dc1cd7fd5750cc157445b83aa420a0fa5"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "8e3cfa5690fbd8e5c2b0f3ec9ac8ca34b860490b"
+  revision = "97ba0a732dbcb91b272ec62b0516f51c02194cd3"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]

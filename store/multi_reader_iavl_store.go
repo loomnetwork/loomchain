@@ -171,16 +171,7 @@ func NewMultiReaderIAVLStore(nodeDB dbm.DB, valueDB db.DBWrapper, cfg *AppStoreC
 		valueBatch:      valueDB.NewBatch(),
 		snapshotVersion: MultiReaderIAVLStoreSnapshotVersion(cfg.SnapshotVersion),
 	}
-	var ndb iavl.NodeDB
-	switch cfg.NodeDBVersion {
-	case NodeDBV1:
-		ndb = iavl.NewNodeDB(nodeDB, cfg.NodeCacheSize, s.getValue)
-	case NodeDBV2:
-		ndb = iavl.NewNodeDB2(nodeDB, cfg.NodeCacheSize, s.getValue)
-	default:
-		return nil, errors.New("invalid AppStore.NodeDBVersion")
-	}
-	tree := iavl.NewMutableTreeWithNodeDB(ndb)
+	tree := iavl.NewMutableTree(nodeDB, 10)
 	// load the latest saved tree
 	treeVer, err := tree.LoadVersion(0)
 	if err != nil {
