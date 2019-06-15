@@ -20,13 +20,6 @@
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [[projects]]
-  digest = "1:95f4fdfbc8d7723bd21e467aabe98d86f06d3e2557b1ba92bf9df8aea6706784"
-  name = "github.com/btcsuite/btcutil"
-  packages = ["base58"]
-  pruneopts = "UT"
-  revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
-
-[[projects]]
   branch = "master"
   digest = "1:78097abc20f73ec968b3f67bf74deda55009caa4b801d0d04f36145c869ab3c3"
   name = "github.com/cevaris/ordered_map"
@@ -309,11 +302,11 @@
 
 [[projects]]
   branch = "hack1"
-  digest = "1:24c0dc01fbabb1b1ec8ea585f709712dc1cd7fd5750cc157445b83aa420a0fa5"
+  digest = "1:57c585a9dcf1ad3666daa80a922b13beaa983274d2ca7c98fb86169b895426cf"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "97ba0a732dbcb91b272ec62b0516f51c02194cd3"
+  revision = "acd7b8c1e447e9c53e808c82da06fbe4fd5f63cf"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
