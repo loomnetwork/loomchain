@@ -1021,20 +1021,6 @@ func loadApp(
 		cfg.TxLimiter.LimitCalls,
 	)
 
-	// Technically ThrottleTxMiddleWare has been replaced by OriginHandler but to replay a couple
-	// of old PlasmaChain production blocks correctly we have to keep this middleware around.
-	// TODO: Implement height-based middleware overrides so this middleware is only activated for
-	//       two blocks in PlasmaChain builds.
-	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
-		},
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).CallEnabled
-		},
-		oracle,
-	))
-
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
 		if err != nil {
