@@ -243,11 +243,6 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
-type OriginHandler interface {
-	ValidateOrigin(input []byte, chainId string, currentBlockHeight int64) error
-	Reset(currentBlockHeight int64)
-}
-
 type KarmaHandler interface {
 	Upkeep() error
 }
@@ -281,7 +276,6 @@ type Application struct {
 	blockindex.BlockIndexStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
-	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
@@ -406,8 +400,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			upkeepStoreTx.Commit()
 		}
 	}
-
-	a.OriginHandler.Reset(a.curBlockHeader.Height)
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -571,14 +563,6 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHash,
 		a.GetValidatorSet,
 	)
-
-	if isCheckTx {
-		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
-		if err != nil {
-			storeTx.Rollback()
-			return TxHandlerResult{}, err
-		}
-	}
 
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 	if err != nil {

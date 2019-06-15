@@ -1004,23 +1004,6 @@ func loadApp(
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
-	oracle, err := loom.ParseAddress(cfg.Oracle)
-	if err != nil {
-		oracle = loom.Address{}
-	}
-	deployerAddressList, err := cfg.TxLimiter.DeployerAddresses()
-	if err != nil {
-		return nil, err
-	}
-	deployerAddressList = append(deployerAddressList, oracle)
-
-	originHandler := throttle.NewOriginValidator(
-		uint64(cfg.TxLimiter.CallSessionDuration),
-		deployerAddressList,
-		cfg.TxLimiter.LimitDeploys,
-		cfg.TxLimiter.LimitCalls,
-	)
-
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
 		if err != nil {
@@ -1103,7 +1086,6 @@ func loadApp(
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
-		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
