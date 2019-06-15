@@ -20,13 +20,9 @@
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [[projects]]
-  digest = "1:d17099fb1aae071174db067e43a02780bbe534a279e0506783acd33c4f4b131c"
+  digest = "1:95f4fdfbc8d7723bd21e467aabe98d86f06d3e2557b1ba92bf9df8aea6706784"
   name = "github.com/btcsuite/btcutil"
-  packages = [
-    ".",
-    "base58",
-    "bech32",
-  ]
+  packages = ["base58"]
   pruneopts = "UT"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
@@ -53,6 +49,17 @@
   pruneopts = "UT"
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
   version = "v1.4.7"
+
+[[projects]]
+  digest = "1:0594af97b2f4cec6554086eeace6597e20a4b69466eb4ada25adf9f4300dddd2"
+  name = "github.com/garyburd/redigo"
+  packages = [
+    "internal",
+    "redis",
+  ]
+  pruneopts = "UT"
+  revision = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
+  version = "v1.6.0"
 
 [[projects]]
   digest = "1:4062bc6de62d73e2be342243cf138cf499b34d558876db8d9430e2149388a4d8"
@@ -144,6 +151,7 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "bd379c19d9638c72aea2c79b4ac0b973561e1783"
+
 
 [[projects]]
   digest = "1:c568d7727aa262c32bdf8a3f7db83614f7af0ed661474b24588de635c20024c7"
@@ -301,13 +309,13 @@
   version = "v0.14.0"
 
 [[projects]]
-  branch = "multi-mutex-nodedb"
-  digest = "1:c463c5a9951f564b1a7713406a7b0655d7964d234bca6d7d0fbb2789be55ce51"
+  branch = "hack1"
+  digest = "1:0d88ff8b3199707e101baccee83b1935171e3efa51cfda9e879787566be0585d"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "421b71b2dc0f0d7ad013a811383c293aa546c038"
-  source = "https://github.com/enlight/iavl.git"
+  revision = "8e3cfa5690fbd8e5c2b0f3ec9ac8ca34b860490b"
+  source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
   digest = "1:a1eb813569fbe2ba8c6b8e25c8b7a7acbc7f01d486362043d4494cf949308096"
@@ -427,7 +435,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
-    "github.com/btcsuite/btcutil/base58",
+    "github.com/garyburd/redigo/redis",
     "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/gorilla/websocket",
@@ -445,11 +453,11 @@
     "github.com/syndtr/goleveldb/leveldb/filter",
     "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/util",
-    "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/go-amino",
     "github.com/tendermint/iavl",
     "github.com/tendermint/tendermint/abci/server",
     "github.com/tendermint/tendermint/abci/types",
+    "github.com/tendermint/tendermint/blockchain",
     "github.com/tendermint/tendermint/config",
     "github.com/tendermint/tendermint/crypto",
     "github.com/tendermint/tendermint/crypto/ed25519",
