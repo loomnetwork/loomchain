@@ -44,7 +44,7 @@ func DefaultConfig() *AppStoreConfig {
 		NodeCacheSize:        10000,
 		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
 		SaveEVMStateToIAVL:   false,
-		IAVLFlushInterval:    0,
+		IAVLFlushInterval:    100,
 	}
 }
 
