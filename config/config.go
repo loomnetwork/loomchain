@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/tendermint/iavl"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -134,6 +135,8 @@ type Config struct {
 	Auth *auth.Config
 
 	EvmStore *evm.EvmStoreConfig
+
+	IAVLInterval int64
 
 	// Dragons
 	EVMDebugEnabled bool
@@ -378,6 +381,7 @@ func DefaultConfig() *Config {
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
+		IAVLInterval:               100,
 
 		Oracle:        "",
 		DeployEnabled: true,
@@ -410,6 +414,8 @@ func DefaultConfig() *Config {
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
 	cfg.Auth = auth.DefaultConfig()
+
+	iavl.MutateVersionInterval = cfg.IAVLInterval
 	return cfg
 }
 
