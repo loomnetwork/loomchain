@@ -302,15 +302,16 @@
 
 [[projects]]
   branch = "hack1"
-  digest = "1:69bc0aaf2e705b5dbd6f4e943cba9d39f0464262d2b15294c006fbdc81e2d91f"
+  digest = "1:6913cddae31c79c4d931ce83c654f05593023b8328e3ca388b0ef4aef7cb5a4c"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "b5f95efdee7df9ad037f5fb606d47899ece36a11"
+  revision = "1bcb3af8d91ddc41042d6ed69cc0616a1662aac3"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
-  digest = "1:a1eb813569fbe2ba8c6b8e25c8b7a7acbc7f01d486362043d4494cf949308096"
+  branch = "loomchain"
+  digest = "1:70d9461d1f2ba2ef6ecd33c03ebb5be662affdd2411785bcf17e33137a68ab1c"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -363,7 +364,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "29bb7b1ad483bec3c797ce24a5135465fccfa5f6"
+  revision = "9d871e29f9d34ee6563a821c78e1a23b8984c822"
   source = "https://github.com/loomnetwork/tendermint.git"
 
 [[projects]]
