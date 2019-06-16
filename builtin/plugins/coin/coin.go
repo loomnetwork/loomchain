@@ -80,10 +80,7 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	//Checks if Coin Policy Feature is enabled before loading Coin Monetary Supply Policy
-	if ctx.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
-		if req.Policy == nil {
-			return errors.New("Policy is not specified")
-		}
+	if req.Policy != nil {
 		if req.Policy.DeflationFactorNumerator == 0 {
 			return errors.New("DeflationFactorNumerator should be greater than zero")
 		}
