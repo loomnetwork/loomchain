@@ -133,7 +133,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	}(time.Now())
 
 	oldVersion := s.Version()
-	hash, version, err := s.tree.SaveVersion()
+	hash, version, err := s.tree.SaveVersionMem()
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
