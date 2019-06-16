@@ -29,6 +29,10 @@
             {
               "name":"migration:1",
               "status":"WAITING"
+            },
+            {
+              "name":"migration:2",
+              "status":"WAITING"
             }
           ]
       }
