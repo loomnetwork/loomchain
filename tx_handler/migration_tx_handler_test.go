@@ -29,9 +29,9 @@ func TestMigrationTxHandler(t *testing.T) {
 	migrationTx1 := mockMessageTx(t, uint32(1), origin, origin)
 
 	migrationFuncs := map[int32]MigrationFunc{
-		1: func(ctx *migrations.MigrationContext) error { return nil },
-		2: func(ctx *migrations.MigrationContext) error { return nil },
-		3: func(ctx *migrations.MigrationContext) error { return nil },
+		1: func(ctx *migrations.MigrationContext, parameters *vm.MigrationParameters) error { return nil },
+		2: func(ctx *migrations.MigrationContext, parameters *vm.MigrationParameters) error { return nil },
+		3: func(ctx *migrations.MigrationContext, parameters *vm.MigrationParameters) error { return nil },
 	}
 
 	migrationTxHandler := &MigrationTxHandler{
