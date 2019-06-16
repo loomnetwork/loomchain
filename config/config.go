@@ -10,9 +10,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain/evm"
-	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -107,8 +105,6 @@ type Config struct {
 	//Prometheus
 	PrometheusPushGateway *PrometheusPushGatewayConfig
 
-	CoinPolicyMigration *CoinPolicyMigrationConfig
-
 	//Contracts
 	ContractLoaders []string
 	//Hsm
@@ -184,14 +180,6 @@ type PrometheusPushGatewayConfig struct {
 	JobName           string
 }
 
-type CoinPolicyMigrationConfig struct {
-	Enabled                    bool   //Enable Supply of DeflationInfo for modification of existing configuration
-	DeflationFactorNumerator   uint64 //Deflation Factor Numerator
-	DeflationFactorDenominator uint64 //Deflation Factor Denominator
-	BaseMintingAmount          uint64 //Base Minting Amount
-	MintingAccount             string //Address to Mint coins to
-}
-
 type ChainConfigConfig struct {
 	// Allow deployment of the ChainConfig contract
 	ContractEnabled bool
@@ -253,16 +241,6 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	}
 }
 
-func DefaultCoinPolicyMigrationConfig() *CoinPolicyMigrationConfig {
-	return &CoinPolicyMigrationConfig{
-		Enabled:                    false,
-		DeflationFactorNumerator:   1,  //Deflation Factor Numerator
-		DeflationFactorDenominator: 2,  //Deflation Factor Denominator
-		BaseMintingAmount:          10, //Base Minting Amount
-		MintingAccount:             "", //Minting Account
-	}
-}
-
 func DefaultChainConfigConfig(rpcProxyPort int32) *ChainConfigConfig {
 	return &ChainConfigConfig{
 		ContractEnabled:           true,
@@ -286,29 +264,6 @@ func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
 	return &UserDeployerWhitelistConfig{
 		ContractEnabled: true,
 	}
-}
-
-func (c *CoinPolicyMigrationConfig) IsValid() error {
-	if len(c.MintingAccount) == 0 {
-		return errors.New("Invalid Minting Account Address")
-	}
-	if c.DeflationFactorNumerator == 0 {
-		return errors.New("DeflationFactorNumerator should be greater than zero")
-	}
-	if c.DeflationFactorDenominator == 0 {
-		return errors.New("DeflationFactorDenominator should be greater than zero")
-	}
-	if c.BaseMintingAmount == 0 {
-		return errors.New("Base Minting Amount should be greater than zero")
-	}
-	addr, err := loom.ParseAddress(c.MintingAccount)
-	if err != nil {
-		return err
-	}
-	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
-		return errors.New("Minting Account Address cannot be Root Address")
-	}
-	return nil
 }
 
 //Structure for LOOM ENV
@@ -454,7 +409,6 @@ func DefaultConfig() *Config {
 	cfg.UserDeployerWhitelist = DefaultUserDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
-	cfg.CoinPolicyMigration = DefaultCoinPolicyMigrationConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
@@ -692,16 +646,6 @@ PrometheusPushGateway:
   #Frequency with which to push metrics to Pushgateway
   PushRateInSeconds: {{ .PrometheusPushGateway.PushRateInSeconds}} 
   JobName: "{{ .PrometheusPushGateway.JobName }}"
-
-#
-# Modify Deflation Parameter
-#
-CoinPolicyMigration: 
-  Enabled: {{ .CoinPolicyMigration.Enabled }}                   
-  DeflationFactorNumerator: {{ .CoinPolicyMigration.DeflationFactorNumerator }}   
-  DeflationFactorDenominator: {{ .CoinPolicyMigration.DeflationFactorDenominator }} 
-  BaseMintingAmount:  {{ .CoinPolicyMigration.BaseMintingAmount }}         
-  MintingAccount:  {{ .CoinPolicyMigration.MintingAccount }}
 
 #
 # Hsm 
