@@ -337,6 +337,7 @@ func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
 		_, _, err := ts.store.SaveVersion()
 		require.NoError(err)
 	}()
+	wg.Wait()
 
 	// readers
 	for i := 0; i < 10; i++ {
