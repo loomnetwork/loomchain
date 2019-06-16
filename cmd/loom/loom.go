@@ -1066,7 +1066,7 @@ func loadApp(
 		if err != nil {
 			return nil, err
 		}
-		if !state.FeatureEnabled(loomchain.CoinPolicyFeature, false) {
+		if !state.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) {
 			return nil, nil
 		}
 		m, err := plugin.NewCoinPolicyManager(pvm.(*plugin.PluginVM), state)
