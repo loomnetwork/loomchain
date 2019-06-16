@@ -57,7 +57,7 @@ const (
 	CoinVersion1_1Feature = "coin:v1.1"
 
 	// Enables Coin Policy Manager Feature
-	CoinPolicyFeature = "coin:policy"
+	CoinVersion1_2Feature = "coin:v1.2"
 
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
