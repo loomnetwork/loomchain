@@ -53,7 +53,7 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters *goloomvm.M
 		return err
 	}
 	// Turn on coin policy
-	ctx.State().SetFeature(loomchain.CoinPolicyFeature, true)
+	ctx.State().SetFeature(loomchain.CoinVersion1_2Feature, true)
 	return nil
 }
 
