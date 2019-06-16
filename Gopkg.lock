@@ -302,11 +302,11 @@
 
 [[projects]]
   branch = "hack1"
-  digest = "1:6913cddae31c79c4d931ce83c654f05593023b8328e3ca388b0ef4aef7cb5a4c"
+  digest = "1:f769222f976983c2d24dcd693a9a7cf04b02bc6decd1721ee47aba0af3e99716"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "1bcb3af8d91ddc41042d6ed69cc0616a1662aac3"
+  revision = "6749242d3dbf563372ba475b0fe532eb3d9d7c68"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
