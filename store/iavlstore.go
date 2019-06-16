@@ -43,8 +43,9 @@ func init() {
 }
 
 type IAVLStore struct {
-	tree        *iavl.MutableTree
-	maxVersions int64 // maximum number of versions to keep when pruning
+	tree          *iavl.MutableTree
+	maxVersions   int64 // maximum number of versions to keep when pruning
+	flushInterval int64 // how often we persist to disk
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -133,7 +134,21 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	}(time.Now())
 
 	oldVersion := s.Version()
-	hash, version, err := s.tree.SaveVersionMem()
+
+	var version int64
+	var hash []byte
+	//Every X versions we should persist to disk
+	if s.flushInterval == 0 || ((oldVersion+1)%s.flushInterval == 0) {
+		if s.flushInterval != 0 {
+			log.Error(fmt.Sprintf("Flushing mem to disk at version %d\n", oldVersion+1))
+			hash, version, err = s.tree.FlushMemVersionDisk()
+		} else {
+			hash, version, err = s.tree.SaveVersion()
+		}
+	} else {
+		hash, version, err = s.tree.SaveVersionMem()
+	}
+
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
@@ -178,7 +193,7 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
-func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, error) {
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*IAVLStore, error) {
 	tree := iavl.NewMutableTree(db, 10000)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
@@ -191,8 +206,9 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 	}
 
 	return &IAVLStore{
-		tree:        tree,
-		maxVersions: maxVersions,
+		tree:          tree,
+		maxVersions:   maxVersions,
+		flushInterval: flushInterval,
 	}, nil
 }
 

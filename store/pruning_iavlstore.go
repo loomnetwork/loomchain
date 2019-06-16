@@ -42,10 +42,11 @@ func init() {
 }
 
 type PruningIAVLStoreConfig struct {
-	MaxVersions int64 // maximum number of versions to keep when pruning
-	BatchSize   int64 // maximum number of versions to delete in each cycle
-	Interval    time.Duration
-	Logger      *loom.Logger
+	MaxVersions   int64 // maximum number of versions to keep when pruning
+	BatchSize     int64 // maximum number of versions to delete in each cycle
+	FlushInterval int64 // number of versions before flushing to disk
+	Interval      time.Duration
+	Logger        *loom.Logger
 }
 
 // PruningIAVLStore is a specialized IAVLStore that has a background thread that periodically prunes
@@ -72,7 +73,7 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		maxVersions = 2
 	}
 
-	store, err := NewIAVLStore(db, maxVersions, 0)
+	store, err := NewIAVLStore(db, maxVersions, 0, cfg.FlushInterval)
 	if err != nil {
 		return nil, err
 	}
