@@ -2,22 +2,21 @@ package migrations
 
 import (
 	"encoding/json"
-
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	goloomvm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
 )
 
-func DPOSv3Migration(ctx *MigrationContext) error {
+func DPOSv3Migration(ctx *MigrationContext, parameters *goloomvm.MigrationParameters) error {
 	// Pull data from DPOSv2
 	_, dposv2Ctx, err := resolveDPOSv2(ctx)
 	if err != nil {
 		return err
 	}
-
 	// This init information is ignored because dposv3.Initialize resets all
 	// contract storage. However, ctx.DeployContract requires making a dummy
 	// call to dposv3.Init initially.
@@ -39,7 +38,6 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	if err != nil {
 		return err
 	}
-
 	// Dump dposv2 state into a v3-compatible form and transfer dposv2 balance
 	// to dposv3
 	initializationState, err := dposv2.Dump(dposv2Ctx, dposv3Addr)
@@ -52,7 +50,6 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 		return err
 	}
 	dposv3.Initialize(dposv3Ctx, initializationState)
-
 	// Switch over to DPOSv3
 	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
 
