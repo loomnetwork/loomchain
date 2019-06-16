@@ -40,7 +40,6 @@ func (m *mockLoomCoinGateway) DummyMethod(ctx contractpb.Context, req *MintToGat
 func TestLoadPolicy(t *testing.T) {
 	contract := &Coin{}
 	pctx := plugin.CreateFakeContext(addr1, addr1)
-	pctx.SetFeature(loomchain.CoinPolicyFeature, true)
 	ctx := contractpb.WrapPluginContext(pctx)
 	//Valid Policy
 	err := contract.Init(ctx, &InitRequest{
@@ -58,17 +57,6 @@ func TestLoadPolicy(t *testing.T) {
 		},
 	})
 	require.Nil(t, err)
-	//Nil Invalid Policy
-	err = contract.Init(ctx, &InitRequest{
-		Accounts: []*InitialAccount{
-			&InitialAccount{
-				Owner:   addr1.MarshalPB(),
-				Balance: uint64(31),
-			},
-		},
-		Policy: nil,
-	})
-	require.Error(t, errors.New("Policy is not specified"), err.Error())
 	//Invalid Policy Denominator == 0
 	err = contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
