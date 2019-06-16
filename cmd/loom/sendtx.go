@@ -25,8 +25,10 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 )
 
+var inputParams vm.MigrationParameters
+
 type deployTxFlags struct {
-	Bytecode   string `json:"bytecode"`
+	Bytecode   string
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
 	Name       string `json:"name"`
@@ -40,6 +42,13 @@ func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&cli.TxFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
 }
 
+func setMigrationFlags(fs *pflag.FlagSet) {
+	fs.Uint64VarP(&inputParams.DeflationFactorNumerator, "numerator", "n", 0, "Numerator")
+	fs.Uint64VarP(&inputParams.DeflationFactorDenominator, "denominator", "d", 0, "Denominator")
+	fs.Uint64VarP(&inputParams.BaseMintingAmount, "base-minting-amount", "b", 0, "BaseMintingAmount")
+	fs.StringVarP(&inputParams.MintingAccount, "mintingaccount", "a", "", "BaseMintingAccount")
+}
+
 func newMigrationCommand() *cobra.Command {
 	var Id uint32
 	migrationCmd := &cobra.Command{
@@ -50,16 +59,17 @@ func newMigrationCommand() *cobra.Command {
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
-			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
+			return migrationTx(Id, &inputParams, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
 		},
 	}
 	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(migrationCmd.Flags())
+	setMigrationFlags(migrationCmd.Flags())
 	return migrationCmd
 }
 
-func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error {
+func migrationTx(migrationId uint32, inputParams *vm.MigrationParameters, privFile, algo, callerChainID string) error {
 	clientAddr, signer, err := caller(privFile, "", algo, callerChainID)
 	if err != nil {
 		return errors.Wrapf(err, "initialization failed")
@@ -68,8 +78,7 @@ func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error
 		return fmt.Errorf("invalid private key")
 	}
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
-
-	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId)
+	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId, inputParams)
 	if err != nil {
 		return err
 	}
