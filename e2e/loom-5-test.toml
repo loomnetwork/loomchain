@@ -66,6 +66,31 @@
   Expected = [ "Error: migration ID 1 has already been processed" ]
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} migration --id 2 --numerator 0 --denominator 10 --base-minting-amount 10 --mintingaccount {index $.NodeAddressList 1} -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["DeflationFactorNumerator should be greater than zero"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} migration --id 2 --numerator 1 --denominator 0 --base-minting-amount 10 --mintingaccount {index $.NodeAddressList 1} -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["DeflationFactorDenominator should be greater than zero"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} migration --id 2 --numerator 1 --denominator 10 --base-minting-amount 0 --mintingaccount {index $.NodeAddressList 1} -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["Base Minting Amount should be greater than zero"]
+
+ [[TestCases]]
+   RunCmd = "{{ $.LoomPath }} migration --id 2 --numerator 1 --denominator 10 --base-minting-amount 10 --mintingaccount test -k {{index $.NodePrivKeyPathList 0}}"
+   Condition = "contains"
+   Expected = ["invalid address"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} migration --id 2 --numerator 1 --denominator 10 --base-minting-amount 10 --mintingaccount default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["Migration ID 2 has been processed successfully" ]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
