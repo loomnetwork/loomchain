@@ -102,8 +102,8 @@ tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
 pcoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
-dposv2_oracle:
-	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+dposv2_oracle: $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -185,6 +185,7 @@ $(SSHA3_DIR):
 
 $(TRANSFER_GATEWAY_DIR):
 	git clone -q git@github.com:loomnetwork/transfer-gateway.git $@
+	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV)
 
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd

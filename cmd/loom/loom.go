@@ -31,8 +31,6 @@ import (
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
-	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
-	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
@@ -425,10 +423,6 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startDPOSv2Oracle(chainID, cfg.DPOSv2OracleConfig); err != nil {
-				return err
-			}
-
 			if err := startFeatureAutoEnabler(chainID, cfg.ChainConfig, nodeSigner, backend, log.Default); err != nil {
 				return err
 			}
@@ -451,25 +445,6 @@ func recovery() {
 		log.Error("caught RPC proxy exception, exiting", r)
 		os.Exit(1)
 	}
-}
-
-func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig) error {
-	oracleCfg, err := d2OracleCfg.LoadSerializableConfig(chainID, cfg)
-	if err != nil {
-		return err
-	}
-
-	if !oracleCfg.Enabled {
-		return nil
-	}
-
-	oracle := d2Oracle.NewOracle(oracleCfg)
-	if err := oracle.Init(); err != nil {
-		return err
-	}
-
-	oracle.Run()
-	return nil
 }
 
 func startFeatureAutoEnabler(
@@ -968,6 +943,10 @@ func loadApp(
 		))
 	}
 
+	if cfg.TxLimiter.Enabled {
+		txMiddleWare = append(txMiddleWare, throttle.NewTxLimiterMiddleware(cfg.TxLimiter))
+	}
+
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contextFactory := getContractCtx("deployerwhitelist", vmManager)
 		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
@@ -1035,37 +1014,6 @@ func loadApp(
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
-
-	oracle, err := loom.ParseAddress(cfg.Oracle)
-	if err != nil {
-		oracle = loom.Address{}
-	}
-	deployerAddressList, err := cfg.TxLimiter.DeployerAddresses()
-	if err != nil {
-		return nil, err
-	}
-	deployerAddressList = append(deployerAddressList, oracle)
-
-	originHandler := throttle.NewOriginValidator(
-		uint64(cfg.TxLimiter.CallSessionDuration),
-		deployerAddressList,
-		cfg.TxLimiter.LimitDeploys,
-		cfg.TxLimiter.LimitCalls,
-	)
-
-	// Technically ThrottleTxMiddleWare has been replaced by OriginHandler but to replay a couple
-	// of old PlasmaChain production blocks correctly we have to keep this middleware around.
-	// TODO: Implement height-based middleware overrides so this middleware is only activated for
-	//       two blocks in PlasmaChain builds.
-	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
-		},
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).CallEnabled
-		},
-		oracle,
-	))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -1149,7 +1097,6 @@ func loadApp(
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
-		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,

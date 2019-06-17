@@ -306,7 +306,6 @@ func (n *Node) SetConfigFromYaml(accounts []*Account) error {
 		}
 
 		addAccounts(accounts, conf.GoContractDeployerWhitelist.DeployerAddressList)
-		addAccounts(accounts, conf.TxLimiter.DeployerAddressList)
 		n.Config = *conf
 	}
 	return nil
