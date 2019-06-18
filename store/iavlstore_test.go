@@ -2,7 +2,7 @@ package store
 
 import (
 	"bytes"
-	//"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,31 +13,39 @@ import (
 )
 
 var (
-	numBlocks = 30
-	blockSize = 100
+	numBlocks = 10000
+	blockSize = 1000
 
-	saveFrequency    = 7
-	versionFrequency = 5
 	maxVersions      = 2
 	diskDbType       = "memdb"
+	saveFrequency    = 7
+	versionFrequency = 5
 	testMinCache     = uint64(10)
 	testMaxCache     = uint64(500)
 	verbose          = true
-
-	blocks []*iavl.Program
-	tree   *iavl.MutableTree
+	blocks           []*iavl.Program
+	tree             *iavl.MutableTree
 )
 
-// maxVersions can be used to specify how many versions should be retained, if set to zero then
-// old versions will never been deleted.
-// targetVersion can be used to load any previously saved version of the store, if set to zero then
-// the last version that was saved will be loaded.
-// saveFrequency says how often the IVAL tree will be saved to the disk. 0 means every block.
-// versionFrequency = N, indicates that versions other than multiples of N will be eventually pruned providing maxVersions >0.
-func TestDualIavlStore(t *testing.T) {
+func TestIavl(t *testing.T) {
+	numBlocks = 10
+	blockSize = 10
+
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "dual-iavlstore")
-	generateBlocks(t)
+
+	require.NoError(t, os.RemoveAll("testdata"))
+	_, err := os.Stat("testdata")
+	require.True(t, os.IsNotExist(err))
+
+	blocks = nil
+	blocks = iavl.GenerateBlocks2(numBlocks, blockSize)
+	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
+	for _, program := range blocks {
+		require.NoError(t, program.Execute(tree))
+		_, _, err := tree.SaveVersion()
+		require.NoError(t, err)
+	}
 
 	t.Run("normal", testNormal)
 	t.Run("varable cache", testVariableCache)
@@ -45,7 +53,6 @@ func TestDualIavlStore(t *testing.T) {
 	t.Run("max versions", testMaxVersions)
 	t.Run("save frequency", testSaveFrequency) // add two to save frequency?!
 	t.Run("max versions, max versions & save frequency", testMaxVersionFrequencySaveFrequency)
-
 }
 
 func testNormal(t *testing.T) {
@@ -67,7 +74,7 @@ func testNormal(t *testing.T) {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)
 		require.Zero(t, bytes.Compare(value, diskValue))
-		return true
+		return false
 	})
 	diskDb.Close()
 }
@@ -97,7 +104,7 @@ func testMaxVersions(t *testing.T) {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)
 		require.Zero(t, bytes.Compare(value, diskValue))
-		return true
+		return false
 	})
 	diskDb.Close()
 }
@@ -127,7 +134,7 @@ func testMaxVersionFrequency(t *testing.T) {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)
 		require.Zero(t, bytes.Compare(value, diskValue))
-		return true
+		return false
 	})
 	diskDb.Close()
 }
@@ -145,14 +152,14 @@ func testSaveFrequency(t *testing.T) {
 	for i := 1; i <= numBlocks; i++ {
 		if i/saveFrequency < numBlocks/saveFrequency || i%saveFrequency == 0 {
 			require.True(t, diskTree.VersionExists(int64(i)))
-			itree, err := tree.GetImmutable(int64(i))
-			require.NoError(t, err)
 			iDiskTree, err := diskTree.GetImmutable(int64(i))
+			require.NoError(t, err)
+			itree, err := tree.GetImmutable(int64(i))
 			require.NoError(t, err)
 			itree.Iterate(func(key []byte, value []byte) bool {
 				_, diskValue := iDiskTree.Get(key)
 				require.Zero(t, bytes.Compare(value, diskValue))
-				return true
+				return false
 			})
 		} else {
 			require.False(t, diskTree.VersionExists(int64(i)))
@@ -164,7 +171,7 @@ func testSaveFrequency(t *testing.T) {
 	}
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
-		return true
+		return false
 	})
 
 	diskDb.Close()
@@ -185,7 +192,7 @@ func testVariableCache(t *testing.T) {
 	}
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
-		return true
+		return false
 	})
 	diskDb.Close()
 }
@@ -216,7 +223,7 @@ func testMaxVersionFrequencySaveFrequency(t *testing.T) {
 	}
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
-		return true
+		return false
 	})
 	diskDb.Close()
 }
