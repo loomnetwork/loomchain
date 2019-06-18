@@ -7,7 +7,7 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/common"
 )
 
-func TestContractDeployerWhitelist(t *testing.T) {
+func TestMiddleware(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
@@ -17,7 +17,17 @@ func TestContractDeployerWhitelist(t *testing.T) {
 		genFile  string
 		yamlFile string
 	}{
-		{"deployerwhitelist", "deployerwhitelist.toml", 2, 2, "deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml"},
+		{
+			"deployerwhitelist", "deployerwhitelist.toml", 2, 2,
+			"deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml",
+		},
+		{
+			"userdeployerwhitelist", "userdeployerwhitelist.toml", 1, 3,
+			"userdeployerwhitelist.genesis.json", "userdeployerwhitelist-loom.yaml",
+		},
+		{
+			"tx-limiter", "tx-limiter-test.toml", 1, 4, "", "tx-limiter-loom.yaml",
+		},
 	}
 
 	for _, test := range tests {

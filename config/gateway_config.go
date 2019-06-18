@@ -4,9 +4,11 @@ package config
 
 import (
 	"github.com/loomnetwork/transfer-gateway/gateway"
+	dpos2cfg "github.com/loomnetwork/transfer-gateway/oracles/dpos2/config"
 )
 
 type TransferGatewayConfig = gateway.TransferGatewayConfig
+type OracleSerializableConfig = dpos2cfg.OracleSerializableConfig
 
 func DefaultTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return gateway.DefaultConfig(rpcProxyPort)
@@ -18,6 +20,10 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 
 func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return gateway.DefaultTronConfig(rpcProxyPort)
+}
+
+func DefaultDPOS2OracleConfig() *OracleSerializableConfig {
+	return &OracleSerializableConfig{}
 }
 
 const transferGatewayLoomYamlTemplate = `
@@ -64,6 +70,7 @@ TransferGateway:
     MainnetPrivateKeyPath: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
   {{- end}}
+
 #
 # Loomcoin Transfer Gateway
 #
@@ -107,6 +114,7 @@ LoomCoinTransferGateway:
     MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
   {{- end}}
+
 #
 # Tron Transfer Gateway
 #
@@ -150,4 +158,28 @@ TronTransferGateway:
     MainnetPrivateKeyPath: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
   {{- end}}
+
+#
+# Oracle serializable 
+#
+DPOSv2OracleConfig:
+  Enabled: {{ .DPOSv2OracleConfig.Enabled }}
+  StatusServiceAddress: "{{ .DPOSv2OracleConfig.StatusServiceAddress }}"
+  MainnetPollInterval: {{ .DPOSv2OracleConfig.MainnetPollInterval }}
+  {{if .DPOSv2OracleConfig.DAppChainCfg -}}
+    DAppChainCfg: 
+      WriteURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.WriteURI }}"
+      ReadURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.ReadURI }}"
+      PrivateKeyPath: "{{ .DPOSv2OracleConfig.DAppChainCfg.PrivateKeyPath }}"
+  {{end}}
+  {{if .DPOSv2OracleConfig.EthClientCfg -}}
+    EthClientCfg: 
+      EthereumURI: "{{ .DPOSv2OracleConfig.EthClientCfg.EthereumURI }}"
+      PrivateKeyPath: {{ .DPOSv2OracleConfig.EthClientCfg.PrivateKeyPath }}
+  {{end}}
+  {{if .DPOSv2OracleConfig.TimeLockWorkerCfg -}}
+    TimeLockWorkerCfg: 
+      TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
+      Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
+  {{end}}
 `

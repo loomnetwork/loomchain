@@ -940,11 +940,11 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			crashFaultSlashingPercentage, err := cli.ParseAmount(args[1])
+			crashFaultSlashingPercentage, err := cli.ParseAmount(args[0])
 			if err != nil {
 				return err
 			}
-			byzantineFaultSlashingPercentage, err := cli.ParseAmount(args[2])
+			byzantineFaultSlashingPercentage, err := cli.ParseAmount(args[1])
 			if err != nil {
 				return err
 			}

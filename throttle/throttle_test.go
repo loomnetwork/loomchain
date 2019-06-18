@@ -30,9 +30,8 @@ const (
 )
 
 var (
-	addr1    = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	origin   = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	contract = loom.MustParseAddress("chain:0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
+	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
 	sources = []*ktypes.KarmaSourceReward{
 		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
