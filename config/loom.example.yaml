@@ -26,9 +26,9 @@ CallSessionDuration: 5
 
 ContractLoaders:
   - "static"
-  - "dynamic"
-  - "external"
-
+#  - "dynamic"
+#  - "external"
+# comment for issue 1102
 Karma:
   Enabled: true
   UpkeepEnabled: true
