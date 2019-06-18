@@ -52,17 +52,14 @@ func newMigrationCommand() *cobra.Command {
 		Use:   "migration",
 		Short: "Run a migration",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
 			callerChainID := cli.TxFlags.CallerChainID
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
 			if Id == 2 {
 				policy := Policy{}
-				in, err := ioutil.ReadFile(inputFile)
-				if err != nil {
-					return err
-				}
-				if err := proto.Unmarshal(in, &policy); err != nil {
+				if err := proto.Unmarshal([]byte(inputFile), &policy); err != nil {
 					return err
 				}
 				inputBytes, err = proto.Marshal(&policy)
@@ -75,7 +72,7 @@ func newMigrationCommand() *cobra.Command {
 		},
 	}
 	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
-	migrationCmd.Flags().StringVarP(&inputFile, "inputParam", "i", "", "json parameters file")
+	migrationCmd.Flags().StringVarP(&inputFile, "inputParam", "i", "", "protocol buffers parameters file")
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(migrationCmd.Flags())
 	return migrationCmd
