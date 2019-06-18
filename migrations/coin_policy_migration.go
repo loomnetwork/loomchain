@@ -1,54 +1,51 @@
 package migrations
 
 import (
+	"errors"
+
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	goloomvm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
-	"github.com/pkg/errors"
-)
-
-type (
-	Policy = ctypes.Policy
 )
 
 var (
 	policyKey = []byte("policy")
 )
 
-func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters *goloomvm.MigrationParameters) error {
+type (
+	Policy = ctypes.Policy
+)
+
+func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) error {
 	//Resolve coin context
 	_, coinCtx, err := resolveCoin(ctx)
 	if err != nil {
 		return err
 	}
-	if parameters.DeflationFactorNumerator == 0 {
-		return errors.New("DeflationFactorNumerator should be greater than zero")
-	}
-	if parameters.DeflationFactorDenominator == 0 {
-		return errors.New("DeflationFactorDenominator should be greater than zero")
-	}
-	if parameters.BaseMintingAmount == 0 {
-		return errors.New("Base Minting Amount should be greater than zero")
-	}
-	addr, err := loom.ParseAddress(parameters.MintingAccount)
+	coinPolicy := Policy{}
+	err = proto.Unmarshal([]byte(parameters), &coinPolicy)
 	if err != nil {
 		return err
+
 	}
+	if coinPolicy.DeflationFactorNumerator == 0 {
+		return errors.New("DeflationFactorNumerator should be greater than zero")
+	}
+
+	if coinPolicy.DeflationFactorDenominator == 0 {
+		return errors.New("DeflationFactorDenominator should be greater than zero")
+	}
+	if coinPolicy.BaseMintingAmount == 0 {
+		return errors.New("Base Minting Amount should be greater than zero")
+	}
+	addr := loom.UnmarshalAddressPB(coinPolicy.MintingAccount)
+
 	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
 		return errors.New("Minting Account Address cannot be Root Address")
 	}
-	deflationFactorNumerator := parameters.DeflationFactorNumerator
-	deflationFactorDenominator := parameters.DeflationFactorDenominator
-	baseMintingAmount := parameters.BaseMintingAmount
-	policy := &Policy{
-		DeflationFactorNumerator:   deflationFactorNumerator,
-		DeflationFactorDenominator: deflationFactorDenominator,
-		BaseMintingAmount:          baseMintingAmount,
-		MintingAccount:             addr.MarshalPB(),
-	}
-	err = coinCtx.Set(policyKey, policy)
+	err = coinCtx.Set(policyKey, &coinPolicy)
 	if err != nil {
 		return err
 	}
