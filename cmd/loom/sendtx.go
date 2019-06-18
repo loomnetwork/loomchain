@@ -11,28 +11,30 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
+	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
-	"github.com/loomnetwork/go-loom/cli"
-	"github.com/loomnetwork/go-loom/client"
-	lcrypto "github.com/loomnetwork/go-loom/crypto"
-	"github.com/loomnetwork/go-loom/vm"
 )
 
-var inputParams vm.MigrationParameters
-
 type deployTxFlags struct {
-	Bytecode   string
+	Bytecode   string `json:"bytecode"`
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
 	Name       string `json:"name"`
 }
+
+type (
+	Policy = ctypes.Policy
+)
 
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
@@ -42,15 +44,10 @@ func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&cli.TxFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
 }
 
-func setMigrationFlags(fs *pflag.FlagSet) {
-	fs.Uint64VarP(&inputParams.DeflationFactorNumerator, "numerator", "n", 0, "Numerator")
-	fs.Uint64VarP(&inputParams.DeflationFactorDenominator, "denominator", "d", 0, "Denominator")
-	fs.Uint64VarP(&inputParams.BaseMintingAmount, "base-minting-amount", "b", 0, "BaseMintingAmount")
-	fs.StringVarP(&inputParams.MintingAccount, "mintingaccount", "a", "", "BaseMintingAccount")
-}
-
 func newMigrationCommand() *cobra.Command {
 	var Id uint32
+	var inputFile string
+	var inputBytes []byte
 	migrationCmd := &cobra.Command{
 		Use:   "migration",
 		Short: "Run a migration",
@@ -59,17 +56,32 @@ func newMigrationCommand() *cobra.Command {
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
-			return migrationTx(Id, &inputParams, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
+			if Id == 2 {
+				policy := Policy{}
+				in, err := ioutil.ReadFile(inputFile)
+				if err != nil {
+					return err
+				}
+				if err := proto.Unmarshal(in, &policy); err != nil {
+					return err
+				}
+				inputBytes, err = proto.Marshal(&policy)
+				if err != nil {
+					return err
+
+				}
+			}
+			return migrationTx(Id, inputBytes, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
 		},
 	}
 	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
+	migrationCmd.Flags().StringVarP(&inputFile, "inputParam", "i", "", "json parameters file")
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(migrationCmd.Flags())
-	setMigrationFlags(migrationCmd.Flags())
 	return migrationCmd
 }
 
-func migrationTx(migrationId uint32, inputParams *vm.MigrationParameters, privFile, algo, callerChainID string) error {
+func migrationTx(migrationId uint32, inputParams []byte, privFile, algo, callerChainID string) error {
 	clientAddr, signer, err := caller(privFile, "", algo, callerChainID)
 	if err != nil {
 		return errors.Wrapf(err, "initialization failed")
