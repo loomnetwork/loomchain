@@ -19,6 +19,7 @@ var (
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
+
 func TestMigrationTxHandler(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(loomchain.MigrationTxFeature, true)
@@ -29,9 +30,9 @@ func TestMigrationTxHandler(t *testing.T) {
 	migrationTx1 := mockMessageTx(t, uint32(1), origin, origin)
 
 	migrationFuncs := map[int32]MigrationFunc{
-		1: func(ctx *migrations.MigrationContext, parameters *vm.MigrationParameters) error { return nil },
-		2: func(ctx *migrations.MigrationContext, parameters *vm.MigrationParameters) error { return nil },
-		3: func(ctx *migrations.MigrationContext, parameters *vm.MigrationParameters) error { return nil },
+		1: func(ctx *migrations.MigrationContext, parameters []byte) error { return nil },
+		2: func(ctx *migrations.MigrationContext, parameters []byte) error { return nil },
+		3: func(ctx *migrations.MigrationContext, parameters []byte) error { return nil },
 	}
 
 	migrationTxHandler := &MigrationTxHandler{
