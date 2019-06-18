@@ -32,9 +32,8 @@ type deployTxFlags struct {
 	Name       string `json:"name"`
 }
 
-type (
-	Policy = ctypes.Policy
-)
+type Policy = ctypes.Policy
+
 
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
@@ -58,7 +57,7 @@ func newMigrationCommand() *cobra.Command {
 			}
 			if Id == 2 {
 				policy := Policy{}
-				err := proto.Unmarshal([]byte(inputFile), &policy)
+				err := jsonpb.UnmarshalString(inputFile, &policy)
 				if err != nil {
 					return err
 				}
