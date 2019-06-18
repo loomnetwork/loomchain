@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"errors"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -16,6 +17,7 @@ var (
 type (
 	Policy = ctypes.Policy
 )
+
 //Passing Input Paramters as byte array to Coin Policy Migration Function
 func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) error {
 	//Resolve coin context
