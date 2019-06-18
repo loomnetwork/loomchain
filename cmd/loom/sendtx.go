@@ -57,7 +57,8 @@ func newMigrationCommand() *cobra.Command {
 			}
 			if Id == 2 {
 				policy := Policy{}
-				err := jsonpb.UnmarshalString(inputFile, &policy)
+				jsonData, err := ioutil.ReadFile(inputFile)
+				err = jsonpb.UnmarshalString(string(jsonData), &policy)
 				if err != nil {
 					return err
 				}
