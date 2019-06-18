@@ -43,7 +43,7 @@ func TestBenchmark(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "diff-iavlstore")
 	testno = 0
-	os.RemoveAll("testdata")
+	require.NoError(t, os.RemoveAll("testdata"))
 	_, err := os.Stat("testdata")
 	os.IsNotExist(err)
 

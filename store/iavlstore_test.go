@@ -33,7 +33,7 @@ func TestIavl(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "dual-iavlstore")
 
-	os.RemoveAll("testdata")
+	require.NoError(t, os.RemoveAll("testdata"))
 	_, err := os.Stat("testdata")
 	require.True(t, os.IsNotExist(err))
 
