@@ -17,7 +17,7 @@ var (
 type (
 	Policy = ctypes.Policy
 )
-
+//Passing Input Paramters as byte array to Coin Policy Migration Function
 func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) error {
 	//Resolve coin context
 	_, coinCtx, err := resolveCoin(ctx)
