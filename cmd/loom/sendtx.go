@@ -71,7 +71,7 @@ func newMigrationCommand() *cobra.Command {
 		},
 	}
 	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
-	migrationCmd.Flags().StringVarP(&inputFile, "inputParam", "i", "", "protocol buffers parameters file")
+	migrationCmd.Flags().StringVarP(&inputFile, "inputParam", "i", "", "protocol buffers json file")
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(migrationCmd.Flags())
 	return migrationCmd
