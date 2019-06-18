@@ -105,6 +105,11 @@
   Condition = "contains"
   Expected = ["periods"]
 
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record"
+  Condition = "contains"
+  Expected = ["periods"]
+
 # Attempting to do dPoS transaction with only 2 of 3 elected validators online
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 200000 -k {{index $.AccountPrivKeyPathList 1}}"
