@@ -33,7 +33,7 @@ func migrationKey(migrationTxID uint32) []byte {
 	return util.PrefixKey([]byte(migrationPrefix), buf.Bytes())
 }
 
-type MigrationFunc func(ctx *migrations.MigrationContext, parameters *goloomvm.MigrationParameters) error
+type MigrationFunc func(ctx *migrations.MigrationContext, parameters []byte) error
 
 // MigrationTxHandler handles MigrationTx(s).
 type MigrationTxHandler struct {
