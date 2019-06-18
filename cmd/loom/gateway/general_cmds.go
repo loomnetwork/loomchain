@@ -645,13 +645,12 @@ func newWithdrawLoomCoin() *cobra.Command {
 				fmt.Println("Approved deposit on dappchain for ...", amount)
 
 				// Get the loom tokens to the gateway
-				mainnetAddress := common.HexToAddress(mainetAddress)
 				recipientHex, err := Bech32ToHex(receipient)
 				if err != nil {
 					return err
 				}
 				recipientAddress := common.HexToAddress(recipientHex)
-				err = gateway.WithdrawLoomBinance(id, amount.Int, mainnetAddress, recipientAddress)
+				err = gateway.WithdrawLoomToBinanceDex(id, amount.Int, recipientAddress)
 				if err != nil {
 					return err
 				}
