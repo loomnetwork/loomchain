@@ -92,7 +92,7 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 			var chainErr error
 			receipt, chainErr = r.chainReceipts.GetReceipt(state, txHash)
 			if chainErr != nil {
-				return receipt, errors.Wrap(chainErr, err.Error())
+				return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "%v: %v", chainErr, err)
 			}
 		}
 		return receipt, nil
