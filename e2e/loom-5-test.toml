@@ -69,33 +69,33 @@
    RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["DeflationFactorNumerator should be greater than zero"]
-    Datafiles = [
+   Datafiles = [
        { Filename = "data.json", Contents = "{\"deflation_factor_numerator\":0,\"deflation_factor_denominator\":10,\"base_minting_amount\":10,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
-     ]
+   ]
 
 [[TestCases]]
    RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["DeflationFactorDenominator should be greater than zero"]
-    Datafiles = [
+   Datafiles = [
        { Filename = "data.json", Contents = "{\"deflation_factor_numerator\":1,\"deflation_factor_denominator\":0,\"base_minting_amount\":10,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
-     ]
+   ]
 
 [[TestCases]]
    RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["Base Minting Amount should be greater than zero"]
-    Datafiles = [
+   Datafiles = [
        { Filename = "data.json", Contents = "{\"deflation_factor_numerator\":1,\"deflation_factor_denominator\":10,\"base_minting_amount\":0,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
-     ]
+   ]
 
 [[TestCases]]
    RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["Migration ID 2 has been processed successfully"]
-    Datafiles = [
+   Datafiles = [
        { Filename = "data.json", Contents = "{\"deflation_factor_numerator\":1,\"deflation_factor_denominator\":10,\"base_minting_amount\":10,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
-     ]
+   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dposV2 list_validatorsV2"
