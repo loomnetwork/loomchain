@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"errors"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -25,7 +24,7 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) err
 		return err
 	}
 	coinPolicy := Policy{}
-	err = proto.Unmarshal([]byte(parameters), &coinPolicy)
+	err = proto.Unmarshal(parameters, &coinPolicy)
 	if err != nil {
 		return err
 
@@ -33,7 +32,6 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) err
 	if coinPolicy.DeflationFactorNumerator == 0 {
 		return errors.New("DeflationFactorNumerator should be greater than zero")
 	}
-
 	if coinPolicy.DeflationFactorDenominator == 0 {
 		return errors.New("DeflationFactorDenominator should be greater than zero")
 	}
