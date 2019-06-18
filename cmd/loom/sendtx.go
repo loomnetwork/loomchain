@@ -52,14 +52,14 @@ func newMigrationCommand() *cobra.Command {
 		Use:   "migration",
 		Short: "Run a migration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var err error
 			callerChainID := cli.TxFlags.CallerChainID
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
 			if Id == 2 {
 				policy := Policy{}
-				if err := proto.Unmarshal([]byte(inputFile), &policy); err != nil {
+				err := proto.Unmarshal([]byte(inputFile), &policy)
+				if err != nil {
 					return err
 				}
 				inputBytes, err = proto.Marshal(&policy)
