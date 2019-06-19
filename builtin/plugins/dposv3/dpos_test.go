@@ -2397,7 +2397,6 @@ func TestDowntimeFunctions(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-
 	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
@@ -2409,7 +2408,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(candidates))
 
-	for i := int64(0); i < int64(periodLength * 4); i++ {
+	for i := int64(0); i < int64(periodLength*4); i++ {
 		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
 		require.Nil(t, err)
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
@@ -2417,10 +2416,10 @@ func TestDowntimeFunctions(t *testing.T) {
 
 	rec1, err := dpos.DowntimeRecord(pctx, &addr1)
 	assert.Equal(t, periodLength, rec1.PeriodLength)
-	assert.Equal(t, []uint64{periodLength-1, periodLength, periodLength, periodLength}, rec1.Periods)
+	assert.Equal(t, []uint64{periodLength - 1, periodLength, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
 	rec2, err := dpos.DowntimeRecord(pctx, &addr2)
 	assert.Equal(t, periodLength, rec2.PeriodLength)
-	assert.Equal(t, []uint64{0,0,0,0}, rec2.Periods)
+	assert.Equal(t, []uint64{0, 0, 0, 0}, rec2.DowntimeRecords[0].Periods)
 
 	for i := int64(0); i < int64(periodLength); i++ {
 		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr2)
@@ -2429,23 +2428,26 @@ func TestDowntimeFunctions(t *testing.T) {
 	}
 
 	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
-	assert.Equal(t, []uint64{0, periodLength-1, periodLength, periodLength}, rec1.Periods)
+	assert.Equal(t, []uint64{0, periodLength - 1, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
 	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
-	assert.Equal(t, []uint64{periodLength-1,1,0,0}, rec2.Periods)
+	assert.Equal(t, []uint64{periodLength - 1, 1, 0, 0}, rec2.DowntimeRecords[0].Periods)
 
 	ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates)
 
 	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
-	assert.Equal(t, []uint64{0, 0, periodLength-1, periodLength}, rec1.Periods)
+	assert.Equal(t, []uint64{0, 0, periodLength - 1, periodLength}, rec1.DowntimeRecords[0].Periods)
 	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
-	assert.Equal(t, []uint64{0, periodLength-1, 1, 0}, rec2.Periods)
+	assert.Equal(t, []uint64{0, periodLength - 1, 1, 0}, rec2.DowntimeRecords[0].Periods)
 
 	ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates)
 
 	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
-	assert.Equal(t, []uint64{0, 0, 0, periodLength-1}, rec1.Periods)
+	assert.Equal(t, []uint64{0, 0, 0, periodLength - 1}, rec1.DowntimeRecords[0].Periods)
 	rec2, err = dpos.DowntimeRecord(pctx, &addr2)
-	assert.Equal(t, []uint64{0, 0, periodLength-1, 1}, rec2.Periods)
+	assert.Equal(t, []uint64{0, 0, periodLength - 1, 1}, rec2.DowntimeRecords[0].Periods)
+
+	recAll, err := dpos.DowntimeRecord(pctx, nil)
+	assert.Equal(t, 2, len(recAll.DowntimeRecords))
 }
 
 // UTILITIES
