@@ -34,7 +34,6 @@ type deployTxFlags struct {
 
 type Policy = ctypes.Policy
 
-
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
 	fs.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
@@ -55,9 +54,15 @@ func newMigrationCommand() *cobra.Command {
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
-			if Id == 2 {
+			switch Id {
+			case 1:
+				inputBytes = nil
+			case 2:
 				policy := Policy{}
 				jsonData, err := ioutil.ReadFile(inputFile)
+				if err != nil {
+					return err
+				}
 				err = jsonpb.UnmarshalString(string(jsonData), &policy)
 				if err != nil {
 					return err
@@ -65,8 +70,9 @@ func newMigrationCommand() *cobra.Command {
 				inputBytes, err = proto.Marshal(&policy)
 				if err != nil {
 					return err
-
 				}
+			default:
+				inputBytes = nil
 			}
 			return migrationTx(Id, inputBytes, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
 		},
