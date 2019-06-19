@@ -67,6 +67,7 @@ func newMigrationCommand() *cobra.Command {
 	return migrationCmd
 }
 
+//Parse Migration Input Parameters depending upon MigrationId
 func parseInputParameters(migrationId uint32, inputFile string) ([]byte, error) {
 	var inputBytes []byte
 	switch migrationId {
