@@ -288,28 +288,6 @@ type EnvInfo struct {
 	LoomConfig  Config  `json:"loomConfig"`
 }
 
-func ParseConfig() (*Config, error) {
-	v := viper.New()
-	v.AutomaticEnv()
-	v.SetEnvPrefix("LOOM")
-
-	v.SetConfigName("loom")                        // name of config file (without extension)
-	v.AddConfigPath("./")                          // search root directory
-	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
-	v.AddConfigPath("./../../../")
-
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
-	conf := DefaultConfig()
-	err := v.Unmarshal(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	return conf, err
-}
-
 func ParseConfigFrom(filename string) (*Config, error) {
 	v := viper.New()
 	v.AutomaticEnv()

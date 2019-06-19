@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/gogo/protobuf/proto"
+	"github.com/gorilla/websocket"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -17,6 +16,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	cmd "github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
@@ -155,7 +155,7 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 }
 
 func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
-	cfg, err := config.ParseConfig()
+	cfg, err := cmd.ParseConfig()
 	if err != nil {
 		return nil, err
 	}
