@@ -99,6 +99,9 @@ loomcoin_tgoracle: $(TRANSFER_GATEWAY_DIR)
 tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
 	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
 
+binance_tgoracle: $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+
 pcoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
