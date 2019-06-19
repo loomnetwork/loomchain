@@ -278,7 +278,7 @@ type PendingMapping struct {
 
 type Mappings struct {
 	ConfirmedMappings []ConfirmedMapping `json:"confirmed_mapping"`
-	PendingMappings []PendingMapping `json:"pending_mapping"`
+	PendingMappings   []PendingMapping   `json:"pending_mapping"`
 }
 
 func newListContractMappingsCommand() *cobra.Command {
@@ -348,7 +348,7 @@ func newGetContractMappingCommand() *cobra.Command {
 			}
 			resp := &tgtypes.TransferGatewayGetContractMappingResponse{}
 			_, err = gateway.StaticCall("GetContractMapping", req, gatewayAddr, resp)
-            if resp.MappedAddress != nil {
+			if resp.MappedAddress != nil {
 				mapping.Address = resp.MappedAddress.ChainId + resp.MappedAddress.Local.String()
 				mapping.status = resp.Status
 			}
@@ -428,8 +428,8 @@ func getConfirmedMappingInfo(mapping *tgtypes.TransferGatewayContractAddressMapp
 
 func getPendingMappingInfo(mapping *tgtypes.TransferGatewayPendingContractMapping) PendingMapping {
 	mappingInfo := PendingMapping{
-		ForeignContract: mapping.ForeignContract.ChainId + ":" +  mapping.ForeignContract.Local.String(),
-		LocalContract:   mapping.LocalContract.ChainId + ":" +  mapping.LocalContract.Local.String(),
+		ForeignContract: mapping.ForeignContract.ChainId + ":" + mapping.ForeignContract.Local.String(),
+		LocalContract:   mapping.LocalContract.ChainId + ":" + mapping.LocalContract.Local.String(),
 	}
 	return mappingInfo
 }
