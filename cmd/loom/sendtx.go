@@ -45,7 +45,6 @@ func setChainFlags(fs *pflag.FlagSet) {
 func newMigrationCommand() *cobra.Command {
 	var Id uint32
 	var inputFile string
-	var inputBytes []byte
 	migrationCmd := &cobra.Command{
 		Use:   "migration",
 		Short: "Run a migration",
@@ -54,25 +53,9 @@ func newMigrationCommand() *cobra.Command {
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
-			switch Id {
-			case 1:
-				inputBytes = nil
-			case 2:
-				policy := Policy{}
-				jsonData, err := ioutil.ReadFile(inputFile)
-				if err != nil {
-					return err
-				}
-				err = jsonpb.UnmarshalString(string(jsonData), &policy)
-				if err != nil {
-					return err
-				}
-				inputBytes, err = proto.Marshal(&policy)
-				if err != nil {
-					return err
-				}
-			default:
-				inputBytes = nil
+			inputBytes, err := parseInputParameters(Id, inputFile)
+			if err != nil {
+				return err
 			}
 			return migrationTx(Id, inputBytes, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
 		},
@@ -82,6 +65,32 @@ func newMigrationCommand() *cobra.Command {
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(migrationCmd.Flags())
 	return migrationCmd
+}
+
+func parseInputParameters(migrationId uint32, inputFile string) ([]byte, error) {
+	var inputBytes []byte
+	switch migrationId {
+	case 1:
+		inputBytes = nil
+	case 2:
+		policy := Policy{}
+		jsonData, err := ioutil.ReadFile(inputFile)
+		if err != nil {
+			return nil, err
+		}
+		err = jsonpb.UnmarshalString(string(jsonData), &policy)
+		if err != nil {
+			return nil, err
+		}
+		inputBytes, err = proto.Marshal(&policy)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		inputBytes = nil
+	}
+
+	return inputBytes, nil
 }
 
 func migrationTx(migrationId uint32, inputParams []byte, privFile, algo, callerChainID string) error {
