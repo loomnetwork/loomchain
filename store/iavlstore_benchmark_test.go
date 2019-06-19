@@ -22,7 +22,7 @@ import (
 
 const (
 	minCache = 200
-	maxCache = 2000
+	maxCache = 4000
 	checkDb  = false
 )
 
@@ -41,7 +41,7 @@ var (
 type benchFunc func(b require.TestingT, name string)
 
 func TestBenchmark(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "diff-iavlstore")
 	testno = 0
@@ -53,8 +53,10 @@ func TestBenchmark(t *testing.T) {
 
 	diskDbType = "goleveldb"
 	//diskDbType = "membd"
-	numBlocks = 5000
+	numBlocks = 1000
 	blockSize = 100
+	saveFrequency = 100
+	versionFrequency = 20
 	maxVersions = 2
 	fmt.Println("numBlocks", numBlocks, "blockSize", blockSize)
 	blocks = nil
@@ -67,19 +69,19 @@ func TestBenchmark(t *testing.T) {
 	}
 
 	t.Run("normal", benchNormal)
-	t.Run("normalDif", benchNormalDif)
-	t.Run("varCacheK", benchVariableCacheKeep)
-	t.Run("varCacheDifK", benchVariableCacheDifKeep)
-	t.Run("saveFreqDifK", benchSaveFrequencyDifKeep)
-	t.Run("saveFeepK", benchSaveFrequencyKeep)
+	//t.Run("normalDif", benchNormalDif)
+	//t.Run("varCacheK", benchVariableCacheKeep)
+	//t.Run("varCacheDifK", benchVariableCacheDifKeep)
+	//t.Run("saveFreqDifK", benchSaveFrequencyDifKeep)
+	//t.Run("saveFeepK", benchSaveFrequencyKeep)
 	t.Run("maxVer", benchMaxVersions)
-	t.Run("maxVerDif", benchMaxVersionsDif)
-	t.Run("varCache", benchVarableCache)
-	t.Run("varCacheDif", benchVarableCacheDif)
-	t.Run("saveFeq", benchSaveFrequency)
-	t.Run("saveFeqDif", benchSaveFrequencyDif)
-	t.Run("verFeq", benchVersionFrequency)
-	t.Run("verFeqDif", benchVersionFrequencyDif)
+	//t.Run("maxVerDif", benchMaxVersionsDif)
+	//t.Run("varCache", benchVarableCache)
+	//t.Run("varCacheDif", benchVarableCacheDif)
+	//t.Run("saveFeq", benchSaveFrequency)
+	//t.Run("saveFeqDif", benchSaveFrequencyDif)
+	//t.Run("verFeq", benchVersionFrequency)
+	//t.Run("verFeqDif", benchVersionFrequencyDif)
 	t.Run("maxVerFreqSaveFeq", benchMaxVersionFrequencySaveFrequency)
 	t.Run("maxVerFeqSaveFeqDif", benchMaxVersionFrequencySaveFrequencyDif)
 	t.Run("varCacheVerFeq", benchVarableCacheVersFeq)
