@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -19,6 +20,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
+
+
+type Mapping struct {
+	From string
+	To  string
+}
 
 const mapContractsCmdExample = `
 ./loom gateway map-contracts \
@@ -284,7 +291,15 @@ func newListContractMappingsCommand() *cobra.Command {
 			}
 			resp := &tgtypes.TransferGatewayListContractMappingResponse{}
 			_, err = gateway.StaticCall("ListContractMapping",req,gatewayAddr,resp)
-			fmt.Println(resp)
+			mappings := []Mapping{}
+			for _, mapping := range resp.Mappings{
+				mappings = append(mappings, getMappingInfo(mapping))
+			}
+			output, err := json.MarshalIndent(mappings, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
 			return err
 		},
 	}
@@ -313,7 +328,12 @@ func newGetContractMappingCommand() *cobra.Command {
 			}
 			resp := &tgtypes.TransferGatewayGetContractMappingResponse{}
 			_, err = gateway.StaticCall("GetContractMapping",req,gatewayAddr,resp)
-			fmt.Println(resp)
+			mapping := getMappingInfo(resp.Mapping)
+			output, err := json.MarshalIndent(mapping, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
 			return err
 		},
 	}
@@ -373,4 +393,12 @@ func getDAppChainClient() *client.DAppChainRPCClient {
 	writeURI := gatewayCmdFlags.URI + "/rpc"
 	readURI := gatewayCmdFlags.URI + "/query"
 	return client.NewDAppChainRPCClient(gatewayCmdFlags.ChainID, writeURI, readURI)
+}
+
+func getMappingInfo(mapping *tgtypes.TransferGatewayContractAddressMapping) Mapping {
+	mappingInfo := Mapping{
+		From : mapping.From.ChainId + ":" + mapping.From.Local.String(),
+		To : mapping.To.ChainId + ":" + mapping.To.Local.String(),
+	}
+	return mappingInfo
 }
