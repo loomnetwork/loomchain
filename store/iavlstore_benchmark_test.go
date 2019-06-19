@@ -41,7 +41,7 @@ var (
 type benchFunc func(b require.TestingT, name string)
 
 func TestBenchmark(t *testing.T) {
-	t.Skip()
+	//t.Skip()
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "diff-iavlstore")
 	testno = 0
@@ -144,78 +144,59 @@ func TestBenchmark(t *testing.T) {
 	}
 
 }
+
 func benchNormal(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "normal", benchmarkNormal)
 }
 func benchNormalDif(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "normal-dif", benchmarkNormalDif)
 }
 func benchVariableCacheKeep(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "varCache-keep", benchmarkVariableCacheKeep)
 }
 func benchVariableCacheDifKeep(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "varCache-dif-keep", benchmarVariableCacheDifKeep)
 }
 func benchSaveFrequencyDifKeep(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "saveFreq-dif-keep", benchmarkSaveFrequencyDifKeep)
 }
 func benchSaveFrequencyKeep(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "saveFreq-keep", benchmarkSaveFrequencyKeep)
 }
-
 func benchMaxVersions(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVersions", benchmarkMaxVersions)
 }
 func benchMaxVersionsDif(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVersions-dif", benchmarkMaxVersionsDif)
 }
 func benchVarableCache(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerVarableCache", benchmarkVarableCache)
 }
 func benchVarableCacheDif(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerVarableCache-dif", benchmarkVarableCacheDif)
 }
 func benchSaveFrequency(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "SaveFrequency", benchmarkSaveFrequency)
 }
 func benchSaveFrequencyDif(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "SaveFrequency-diff", benchmarkSaveFrequencyDif)
 }
 func benchVersionFrequency(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerFreq", benchmarkVersionFrequency)
 }
 func benchVersionFrequencyDif(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerFreq-diff", benchmarkVersionFrequencyDif)
 }
-
 func benchMaxVersionFrequencySaveFrequency(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerFreqSaveFreq", benchmarkMaxVersionFrequencySaveFrequency)
 }
 func benchMaxVersionFrequencySaveFrequencyDif(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerFreqSaveFreq-dif", benchmarkMaxVersionFrequencySaveFrequencyDif)
 }
 func benchVarableCacheVersFeq(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerFreqVarableCache", benchmarkVarableCacheVersFreqDif)
 }
 func benchVarableCacheVersFeqDif(t *testing.T) {
-	t.Skip()
 	timeIavlStore(t, "maxVerFreqVarableCache-dif", benchmarkVarableCacheVersFreq)
 }
 
