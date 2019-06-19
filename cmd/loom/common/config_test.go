@@ -13,7 +13,7 @@ const (
 	exampleLoom    = "loom"
 )
 
-func TestParseConfigWith_HSMfile(t *testing.T) {
+func TestParseConfigWithHSMfile(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.WriteToFile(exampleLoom + ".yaml")
 	confHsm := config.DefaultConfig()
@@ -28,7 +28,7 @@ func TestParseConfigWith_HSMfile(t *testing.T) {
 	_ = os.Remove(exampleLoom + ".yaml")
 }
 
-func TestParseConfigWithout_HSMfile(t *testing.T) {
+func TestParseConfigWithoutHSMfile(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.WriteToFile(exampleLoom + ".yaml")
 	actual, err := ParseConfig()
@@ -39,12 +39,12 @@ func TestParseConfigWithout_HSMfile(t *testing.T) {
 	_ = os.Remove(exampleLoom + ".yaml")
 }
 
-func TestParseConfigWith_OtherKey_In_HSMfile(t *testing.T) {
+func TestParseConfigWithOtherKeyInHSMfile(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.WriteToFile(exampleLoom + ".yaml")
-	conf_hsm := config.DefaultConfig()
-	conf_hsm.DPOSVersion = 100
-	conf_hsm.WriteToFile(exampleLoomHsm + ".yaml")
+	confHsm := config.DefaultConfig()
+	confHsm.DPOSVersion = 100
+	confHsm.WriteToFile(exampleLoomHsm + ".yaml")
 	actual, err := ParseConfig()
 	if err != nil {
 		t.Error(err)
