@@ -71,8 +71,6 @@ func newMigrationCommand() *cobra.Command {
 func parseInputParameters(migrationId uint32, inputFile string) ([]byte, error) {
 	var inputBytes []byte
 	switch migrationId {
-	case 1:
-		inputBytes = nil
 	case 2:
 		policy := Policy{}
 		jsonData, err := ioutil.ReadFile(inputFile)
