@@ -282,8 +282,8 @@ func newListContractMappingsCommand() *cobra.Command {
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 			req := &tgtypes.TransferGatewayListContractMappingRequest{
 			}
-			var resp tgtypes.TransferGatewayListContractMappingResponse
-			_, err = gateway.StaticCall("ListContractMapping",req,gatewayAddr,&resp)
+			resp := &tgtypes.TransferGatewayListContractMappingResponse{}
+			_, err = gateway.StaticCall("ListContractMapping",req,gatewayAddr,resp)
 			fmt.Println(resp)
 			return err
 		},
@@ -311,8 +311,8 @@ func newGetContractMappingCommand() *cobra.Command {
 			req := &tgtypes.TransferGatewayGetContractMappingRequest{
 				From : contractAddr.MarshalPB(),
 			}
-			var resp tgtypes.TransferGatewayGetContractMappingResponse
-			_, err = gateway.StaticCall("GetContractMapping",req,gatewayAddr,&resp)
+			resp := &tgtypes.TransferGatewayGetContractMappingResponse{}
+			_, err = gateway.StaticCall("GetContractMapping",req,gatewayAddr,resp)
 			fmt.Println(resp)
 			return err
 		},
