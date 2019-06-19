@@ -185,7 +185,7 @@ $(SSHA3_DIR):
 
 $(TRANSFER_GATEWAY_DIR):
 	git clone -q git@github.com:loomnetwork/transfer-gateway.git $@
-	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV)
+	cd $(TRANSFER_GATEWAY_DIR) && git checkout binance-dex-integration && git pull && git checkout $(TG_GIT_REV)
 
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
@@ -215,7 +215,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/btcsuite/btcd
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
-	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
+	cd $(PLUGIN_DIR) && git checkout binance-types && git pull && git checkout $(GO_LOOM_GIT_REV)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GRPC_DIR) && git checkout v1.20.1

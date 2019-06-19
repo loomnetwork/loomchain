@@ -12,8 +12,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-
-	errUtil "github.com/pkg/errors"
 )
 
 const (
@@ -47,7 +45,8 @@ type (
 )
 
 var (
-	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ErrSenderBalanceTooLow    = errors.New("sender balance is too low")
+	ErrFailedToResolveGateway = errors.New("failed to resolve gateway contract")
 )
 
 var (
@@ -107,16 +106,14 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 
 // MintToGateway adds loom coins to the loom coin Gateway contract balance, and updates the total supply.
 func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
-	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
-	if err != nil {
-		return errUtil.Wrap(err, "failed to mint Loom coin")
+	gatewayAddrs := resolveGatwayAddress(ctx, "loomcoin-gateway", "binance-gateway")
+	for _, addr := range gatewayAddrs {
+		if ctx.Message().Sender.Compare(addr) == 0 {
+			return mint(ctx, addr, &req.Amount.Value)
+		}
 	}
 
-	if ctx.Message().Sender.Compare(gatewayAddr) != 0 {
-		return errors.New("not authorized to mint Loom coin")
-	}
-
-	return mint(ctx, gatewayAddr, &req.Amount.Value)
+	return errors.New("not authorized to mint Loom coin")
 }
 
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
@@ -124,16 +121,14 @@ func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
 		return errors.New("owner or amount is nil")
 	}
 
-	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
-	if err != nil {
-		return errUtil.Wrap(err, "failed to burn Loom coin")
+	gatewayAddrs := resolveGatwayAddress(ctx, "loomcoin-gateway", "binance-gateway")
+	for _, addr := range gatewayAddrs {
+		if ctx.Message().Sender.Compare(addr) == 0 {
+			return burn(ctx, loom.UnmarshalAddressPB(req.Owner), &req.Amount.Value)
+		}
 	}
 
-	if ctx.Message().Sender.Compare(gatewayAddr) != 0 {
-		return errors.New("not authorized to burn Loom coin")
-	}
-
-	return burn(ctx, loom.UnmarshalAddressPB(req.Owner), &req.Amount.Value)
+	return errors.New("not authorized to burn Loom coin")
 }
 
 func burn(ctx contract.Context, from loom.Address, amount *loom.BigUInt) error {
@@ -586,4 +581,15 @@ func emitApprovalEvent(ctx contract.Context, from, to loom.Address, amount *loom
 
 	ctx.EmitTopics(marshalled, ApprovalEventTopic)
 	return nil
+}
+
+func resolveGatwayAddress(ctx contract.Context, names ...string) []loom.Address {
+	var addresses []loom.Address
+	for _, name := range names {
+		gatewayAddr, _ := ctx.Resolve(name)
+		if !gatewayAddr.IsEmpty() {
+			addresses = append(addresses, gatewayAddr)
+		}
+	}
+	return addresses
 }
