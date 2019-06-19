@@ -478,18 +478,22 @@ func DowntimeRecordCmdV3() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "downtime-record [validator address]",
 		Short: "check a validator's downtime record",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			validatorAddress, err := cli.ParseAddress(args[0], flags.ChainID)
-			if err != nil {
-				return err
+			var validatorAddress *types.Address
+			if len(args) > 0 {
+				address, err := cli.ParseAddress(args[0], flags.ChainID)
+				if err != nil {
+					return err
+				}
+				validatorAddress = address.MarshalPB()
 			}
 
 			var resp dposv3.DowntimeRecordResponse
-			err = cli.StaticCallContractWithFlags(
+			err := cli.StaticCallContractWithFlags(
 				&flags, DPOSV3ContractName, "DowntimeRecord",
 				&dposv3.DowntimeRecordRequest{
-					Validator: validatorAddress.MarshalPB(),
+					Validator: validatorAddress,
 				}, &resp,
 			)
 			if err != nil {
@@ -940,11 +944,11 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			crashFaultSlashingPercentage, err := cli.ParseAmount(args[1])
+			crashFaultSlashingPercentage, err := cli.ParseAmount(args[0])
 			if err != nil {
 				return err
 			}
-			byzantineFaultSlashingPercentage, err := cli.ParseAmount(args[2])
+			byzantineFaultSlashingPercentage, err := cli.ParseAmount(args[1])
 			if err != nil {
 				return err
 			}
