@@ -21,10 +21,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 type Mapping struct {
 	From string
-	To  string
+	To   string
 }
 
 const mapContractsCmdExample = `
@@ -272,7 +271,6 @@ func newMapAccountsCommand() *cobra.Command {
 	return cmd
 }
 
-
 func newListContractMappingsCommand() *cobra.Command {
 	var gatewayType string
 	cmd := &cobra.Command{
@@ -287,12 +285,11 @@ func newListContractMappingsCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
-			req := &tgtypes.TransferGatewayListContractMappingRequest{
-			}
+			req := &tgtypes.TransferGatewayListContractMappingRequest{}
 			resp := &tgtypes.TransferGatewayListContractMappingResponse{}
-			_, err = gateway.StaticCall("ListContractMapping",req,gatewayAddr,resp)
+			_, err = gateway.StaticCall("ListContractMapping", req, gatewayAddr, resp)
 			mappings := []Mapping{}
-			for _, mapping := range resp.Mappings{
+			for _, mapping := range resp.Mappings {
 				mappings = append(mappings, getMappingInfo(mapping))
 			}
 			output, err := json.MarshalIndent(mappings, "", "  ")
@@ -324,12 +321,11 @@ func newGetContractMappingCommand() *cobra.Command {
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 			req := &tgtypes.TransferGatewayGetContractMappingRequest{
-				From : contractAddr.MarshalPB(),
+				From: contractAddr.MarshalPB(),
 			}
 			resp := &tgtypes.TransferGatewayGetContractMappingResponse{}
-			_, err = gateway.StaticCall("GetContractMapping",req,gatewayAddr,resp)
-			mapping := getMappingInfo(resp.Mapping)
-			output, err := json.MarshalIndent(mapping, "", "  ")
+			_, err = gateway.StaticCall("GetContractMapping", req, gatewayAddr, resp)
+			output, err := json.MarshalIndent(resp.Mapping, "", "  ")
 			if err != nil {
 				return err
 			}
@@ -397,8 +393,8 @@ func getDAppChainClient() *client.DAppChainRPCClient {
 
 func getMappingInfo(mapping *tgtypes.TransferGatewayContractAddressMapping) Mapping {
 	mappingInfo := Mapping{
-		From : mapping.From.ChainId + ":" + mapping.From.Local.String(),
-		To : mapping.To.ChainId + ":" + mapping.To.Local.String(),
+		From: mapping.From.ChainId + ":" + mapping.From.Local.String(),
+		To:   mapping.To.ChainId + ":" + mapping.To.Local.String(),
 	}
 	return mappingInfo
 }
