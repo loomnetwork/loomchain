@@ -25,9 +25,9 @@ TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
-GO_LOOM_GIT_REV = HEAD
+GO_LOOM_GIT_REV = Gateway-Fetch-Contract-Mappings
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
-TG_GIT_REV = HEAD
+TG_GIT_REV = Gateway-Fetch-Contract-Mappings
 # loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
