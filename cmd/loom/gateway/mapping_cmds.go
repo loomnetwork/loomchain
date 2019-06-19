@@ -265,6 +265,63 @@ func newMapAccountsCommand() *cobra.Command {
 	return cmd
 }
 
+
+func newListContractMappingsCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "list-contract-mappings",
+		Short:   "List all contract mappings",
+		Example: mapContractsCmdExample,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayListContractMappingRequest{
+			}
+			var resp tgtypes.TransferGatewayListContractMappingResponse
+			_, err = gateway.StaticCall("ListContractMapping",req,gatewayAddr,&resp)
+			fmt.Println(resp)
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	return cmd
+}
+
+func newGetContractMappingCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "get-contract-mapping <contract-addr>",
+		Short:   "Get Contract Mapping",
+		Example: mapContractsCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contractAddr, err := hexToLoomAddress(args[0])
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayGetContractMappingRequest{
+				From : contractAddr.MarshalPB(),
+			}
+			var resp tgtypes.TransferGatewayGetContractMappingResponse
+			_, err = gateway.StaticCall("GetContractMapping",req,gatewayAddr,&resp)
+			fmt.Println(resp)
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	return cmd
+}
+
 func getSignatureInteractive(hash []byte) ([prefixedSigLength]byte, error) {
 	// get it from the signature
 	fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x)\n")
