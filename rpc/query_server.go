@@ -16,7 +16,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	cmd "github.com/loomnetwork/loomchain/cmd/loom/common"
+	lcommon "github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
@@ -155,7 +155,7 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 }
 
 func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
-	cfg, err := cmd.ParseConfig()
+	cfg, err := lcommon.ParseConfig()
 	if err != nil {
 		return nil, err
 	}
