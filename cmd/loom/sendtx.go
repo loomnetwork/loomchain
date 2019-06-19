@@ -86,7 +86,7 @@ func parseInputParameters(migrationId uint32, inputFile string) ([]byte, error) 
 			return nil, err
 		}
 	default:
-		inputBytes = nil
+		return nil, nil
 	}
 
 	return inputBytes, nil
