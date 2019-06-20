@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
@@ -118,7 +119,9 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 			Fee: &types.BigUInt{
 				Value: *fees,
 			},
-			Name: tier.Name,
+			Name:       tier.Name,
+			BlockRange: tier.BlockRange,
+			MaxTx:      tier.MaxTx,
 		}
 
 		if err := ctx.Set(TierKey(tier.TierID), tier); err != nil {
@@ -326,9 +329,11 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 		return ErrNotAuthorized
 	}
 	tier := &Tier{
-		TierID: req.TierID,
-		Fee:    req.Fee,
-		Name:   req.Name,
+		TierID:     req.TierID,
+		Fee:        req.Fee,
+		Name:       req.Name,
+		BlockRange: req.BlockRange,
+		MaxTx:      req.MaxTx,
 	}
 	err := ctx.Set(TierKey(req.TierID), tier)
 	if err != nil {
@@ -358,6 +363,28 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
 	}
 	return nil
+}
+
+// GetContractTierMapping create a map of contract to TxLimiter to be used in ContractTxLimiter
+func GetContractTierMapping(ctx contract.StaticContext) (map[string]Tier, error) {
+	contractToTierMap := make(map[string]Tier, 0)
+	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
+		var deployer UserDeployerState
+		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
+			return nil, errors.Wrap(err, "unmarshal UserDeployerState")
+		}
+		var tier Tier
+		err := ctx.Get(TierKey(deployer.TierID), &tier)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get Tier Information")
+		}
+		contracts := deployer.Contracts
+		for _, contract := range contracts {
+			contractToTierMap[contract.String()] = tier
+
+		}
+	}
+	return contractToTierMap, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&UserDeployerWhitelist{})
