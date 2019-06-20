@@ -14,10 +14,6 @@ var (
 	policyKey = []byte("policy")
 )
 
-type (
-	Policy = ctypes.Policy
-)
-
 //Passing Input Paramters as byte array to Coin Policy Migration Function
 func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) error {
 	//Resolve coin context
@@ -25,7 +21,7 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) err
 	if err != nil {
 		return err
 	}
-	coinPolicy := Policy{}
+	coinPolicy := ctypes.Policy{}
 	err = proto.Unmarshal(parameters, &coinPolicy)
 	if err != nil {
 		return err
@@ -41,12 +37,10 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) err
 		return errors.New("Base Minting Amount should be greater than zero")
 	}
 	addr := loom.UnmarshalAddressPB(coinPolicy.MintingAccount)
-
 	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
 		return errors.New("Minting Account Address cannot be Root Address")
 	}
-	err = coinCtx.Set(policyKey, &coinPolicy)
-	if err != nil {
+	if err := coinCtx.Set(policyKey, &coinPolicy); err != nil {
 		return err
 	}
 	// Turn on coin policy
