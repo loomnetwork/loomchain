@@ -244,13 +244,19 @@ func ListFeaturesCmd() *cobra.Command {
 					ml.BuildNumber = uintLength(value.BuildNumber)
 				}
 			}
-
-			for i, value := range resp.Features {
-				if i == 0 {
-					fmt.Printf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n", ml.Name, "name", ml.Status, "status", ml.Validators, "validators", ml.Height, "height", ml.Percentage, "vote %", ml.BuildNumber, "build")
-					fmt.Printf(strings.Repeat("-", ml.Name+ml.Status+ml.Validators+ml.Height+ml.Percentage+ml.BuildNumber+15) + "\n")
-				}
-				fmt.Printf("%-*s | %-*s | %-*d | %-*d | %-*d | %-*d\n", ml.Name, value.Name, ml.Status, value.Status, ml.Validators, len(value.Validators), ml.Height, value.BlockHeight, ml.Percentage, value.Percentage, ml.BuildNumber, value.BuildNumber)
+			fmt.Printf(
+				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n", ml.Name,
+				"name", ml.Status, "status", ml.Validators, "validators",
+				ml.Height, "height", ml.Percentage, "vote %", ml.BuildNumber, "build")
+			fmt.Printf(
+				strings.Repeat("-", ml.Name+ml.Status+ml.Validators+
+					ml.Height+ml.Percentage+ml.BuildNumber+15) + "\n")
+			for _, value := range resp.Features {
+				fmt.Printf("%-*s | %-*s | %-*d | %-*d | %-*d | %-*d\n",
+					ml.Name, value.Name, ml.Status, value.Status,
+					ml.Validators, len(value.Validators), ml.Height,
+					value.BlockHeight, ml.Percentage, value.Percentage,
+					ml.BuildNumber, value.BuildNumber)
 			}
 			return nil
 		},
