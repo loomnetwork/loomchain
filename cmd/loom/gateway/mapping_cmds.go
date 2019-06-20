@@ -299,6 +299,9 @@ func newListContractMappingsCommand() *cobra.Command {
 			req := &tgtypes.TransferGatewayListContractMappingRequest{}
 			resp := &tgtypes.TransferGatewayListContractMappingResponse{}
 			_, err = gateway.StaticCall("ListContractMapping", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.ListContractMapping")
+			}
 			confirmedmappings := []ConfirmedMapping{}
 			for _, mapping := range resp.ConfimedMappings {
 				confirmedmappings = append(confirmedmappings, getConfirmedMappingInfo(mapping))
@@ -348,6 +351,9 @@ func newGetContractMappingCommand() *cobra.Command {
 			}
 			resp := &tgtypes.TransferGatewayGetContractMappingResponse{}
 			_, err = gateway.StaticCall("GetContractMapping", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.GetContractMapping")
+			}
 			if resp.MappedAddress != nil {
 				mapping.Address = resp.MappedAddress.ChainId + resp.MappedAddress.Local.String()
 				mapping.IsPending = resp.IsPending
