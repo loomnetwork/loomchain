@@ -217,7 +217,7 @@ func ListFeaturesCmd() *cobra.Command {
 				return err
 			}
 
-			type MaxLength struct {
+			type maxLength struct {
 				Name        int
 				Status      int
 				Validators  int
@@ -226,7 +226,7 @@ func ListFeaturesCmd() *cobra.Command {
 				BuildNumber int
 			}
 
-			ml := MaxLength{Name: 4, Status: 6, Validators: 10, Height: 6, Percentage: 6, BuildNumber: 5}
+			ml := maxLength{Name: 4, Status: 6, Validators: 10, Height: 6, Percentage: 6, BuildNumber: 5}
 			for _, value := range resp.Features {
 				if len(value.Name) >= ml.Name {
 					ml.Name = len(value.Name)
