@@ -226,22 +226,13 @@ func ListFeaturesCmd() *cobra.Command {
 				BuildNumber int
 			}
 
-			ml := maxLength{Name: 4, Status: 6, Validators: 10, Height: 6, Percentage: 6, BuildNumber: 5}
+			ml := maxLength{Name: 4, Status: 7, Validators: 10, Height: 6, Percentage: 6, BuildNumber: 5}
 			for _, value := range resp.Features {
-				if len(value.Name) >= ml.Name {
+				if len(value.Name) > ml.Name {
 					ml.Name = len(value.Name)
 				}
-				if len(value.Status.String()) >= ml.Status {
-					ml.Status = len(value.Status.String())
-				}
-				if uintLength(value.BlockHeight) >= ml.Height {
+				if uintLength(value.BlockHeight) > ml.Height {
 					ml.Height = uintLength(value.BlockHeight)
-				}
-				if uintLength(value.Percentage) >= ml.Percentage {
-					ml.Percentage = uintLength(value.Percentage)
-				}
-				if uintLength(value.BuildNumber) >= ml.BuildNumber {
-					ml.BuildNumber = uintLength(value.BuildNumber)
 				}
 			}
 			fmt.Printf(
