@@ -87,7 +87,7 @@ func (h *MigrationTxHandler) ProcessTx(
 		return r, fmt.Errorf("invalid migration ID %d", tx.ID)
 	}
 	migrationCtx := migrations.NewMigrationContext(h.Manager, h.CreateRegistry, state, origin)
-	if err := migrationFn(migrationCtx, tx.MigrationParams); err != nil {
+	if err := migrationFn(migrationCtx, tx.Input); err != nil {
 		return r, errors.Wrapf(err, "migration %d failed", int32(tx.ID))
 	}
 
