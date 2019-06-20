@@ -32,8 +32,6 @@ type deployTxFlags struct {
 	Name       string `json:"name"`
 }
 
-type Policy = ctypes.Policy
-
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
 	fs.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
@@ -72,7 +70,7 @@ func parseInputParameters(migrationId uint32, inputFile string) ([]byte, error) 
 	var inputBytes []byte
 	switch migrationId {
 	case 2:
-		policy := Policy{}
+		policy := ctypes.Policy{}
 		jsonData, err := ioutil.ReadFile(inputFile)
 		if err != nil {
 			return nil, err
