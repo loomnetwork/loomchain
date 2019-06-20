@@ -21,6 +21,7 @@ func NewGatewayCommand() *cobra.Command {
 		newRemoveOracleCommand(),
 		newGetOraclesCommand(),
 		newUpdateTrustedValidatorsCommand(),
+		newReclaimTokensCommand(),
 	)
 	return cmd
 }

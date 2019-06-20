@@ -575,6 +575,49 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	return cmd
 }
 
+func newReclaimTokensCommand() *cobra.Command {
+	var contractAddrStr, gatewayName string
+	cmd := &cobra.Command{
+		Use:   "reclaim-tokens",
+		Short: "Reclaim tokens from the DAppChain Gateway.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			contractAddr, err := loom.ParseAddress(contractAddrStr)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse foreign contract address")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayName)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayReclaimContractTokensRequest{
+				TokenContract: contractAddr.MarshalPB(),
+			}
+
+			_, err = gateway.Call("ReclaimContractTokens", req, signer, nil)
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&contractAddrStr, "contract", "", "Foreign token contract address")
+	cmdFlags.StringVar(
+		&gatewayName, "gateway", "gateway",
+		"DAppChain Gateway contract name (gateway, loomcoin-gateway, tron-gateway)",
+	)
+	return cmd
+}
+
 func formatJSON(pb proto.Message) (string, error) {
 	marshaler := jsonpb.Marshaler{
 		Indent:       "  ",
