@@ -281,12 +281,15 @@ type Mappings struct {
 	PendingMappings   []PendingMapping   `json:"pending_mapping"`
 }
 
+const ListContractMappingCmdExample = `
+loom gateway list-contract-mappings
+`
 func newListContractMappingsCommand() *cobra.Command {
 	var gatewayType string
 	cmd := &cobra.Command{
 		Use:     "list-contract-mappings",
 		Short:   "List all contract mappings",
-		Example: mapContractsCmdExample,
+		Example: ListContractMappingCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var mapping Mappings
@@ -325,6 +328,9 @@ func newListContractMappingsCommand() *cobra.Command {
 	return cmd
 }
 
+const getContractMappingCmdExample = `
+loom gateway get-contract-mapping 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+`
 type Mapping struct {
 	Address string `json:"address"`
 	IsPending  bool `json:"is_pending"`
@@ -335,7 +341,7 @@ func newGetContractMappingCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get-contract-mapping <contract-addr>",
 		Short:   "Get Contract Mapping",
-		Example: mapContractsCmdExample,
+		Example: getContractMappingCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var mapping Mapping
