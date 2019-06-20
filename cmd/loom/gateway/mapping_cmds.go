@@ -324,7 +324,7 @@ func newListContractMappingsCommand() *cobra.Command {
 
 type Mapping struct {
 	Address string `json:"address"`
-	status  string `json:"status"`
+	IsPending  bool `json:"is_pending"`
 }
 
 func newGetContractMappingCommand() *cobra.Command {
@@ -350,7 +350,7 @@ func newGetContractMappingCommand() *cobra.Command {
 			_, err = gateway.StaticCall("GetContractMapping", req, gatewayAddr, resp)
 			if resp.MappedAddress != nil {
 				mapping.Address = resp.MappedAddress.ChainId + resp.MappedAddress.Local.String()
-				mapping.status = resp.Status
+				mapping.IsPending = resp.IsPending
 			}
 			output, err := json.MarshalIndent(mapping, "", "  ")
 			if err != nil {
