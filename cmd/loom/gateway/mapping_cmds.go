@@ -284,6 +284,7 @@ type Mappings struct {
 const ListContractMappingCmdExample = `
 loom gateway list-contract-mappings
 `
+
 func newListContractMappingsCommand() *cobra.Command {
 	var gatewayType string
 	cmd := &cobra.Command{
@@ -331,9 +332,10 @@ func newListContractMappingsCommand() *cobra.Command {
 const getContractMappingCmdExample = `
 loom gateway get-contract-mapping 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
+
 type Mapping struct {
-	Address string `json:"address"`
-	IsPending  bool `json:"is_pending"`
+	Address   string `json:"address"`
+	IsPending bool   `json:"is_pending"`
 }
 
 func newGetContractMappingCommand() *cobra.Command {
@@ -345,7 +347,7 @@ func newGetContractMappingCommand() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var mapping Mapping
-			contractAddr, err := hexToLoomAddress(args[0])
+			contractAddr, err := cli.ParseAddress(args[0], "default")
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
@@ -363,6 +365,9 @@ func newGetContractMappingCommand() *cobra.Command {
 			if resp.MappedAddress != nil {
 				mapping.Address = resp.MappedAddress.ChainId + resp.MappedAddress.Local.String()
 				mapping.IsPending = resp.IsPending
+			} else {
+				fmt.Println("No mapping found")
+				return nil
 			}
 			output, err := json.MarshalIndent(mapping, "", "  ")
 			if err != nil {
