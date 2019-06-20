@@ -1122,6 +1122,12 @@ func Elect(ctx contract.Context) error {
 		}
 	}
 
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
+		if err = removeOfflineValidators(ctx, cachedDelegations); err != nil {
+			return err
+		}
+	}
+
 	if err = updateCandidateList(ctx); err != nil {
 		return err
 	}
@@ -1320,6 +1326,74 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 		}
 	}
 
+	return nil
+}
+
+func removeOfflineValidators(ctx contract.Context, cachedDelegations *CachedDposStorage) error {
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return logDposError(ctx, err, "RemoveOfflineValidators could not load validator list")
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return logDposError(ctx, err, "RemoveOfflineValidators could not load state")
+	}
+
+	params := state.Params
+	delegations, err := cachedDelegations.loadDelegationList(ctx)
+	if err != nil {
+		return logDposError(ctx, err, "RemoveOfflineValidators could not load delegation list")
+	}
+
+	for _, validator := range validators {
+		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
+
+		if candidate == nil {
+			ctx.Logger().Info("Attempted to check downtime of a validator no longer on candidates list.", "validator", validator)
+			continue
+		}
+
+		candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
+		statistic, _ := GetStatistic(ctx, candidateAddress)
+		if statistic != nil {
+			// if a validator misses all all blocks in the last 4 periods, do
+			// 1. redelegate all delegations to limbo validator
+			// 2. remove the validator from whitelist
+			if statistic.RecentlyMissedBlocks&0xFFFF == params.DowntimePeriod &&
+				(statistic.RecentlyMissedBlocks>>16)&0xFFFF == params.DowntimePeriod &&
+				(statistic.RecentlyMissedBlocks>>32)&0xFFFF == params.DowntimePeriod &&
+				(statistic.RecentlyMissedBlocks>>48)&0xFFFF == params.DowntimePeriod {
+
+				// redelegate delegations to limbo vallidator
+				for _, d := range delegations {
+					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 {
+						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+						if err == contract.ErrNotFound {
+							continue
+						} else if err != nil {
+							return err
+						}
+						delegation.UpdateAmount = delegation.Amount
+						delegation.UpdateValidator = LimboValidatorAddress(ctx).MarshalPB()
+						delegation.UpdateLocktimeTier = TIER_ZERO
+						delegation.State = REDELEGATING
+						delegation.LockTime = 0
+						if err := SetDelegation(ctx, delegation); err != nil {
+							return err
+						}
+					}
+				}
+
+				// remove this validator from whitelist
+				statistic.UpdateWhitelistAmount = loom.BigZeroPB()
+				err := SetStatistic(ctx, statistic)
+				if err != nil {
+					ctx.Logger().Info("Cannot save validator statistic.", "validator", validator)
+				}
+			}
+		}
+	}
 	return nil
 }
 
