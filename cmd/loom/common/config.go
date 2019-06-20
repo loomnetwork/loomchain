@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/config"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/spf13/viper"
 )
 
@@ -23,12 +24,26 @@ func ParseConfig() (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	v.SetConfigName("loom_hsm")
-	v.ReadInConfig()
-	err = v.UnmarshalKey("HsmConfig", conf.HsmConfig)
+	conf.HsmConfig, err = ParseHSMConfig()
 	if err != nil {
 		return nil, err
 	}
+
 	return conf, err
+}
+
+func ParseHSMConfig() (*hsmpv.HsmConfig, error) {
+	v := viper.New()
+	v.SetConfigName("loom_hsm")
+	v.AddConfigPath(".")                          // search root directory
+	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
+	v.AddConfigPath("./../../../")
+	if err := v.ReadInConfig(); err != nil {
+		return nil, err
+	}
+	cfg := hsmpv.DefaultConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
