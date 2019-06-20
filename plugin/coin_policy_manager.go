@@ -38,7 +38,7 @@ func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyMana
 	}, nil
 }
 
-//ApplyPolicy method of coin_deflation_Manager will be called from Block
+// ApplyPolicy will apply the current economic policy within the coin contract
 func (c *CoinPolicyManager) ApplyPolicy() error {
 	return coin.Mint(c.ctx)
 }
