@@ -112,10 +112,14 @@ func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator
 }
 
 func (dpos *testDPOSContract) DowntimeRecord(ctx *plugin.FakeContext, validator *loom.Address) (*DowntimeRecordResponse, error) {
+	var validatorAddr *types.Address
+	if validator != nil {
+		validatorAddr = validator.MarshalPB()
+	}
 	resp, err := dpos.Contract.DowntimeRecord(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&DowntimeRecordRequest{
-			Validator: validator.MarshalPB(),
+			Validator: validatorAddr,
 		},
 	)
 	if err != nil {
