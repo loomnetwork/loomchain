@@ -79,7 +79,6 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-	//Checks if Coin Policy is not nil before loading Coin Monetary Supply Policy
 	if req.Policy != nil {
 		if req.Policy.DeflationFactorNumerator == 0 {
 			return errors.New("DeflationFactorNumerator should be greater than zero")
