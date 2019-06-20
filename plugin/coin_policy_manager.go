@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"github.com/loomnetwork/go-loom"
-	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
@@ -12,7 +11,7 @@ import (
 
 var (
 	// ErrCoinContractNotFound indicates that the Coin contract hasn't been deployed yet.
-	ErrCoinContractNotFound = errors.New("[CoinDeflationManager] CoinContract contract not found")
+	ErrCoinContractNotFound = errors.New("[CoinPolicyManager] Coin Contract not found")
 )
 
 // CoinPolicyManager implements loomchain.CoinPolicyManager interface
@@ -20,8 +19,6 @@ type CoinPolicyManager struct {
 	ctx   contract.Context
 	state loomchain.State
 }
-
-type Policy = ctypes.Policy
 
 // NewCoinPolicyManager attempts to create an instance of CoinPolicyManager.
 func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyManager, error) {
@@ -41,7 +38,7 @@ func NewCoinPolicyManager(pvm *PluginVM, state loomchain.State) (*CoinPolicyMana
 	}, nil
 }
 
-//MintCoins method of coin_deflation_Manager will be called from Block
-func (c *CoinPolicyManager) MintCoins() error {
-	  return coin.Mint(c.ctx)
+//ApplyPolicy method of coin_deflation_Manager will be called from Block
+func (c *CoinPolicyManager) ApplyPolicy() error {
+	return coin.Mint(c.ctx)
 }
