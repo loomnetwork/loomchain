@@ -24,9 +24,41 @@ type contractTxLimiter struct {
 
 var TxLimiter *contractTxLimiter
 
-func (txl *contractTxLimiter) isAccountLimitReached(account loom.Address) bool {
-	//todo: check if limit is reached
+func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, curBlockHeight int64) bool {
+	tier, ok := txl.contractToTierMap[contractAddr.String()]
+	if !ok {
+		return false
+	}
+	blockTxns, ok := txl.contractToBlockTrx[contractAddr.String()]
+	if !ok {
+		return false
+	}
+	minBlockHeight := curBlockHeight - int64(tier.BlockRange) + 1
+	sum := int64(0)
+	for blockHeight, txns := range blockTxns {
+		if blockHeight < minBlockHeight {
+			delete(blockTxns, blockHeight)
+		} else {
+			sum = sum + txns
+		}
+	}
+	if sum > int64(tier.MaxTx) {
+		return false
+	}
 	return true
+}
+
+func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHeight int64) {
+	_, ok := TxLimiter.contractToBlockTrx[contractAddr.String()]
+	if !ok {
+		TxLimiter.contractToBlockTrx[contractAddr.String()] = make(map[int64]int64, 0)
+	}
+	_, ok = TxLimiter.contractToBlockTrx[contractAddr.String()][curBlockHeight]
+	if !ok {
+		TxLimiter.contractToBlockTrx[contractAddr.String()][curBlockHeight] = 1
+	} else {
+		TxLimiter.contractToBlockTrx[contractAddr.String()][curBlockHeight]++
+	}
 }
 
 // NewContractTxLimiterMiddleware add another tx limiter that limits how many CallTx(s) can be sent to an EVM contract within a pre-configured block range
@@ -77,9 +109,13 @@ func NewContractTxLimiterMiddleware(
 				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 			}
 			if tx.VmType == vm.VMType_EVM {
-				if TxLimiter.isAccountLimitReached(loom.UnmarshalAddressPB(msg.To)) {
+
+				if TxLimiter.isAccountLimitReached(loom.UnmarshalAddressPB(msg.To), state.Block().Height) {
 					return loomchain.TxHandlerResult{}, errors.New("tx limit reached, try again later")
 				}
+
+				TxLimiter.updateState(loom.UnmarshalAddressPB(msg.To), state.Block().Height)
+
 			}
 		}
 
