@@ -2,6 +2,8 @@ package chainconfig
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
@@ -214,11 +216,42 @@ func ListFeaturesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
+
+			type MaxLength struct {
+				Name        int
+				Status      int
+				Validators  int
+				Height      int
+				Percentage  int
+				BuildNumber int
 			}
-			fmt.Println(out)
+
+			ml := MaxLength{Name: 4, Status: 6, Validators: 10, Height: 6, Percentage: 6, BuildNumber: 5}
+			for _, value := range resp.Features {
+				if len(value.Name) >= ml.Name {
+					ml.Name = len(value.Name)
+				}
+				if len(value.Status.String()) >= ml.Status {
+					ml.Status = len(value.Status.String())
+				}
+				if uintLength(value.BlockHeight) >= ml.Height {
+					ml.Height = uintLength(value.BlockHeight)
+				}
+				if uintLength(value.Percentage) >= ml.Percentage {
+					ml.Percentage = uintLength(value.Percentage)
+				}
+				if uintLength(value.BuildNumber) >= ml.BuildNumber {
+					ml.BuildNumber = uintLength(value.BuildNumber)
+				}
+			}
+
+			for i, value := range resp.Features {
+				if i == 0 {
+					fmt.Printf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n", ml.Name, "name", ml.Status, "status", ml.Validators, "validators", ml.Height, "height", ml.Percentage, "vote %", ml.BuildNumber, "build")
+					fmt.Printf(strings.Repeat("-", ml.Name+ml.Status+ml.Validators+ml.Height+ml.Percentage+ml.BuildNumber+15) + "\n")
+				}
+				fmt.Printf("%-*s | %-*s | %-*d | %-*d | %-*d | %-*d\n", ml.Name, value.Name, ml.Status, value.Status, ml.Validators, len(value.Validators), ml.Height, value.BlockHeight, ml.Percentage, value.Percentage, ml.BuildNumber, value.BuildNumber)
+			}
 			return nil
 		},
 	}
@@ -302,4 +335,9 @@ func formatJSON(pb proto.Message) (string, error) {
 		EmitDefaults: true,
 	}
 	return marshaler.MarshalToString(pb)
+}
+
+func uintLength(n uint64) int {
+	str := strconv.FormatUint(n, 10)
+	return len(str)
 }
