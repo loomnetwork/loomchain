@@ -48,8 +48,8 @@ type (
 )
 
 var (
-	ErrSenderBalanceTooLow   = errors.New("sender balance is too low")
-	InvalidBaseMintingAmount = errors.New("Base Minting Amount should be greater than zero")
+	ErrSenderBalanceTooLow      = errors.New("sender balance is too low")
+	ErrInvalidBaseMintingAmount = errors.New("Base Minting Amount should be greater than zero")
 )
 
 var (
@@ -79,7 +79,7 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-	//Checks if Coin Policy Feature is enabled before loading Coin Monetary Supply Policy
+	//Checks if Coin Policy is not nil before loading Coin Monetary Supply Policy
 	if req.Policy != nil {
 		if req.Policy.DeflationFactorNumerator == 0 {
 			return errors.New("DeflationFactorNumerator should be greater than zero")
@@ -88,7 +88,7 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 			return errors.New("DeflationFactorDenominator should be greater than zero")
 		}
 		if req.Policy.BaseMintingAmount == 0 {
-			return InvalidBaseMintingAmount
+			return ErrInvalidBaseMintingAmount
 		}
 		if req.Policy.MintingAccount == nil {
 			return errors.New("Invalid Minting Account Address")
@@ -97,16 +97,13 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
 			return errors.New("Minting Account Address cannot be Root Address")
 		}
-		deflationFactorNumerator := req.Policy.DeflationFactorNumerator
-		deflationFactorDenominator := req.Policy.DeflationFactorDenominator
 		policy := &Policy{
-			DeflationFactorNumerator:   deflationFactorNumerator,
-			DeflationFactorDenominator: deflationFactorDenominator,
+			DeflationFactorNumerator:   req.Policy.DeflationFactorNumerator,
+			DeflationFactorDenominator: req.Policy.DeflationFactorDenominator,
 			BaseMintingAmount:          req.Policy.BaseMintingAmount,
 			MintingAccount:             req.Policy.MintingAccount,
 		}
-		err := ctx.Set(policyKey, policy)
-		if err != nil {
+		if err := ctx.Set(policyKey, policy); err != nil {
 			return err
 		}
 	}
