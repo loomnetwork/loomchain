@@ -320,7 +320,7 @@ func newListContractMappingsCommand() *cobra.Command {
 				return err
 			}
 			fmt.Println(string(output))
-			return err
+			return nil
 		},
 	}
 	cmdFlags := cmd.Flags()
@@ -369,7 +369,7 @@ func newGetContractMappingCommand() *cobra.Command {
 				return err
 			}
 			fmt.Println(string(output))
-			return err
+			return nil
 		},
 	}
 	cmdFlags := cmd.Flags()
