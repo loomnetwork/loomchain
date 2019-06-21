@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/config"
@@ -26,9 +27,9 @@ func ParseConfig() (*config.Config, error) {
 	}
 	conf.HsmConfig, err = ParseHSMConfig()
 	if err != nil {
+		fmt.Println("THIS IS ERROR MSG : ", err)
 		return nil, err
 	}
-
 	return conf, err
 }
 
@@ -38,7 +39,7 @@ func ParseHSMConfig() (*hsmpv.HsmConfig, error) {
 	v.AddConfigPath(".")                          // search root directory
 	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
-	if err := v.ReadInConfig(); err != nil {
+	if err := v.ReadInConfig(); err != nil && err != err.(viper.ConfigFileNotFoundError) {
 		return nil, err
 	}
 	cfg := hsmpv.DefaultConfig()

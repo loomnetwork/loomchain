@@ -472,6 +472,18 @@ func (c *Config) WriteToFile(filename string) error {
 	return ioutil.WriteFile(filename, buf.Bytes(), 0644)
 }
 
+func (c *Config) WriteToHsmFile(filename string) error {
+	var buf bytes.Buffer
+	hsmCfgTemplate, err := parseHsmCfgTemplate()
+	if err != nil {
+		return err
+	}
+	if err := hsmCfgTemplate.Execute(&buf, c); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filename, buf.Bytes(), 0644)
+}
+
 var cfgTemplate *template.Template
 
 func parseCfgTemplate() (*template.Template, error) {
@@ -486,6 +498,40 @@ func parseCfgTemplate() (*template.Template, error) {
 	}
 	return cfgTemplate, nil
 }
+
+var hsmCfgTemplate *template.Template
+
+func parseHsmCfgTemplate() (*template.Template, error) {
+	if hsmCfgTemplate != nil {
+		return hsmCfgTemplate, nil
+	}
+
+	var err error
+	hsmCfgTemplate, err = template.New("loomHsmYamlTemplate").Parse(defaultLoomHsmYamlTemplate)
+	if err != nil {
+		return nil, err
+	}
+	return hsmCfgTemplate, nil
+}
+
+const defaultLoomHsmYamlTemplate = `
+# flag to enable HSM
+HsmEnabled: {{ .HsmConfig.HsmEnabled }}
+# device type of HSM
+HsmDevType: "{{ .HsmConfig.HsmDevType }}"
+# the path of PKCS#11 library
+HsmP11LibPath: "{{ .HsmConfig.HsmP11LibPath }}"
+# connection URL to YubiHSM
+HsmConnURL: {{ .HsmConfig.HsmConnURL }}
+# Auth key ID for YubiHSM
+HsmAuthKeyID: {{ .HsmConfig.HsmAuthKeyID }}
+# Auth password
+HsmAuthPassword: "{{ .HsmConfig.HsmAuthPassword }}"
+# Sign Key ID for YubiHSM
+HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
+# key domain
+HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
+`
 
 const defaultLoomYamlTemplate = `# Loom Node config file
 # See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.

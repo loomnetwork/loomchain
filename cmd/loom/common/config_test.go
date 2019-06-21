@@ -18,7 +18,7 @@ func TestParseConfigWithHSMfile(t *testing.T) {
 	conf.WriteToFile(exampleLoom + ".yaml")
 	confHsm := config.DefaultConfig()
 	confHsm.HsmConfig.HsmSignKeyID = 1010
-	confHsm.WriteToFile(exampleLoomHsm + ".yaml")
+	confHsm.WriteToHsmFile(exampleLoomHsm + ".yaml")
 	actual, err := ParseConfig()
 	if err != nil {
 		t.Error(err)
@@ -44,7 +44,8 @@ func TestParseConfigWithOtherKeyInHSMfile(t *testing.T) {
 	conf.WriteToFile(exampleLoom + ".yaml")
 	confHsm := config.DefaultConfig()
 	confHsm.DPOSVersion = 100
-	confHsm.WriteToFile(exampleLoomHsm + ".yaml")
+	confHsm.DeployEnabled = false
+	confHsm.WriteToHsmFile(exampleLoomHsm + ".yaml")
 	actual, err := ParseConfig()
 	if err != nil {
 		t.Error(err)
