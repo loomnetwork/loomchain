@@ -121,7 +121,7 @@ func newEnvCommand() *cobra.Command {
 		Use:   "env",
 		Short: "Show loom config settings",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := config.ParseConfig()
 			if err != nil {
 				return err
 			}
@@ -236,7 +236,7 @@ func newInitCommand() *cobra.Command {
 		Use:   "init",
 		Short: "Initialize configs and data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := config.ParseConfig()
 			if err != nil {
 				return err
 			}
@@ -277,7 +277,7 @@ func newResetCommand() *cobra.Command {
 		Use:   "reset",
 		Short: "Reset the app and blockchain state only",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := config.ParseConfig()
 			if err != nil {
 				return err
 			}
@@ -309,7 +309,7 @@ func newNodeKeyCommand() *cobra.Command {
 		Use:   "nodekey",
 		Short: "Show node key",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := config.ParseConfig()
 			if err != nil {
 				return err
 			}
@@ -329,7 +329,7 @@ func newRunCommand() *cobra.Command {
 	var abciServerAddr string
 	var appHeight int64
 
-	cfg, err := common.ParseConfig()
+	cfg, err := config.ParseConfig()
 
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
