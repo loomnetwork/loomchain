@@ -76,7 +76,7 @@ func TestBenchmark(t *testing.T) {
 	//t.Run("saveFeepK", benchSaveFrequencyKeep)
 	t.Run("maxVer", benchMaxVersions)
 	//t.Run("maxVerDif", benchMaxVersionsDif)
-	//t.Run("varCache", benchVarableCache)
+	t.Run("varCache", benchVarableCache)
 	//t.Run("varCacheDif", benchVarableCacheDif)
 	//t.Run("saveFeq", benchSaveFrequency)
 	//t.Run("saveFeqDif", benchSaveFrequencyDif)
