@@ -39,7 +39,8 @@ builders['linux'] = {
           sh '''
             ./jenkins.sh
             cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-            gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
+            gsutil cp loom-generic gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
+            gsutil cp loom-gateway gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom-gateway
             gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/plasmachain
             gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/plasmachain-cleveldb
@@ -48,7 +49,8 @@ builders['linux'] = {
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loomcoin_tgoracle
             gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tron_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/dposv2_oracle
-            gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/loom
+            gsutil cp loom-generic gs://private.delegatecall.com/loom/linux/latest/loom
+            gsutil cp loom-gateway gs://private.delegatecall.com/loom/linux/latest/loom-gateway
             gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/linux/latest/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/linux/latest/plasmachain
             gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/linux/latest/plasmachain-cleveldb
@@ -115,7 +117,8 @@ builders['osx'] = {
           sh '''
             ./jenkins.sh
             cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-            gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
+            gsutil cp loom-generic gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
+            gsutil cp loom-gateway gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom-gateway
             gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/plasmachain
             gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/plasmachain-cleveldb
@@ -124,7 +127,8 @@ builders['osx'] = {
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loomcoin_tgoracle
             gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/tron_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/dposv2_oracle
-            gsutil cp loom gs://private.delegatecall.com/loom/osx/latest/loom
+            gsutil cp loom-generic gs://private.delegatecall.com/loom/osx/latest/loom
+            gsutil cp loom-gateway gs://private.delegatecall.com/loom/osx/latest/loom-gateway
             gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/osx/latest/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/osx/latest/plasmachain
             gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/osx/latest/plasmachain-cleveldb
