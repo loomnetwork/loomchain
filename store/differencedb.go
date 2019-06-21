@@ -6,7 +6,7 @@ import (
 
 func NewDiffIavlStore(diskDb db.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize uint64) (*IAVLStore, error) {
 	difDb := &differenceDb{diskDb}
-	return NewIAVLStore(difDb, maxVersions, targetVersion, saveFrequency, versionFrequency, minCacheSize, maxCacheSize)
+	return NewIAVLStore(difDb, maxVersions, targetVersion, saveFrequency, versionFrequency, minCacheSize, maxCacheSize, 0)
 }
 
 type differenceDb struct {

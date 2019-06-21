@@ -40,6 +40,7 @@ type IAVLStore struct {
 	versionFrequency uint64
 	saveCount        uint64
 	variableCache    bool
+	flushInterval    int64 // how often we persist to disk
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -135,6 +136,18 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	}(err)
 
 	oldVersion := s.Version()
+
+	if s.flushInterval > 0 {
+		var version int64
+		var hash []byte
+		if (oldVersion+1)%s.flushInterval == 0 {
+			hash, version, err = s.tree.FlushMemVersionDisk()
+		} else {
+			hash, version, err = s.tree.SaveVersionMem()
+		}
+		return hash, version, nil
+	}
+
 	if s.variableCache {
 		s.saveCount++
 		if s.tree.MaxChacheSizeExceeded() {
@@ -235,7 +248,7 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // the last version that was saved will be loaded.
 // saveFrequency says how often the IVAL tree will be saved to the disk. 0 means every block.
 // versionFrequency = N, indicates that versions other than multiples of N will be eventually pruned.
-func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize uint64) (*IAVLStore, error) {
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, versionFrequency, minCacheSize, maxCacheSize, flushInterval uint64) (*IAVLStore, error) {
 	ndb := iavl.NewNodeDB3(
 		db,
 		minCacheSize,
@@ -260,6 +273,7 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, saveFrequency, ve
 		saveFrequency:    saveFrequency,
 		versionFrequency: versionFrequency,
 		variableCache:    (minCacheSize < maxCacheSize),
+		flushInterval:    int64(flushInterval),
 	}, nil
 }
 

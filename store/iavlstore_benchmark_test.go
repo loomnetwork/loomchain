@@ -246,7 +246,7 @@ func benchmarkNormalDif(b require.TestingT, name string) {
 func benchmarkNormal(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, 0, 0, 0, 0, minCache, 0)
+	store, err := NewIAVLStore(diskDb, 0, 0, 0, 0, minCache, 0, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -268,7 +268,7 @@ func benchmarVariableCacheDifKeep(b require.TestingT, name string) {
 func benchmarkVariableCacheKeep(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, 0, 0, 0, 0, minCache, maxCache)
+	store, err := NewIAVLStore(diskDb, 0, 0, 0, 0, minCache, maxCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -290,7 +290,7 @@ func benchmarkSaveFrequencyDifKeep(b require.TestingT, name string) {
 func benchmarkSaveFrequencyKeep(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, 0, 0, uint64(saveFrequency), 0, minCache, 0)
+	store, err := NewIAVLStore(diskDb, 0, 0, uint64(saveFrequency), 0, minCache, 0, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -301,7 +301,7 @@ func benchmarkSaveFrequencyKeep(b require.TestingT, name string) {
 func benchmarkMaxVersions(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, 0)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, 0, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -335,7 +335,7 @@ func benchmarkVarableCacheDif(b require.TestingT, name string) {
 func benchmarkVarableCache(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, maxCache)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, 0, minCache, maxCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -357,7 +357,7 @@ func benchmarkMaxVersionFrequencySaveFrequencyDif(b require.TestingT, name strin
 func benchmarkMaxVersionFrequencySaveFrequency(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), minCache, 0)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), uint64(versionFrequency), minCache, 0, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -368,7 +368,7 @@ func benchmarkMaxVersionFrequencySaveFrequency(b require.TestingT, name string) 
 func benchmarkVarableCacheVersFreq(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, maxCache)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, maxCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -379,7 +379,7 @@ func benchmarkVarableCacheVersFreq(b require.TestingT, name string) {
 func benchmarkVarableCacheVersFreqDif(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, maxCache)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, maxCache, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -390,7 +390,7 @@ func benchmarkVarableCacheVersFreqDif(b require.TestingT, name string) {
 func benchmarkVersionFrequency(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, 0)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, 0, uint64(versionFrequency), minCache, 0, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -423,7 +423,7 @@ func benchmarkSaveFrequencyDif(b require.TestingT, name string) {
 func benchmarkSaveFrequency(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), 0, minCache, 0)
+	store, err := NewIAVLStore(diskDb, int64(maxVersions), 0, uint64(saveFrequency), 0, minCache, 0, 0)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
