@@ -284,6 +284,7 @@ type Mappings struct {
 const ListContractMappingCmdExample = `
 loom gateway list-contract-mappings
 `
+
 func newListContractMappingsCommand() *cobra.Command {
 	var gatewayType string
 	cmd := &cobra.Command{
@@ -331,9 +332,11 @@ func newListContractMappingsCommand() *cobra.Command {
 const getContractMappingCmdExample = `
 loom gateway get-contract-mapping 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
+
 type Mapping struct {
-	Address string `json:"address"`
-	IsPending  bool `json:"is_pending"`
+	Address   string `json:"address"`
+	IsPending bool   `json:"is_pending"`
+	Found     bool   `json:"found"`
 }
 
 func newGetContractMappingCommand() *cobra.Command {
@@ -345,7 +348,20 @@ func newGetContractMappingCommand() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var mapping Mapping
-			contractAddr, err := hexToLoomAddress(args[0])
+			var contractAddr loom.Address
+			var err error
+			if strings.HasPrefix(args[0], "eth:") {
+				contractAddr, err = loom.ParseAddress(args[0])
+			} else {
+				if strings.HasPrefix(args[0], gatewayCmdFlags.ChainID+":") {
+					contractAddr, err = loom.ParseAddress(args[0])
+				} else {
+					contractAddr, err = hexToLoomAddress(args[0])
+				}
+			}
+			if err != nil {
+				return errors.Wrap(err, "invalid account address")
+			}
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
@@ -361,8 +377,11 @@ func newGetContractMappingCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to call gateway.GetContractMapping")
 			}
 			if resp.MappedAddress != nil {
-				mapping.Address = resp.MappedAddress.ChainId + resp.MappedAddress.Local.String()
+				mapping.Address = resp.MappedAddress.ChainId + ":" + resp.MappedAddress.Local.String()
 				mapping.IsPending = resp.IsPending
+				mapping.Found = resp.Found
+			} else {
+				mapping.Found = false
 			}
 			output, err := json.MarshalIndent(mapping, "", "  ")
 			if err != nil {
