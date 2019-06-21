@@ -341,8 +341,12 @@ func ParseHSMConfig() (*hsmpv.HsmConfig, error) {
 	v.AddConfigPath("./")                          // search root directory
 	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
-	if err := v.ReadInConfig(); err != nil && err != err.(viper.ConfigFileNotFoundError) {
-		return nil, err
+	err := v.ReadInConfig()
+	if err != nil {
+		_, conFigFileNotFound := err.(viper.ConfigFileNotFoundError)
+		if !conFigFileNotFound {
+			return nil, err
+		}
 	}
 	cfg := hsmpv.DefaultConfig()
 	if err := v.Unmarshal(cfg); err != nil {
