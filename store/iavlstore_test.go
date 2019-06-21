@@ -25,9 +25,78 @@ var (
 	tree   *iavl.MutableTree
 )
 
+func TestOrphans(t *testing.T) {
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "dual-iavlstore")
+
+	flushInterval = 5
+	memDB := db.NewMemDB()
+	baseStore, err := NewIAVLStore(memDB, 0, 0, flushInterval)
+	require.NoError(t, err)
+	testOrphans(t, baseStore, memDB, flushInterval)
+
+	memDB2 := db.NewMemDB()
+	flushStore, err := NewIAVLStore(memDB2, 0, 0, flushInterval)
+	require.NoError(t, err)
+	testOrphans(t, flushStore, memDB, flushInterval)
+}
+
+func testOrphans(t *testing.T, store *IAVLStore, diskDb db.DB, flushInterval int64) {
+	store.Set([]byte("k1"), []byte("Fred"))
+	store.Set([]byte("k2"), []byte("John"))
+	for i := 0; i < int(flushInterval-1); i++ {
+		_, _, err := store.SaveVersion()
+		require.NoError(t, err)
+	}
+	store.Set([]byte("k2"), []byte("Bob"))
+
+	_, _, err := store.SaveVersion()
+
+	require.NoError(t, err)
+
+	store.Set([]byte("k1"), []byte("Mary"))
+	store.Set([]byte("k2"), []byte("Sally"))
+	for i := 0; i < int(flushInterval)-1; i++ {
+		_, _, err := store.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	store.Set([]byte("k2"), []byte("Jim"))
+	for i := 0; i < 2*int(flushInterval); i++ {
+		_, _, err := store.SaveVersion()
+		require.NoError(t, err)
+	}
+	lastVersion := 3 * flushInterval
+	store = nil
+
+	newStore, err := NewIAVLStore(diskDb, 0, int64(lastVersion), 0)
+	require.NoError(t, err)
+
+	k1Value, _, err := newStore.tree.GetVersionedWithProof([]byte("k1"), flushInterval)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare([]byte("Fred"), k1Value))
+
+	k1Value, _, err = newStore.tree.GetVersionedWithProof([]byte("k1"), 2*flushInterval)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare([]byte("Mary"), k1Value))
+
+	k2Value, _, err := newStore.tree.GetVersionedWithProof([]byte("k2"), flushInterval)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare([]byte("Bob"), k2Value))
+
+	k2Value, _, err = newStore.tree.GetVersionedWithProof([]byte("k2"), 2*flushInterval)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare([]byte("Jim"), k2Value))
+
+	k2Value, _, err = newStore.tree.GetVersionedWithProof([]byte("k2"), 3*flushInterval)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare([]byte("Jim"), k2Value))
+}
+
 func TestIavl(t *testing.T) {
-	numBlocks = 10
-	blockSize = 10
+	t.Skip()
+	numBlocks = 1000
+	blockSize = 100
 	flushInterval = int64(9)
 
 	log.Setup("debug", "file://-")
@@ -58,6 +127,8 @@ func testNormal(t *testing.T) {
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
+	fmt.Println("testNormal")
+	//diskTree.PrintDiskDb()
 	for _, entry := range store.Range(nil) {
 		_, value := tree.Get(entry.Key)
 		require.Zero(t, bytes.Compare(value, entry.Value))
@@ -85,6 +156,8 @@ func testFlush(t *testing.T) {
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
+	fmt.Println("testFlush")
+	//diskTree.PrintDiskDb()
 	for _, entry := range store.Range(nil) {
 		_, value := tree.Get(entry.Key)
 		require.Zero(t, bytes.Compare(value, entry.Value))
@@ -115,6 +188,9 @@ func testMaxVersions(t *testing.T) {
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
+
+	fmt.Println("testMaxVersions")
+	//diskTree.PrintDiskDb()
 	for _, entry := range store.Range(nil) {
 		_, value := tree.Get(entry.Key)
 		require.Zero(t, bytes.Compare(value, entry.Value))
