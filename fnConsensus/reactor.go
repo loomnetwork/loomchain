@@ -269,7 +269,7 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 
 	f.staticValidators = types.NewValidatorSet(validatorArray)
 
-	f.Logger.Info("FnConsensusReactor: using static validators for consensus", "validatorSetHash", f.staticValidators.Hash(),
+	f.Logger.Info("FnConsensusReactor: using static validator set for consensus", "validatorSetHash", f.staticValidators.Hash(),
 		"method", initValidatorSetMethodID)
 
 	return nil
