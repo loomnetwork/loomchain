@@ -39,7 +39,7 @@ var (
 type benchFunc func(b require.TestingT, name string)
 
 func TestBenchmark(t *testing.T) {
-	t.Skip()
+	//t.Skip()
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "diff-iavlstore")
 	testno = 0
@@ -51,7 +51,7 @@ func TestBenchmark(t *testing.T) {
 
 	diskDbType = "goleveldb"
 	//diskDbType = "membd"
-	numBlocks = 5000
+	numBlocks = 1000
 	blockSize = 100
 	maxVersions = 2
 	fmt.Println("numBlocks", numBlocks, "blockSize", blockSize)
@@ -65,8 +65,8 @@ func TestBenchmark(t *testing.T) {
 	}
 
 	t.Run("normal", benchNormal)
-	t.Run("flush10", benchFlush10)
-	t.Run("flush100", benchFlush100)
+	t.Run("flush20", benchflush20)
+	//t.Run("flush100", benchflush100)
 	t.Run("MaxVers", benchMaxVersions)
 
 	files, err := ioutil.ReadDir("./testdata")
@@ -131,14 +131,14 @@ func TestBenchmark(t *testing.T) {
 func benchNormal(t *testing.T) {
 	timeIavlStore(t, "normal", benchmarkNormal)
 }
-func benchFlush10(t *testing.T) {
-	timeIavlStore(t, "flush10", benchmarkFlush10)
+func benchflush20(t *testing.T) {
+	timeIavlStore(t, "flush20", benchmarkflush20)
 }
 func benchFlush50(t *testing.T) {
 	timeIavlStore(t, "flush50", benchmarkFlush50)
 }
-func benchFlush100(t *testing.T) {
-	timeIavlStore(t, "flush100", benchmarkFlush100)
+func benchflush100(t *testing.T) {
+	timeIavlStore(t, "flush100", benchmarkflush100)
 }
 func benchMaxVersions(t *testing.T) {
 	timeIavlStore(t, "maxVersions", benchmarkMaxVersions)
@@ -185,10 +185,10 @@ func benchmarkNormal(b require.TestingT, name string) {
 	diskDb.Close()
 }
 
-func benchmarkFlush10(b require.TestingT, name string) {
+func benchmarkflush20(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, 0, 0, 10)
+	store, err := NewIAVLStore(diskDb, 0, 0, 20)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
@@ -207,7 +207,7 @@ func benchmarkFlush50(b require.TestingT, name string) {
 	diskDb.Close()
 }
 
-func benchmarkFlush100(b require.TestingT, name string) {
+func benchmarkflush100(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
 	store, err := NewIAVLStore(diskDb, 0, 0, 100)
