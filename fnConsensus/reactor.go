@@ -265,8 +265,8 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 		}
 		// We need to overwrite DPoS voting power with static one
 		// otherwise there is possibility of validator hash disagreement
-		// among nodes, if one or more nodes restarts. This happens because
-		// DPoS election may have changed validator set.
+		// among nodes, if one or more nodes restarts. This happens due to
+		// recalculation of validator set on every election.
 		validator.VotingPower = overrideValidator.VotingPower
 
 		f.Logger.Info("FnConsensusReactor: adding validator to static validator set", "validator", validator.String(),
