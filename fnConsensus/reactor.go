@@ -263,9 +263,10 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 		if validatorIndex == -1 {
 			return fmt.Errorf("validator specified in override config, doesnt exist in TM validator set")
 		}
-		// Overwrite DPoS voting power with static voting power
-		// Otherwise validator hash wont match, if any node restarts
-		// Because DPoS election changes validator voting power
+		// We need to overwrite DPoS voting power with static one
+		// otherwise there is possibility of validator hash disagreement
+		// among nodes, if one or more nodes restarts. This happens because
+		// DPoS election may have changed validator set.
 		validator.VotingPower = overrideValidator.VotingPower
 
 		f.Logger.Info("FnConsensusReactor: adding validator to static validator set", "validator", validator.String(),
