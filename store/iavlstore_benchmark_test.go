@@ -39,7 +39,7 @@ var (
 type benchFunc func(b require.TestingT, name string)
 
 func TestBenchmark(t *testing.T) {
-	//t.Skip()
+	t.Skip()
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "diff-iavlstore")
 	testno = 0
