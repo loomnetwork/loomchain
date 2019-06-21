@@ -1357,9 +1357,9 @@ func removeOfflineValidators(ctx contract.Context, cachedDelegations *CachedDpos
 		candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
 		statistic, _ := GetStatistic(ctx, candidateAddress)
 		if statistic != nil {
-			// if a validator misses all all blocks in the last 4 periods, do
+			// if a validator misses all blocks in the last 4 periods, do
 			// 1. redelegate all delegations to limbo validator
-			// 2. remove the validator from whitelist
+			// 2. set whitelist amount to 0
 			if statistic.RecentlyMissedBlocks&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>16)&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>32)&0xFFFF == params.DowntimePeriod &&
@@ -1374,18 +1374,26 @@ func removeOfflineValidators(ctx contract.Context, cachedDelegations *CachedDpos
 						} else if err != nil {
 							return err
 						}
+
 						delegation.UpdateAmount = delegation.Amount
 						delegation.UpdateValidator = LimboValidatorAddress(ctx).MarshalPB()
 						delegation.UpdateLocktimeTier = TIER_ZERO
 						delegation.State = REDELEGATING
 						delegation.LockTime = 0
+
+						index, err := GetNextDelegationIndex(ctx, *delegation.UpdateValidator, *delegation.Delegator)
+						if err != nil {
+							return err
+						}
+						delegation.Index = index
+
 						if err := SetDelegation(ctx, delegation); err != nil {
 							return err
 						}
 					}
 				}
 
-				// remove this validator from whitelist
+				// set whitelist amount to 0
 				statistic.UpdateWhitelistAmount = loom.BigZeroPB()
 				err := SetStatistic(ctx, statistic)
 				if err != nil {
