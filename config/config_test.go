@@ -14,6 +14,8 @@ const (
 	testFilename        = "testDefault"
 	testExampleFilename = "testExample"
 	exampleLoomYaml     = "loom.example"
+	exampleLoomHsm      = "loom_hsm"
+	exampleLoom         = "loom"
 )
 
 func TestConfig(t *testing.T) {
@@ -34,4 +36,46 @@ func TestConfig(t *testing.T) {
 	confRead, err = ParseConfigFrom(testExampleFilename)
 	require.NoError(t, err)
 	require.True(t, reflect.DeepEqual(exampleRead, confRead))
+}
+
+func TestParseConfigWithHSMfile(t *testing.T) {
+	conf := DefaultConfig()
+	conf.WriteToFile(exampleLoom + ".yaml")
+	confHsm := DefaultConfig()
+	confHsm.HsmConfig.HsmSignKeyID = 1010
+	confHsm.WriteToHsmFile(exampleLoomHsm + ".yaml")
+	actual, err := ParseConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, confHsm, actual)
+	_ = os.Remove(exampleLoomHsm + ".yaml")
+	_ = os.Remove(exampleLoom + ".yaml")
+}
+
+func TestParseConfigWithoutHSMfile(t *testing.T) {
+	conf := DefaultConfig()
+	conf.WriteToFile(exampleLoom + ".yaml")
+	actual, err := ParseConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, conf, actual)
+	_ = os.Remove(exampleLoom + ".yaml")
+}
+
+func TestParseConfigWithOtherKeyInHSMfile(t *testing.T) {
+	conf := DefaultConfig()
+	conf.WriteToFile(exampleLoom + ".yaml")
+	confHsm := DefaultConfig()
+	confHsm.DPOSVersion = 100
+	confHsm.DeployEnabled = false
+	confHsm.WriteToHsmFile(exampleLoomHsm + ".yaml")
+	actual, err := ParseConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, conf, actual)
+	_ = os.Remove(exampleLoomHsm + ".yaml")
+	_ = os.Remove(exampleLoom + ".yaml")
 }

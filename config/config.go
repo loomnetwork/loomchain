@@ -306,7 +306,10 @@ func ParseConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	conf.HsmConfig, err = ParseHSMConfig()
+	if err != nil {
+		return nil, err
+	}
 	return conf, err
 }
 
@@ -330,6 +333,22 @@ func ParseConfigFrom(filename string) (*Config, error) {
 	}
 
 	return conf, err
+}
+
+func ParseHSMConfig() (*hsmpv.HsmConfig, error) {
+	v := viper.New()
+	v.SetConfigName("loom_hsm")
+	v.AddConfigPath("./")                          // search root directory
+	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
+	v.AddConfigPath("./../../../")
+	if err := v.ReadInConfig(); err != nil && err != err.(viper.ConfigFileNotFoundError) {
+		return nil, err
+	}
+	cfg := hsmpv.DefaultConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 func ReadGenesis(path string) (*Genesis, error) {
