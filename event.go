@@ -133,10 +133,11 @@ func NewInstrumentingEventHandler(handler EventHandler) EventHandler {
 	// initialize metrics
 	fieldKeys := []string{"method", "error"}
 	methodDuration := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "event_handler",
-		Name:      "method_duration",
-		Help:      "Total duration of requests in seconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "event_handler",
+		Name:       "method_duration",
+		Help:       "Total duration of requests in seconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	return &InstrumentingEventHandler{

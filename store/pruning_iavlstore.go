@@ -27,17 +27,19 @@ func init() {
 
 	pruneDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "prune_duration",
-			Help:      "How long PruningIAVLStore.prune() took to execute (in seconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "prune_duration",
+			Help:       "How long PruningIAVLStore.prune() took to execute (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error"})
 	deleteVersionDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "delete_version_duration",
-			Help:      "How long it took to delete a single version from the IAVL store (in seconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "delete_version_duration",
+			Help:       "How long it took to delete a single version from the IAVL store (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error"})
 }
 
