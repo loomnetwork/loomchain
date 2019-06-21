@@ -11,14 +11,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	deployerStatePrefix = "ds"
-)
-
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
 	contractToTierMap map[string]udw.Tier
-	// track of no. of txns in previous blocks per contract ()
+	// track of no. of txns in previous blocks per contract
 	contractToBlockTrx map[string]map[int64]int64
 }
 
@@ -71,21 +67,17 @@ func NewContractTxLimiterMiddleware(
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
-
 		if !isCheckTx {
 			return next(state, txBytes, isCheckTx)
 		}
-
 		var nonceTx auth.NonceTx
 		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
 			return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 		}
-
 		var tx loomchain.Transaction
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}
-
 		// Should not be initialized at every checkTx
 		if TxLimiter == nil {
 			ctx, err := createUserDeployerWhitelistCtx(state)
@@ -98,7 +90,6 @@ func NewContractTxLimiterMiddleware(
 			}
 			TxLimiter = &contractTxLimiter{contractToTierMap: contractToTierMap}
 		}
-
 		if tx.Id == callId {
 			var msg vm.MessageTx
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
@@ -109,16 +100,12 @@ func NewContractTxLimiterMiddleware(
 				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 			}
 			if tx.VmType == vm.VMType_EVM {
-
 				if TxLimiter.isAccountLimitReached(loom.UnmarshalAddressPB(msg.To), state.Block().Height) {
 					return loomchain.TxHandlerResult{}, errors.New("tx limit reached, try again later")
 				}
-
 				TxLimiter.updateState(loom.UnmarshalAddressPB(msg.To), state.Block().Height)
-
 			}
 		}
-
 		return next(state, txBytes, isCheckTx)
 	})
 }
