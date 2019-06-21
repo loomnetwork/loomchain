@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	pruneTime metrics.Histogram
+	pruneTime               metrics.Histogram
+	iavlSaveVersionDuration metrics.Histogram
 )
 
 func init() {
