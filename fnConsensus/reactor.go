@@ -249,6 +249,7 @@ func (f *FnConsensusReactor) calculateSleepTimeForPropose(areWeValidator bool) t
 
 func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 	if len(f.cfg.OverrideValidators) == 0 {
+		f.Logger.Info("FnConsensusReactor: using DPoS validators for consensus")
 		return nil
 	}
 
@@ -260,10 +261,13 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 		if validatorIndex == -1 {
 			return fmt.Errorf("validator specified in override config, doesnt exist in TM validator set")
 		}
+		f.Logger.Info("FnConsensusReactor: adding static validator to set", "validator", validator.String())
 		validatorArray = append(validatorArray, validator.Copy())
 	}
 
 	f.staticValidators = types.NewValidatorSet(validatorArray)
+
+	f.Logger.Info("FnConsensusReactor: using static validators for consensus", "validatorSetHash", f.staticValidators.Hash())
 
 	return nil
 }
