@@ -49,13 +49,14 @@ func testOrphans(t *testing.T, store *IAVLStore, diskDb db.DB, flushInterval int
 		require.NoError(t, err)
 	}
 	store.Set([]byte("k2"), []byte("Bob"))
-
-	_, _, err := store.SaveVersion()
+	store.Set([]byte("k3"), []byte("Harry"))
+	_, _, err := store.SaveVersion() // save to disk
 
 	require.NoError(t, err)
 
 	store.Set([]byte("k1"), []byte("Mary"))
 	store.Set([]byte("k2"), []byte("Sally"))
+	store.Delete([]byte("k3"))
 	for i := 0; i < int(flushInterval)-1; i++ {
 		_, _, err := store.SaveVersion()
 		require.NoError(t, err)
@@ -63,7 +64,7 @@ func testOrphans(t *testing.T, store *IAVLStore, diskDb db.DB, flushInterval int
 
 	store.Set([]byte("k2"), []byte("Jim"))
 	for i := 0; i < 2*int(flushInterval); i++ {
-		_, _, err := store.SaveVersion()
+		_, _, err := store.SaveVersion() // save to disk
 		require.NoError(t, err)
 	}
 	lastVersion := 3 * flushInterval
@@ -91,12 +92,19 @@ func testOrphans(t *testing.T, store *IAVLStore, diskDb db.DB, flushInterval int
 	k2Value, _, err = newStore.tree.GetVersionedWithProof([]byte("k2"), 3*flushInterval)
 	require.NoError(t, err)
 	require.Equal(t, 0, bytes.Compare([]byte("Jim"), k2Value))
+
+	k2Value, _, err = newStore.tree.GetVersionedWithProof([]byte("k3"), flushInterval)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare([]byte("Harry"), k2Value))
+
+	k2Value, _, err = newStore.tree.GetVersionedWithProof([]byte("k3"), 2*flushInterval)
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare([]byte(""), k2Value))
 }
 
 func TestIavl(t *testing.T) {
-	t.Skip()
-	numBlocks = 1000
-	blockSize = 100
+	numBlocks = 10
+	blockSize = 10
 	flushInterval = int64(9)
 
 	log.Setup("debug", "file://-")
