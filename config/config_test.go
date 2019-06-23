@@ -76,7 +76,7 @@ func TestParseConfigWithoutHSMfileAndSetHsmEnableDifferentToDefault(t *testing.T
 		t.Error(err)
 	}
 	assert.Equal(t, conf, actual)
-
+	_ = os.Remove(exampleLoom + ".yaml")
 }
 
 func TestParseConfigWithOtherKeyInHSMfile(t *testing.T) {
