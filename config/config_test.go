@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
@@ -57,11 +58,25 @@ func TestParseConfigWithoutHSMfile(t *testing.T) {
 	conf := DefaultConfig()
 	conf.WriteToFile(exampleLoom + ".yaml")
 	actual, err := ParseConfig()
-	if err != nil {
+	if err != nil && err != err.(viper.ConfigFileNotFoundError) { // need to except file not found error
 		t.Error(err)
 	}
 	assert.Equal(t, conf, actual)
 	_ = os.Remove(exampleLoom + ".yaml")
+}
+
+func TestParseConfigWithoutHSMfileAndSetHsmEnableDifferentToDefault(t *testing.T) {
+	_ = os.Remove(exampleLoom + ".yaml")
+	conf := DefaultConfig()
+	conf.HsmConfig.HsmEnabled = true
+	conf.WriteToFile(exampleLoom + ".yaml")
+	actual, err := ParseConfig()
+	t.Log(actual.HsmConfig)
+	if err != nil && err != err.(viper.ConfigFileNotFoundError) {
+		t.Error(err)
+	}
+	assert.Equal(t, conf, actual)
+
 }
 
 func TestParseConfigWithOtherKeyInHSMfile(t *testing.T) {
