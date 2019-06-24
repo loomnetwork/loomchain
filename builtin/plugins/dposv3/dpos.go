@@ -652,6 +652,7 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 		}
 
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -1053,6 +1054,12 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		if err = removeOfflineValidators(ctx, cachedDelegations); err != nil {
+			return err
+		}
+	}
+
 	delegationResults, err := rewardAndSlash(ctx, cachedDelegations, state)
 	if err != nil {
 		return err
@@ -1118,12 +1125,6 @@ func Elect(ctx contract.Context) error {
 		state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
 		if err = saveState(ctx, state); err != nil {
-			return err
-		}
-	}
-
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
-		if err = removeOfflineValidators(ctx, cachedDelegations); err != nil {
 			return err
 		}
 	}
@@ -1364,10 +1365,10 @@ func removeOfflineValidators(ctx contract.Context, cachedDelegations *CachedDpos
 				(statistic.RecentlyMissedBlocks>>16)&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>32)&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>48)&0xFFFF == params.DowntimePeriod {
-
 				// redelegate delegations to limbo vallidator
 				for _, d := range delegations {
-					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 {
+					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 &&
+						loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(d.Delegator)) != 0 {
 						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 						if err == contract.ErrNotFound {
 							continue
@@ -1375,25 +1376,40 @@ func removeOfflineValidators(ctx contract.Context, cachedDelegations *CachedDpos
 							return err
 						}
 
-						delegation.UpdateAmount = delegation.Amount
-						delegation.UpdateValidator = LimboValidatorAddress(ctx).MarshalPB()
-						delegation.UpdateLocktimeTier = TIER_ZERO
-						delegation.State = REDELEGATING
-						delegation.LockTime = 0
+						// Only move BONDED and BONDING delegations.
+						// No need to move redelegating and unbonding since it will be moved in the next election anyway
+						if delegation.State != BONDED && delegation.State != BONDING {
+							continue
+						}
 
-						index, err := GetNextDelegationIndex(ctx, *delegation.UpdateValidator, *delegation.Delegator)
+						newDelegation := &Delegation{
+							Validator:       LimboValidatorAddress(ctx).MarshalPB(),
+							UpdateValidator: LimboValidatorAddress(ctx).MarshalPB(),
+							Delegator:       delegation.Delegator,
+							Amount:          delegation.Amount,
+							UpdateAmount:    delegation.UpdateAmount,
+							LockTime:        0,
+							LocktimeTier:    TIER_ZERO,
+							State:           delegation.State,
+						}
+
+						index, err := GetNextDelegationIndex(ctx, *newDelegation.Validator, *newDelegation.Delegator)
 						if err != nil {
 							return err
 						}
-						delegation.Index = index
+						newDelegation.Index = index
 
-						if err := SetDelegation(ctx, delegation); err != nil {
+						if err := cachedDelegations.SetDelegation(ctx, newDelegation); err != nil {
+							return err
+						}
+
+						if err := cachedDelegations.DeleteDelegation(ctx, delegation); err != nil {
 							return err
 						}
 					}
 				}
 
-				// set whitelist amount to 0
+				// set whitelist amount of the removed candidate to 0
 				statistic.UpdateWhitelistAmount = loom.BigZeroPB()
 				err := SetStatistic(ctx, statistic)
 				if err != nil {

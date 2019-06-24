@@ -2450,6 +2450,93 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, 2, len(recAll.DowntimeRecords))
 }
 
+func TestRemoveOfflineValidators(t *testing.T) {
+	pctx := createCtx()
+	pctx.SetFeature(loomchain.DPOSVersion3_3, true)
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	limboValidatorAddress := LimboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(addr2, 1000000000000000000),
+			makeAccount(delegatorAddress1, 100000000),
+			makeAccount(delegatorAddress2, 100000000),
+			makeAccount(delegatorAddress3, 100000000),
+		},
+	})
+
+	periodLength := uint64(12)
+	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          21,
+		RegistrationRequirement: registrationFee,
+		DowntimePeriod:          periodLength,
+		OracleAddress:           oracleAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	dposCtx := pctx.WithAddress(dpos.Address)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+	whitelistAmount := big.NewInt(1000000000000)
+	err = dpos.WhitelistCandidate(dposCtx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(dposCtx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+	err = dpos.RegisterCandidate(dposCtx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	delegationAmount := big.NewInt(100)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	err = dpos.Delegate(dposCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+	elect(pctx, dpos.Address)
+
+	candidates, err := LoadCandidateList(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(candidates))
+
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+	}
+
+	// after election, the dele
+	elect(dposCtx, dpos.Address)
+
+	delegations, _, _, _ := dpos.CheckAllDelegations(dposCtx.WithSender(delegatorAddress1), &delegatorAddress1)
+	require.Equal(t, 1, len(delegations))
+	for _, d := range delegations {
+		assert.Equal(t, d.Validator.Local, limboValidatorAddress.Local)
+		assert.Equal(t, delegationAmount.String(), d.Amount.Value.String())
+	}
+
+}
+
 // UTILITIES
 
 func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
