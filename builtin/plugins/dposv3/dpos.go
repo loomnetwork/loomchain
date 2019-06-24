@@ -38,6 +38,7 @@ const (
 
 	ElectionEventTopic               = "dposv3:election"
 	SlashEventTopic                  = "dposv3:slash"
+	JailEventTopic                   = "dposv3:jail"
 	CandidateRegistersEventTopic     = "dposv3:candidateregisters"
 	CandidateUnregistersEventTopic   = "dposv3:candidateunregisters"
 	CandidateFeeChangeEventTopic     = "dposv3:candidatefeechange"
@@ -129,6 +130,7 @@ type (
 
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
+	DposJailEvent                   = dtypes.DposJailEvent
 	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
 	DposCandidateUnregistersEvent   = dtypes.DposCandidateUnregistersEvent
 	DposCandidateFeeChangeEvent     = dtypes.DposCandidateFeeChangeEvent
@@ -1055,7 +1057,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
-		if err = removeOfflineValidators(ctx, cachedDelegations); err != nil {
+		if err = jailOfflineValidators(ctx, cachedDelegations); err != nil {
 			return err
 		}
 	}
@@ -1330,22 +1332,18 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func removeOfflineValidators(ctx contract.Context, cachedDelegations *CachedDposStorage) error {
+func jailOfflineValidators(ctx contract.Context, cachedDelegations *CachedDposStorage) error {
 	validators, err := ValidatorList(ctx)
 	if err != nil {
-		return logDposError(ctx, err, "RemoveOfflineValidators could not load validator list")
+		return logDposError(ctx, err, "jailOfflineValidators could not load validator list")
 	}
 
 	state, err := loadState(ctx)
 	if err != nil {
-		return logDposError(ctx, err, "RemoveOfflineValidators could not load state")
+		return logDposError(ctx, err, "jailOfflineValidators could not load state")
 	}
 
 	params := state.Params
-	delegations, err := cachedDelegations.loadDelegationList(ctx)
-	if err != nil {
-		return logDposError(ctx, err, "RemoveOfflineValidators could not load delegation list")
-	}
 
 	for _, validator := range validators {
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
@@ -1358,63 +1356,21 @@ func removeOfflineValidators(ctx contract.Context, cachedDelegations *CachedDpos
 		candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
 		statistic, _ := GetStatistic(ctx, candidateAddress)
 		if statistic != nil {
-			// if a validator misses all blocks in the last 4 periods, do
-			// 1. redelegate all delegations to limbo validator
-			// 2. set whitelist amount to 0
+			// if a validator misses all blocks in the last 4 periods, jail them
 			if statistic.RecentlyMissedBlocks&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>16)&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>32)&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>48)&0xFFFF == params.DowntimePeriod {
-				// redelegate delegations to limbo vallidator
-				for _, d := range delegations {
-					if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(candidate.Address)) == 0 &&
-						loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(d.Delegator)) != 0 {
-						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-						if err == contract.ErrNotFound {
-							continue
-						} else if err != nil {
-							return err
-						}
-
-						// Only move BONDED and BONDING delegations.
-						// No need to move redelegating and unbonding since it will be moved in the next election anyway
-						if delegation.State != BONDED && delegation.State != BONDING {
-							continue
-						}
-
-						newDelegation := &Delegation{
-							Validator:       LimboValidatorAddress(ctx).MarshalPB(),
-							UpdateValidator: LimboValidatorAddress(ctx).MarshalPB(),
-							Delegator:       delegation.Delegator,
-							Amount:          delegation.Amount,
-							UpdateAmount:    delegation.UpdateAmount,
-							LockTime:        0,
-							LocktimeTier:    TIER_ZERO,
-							State:           delegation.State,
-						}
-
-						index, err := GetNextDelegationIndex(ctx, *newDelegation.Validator, *newDelegation.Delegator)
-						if err != nil {
-							return err
-						}
-						newDelegation.Index = index
-
-						if err := cachedDelegations.SetDelegation(ctx, newDelegation); err != nil {
-							return err
-						}
-
-						if err := cachedDelegations.DeleteDelegation(ctx, delegation); err != nil {
-							return err
-						}
-					}
-				}
-
 				// set whitelist amount of the removed candidate to 0
-				statistic.UpdateWhitelistAmount = loom.BigZeroPB()
+				statistic.Jailed = true
 				err := SetStatistic(ctx, statistic)
 				if err != nil {
 					ctx.Logger().Info("Cannot save validator statistic.", "validator", validator)
 				}
+			}
+
+			if err := emitJailEvent(ctx, candidateAddress.MarshalPB()); err != nil {
+				return err
 			}
 		}
 	}
@@ -1593,6 +1549,16 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 			delegatorRewards[validatorKey] = common.BigZero()
 			formerValidatorTotals[validatorKey] = *common.BigZero()
 		} else {
+
+			// If a validator is jailed, don't calculate and distribute rewards
+			if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+				if statistic.Jailed {
+					delegatorRewards[validatorKey] = common.BigZero()
+					formerValidatorTotals[validatorKey] = *common.BigZero()
+					continue
+				}
+			}
+
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
@@ -2263,6 +2229,18 @@ func emitElectionEvent(ctx contract.Context) error {
 	}
 
 	ctx.EmitTopics(marshalled, ElectionEventTopic)
+	return nil
+}
+
+func emitJailEvent(ctx contract.Context, validator *types.Address) error {
+	marshalled, err := proto.Marshal(&DposJailEvent{
+		Validator: validator,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, JailEventTopic)
 	return nil
 }
 

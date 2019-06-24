@@ -2458,8 +2458,6 @@ func TestRemoveOfflineValidators(t *testing.T) {
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
 	}
 
-	limboValidatorAddress := LimboValidatorAddress(contractpb.WrapPluginStaticContext(pctx))
-
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -2531,12 +2529,13 @@ func TestRemoveOfflineValidators(t *testing.T) {
 	// after an election, the delegations of the removed validator must be redelegated to limbo validator
 	elect(dposCtx, dpos.Address)
 
-	delegations, _, _, _ := dpos.CheckAllDelegations(dposCtx.WithSender(delegatorAddress1), &delegatorAddress1)
-	require.Equal(t, 2, len(delegations))
-	for _, d := range delegations {
-		assert.Equal(t, d.Validator.Local, limboValidatorAddress.Local)
-		assert.Equal(t, delegationAmount.String(), d.Amount.Value.String())
-	}
+	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.Jailed)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
+	require.Nil(t, err)
+	require.False(t, statistic.Jailed)
 
 }
 
