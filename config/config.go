@@ -298,43 +298,26 @@ func ParseConfig() (*Config, error) {
 	v.AddConfigPath("./")                          // search root directory
 	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
+	err := v.ReadInConfig()
+	if err != nil {
+		_, conFigFileNotFound := err.(viper.ConfigFileNotFoundError)
+		if !conFigFileNotFound {
+			return nil, err
+		}
 	}
 	conf := DefaultConfig()
-	err := v.Unmarshal(conf)
+	err = v.Unmarshal(conf)
 	if err != nil {
 		return nil, err
 	}
 	hsmDefault := hsmpv.DefaultConfig()
 	hsmCfg, err := ParseHSMConfig()
-	if err == nil {
-		if hsmCfg.HsmEnabled != hsmDefault.HsmEnabled {
-			conf.HsmConfig.HsmEnabled = hsmCfg.HsmEnabled
-		}
-		if hsmCfg.HsmDevType != hsmDefault.HsmDevType {
-			conf.HsmConfig.HsmDevType = hsmCfg.HsmDevType
-		}
-		if hsmCfg.HsmP11LibPath != hsmDefault.HsmP11LibPath {
-			conf.HsmConfig.HsmP11LibPath = hsmCfg.HsmP11LibPath
-		}
-		if hsmCfg.HsmConnURL != hsmDefault.HsmConnURL {
-			conf.HsmConfig.HsmConnURL = hsmCfg.HsmConnURL
-		}
-		if hsmCfg.HsmAuthKeyID != hsmDefault.HsmAuthKeyID {
-			conf.HsmConfig.HsmAuthKeyID = hsmCfg.HsmAuthKeyID
-		}
-		if hsmCfg.HsmAuthPassword != hsmDefault.HsmAuthPassword {
-			conf.HsmConfig.HsmAuthPassword = hsmCfg.HsmAuthPassword
-		}
-		if hsmCfg.HsmSignKeyID != hsmDefault.HsmSignKeyID {
-			conf.HsmConfig.HsmSignKeyID = hsmCfg.HsmSignKeyID
-		}
-		if hsmCfg.HsmSignKeyDomain != hsmDefault.HsmSignKeyDomain {
-			conf.HsmConfig.HsmSignKeyDomain = hsmCfg.HsmSignKeyDomain
-		}
+	if err == nil && hsmCfg != hsmDefault {
+		conf.HsmConfig = hsmCfg
 	} else if _, fileNotFound := err.(viper.ConfigFileNotFoundError); !fileNotFound { // loom_hsm file exist but couldn't be loaded
 		return nil, errors.Wrap(err, "failed to load loom_hsm config")
+	} else {
+		return nil, err
 	}
 	return conf, err
 }
@@ -375,7 +358,8 @@ func ParseHSMConfig() (*hsmpv.HsmConfig, error) {
 		}
 	}
 	hsmCfg := hsmpv.DefaultConfig()
-	if err := v.Unmarshal(hsmCfg); err != nil {
+	err = v.Unmarshal(hsmCfg)
+	if err != nil {
 		return nil, err
 	}
 	return hsmCfg, nil

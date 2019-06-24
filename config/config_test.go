@@ -94,3 +94,27 @@ func TestParseConfigWithOtherKeyInHSMfile(t *testing.T) {
 	_ = os.Remove(exampleLoomHsm + ".yaml")
 	_ = os.Remove(exampleLoom + ".yaml")
 }
+
+func TestParseConfigWithSomeKeyInHSMfileAndSomeKeyInLoomYaml(t *testing.T) {
+	// Create expected
+	conf := DefaultConfig()
+	conf.HsmConfig.HsmEnabled = true // need actual to override this field
+	conf.WriteToFile(exampleLoom + ".yaml")
+	conf.HsmConfig.HsmConnURL = "http://localhost:54321"
+	conf.HsmConfig.HsmEnabled = false
+
+	// Create Actual
+	confHsm := DefaultConfig()
+	conf.HsmConfig.HsmEnabled = false
+	confHsm.HsmConfig.HsmConnURL = "http://localhost:54321"
+	confHsm.WriteToHsmFile(exampleLoomHsm + ".yaml")
+	actual, err := ParseConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(actual.HsmConfig)
+	t.Log(conf.HsmConfig)
+	assert.Equal(t, conf, actual)
+	_ = os.Remove(exampleLoomHsm + ".yaml")
+	_ = os.Remove(exampleLoom + ".yaml")
+}
