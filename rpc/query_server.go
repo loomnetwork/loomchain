@@ -127,6 +127,7 @@ var _ QueryService = &QueryServer{}
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
 func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+	fmt.Println("Query data hex", hex.EncodeToString(query))
 	var callerAddr loom.Address
 	var err error
 	if len(caller) == 0 {
@@ -239,11 +240,9 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to resolve account address")
-	}
-
+	// a valid caller address is optional
+	callerAddr, _ := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	var err error
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	if s.NewABMFactory != nil {
 		pvm := lcp.NewPluginVM(
