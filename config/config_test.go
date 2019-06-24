@@ -65,18 +65,29 @@ func TestParseConfigWithoutHSMfile(t *testing.T) {
 	_ = os.Remove(exampleLoom + ".yaml")
 }
 
-func TestParseConfigWithoutHSMfileAndSetHsmEnableDifferentToDefault(t *testing.T) {
+func TestParseConfigWithoutHSMfileAndConfigDifferentToDefault(t *testing.T) {
 	_ = os.Remove(exampleLoom + ".yaml")
 	conf := DefaultConfig()
 	conf.HsmConfig.HsmEnabled = true
+	conf.HsmConfig.HsmConnURL = "localhost:54321"
 	conf.WriteToFile(exampleLoom + ".yaml")
+
 	actual, err := ParseConfig()
 	t.Log(actual.HsmConfig)
-	if err != nil && err != err.(viper.ConfigFileNotFoundError) {
+	t.Log(conf.HsmConfig)
+	if err != nil {
 		t.Error(err)
 	}
 	assert.Equal(t, conf, actual)
 	_ = os.Remove(exampleLoom + ".yaml")
+}
+
+func TestHsmFileConfigNotFound(t *testing.T) {
+	// var err error
+	_, err := ParseHSMConfig()
+	if assert.Error(t, err) {
+		assert.Equal(t, err.(viper.ConfigFileNotFoundError), err)
+	}
 }
 
 func TestParseConfigWithOtherKeyInHSMfile(t *testing.T) {

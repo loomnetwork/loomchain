@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/evm"
-	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -298,26 +297,17 @@ func ParseConfig() (*Config, error) {
 	v.AddConfigPath("./")                          // search root directory
 	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
-	err := v.ReadInConfig()
-	if err != nil {
-		_, conFigFileNotFound := err.(viper.ConfigFileNotFoundError)
-		if !conFigFileNotFound {
-			return nil, err
-		}
-	}
+
+	v.ReadInConfig()
 	conf := DefaultConfig()
-	err = v.Unmarshal(conf)
+	err := v.Unmarshal(conf)
 	if err != nil {
 		return nil, err
 	}
-	hsmDefault := hsmpv.DefaultConfig()
-	hsmCfg, err := ParseHSMConfig()
-	if err == nil && hsmCfg != hsmDefault {
+	//hsmDefault := hsmpv.DefaultConfig()
+	hsmCfg, hsmErr := ParseHSMConfig()
+	if hsmErr == nil {
 		conf.HsmConfig = hsmCfg
-	} else if _, fileNotFound := err.(viper.ConfigFileNotFoundError); !fileNotFound { // loom_hsm file exist but couldn't be loaded
-		return nil, errors.Wrap(err, "failed to load loom_hsm config")
-	} else {
-		return nil, err
 	}
 	return conf, err
 }
@@ -350,14 +340,12 @@ func ParseHSMConfig() (*hsmpv.HsmConfig, error) {
 	v.AddConfigPath("./")                          // search root directory
 	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
+	hsmCfg := hsmpv.DefaultConfig()
 	err := v.ReadInConfig()
 	if err != nil {
-		_, conFigFileNotFound := err.(viper.ConfigFileNotFoundError)
-		if !conFigFileNotFound {
-			return nil, err
-		}
+		return nil, err
 	}
-	hsmCfg := hsmpv.DefaultConfig()
+
 	err = v.Unmarshal(hsmCfg)
 	if err != nil {
 		return nil, err
