@@ -4,13 +4,12 @@ package gateway
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/cli"
@@ -266,21 +265,6 @@ func newMapAccountsCommand() *cobra.Command {
 	return cmd
 }
 
-type ConfirmedMapping struct {
-	From string `json:"from"`
-	To   string `json:"to"`
-}
-
-type PendingMapping struct {
-	ForeignContract string `json:"foreign_contract"`
-	LocalContract   string `json:"local_contract"`
-}
-
-type Mappings struct {
-	ConfirmedMappings []ConfirmedMapping `json:"confirmed_mapping"`
-	PendingMappings   []PendingMapping   `json:"pending_mapping"`
-}
-
 const ListContractMappingCmdExample = `
 loom gateway list-contract-mappings
 `
@@ -293,7 +277,6 @@ func newListContractMappingsCommand() *cobra.Command {
 		Example: ListContractMappingCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var mapping Mappings
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
@@ -306,21 +289,35 @@ func newListContractMappingsCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to call gateway.ListContractMapping")
 			}
-			confirmedmappings := []ConfirmedMapping{}
-			for _, mapping := range resp.ConfimedMappings {
-				confirmedmappings = append(confirmedmappings, getConfirmedMappingInfo(mapping))
+			type maxLength struct {
+				From   int
+				To     int
+				Status int
 			}
-			pendingmappings := []PendingMapping{}
-			for _, mapping := range resp.PendingMappings {
-				pendingmappings = append(pendingmappings, getPendingMappingInfo(mapping))
+			ml := maxLength{From: 50, To: 50, Status: 9}
+			for _, value := range resp.PendingMappings {
+				if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
+					ml.From = len(loom.UnmarshalAddressPB(value.ForeignContract).String())
+				}
+				if len(loom.UnmarshalAddressPB(value.LocalContract).String()) > ml.To {
+					ml.To = len(loom.UnmarshalAddressPB(value.LocalContract).String())
+				}
 			}
-			mapping.PendingMappings = pendingmappings
-			mapping.ConfirmedMappings = confirmedmappings
-			output, err := json.MarshalIndent(mapping, "", "  ")
-			if err != nil {
-				return err
+			for _, value := range resp.ConfimedMappings {
+				if len(loom.UnmarshalAddressPB(value.From).String()) > ml.From {
+					ml.From = len(loom.UnmarshalAddressPB(value.From).String())
+				}
+				if len(loom.UnmarshalAddressPB(value.To).String()) > ml.To {
+					ml.To = len(loom.UnmarshalAddressPB(value.To).String())
+				}
 			}
-			fmt.Println(string(output))
+			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
+			for _, value := range resp.PendingMappings {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
+			}
+			for _, value := range resp.ConfimedMappings {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To, loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
+			}
 			return nil
 		},
 	}
@@ -350,17 +347,9 @@ func newGetContractMappingCommand() *cobra.Command {
 			var mapping Mapping
 			var contractAddr loom.Address
 			var err error
-			if strings.HasPrefix(args[0], "eth:") {
-				contractAddr, err = loom.ParseAddress(args[0])
-			} else {
-				if strings.HasPrefix(args[0], gatewayCmdFlags.ChainID+":") {
-					contractAddr, err = loom.ParseAddress(args[0])
-				} else {
-					contractAddr, err = hexToLoomAddress(args[0])
-				}
-			}
+			contractAddr, err = cli.ParseAddress(args[0], gatewayCmdFlags.ChainID)
 			if err != nil {
-				return errors.Wrap(err, "invalid account address")
+				return err
 			}
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
@@ -377,17 +366,31 @@ func newGetContractMappingCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to call gateway.GetContractMapping")
 			}
 			if resp.MappedAddress != nil {
-				mapping.Address = resp.MappedAddress.ChainId + ":" + resp.MappedAddress.Local.String()
+				mapping.Address = loom.UnmarshalAddressPB(resp.MappedAddress).String()
 				mapping.IsPending = resp.IsPending
 				mapping.Found = resp.Found
 			} else {
-				mapping.Found = false
+				fmt.Println("No mapping found")
+				return nil
 			}
-			output, err := json.MarshalIndent(mapping, "", "  ")
-			if err != nil {
-				return err
+			type maxLength struct {
+				From   int
+				To     int
+				Status int
 			}
-			fmt.Println(string(output))
+			ml := maxLength{From: 50, To: 50, Status: 9}
+			if len(contractAddr.String()) > ml.From {
+				ml.From = len(contractAddr.String())
+			}
+			if len(mapping.Address) > ml.To {
+				ml.To = len(mapping.Address)
+			}
+			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
+			if mapping.IsPending == true {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "PENDING")
+			} else {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "CONFIRMED")
+			}
 			return nil
 		},
 	}
@@ -447,20 +450,4 @@ func getDAppChainClient() *client.DAppChainRPCClient {
 	writeURI := gatewayCmdFlags.URI + "/rpc"
 	readURI := gatewayCmdFlags.URI + "/query"
 	return client.NewDAppChainRPCClient(gatewayCmdFlags.ChainID, writeURI, readURI)
-}
-
-func getConfirmedMappingInfo(mapping *tgtypes.TransferGatewayContractAddressMapping) ConfirmedMapping {
-	mappingInfo := ConfirmedMapping{
-		From: mapping.From.ChainId + ":" + mapping.From.Local.String(),
-		To:   mapping.To.ChainId + ":" + mapping.To.Local.String(),
-	}
-	return mappingInfo
-}
-
-func getPendingMappingInfo(mapping *tgtypes.TransferGatewayPendingContractMapping) PendingMapping {
-	mappingInfo := PendingMapping{
-		ForeignContract: mapping.ForeignContract.ChainId + ":" + mapping.ForeignContract.Local.String(),
-		LocalContract:   mapping.LocalContract.ChainId + ":" + mapping.LocalContract.Local.String(),
-	}
-	return mappingInfo
 }
