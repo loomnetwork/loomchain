@@ -764,13 +764,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, nil
 	}
 	if err != nil {
-		resp, err = getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
-		if err != nil {
-			// return empty response if cannot find hash
-			resp.Status = eth.EncInt(int64(StatusTxFail))
-			return resp, nil
-		}
-		return resp, err
+		return getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
 	}
 	snapshot.Release()
 
