@@ -6,9 +6,8 @@ const (
 	TGCheckTxHashFeature = "tg:check-txhash"
 	// Enables hot wallet (users can submit Ethereum deposit tx hashes).
 	TGHotWalletFeature = "tg:hot-wallet"
-	//Check Zero amount withdrawal
-	TGCheckZeroAmount = "tg:check-zamt "
-
+	// Enables prevention of zero amount token withdrawals in the Gateway contract
+	TGCheckZeroAmount = "tg:check-zamt"
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
 	AuthSigTxFeaturePrefix = "auth:sigtx:"
