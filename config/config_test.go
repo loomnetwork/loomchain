@@ -83,7 +83,6 @@ func TestParseConfigWithoutHSMfileAndConfigDifferentToDefault(t *testing.T) {
 }
 
 func TestHsmFileConfigNotFound(t *testing.T) {
-	// var err error
 	_, err := ParseHSMConfig()
 	if assert.Error(t, err) {
 		assert.Equal(t, err.(viper.ConfigFileNotFoundError), err)

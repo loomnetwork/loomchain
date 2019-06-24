@@ -304,7 +304,7 @@ func ParseConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	//hsmDefault := hsmpv.DefaultConfig()
+
 	hsmCfg, hsmErr := ParseHSMConfig()
 	if hsmErr == nil {
 		conf.HsmConfig = hsmCfg
