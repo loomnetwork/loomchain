@@ -204,8 +204,10 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	// a valid caller address is optional
-	callerAddr, _ := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
 
 	vm := lcp.NewPluginVM(
 		s.Loader,
@@ -243,9 +245,11 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	// a valid caller address is optional
-	callerAddr, _ := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
-	var err error
+	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
+
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	if s.NewABMFactory != nil {
 		pvm := lcp.NewPluginVM(
@@ -275,6 +279,8 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 		if err != nil {
 			return resp, err
 		}
+	} else {
+		caller = loom.RootAddress(s.ChainID)
 	}
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
