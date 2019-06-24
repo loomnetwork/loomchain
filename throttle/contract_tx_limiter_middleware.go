@@ -1,6 +1,8 @@
 package throttle
 
 import (
+	"time"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -11,11 +13,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+const refreshInterval int64 = 15 * 60
+
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
 	contractToTierMap map[string]udw.Tier
 	// track of no. of txns in previous blocks per contract
 	contractToBlockTrx map[string]map[int64]int64
+	// to refresh the contractToTierMap when configuration changes
+	lastUpdated int64
 }
 
 var TxLimiter *contractTxLimiter
@@ -61,6 +67,10 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 func NewContractTxLimiterMiddleware(
 	createUserDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
+	TxLimiter = &contractTxLimiter{
+		contractToBlockTrx: make(map[string]map[int64]int64, 0),
+		lastUpdated:        time.Now().Unix() - refreshInterval, // updation time is fifteen minutes
+	}
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
@@ -78,8 +88,11 @@ func NewContractTxLimiterMiddleware(
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}
-		// Should not be initialized at every checkTx
-		if TxLimiter == nil {
+		if tx.Id != callId {
+			return next(state, txBytes, isCheckTx)
+		}
+		// updated only if tx.Id == callId
+		if TxLimiter.lastUpdated+refreshInterval <= time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
@@ -88,23 +101,21 @@ func NewContractTxLimiterMiddleware(
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: contractToTierMap creation")
 			}
-			TxLimiter = &contractTxLimiter{contractToTierMap: contractToTierMap}
+			TxLimiter.contractToTierMap = contractToTierMap
 		}
-		if tx.Id == callId {
-			var msg vm.MessageTx
-			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+		var msg vm.MessageTx
+		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+		}
+		var msgTx vm.CallTx
+		if err := proto.Unmarshal(msg.Data, &msgTx); err != nil {
+			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
+		}
+		if msgTx.VmType == vm.VMType_EVM {
+			if TxLimiter.isAccountLimitReached(loom.UnmarshalAddressPB(msg.To), state.Block().Height) {
+				return loomchain.TxHandlerResult{}, errors.New("tx limit reached, try again later")
 			}
-			var tx vm.CallTx
-			if err := proto.Unmarshal(msg.Data, &tx); err != nil {
-				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
-			}
-			if tx.VmType == vm.VMType_EVM {
-				if TxLimiter.isAccountLimitReached(loom.UnmarshalAddressPB(msg.To), state.Block().Height) {
-					return loomchain.TxHandlerResult{}, errors.New("tx limit reached, try again later")
-				}
-				TxLimiter.updateState(loom.UnmarshalAddressPB(msg.To), state.Block().Height)
-			}
+			TxLimiter.updateState(loom.UnmarshalAddressPB(msg.To), state.Block().Height)
 		}
 		return next(state, txBytes, isCheckTx)
 	})
