@@ -87,6 +87,7 @@ type (
 	CheckRewardDelegationResponse     = dtypes.CheckRewardDelegationResponse
 	DowntimeRecordRequest             = dtypes.DowntimeRecordRequest
 	DowntimeRecordResponse            = dtypes.DowntimeRecordResponse
+	DowntimeRecord                    = dtypes.DowntimeRecord
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
@@ -857,14 +858,14 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:      req.PubKey,
-		Address:     candidateAddress.MarshalPB(),
-		Fee:         req.Fee,
-		NewFee:      req.Fee,
-		Name:        req.Name,
-		Description: req.Description,
-		Website:     req.Website,
-		State:       REGISTERED,
+		PubKey:                req.PubKey,
+		Address:               candidateAddress.MarshalPB(),
+		Fee:                   req.Fee,
+		NewFee:                req.Fee,
+		Name:                  req.Name,
+		Description:           req.Description,
+		Website:               req.Website,
+		State:                 REGISTERED,
 		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
@@ -1340,13 +1341,29 @@ func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) erro
 
 func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordRequest) (*DowntimeRecordResponse, error) {
 	ctx.Logger().Debug("DPOSv3 DowntimeRecord", "request", req)
-	if req.Validator == nil {
-		return nil, errors.New("request made with req.Validator == nil")
-	}
 
-	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.Validator))
-	if err != nil {
-		return nil, logStaticDposError(ctx, contract.ErrNotFound, req.String())
+	downtimeRecords := make([]*DowntimeRecord, 0)
+	if req.Validator != nil {
+		downtimeRecord, err := getDowntimeRecord(ctx, loom.UnmarshalAddressPB(req.Validator))
+		if err != nil {
+			return nil, err
+		}
+		downtimeRecords = append(downtimeRecords, downtimeRecord)
+	} else {
+		validators, err := ValidatorList(ctx)
+		if err != nil {
+			return nil, logStaticDposError(ctx, err, req.String())
+		}
+
+		chainID := ctx.Block().ChainID
+		for _, v := range validators {
+			valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+			downtimeRecord, err := getDowntimeRecord(ctx, valAddress)
+			if err != nil {
+				return nil, err
+			}
+			downtimeRecords = append(downtimeRecords, downtimeRecord)
+		}
 	}
 
 	state, err := loadState(ctx)
@@ -1355,14 +1372,26 @@ func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordReq
 	}
 
 	return &DowntimeRecordResponse{
+		DowntimeRecords: downtimeRecords,
+		PeriodLength:    state.Params.DowntimePeriod,
+	}, nil
+}
+
+func getDowntimeRecord(ctx contract.StaticContext, validator loom.Address) (*DowntimeRecord, error) {
+	statistic, err := GetStatistic(ctx, validator)
+	if err != nil {
+		return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
+	}
+	downtimeRecord := &DowntimeRecord{
+		Validator: validator.MarshalPB(),
 		Periods: []uint64{
 			statistic.RecentlyMissedBlocks & 0xFFFF,
 			(statistic.RecentlyMissedBlocks >> 16) & 0xFFFF,
 			(statistic.RecentlyMissedBlocks >> 32) & 0xFFFF,
 			(statistic.RecentlyMissedBlocks >> 48) & 0xFFFF,
 		},
-		PeriodLength: state.Params.DowntimePeriod,
-	}, nil
+	}
+	return downtimeRecord, nil
 }
 
 // only called for validators, never delegators

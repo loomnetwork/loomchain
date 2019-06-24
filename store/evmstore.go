@@ -26,10 +26,11 @@ var (
 func init() {
 	commitDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: "loomchain",
-			Subsystem: "evmstore",
-			Name:      "commit",
-			Help:      "How long EvmStore.Commit() took to execute (in seconds)",
+			Namespace:  "loomchain",
+			Subsystem:  "evmstore",
+			Name:       "commit",
+			Help:       "How long EvmStore.Commit() took to execute (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{},
 	)
 }
