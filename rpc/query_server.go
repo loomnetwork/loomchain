@@ -198,10 +198,8 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to resolve account address")
-	}
+	// a valid caller address is optional
+	callerAddr, _ := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
 
 	vm := lcp.NewPluginVM(
 		s.Loader,
