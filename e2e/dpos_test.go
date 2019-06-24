@@ -12,9 +12,9 @@ func TestContractDPOS(t *testing.T) {
 		name       string
 		testFile   string
 		validators int
-		accounts int
-		genFile  string
-		yamlFile string
+		accounts   int
+		genFile    string
+		yamlFile   string
 	}{
 		{"dpos-downtime", "dpos-downtime.toml", 4, 10, "dposv3-downtime.genesis.json", "dposv3-test-loom.yaml"},
 		{"dpos-v3", "dposv3-delegation.toml", 4, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},

@@ -144,10 +144,11 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 		Help:      "Number of requests received.",
 	}, fieldKeys)
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "tx_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "tx_service",
+		Name:       "request_latency_microseconds",
+		Help:       "Total duration of requests in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	return &InstrumentingTxMiddleware{
