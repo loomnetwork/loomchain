@@ -2505,13 +2505,16 @@ func TestRemoveOfflineValidators(t *testing.T) {
 	err = dpos.RegisterCandidate(dposCtx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 
-	delegationAmount := big.NewInt(100)
+	approvalAmount := big.NewInt(200)
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(approvalAmount)},
 	})
 	require.Nil(t, err)
 
+	delegationAmount := big.NewInt(100)
+	err = dpos.Delegate(dposCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
 	err = dpos.Delegate(dposCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
 	elect(pctx, dpos.Address)
@@ -2525,11 +2528,11 @@ func TestRemoveOfflineValidators(t *testing.T) {
 		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
 	}
 
-	// after election, the dele
+	// after an election, the delegations of the removed validator must be redelegated to limbo validator
 	elect(dposCtx, dpos.Address)
 
 	delegations, _, _, _ := dpos.CheckAllDelegations(dposCtx.WithSender(delegatorAddress1), &delegatorAddress1)
-	require.Equal(t, 1, len(delegations))
+	require.Equal(t, 2, len(delegations))
 	for _, d := range delegations {
 		assert.Equal(t, d.Validator.Local, limboValidatorAddress.Local)
 		assert.Equal(t, delegationAmount.String(), d.Amount.Value.String())
