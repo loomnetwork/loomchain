@@ -1128,12 +1128,12 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 			txReceipt.Logs[i].BlockTime = timestamp
 		}
 	}
-	jsonReceipt := eth.EncTxReceipt(*txReceipt)
 	if txResults.TxResult.Code == abci.CodeTypeOK {
-		jsonReceipt.Status = eth.EncInt(int64(StatusTxSuccess))
+		txReceipt.Status = StatusTxSuccess
 	} else {
-		jsonReceipt.Status = eth.EncInt(int64(StatusTxFail))
+		txReceipt.Status = StatusTxFail
 	}
+	jsonReceipt := eth.EncTxReceipt(*txReceipt)
 	if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
 		jsonReceipt.To = jsonReceipt.ContractAddress
 		jsonReceipt.ContractAddress = nil
