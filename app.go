@@ -3,6 +3,7 @@ package loomchain
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -12,16 +13,18 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
 )
 
 type ReadOnlyState interface {
@@ -521,7 +524,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if a.curBlockHeader.Height == 0 {
 		return ok
 	}
-
+	log.Info("piers tx hash", "hash", hex.EncodeToString(ttypes.Tx(txBytes).Hash()))
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
