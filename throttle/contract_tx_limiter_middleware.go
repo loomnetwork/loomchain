@@ -22,6 +22,7 @@ type ContractTxLimiterConfig struct {
 
 func DefaultContractTxLimiterConfig() *ContractTxLimiterConfig {
 	return &ContractTxLimiterConfig{
+		Enabled:         false,
 		RefreshInterval: 15 * 60,
 	}
 }
