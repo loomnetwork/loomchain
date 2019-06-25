@@ -259,7 +259,7 @@ func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
 
 func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
 	return &UserDeployerWhitelistConfig{
-		ContractEnabled: false,
+		ContractEnabled: true,
 	}
 }
 
