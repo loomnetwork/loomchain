@@ -135,8 +135,10 @@ func newDumpBlockTxsCommand() *cobra.Command {
 func newDumpBlockTxsScannerCommand() *cobra.Command {
 	var nodeURI string
 	var height int
-	var contractAddr string
+	var toAddr string
 	var chainID string
+	var fromAddr string
+	var updateHeight bool
 	cmd := &cobra.Command{
 		Use:     "dump-block-txs-scanner",
 		Short:   "Scan and displays all the txs starting from a specific height",
@@ -148,10 +150,18 @@ func newDumpBlockTxsScannerCommand() *cobra.Command {
 			ctypes.RegisterAmino(cdc)
 			var rm json.RawMessage
 
-			var contractAddress loom.Address
+			var toAddress loom.Address
 			var err error
-			if contractAddr != "" {
-				contractAddress, err = loom.ParseAddress(contractAddr)
+			if toAddr != "" {
+				toAddress, err = loom.ParseAddress(toAddr)
+				if err != nil {
+					return err
+				}
+			}
+
+			var fromAddress loom.Address
+			if fromAddr != "" {
+				fromAddress, err = loom.ParseAddress(fromAddr)
 				if err != nil {
 					return err
 				}
@@ -163,12 +173,12 @@ func newDumpBlockTxsScannerCommand() *cobra.Command {
 				params["height"] = strconv.Itoa(height)
 			}
 
-			currentHeight, err := dappClient.GetBlockHeight()
+			lastHeight, err := dappClient.GetBlockHeight()
 			if err != nil {
 				return err
 			}
 
-			for i := uint64(height); i < currentHeight; i++ {
+			for i := uint64(height); i < lastHeight; i++ {
 				if err := c.Call("block", params, "1", &rm); err != nil {
 					return errors.Wrap(err, "failed to call mempool_txs")
 				}
@@ -176,26 +186,33 @@ func newDumpBlockTxsScannerCommand() *cobra.Command {
 					return errors.Wrap(err, "failed to unmarshal rpc response result")
 				}
 				for _, tx := range result.Block.Data.Txs {
-					txHash, fromAddr, toAddr, vmName, methodName, err := decodeMessageTxRaw(tx)
+					txHash, txFromAddr, txToAddr, vmName, methodName, err := decodeMessageTxRaw(tx)
 					if err != nil {
 						log.Error("failed to decode tx", "err", err)
 					} else {
-						if contractAddress.IsEmpty() || toAddr.Compare(contractAddress) == 0 {
+						if (toAddress.IsEmpty() && fromAddress.IsEmpty()) ||
+							(txToAddr.Compare(toAddress) == 0 && fromAddress.IsEmpty()) ||
+							(txFromAddr.Compare(fromAddress) == 0 && toAddress.IsEmpty()) ||
+							(txFromAddr.Compare(fromAddress) == 0 && txToAddr.Compare(toAddress) == 0) {
 							fmt.Println(fmt.Sprintf(
-								"[txh] %X [sndr] %s [to] %s [vm] %s [mn] %s",
+								"[txh] %X [from] %s [to] %s [type] %s [method_name] %s",
 								txHash,
-								fromAddr.String(),
-								toAddr.String(),
+								txFromAddr.String(),
+								txToAddr.String(),
 								vmName,
 								methodName,
 							))
 						}
 					}
 				}
-				blockHeight, err := dappClient.GetBlockHeight()
-				if err == nil {
-					currentHeight = blockHeight
+
+				if updateHeight && i%100 == 0 {
+					blockHeight, err := dappClient.GetBlockHeight()
+					if err == nil {
+						lastHeight = blockHeight
+					}
 				}
+
 				params["height"] = strconv.FormatUint(i, 10)
 				fmt.Printf("fetched %d txs from block %d\n", len(result.Block.Data.Txs), i)
 			}
@@ -205,8 +222,10 @@ func newDumpBlockTxsScannerCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
 	cmdFlags.IntVar(&height, "height", 1, "Block height for which txs should be displayed")
-	cmdFlags.StringVar(&contractAddr, "contract", "", "Only display txs sent to this contract address")
+	cmdFlags.StringVar(&toAddr, "to", "", "Only display txs sent to this address")
+	cmdFlags.StringVar(&fromAddr, "from", "", "Only display txs sent from this address")
 	cmdFlags.StringVar(&chainID, "chain", "default", "ChainID")
+	cmdFlags.BoolVar(&updateHeight, "update-height", false, "Update height every 100 blocks processed")
 	return cmd
 }
 
