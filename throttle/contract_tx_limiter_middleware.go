@@ -13,6 +13,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var ErrTxLimitReached = errors.New("tx limit reached, try again later")
+
 type ContractTxLimiterConfig struct {
 	// Enables the middleware
 	Enabled bool
@@ -65,7 +67,7 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 			sum = sum + txns
 		}
 	}
-	if sum > int64(tier.MaxTx) {
+	if sum < int64(tier.MaxTx) {
 		return false
 	}
 	return true
@@ -135,7 +137,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			}
 
 			if TxLimiter.isAccountLimitReached(loom.UnmarshalAddressPB(msg.To), state.Block().Height) {
-				return loomchain.TxHandlerResult{}, errors.New("tx limit reached, try again later")
+				return loomchain.TxHandlerResult{}, ErrTxLimitReached
 			}
 			TxLimiter.updateState(loom.UnmarshalAddressPB(msg.To), state.Block().Height)
 		}

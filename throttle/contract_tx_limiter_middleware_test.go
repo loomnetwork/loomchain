@@ -45,7 +45,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 		Fee:        100,
 		Name:       "Tier1",
 		BlockRange: 10,
-		MaxTx:      1,
+		MaxTx:      2,
 	}
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)
@@ -118,6 +118,6 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
 	require.NoError(t, err)
 	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
-	require.NoError(t, err)
+	require.Equal(t, ErrTxLimitReached, err)
 
 }

@@ -387,8 +387,8 @@ func GetContractTierMapping(ctx contract.StaticContext) (map[string]Tier, error)
 		}
 		contracts := deployer.Contracts
 		for _, contract := range contracts {
-			contractToTierMap[contract.String()] = tier
-
+			key := loom.UnmarshalAddressPB(contract.ContractAddress).String()
+			contractToTierMap[key] = tier
 		}
 	}
 	return contractToTierMap, nil
