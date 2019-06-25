@@ -79,11 +79,11 @@
   Expected = ["jailed\": true"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 unjail -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [""]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
-  Condition = "contains"
+  Condition = "excludes"
   Excluded = ["jailed\": true"]

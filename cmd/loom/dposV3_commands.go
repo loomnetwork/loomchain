@@ -52,7 +52,7 @@ func UnjailValidatorCmdV3() *cobra.Command {
 			}
 
 			return cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "UnregisterCandidate", &dposv3.UnjailRequest{
+				&flags, DPOSV3ContractName, "Unjail", &dposv3.UnjailRequest{
 					Validator: validator,
 				}, nil,
 			)
