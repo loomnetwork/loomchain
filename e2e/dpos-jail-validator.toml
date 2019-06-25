@@ -59,16 +59,10 @@
   Expected = ["chainId\": \"default"]
 
 [[TestCases]]
-  RunCmd = "kill_and_restart_node 100 1"
+  RunCmd = "kill_and_restart_node 10 1"
 
 [[TestCases]]
-  Delay = 10000
-  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
-  Node = 1
-  Condition = "contains"
-  Expected = ["Error"]
-
-[[TestCases]]
+  Delay = 17000
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["periods"]
