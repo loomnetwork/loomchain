@@ -102,6 +102,7 @@ func NewContractTxLimiterMiddleware(
 				return res, errors.Wrap(err, "throttle: contractToTierMap creation")
 			}
 			TxLimiter.contractToTierMap = contractToTierMap
+			TxLimiter.lastUpdated = time.Now().Unix()
 		}
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
