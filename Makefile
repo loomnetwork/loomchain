@@ -27,7 +27,7 @@ TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
-TG_GIT_REV = HEAD
+TG_GIT_REV = binance-loomdex
 # loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
@@ -188,7 +188,7 @@ $(SSHA3_DIR):
 
 $(TRANSFER_GATEWAY_DIR):
 	git clone -q git@github.com:loomnetwork/transfer-gateway.git $@
-	cd $(TRANSFER_GATEWAY_DIR) && git checkout binance-dex-integration && git pull && git checkout $(TG_GIT_REV) && make deps
+	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV) && make deps
 
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
@@ -218,7 +218,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/btcsuite/btcd
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
-	cd $(PLUGIN_DIR) && git checkout binance-types && git pull && git checkout $(GO_LOOM_GIT_REV)
+	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GRPC_DIR) && git checkout v1.20.1
