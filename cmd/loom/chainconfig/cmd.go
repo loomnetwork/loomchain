@@ -31,6 +31,7 @@ func NewChainCfgCommand() *cobra.Command {
 		ListFeaturesCmd(),
 		FeatureEnabledCmd(),
 		RemoveFeatureCmd(),
+		SetValidatorInfoCmd(),
 	)
 	return cmd
 }
@@ -321,6 +322,34 @@ func RemoveFeatureCmd() *cobra.Command {
 		},
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const setValidatorInfoCmdExample = `
+loom chain-cfg set-info --build 1000
+`
+
+func SetValidatorInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	buildNumber := uint64(0)
+	cmd := &cobra.Command{
+		Use:     "set-info",
+		Short:   "Set validator informations",
+		Example: setValidatorInfoCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			request := &cctype.SetValidatorInfoRequest{
+				BuildNumber: buildNumber,
+			}
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetValidatorInfo", request, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	cmdFlags := cmd.Flags()
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set a validator's build number ")
 	return cmd
 }
 

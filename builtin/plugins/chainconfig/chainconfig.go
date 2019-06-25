@@ -16,21 +16,27 @@ import (
 )
 
 type (
-	InitRequest           = cctypes.InitRequest
-	ListFeaturesRequest   = cctypes.ListFeaturesRequest
-	ListFeaturesResponse  = cctypes.ListFeaturesResponse
-	GetFeatureRequest     = cctypes.GetFeatureRequest
-	GetFeatureResponse    = cctypes.GetFeatureResponse
-	AddFeatureRequest     = cctypes.AddFeatureRequest
-	AddFeatureResponse    = cctypes.AddFeatureResponse
-	RemoveFeatureRequest  = cctypes.RemoveFeatureRequest
-	SetParamsRequest      = cctypes.SetParamsRequest
-	GetParamsRequest      = cctypes.GetParamsRequest
-	GetParamsResponse     = cctypes.GetParamsResponse
-	Params                = cctypes.Params
-	Feature               = cctypes.Feature
-	EnableFeatureRequest  = cctypes.EnableFeatureRequest
-	EnableFeatureResponse = cctypes.EnableFeatureResponse
+	InitRequest               = cctypes.InitRequest
+	ListFeaturesRequest       = cctypes.ListFeaturesRequest
+	ListFeaturesResponse      = cctypes.ListFeaturesResponse
+	GetFeatureRequest         = cctypes.GetFeatureRequest
+	GetFeatureResponse        = cctypes.GetFeatureResponse
+	AddFeatureRequest         = cctypes.AddFeatureRequest
+	AddFeatureResponse        = cctypes.AddFeatureResponse
+	RemoveFeatureRequest      = cctypes.RemoveFeatureRequest
+	SetParamsRequest          = cctypes.SetParamsRequest
+	GetParamsRequest          = cctypes.GetParamsRequest
+	GetParamsResponse         = cctypes.GetParamsResponse
+	Params                    = cctypes.Params
+	Feature                   = cctypes.Feature
+	ValidatorInfo             = cctypes.ValidatorInfo
+	EnableFeatureRequest      = cctypes.EnableFeatureRequest
+	EnableFeatureResponse     = cctypes.EnableFeatureResponse
+	GetValidatorInfoRequest   = cctypes.GetValidatorInfoRequest
+	GetValidatorInfoResponse  = cctypes.GetValidatorInfoResponse
+	SetValidatorInfoRequest   = cctypes.SetValidatorInfoRequest
+	ListValidatorInfoRequest  = cctypes.ListValidatorInfoRequest
+	ListValidatorInfoResponse = cctypes.ListValidatorInfoResponse
 )
 
 const (
@@ -70,8 +76,9 @@ var (
 )
 
 const (
-	featurePrefix = "ft"
-	ownerRole     = "owner"
+	featurePrefix       = "ft"
+	ownerRole           = "owner"
+	validatorInfoPrefix = "vi"
 )
 
 var (
@@ -83,6 +90,10 @@ var (
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+func validatorInfoKey(addr loom.Address) []byte {
+	return util.PrefixKey([]byte(validatorInfoPrefix), addr.Bytes())
 }
 
 type ChainConfig struct {
@@ -542,3 +553,51 @@ func removeFeature(ctx contract.Context, name string) error {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})
+
+func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorInfoRequest) error {
+	if req.BuildNumber == 0 {
+		return ErrInvalidRequest
+	}
+
+	senderAddr := ctx.Message().Sender
+	// validators, err := getCurrentValidators(ctx)
+	// for _, validator := range validators {
+	// 	if validator.Compare(senderAddr) == 0 {
+
+	// 	} else {
+	// 		return ErrNotAuthorized
+	// 	}
+	// }
+	return setValidatorInfo(ctx, senderAddr, req.BuildNumber)
+}
+
+func setValidatorInfo(ctx contract.Context, addr loom.Address, buildNumber uint64) error {
+
+	validator := &ValidatorInfo{
+		Address:     addr.MarshalPB(),
+		BuildNumber: buildNumber,
+	}
+	return ctx.Set(validatorInfoKey(addr), validator)
+}
+
+func (c *ChainConfig) GetValidatorInfo(ctx contract.Context, req *GetValidatorInfoRequest) error {
+
+	// validators, err := getCurrentValidators(ctx)
+	// for _, validator := range validators {
+	// 	if validator.Compare(senderAddr) == 0 {
+
+	// 	} else {
+	// 		return ErrNotAuthorized
+	// 	}
+	// }
+	return setValidatorInfo(ctx, senderAddr, req.BuildNumber)
+}
+
+func getValidatorInfo(ctx contract.Context) error {
+
+	validator := &ValidatorInfo{
+		Address:     addr.MarshalPB(),
+		BuildNumber: buildNumber,
+	}
+	return ctx.Set(validatorInfoKey(addr), validator)
+}
