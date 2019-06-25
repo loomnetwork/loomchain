@@ -192,6 +192,10 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	getValidatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
 	require.NoError(err)
 	require.Equal(buildNumber, getValidatorInfo.Validator.BuildNumber)
+
+	listValidator, err := chainconfigContract.ListValidatorInfo(ctx, &ListValidatorInfoRequest{})
+	require.NoError(err)
+	require.Equal(1, len(listValidator.Validators))
 }
 
 func (c *ChainConfigTestSuite) TestPermission() {
@@ -422,6 +426,26 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	})
 
 	fmt.Println(formatJSON(featureEnable))
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.Error(err, "[ChainConfig] feature not enabled")
+	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.NoError(err)
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.NoError(err)
+	getValidatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
+	require.NoError(err)
+	require.Equal(buildNumber, getValidatorInfo.Validator.BuildNumber)
+
+	listValidator, err := chainconfigContract.ListValidatorInfo(ctx, &ListValidatorInfoRequest{})
+	require.NoError(err)
+	require.Equal(2, len(listValidator.Validators))
 }
 
 func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {
