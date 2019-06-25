@@ -223,9 +223,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap \
 		github.com/posener/wstest \
-		github.com/btcsuite/btcd \
-		github.com/zondax/hid \
-		github.com/binance-chain/go-sdk/...
+		github.com/btcsuite/btcd
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
