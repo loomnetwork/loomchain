@@ -1,6 +1,7 @@
 package fnConsensus
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -21,6 +22,7 @@ type SigningThreshold string
 
 // MethodIDs for tracing purpose
 const (
+	initValidatorSetMethodID  = "initValidatorSet"
 	voteMethodID              = "vote"
 	commitMethodID            = "commit"
 	maj23MsgHandlerMethodID   = "handleMaj23Msg"
@@ -249,6 +251,7 @@ func (f *FnConsensusReactor) calculateSleepTimeForPropose(areWeValidator bool) t
 
 func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 	if len(f.cfg.OverrideValidators) == 0 {
+		f.Logger.Info("FnConsensusReactor: using DPoS validator set for consensus", "method", initValidatorSetMethodID)
 		return nil
 	}
 
@@ -260,10 +263,23 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 		if validatorIndex == -1 {
 			return fmt.Errorf("validator specified in override config, doesnt exist in TM validator set")
 		}
-		validatorArray = append(validatorArray, validator.Copy())
+		// We need to overwrite DPoS voting power with static one
+		// otherwise there is possibility of validator hash disagreement
+		// among nodes, if one or more nodes restarts. This happens due to
+		// recalculation of validator set on every election.
+		validator.VotingPower = overrideValidator.VotingPower
+
+		f.Logger.Info("FnConsensusReactor: adding validator to static validator set", "validator", validator.String(),
+			"method", initValidatorSetMethodID)
+
+		validatorArray = append(validatorArray, validator)
 	}
 
 	f.staticValidators = types.NewValidatorSet(validatorArray)
+
+	f.Logger.Info("FnConsensusReactor: using static validator set for consensus", "validatorSetHash",
+		hex.EncodeToString(f.staticValidators.Hash()),
+		"method", initValidatorSetMethodID)
 
 	return nil
 }

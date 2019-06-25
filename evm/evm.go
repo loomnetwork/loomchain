@@ -44,16 +44,18 @@ func init() {
 		Help:      "Number of evm transactions received.",
 	}, fieldKeys)
 	txLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "application",
-		Name:      "evmtx_latency_microseconds",
-		Help:      "Total duration of go-ethereum EVM tx in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "evmtx_latency_microseconds",
+		Help:       "Total duration of go-ethereum EVM tx in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 	txGas = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "application",
-		Name:      "evm_tx_gas_cost",
-		Help:      "Gas cost of EVM transaction.",
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "evm_tx_gas_cost",
+		Help:       "Gas cost of EVM transaction.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 }
 
