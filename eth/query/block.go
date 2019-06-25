@@ -164,7 +164,6 @@ func GetTxObjectFromBlockResult(
 					txObj.Hash = eth.EncBytes(respData.TxHash)
 				}
 			}
-
 			if deployTx.Value != nil {
 				txObj.Value = eth.EncInt(deployTx.Value.Value.Int64())
 			}
