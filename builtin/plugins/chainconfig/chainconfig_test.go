@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loomnetwork/loomchain"
+
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -54,6 +56,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
 	chainID := "default"
 	addr1 := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
+	buildNumber := uint64(1020)
 	//setup fake contract
 	validators := []*loom.Validator{
 		&loom.Validator{
@@ -65,6 +68,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		ChainID: chainID,
 		Time:    time.Now().Unix(),
 	}).WithValidators(validators)
+
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -175,6 +179,19 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		DefaultVal: true,
 	})
 	require.Equal(true, featureEnabled.Value)
+
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.Error(err, "[ChainConfig] feature not enabled")
+	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.NoError(err)
+	getValidatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
+	require.NoError(err)
+	require.Equal(buildNumber, getValidatorInfo.Validator.BuildNumber)
 }
 
 func (c *ChainConfigTestSuite) TestPermission() {
