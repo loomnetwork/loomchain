@@ -164,6 +164,7 @@ func GetTxObjectFromBlockResult(
 					txObj.Hash = eth.EncBytes(respData.TxHash)
 				}
 			}
+			txObj.Value = eth.EncInt(deployTx.Value.Value.Int64())
 		}
 	case callId:
 		{
@@ -177,6 +178,7 @@ func GetTxObjectFromBlockResult(
 			if callTx.VmType == vm.VMType_EVM && len(txResult.TxResult.Data) > 0 {
 				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
 			}
+			txObj.Value = eth.EncInt(callTx.Value.Value.Int64())
 		}
 	case migrationTx:
 		to := eth.EncAddress(msg.To)
