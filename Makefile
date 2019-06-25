@@ -21,6 +21,7 @@ LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
+BINANCE_CHAIN_GO_SDK_DIR = $(GOPATH)/src/github.com/binance-chain/go-sdk
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
@@ -39,6 +40,8 @@ BTCD_GIT_REV = 7d2daa5bfef28c5e282571bc06416516936115ee
 # that don't appear to be compatible with the gogo protobuf & protoc versions we use.
 # google.golang.org/genproto seems to be pulled in by the grpc package.
 GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
+# BinanceChain GO SDK specific branch
+BINANCE_CHAIN_GO_SDK_GIT_REV = v1.0.4
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -215,7 +218,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap \
 		github.com/posener/wstest \
-		github.com/btcsuite/btcd
+		github.com/btcsuite/btcd \
+		github.com/zondax/hid \
+		github.com/binance-chain/go-sdk/...
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
@@ -226,6 +231,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
+	cd $(BINANCE_CHAIN_GO_SDK_DIR) && git checkout $(BINANCE_CHAIN_GO_SDK_GIT_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
 
