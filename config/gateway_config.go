@@ -173,7 +173,11 @@ BinanceTransferGateway:
   # If this is enabled ContractEnabled must be set to true.
   OracleEnabled: {{ .BinanceTransferGateway.OracleEnabled }}
   # URI of Binance node the Oracle should connect to, and retrieve Mainnet events from.
-  BinanceURI: "{{ .BinanceTransferGateway.BinanceURI }}"
+  BinanceEventURI: "{{ .BinanceTransferGateway.BinanceEventURI }}"
+  # URI of Binance node the Oracle connects to to send txns via SDK
+  BinanceNodeURI: "{{ .BinanceTransferGateway.BinanceNodeURI }}"
+  # Asset symbol to map to LOOM Coin on Binance Dex
+  BinanceLoomToken: "{{ .BinanceTransferGateway.BinanceLoomToken }}"
   # Address of Transfer Gateway contract on Mainnet
   MainnetHotWalletAddress: "{{ .BinanceTransferGateway.MainnetHotWalletAddress }}"
   # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
