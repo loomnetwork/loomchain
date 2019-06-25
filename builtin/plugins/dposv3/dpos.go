@@ -39,6 +39,7 @@ const (
 	ElectionEventTopic               = "dposv3:election"
 	SlashEventTopic                  = "dposv3:slash"
 	JailEventTopic                   = "dposv3:jail"
+	UnjailEventTopic                 = "dposv3:unjail"
 	CandidateRegistersEventTopic     = "dposv3:candidateregisters"
 	CandidateUnregistersEventTopic   = "dposv3:candidateunregisters"
 	CandidateFeeChangeEventTopic     = "dposv3:candidatefeechange"
@@ -112,6 +113,7 @@ type (
 	SetValidatorCountRequest          = dtypes.SetValidatorCountRequest
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
+	UnjailRequest                     = dtypes.UnjailRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -131,6 +133,7 @@ type (
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
 	DposJailEvent                   = dtypes.DposJailEvent
+	DposUnjailEvent                 = dtypes.DposUnjailEvent
 	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
 	DposCandidateUnregistersEvent   = dtypes.DposCandidateUnregistersEvent
 	DposCandidateFeeChangeEvent     = dtypes.DposCandidateFeeChangeEvent
@@ -880,6 +883,51 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	return c.emitCandidateRegistersEvent(ctx, candidateAddress.MarshalPB(), req.Fee)
 }
 
+func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
+	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
+
+	candidateAddress := ctx.Message().Sender
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// if req.Validator is not nil, make sure that the caller is the oracle
+	// only the oracle can unjail other validators, a validator can only unjail itself
+	if req.Validator != nil {
+		if state.Params.OracleAddress == nil || candidateAddress.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return logDposError(ctx, errOnlyOracle, req.String())
+		}
+		candidateAddress = loom.UnmarshalAddressPB(req.Validator)
+	}
+
+	candidates, err := LoadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	cand := candidates.Get(candidateAddress)
+	if cand == nil {
+		return errCandidateNotFound
+	}
+
+	if cand.State != REGISTERED {
+		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
+	}
+
+	statistic, _ := GetStatistic(ctx, candidateAddress)
+	if statistic != nil {
+		statistic.Jailed = false
+	}
+
+	if err = SetStatistic(ctx, statistic); err != nil {
+		return err
+	}
+
+	return emitUnjailEvent(ctx, candidateAddress.MarshalPB())
+}
+
 func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) error {
 	ctx.Logger().Info("DPOSv3 ChangeFee", "request", req)
 
@@ -1057,7 +1105,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
-		if err = jailOfflineValidators(ctx, cachedDelegations); err != nil {
+		if err = jailOfflineValidators(ctx); err != nil {
 			return err
 		}
 	}
@@ -1332,7 +1380,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func jailOfflineValidators(ctx contract.Context, cachedDelegations *CachedDposStorage) error {
+func jailOfflineValidators(ctx contract.Context) error {
 	validators, err := ValidatorList(ctx)
 	if err != nil {
 		return logDposError(ctx, err, "jailOfflineValidators could not load validator list")
@@ -1356,12 +1404,16 @@ func jailOfflineValidators(ctx contract.Context, cachedDelegations *CachedDposSt
 		candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
 		statistic, _ := GetStatistic(ctx, candidateAddress)
 		if statistic != nil {
+			// no need to jail, already jailed validator
+			if statistic.Jailed {
+				continue
+			}
 			// if a validator misses all blocks in the last 4 periods, jail them
 			if statistic.RecentlyMissedBlocks&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>16)&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>32)&0xFFFF == params.DowntimePeriod &&
 				(statistic.RecentlyMissedBlocks>>48)&0xFFFF == params.DowntimePeriod {
-				// set whitelist amount of the removed candidate to 0
+
 				statistic.Jailed = true
 				err := SetStatistic(ctx, statistic)
 				if err != nil {
@@ -2241,6 +2293,18 @@ func emitJailEvent(ctx contract.Context, validator *types.Address) error {
 	}
 
 	ctx.EmitTopics(marshalled, JailEventTopic)
+	return nil
+}
+
+func emitUnjailEvent(ctx contract.Context, validator *types.Address) error {
+	marshalled, err := proto.Marshal(&DposJailEvent{
+		Validator: validator,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, UnjailEventTopic)
 	return nil
 }
 
