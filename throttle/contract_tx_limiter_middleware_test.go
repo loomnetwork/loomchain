@@ -103,8 +103,9 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	// create middleware
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
-	txSignedEVM := mockSignedTx(t, uint64(2), callId, vm.VMType_EVM, contractAddr)
-
+	txSignedEVM := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contractAddr)
+	txSignedEVM1 := mockSignedTx(t, uint64(2), callId, vm.VMType_EVM, contractAddr)
+	txSignedEVM2 := mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contractAddr)
 	cfg := DefaultContractTxLimiterConfig()
 	contractTxLimiterMiddleware := NewContractTxLimiterMiddleware(cfg,
 		func(state loomchain.State) (contractpb.Context, error) {
@@ -115,9 +116,9 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
 	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
 	require.NoError(t, err)
-	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
+	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM1, ctx)
 	require.NoError(t, err)
-	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
+	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM2, ctx)
 	require.Equal(t, ErrTxLimitReached, err)
 
 }
