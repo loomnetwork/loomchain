@@ -32,6 +32,7 @@ func NewChainCfgCommand() *cobra.Command {
 		FeatureEnabledCmd(),
 		RemoveFeatureCmd(),
 		SetValidatorInfoCmd(),
+		GetValidatorInfoCmd(),
 	)
 	return cmd
 }
@@ -350,6 +351,42 @@ func SetValidatorInfoCmd() *cobra.Command {
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set a validator's build number ")
+	return cmd
+}
+
+const getValidatorInfoCmdExample = `
+loom chain-cfg get-info 
+`
+
+func GetValidatorInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "get-info",
+		Short:   "Get validator informations",
+		Example: getValidatorInfoCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.GetValidatorInfoResponse
+			addr, _ := cli.ParseAddress(args[0], flags.ChainID)
+
+			if err := cli.StaticCallContractWithFlags(&flags,
+				chainConfigContractName,
+				"GetValidatorInfo",
+				&cctype.GetValidatorInfoRequest{Address: addr.MarshalPB()},
+				&resp,
+			); err != nil {
+				return err
+			}
+
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 

@@ -1,6 +1,8 @@
 package chainconfig
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -560,6 +562,7 @@ func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorIn
 	}
 
 	senderAddr := ctx.Message().Sender
+	fmt.Println(senderAddr.String())
 	// validators, err := getCurrentValidators(ctx)
 	// for _, validator := range validators {
 	// 	if validator.Compare(senderAddr) == 0 {
@@ -580,24 +583,27 @@ func setValidatorInfo(ctx contract.Context, addr loom.Address, buildNumber uint6
 	return ctx.Set(validatorInfoKey(addr), validator)
 }
 
-func (c *ChainConfig) GetValidatorInfo(ctx contract.Context, req *GetValidatorInfoRequest) error {
+func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValidatorInfoRequest) (*GetValidatorInfoResponse, error) {
 
-	// validators, err := getCurrentValidators(ctx)
-	// for _, validator := range validators {
-	// 	if validator.Compare(senderAddr) == 0 {
-
-	// 	} else {
-	// 		return ErrNotAuthorized
-	// 	}
-	// }
-	return setValidatorInfo(ctx, senderAddr, req.BuildNumber)
+	if req.Address == nil {
+		return nil, ErrInvalidRequest
+	}
+	address := loom.UnmarshalAddressPB(req.Address)
+	validatorInfo, err := getValidatorInfo(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	return &GetValidatorInfoResponse{
+		Validator: validatorInfo,
+	}, nil
 }
 
-func getValidatorInfo(ctx contract.Context) error {
+func getValidatorInfo(ctx contract.StaticContext, addr loom.Address) (*ValidatorInfo, error) {
 
-	validator := &ValidatorInfo{
-		Address:     addr.MarshalPB(),
-		BuildNumber: buildNumber,
+	var validatorInfo ValidatorInfo
+	err := ctx.Get(validatorInfoKey(addr), &validatorInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve chainconfig validatorinfo")
 	}
-	return ctx.Set(validatorInfoKey(addr), validator)
+	return &validatorInfo, nil
 }
