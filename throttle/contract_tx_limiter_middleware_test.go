@@ -19,7 +19,7 @@ import (
 func TestContractTxLimiterMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
-	txSignedEVM := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
+	txSignedEVM := mockSignedTx(t, uint64(2), callId, vm.VMType_EVM, contract)
 
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
@@ -50,7 +50,11 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
-	_, err = throttleMiddlewareHandler(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
-	require.Equal(t, ErrNotAuthorized, err)
+	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
+	require.NoError(t, err)
+	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
+	require.NoError(t, err)
+	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
+	require.NoError(t, err)
 
 }
