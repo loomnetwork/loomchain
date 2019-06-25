@@ -13,7 +13,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-const refreshInterval int64 = 15 * 60
+type TxLConfig struct {
+	// Enables the middleware
+	Enabled bool
+	// Number of seconds each refresh lasts
+	RefreshInterval int64
+}
+
+func DefaultTxLConfig() *TxLConfig {
+	return &TxLConfig{
+		RefreshInterval: 15 * 60,
+	}
+}
+
+// Clone returns a deep clone of the config.
+func (c *TxLConfig) Clone() *TxLConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}
 
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
@@ -64,12 +84,11 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 }
 
 // NewContractTxLimiterMiddleware add another tx limiter that limits how many CallTx(s) can be sent to an EVM contract within a pre-configured block range
-func NewContractTxLimiterMiddleware(
+func NewContractTxLimiterMiddleware(cfg *TxLConfig,
 	createUserDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	TxLimiter = &contractTxLimiter{
 		contractToBlockTrx: make(map[string]map[int64]int64, 0),
-		lastUpdated:        time.Now().Unix() - refreshInterval, // updation time is fifteen minutes
 	}
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
@@ -91,19 +110,6 @@ func NewContractTxLimiterMiddleware(
 		if tx.Id != callId {
 			return next(state, txBytes, isCheckTx)
 		}
-		// updated only if tx.Id == callId
-		if TxLimiter.lastUpdated+refreshInterval <= time.Now().Unix() {
-			ctx, err := createUserDeployerWhitelistCtx(state)
-			if err != nil {
-				return res, errors.Wrap(err, "throttle: context creation")
-			}
-			contractToTierMap, err := udw.GetContractTierMapping(ctx)
-			if err != nil {
-				return res, errors.Wrap(err, "throttle: contractToTierMap creation")
-			}
-			TxLimiter.contractToTierMap = contractToTierMap
-			TxLimiter.lastUpdated = time.Now().Unix()
-		}
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
 			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
@@ -113,6 +119,20 @@ func NewContractTxLimiterMiddleware(
 			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 		}
 		if msgTx.VmType == vm.VMType_EVM {
+			if TxLimiter.contractToTierMap == nil ||
+				TxLimiter.lastUpdated+cfg.RefreshInterval <= time.Now().Unix() {
+				ctx, err := createUserDeployerWhitelistCtx(state)
+				if err != nil {
+					return res, errors.Wrap(err, "throttle: context creation")
+				}
+				contractToTierMap, err := udw.GetContractTierMapping(ctx)
+				if err != nil {
+					return res, errors.Wrap(err, "throttle: contractToTierMap creation")
+				}
+				TxLimiter.contractToTierMap = contractToTierMap
+				TxLimiter.lastUpdated = time.Now().Unix()
+			}
+
 			if TxLimiter.isAccountLimitReached(loom.UnmarshalAddressPB(msg.To), state.Block().Height) {
 				return loomchain.TxHandlerResult{}, errors.New("tx limit reached, try again later")
 			}

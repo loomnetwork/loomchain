@@ -328,6 +328,13 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
+	if req.BlockRange <= 0 {
+		return errors.New("[UserDeployerWhitelist] blockRange must be greater than zero")
+	}
+	if req.MaxTx <= 0 {
+		return errors.New("[UserDeployerWhitelist] MaxTx must be greater than zero")
+	}
+
 	tier := &Tier{
 		TierID:     req.TierID,
 		Fee:        req.Fee,
