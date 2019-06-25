@@ -8,7 +8,7 @@ const (
 	TGHotWalletFeature = "tg:hot-wallet"
 	// Enables prevention of zero amount token withdrawals in the Gateway contract
 	TGCheckZeroAmount = "tg:check-zamt"
-	// Enables _exist function override for ERC721
+	//Enables workaround for handling of ERC721 deposits in the Gateway contract
 	TGFixERC721Feature = "tg:fix-erc721"
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
