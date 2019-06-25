@@ -1104,12 +1104,6 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
-		if err = jailOfflineValidators(ctx); err != nil {
-			return err
-		}
-	}
-
 	delegationResults, err := rewardAndSlash(ctx, cachedDelegations, state)
 	if err != nil {
 		return err
@@ -1380,55 +1374,6 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func jailOfflineValidators(ctx contract.Context) error {
-	validators, err := ValidatorList(ctx)
-	if err != nil {
-		return logDposError(ctx, err, "jailOfflineValidators could not load validator list")
-	}
-
-	state, err := loadState(ctx)
-	if err != nil {
-		return logDposError(ctx, err, "jailOfflineValidators could not load state")
-	}
-
-	params := state.Params
-
-	for _, validator := range validators {
-		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
-
-		if candidate == nil {
-			ctx.Logger().Info("Attempted to check downtime of a validator no longer on candidates list.", "validator", validator)
-			continue
-		}
-
-		candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
-		statistic, _ := GetStatistic(ctx, candidateAddress)
-		if statistic != nil {
-			// no need to jail, already jailed validator
-			if statistic.Jailed {
-				continue
-			}
-			// if a validator misses all blocks in the last 4 periods, jail them
-			if statistic.RecentlyMissedBlocks&0xFFFF == params.DowntimePeriod &&
-				(statistic.RecentlyMissedBlocks>>16)&0xFFFF == params.DowntimePeriod &&
-				(statistic.RecentlyMissedBlocks>>32)&0xFFFF == params.DowntimePeriod &&
-				(statistic.RecentlyMissedBlocks>>48)&0xFFFF == params.DowntimePeriod {
-
-				statistic.Jailed = true
-				err := SetStatistic(ctx, statistic)
-				if err != nil {
-					ctx.Logger().Info("Cannot save validator statistic.", "validator", validator)
-				}
-			}
-
-			if err := emitJailEvent(ctx, candidateAddress.MarshalPB()); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) error {
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
@@ -1441,6 +1386,24 @@ func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) erro
 		"validator", statistic.Address,
 		"down-blocks", statistic.RecentlyMissedBlocks&0xFFFF,
 	)
+
+	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		state, err := loadState(ctx)
+		if err != nil {
+			return err
+		}
+		if statistic.RecentlyMissedBlocks&0xFFFF == state.Params.DowntimePeriod &&
+			(statistic.RecentlyMissedBlocks>>16)&0xFFFF == state.Params.DowntimePeriod &&
+			(statistic.RecentlyMissedBlocks>>32)&0xFFFF == state.Params.DowntimePeriod &&
+			(statistic.RecentlyMissedBlocks>>48)&0xFFFF == state.Params.DowntimePeriod {
+			statistic.Jailed = true
+		}
+
+		if err := emitJailEvent(ctx, validatorAddr.MarshalPB()); err != nil {
+			return err
+		}
+	}
 
 	return SetStatistic(ctx, statistic)
 }

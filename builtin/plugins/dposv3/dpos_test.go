@@ -2450,7 +2450,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, 2, len(recAll.DowntimeRecords))
 }
 
-func TestRemoveOfflineValidators(t *testing.T) {
+func TestJailOfflineValidators(t *testing.T) {
 	pctx := createCtx()
 	pctx.SetFeature(loomchain.DPOSVersion3_3, true)
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
@@ -2526,7 +2526,7 @@ func TestRemoveOfflineValidators(t *testing.T) {
 		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
 	}
 
-	// after an election, the delegations of the removed validator must be redelegated to limbo validator
+	// after an election, a validator will be jailed
 	elect(dposCtx, dpos.Address)
 
 	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
@@ -2534,6 +2534,13 @@ func TestRemoveOfflineValidators(t *testing.T) {
 	require.True(t, statistic.Jailed)
 
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
+	require.Nil(t, err)
+	require.False(t, statistic.Jailed)
+
+	err = dpos.Unjail(dposCtx.WithSender(addr1), nil)
+	require.NoError(t, err)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
 	require.False(t, statistic.Jailed)
 
