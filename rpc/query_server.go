@@ -766,13 +766,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, nil
 	}
 	if err != nil {
-		resp, err = getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
-		if err != nil {
-			// return empty response if cannot find hash
-			resp.Status = eth.EncInt(int64(StatusTxFail))
-			return resp, nil
-		}
-		return resp, err
+		return getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
 	}
 	snapshot.Release()
 
@@ -1110,8 +1104,22 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	}
 	txReceipt, err := rh.GetReceipt(state, txHash)
 	if err != nil {
-		return eth.TxObjToReceipt(txObj, contractAddr), err
+		jsonReceipt := eth.TxObjToReceipt(txObj, contractAddr)
+		if txResults.TxResult.Code == abci.CodeTypeOK {
+			jsonReceipt.Status = eth.EncInt(int64(StatusTxSuccess))
+		} else {
+			jsonReceipt.Status = eth.EncInt(int64(StatusTxFail))
+		}
+		if txResults.TxResult.Info == utils.CallEVM || txResults.TxResult.Info == utils.CallPlugin {
+			if jsonReceipt.To == nil || len(*jsonReceipt.To) == 0 {
+				jsonReceipt.To = jsonReceipt.ContractAddress
+			}
+			jsonReceipt.ContractAddress = nil
+		}
+
+		return jsonReceipt, nil
 	}
+
 	return completeReceipt(txResults, blockResult, &txReceipt), nil
 }
 
