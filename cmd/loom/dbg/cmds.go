@@ -132,6 +132,84 @@ func newDumpBlockTxsCommand() *cobra.Command {
 	return cmd
 }
 
+func newDumpBlockTxsScannerCommand() *cobra.Command {
+	var nodeURI string
+	var height int
+	var contractAddr string
+	var chainID string
+	cmd := &cobra.Command{
+		Use:     "dump-block-txs-scanner",
+		Short:   "Scan and displays all the txs starting from a specific height",
+		Example: "loom dump-block-txs-scanner --height 12345 --uri http://host:port",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c := client.NewJSONRPCClient(nodeURI + "/rpc")
+			dappClient := client.NewDAppChainRPCClient(chainID, nodeURI+"/rpc", nodeURI+"/query")
+			cdc := amino.NewCodec()
+			ctypes.RegisterAmino(cdc)
+			var rm json.RawMessage
+
+			var contractAddress loom.Address
+			var err error
+			if contractAddr != "" {
+				contractAddress, err = loom.ParseAddress(contractAddr)
+				if err != nil {
+					return err
+				}
+			}
+
+			var result ctypes.ResultBlock
+			params := map[string]interface{}{}
+			if height > 0 {
+				params["height"] = strconv.Itoa(height)
+			}
+
+			currentHeight, err := dappClient.GetBlockHeight()
+			if err != nil {
+				return err
+			}
+
+			for i := uint64(height); i < currentHeight; i++ {
+				if err := c.Call("block", params, "1", &rm); err != nil {
+					return errors.Wrap(err, "failed to call mempool_txs")
+				}
+				if err := cdc.UnmarshalJSON(rm, &result); err != nil {
+					return errors.Wrap(err, "failed to unmarshal rpc response result")
+				}
+				for _, tx := range result.Block.Data.Txs {
+					txHash, fromAddr, toAddr, vmName, methodName, err := decodeMessageTxRaw(tx)
+					if err != nil {
+						log.Error("failed to decode tx", "err", err)
+					} else {
+						if contractAddress.IsEmpty() || toAddr.Compare(contractAddress) == 0 {
+							fmt.Println(fmt.Sprintf(
+								"[txh] %X [sndr] %s [to] %s [vm] %s [mn] %s",
+								txHash,
+								fromAddr.String(),
+								toAddr.String(),
+								vmName,
+								methodName,
+							))
+						}
+					}
+				}
+				blockHeight, err := dappClient.GetBlockHeight()
+				if err == nil {
+					currentHeight = blockHeight
+				}
+				params["height"] = strconv.FormatUint(i, 10)
+				fmt.Printf("fetched %d txs from block %d\n", len(result.Block.Data.Txs), i)
+			}
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmdFlags.IntVar(&height, "height", 1, "Block height for which txs should be displayed")
+	cmdFlags.StringVar(&contractAddr, "contract", "", "Only display txs sent to this contract address")
+	cmdFlags.StringVar(&chainID, "chain", "default", "ChainID")
+	return cmd
+}
+
 func newDumpBlockStoreTxsCommand() *cobra.Command {
 	var height int64
 	cmd := &cobra.Command{
@@ -272,6 +350,7 @@ func NewDebugCommand() *cobra.Command {
 		newSetAppHeightCommand(),
 		newGetAppHeightCommand(),
 		newDeleteAppHeightCommand(),
+		newDumpBlockTxsScannerCommand(),
 	)
 	return cmd
 }
@@ -345,4 +424,69 @@ func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 		vmName,
 		methodName,
 	), nil
+}
+
+func decodeMessageTxRaw(tx tmtypes.Tx) ([]byte, loom.Address, loom.Address, string, string, error) {
+	var signedTx auth.SignedTx
+	if err := proto.Unmarshal(tx, &signedTx); err != nil {
+		return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal SignedTx")
+	}
+
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal NonceTx")
+	}
+
+	var loomTx types.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &loomTx); err != nil {
+		return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal Transaction")
+	}
+
+	var msgTx vm.MessageTx
+	if err := proto.Unmarshal(loomTx.Data, &msgTx); err != nil {
+		return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal MessageTx")
+	}
+
+	var vmType vm.VMType
+	var methodName string
+
+	if loomTx.Id == 1 {
+		var deployTx vm.DeployTx
+		if err := proto.Unmarshal(msgTx.Data, &deployTx); err != nil {
+			return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal DeployTx")
+		}
+		vmType = deployTx.VmType
+	} else if loomTx.Id == 2 {
+		var callTx vm.CallTx
+		if err := proto.Unmarshal(msgTx.Data, &callTx); err != nil {
+			return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal CallTx")
+		}
+		vmType = callTx.VmType
+
+		if vmType == vm.VMType_PLUGIN {
+			var preq plugin.Request
+			if err := proto.Unmarshal(callTx.Input, &preq); err != nil {
+				return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal Request")
+			}
+
+			var methodCall plugin.ContractMethodCall
+			if err := proto.Unmarshal(preq.Body, &methodCall); err != nil {
+				return []byte{}, loom.Address{}, loom.Address{}, "", "", errors.Wrap(err, "failed to unmarshal ContractMethodCall")
+			}
+
+			methodName = methodCall.Method
+		}
+	}
+
+	var vmName string
+	if vmType == vm.VMType_PLUGIN {
+		vmName = "go"
+	} else if vmType == vm.VMType_EVM {
+		vmName = "evm"
+	}
+
+	fromAddr := loom.UnmarshalAddressPB(msgTx.From)
+	toAddr := loom.UnmarshalAddressPB(msgTx.To)
+
+	return tx.Hash(), fromAddr, toAddr, vmName, methodName, nil
 }
