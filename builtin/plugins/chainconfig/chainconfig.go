@@ -1,8 +1,6 @@
 package chainconfig
 
 import (
-	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -75,6 +73,9 @@ var (
 	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
 	// ErrFeatureNotFound indicates that a feature does not exist
 	ErrFeatureNotFound = errors.New("[ChainConfig] feature not found")
+	// ErrFeatureNotEnabled indacates that a feature has not been enabled
+	// by majority of validators, and has not been activated on the chain.
+	ErrFeatureNotEnabled = errors.New("[ChainConfig] feature not enabled")
 )
 
 const (
@@ -557,20 +558,28 @@ func removeFeature(ctx contract.Context, name string) error {
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})
 
 func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorInfoRequest) error {
+
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_2, false) {
+		return ErrFeatureNotEnabled
+	}
 	if req.BuildNumber == 0 {
 		return ErrInvalidRequest
 	}
-
 	senderAddr := ctx.Message().Sender
-	fmt.Println(senderAddr.String())
-	// validators, err := getCurrentValidators(ctx)
-	// for _, validator := range validators {
-	// 	if validator.Compare(senderAddr) == 0 {
-
-	// 	} else {
-	// 		return ErrNotAuthorized
-	// 	}
-	// }
+	validators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return err
+	}
+	isValidator := false
+	for _, validator := range validators {
+		if validator.Compare(senderAddr) == 0 {
+			isValidator = true
+			break
+		}
+	}
+	if !isValidator {
+		return ErrNotAuthorized
+	}
 	return setValidatorInfo(ctx, senderAddr, req.BuildNumber)
 }
 
@@ -606,4 +615,22 @@ func getValidatorInfo(ctx contract.StaticContext, addr loom.Address) (*Validator
 		return nil, errors.Wrap(err, "failed to retrieve chainconfig validatorinfo")
 	}
 	return &validatorInfo, nil
+}
+
+// ListValidatorInfo return info validators
+func (c *ChainConfig) ListValidatorInfo(ctx contract.StaticContext, req *ListValidatorInfoRequest) (*ListValidatorInfoResponse, error) {
+
+	validatorRange := ctx.Range([]byte(validatorInfoPrefix))
+	validators := []*ValidatorInfo{}
+	for _, m := range validatorRange {
+		var v ValidatorInfo
+		if err := proto.Unmarshal(m.Value, &v); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal validators %s", string(m.Key))
+		}
+		validators = append(validators, &v)
+	}
+
+	return &ListValidatorInfoResponse{
+		Validators: validators,
+	}, nil
 }

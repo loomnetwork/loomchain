@@ -33,6 +33,7 @@ func NewChainCfgCommand() *cobra.Command {
 		RemoveFeatureCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
+		ListValidatorInfoCmd(),
 	)
 	return cmd
 }
@@ -327,16 +328,17 @@ func RemoveFeatureCmd() *cobra.Command {
 }
 
 const setValidatorInfoCmdExample = `
-loom chain-cfg set-info --build 1000
+loom chain-cfg set-validator-info --build 1000
 `
 
 func SetValidatorInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	buildNumber := uint64(0)
 	cmd := &cobra.Command{
-		Use:     "set-info",
+		Use:     "set-validator-info",
 		Short:   "Set validator informations",
 		Example: setValidatorInfoCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request := &cctype.SetValidatorInfoRequest{
 				BuildNumber: buildNumber,
@@ -350,12 +352,12 @@ func SetValidatorInfoCmd() *cobra.Command {
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	cmdFlags := cmd.Flags()
-	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set a validator's build number ")
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set a validator's information ")
 	return cmd
 }
 
 const getValidatorInfoCmdExample = `
-loom chain-cfg get-info 
+loom chain-cfg get-validator-info --key
 `
 
 func GetValidatorInfoCmd() *cobra.Command {
@@ -378,6 +380,35 @@ func GetValidatorInfoCmd() *cobra.Command {
 				return err
 			}
 
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const listValidatorInfoCmdExample = `
+loom chain-cfg list-validator-info 
+`
+
+func ListValidatorInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "list-validator",
+		Short:   "list validator informations",
+		Example: listValidatorInfoCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.ListValidatorInfoResponse
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "ListValidatorInfo",
+				&cctype.ListValidatorInfoRequest{}, &resp)
+			if err != nil {
+				return err
+			}
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
