@@ -940,6 +940,12 @@ func loadApp(
 		txMiddleWare = append(txMiddleWare, throttle.NewTxLimiterMiddleware(cfg.TxLimiter))
 	}
 
+	if cfg.ContractTxLimiter.Enabled {
+		contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
+		txMiddleWare = append(txMiddleWare, throttle.NewContractTxLimiterMiddleware(
+			cfg.ContractTxLimiter, contextFactory))
+	}
+
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contextFactory := getContractCtx("deployerwhitelist", vmManager)
 		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)

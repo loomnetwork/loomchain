@@ -13,21 +13,21 @@ import (
 	"github.com/pkg/errors"
 )
 
-type TxLConfig struct {
+type ContractTxLimiterConfig struct {
 	// Enables the middleware
 	Enabled bool
 	// Number of seconds each refresh lasts
 	RefreshInterval int64
 }
 
-func DefaultTxLConfig() *TxLConfig {
-	return &TxLConfig{
+func DefaultContractTxLimiterConfig() *ContractTxLimiterConfig {
+	return &ContractTxLimiterConfig{
 		RefreshInterval: 15 * 60,
 	}
 }
 
 // Clone returns a deep clone of the config.
-func (c *TxLConfig) Clone() *TxLConfig {
+func (c *ContractTxLimiterConfig) Clone() *ContractTxLimiterConfig {
 	if c == nil {
 		return nil
 	}
@@ -84,7 +84,7 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 }
 
 // NewContractTxLimiterMiddleware add another tx limiter that limits how many CallTx(s) can be sent to an EVM contract within a pre-configured block range
-func NewContractTxLimiterMiddleware(cfg *TxLConfig,
+func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 	createUserDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	TxLimiter = &contractTxLimiter{
