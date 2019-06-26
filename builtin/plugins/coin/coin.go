@@ -48,8 +48,8 @@ type (
 )
 
 var (
-	ErrSenderBalanceTooLow      = errors.New("sender balance is too low")
-	ErrInvalidBaseMintingAmount = errors.New("Base Minting Amount should be greater than zero")
+	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ErrInvalidTotalSupply  = errors.New("Total Supply should be greater than zero")
 )
 
 var (
@@ -80,27 +80,31 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	if req.Policy != nil {
-		if req.Policy.DeflationFactorNumerator == 0 {
-			return errors.New("DeflationFactorNumerator should be greater than zero")
+		if req.Policy.ChangeRatioNumerator == 0 {
+			return errors.New("ChangeRatioNumerator should be greater than zero")
 		}
-		if req.Policy.DeflationFactorDenominator == 0 {
-			return errors.New("DeflationFactorDenominator should be greater than zero")
+		if req.Policy.ChangeRatioDenominator == 0 {
+			return errors.New("ChangeRatioDenominator should be greater than zero")
 		}
-		if req.Policy.BaseMintingAmount == 0 {
-			return ErrInvalidBaseMintingAmount
+		if req.Policy.TotalSupply == 0 {
+			return ErrInvalidTotalSupply
 		}
 		if req.Policy.MintingAccount == nil {
 			return errors.New("Invalid Minting Account Address")
+		}
+		if req.Policy.BlocksGeneratedPerYear == 0 {
+			return errors.New("Blocks Generated Per Year should be greater than zero")
 		}
 		addr := loom.UnmarshalAddressPB(req.Policy.MintingAccount)
 		if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
 			return errors.New("Minting Account Address cannot be Root Address")
 		}
 		policy := &Policy{
-			DeflationFactorNumerator:   req.Policy.DeflationFactorNumerator,
-			DeflationFactorDenominator: req.Policy.DeflationFactorDenominator,
-			BaseMintingAmount:          req.Policy.BaseMintingAmount,
-			MintingAccount:             req.Policy.MintingAccount,
+			ChangeRatioNumerator:   req.Policy.ChangeRatioNumerator,
+			ChangeRatioDenominator: req.Policy.ChangeRatioDenominator,
+			TotalSupply:            req.Policy.TotalSupply,
+			MintingAccount:         req.Policy.MintingAccount,
+			BlocksGeneratedPerYear: req.Policy.BlocksGeneratedPerYear,
 		}
 		if err := ctx.Set(policyKey, policy); err != nil {
 			return err
@@ -245,21 +249,26 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 //Mint : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
 func Mint(ctx contract.Context) error {
 	var policy Policy
+	var amount *common.BigUInt
 	err := ctx.Get(policyKey, &policy)
 	if err != nil {
 		return errUtil.Wrap(err, "Failed to Get PolicyInfo")
 	}
-	var depreciation *common.BigUInt
-	policyNumerator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorNumerator))
-	policyDenominator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorDenominator))
+	changeRatioNumerator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
+	changeRatioDenominator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
 	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
-	depreciation = policyNumerator.Mul(policyNumerator, blockHeight)
-	depreciation.Div(depreciation, policyDenominator)
-	amount := loom.NewBigUIntFromInt(int64(policy.BaseMintingAmount))
-	if amount.Cmp(depreciation) <= 0 {
-		return nil // No more coins to be minted on block creation
+	totalSupply := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
+	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
+	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	if year == loom.NewBigUIntFromInt(0) {
+		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+	} else {
+		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
+		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
+		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
 	}
-	amount.Sub(amount, depreciation)
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
 }
 
