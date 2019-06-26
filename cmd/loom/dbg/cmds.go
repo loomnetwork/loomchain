@@ -180,15 +180,17 @@ func newDumpBlockTxsScannerCommand() *cobra.Command {
 
 			for i := uint64(height); i < lastHeight; i++ {
 				if err := c.Call("block", params, "1", &rm); err != nil {
-					return errors.Wrap(err, "failed to call mempool_txs")
+					fmt.Println("failed to call mempool_txs", "err", err)
+					continue
 				}
 				if err := cdc.UnmarshalJSON(rm, &result); err != nil {
-					return errors.Wrap(err, "failed to unmarshal rpc response result")
+					fmt.Println("failed to unmarshal rpc response result", "err", err)
+					continue
 				}
 				for _, tx := range result.Block.Data.Txs {
 					txHash, txFromAddr, txToAddr, vmName, methodName, err := decodeMessageTxRaw(tx)
 					if err != nil {
-						log.Error("failed to decode tx", "err", err)
+						fmt.Println("failed to decode tx", "err", err)
 					} else {
 						if (toAddress.IsEmpty() && fromAddress.IsEmpty()) ||
 							(txToAddr.Compare(toAddress) == 0 && fromAddress.IsEmpty()) ||
@@ -264,6 +266,67 @@ func newDumpBlockStoreTxsCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&height, "height", 1, "Block height for which txs should be displayed")
+	return cmd
+}
+
+func newDumpBlockStoreTxsRangeCommand() *cobra.Command {
+	var height int64
+	var contract string
+	cmd := &cobra.Command{
+		Use:     "dump-block-store-txs-range",
+		Short:   "Displays all the txs from blocks in blockstore.db",
+		Example: "loom dump-block-store-txs-range <path/to/chaindata> --height 12345 --contract ",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			blockStoreDB := dbm.NewDB("blockstore", "leveldb", path.Join(args[0], "data"))
+			defer blockStoreDB.Close()
+
+			var contractAddr loom.Address
+			var err error
+			if contract != "" {
+				contractAddr, err = loom.ParseAddress(contract)
+				if err != nil {
+					return err
+				}
+			}
+
+			blockStore := blockchain.NewBlockStore(blockStoreDB)
+			latestHeight := blockchain.LoadBlockStoreStateJSON(blockStoreDB).Height
+
+			if height > latestHeight {
+				return fmt.Errorf(
+					"failed to load block at height %d, latest block store height is %d",
+					height, latestHeight,
+				)
+			}
+
+			for i := height; i < latestHeight; i++ {
+				block := blockStore.LoadBlock(i)
+				for _, tx := range block.Txs {
+					txHash, txFromAddr, txToAddr, vmName, methodName, err := decodeMessageTxRaw(tx)
+					if err != nil {
+						fmt.Println("failed to decode tx", "err", err)
+						continue
+					}
+					if contractAddr.IsEmpty() || txToAddr.Compare(contractAddr) == 0 {
+						fmt.Println(fmt.Sprintf(
+							"[txh] %X [from] %s [to] %s [type] %s [method_name] %s",
+							txHash,
+							txFromAddr.String(),
+							txToAddr.String(),
+							vmName,
+							methodName,
+						))
+					}
+				}
+				fmt.Printf("Found %d txs in block %d, latest height %d\n", block.NumTxs, i, latestHeight)
+			}
+
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&height, "height", 1, "Block height for which txs should be displayed")
+	cmdFlags.StringVar(&contract, "contract", "", "Target contract address")
 	return cmd
 }
 
@@ -370,6 +433,7 @@ func NewDebugCommand() *cobra.Command {
 		newGetAppHeightCommand(),
 		newDeleteAppHeightCommand(),
 		newDumpBlockTxsScannerCommand(),
+		newDumpBlockStoreTxsRangeCommand(),
 	)
 	return cmd
 }
