@@ -102,7 +102,7 @@ func TestLoadPolicy(t *testing.T) {
 		},
 		Policy: &Policy{
 			ChangeRatioDenominator: 5,
-			ChangeRatioNumerator:   0,
+			ChangeRatioNumerator:   1,
 			MintingAccount:         addr1.MarshalPB(),
 			BlocksGeneratedPerYear: 50000,
 			TotalSupply:            0,
@@ -119,13 +119,13 @@ func TestLoadPolicy(t *testing.T) {
 		},
 		Policy: &Policy{
 			ChangeRatioDenominator: 5,
-			ChangeRatioNumerator:   0,
+			ChangeRatioNumerator:   1,
 			MintingAccount:         addr1.MarshalPB(),
 			BlocksGeneratedPerYear: 0,
 			TotalSupply:            100000,
 		},
 	})
-	require.EqualError(t, errors.New("Blocks Generated per year should be greater than zero"), err.Error())
+	require.EqualError(t, errors.New("Blocks Generated Per Year should be greater than zero"), err.Error())
 	//Invalid Policy Invalid Minting Account
 	err = contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
