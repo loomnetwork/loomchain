@@ -19,7 +19,7 @@ export CGO_LDFLAGS="-L/usr/local/lib/ -L/usr/lib/x86_64-linux-gnu/ -lsnappy"
 #elif [[ "$OSTYPE" == "darwin"* ]]; then #osx
 fi
 
-#export PKG_TRANSFER_GATEWAY=github.com/loomnetwork/loomchain/vendor/github.com/loomnetwork/transfer-gateway
+export PKG_TRANSFER_GATEWAY=github.com/loomnetwork/transfer-gateway
 
 cd $LOOM_SRC
 make clean
