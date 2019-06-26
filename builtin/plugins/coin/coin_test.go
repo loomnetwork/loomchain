@@ -299,7 +299,7 @@ func TestMint(t *testing.T) {
 	require.Nil(t, err2)
 
 	// checking balance after minting
-	resp6, err2 := contract1.BalanceOf(ctx2,
+	resp6, err2 := contract2.BalanceOf(ctx2,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
