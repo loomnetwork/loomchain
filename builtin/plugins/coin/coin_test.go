@@ -347,17 +347,17 @@ func TestMint(t *testing.T) {
 	require.Nil(t, err3)
 
 	//Minting without any error
-	resp7, err3 := contract2.BalanceOf(ctx3,
+	resp7, err3 := contract3.BalanceOf(ctx3,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err3)
 	//There will be no minting at this stage as amount to mint per block becomes zero
-	err3 = Mint(ctx2)
+	err3 = Mint(ctx3)
 	require.Nil(t, err3)
 
 	// checking balance after minting
-	resp8, err3 := contract1.BalanceOf(ctx3,
+	resp8, err3 := contract3.BalanceOf(ctx3,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
