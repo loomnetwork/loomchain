@@ -233,20 +233,20 @@ func TestMint(t *testing.T) {
 	require.Nil(t, err1)
 
 	//Minting without any error
-	resp3, err := contract1.BalanceOf(ctx1,
+	resp3, err1 := contract1.BalanceOf(ctx1,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
-	require.Nil(t, err)
-	err = Mint(ctx1)
-	require.Nil(t, err)
+	require.Nil(t, err1)
+	err1 = Mint(ctx1)
+	require.Nil(t, err1)
 
 	// checking balance after minting
-	resp4, err := contract1.BalanceOf(ctx1,
+	resp4, err1 := contract1.BalanceOf(ctx1,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
-	require.Nil(t, err)
+	require.Nil(t, err1)
 
 	// Balance of mintingAccount should increase by specific amount after minting operation
 	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
@@ -290,20 +290,20 @@ func TestMint(t *testing.T) {
 	require.Nil(t, err2)
 
 	//Minting without any error
-	resp5, err := contract2.BalanceOf(ctx2,
+	resp5, err2 := contract2.BalanceOf(ctx2,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
-	require.Nil(t, err)
-	err = Mint(ctx2)
-	require.Nil(t, err)
+	require.Nil(t, err2)
+	err2 = Mint(ctx2)
+	require.Nil(t, err2)
 
 	// checking balance after minting
-	resp6, err := contract1.BalanceOf(ctx2,
+	resp6, err2 := contract1.BalanceOf(ctx2,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
-	require.Nil(t, err)
+	require.Nil(t, err2)
 
 	// Balance of mintingAccount should increase by specific amount after minting operation
 	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
@@ -325,6 +325,66 @@ func TestMint(t *testing.T) {
 	}
 	// Minting starts for year 3 after blockheight 110000 - Minting Amount per block = 10000000*(1/5)*(1/5)*(1/50000) = 8
 	assert.Equal(t, amount.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
+
+	pctx3 := plugin.CreateFakeContext(addr1, addr1)
+	pctx3.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx3 := contractpb.WrapPluginContext(pctx3.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  10000002,
+	}))
+	//Minting will stop at this stage as minting Amount per block = 0 after very long period i.e 200 years
+	contract3 := &Coin{}
+	err3 := contract3.Init(ctx3, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err3)
+
+	//Minting without any error
+	resp7, err3 := contract2.BalanceOf(ctx3,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err3)
+	//There will be no minting at this stage as amount to mint per block becomes zero
+	err3 = Mint(ctx2)
+	require.Nil(t, err3)
+
+	// checking balance after minting
+	resp8, err3 := contract1.BalanceOf(ctx3,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err3)
+
+	// Balance of mintingAccount should increase by specific amount after minting operation
+	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
+	changeRatioDenominator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
+	blockHeight = loom.NewBigUIntFromInt(ctx3.Block().Height)
+	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
+	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
+	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	//Year comes out to be very long period i.e 200 years
+	assert.Equal(t, uint64(200), year.Uint64())
+
+	if year == loom.NewBigUIntFromInt(0) {
+		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+	} else {
+		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
+		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
+		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
+	}
+	// Minting stops at this stage and total supply becomes constant
+	assert.Equal(t, amount.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
+	assert.Equal(t, amount.Uint64(), uint64(0))
 
 }
 
