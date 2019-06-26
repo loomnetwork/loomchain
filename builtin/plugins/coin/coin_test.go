@@ -209,7 +209,7 @@ func TestMint(t *testing.T) {
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
 	}
-	// Minting starts for year 1 after blockheight 10000 - Minting Amount Per Block = 10000000*(1/50000) = 200
+	// Minting starts for year 1 after blockheight 10000 - Minting Amount Per Block = 400
 	assert.Equal(t, amount.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
 
 	pctx1 := plugin.CreateFakeContext(addr1, addr1)
@@ -266,7 +266,7 @@ func TestMint(t *testing.T) {
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
 	}
-	// Minting starts for year 2 after blockheight 60000 - Minting Amount Per Block = 10000000*(1/5)*(1/50000) = 40
+	// Minting starts for year 2 after blockheight 60000 - Minting Amount Per Block = 200
 	assert.Equal(t, amount.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
 
 	pctx2 := plugin.CreateFakeContext(addr1, addr1)
@@ -323,7 +323,7 @@ func TestMint(t *testing.T) {
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
 	}
-	// Minting starts for year 3 after blockheight 110000 - Minting Amount per block = 10000000*(1/5)*(1/5)*(1/50000) = 8
+	// Minting starts for year 3 after blockheight 110000 - Minting Amount per block = 133
 	assert.Equal(t, amount.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
 
 	pctx3 := plugin.CreateFakeContext(addr1, addr1)
