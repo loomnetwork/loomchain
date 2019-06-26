@@ -25,6 +25,10 @@
                     {
                         "name":"dposv3",
                         "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.2",
+                        "status":"WAITING"
                     }
                 ]
             }

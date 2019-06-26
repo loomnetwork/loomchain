@@ -122,3 +122,29 @@
   RunCmd = "{{ $.LoomPath }} chain-cfg get-feature feature2"
   Condition = "contains"
   Expected = ['feature2', '567']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 578 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['Error','not authorized']
+
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 578 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-validator-info {{index $.NodeAddressList 0}}"
+  Condition = "contains"
+  Expected = ['buildNumber', '578']
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 578 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-validator-info "
+  Condition = "contains"
+  Expected = ['validators','578']
