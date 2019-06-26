@@ -184,7 +184,15 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		BuildNumber: buildNumber,
 	})
 	require.Equal(ErrFeatureNotEnabled, err)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: 0,
+	})
+	require.Equal(ErrFeatureNotEnabled, err)
 	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: 0,
+	})
+	require.Equal(ErrInvalidRequest, err)
 	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
 		BuildNumber: buildNumber,
 	})
@@ -436,6 +444,10 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	})
 	require.Error(ErrFeatureNotEnabled, err)
 	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: 0,
+	})
+	require.Equal(ErrInvalidRequest, err)
 	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetValidatorInfoRequest{
 		BuildNumber: buildNumber,
 	})

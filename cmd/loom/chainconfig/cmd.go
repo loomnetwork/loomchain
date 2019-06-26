@@ -338,7 +338,6 @@ func SetValidatorInfoCmd() *cobra.Command {
 		Use:     "set-validator-info",
 		Short:   "Set validator informations",
 		Example: setValidatorInfoCmdExample,
-		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request := &cctype.SetValidatorInfoRequest{
 				BuildNumber: buildNumber,
@@ -363,7 +362,7 @@ loom chain-cfg get-validator-info --key
 func GetValidatorInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "get-info",
+		Use:     "get-validator-info",
 		Short:   "Get validator informations",
 		Example: getValidatorInfoCmdExample,
 		Args:    cobra.MinimumNArgs(1),
@@ -399,7 +398,7 @@ loom chain-cfg list-validator-info
 func ListValidatorInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "list-validator",
+		Use:     "list-validator-info",
 		Short:   "list validator informations",
 		Example: listValidatorInfoCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
