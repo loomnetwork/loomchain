@@ -198,13 +198,13 @@ func TestMint(t *testing.T) {
 	totalSupply := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
 	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
 	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	year = year.Add(year, loom.NewBigUIntFromInt(1))
 	//Computes year based on blockheight ==> year - 1
-	assert.Equal(t, uint64(0), year.Uint64())
-	if year == loom.NewBigUIntFromInt(0) {
+	assert.Equal(t, uint64(1), year.Uint64())
+	if year == loom.NewBigUIntFromInt(1) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
-		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
-		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
@@ -255,13 +255,13 @@ func TestMint(t *testing.T) {
 	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
 	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
 	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	year = year.Add(year, loom.NewBigUIntFromInt(1))
 	//Computes year based on blockheight year ==> 2
-	assert.Equal(t, uint64(1), year.Uint64())
-	if year == loom.NewBigUIntFromInt(0) {
+	assert.Equal(t, uint64(2), year.Uint64())
+	if year == loom.NewBigUIntFromInt(1) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
-		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
-		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
@@ -312,13 +312,13 @@ func TestMint(t *testing.T) {
 	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
 	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
 	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	year = year.Add(year, loom.NewBigUIntFromInt(1))
 	//Computes year based on blockheight year ==> 3
-	assert.Equal(t, uint64(2), year.Uint64())
-	if year == loom.NewBigUIntFromInt(0) {
+	assert.Equal(t, uint64(3), year.Uint64())
+	if year == loom.NewBigUIntFromInt(1) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
-		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
-		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
@@ -331,10 +331,10 @@ func TestMint(t *testing.T) {
 	ctx3 := contractpb.WrapPluginContext(pctx3.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  10000002,
+		Height:  20000002,
 	}))
 	//Block Height is set to very high value,
-	// Minting will stop at this stage as minting Amount per block = 0 after very long period i.e 200 years
+	// Minting will stop at this stage as minting Amount per block = 0 after very long period i.e 401 years
 	contract3 := &Coin{}
 	err3 := contract3.Init(ctx3, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -371,14 +371,14 @@ func TestMint(t *testing.T) {
 	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
 	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
 	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
-	//Year comes out to be very long period i.e 200 years
-	assert.Equal(t, uint64(200), year.Uint64())
+	year = year.Add(year, loom.NewBigUIntFromInt(1))
+	//Year comes out to be very long period i.e 401 years
+	assert.Equal(t, uint64(401), year.Uint64())
 
-	if year == loom.NewBigUIntFromInt(0) {
+	if year == loom.NewBigUIntFromInt(1) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
-		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
-		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
