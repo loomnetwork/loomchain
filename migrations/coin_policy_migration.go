@@ -27,14 +27,17 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) err
 		return err
 
 	}
-	if coinPolicy.DeflationFactorNumerator == 0 {
-		return errors.New("DeflationFactorNumerator should be greater than zero")
+	if coinPolicy.ChangeRatioNumerator == 0 {
+		return errors.New("ChangeRatioNumerator should be greater than zero")
 	}
-	if coinPolicy.DeflationFactorDenominator == 0 {
-		return errors.New("DeflationFactorDenominator should be greater than zero")
+	if coinPolicy.ChangeRatioDenominator == 0 {
+		return errors.New("ChangeRatioDenominator should be greater than zero")
 	}
-	if coinPolicy.BaseMintingAmount == 0 {
-		return errors.New("Base Minting Amount should be greater than zero")
+	if coinPolicy.TotalSupply == 0 {
+		return errors.New("Total Supply should be greater than zero")
+	}
+	if coinPolicy.BlocksGeneratedPerYear == 0 {
+		return errors.New("Blocks Generated Per Year should be greater than zero")
 	}
 	addr := loom.UnmarshalAddressPB(coinPolicy.MintingAccount)
 	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
