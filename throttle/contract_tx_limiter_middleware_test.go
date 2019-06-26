@@ -1,7 +1,6 @@
 package throttle
 
 import (
-	"context"
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
@@ -11,7 +10,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
@@ -45,7 +43,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 		Fee:        100,
 		Name:       "Tier1",
 		BlockRange: 10,
-		MaxTx:      2,
+		MaxTx:      30,
 	}
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)
@@ -103,9 +101,9 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	// create middleware
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
-	txSignedEVM := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contractAddr)
-	txSignedEVM1 := mockSignedTx(t, uint64(2), callId, vm.VMType_EVM, contractAddr)
-	txSignedEVM2 := mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contractAddr)
+	txSignedEVM1 := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contractAddr)
+	// txSignedEVM2 := mockSignedTx(t, uint64(2), callId, vm.VMType_EVM, contractAddr)
+	// txSignedEVM3 := mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contractAddr)
 	cfg := DefaultContractTxLimiterConfig()
 	contractTxLimiterMiddleware := NewContractTxLimiterMiddleware(cfg,
 		func(state loomchain.State) (contractpb.Context, error) {
@@ -113,12 +111,44 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 		},
 	)
 
-	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
-	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM, ctx)
-	require.NoError(t, err)
-	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM1, ctx)
-	require.NoError(t, err)
-	_, err = throttleMiddlewareHandlerCheckTx(contractTxLimiterMiddleware, state, txSignedEVM2, ctx)
-	require.Equal(t, ErrTxLimitReached, err)
+	allowed := false
+	processMiddleware := func(state loomchain.State, txbytes []byte) {
+		contractTxLimiterMiddleware.ProcessTx(state, txbytes, func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+			allowed = true
+			return loomchain.TxHandlerResult{}, nil
+		}, true)
+	}
+	for i := 0; i < 30; i++ {
+		allowed = false
+		processMiddleware(state, txSignedEVM1.Inner)
+		require.Equal(t, allowed, true)
+	}
+
+	allowed = false
+	processMiddleware(state, txSignedEVM1.Inner)
+	require.Equal(t, allowed, false)
+
+	// allowed = false
+	// processMiddleware(state, txSignedEVM1.Inner)
+	// require.Equal(t, allowed, false)
+
+	contractTxLimiterMiddleware = NewContractTxLimiterMiddleware(cfg,
+		func(state loomchain.State) (contractpb.Context, error) {
+			return contractpb.WrapPluginContext(udwContext), nil
+		},
+	)
+	// varying block heights with in 10 blocks total txn 30 so after this txn should be blocked
+	for i := 0; i < 10; i++ {
+		for j := 0; j < 3; j++ {
+			allowed = false
+			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5 + int64(i)}, nil, nil)
+			processMiddleware(state, txSignedEVM1.Inner)
+			require.Equal(t, allowed, true)
+		}
+	}
+
+	allowed = false
+	processMiddleware(state, txSignedEVM1.Inner)
+	require.Equal(t, allowed, false)
 
 }
