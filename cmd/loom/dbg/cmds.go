@@ -301,6 +301,10 @@ func newDumpBlockStoreTxsRangeCommand() *cobra.Command {
 
 			for i := height; i < latestHeight; i++ {
 				block := blockStore.LoadBlock(i)
+				if block == nil {
+					fmt.Printf("Block %d is nil\n", i)
+					continue
+				}
 				for _, tx := range block.Txs {
 					txHash, txFromAddr, txToAddr, vmName, methodName, err := decodeMessageTxRaw(tx)
 					if err != nil {
@@ -308,14 +312,14 @@ func newDumpBlockStoreTxsRangeCommand() *cobra.Command {
 						continue
 					}
 					if contractAddr.IsEmpty() || txToAddr.Compare(contractAddr) == 0 {
-						fmt.Println(fmt.Sprintf(
-							"[txh] %X [from] %s [to] %s [type] %s [method_name] %s",
+						fmt.Printf(
+							"[txh] %X [from] %s [to] %s [type] %s [method_name] %s\n",
 							txHash,
 							txFromAddr.String(),
 							txToAddr.String(),
 							vmName,
 							methodName,
-						))
+						)
 					}
 				}
 				fmt.Printf("Found %d txs in block %d, latest height %d\n", block.NumTxs, i, latestHeight)
