@@ -271,22 +271,20 @@ func newDumpBlockStoreTxsCommand() *cobra.Command {
 
 func newDumpBlockStoreTxsRangeCommand() *cobra.Command {
 	var height int64
-	var contract string
 	cmd := &cobra.Command{
-		Use:     "dump-block-store-txs-range",
-		Short:   "Displays all the txs from blocks in blockstore.db",
-		Example: "loom dump-block-store-txs-range <path/to/chaindata> --height 12345 --contract ",
+		Use:   "dump-block-store-txs-range <path/chaindata> <contract_address1> ... <contract_address2>",
+		Short: "Displays all the txs from blocks in blockstore.db",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			blockStoreDB := dbm.NewDB("blockstore", "leveldb", path.Join(args[0], "data"))
 			defer blockStoreDB.Close()
 
-			var contractAddr loom.Address
-			var err error
-			if contract != "" {
-				contractAddr, err = loom.ParseAddress(contract)
+			targetAddrs := make([]loom.Address, 0)
+			for i := 1; i < len(args); i++ {
+				targetAddr, err := loom.ParseAddress(args[i])
 				if err != nil {
 					return err
 				}
+				targetAddrs = append(targetAddrs, targetAddr)
 			}
 
 			blockStore := blockchain.NewBlockStore(blockStoreDB)
@@ -311,9 +309,11 @@ func newDumpBlockStoreTxsRangeCommand() *cobra.Command {
 						fmt.Println("failed to decode tx", "err", err)
 						continue
 					}
-					if contractAddr.IsEmpty() || txToAddr.Compare(contractAddr) == 0 {
+					if len(targetAddrs) == 0 ||
+						targetAddresses(txFromAddr, txToAddr, targetAddrs) {
 						fmt.Printf(
-							"[txh] %X [from] %s [to] %s [type] %s [method_name] %s\n",
+							"[height] %d [txh] %X [from] %s [to] %s [type] %s [method_name] %s\n",
+							i,
 							txHash,
 							txFromAddr.String(),
 							txToAddr.String(),
@@ -330,8 +330,16 @@ func newDumpBlockStoreTxsRangeCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&height, "height", 1, "Block height for which txs should be displayed")
-	cmdFlags.StringVar(&contract, "contract", "", "Target contract address")
 	return cmd
+}
+
+func targetAddresses(toAddr loom.Address, fromAddr loom.Address, targetAddresses []loom.Address) bool {
+	for _, addr := range targetAddresses {
+		if toAddr.Compare(addr) == 0 || fromAddr.Compare(addr) == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func newSetAppHeightCommand() *cobra.Command {
