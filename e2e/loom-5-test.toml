@@ -66,7 +66,7 @@
   Expected = [ "Error: migration ID 1 has already been processed" ]
   
 [[TestCases]]
-   RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
+   RunCmd = "{{ $.LoomPath }} migration --input data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["ChangeRatioNumerator should be greater than zero"]
    Datafiles = [
@@ -74,7 +74,7 @@
    ]
 
 [[TestCases]]
-   RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
+   RunCmd = "{{ $.LoomPath }} migration --input data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["ChangeRatioDenominator should be greater than zero"]
    Datafiles = [
@@ -82,7 +82,7 @@
    ]
 
 [[TestCases]]
-   RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
+   RunCmd = "{{ $.LoomPath }} migration --input data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["Total Supply should be greater than zero"]
    Datafiles = [
@@ -90,7 +90,7 @@
      ]
 
 [[TestCases]]
-   RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
+   RunCmd = "{{ $.LoomPath }} migration --input data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["Blocks Generated Per Year should be greater than zero"]
    Datafiles = [
@@ -98,7 +98,7 @@
      ]
 
 [[TestCases]]
-   RunCmd = "{{ $.LoomPath }} migration --inputParam data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
+   RunCmd = "{{ $.LoomPath }} migration --input data.json --id 2 -k {{index $.NodePrivKeyPathList 0}}"
    Condition = "contains"
    Expected = ["Migration ID 2 has been processed successfully"]
     Datafiles = [
