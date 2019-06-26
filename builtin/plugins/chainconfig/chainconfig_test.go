@@ -183,7 +183,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
 		BuildNumber: buildNumber,
 	})
-	require.Error(err, "[ChainConfig] feature not enabled")
+	require.Equal(ErrFeatureNotEnabled, err)
 	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
 	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
 		BuildNumber: buildNumber,
@@ -206,7 +206,6 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	pubKeyB64_2, _ := encoder.DecodeString(pubKey2)
 	addr1 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	addr2 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_2)}
-	//setup fake contract
 	validators := []*loom.Validator{
 		&loom.Validator{
 			PubKey: pubKeyB64_1,
@@ -281,6 +280,12 @@ func (c *ChainConfigTestSuite) TestPermission() {
 			VoteThreshold:         60,
 			NumBlockConfirmations: 5,
 		},
+	})
+	require.Equal(ErrNotAuthorized, err)
+
+	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
+		BuildNumber: 1000,
 	})
 	require.Equal(ErrNotAuthorized, err)
 }
@@ -429,7 +434,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
 		BuildNumber: buildNumber,
 	})
-	require.Error(err, "[ChainConfig] feature not enabled")
+	require.Error(ErrFeatureNotEnabled, err)
 	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
 	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetValidatorInfoRequest{
 		BuildNumber: buildNumber,
