@@ -246,7 +246,7 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 	return ctx.Set(economyKey, econ)
 }
 
-//Mint : to be called by CoinDeflationManager Responsible to mint coins as per various parameter defined
+//Mint : to be called by CoinPolicyManager Responsible to mint coins as per various parameter defined
 func Mint(ctx contract.Context) error {
 	var policy Policy
 	var amount *common.BigUInt
