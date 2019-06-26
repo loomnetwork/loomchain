@@ -333,3 +333,13 @@ func NewInternalContractContext(contractName string, pluginVM *PluginVM) (contra
 	readOnly := false
 	return contractpb.WrapPluginContext(pluginVM.CreateContractContext(caller, contractAddr, readOnly)), nil
 }
+
+
+func NewInternalStaticContractContext(contractName string, pluginVM *PluginVM) (contractpb.StaticContext, error) {
+	caller := loom.RootAddress(pluginVM.State.Block().ChainID)
+	contractAddr, err := pluginVM.Registry.Resolve(contractName)
+	if err != nil {
+		return nil, err
+	}
+	return contractpb.WrapPluginContext(pluginVM.CreateContractContext(caller, contractAddr, true)), nil
+}

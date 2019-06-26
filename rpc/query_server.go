@@ -24,6 +24,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
@@ -126,6 +127,7 @@ type QueryServer struct {
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
+	EthCoinCtxFactory func(state loomchain.State) (contractpb.StaticContext, error)
 }
 
 var _ QueryService = &QueryServer{}
@@ -1052,7 +1054,24 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 }
 
 func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
-	return eth.Quantity("0x0"), nil
+	owner, err := eth.DecDataToAddress(s.ChainID, address)
+	if err != nil {
+		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.EthCoinCtxFactory(snapshot)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+	amount, err := ethcoin.BalanceOf(ctx, owner)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+
+	return eth.EncInt(amount.Int64()), nil
 }
 
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
