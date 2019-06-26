@@ -50,10 +50,11 @@ func TestLoadPolicy(t *testing.T) {
 			},
 		},
 		Policy: &Policy{
-			DeflationFactorDenominator: 5,
-			DeflationFactorNumerator:   1,
-			MintingAccount:             addr1.MarshalPB(),
-			BaseMintingAmount:          50,
+			ChangeRatioDenominator: 5,
+			ChangeRatioNumerator:   1,
+			MintingAccount:         addr1.MarshalPB(),
+			BlocksGeneratedPerYear: 50000,
+			TotalSupply:            100000,
 		},
 	})
 	require.Nil(t, err)
@@ -66,13 +67,14 @@ func TestLoadPolicy(t *testing.T) {
 			},
 		},
 		Policy: &Policy{
-			DeflationFactorDenominator: 0,
-			DeflationFactorNumerator:   1,
-			MintingAccount:             addr1.MarshalPB(),
-			BaseMintingAmount:          50,
+			ChangeRatioDenominator: 0,
+			ChangeRatioNumerator:   1,
+			MintingAccount:         addr1.MarshalPB(),
+			BlocksGeneratedPerYear: 50000,
+			TotalSupply:            100000,
 		},
 	})
-	require.Error(t, errors.New("DeflationFactorDenominator should be greater than zero"), err.Error())
+	require.Error(t, errors.New("ChangeRatioDenominator should be greater than zero"), err.Error())
 	//Invalid Policy Numerator == 0
 	err = contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -82,13 +84,14 @@ func TestLoadPolicy(t *testing.T) {
 			},
 		},
 		Policy: &Policy{
-			DeflationFactorDenominator: 0,
-			DeflationFactorNumerator:   0,
-			MintingAccount:             addr1.MarshalPB(),
-			BaseMintingAmount:          50,
+			ChangeRatioDenominator: 5,
+			ChangeRatioNumerator:   0,
+			MintingAccount:         addr1.MarshalPB(),
+			BlocksGeneratedPerYear: 50000,
+			TotalSupply:            100000,
 		},
 	})
-	require.Error(t, errors.New("DeflationFactorNumerator should be greater than zero"), err.Error())
+	require.Error(t, errors.New("ChangeRatioNumerator should be greater than zero"), err.Error())
 	//Invalid Policy Base Minting Amount == 0
 	err = contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -98,13 +101,14 @@ func TestLoadPolicy(t *testing.T) {
 			},
 		},
 		Policy: &Policy{
-			DeflationFactorDenominator: 1,
-			DeflationFactorNumerator:   5,
-			MintingAccount:             addr1.MarshalPB(),
-			BaseMintingAmount:          0,
+			ChangeRatioDenominator: 5,
+			ChangeRatioNumerator:   0,
+			MintingAccount:         addr1.MarshalPB(),
+			BlocksGeneratedPerYear: 50000,
+			TotalSupply:            0,
 		},
 	})
-	require.EqualError(t, errors.New("Base Minting Amount should be greater than zero"), err.Error())
+	require.EqualError(t, errors.New("Total Supply should be greater than zero"), err.Error())
 	//Invalid Policy Invalid Minting Account
 	err = contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -114,10 +118,28 @@ func TestLoadPolicy(t *testing.T) {
 			},
 		},
 		Policy: &Policy{
-			DeflationFactorDenominator: 1,
-			DeflationFactorNumerator:   5,
-			MintingAccount:             loom.RootAddress("chain").MarshalPB(),
-			BaseMintingAmount:          50,
+			ChangeRatioDenominator: 5,
+			ChangeRatioNumerator:   0,
+			MintingAccount:         addr1.MarshalPB(),
+			BlocksGeneratedPerYear: 0,
+			TotalSupply:            100000,
+		},
+	})
+	require.EqualError(t, errors.New("Blocks Generated per year should be greater than zero"), err.Error())
+	//Invalid Policy Invalid Minting Account
+	err = contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: &Policy{
+			ChangeRatioDenominator: 5,
+			ChangeRatioNumerator:   0,
+			MintingAccount:         loom.RootAddress("chain").MarshalPB(),
+			BlocksGeneratedPerYear: 0,
+			TotalSupply:            100000,
 		},
 	})
 	require.Error(t, errors.New("Minting Account Address cannot be Root Address"), err.Error())
@@ -126,19 +148,20 @@ func TestLoadPolicy(t *testing.T) {
 func TestMint(t *testing.T) {
 	//Initializing context for CoinPolicyFeature
 	policy := &Policy{
-		DeflationFactorDenominator: 5,
-		DeflationFactorNumerator:   1,
-		MintingAccount:             addr1.MarshalPB(),
-		BaseMintingAmount:          50,
+		ChangeRatioDenominator: 5,
+		ChangeRatioNumerator:   1,
+		MintingAccount:         addr1.MarshalPB(),
+		BlocksGeneratedPerYear: 50000,
+		TotalSupply:            10000000,
 	}
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx := contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  10,
+		Height:  10000,
 	}))
-	//Valid Policy
+	//Minting will start in year 1 after BlockHeight 10000
 	contract := &Coin{}
 	err := contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -167,17 +190,141 @@ func TestMint(t *testing.T) {
 		})
 	require.Nil(t, err)
 
+	var amount *common.BigUInt
 	// Balance of mintingAccount should increase by specific amount after minting operation
-	var depreciation *common.BigUInt
-	policyNumerator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorNumerator))
-	policyDenominator := loom.NewBigUIntFromInt(int64(policy.DeflationFactorDenominator))
+	changeRatioNumerator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
+	changeRatioDenominator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
 	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
-	depreciation = policyNumerator.Mul(policyNumerator, blockHeight)
-	depreciation.Div(depreciation, policyDenominator)
-	amount := loom.NewBigUIntFromInt(int64(policy.BaseMintingAmount))
-	amount.Sub(amount, depreciation)
-	// depreciation= 1*10/5 == 2  so amount should be 50-2 = 48
+	totalSupply := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
+	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
+	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	//Computes year based on blockheight ==> year - 1
+	assert.Equal(t, uint64(0), year.Uint64())
+	if year == loom.NewBigUIntFromInt(0) {
+		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+	} else {
+		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
+		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
+		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
+	}
+	// Minting starts for year 1 after blockheight 10000 - Minting Amount Per Block = 10000000*(1/50000) = 200
 	assert.Equal(t, amount.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
+
+	pctx1 := plugin.CreateFakeContext(addr1, addr1)
+	pctx1.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx1 := contractpb.WrapPluginContext(pctx1.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  60000,
+	}))
+	//Minting will start in year 2 after BlockHeight 60000
+	contract1 := &Coin{}
+	err1 := contract1.Init(ctx1, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err1)
+
+	//Minting without any error
+	resp3, err := contract1.BalanceOf(ctx1,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+	err = Mint(ctx1)
+	require.Nil(t, err)
+
+	// checking balance after minting
+	resp4, err := contract1.BalanceOf(ctx1,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+
+	// Balance of mintingAccount should increase by specific amount after minting operation
+	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
+	changeRatioDenominator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
+	blockHeight = loom.NewBigUIntFromInt(ctx1.Block().Height)
+	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
+	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
+	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	//Computes year based on blockheight year ==> 2
+	assert.Equal(t, uint64(1), year.Uint64())
+	if year == loom.NewBigUIntFromInt(0) {
+		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+	} else {
+		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
+		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
+		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
+	}
+	// Minting starts for year 2 after blockheight 60000 - Minting Amount Per Block = 10000000*(1/5)*(1/50000) = 40
+	assert.Equal(t, amount.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
+
+	pctx2 := plugin.CreateFakeContext(addr1, addr1)
+	pctx2.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx2 := contractpb.WrapPluginContext(pctx1.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  110000,
+	}))
+	//Minting will start in year 3 after BlockHeight 110000
+	contract2 := &Coin{}
+	err2 := contract2.Init(ctx2, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err2)
+
+	//Minting without any error
+	resp5, err := contract2.BalanceOf(ctx2,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+	err = Mint(ctx2)
+	require.Nil(t, err)
+
+	// checking balance after minting
+	resp6, err := contract1.BalanceOf(ctx2,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+
+	// Balance of mintingAccount should increase by specific amount after minting operation
+	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
+	changeRatioDenominator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
+	blockHeight = loom.NewBigUIntFromInt(ctx2.Block().Height)
+	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
+	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
+	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	//Computes year based on blockheight year ==> 3
+	assert.Equal(t, uint64(2), year.Uint64())
+	if year == loom.NewBigUIntFromInt(0) {
+		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+	} else {
+		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
+		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
+		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
+	}
+	// Minting starts for year 3 after blockheight 110000 - Minting Amount per block = 10000000*(1/5)*(1/5)*(1/50000) = 8
+	assert.Equal(t, amount.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
 
 }
 
