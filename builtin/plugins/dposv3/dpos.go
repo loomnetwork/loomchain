@@ -900,7 +900,7 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 	// only the oracle can unjail other validators, a validator can only unjail itself
 	if req.Validator != nil {
 		if state.Params.OracleAddress == nil || candidateAddress.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
-			return logDposError(ctx, errOnlyOracle, req.String())
+			return logDposError(ctx, errors.New("Only the oracle can unjail other validators"), req.String())
 		}
 		candidateAddress = loom.UnmarshalAddressPB(req.Validator)
 	}
@@ -1396,10 +1396,14 @@ func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) erro
 		if err != nil {
 			return err
 		}
-		if statistic.RecentlyMissedBlocks&0xFFFF == state.Params.DowntimePeriod &&
-			(statistic.RecentlyMissedBlocks>>16)&0xFFFF == state.Params.DowntimePeriod &&
-			(statistic.RecentlyMissedBlocks>>32)&0xFFFF == state.Params.DowntimePeriod &&
-			(statistic.RecentlyMissedBlocks>>48)&0xFFFF == state.Params.DowntimePeriod {
+		downtime, err := getDowntimeRecord(ctx, statistic)
+		if err != nil {
+			return err
+		}
+		if downtime.Periods[0] == state.Params.DowntimePeriod &&
+			downtime.Periods[1] == state.Params.DowntimePeriod &&
+			downtime.Periods[2] == state.Params.DowntimePeriod &&
+			downtime.Periods[3] == state.Params.DowntimePeriod {
 			statistic.Jailed = true
 		}
 
@@ -1416,7 +1420,12 @@ func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordReq
 
 	downtimeRecords := make([]*DowntimeRecord, 0)
 	if req.Validator != nil {
-		downtimeRecord, err := getDowntimeRecord(ctx, loom.UnmarshalAddressPB(req.Validator))
+		validator := loom.UnmarshalAddressPB(req.Validator)
+		statistic, err := GetStatistic(ctx, validator)
+		if err != nil {
+			return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
+		}
+		downtimeRecord, err := getDowntimeRecord(ctx, statistic)
 		if err != nil {
 			return nil, err
 		}
@@ -1429,8 +1438,12 @@ func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordReq
 
 		chainID := ctx.Block().ChainID
 		for _, v := range validators {
-			valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
-			downtimeRecord, err := getDowntimeRecord(ctx, valAddress)
+			validator := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+			statistic, err := GetStatistic(ctx, validator)
+			if err != nil {
+				return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
+			}
+			downtimeRecord, err := getDowntimeRecord(ctx, statistic)
 			if err != nil {
 				return nil, err
 			}
@@ -1449,13 +1462,9 @@ func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordReq
 	}, nil
 }
 
-func getDowntimeRecord(ctx contract.StaticContext, validator loom.Address) (*DowntimeRecord, error) {
-	statistic, err := GetStatistic(ctx, validator)
-	if err != nil {
-		return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
-	}
+func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic) (*DowntimeRecord, error) {
 	downtimeRecord := &DowntimeRecord{
-		Validator: validator.MarshalPB(),
+		Validator: statistic.Address,
 		Periods: []uint64{
 			statistic.RecentlyMissedBlocks & 0xFFFF,
 			(statistic.RecentlyMissedBlocks >> 16) & 0xFFFF,

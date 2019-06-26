@@ -2516,6 +2516,11 @@ func TestJailOfflineValidators(t *testing.T) {
 	err = dpos.Delegate(dposCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
 	elect(pctx, dpos.Address)
+	// after an election, a validator will be jailed
+	elect(dposCtx, dpos.Address)
+
+	previousRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+	require.NoError(t, err)
 
 	candidates, err := LoadCandidateList(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
@@ -2528,6 +2533,11 @@ func TestJailOfflineValidators(t *testing.T) {
 
 	// after an election, a validator will be jailed
 	elect(dposCtx, dpos.Address)
+
+	// the jailed validator should not gain any rewards after an election
+	currentRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+	require.NoError(t, err)
+	require.Equal(t, previousRewardDistribution.String(), currentRewardDistribution.String())
 
 	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
@@ -2544,6 +2554,26 @@ func TestJailOfflineValidators(t *testing.T) {
 	require.Nil(t, err)
 	require.False(t, statistic.Jailed)
 
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+	}
+	// after an election, a validator will be jailed again
+	elect(dposCtx, dpos.Address)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.Jailed)
+
+	err = dpos.Unjail(dposCtx.WithSender(addr2), &addr1)
+	require.Error(t, err)
+
+	err = dpos.Unjail(dposCtx.WithSender(oracleAddr), &addr1)
+	require.NoError(t, err)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.False(t, statistic.Jailed)
 }
 
 // UTILITIES
