@@ -333,7 +333,8 @@ func TestMint(t *testing.T) {
 		Time:    time.Now().Unix(),
 		Height:  10000002,
 	}))
-	//Minting will stop at this stage as minting Amount per block = 0 after very long period i.e 200 years
+	//Block Height is set to very high value,
+	// Minting will stop at this stage as minting Amount per block = 0 after very long period i.e 200 years
 	contract3 := &Coin{}
 	err3 := contract3.Init(ctx3, &InitRequest{
 		Accounts: []*InitialAccount{
