@@ -205,6 +205,7 @@ func TestMint(t *testing.T) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
 		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator,loom.NewBigUIntFromInt(100))
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		totalSupplyForYear = totalSupplyForYear.Add(totalSupplyForYear,totalSupply)
@@ -263,6 +264,7 @@ func TestMint(t *testing.T) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
 		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator,loom.NewBigUIntFromInt(100))
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		totalSupplyForYear = totalSupplyForYear.Add(totalSupplyForYear,totalSupply)
@@ -321,6 +323,7 @@ func TestMint(t *testing.T) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
 		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator,loom.NewBigUIntFromInt(100))
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		totalSupplyForYear = totalSupplyForYear.Add(totalSupplyForYear,totalSupply)
@@ -382,6 +385,7 @@ func TestMint(t *testing.T) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
 		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator,loom.NewBigUIntFromInt(100))
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		totalSupplyForYear = totalSupplyForYear.Add(totalSupplyForYear,totalSupply)
