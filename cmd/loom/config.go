@@ -147,6 +147,16 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			})
 	}
 
+	if cfg.BinanceTransferGateway.ContractEnabled {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "binance-gateway",
+				Location:   "binance-gateway:0.1.0",
+			})
+	}
+
 	if cfg.ChainConfig.ContractEnabled {
 		ownerAddr := loom.LocalAddressFromPublicKey(validator.PubKey)
 		contractOwner := &types.Address{
