@@ -148,8 +148,8 @@ func TestLoadPolicy(t *testing.T) {
 func TestMint(t *testing.T) {
 	//Initializing context for CoinPolicyFeature
 	policy := &Policy{
-		ChangeRatioDenominator: 5,
-		ChangeRatioNumerator:   1,
+		ChangeRatioDenominator: 1,
+		ChangeRatioNumerator:   2,
 		MintingAccount:         addr1.MarshalPB(),
 		BlocksGeneratedPerYear: 50000,
 		TotalSupply:            10000000,
