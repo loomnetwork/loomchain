@@ -16,27 +16,27 @@ import (
 )
 
 type (
-	InitRequest               = cctypes.InitRequest
-	ListFeaturesRequest       = cctypes.ListFeaturesRequest
-	ListFeaturesResponse      = cctypes.ListFeaturesResponse
-	GetFeatureRequest         = cctypes.GetFeatureRequest
-	GetFeatureResponse        = cctypes.GetFeatureResponse
-	AddFeatureRequest         = cctypes.AddFeatureRequest
-	AddFeatureResponse        = cctypes.AddFeatureResponse
-	RemoveFeatureRequest      = cctypes.RemoveFeatureRequest
-	SetParamsRequest          = cctypes.SetParamsRequest
-	GetParamsRequest          = cctypes.GetParamsRequest
-	GetParamsResponse         = cctypes.GetParamsResponse
-	Params                    = cctypes.Params
-	Feature                   = cctypes.Feature
-	ValidatorInfo             = cctypes.ValidatorInfo
-	EnableFeatureRequest      = cctypes.EnableFeatureRequest
-	EnableFeatureResponse     = cctypes.EnableFeatureResponse
-	GetValidatorInfoRequest   = cctypes.GetValidatorInfoRequest
-	GetValidatorInfoResponse  = cctypes.GetValidatorInfoResponse
-	SetValidatorInfoRequest   = cctypes.SetValidatorInfoRequest
-	ListValidatorInfoRequest  = cctypes.ListValidatorInfoRequest
-	ListValidatorInfoResponse = cctypes.ListValidatorInfoResponse
+	InitRequest                = cctypes.InitRequest
+	ListFeaturesRequest        = cctypes.ListFeaturesRequest
+	ListFeaturesResponse       = cctypes.ListFeaturesResponse
+	GetFeatureRequest          = cctypes.GetFeatureRequest
+	GetFeatureResponse         = cctypes.GetFeatureResponse
+	AddFeatureRequest          = cctypes.AddFeatureRequest
+	AddFeatureResponse         = cctypes.AddFeatureResponse
+	RemoveFeatureRequest       = cctypes.RemoveFeatureRequest
+	SetParamsRequest           = cctypes.SetParamsRequest
+	GetParamsRequest           = cctypes.GetParamsRequest
+	GetParamsResponse          = cctypes.GetParamsResponse
+	Params                     = cctypes.Params
+	Feature                    = cctypes.Feature
+	ValidatorInfo              = cctypes.ValidatorInfo
+	EnableFeatureRequest       = cctypes.EnableFeatureRequest
+	EnableFeatureResponse      = cctypes.EnableFeatureResponse
+	GetValidatorInfoRequest    = cctypes.GetValidatorInfoRequest
+	GetValidatorInfoResponse   = cctypes.GetValidatorInfoResponse
+	SetValidatorInfoRequest    = cctypes.SetValidatorInfoRequest
+	ListValidatorsInfoRequest  = cctypes.ListValidatorsInfoRequest
+	ListValidatorsInfoResponse = cctypes.ListValidatorsInfoResponse
 )
 
 const (
@@ -617,8 +617,8 @@ func getValidatorInfo(ctx contract.StaticContext, addr loom.Address) (*Validator
 	return &validatorInfo, nil
 }
 
-// ListValidatorInfo return info validators
-func (c *ChainConfig) ListValidatorInfo(ctx contract.StaticContext, req *ListValidatorInfoRequest) (*ListValidatorInfoResponse, error) {
+// ListValidatorsInfo return info validators
+func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListValidatorsInfoRequest) (*ListValidatorsInfoResponse, error) {
 
 	validatorRange := ctx.Range([]byte(validatorInfoPrefix))
 	validators := []*ValidatorInfo{}
@@ -630,7 +630,7 @@ func (c *ChainConfig) ListValidatorInfo(ctx contract.StaticContext, req *ListVal
 		validators = append(validators, &v)
 	}
 
-	return &ListValidatorInfoResponse{
+	return &ListValidatorsInfoResponse{
 		Validators: validators,
 	}, nil
 }

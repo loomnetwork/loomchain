@@ -33,7 +33,7 @@ func NewChainCfgCommand() *cobra.Command {
 		RemoveFeatureCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
-		ListValidatorInfoCmd(),
+		ListValidatorsInfoCmd(),
 	)
 	return cmd
 }
@@ -391,20 +391,20 @@ func GetValidatorInfoCmd() *cobra.Command {
 	return cmd
 }
 
-const listValidatorInfoCmdExample = `
+const listValidatorsInfoCmdExample = `
 loom chain-cfg list-validator-info 
 `
 
-func ListValidatorInfoCmd() *cobra.Command {
+func ListValidatorsInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "list-validator-info",
+		Use:     "list-validators-info",
 		Short:   "list validator informations",
-		Example: listValidatorInfoCmdExample,
+		Example: listValidatorsInfoCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp cctype.ListValidatorInfoResponse
-			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "ListValidatorInfo",
-				&cctype.ListValidatorInfoRequest{}, &resp)
+			var resp cctype.ListValidatorsInfoResponse
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "ListValidatorsInfo",
+				&cctype.ListValidatorsInfoRequest{}, &resp)
 			if err != nil {
 				return err
 			}

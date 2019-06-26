@@ -145,6 +145,6 @@
   Expected = ['Error']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg list-validator-info "
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-validators-info "
   Condition = "contains"
   Expected = ['validators','578']

@@ -201,9 +201,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require.NoError(err)
 	require.Equal(buildNumber, getValidatorInfo.Validator.BuildNumber)
 
-	listValidator, err := chainconfigContract.ListValidatorInfo(ctx, &ListValidatorInfoRequest{})
+	listValidators, err := chainconfigContract.ListValidatorsInfo(ctx, &ListValidatorsInfoRequest{})
 	require.NoError(err)
-	require.Equal(1, len(listValidator.Validators))
+	require.Equal(1, len(listValidators.Validators))
 }
 
 func (c *ChainConfigTestSuite) TestPermission() {
@@ -460,9 +460,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.NoError(err)
 	require.Equal(buildNumber, getValidatorInfo.Validator.BuildNumber)
 
-	listValidator, err := chainconfigContract.ListValidatorInfo(ctx, &ListValidatorInfoRequest{})
+	listValidators, err := chainconfigContract.ListValidatorsInfo(ctx, &ListValidatorsInfoRequest{})
 	require.NoError(err)
-	require.Equal(2, len(listValidator.Validators))
+	require.Equal(2, len(listValidators.Validators))
 }
 
 func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {
