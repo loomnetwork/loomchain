@@ -38,19 +38,21 @@ var (
 func init() {
 	saveVersionDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: "loomchain",
-			Subsystem: "multi_writer_appstore",
-			Name:      "save_version",
-			Help:      "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
+			Namespace:  "loomchain",
+			Subsystem:  "multi_writer_appstore",
+			Name:       "save_version",
+			Help:       "How long MultiWriterAppStore.SaveVersion() took to execute (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{},
 	)
 
 	getSnapshotDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: "loomchain",
-			Subsystem: "multi_writer_appstore",
-			Name:      "get_snapshot",
-			Help:      "How long MultiWriterAppStore.GetSnapshot() took to execute (in seconds)",
+			Namespace:  "loomchain",
+			Subsystem:  "multi_writer_appstore",
+			Name:       "get_snapshot",
+			Help:       "How long MultiWriterAppStore.GetSnapshot() took to execute (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{},
 	)
 }
