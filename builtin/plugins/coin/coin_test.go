@@ -271,7 +271,7 @@ func TestMint(t *testing.T) {
 
 	pctx2 := plugin.CreateFakeContext(addr1, addr1)
 	pctx2.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx2 := contractpb.WrapPluginContext(pctx1.WithBlock(loom.BlockHeader{
+	ctx2 := contractpb.WrapPluginContext(pctx2.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
 		Height:  110000,
