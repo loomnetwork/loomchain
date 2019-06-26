@@ -264,7 +264,7 @@ func Mint(ctx contract.Context) error {
 	if year == loom.NewBigUIntFromInt(1) {
 		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 	} else {
-		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year) //TS = TotalSupply(1+(P/(100*year)) where p is ratio
 		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator,loom.NewBigUIntFromInt(100))
 		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
