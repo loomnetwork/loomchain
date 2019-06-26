@@ -22,6 +22,7 @@ fi
 export PKG_TRANSFER_GATEWAY=github.com/loomnetwork/loomchain/vendor/github.com/loomnetwork/transfer-gateway
 
 cd $LOOM_SRC
+rm -rf vender
 make clean
 make get_lint
 make deps
