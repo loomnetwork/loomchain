@@ -1,0 +1,6 @@
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBalance","params":["{{index $.AccountAddressList 0}}","latest"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  Condition = "contains"
+  Expected = [
+                '"data": "loom error: name is not registered"'
+             ]
