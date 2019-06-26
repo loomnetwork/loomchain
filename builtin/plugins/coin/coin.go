@@ -269,6 +269,9 @@ func Mint(ctx contract.Context) error {
 		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
 		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
 	}
+	if amount == loom.NewBigUIntFromInt(0) {
+		return nil // No more coins to be minted on block creation
+	}
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
 }
 
