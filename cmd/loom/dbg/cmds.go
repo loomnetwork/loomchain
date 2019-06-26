@@ -572,8 +572,18 @@ func decodeMessageTxRaw(tx tmtypes.Tx) ([]byte, loom.Address, loom.Address, stri
 		vmName = "evm"
 	}
 
-	fromAddr := loom.UnmarshalAddressPB(msgTx.From)
-	toAddr := loom.UnmarshalAddressPB(msgTx.To)
+	var toAddr, fromAddr loom.Address
+	if msgTx.To != nil {
+		toAddr = loom.UnmarshalAddressPB(msgTx.To)
+	} else {
+		toAddr = loom.Address{}
+	}
+
+	if msgTx.From != nil {
+		fromAddr = loom.UnmarshalAddressPB(msgTx.From)
+	} else {
+		fromAddr = loom.Address{}
+	}
 
 	return tx.Hash(), fromAddr, toAddr, vmName, methodName, nil
 }
