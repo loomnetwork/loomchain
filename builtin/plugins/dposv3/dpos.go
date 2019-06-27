@@ -910,6 +910,10 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 		return errStatisticNotFound
 	}
 
+	if !statistic.Jailed {
+		return errors.New("Cannot unjail the validator that is not jailed")
+	}
+
 	statistic.Jailed = false
 	if err = SetStatistic(ctx, statistic); err != nil {
 		return err
