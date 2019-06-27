@@ -22,6 +22,11 @@
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = ['auto-enabled:feature-1','auto-enabled:feature-2','auto-enabled:feature-3']
+  
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg add-feature chaincfg:v1.2 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error']
 
 [[TestCases]]
   Delay = 20000
@@ -47,4 +52,21 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "excludes"
-  Expected = ['auto-enabled:feature-3']
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 110 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-validators-info"
+  Condition = "contains"
+  Expected = ['validators','buildNumber','10','110']
+
+
