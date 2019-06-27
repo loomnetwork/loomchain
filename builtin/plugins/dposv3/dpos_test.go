@@ -2536,6 +2536,7 @@ func TestJailOfflineValidators(t *testing.T) {
 
 	// the jailed validator should not gain any rewards after an election
 	currentRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+
 	require.NoError(t, err)
 	require.Equal(t, previousRewardDistribution.String(), currentRewardDistribution.String())
 
@@ -2568,6 +2569,7 @@ func TestJailOfflineValidators(t *testing.T) {
 	err = dpos.Unjail(dposCtx.WithSender(addr2), &addr1)
 	require.Error(t, err)
 
+	// test the oracle unjails a jailed validator
 	err = dpos.Unjail(dposCtx.WithSender(oracleAddr), &addr1)
 	require.NoError(t, err)
 
