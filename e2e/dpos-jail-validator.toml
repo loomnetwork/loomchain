@@ -78,6 +78,7 @@
   Expected = [""]
 
 [[TestCases]]
+  Delay = 2000
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "excludes"
   Excluded = ["jailed\": true"]
