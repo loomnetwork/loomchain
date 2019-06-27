@@ -18,7 +18,7 @@ func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{}
 }
 
-func DefaultBinanceTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+func DefaultBinanceTGConfig() *TransferGatewayConfig {
 	return &TransferGatewayConfig{}
 }
 
