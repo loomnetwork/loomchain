@@ -26,7 +26,7 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_2 = "dpos:v3.2"
 
-	// Enables removing offile validators
+	// Enables jailing offline validators
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
 
