@@ -558,7 +558,6 @@ func removeFeature(ctx contract.Context, name string) error {
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})
 
 func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorInfoRequest) error {
-
 	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_2, false) {
 		return ErrFeatureNotEnabled
 	}
@@ -585,7 +584,6 @@ func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorIn
 }
 
 func setValidatorInfo(ctx contract.Context, addr loom.Address, buildNumber uint64) error {
-
 	validator := &ValidatorInfo{
 		Address:     addr.MarshalPB(),
 		BuildNumber: buildNumber,
@@ -594,7 +592,6 @@ func setValidatorInfo(ctx contract.Context, addr loom.Address, buildNumber uint6
 }
 
 func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValidatorInfoRequest) (*GetValidatorInfoResponse, error) {
-
 	if req.Address == nil {
 		return nil, ErrInvalidRequest
 	}
@@ -609,7 +606,6 @@ func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValid
 }
 
 func getValidatorInfo(ctx contract.StaticContext, addr loom.Address) (*ValidatorInfo, error) {
-
 	var validatorInfo ValidatorInfo
 	err := ctx.Get(validatorInfoKey(addr), &validatorInfo)
 	if err != nil {
@@ -620,7 +616,6 @@ func getValidatorInfo(ctx contract.StaticContext, addr loom.Address) (*Validator
 
 // ListValidatorsInfo return info validators
 func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListValidatorsInfoRequest) (*ListValidatorsInfoResponse, error) {
-
 	validatorRange := ctx.Range([]byte(validatorInfoPrefix))
 	validators := []*ValidatorInfo{}
 	for _, m := range validatorRange {
