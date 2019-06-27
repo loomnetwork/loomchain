@@ -84,7 +84,7 @@ func (cc *ChainConfigRoutine) run() {
 				cc.logger.Error("Failed to create ChainConfigClient", "err", err)
 			} else {
 				// NOTE: errors are logged by the client, no need to log again
-				_ = chainConfigClient.VoteToEnablePendingFeatures(cc.buildNumber)
+				chainConfigClient.VoteToEnablePendingFeatures(cc.buildNumber)
 			}
 		}
 		time.Sleep(time.Duration(cc.cfg.EnableFeatureInterval) * time.Second)
@@ -99,7 +99,7 @@ func (cc *ChainConfigRoutine) init() {
 			cc.logger.Error("Failed to create ChainConfigClient", "err", err)
 		} else {
 			// NOTE: errors are logged by the client, no need to log again
-			_ = chainConfigClient.SetBuildNumber(cc.buildNumber)
+			chainConfigClient.SetBuildNumber(cc.buildNumber)
 		}
 	}
 }
