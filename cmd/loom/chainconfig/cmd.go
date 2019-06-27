@@ -444,7 +444,6 @@ func SumValidatorsInfoCmd() *cobra.Command {
 			for _, validator := range resp.Validators {
 				counters[validator.BuildNumber]++
 			}
-
 			fmt.Printf(
 				"%-*s| %-*s | \n", 11, "BuildNumber", 10, "Percentage")
 			fmt.Printf(
