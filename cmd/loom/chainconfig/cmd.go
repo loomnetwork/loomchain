@@ -392,7 +392,7 @@ func GetValidatorInfoCmd() *cobra.Command {
 }
 
 const listValidatorsInfoCmdExample = `
-loom chain-cfg list-validator-info 
+loom chain-cfg list-validators-info 
 `
 
 func ListValidatorsInfoCmd() *cobra.Command {
