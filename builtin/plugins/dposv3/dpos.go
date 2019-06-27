@@ -61,6 +61,7 @@ var (
 	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
+	errStatisticNotFound          = errors.New("Candidate statistic not found.")
 	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
 	errCandidateUnregistering     = errors.New("Candidate is currently unregistering.")
 	errValidatorNotFound          = errors.New("Validator record not found.")
@@ -919,11 +920,12 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	}
 
-	statistic, _ := GetStatistic(ctx, candidateAddress)
-	if statistic != nil {
-		statistic.Jailed = false
+	statistic, err := GetStatistic(ctx, candidateAddress)
+	if err != nil || statistic == nil {
+		return errStatisticNotFound
 	}
 
+	statistic.Jailed = false
 	if err = SetStatistic(ctx, statistic); err != nil {
 		return err
 	}
