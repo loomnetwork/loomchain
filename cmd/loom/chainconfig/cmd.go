@@ -34,6 +34,7 @@ func NewChainCfgCommand() *cobra.Command {
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
 		ListValidatorsInfoCmd(),
+		SumValidatorsInfoCmd(),
 	)
 	return cmd
 }
@@ -328,7 +329,7 @@ func RemoveFeatureCmd() *cobra.Command {
 }
 
 const setValidatorInfoCmdExample = `
-loom chain-cfg set-validator-info --build 1000 --key 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom chain-cfg set-validator-info --build 1000 --key path/to/private_key
 `
 
 func SetValidatorInfoCmd() *cobra.Command {
@@ -356,7 +357,7 @@ func SetValidatorInfoCmd() *cobra.Command {
 }
 
 const getValidatorInfoCmdExample = `
-loom chain-cfg get-validator-info --key 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom chain-cfg get-validator-info 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
 func GetValidatorInfoCmd() *cobra.Command {
@@ -409,6 +410,36 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				return err
 			}
 
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const sumValidatorsInfoCmdExample = `
+loom chain-cfg sum-validators-info 
+`
+
+func SumValidatorsInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "sum-validators-info",
+		Short:   "show validator information summaries",
+		Example: sumValidatorsInfoCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.ListValidatorsInfoResponse
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "ListValidatorsInfo",
+				&cctype.ListValidatorsInfoRequest{}, &resp)
+			if err != nil {
+				return err
+			}
+
 			counters := make(map[uint64]int)
 			for _, validator := range resp.Validators {
 				counters[validator.BuildNumber]++
@@ -420,14 +451,8 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				strings.Repeat("-", 27) + "\n")
 
 			for k, v := range counters {
-				fmt.Printf("%-*d | %-*d | \n", 10, k, 9, v*100/len(resp.Validators))
+				fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(resp.Validators))
 			}
-
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
 			return nil
 		},
 	}

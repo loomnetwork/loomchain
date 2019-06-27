@@ -79,4 +79,8 @@
   Condition = "contains"
   Expected = ['validators','buildNumber','10','110']
 
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg sum-validators-info"
+  Condition = "contains"
+  Expected = ['75','25']
 
