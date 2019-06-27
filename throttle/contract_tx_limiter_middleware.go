@@ -43,12 +43,17 @@ func (c *ContractTxLimiterConfig) Clone() *ContractTxLimiterConfig {
 
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
-	contractToInfoMap map[string]udw.ContractInfo
+	contractToTierMap map[string]udw.Tier
 	// track of no. of txns in previous blocks per contract
-	contractToBlockTrx map[string]blockTxn
+	contractToBlockTrx map[string]*blockTxn
+	tierMap            map[udw.TierID]tierTrack
 	lastUpdated        int64
 }
 
+type tierTrack struct {
+	Tier        udw.Tier
+	LastUpdated int64
+}
 type blockTxn struct {
 	txn         int64
 	blockHeight int64
@@ -61,9 +66,9 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 	if !ok {
 		return false
 	}
-	contractInfo := txl.contractToInfoMap[contractAddr.String()]
-	blockTxn := txl.contractToBlockTrx[contractAddr.String()]
-	if int64(contractInfo.TierInfo.MaxTx) > blockTxn.txn {
+	tier := txl.contractToTierMap[contractAddr.String()]
+	blockTx := txl.contractToBlockTrx[contractAddr.String()]
+	if int64(tier.MaxTx) > blockTx.txn {
 		return false
 	} else {
 		return true
@@ -73,17 +78,17 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHeight int64) {
 	blockTx, ok := txl.contractToBlockTrx[contractAddr.String()]
 	if !ok {
-		txl.contractToBlockTrx[contractAddr.String()] = blockTxn{1, curBlockHeight}
+		txl.contractToBlockTrx[contractAddr.String()] = &blockTxn{1, curBlockHeight}
 		return
 	}
 	// reset blockTxn if block is out of range
 	if blockTx.blockHeight < curBlockHeight-
-		int64(txl.contractToInfoMap[contractAddr.String()].TierInfo.BlockRange) {
-		txl.contractToBlockTrx[contractAddr.String()] = blockTxn{0, curBlockHeight}
+		int64(txl.contractToTierMap[contractAddr.String()].BlockRange) {
+		blockTx.txn = 0
+		blockTx.blockHeight = curBlockHeight
 		return
 	}
 	blockTx.txn++
-	txl.contractToBlockTrx[contractAddr.String()] = blockTx
 }
 
 // NewContractTxLimiterMiddleware add another tx limiter that limits how many CallTx(s) can be sent to an EVM contract within a pre-configured block range
@@ -91,7 +96,8 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 	createUserDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	TxLimiter = &contractTxLimiter{
-		contractToBlockTrx: make(map[string]blockTxn, 0),
+		contractToBlockTrx: make(map[string]*blockTxn, 0),
+		tierMap:            make(map[udw.TierID]tierTrack, 0),
 	}
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
@@ -122,40 +128,42 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 		}
 		if msgTx.VmType == vm.VMType_EVM {
-			if TxLimiter.contractToInfoMap == nil {
+			if TxLimiter.contractToTierMap == nil {
 				ctx, err := createUserDeployerWhitelistCtx(state)
 				if err != nil {
 					return res, errors.Wrap(err, "throttle: context creation")
 				}
-				contractToInfoMap, err := udw.GetContractInfoMapping(ctx)
+				contractToTierMap, err := udw.GetContractTierMapping(ctx)
 				if err != nil {
 					return res, errors.Wrap(err, "throttle: contractToTierMap creation")
 				}
-				TxLimiter.contractToInfoMap = contractToInfoMap
+				TxLimiter.contractToTierMap = contractToTierMap
 				// TxLimiter.lastUpdated = time.Now().Unix()
 			}
 			contractAddr := loom.UnmarshalAddressPB(msg.To)
 			//check if contract in list
-			contractInfo, ok := TxLimiter.contractToInfoMap[contractAddr.String()]
+			tier, ok := TxLimiter.contractToTierMap[contractAddr.String()]
 			if !ok {
 				return loomchain.TxHandlerResult{}, ErrContractNotWhitelisted
 			}
-			// if its tierInfo is empty and its expiry is reached, update tier info
-			if contractInfo.TierInfo.BlockRange == 0 ||
-				contractInfo.LastUpdated+cfg.RefreshInterval < time.Now().Unix() {
+
+			// check if tierTrack have latest version if not update it
+			tierTrackOb, ok := TxLimiter.tierMap[tier.TierID]
+			if !ok || tierTrackOb.LastUpdated+cfg.RefreshInterval < time.Now().Unix() {
 				ctx, er := createUserDeployerWhitelistCtx(state)
 				if er != nil {
 					return res, errors.Wrap(err, "throttle: context creation")
 				}
-				tierInfo, er := udw.GetTierInfo(ctx, contractInfo.TierInfo.TierID)
+				tierInfo, er := udw.GetTierInfo(ctx, tier.TierID)
 				if er != nil {
 					return res, errors.Wrap(err, "throttle: getTierInfo issue")
 				}
-				contractInfo.TierInfo = tierInfo
-				contractInfo.LastUpdated = time.Now().Unix()
-				TxLimiter.contractToInfoMap[contractAddr.String()] = contractInfo
+				TxLimiter.tierMap[tier.TierID] = tierTrack{
+					Tier:        tierInfo,
+					LastUpdated: time.Now().Unix(),
+				}
 			}
-
+			TxLimiter.contractToTierMap[contractAddr.String()] = TxLimiter.tierMap[tier.TierID].Tier
 			if TxLimiter.isAccountLimitReached(contractAddr, state.Block().Height) {
 				return loomchain.TxHandlerResult{}, ErrTxLimitReached
 			}
