@@ -372,9 +372,24 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 	return nil
 }
 
-// GetContractTierMapping create a map of contract to TxLimiter to be used in ContractTxLimiter
-func GetContractTierMapping(ctx contract.StaticContext) (map[string]Tier, error) {
-	contractToTierMap := make(map[string]Tier, 0)
+type ContractInfo struct {
+	TierInfo    Tier
+	LastUpdated int64
+}
+
+//GetTierInfo standalone function to get tier information
+func GetTierInfo(ctx contract.StaticContext, tierID udwtypes.TierID) (udwtypes.Tier, error) {
+	var tier Tier
+	err := ctx.Get(TierKey(tierID), &tier)
+	if err != nil {
+		return Tier{}, errors.Wrap(err, "Failed to get Tier Information")
+	}
+	return tier, nil
+}
+
+// GetContractInfoMapping create a map of contract to TxLimiter to be used in ContractTxLimiter
+func GetContractInfoMapping(ctx contract.StaticContext) (map[string]ContractInfo, error) {
+	contractToInfoMap := make(map[string]ContractInfo, 0)
 	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
 		var deployer UserDeployerState
 		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
@@ -388,10 +403,13 @@ func GetContractTierMapping(ctx contract.StaticContext) (map[string]Tier, error)
 		contracts := deployer.Contracts
 		for _, contract := range contracts {
 			key := loom.UnmarshalAddressPB(contract.ContractAddress).String()
-			contractToTierMap[key] = tier
+			contractToInfoMap[key] = ContractInfo{
+				TierInfo:    Tier{TierID: tier.TierID},
+				LastUpdated: 0,
+			}
 		}
 	}
-	return contractToTierMap, nil
+	return contractToInfoMap, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&UserDeployerWhitelist{})
