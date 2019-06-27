@@ -24,7 +24,7 @@ func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 
 func DefaultBinanceTGConfig() *TransferGatewayConfig {
 	return &TransferGatewayConfig{
-		ContractEnabled: true,
+		ContractEnabled: true, // enabled by default for easier production deployment
 	}
 }
 
