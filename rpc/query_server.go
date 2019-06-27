@@ -340,26 +340,11 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 }
 
 // Attempts to construct the context of the Address Mapper contract.
-func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
-	vm := lcp.NewPluginVM(
-		s.Loader,
-		state,
-		s.CreateRegistry(state),
-		nil, // event handler
-		log.Default,
-		s.NewABMFactory,
-		nil, // receipt writer
-		nil, // receipt reader
-	)
-
-	ctx, err := lcp.NewInternalContractContext("addressmapper", vm, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create Address Mapper context")
-	}
-	return ctx, nil
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "addressmapper")
 }
 
-func (s *QueryServer) createContractCtx(state loomchain.State, name string) (contractpb.Context, error) {
+func (s *QueryServer) createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
 	ctx, err := lcp.NewInternalContractContext(
 		name,
 		lcp.NewPluginVM(
@@ -1089,7 +1074,7 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 		return "", errors.Errorf("height %s not latest", block)
 	}
 
-	ctx, err := s.createContractCtx(snapshot, "ethcoin")
+	ctx, err := s.createStaticContractCtx(snapshot, "ethcoin")
 	if err != nil {
 		return eth.Quantity("0x0"), err
 	}

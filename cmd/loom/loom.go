@@ -922,7 +922,7 @@ func loadApp(
 
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
 		cfg.Auth,
-		getContractCtx("addressmapper", vmManager),
+		getContractStaticCtx("addressmapper", vmManager),
 	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
@@ -1142,6 +1142,8 @@ func deployContract(
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
+type staticContextFactory func(state loomchain.State) (contractpb.StaticContext, error)
+
 func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
@@ -1149,6 +1151,16 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 			return nil, err
 		}
 		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), false)
+	}
+}
+
+func getContractStaticCtx(pluginName string, vmManager *vm.Manager) staticContextFactory {
+	return func(state loomchain.State) (contractpb.StaticContext, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), true)
 	}
 }
 
