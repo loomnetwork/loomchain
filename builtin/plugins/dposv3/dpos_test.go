@@ -2409,7 +2409,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, 2, len(candidates))
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
 		require.Nil(t, err)
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
 	}
@@ -2422,7 +2422,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, []uint64{0, 0, 0, 0}, rec2.DowntimeRecords[0].Periods)
 
 	for i := int64(0); i < int64(periodLength); i++ {
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr2)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2)
 		require.Nil(t, err)
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
 	}
@@ -2528,7 +2528,7 @@ func TestJailOfflineValidators(t *testing.T) {
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
 	}
 
 	// after an election, a validator will be jailed
@@ -2557,7 +2557,7 @@ func TestJailOfflineValidators(t *testing.T) {
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
 	}
 	// after an election, a validator will be jailed again
 	elect(dposCtx, dpos.Address)
