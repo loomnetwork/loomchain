@@ -1,6 +1,8 @@
 package chainconfig
 
 import (
+	"time"
+
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -587,6 +589,7 @@ func setValidatorInfo(ctx contract.Context, addr loom.Address, buildNumber uint6
 	validator := &ValidatorInfo{
 		Address:     addr.MarshalPB(),
 		BuildNumber: buildNumber,
+		UpdatedAt:   uint64(time.Now().Unix()),
 	}
 	return ctx.Set(validatorInfoKey(addr), validator)
 }
