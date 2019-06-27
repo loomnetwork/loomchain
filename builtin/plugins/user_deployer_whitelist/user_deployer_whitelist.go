@@ -383,8 +383,8 @@ func GetTierInfo(ctx contract.StaticContext, tierID udwtypes.TierID) (udwtypes.T
 }
 
 // GetContractTierMapping create a map of contract to TxLimiter to be used in ContractTxLimiter
-func GetContractTierMapping(ctx contract.StaticContext) (map[string]Tier, error) {
-	contractToTierMap := make(map[string]Tier, 0)
+func GetContractTierMapping(ctx contract.StaticContext) (map[string]TierID, error) {
+	contractToTierMap := make(map[string]TierID, 0)
 	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
 		var deployer UserDeployerState
 		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
@@ -398,7 +398,7 @@ func GetContractTierMapping(ctx contract.StaticContext) (map[string]Tier, error)
 		contracts := deployer.Contracts
 		for _, contract := range contracts {
 			key := loom.UnmarshalAddressPB(contract.ContractAddress).String()
-			contractToTierMap[key] = Tier{TierID: tier.TierID}
+			contractToTierMap[key] = tier.TierID
 		}
 	}
 	return contractToTierMap, nil

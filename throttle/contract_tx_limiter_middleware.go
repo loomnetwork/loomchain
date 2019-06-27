@@ -43,7 +43,7 @@ func (c *ContractTxLimiterConfig) Clone() *ContractTxLimiterConfig {
 
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
-	contractToTierMap map[string]udw.Tier
+	contractToTierMap map[string]udw.TierID
 	// track of no. of txns in previous blocks per contract
 	contractToBlockTrx map[string]*blockTxn
 	tierMap            map[udw.TierID]tierTrack
@@ -66,7 +66,8 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 	if !ok {
 		return false
 	}
-	tier := txl.contractToTierMap[contractAddr.String()]
+	tierID := txl.contractToTierMap[contractAddr.String()]
+	tier := txl.tierMap[tierID].Tier
 	blockTx := txl.contractToBlockTrx[contractAddr.String()]
 	if int64(tier.MaxTx) > blockTx.txn {
 		return false
@@ -82,8 +83,10 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 		return
 	}
 	// reset blockTxn if block is out of range
-	if blockTx.blockHeight < curBlockHeight-
-		int64(txl.contractToTierMap[contractAddr.String()].BlockRange) {
+	tierID := txl.contractToTierMap[contractAddr.String()]
+	tier := txl.tierMap[tierID].Tier
+
+	if blockTx.blockHeight < curBlockHeight-int64(tier.BlockRange) {
 		blockTx.txn = 0
 		blockTx.blockHeight = curBlockHeight
 		return
@@ -142,10 +145,12 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			}
 			contractAddr := loom.UnmarshalAddressPB(msg.To)
 			//check if contract in list
-			tier, ok := TxLimiter.contractToTierMap[contractAddr.String()]
+			tierID, ok := TxLimiter.contractToTierMap[contractAddr.String()]
 			if !ok {
 				return loomchain.TxHandlerResult{}, ErrContractNotWhitelisted
 			}
+
+			tier := TxLimiter.tierMap[tierID].Tier
 
 			// check if tierTrack have latest version if not update it
 			tierTrackOb, ok := TxLimiter.tierMap[tier.TierID]
@@ -163,7 +168,6 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 					LastUpdated: time.Now().Unix(),
 				}
 			}
-			TxLimiter.contractToTierMap[contractAddr.String()] = TxLimiter.tierMap[tier.TierID].Tier
 			if TxLimiter.isAccountLimitReached(contractAddr, state.Block().Height) {
 				return loomchain.TxHandlerResult{}, ErrTxLimitReached
 			}
