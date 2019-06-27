@@ -1141,7 +1141,6 @@ func deployContract(
 }
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
-type staticContextFactory func(state loomchain.State) (contractpb.StaticContext, error)
 
 func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
@@ -1149,17 +1148,7 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
-	}
-}
-
-func getStaticContractCtx(pluginName string, vmManager *vm.Manager) staticContextFactory {
-	return func(state loomchain.State) (contractpb.StaticContext, error) {
-		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-		if err != nil {
-			return nil, err
-		}
-		return plugin.NewInternalStaticContractContext(pluginName, pvm.(*plugin.PluginVM))
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), false)
 	}
 }
 
@@ -1222,32 +1211,6 @@ func initQueryService(
 		return err
 	}
 
-	vmManager := vm.NewManager()
-	vmManager.Register(
-		vm.VMType_PLUGIN,
-		func(state loomchain.State) (vm.VM, error) {
-			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-			return plugin.NewPluginVM(
-				loader,
-				state,
-				createRegistry(state),
-				&loomchain.DefaultEventHandler{},
-				log.Default,
-				newABMFactory,
-				receiptWriter,
-				receiptReader,
-			), nil
-		},
-	)
-
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1265,7 +1228,6 @@ func initQueryService(
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
-		EthCoinCtxFactory:      getStaticContractCtx("ethcoin", vmManager),
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

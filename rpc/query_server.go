@@ -127,7 +127,6 @@ type QueryServer struct {
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
-	EthCoinCtxFactory func(state loomchain.State) (contractpb.StaticContext, error)
 }
 
 var _ QueryService = &QueryServer{}
@@ -353,9 +352,30 @@ func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.
 		nil, // receipt reader
 	)
 
-	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+	ctx, err := lcp.NewInternalContractContext("addressmapper", vm, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+	}
+	return ctx, nil
+}
+
+func (s *QueryServer) createContractCtx(state loomchain.State, name string) (contractpb.Context, error) {
+	ctx, err := lcp.NewInternalContractContext(
+		name,
+		lcp.NewPluginVM(
+			s.Loader,
+			state,
+			s.CreateRegistry(state),
+			nil, // event handler
+			log.Default,
+			s.NewABMFactory,
+			nil, // receipt writer
+			nil, // receipt reader
+		),
+		true,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create %s context", name)
 	}
 	return ctx, nil
 }
@@ -1061,8 +1081,15 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid block height %s", block)
+	}
+	if int64(height) != snapshot.Block().Height {
+		return "", errors.Errorf("height %s not latest", block)
+	}
 
-	ctx, err := s.EthCoinCtxFactory(snapshot)
+	ctx, err := s.createContractCtx(snapshot, "ethcoin")
 	if err != nil {
 		return eth.Quantity("0x0"), err
 	}
@@ -1070,8 +1097,11 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 	if err != nil {
 		return eth.Quantity("0x0"), err
 	}
+	if amount == nil {
+		return eth.Quantity("0x0"), errors.Errorf("No amount returned for address %s", address)
+	}
 
-	return eth.EncInt(amount.Int64()), nil
+	return eth.EncBigInt(*amount.Int), nil
 }
 
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
