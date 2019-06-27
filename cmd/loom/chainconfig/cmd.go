@@ -328,7 +328,7 @@ func RemoveFeatureCmd() *cobra.Command {
 }
 
 const setValidatorInfoCmdExample = `
-loom chain-cfg set-validator-info --build 1000
+loom chain-cfg set-validator-info --build 1000 --key 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
 func SetValidatorInfoCmd() *cobra.Command {
@@ -356,7 +356,7 @@ func SetValidatorInfoCmd() *cobra.Command {
 }
 
 const getValidatorInfoCmdExample = `
-loom chain-cfg get-validator-info --key
+loom chain-cfg get-validator-info --key 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
 func GetValidatorInfoCmd() *cobra.Command {
