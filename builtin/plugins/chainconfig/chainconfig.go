@@ -562,6 +562,7 @@ func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorIn
 	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_2, false) {
 		return ErrFeatureNotEnabled
 	}
+
 	if req.BuildNumber == 0 {
 		return ErrInvalidRequest
 	}

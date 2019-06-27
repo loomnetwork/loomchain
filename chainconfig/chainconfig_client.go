@@ -17,6 +17,7 @@ type (
 	Feature               = cctypes.Feature
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
+	SetValidatorInfo      = cctypes.SetValidatorInfoRequest
 )
 
 const (
@@ -114,4 +115,17 @@ func (cc *ChainConfigClient) hasVoted(feature *Feature) bool {
 		}
 	}
 	return false
+}
+
+func (cc *ChainConfigClient) SetBuildNumber(buildNumber uint64) error {
+	if _, err := cc.contract.Call(
+		"SetValidatorInfo",
+		&SetValidatorInfo{BuildNumber: buildNumber},
+		cc.signer,
+		nil,
+	); err != nil {
+		cc.logger.Error("Failed to set build number in ChainConfig contract", "err", err)
+		return err
+	}
+	return nil
 }
