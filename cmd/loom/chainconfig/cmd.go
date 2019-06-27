@@ -409,7 +409,6 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
