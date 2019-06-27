@@ -55,12 +55,22 @@
   Expected = ['Error']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 110 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Expected = ['Error']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 110 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 3}}"
   Condition = "excludes"
   Expected = ['Error']
 

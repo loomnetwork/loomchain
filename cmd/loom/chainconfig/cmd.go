@@ -408,6 +408,21 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			counters := make(map[uint64]int)
+			for _, validator := range resp.Validators {
+				counters[validator.BuildNumber]++
+			}
+
+			fmt.Printf(
+				"%-*s| %-*s | \n", 11, "BuildNumber", 10, "Percentage")
+			fmt.Printf(
+				strings.Repeat("-", 27) + "\n")
+
+			for k, v := range counters {
+				fmt.Printf("%-*d | %-*d | \n", 10, k, 9, v*100/len(resp.Validators))
+			}
+
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
