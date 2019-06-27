@@ -344,7 +344,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	newLocktime := priorDelegation.LockTime
 
 	if req.NewLocktimeTier > uint64(newLocktimeTier) {
-		state, err := loadState(ctx)
+		state, err := LoadState(ctx)
 		if err != nil {
 			return err
 		}
@@ -592,7 +592,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return err
 	}
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -682,7 +682,7 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 WhitelistCandidate", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -728,7 +728,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 RemoveWhitelistCandidate", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -754,7 +754,7 @@ func (c *DPOS) ChangeWhitelistInfo(ctx contract.Context, req *ChangeWhitelistInf
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3", "ChangeWhitelistInfo", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -818,7 +818,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	// a candidate registers for the first time
 	statistic, _ := GetStatistic(ctx, candidateAddress)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -892,32 +892,17 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 
 	candidateAddress := ctx.Message().Sender
 
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
 	// if req.Validator is not nil, make sure that the caller is the oracle
 	// only the oracle can unjail other validators, a validator can only unjail itself
 	if req.Validator != nil {
-		if state.Params.OracleAddress == nil || candidateAddress.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
-			return logDposError(ctx, errors.New("Only the oracle can unjail other validators"), req.String())
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.Params.OracleAddress == nil || ctx.Message().Sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return errors.New("Only the oracle can unjail other validators")
 		}
 		candidateAddress = loom.UnmarshalAddressPB(req.Validator)
-	}
-
-	candidates, err := LoadCandidateList(ctx)
-	if err != nil {
-		return err
-	}
-
-	cand := candidates.Get(candidateAddress)
-	if cand == nil {
-		return errCandidateNotFound
-	}
-
-	if cand.State != REGISTERED {
-		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	}
 
 	statistic, err := GetStatistic(ctx, candidateAddress)
@@ -1099,7 +1084,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesReq
 func Elect(ctx contract.Context) error {
 	cachedDelegations := &CachedDposStorage{EnableCaching: true}
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1240,7 +1225,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
 	ctx.Logger().Debug("DPOSv3 TimeUntilEleciton", "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1281,7 +1266,7 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 }
 
 func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1352,7 +1337,7 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 // ***************************
 
 func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates []*Candidate) error {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1379,7 +1364,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) error {
+func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validatorAddr loom.Address) error {
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
@@ -1394,23 +1379,15 @@ func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) erro
 
 	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
-		state, err := loadState(ctx)
-		if err != nil {
-			return err
-		}
-		downtime, err := getDowntimeRecord(ctx, statistic)
-		if err != nil {
-			return err
-		}
-		if downtime.Periods[0] == state.Params.DowntimePeriod &&
-			downtime.Periods[1] == state.Params.DowntimePeriod &&
-			downtime.Periods[2] == state.Params.DowntimePeriod &&
-			downtime.Periods[3] == state.Params.DowntimePeriod {
+		downtime := getDowntimeRecord(ctx, statistic)
+		if downtime.Periods[0] == downtimePeriod &&
+			downtime.Periods[1] == downtimePeriod &&
+			downtime.Periods[2] == downtimePeriod &&
+			downtime.Periods[3] == downtimePeriod {
 			statistic.Jailed = true
-		}
-
-		if err := emitJailEvent(ctx, validatorAddr.MarshalPB()); err != nil {
-			return err
+			if err := emitJailEvent(ctx, validatorAddr.MarshalPB()); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1427,11 +1404,7 @@ func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordReq
 		if err != nil {
 			return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
 		}
-		downtimeRecord, err := getDowntimeRecord(ctx, statistic)
-		if err != nil {
-			return nil, err
-		}
-		downtimeRecords = append(downtimeRecords, downtimeRecord)
+		downtimeRecords = append(downtimeRecords, getDowntimeRecord(ctx, statistic))
 	} else {
 		validators, err := ValidatorList(ctx)
 		if err != nil {
@@ -1445,15 +1418,11 @@ func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordReq
 			if err != nil {
 				return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
 			}
-			downtimeRecord, err := getDowntimeRecord(ctx, statistic)
-			if err != nil {
-				return nil, err
-			}
-			downtimeRecords = append(downtimeRecords, downtimeRecord)
+			downtimeRecords = append(downtimeRecords, getDowntimeRecord(ctx, statistic))
 		}
 	}
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1464,8 +1433,8 @@ func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordReq
 	}, nil
 }
 
-func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic) (*DowntimeRecord, error) {
-	downtimeRecord := &DowntimeRecord{
+func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic) *DowntimeRecord {
+	return &DowntimeRecord{
 		Validator: statistic.Address,
 		Periods: []uint64{
 			statistic.RecentlyMissedBlocks & 0xFFFF,
@@ -1474,12 +1443,11 @@ func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic
 			(statistic.RecentlyMissedBlocks >> 48) & 0xFFFF,
 		},
 	}
-	return downtimeRecord, nil
 }
 
 // only called for validators, never delegators
 func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1488,7 +1456,7 @@ func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
 }
 
 func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1524,7 +1492,7 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 CheckRewards", "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
@@ -1537,7 +1505,7 @@ var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
 // UTILITIES
 
 func loadCoin(ctx contract.Context) (*ERC20, error) {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1578,7 +1546,6 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 			delegatorRewards[validatorKey] = common.BigZero()
 			formerValidatorTotals[validatorKey] = *common.BigZero()
 		} else {
-
 			// If a validator is jailed, don't calculate and distribute rewards
 			if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
 				if statistic.Jailed {
@@ -1587,7 +1554,6 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 					continue
 				}
 			}
-
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
@@ -1977,7 +1943,7 @@ func (c *DPOS) CheckRewardDelegation(ctx contract.StaticContext, req *CheckRewar
 func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetStateResponse, error) {
 	ctx.Logger().Debug("DPOSv3 GetState", "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
@@ -1993,7 +1959,7 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 RegisterReferrer", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2030,7 +1996,7 @@ func isRequestAlreadySeen(meta *BatchRequestMeta, currentTally *RequestBatchTall
 
 func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) error {
 	// ensure that function is only executed when called by oracle
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2089,7 +2055,7 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetElectionCycle", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2110,7 +2076,7 @@ func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodReq
 	}
 
 	sender := ctx.Message().Sender
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2129,7 +2095,7 @@ func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardR
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetMaxYearlyReward", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2148,7 +2114,7 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetRegistrationRequirement", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2167,7 +2133,7 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetValidatorCount", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2186,7 +2152,7 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetOracleAddress", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2205,7 +2171,7 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetSlashingPercentage", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2225,7 +2191,7 @@ func (c *DPOS) SetMinCandidateFee(ctx contract.Context, req *SetMinCandidateFeeR
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetMinCandidateFee", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
