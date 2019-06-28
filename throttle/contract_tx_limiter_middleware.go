@@ -147,24 +147,13 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if !ok {
 				return next(state, txBytes, isCheckTx)
 			}
-			if TxLimiter.tierMap == nil {
-				TxLimiter.tierMap = make(map[udw.TierID]udw.Tier, 0)
-			}
-			// update tierMap if expired
-			if TxLimiter.tierDataLastUpdated+cfg.TierDataRefreshInterval <
+			if TxLimiter.tierMap == nil || TxLimiter.tierDataLastUpdated+cfg.TierDataRefreshInterval <
 				time.Now().Unix() {
-
-				for tierID := range TxLimiter.tierMap {
-					ctx, er := createUserDeployerWhitelistCtx(state)
-					if er != nil {
-						return res, errors.Wrap(err, "throttle: context creation")
-					}
-					tierInfo, er := udw.GetTierInfo(ctx, tierID)
-					if er != nil {
-						return res, errors.Wrap(err, "throttle: getTierInfo issue")
-					}
-					TxLimiter.tierMap[tierID] = tierInfo
+				ctx, er := createUserDeployerWhitelistCtx(state)
+				if er != nil {
+					return res, errors.Wrap(err, "throttle: context creation")
 				}
+				TxLimiter.tierMap = udw.GetTierMap(ctx)
 				TxLimiter.tierDataLastUpdated = time.Now().Unix()
 			}
 
