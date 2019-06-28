@@ -281,12 +281,14 @@ func Mint(ctx contract.Context) error {
 	var checkMintAmount = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
+	//Checks if minting amount is computed before or it is being computed for first time
 	err = ctx.Get(mintingAmountKey, checkMintAmount)
 	if err != nil && err != contract.ErrNotFound {
 		return err
 	}
-	//Minting Amount Per block derived from ctx after minting amount is determined for year
+	//Minting Amount per block is set in ctx after minting amount is determined for year
 	if year.Cmp(loom.NewBigUIntFromInt(1)) == 0 {
+		//Determines minting amount at the beginning block of year or at block height at which minting is enabled
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
 			amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 			err = ctx.Set(mintingAmountKey, &types.BigUInt{
@@ -298,6 +300,7 @@ func Mint(ctx contract.Context) error {
 		}
 	} else {
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
+			//Operator Support to support different inflation ratio patterns for different year
 			if strings.EqualFold("div", operator) {
 				changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
 				basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
@@ -311,6 +314,8 @@ func Mint(ctx contract.Context) error {
 			if err != nil {
 				return err
 			}
+			//Fetches Total Supply from coin contract and applies inflation ratio on total Supply- Happens at
+			//beginning block for that year or block height at which minting is enabled
 			totalSupply = &econ.TotalSupply.Value
 			inflationforYear := totalSupply.Mul(totalSupply, basePercentage)
 			inflationforYear = inflationforYear.Div(inflationforYear, changeRatioDenominator)
@@ -333,6 +338,7 @@ func Mint(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
+	//Boundary case when minting amount per block becomes zero
 	if amount == loom.NewBigUIntFromInt(0) {
 		return nil // No more coins to be minted on block creation
 	}
