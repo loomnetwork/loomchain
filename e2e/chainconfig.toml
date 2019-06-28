@@ -165,25 +165,14 @@
   Expected = ['buildNumber', '578']
 
   [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 578 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "excludes"
-  Expected = ['Error']
-
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 2}}"
-  Condition = "excludes"
-  Expected = ['Error']
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 3}}"
-  Condition = "excludes"
-  Expected = ['Error']
+  Expected = ['Error','RPC error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-validators-info "
   Condition = "contains"
-  Expected = ['validators','578']
+  Expected = ['validators','578','10']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg sum-validators-info"
