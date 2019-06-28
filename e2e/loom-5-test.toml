@@ -70,7 +70,7 @@
    Condition = "contains"
    Expected = ["ChangeRatioNumerator should be greater than zero"]
    Datafiles = [
-       { Filename = "data.json", Contents = "{\"change_ratio_numerator\":0,\"change_ratio_denominator\":10,\"total_supply\":1000000,\"blocks_generated_per_year\":1000,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
+       { Filename = "data.json", Contents = "{\"change_ratio_numerator\":0,\"change_ratio_denominator\":10,\"total_supply\":1000000,\"blocks_generated_per_year\":1000,\"base_percentage\":10,\"operator\":\"div\",\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
    ]
 
 [[TestCases]]
@@ -78,7 +78,7 @@
    Condition = "contains"
    Expected = ["ChangeRatioDenominator should be greater than zero"]
    Datafiles = [
-        { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":0,\"total_supply\":1000000,\"blocks_generated_per_year\":1000,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
+        { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":0,\"total_supply\":1000000,\"blocks_generated_per_year\":1000,\"base_percentage\":10,\"operator\":\"div\",\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
    ]
 
 [[TestCases]]
@@ -86,7 +86,7 @@
    Condition = "contains"
    Expected = ["Total Supply should be greater than zero"]
    Datafiles = [
-          { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":5, \"total_supply\":0,\"blocks_generated_per_year\":1000,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
+          { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":5, \"total_supply\":0,\"blocks_generated_per_year\":1000,\"base_percentage\":10,\"operator\":\"div\",\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
      ]
 
 [[TestCases]]
@@ -94,7 +94,7 @@
    Condition = "contains"
    Expected = ["Blocks Generated Per Year should be greater than zero"]
    Datafiles = [
-          { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":5,\"total_supply\":1000000,\"blocks_generated_per_year\":0,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
+          { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":5,\"total_supply\":1000000,\"blocks_generated_per_year\":0,\"base_percentage\":10,\"operator\":\"div\",\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
      ]
 
 [[TestCases]]
@@ -102,7 +102,7 @@
    Condition = "contains"
    Expected = ["Migration ID 2 has been processed successfully"]
     Datafiles = [
-             { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":5,\"total_supply\":1000000,\"blocks_generated_per_year\":1000,\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
+             { Filename = "data.json", Contents = "{\"change_ratio_numerator\":1,\"change_ratio_denominator\":5,\"total_supply\":1000000,\"blocks_generated_per_year\":1000,\"base_percentage\":10,\"operator\":\"div\",\"minting_account\":{\"chainId\":\"default\",\"local\":\"S7Mg3vyaNSnqchAyvZWoYF7S1UM=\"}}" }
         ]
 
 [[TestCases]]
