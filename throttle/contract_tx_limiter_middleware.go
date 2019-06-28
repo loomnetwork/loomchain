@@ -131,7 +131,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 		}
 		if msgTx.VmType == vm.VMType_EVM {
-			if TxLimiter.contractToTierMap == nil {
+			if TxLimiter.contractToTierMap == nil || TxLimiter.lastUpdated+cfg.RefreshInterval < time.Now().Unix() {
 				ctx, err := createUserDeployerWhitelistCtx(state)
 				if err != nil {
 					return res, errors.Wrap(err, "throttle: context creation")
@@ -141,13 +141,13 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 					return res, errors.Wrap(err, "throttle: contractToTierMap creation")
 				}
 				TxLimiter.contractToTierMap = contractToTierMap
-				// TxLimiter.lastUpdated = time.Now().Unix()
+				TxLimiter.lastUpdated = time.Now().Unix()
 			}
 			contractAddr := loom.UnmarshalAddressPB(msg.To)
 			//check if contract in list
 			tierID, ok := TxLimiter.contractToTierMap[contractAddr.String()]
 			if !ok {
-				return loomchain.TxHandlerResult{}, ErrContractNotWhitelisted
+				return next(state, txBytes, isCheckTx)
 			}
 
 			tier := TxLimiter.tierMap[tierID].Tier
