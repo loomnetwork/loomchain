@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -33,11 +34,17 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) err
 	if coinPolicy.ChangeRatioDenominator == 0 {
 		return errors.New("ChangeRatioDenominator should be greater than zero")
 	}
+	if coinPolicy.BasePercentage == 0 {
+		return errors.New("BasePercentage should be greater than zero")
+	}
 	if coinPolicy.TotalSupply == 0 {
 		return errors.New("Total Supply should be greater than zero")
 	}
 	if coinPolicy.BlocksGeneratedPerYear == 0 {
 		return errors.New("Blocks Generated Per Year should be greater than zero")
+	}
+	if !strings.EqualFold("div", coinPolicy.Operator) && !strings.EqualFold("exp", coinPolicy.Operator) {
+		return errors.New("Invalid operator - Operator should be div or exp")
 	}
 	addr := loom.UnmarshalAddressPB(coinPolicy.MintingAccount)
 	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
