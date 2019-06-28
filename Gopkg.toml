@@ -37,7 +37,6 @@ ignored = [
   "google.golang.org/grpc*",
   "github.com/gogo/protobuf*",
   "github.com/hashicorp/go-plugin*",
-  "github.com/loomnetwork/transfer-gateway*",
   "github.com/spf13/cobra*",
   "github.com/spf13/pflag*",
   "github.com/ethereum/go-ethereum*",
