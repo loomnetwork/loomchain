@@ -290,6 +290,7 @@ func Mint(ctx contract.Context) error {
 	if year.Cmp(loom.NewBigUIntFromInt(1)) == 0 {
 		//Determines minting amount at the beginning block of year or at block height at which minting is enabled
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
+		//Minting Amount Computation for starting year
 			amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
 			err = ctx.Set(mintingAmountKey, &types.BigUInt{
 				Value: *amount,
