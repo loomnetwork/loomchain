@@ -582,16 +582,13 @@ func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorIn
 	if !isValidator {
 		return ErrNotAuthorized
 	}
-	return setValidatorInfo(ctx, senderAddr, req.BuildNumber)
-}
 
-func setValidatorInfo(ctx contract.Context, addr loom.Address, buildNumber uint64) error {
 	validator := &ValidatorInfo{
-		Address:     addr.MarshalPB(),
-		BuildNumber: buildNumber,
+		Address:     senderAddr.MarshalPB(),
+		BuildNumber: req.BuildNumber,
 		UpdatedAt:   uint64(time.Now().Unix()),
 	}
-	return ctx.Set(validatorInfoKey(addr), validator)
+	return ctx.Set(validatorInfoKey(senderAddr), validator)
 }
 
 func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValidatorInfoRequest) (*GetValidatorInfoResponse, error) {
