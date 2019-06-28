@@ -197,9 +197,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		BuildNumber: buildNumber,
 	})
 	require.NoError(err)
-	getValidatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
+	validatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
 	require.NoError(err)
-	require.Equal(buildNumber, getValidatorInfo.Validator.BuildNumber)
+	require.Equal(buildNumber, validatorInfo.Validator.BuildNumber)
 
 	listValidators, err := chainconfigContract.ListValidatorsInfo(ctx, &ListValidatorsInfoRequest{})
 	require.NoError(err)
@@ -456,9 +456,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		BuildNumber: buildNumber,
 	})
 	require.NoError(err)
-	getValidatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
+	validatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
 	require.NoError(err)
-	require.Equal(buildNumber, getValidatorInfo.Validator.BuildNumber)
+	require.Equal(buildNumber, validatorInfo.Validator.BuildNumber)
 
 	listValidators, err := chainconfigContract.ListValidatorsInfo(ctx, &ListValidatorsInfoRequest{})
 	require.NoError(err)
