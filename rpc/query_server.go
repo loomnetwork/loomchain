@@ -1058,6 +1058,8 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	return eth.EncUint(nonce), nil
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getbalance
+// uses ethcoin contract to return the balance corresponding to the address
 func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
 	owner, err := eth.DecDataToAddress(s.ChainID, address)
 	if err != nil {
