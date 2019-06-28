@@ -184,4 +184,4 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-validators "
   Condition = "contains"
-  Expected = ['validators','578','50']
+  Expected = ['validator','578','50']
