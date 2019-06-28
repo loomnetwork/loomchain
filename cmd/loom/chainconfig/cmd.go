@@ -2,6 +2,7 @@ package chainconfig
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -417,6 +418,10 @@ func ListValidatorsInfoCmd() *cobra.Command {
 
 			ml := maxLength{Validator: 42, BuildNumber: 5, UpdateAt: 29}
 
+			sort.Slice(resp.Validators[:], func(i, j int) bool {
+				return resp.Validators[i].BuildNumber < resp.Validators[j].BuildNumber
+			})
+
 			fmt.Printf(
 				"%-*s | %-*s | %-*s |\n", ml.Validator, "validator",
 				ml.BuildNumber, "build", ml.UpdateAt, "Last Update")
@@ -426,12 +431,6 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				fmt.Printf("%-*s | %-*d | %-*s |\n", ml.Validator, value.Address.Local.String(),
 					ml.BuildNumber, value.BuildNumber, ml.UpdateAt, time.Unix(int64(value.UpdatedAt), 0).UTC())
 			}
-
-			// out, err := formatJSON(&resp)
-			// if err != nil {
-			// 	return err
-			// }
-			// fmt.Println(out)
 
 			counters := make(map[uint64]int)
 			for _, validator := range resp.Validators {
@@ -466,3 +465,9 @@ func uintLength(n uint64) int {
 	str := strconv.FormatUint(n, 10)
 	return len(str)
 }
+
+type ByBuild []cctype.ValidatorInfo
+
+func (a ByBuild) Len() int           { return len(a) }
+func (a ByBuild) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByBuild) Less(i, j int) bool { return a[i].BuildNumber < a[j].BuildNumber }

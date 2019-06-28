@@ -165,7 +165,7 @@
   Expected = ['buildNumber', '578']
 
   [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 10 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
 
@@ -177,11 +177,11 @@
 
   [[TestCases]]
   Delay = 5000
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 2001 -k {{index $.NodePrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 3}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-validators "
   Condition = "contains"
-  Expected = ['validators','578','10']
+  Expected = ['validators','578','50']
