@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
@@ -392,14 +393,14 @@ func GetValidatorInfoCmd() *cobra.Command {
 }
 
 const listValidatorsInfoCmdExample = `
-loom chain-cfg list-validators-info 
+loom chain-cfg list-validators 
 `
 
 func ListValidatorsInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "list-validators-info",
-		Short:   "list validator informations",
+		Use:     "list-validators",
+		Short:   "Show info stored for each validator",
 		Example: listValidatorsInfoCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ListValidatorsInfoResponse
@@ -408,18 +409,36 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
+			type maxLength struct {
+				Validator   int
+				BuildNumber int
+				UpdateAt    int
 			}
-			fmt.Println(out)
+
+			ml := maxLength{Validator: 42, BuildNumber: 5, UpdateAt: 29}
+
+			fmt.Printf(
+				"%-*s | %-*s | %-*s |\n", ml.Validator, "validator",
+				ml.BuildNumber, "build", ml.UpdateAt, "Last Update")
+			fmt.Printf(
+				strings.Repeat("-", ml.Validator+ml.BuildNumber+ml.UpdateAt+8) + "\n")
+			for _, value := range resp.Validators {
+				fmt.Printf("%-*s | %-*d | %-*s |\n", ml.Validator, value.Address.Local.String(),
+					ml.BuildNumber, value.BuildNumber, ml.UpdateAt, time.Unix(int64(value.UpdatedAt), 0).UTC())
+			}
+
+			// out, err := formatJSON(&resp)
+			// if err != nil {
+			// 	return err
+			// }
+			// fmt.Println(out)
 
 			counters := make(map[uint64]int)
 			for _, validator := range resp.Validators {
 				counters[validator.BuildNumber]++
 			}
 			fmt.Printf(
-				"%-*s| %-*s | \n", 11, "BuildNumber", 10, "Percentage")
+				"\n%-*s| %-*s | \n", 11, "BuildNumber", 10, "Percentage")
 			fmt.Printf(
 				strings.Repeat("-", 27) + "\n")
 
