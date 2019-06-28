@@ -6,15 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -54,7 +52,9 @@ func TestLoadPolicy(t *testing.T) {
 			ChangeRatioNumerator:   1,
 			MintingAccount:         addr1.MarshalPB(),
 			BlocksGeneratedPerYear: 50000,
-			TotalSupply:            100000,
+			BasePercentage:         10,
+			TotalSupply:            100,
+			Operator:               "div",
 		},
 	})
 	require.Nil(t, err)
@@ -71,7 +71,9 @@ func TestLoadPolicy(t *testing.T) {
 			ChangeRatioNumerator:   1,
 			MintingAccount:         addr1.MarshalPB(),
 			BlocksGeneratedPerYear: 50000,
-			TotalSupply:            100000,
+			BasePercentage:         10,
+			TotalSupply:            100,
+			Operator:               "div",
 		},
 	})
 	require.Error(t, errors.New("ChangeRatioDenominator should be greater than zero"), err.Error())
@@ -88,7 +90,9 @@ func TestLoadPolicy(t *testing.T) {
 			ChangeRatioNumerator:   0,
 			MintingAccount:         addr1.MarshalPB(),
 			BlocksGeneratedPerYear: 50000,
-			TotalSupply:            100000,
+			BasePercentage:         10,
+			TotalSupply:            100,
+			Operator:               "div",
 		},
 	})
 	require.Error(t, errors.New("ChangeRatioNumerator should be greater than zero"), err.Error())
@@ -105,7 +109,9 @@ func TestLoadPolicy(t *testing.T) {
 			ChangeRatioNumerator:   1,
 			MintingAccount:         addr1.MarshalPB(),
 			BlocksGeneratedPerYear: 50000,
+			BasePercentage:         10,
 			TotalSupply:            0,
+			Operator:               "div",
 		},
 	})
 	require.EqualError(t, errors.New("Total Supply should be greater than zero"), err.Error())
@@ -122,7 +128,9 @@ func TestLoadPolicy(t *testing.T) {
 			ChangeRatioNumerator:   1,
 			MintingAccount:         addr1.MarshalPB(),
 			BlocksGeneratedPerYear: 0,
-			TotalSupply:            100000,
+			BasePercentage:         10,
+			TotalSupply:            100,
+			Operator:               "div",
 		},
 	})
 	require.EqualError(t, errors.New("Blocks Generated Per Year should be greater than zero"), err.Error())
@@ -139,35 +147,61 @@ func TestLoadPolicy(t *testing.T) {
 			ChangeRatioNumerator:   0,
 			MintingAccount:         loom.RootAddress("chain").MarshalPB(),
 			BlocksGeneratedPerYear: 0,
-			TotalSupply:            100000,
+			BasePercentage:         10,
+			TotalSupply:            100,
+			Operator:               "div",
 		},
 	})
 	require.Error(t, errors.New("Minting Account Address cannot be Root Address"), err.Error())
+	//Invalid Operator
+	err = contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+		Policy: &Policy{
+			ChangeRatioDenominator: 5,
+			ChangeRatioNumerator:   0,
+			MintingAccount:         loom.RootAddress("chain").MarshalPB(),
+			BlocksGeneratedPerYear: 0,
+			BasePercentage:         10,
+			TotalSupply:            100,
+			Operator:               "add",
+		},
+	})
+	require.Error(t, errors.New("Invalid operator - Operator should be div or exp"), err.Error())
+
 }
 
-func TestMint(t *testing.T) {
+func TestMintDivOperator(t *testing.T) {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	//Initializing context for CoinPolicyFeature
 	policy := &Policy{
-		ChangeRatioDenominator: 1,
-		ChangeRatioNumerator:   2,
+		ChangeRatioDenominator: 2,
+		ChangeRatioNumerator:   1,
 		MintingAccount:         addr1.MarshalPB(),
 		BlocksGeneratedPerYear: 50000,
-		TotalSupply:            10000000,
+		BasePercentage:         10,
+		TotalSupply:            100,
+		Operator:               "div",
 	}
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx := contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  10000,
+		Height:  1,
 	}))
-	//Minting will start in year 1 after BlockHeight 10000
+	//Minting will start in year 1 for first block
 	contract := &Coin{}
 	err := contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
-				Balance: uint64(31),
+				Balance: uint64(100),
 			},
 		},
 		Policy: policy,
@@ -190,42 +224,28 @@ func TestMint(t *testing.T) {
 		})
 	require.Nil(t, err)
 
-	var amount *common.BigUInt
-	// Balance of mintingAccount should increase by specific amount after minting operation
-	changeRatioNumerator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
-	changeRatioDenominator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
-	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
-	totalSupply := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
-	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
-	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
-	year = year.Add(year, loom.NewBigUIntFromInt(1))
-	//Computes year based on blockheight ==> year - 1
-	assert.Equal(t, uint64(1), year.Uint64())
-	if year == loom.NewBigUIntFromInt(1) {
-		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
-	} else {
-		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
-		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
-		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
-		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
+	amount1 := &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
 	}
-	// Minting starts for year 1 after blockheight 10000 - Minting Amount Per Block = 400
-	assert.Equal(t, amount.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
+	err = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	// Minting amount for block for year 1 for blockheight 1
+	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
 
 	pctx1 := plugin.CreateFakeContext(addr1, addr1)
 	pctx1.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx1 := contractpb.WrapPluginContext(pctx1.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  60000,
+		Height:  50001,
 	}))
-	//Minting will start in year 2 after BlockHeight 60000
+	//Minting will start in year 2 starting from BlockHeight 50001
 	contract1 := &Coin{}
 	err1 := contract1.Init(ctx1, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
-				Balance: uint64(31),
+				Balance: uint64(100),
 			},
 		},
 		Policy: policy,
@@ -248,41 +268,27 @@ func TestMint(t *testing.T) {
 		})
 	require.Nil(t, err1)
 
-	// Balance of mintingAccount should increase by specific amount after minting operation
-	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
-	changeRatioDenominator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
-	blockHeight = loom.NewBigUIntFromInt(ctx1.Block().Height)
-	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
-	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
-	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
-	year = year.Add(year, loom.NewBigUIntFromInt(1))
-	//Computes year based on blockheight year ==> 2
-	assert.Equal(t, uint64(2), year.Uint64())
-	if year == loom.NewBigUIntFromInt(1) {
-		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
-	} else {
-		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
-		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
-		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
-		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
+	amount1 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
 	}
-	// Minting starts for year 2 after blockheight 60000 - Minting Amount Per Block = 200
-	assert.Equal(t, amount.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
-
+	err = ctx1.Get(mintingAmountKey, amount1)
+	testAmount := amount1.Value.Uint64()
+	require.Nil(t, err)
+	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
 	pctx2 := plugin.CreateFakeContext(addr1, addr1)
 	pctx2.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx2 := contractpb.WrapPluginContext(pctx2.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  110000,
+		Height:  100001,
 	}))
-	//Minting will start in year 3 after BlockHeight 110000
+	//Minting will start in year 3 from BlockHeight 100001
 	contract2 := &Coin{}
 	err2 := contract2.Init(ctx2, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
-				Balance: uint64(31),
+				Balance: uint64(100),
 			},
 		},
 		Policy: policy,
@@ -305,42 +311,25 @@ func TestMint(t *testing.T) {
 		})
 	require.Nil(t, err2)
 
-	// Balance of mintingAccount should increase by specific amount after minting operation
-	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
-	changeRatioDenominator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
-	blockHeight = loom.NewBigUIntFromInt(ctx2.Block().Height)
-	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
-	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
-	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
-	year = year.Add(year, loom.NewBigUIntFromInt(1))
-	//Computes year based on blockheight year ==> 3
-	assert.Equal(t, uint64(3), year.Uint64())
-	if year == loom.NewBigUIntFromInt(1) {
-		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
-	} else {
-		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
-		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
-		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
-		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
-	}
-	// Minting starts for year 3 after blockheight 110000 - Minting Amount per block = 133
-	assert.Equal(t, amount.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
+	err = ctx2.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	assert.Equal(t, amount1.Value.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
 
 	pctx3 := plugin.CreateFakeContext(addr1, addr1)
 	pctx3.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx3 := contractpb.WrapPluginContext(pctx3.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  20000002,
+		Height:  9000000000000000001,
 	}))
 	//Block Height is set to very high value,
-	// Minting will stop at this stage as minting Amount per block = 0 after very long period i.e 401 years
+	// Minting will stop at this stage as minting Amount per block = 0 after very long period
 	contract3 := &Coin{}
 	err3 := contract3.Init(ctx3, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
-				Balance: uint64(31),
+				Balance: uint64(100),
 			},
 		},
 		Policy: policy,
@@ -356,7 +345,6 @@ func TestMint(t *testing.T) {
 	//There will be no minting at this stage as amount to mint per block becomes zero
 	err3 = Mint(ctx3)
 	require.Nil(t, err3)
-
 	// checking balance after minting
 	resp8, err3 := contract3.BalanceOf(ctx3,
 		&BalanceOfRequest{
@@ -364,29 +352,291 @@ func TestMint(t *testing.T) {
 		})
 	require.Nil(t, err3)
 
-	// Balance of mintingAccount should increase by specific amount after minting operation
-	changeRatioNumerator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
-	changeRatioDenominator = loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
-	blockHeight = loom.NewBigUIntFromInt(ctx3.Block().Height)
-	totalSupply = loom.NewBigUIntFromInt(int64(policy.TotalSupply))
-	blocksGeneratedPerYear = loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
-	year = blockHeight.Div(blockHeight, blocksGeneratedPerYear)
-	year = year.Add(year, loom.NewBigUIntFromInt(1))
-	//Year comes out to be very long period i.e 401 years
-	assert.Equal(t, uint64(401), year.Uint64())
-
-	if year == loom.NewBigUIntFromInt(1) {
-		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
-	} else {
-		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
-		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
-		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
-		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
-	}
+	err = ctx3.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
 	// Minting stops at this stage and total supply becomes constant
-	assert.Equal(t, amount.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
-	assert.Equal(t, amount.Uint64(), uint64(0))
+	assert.Equal(t, amount1.Value.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
+	assert.Equal(t, amount1.Value.Uint64(), uint64(0))
 
+	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
+	// not from year 2 beginning
+	pctx5 := plugin.CreateFakeContext(addr1, addr1)
+	pctx5.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx5 := contractpb.WrapPluginContext(pctx5.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50003,
+	}))
+	//Minting will start in year 2 starting from BlockHeight 50001
+	contract5 := &Coin{}
+	err5 := contract5.Init(ctx5, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err5)
+
+	//Minting without any error
+	resp10, err5 := contract5.BalanceOf(ctx5,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err5)
+	err5 = Mint(ctx5)
+	require.Nil(t, err5)
+
+	// checking balance after minting
+	resp11, err6 := contract5.BalanceOf(ctx5,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+
+	var amount5 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx5.Get(mintingAmountKey, amount5)
+	require.Nil(t, err)
+	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
+	//Minting Amount at height h for second year is considered to be equal to minting Amnount for first block of
+	// second year as Total Supply at both stages is assumed to be same, but in practical scenario it might be different
+	assert.Equal(t, amount5.Value.Uint64(), testAmount)
+
+}
+
+func TestMintExpOperator(t *testing.T) {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+	//Initializing context for CoinPolicyFeature
+	policy := &Policy{
+		ChangeRatioDenominator: 2,
+		ChangeRatioNumerator:   1,
+		MintingAccount:         addr1.MarshalPB(),
+		BlocksGeneratedPerYear: 50000,
+		BasePercentage:         10,
+		TotalSupply:            100,
+		Operator:               "exp",
+	}
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx := contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  1,
+	}))
+	//Minting will start in year 1 for first block
+	contract := &Coin{}
+	err := contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err)
+
+	//Minting without any error
+	resp1, err := contract.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+	err = Mint(ctx)
+	require.Nil(t, err)
+
+	// checking balance after minting
+	resp2, err := contract.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+	amount1 := &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
+
+	pctx1 := plugin.CreateFakeContext(addr1, addr1)
+	pctx1.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx1 := contractpb.WrapPluginContext(pctx1.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50001,
+	}))
+	//Minting will start in year 2 starting from BlockHeight 50001
+	contract1 := &Coin{}
+	err1 := contract1.Init(ctx1, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err1)
+
+	//Minting without any error
+	resp3, err1 := contract1.BalanceOf(ctx1,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err1)
+	err1 = Mint(ctx1)
+	require.Nil(t, err1)
+
+	// checking balance after minting
+	resp4, err1 := contract1.BalanceOf(ctx1,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err1)
+
+	amount1 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx1.Get(mintingAmountKey, amount1)
+	testAmount := amount1.Value.Uint64()
+	require.Nil(t, err)
+	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
+
+	pctx2 := plugin.CreateFakeContext(addr1, addr1)
+	pctx2.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx2 := contractpb.WrapPluginContext(pctx2.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  100001,
+	}))
+	//Minting will start in year 3 starting from BlockHeight 100001
+	contract2 := &Coin{}
+	err2 := contract2.Init(ctx2, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err2)
+
+	//Minting without any error
+	resp5, err2 := contract2.BalanceOf(ctx2,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err2)
+	err2 = Mint(ctx2)
+	require.Nil(t, err2)
+
+	// checking balance after minting
+	resp6, err2 := contract2.BalanceOf(ctx2,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err2)
+
+	err = ctx2.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	assert.Equal(t, amount1.Value.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
+
+	pctx3 := plugin.CreateFakeContext(addr1, addr1)
+	pctx3.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx3 := contractpb.WrapPluginContext(pctx3.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  20000001,
+	}))
+	//Block Height is set to very high value,
+	// Minting will stop at this stage as minting Amount per block = 0 after very long period
+	contract3 := &Coin{}
+	err3 := contract3.Init(ctx3, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err3)
+
+	//Minting without any error
+	resp7, err3 := contract3.BalanceOf(ctx3,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err3)
+	//There will be no minting at this stage as amount to mint per block becomes zero
+	err3 = Mint(ctx3)
+	require.Nil(t, err3)
+	// checking balance after minting
+	resp8, err3 := contract3.BalanceOf(ctx3,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err3)
+
+	err = ctx3.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	// Minting stops at this stage and total supply becomes constant
+	assert.Equal(t, amount1.Value.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
+	assert.Equal(t, amount1.Value.Uint64(), uint64(0))
+
+	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
+	// not from year 2 beginning
+	pctx5 := plugin.CreateFakeContext(addr1, addr1)
+	pctx5.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx5 := contractpb.WrapPluginContext(pctx5.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50003,
+	}))
+	//Minting will start in year 2 starting from BlockHeight 50001
+	contract5 := &Coin{}
+	err5 := contract5.Init(ctx5, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err5)
+
+	//Minting without any error
+	resp10, err5 := contract5.BalanceOf(ctx5,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err5)
+	err5 = Mint(ctx5)
+	require.Nil(t, err5)
+
+	// checking balance after minting
+	resp11, err6 := contract5.BalanceOf(ctx5,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+
+	var amount5 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx5.Get(mintingAmountKey, amount5)
+	require.Nil(t, err)
+	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
+	//Minting Amount at height h for second year is considered to be equal to minting Amnount for first block of
+	// second year as Total Supply at both stages is assumed to be same, but in practical scenario it might be different
+	assert.Equal(t, amount5.Value.Uint64(), testAmount)
 }
 
 func TestTransfer(t *testing.T) {
