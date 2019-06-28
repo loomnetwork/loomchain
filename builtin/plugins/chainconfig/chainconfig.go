@@ -599,8 +599,10 @@ func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValid
 
 	var validatorInfo ValidatorInfo
 	err := ctx.Get(validatorInfoKey(address), &validatorInfo)
-	if err != nil {
-		return nil, err
+	if err == contract.ErrNotFound {
+		return &GetValidatorInfoResponse{}, nil
+	} else if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve validator info")
 	}
 	return &GetValidatorInfoResponse{
 		Validator: &validatorInfo,
