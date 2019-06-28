@@ -596,22 +596,15 @@ func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValid
 		return nil, ErrInvalidRequest
 	}
 	address := loom.UnmarshalAddressPB(req.Address)
-	validatorInfo, err := getValidatorInfo(ctx, address)
+
+	var validatorInfo ValidatorInfo
+	err := ctx.Get(validatorInfoKey(address), &validatorInfo)
 	if err != nil {
 		return nil, err
 	}
 	return &GetValidatorInfoResponse{
-		Validator: validatorInfo,
+		Validator: &validatorInfo,
 	}, nil
-}
-
-func getValidatorInfo(ctx contract.StaticContext, addr loom.Address) (*ValidatorInfo, error) {
-	var validatorInfo ValidatorInfo
-	err := ctx.Get(validatorInfoKey(addr), &validatorInfo)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve chainconfig validatorinfo")
-	}
-	return &validatorInfo, nil
 }
 
 // ListValidatorsInfo return info validators
