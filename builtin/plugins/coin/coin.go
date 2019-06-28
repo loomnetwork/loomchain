@@ -3,6 +3,8 @@ package coin
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -53,9 +55,10 @@ var (
 )
 
 var (
-	economyKey = []byte("economy")
-	policyKey  = []byte("policy")
-	decimals   = 18
+	economyKey       = []byte("economy")
+	policyKey        = []byte("policy")
+	mintingAmountKey = []byte("mintingAmount")
+	decimals         = 18
 )
 
 func accountKey(addr loom.Address) []byte {
@@ -86,6 +89,9 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		if req.Policy.ChangeRatioDenominator == 0 {
 			return errors.New("ChangeRatioDenominator should be greater than zero")
 		}
+		if req.Policy.BasePercentage == 0 {
+			return errors.New("BasePercentage should be greater than zero")
+		}
 		if req.Policy.TotalSupply == 0 {
 			return ErrInvalidTotalSupply
 		}
@@ -94,6 +100,9 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		}
 		if req.Policy.BlocksGeneratedPerYear == 0 {
 			return errors.New("Blocks Generated Per Year should be greater than zero")
+		}
+		if !strings.EqualFold("div", req.Policy.Operator) && !strings.EqualFold("exp", req.Policy.Operator) {
+			return errors.New("Invalid operator - Operator should be div or exp")
 		}
 		addr := loom.UnmarshalAddressPB(req.Policy.MintingAccount)
 		if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
@@ -105,6 +114,8 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 			TotalSupply:            req.Policy.TotalSupply,
 			MintingAccount:         req.Policy.MintingAccount,
 			BlocksGeneratedPerYear: req.Policy.BlocksGeneratedPerYear,
+			BasePercentage:         req.Policy.BasePercentage,
+			Operator:               req.Policy.Operator,
 		}
 		if err := ctx.Set(policyKey, policy); err != nil {
 			return err
@@ -248,6 +259,8 @@ func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
 
 //Mint : to be called by CoinPolicyManager Responsible to mint coins as per various parameter defined
 func Mint(ctx contract.Context) error {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	var policy Policy
 	var amount *common.BigUInt
 	err := ctx.Get(policyKey, &policy)
@@ -258,21 +271,72 @@ func Mint(ctx contract.Context) error {
 	changeRatioDenominator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
 	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
 	totalSupply := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
+	totalSupply.Mul(totalSupply, div)
 	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
+	basePercentage := loom.NewBigUIntFromInt(int64(policy.BasePercentage))
+	operator := policy.Operator
+	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height), big.NewInt(int64(policy.BlocksGeneratedPerYear)), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
 	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
 	year = year.Add(year, loom.NewBigUIntFromInt(1))
-	if year == loom.NewBigUIntFromInt(1) {
-		amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+	var checkMintAmount = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx.Get(mintingAmountKey, checkMintAmount)
+	if err != nil && err != contract.ErrNotFound {
+		return err
+	}
+	//Minting Amount Per block derived from ctx after minting amount is determined for year
+	if year.Cmp(loom.NewBigUIntFromInt(1)) == 0 {
+		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
+			amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+			err = ctx.Set(mintingAmountKey, &types.BigUInt{
+				Value: *amount,
+			})
+			if err != nil {
+				return err
+			}
+		}
 	} else {
-		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
-		totalSupplyForYear := totalSupply.Mul(totalSupply, changeRatioNumerator)
-		totalSupplyForYear = totalSupplyForYear.Div(totalSupplyForYear, changeRatioDenominator)
-		amount = totalSupplyForYear.Div(totalSupplyForYear, blocksGeneratedPerYear)
+		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
+			if strings.EqualFold("div", operator) {
+				changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+				basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+			} else {
+				changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+				changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+				basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+			}
+			var econ Economy
+			err := ctx.Get(economyKey, &econ)
+			if err != nil {
+				return err
+			}
+			totalSupply = &econ.TotalSupply.Value
+			inflationforYear := totalSupply.Mul(totalSupply, basePercentage)
+			inflationforYear = inflationforYear.Div(inflationforYear, changeRatioDenominator)
+			inflationforYear = inflationforYear.Div(inflationforYear, loom.NewBigUIntFromInt(100))
+			amount = inflationforYear.Div(inflationforYear, blocksGeneratedPerYear)
+			//Minting Amount per block computed starting from beginning block of that year and saved to avoid re-computations
+			err = ctx.Set(mintingAmountKey, &types.BigUInt{
+				Value: *amount,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	var amount1 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	//Minting Amount Per block derived from ctx after minting amount is determined for year
+	err = ctx.Get(mintingAmountKey, amount1)
+	if err != nil {
+		return err
 	}
 	if amount == loom.NewBigUIntFromInt(0) {
 		return nil // No more coins to be minted on block creation
 	}
-	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
+	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), loom.NewBigUIntFromInt(amount1.Value.Int64()))
 }
 
 // ERC20 methods
