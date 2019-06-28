@@ -22,15 +22,15 @@ type ContractTxLimiterConfig struct {
 	// Enables the middleware
 	Enabled bool
 	// Number of seconds each refresh lasts
-	ContractRefreshInterval int64
-	TierRefreshInterval     int64
+	ContractDataRefreshInterval int64
+	TierDataRefreshInterval     int64
 }
 
 func DefaultContractTxLimiterConfig() *ContractTxLimiterConfig {
 	return &ContractTxLimiterConfig{
-		Enabled:                 false,
-		ContractRefreshInterval: 15 * 60,
-		TierRefreshInterval:     15 * 60,
+		Enabled:                     false,
+		ContractDataRefreshInterval: 15 * 60,
+		TierDataRefreshInterval:     15 * 60,
 	}
 }
 
@@ -45,12 +45,12 @@ func (c *ContractTxLimiterConfig) Clone() *ContractTxLimiterConfig {
 
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
-	contractToTierMap   map[string]udw.TierID
-	contractLastUpdated int64
+	contractToTierMap       map[string]udw.TierID
+	contractDataLastUpdated int64
 	// track of no. of txns in previous blocks per contract
-	contractToBlockTrx map[string]*blockTxn
-	tierMap            map[udw.TierID]udw.Tier
-	tierLastUpdated    int64
+	contractToBlockTrx  map[string]*blockTxn
+	tierMap             map[udw.TierID]udw.Tier
+	tierDataLastUpdated int64
 }
 
 type blockTxn struct {
@@ -130,7 +130,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 		}
 		if msgTx.VmType == vm.VMType_EVM {
-			if TxLimiter.contractToTierMap == nil || TxLimiter.contractLastUpdated+cfg.ContractRefreshInterval < time.Now().Unix() {
+			if TxLimiter.contractToTierMap == nil || TxLimiter.contractDataLastUpdated+cfg.ContractDataRefreshInterval < time.Now().Unix() {
 				ctx, err := createUserDeployerWhitelistCtx(state)
 				if err != nil {
 					return res, errors.Wrap(err, "throttle: context creation")
@@ -140,7 +140,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 					return res, errors.Wrap(err, "throttle: contractToTierMap creation")
 				}
 				TxLimiter.contractToTierMap = contractToTierMap
-				TxLimiter.contractLastUpdated = time.Now().Unix()
+				TxLimiter.contractDataLastUpdated = time.Now().Unix()
 			}
 			contractAddr := loom.UnmarshalAddressPB(msg.To)
 			//check if contract in list
@@ -149,7 +149,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 				return next(state, txBytes, isCheckTx)
 			}
 			// update tierMap if expired
-			if TxLimiter.tierLastUpdated+cfg.TierRefreshInterval < time.Now().Unix() {
+			if TxLimiter.tierDataLastUpdated+cfg.TierDataRefreshInterval < time.Now().Unix() {
 				for tierID := range TxLimiter.tierMap {
 					ctx, er := createUserDeployerWhitelistCtx(state)
 					if er != nil {
@@ -161,7 +161,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 					}
 					TxLimiter.tierMap[tierID] = tierInfo
 				}
-				TxLimiter.tierLastUpdated = time.Now().Unix()
+				TxLimiter.tierDataLastUpdated = time.Now().Unix()
 			}
 
 			// check if tier corresponding to contract available in tierMap
