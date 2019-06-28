@@ -38,12 +38,14 @@ func UnregisterCandidateCmdV3() *cobra.Command {
 
 func UnjailValidatorCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
+
 	cmd := &cobra.Command{
 		Use:   "unjail-validator",
 		Short: "Unjail a validator",
+		Args:  cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var validator *types.Address
-			if len(args) > 1 {
+			if len(args) == 1 {
 				addr, err := cli.ParseAddress(args[0], flags.ChainID)
 				if err != nil {
 					return err

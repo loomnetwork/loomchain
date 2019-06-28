@@ -2515,7 +2515,7 @@ func TestJailOfflineValidators(t *testing.T) {
 	require.Nil(t, err)
 	err = dpos.Delegate(dposCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
-	elect(pctx, dpos.Address)
+	elect(dposCtx, dpos.Address)
 	// after an election, a validator will be jailed
 	elect(dposCtx, dpos.Address)
 

@@ -43,7 +43,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 2}}"]
+  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 222 -k {{index $.NodePrivKeyPathList 2}}"

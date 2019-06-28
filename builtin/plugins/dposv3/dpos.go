@@ -888,7 +888,6 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
 		return errors.New("DPOS v3.3 is not enabled")
 	}
-	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
 
 	candidateAddress := ctx.Message().Sender
 
@@ -911,9 +910,10 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 	}
 
 	if !statistic.Jailed {
-		return errors.New("Cannot unjail the validator that is not jailed")
+		return fmt.Errorf("%s is not jailed", candidateAddress.String())
 	}
 
+	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
 	statistic.Jailed = false
 	if err = SetStatistic(ctx, statistic); err != nil {
 		return err
