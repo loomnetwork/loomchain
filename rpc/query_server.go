@@ -1153,7 +1153,6 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 
 		return jsonReceipt, nil
 	}
-
 	return completeReceipt(txResults, blockResult, &txReceipt), nil
 }
 
