@@ -451,3 +451,52 @@ func getDAppChainClient() *client.DAppChainRPCClient {
 	readURI := gatewayCmdFlags.URI + "/query"
 	return client.NewDAppChainRPCClient(gatewayCmdFlags.ChainID, writeURI, readURI)
 }
+
+const listContractMappingExample = ``
+
+func newListContractMappingCommand() *cobra.Command {
+	var chainID string
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "list-contract-mapping",
+		Short:   "Return a list of all pending and confirmed contract mappings.",
+		Example: listContractMappingExample,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var addr loom.Address
+			var err error
+			if strings.HasPrefix(args[0], "eth:") {
+				addr, err = loom.ParseAddress(args[0])
+			} else {
+				if strings.HasPrefix(args[0], gatewayCmdFlags.ChainID+":") {
+					addr, err = loom.ParseAddress(args[0])
+				} else {
+					addr, err = hexToLoomAddress(args[0])
+				}
+			}
+			if err != nil {
+				return errors.Wrap(err, "invalid account address")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			fmt.Println("caller address ", addr)
+			req := &tgtypes.TransferGatewayListContractMappingRequest{}
+			resp := &tgtypes.TransferGatewayListContractMappingResponse{}
+			_, err = gateway.StaticCall("ListContractMapping", req, addr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call ListContractMapping")
+			}
+			fmt.Println(resp)
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&chainID, "chain-id", "eth", "Foreign chain id")
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	return cmd
+}
