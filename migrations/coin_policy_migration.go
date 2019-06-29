@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
@@ -18,6 +19,10 @@ var (
 func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) error {
 	//Resolve coin context
 	_, coinCtx, err := resolveCoin(ctx)
+	if err != nil {
+		return err
+	}
+	_, chainconfigCtx, err := resolveChainConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -48,6 +53,13 @@ func GenerateCoinPolicyMigrationFn(ctx *MigrationContext, parameters []byte) err
 	}
 	// Turn on coin policy
 	ctx.State().SetFeature(loomchain.CoinVersion1_2Feature, true)
+	// Set feature in chainconfig Contract
+	var feature cctypes.Feature
+	feature.Status = cctypes.Feature_ENABLED
+	feature.BlockHeight = uint64(chainconfigCtx.Block().Height)
+	if err := chainconfigCtx.Set(featureKey(loomchain.CoinVersion1_2Feature), &feature); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -58,4 +70,13 @@ func resolveCoin(ctx *MigrationContext) (loom.Address, contractpb.Context, error
 	}
 	coinAddr := coinCtx.ContractAddress()
 	return coinAddr, coinCtx, nil
+}
+
+func resolveChainConfig(ctx *MigrationContext) (loom.Address, contractpb.Context, error) {
+	chainconfigCtx, err := ctx.ContractContext("chainconfig")
+	if err != nil {
+		return loom.Address{}, nil, err
+	}
+	chainconfigAddr := chainconfigCtx.ContractAddress()
+	return chainconfigAddr, chainconfigCtx, nil
 }
