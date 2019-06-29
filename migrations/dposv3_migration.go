@@ -22,7 +22,7 @@ func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
-func DPOSv3Migration(ctx *MigrationContext, parameters []byte) error {
+func DPOSv3Migration(ctx *MigrationContext) error {
 	// Pull data from DPOSv2
 	_, dposv2Ctx, err := resolveDPOSv2(ctx)
 	if err != nil {
