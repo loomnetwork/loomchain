@@ -79,11 +79,6 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 				"validatorAddress", address,
 				"err", err,
 			)
-
-			// err := m.SlashInactivity(voteInfo.Validator.Address)
-			// if err != nil {
-			// 	return err
-			// }
 		}
 	}
 

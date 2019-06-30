@@ -22,6 +22,7 @@ const (
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
 	billionthsBasisPointRatio      = 100000
+	hundredPercentInBasisPoints    = 10000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.Delegation_BONDING
 	BONDED                         = dtypes.Delegation_BONDED
@@ -59,6 +60,7 @@ var (
 	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
+	defaultMaxDowntimePercentage  = loom.BigUInt{big.NewInt(5000)}
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
 	errStatisticNotFound          = errors.New("Candidate statistic not found.")
@@ -115,6 +117,7 @@ type (
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	UnjailRequest                     = dtypes.UnjailRequest
+	SetMaxDowntimePercentageRequest   = dtypes.SetMaxDowntimePercentageRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -182,6 +185,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 	if params.RegistrationRequirement == nil {
 		params.RegistrationRequirement = &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
+	}
+	if params.MaxDowntimePercentage == nil {
+		params.MaxDowntimePercentage = &types.BigUInt{Value: defaultMaxDowntimePercentage}
 	}
 	if params.MaxYearlyReward == nil {
 		params.MaxYearlyReward = &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)}
@@ -1349,8 +1355,19 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	if state.Params.DowntimePeriod != 0 && (uint64(currentHeight)%state.Params.DowntimePeriod) == 0 {
 		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
 
+		downtimeSlashingEnabled := ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false)
+
+		maxDowntimePercentage := defaultMaxDowntimePercentage
+		if state.Params.MaxDowntimePercentage != nil {
+			maxDowntimePercentage = state.Params.MaxDowntimePercentage.Value
+		}
+
+		maximumMissedBlocksBig := CalculateFraction(maxDowntimePercentage, loom.BigUInt{big.NewInt(int64(state.Params.DowntimePeriod))})
+		maximumMissedBlocks := maximumMissedBlocksBig.Uint64()
+
 		for _, candidate := range candidates {
-			statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
+			statistic, err := GetStatistic(ctx, candidateAddress)
 			if err != nil {
 				if err == contract.ErrNotFound {
 					continue
@@ -1358,10 +1375,30 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 				return err
 			}
 
+			if downtimeSlashingEnabled {
+				// TODO when Ohm's PR is merged, I can rebase & use the
+				// `getDowntimeRecord(ctx, statistic)` function he wrote here
+
+				slash := true;
+				for i := uint64(0); i < 4; i++ {
+					if (maximumMissedBlocks < (statistic.RecentlyMissedBlocks >> (16*i) & 0xFFFF)) {
+						slash = false;
+						break;
+					}
+				}
+
+				if slash {
+					if err := SlashInactivity(ctx, candidateAddress); err != nil {
+						return err
+					}
+				}
+			}
+
 			statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks << 16
 			if err := SetStatistic(ctx, statistic); err != nil {
 				return err
 			}
+
 		}
 	}
 
@@ -1450,7 +1487,7 @@ func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic
 }
 
 // only called for validators, never delegators
-func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
+func SlashInactivity(ctx contract.Context, validatorAddr loom.Address) error {
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
@@ -1459,7 +1496,7 @@ func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
 	return slash(ctx, validatorAddr, state.Params.CrashSlashingPercentage.Value)
 }
 
-func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
+func SlashDoubleSign(ctx contract.Context, validatorAddr loom.Address) error {
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
@@ -1468,8 +1505,8 @@ func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
 	return slash(ctx, validatorAddr, state.Params.ByzantineSlashingPercentage.Value)
 }
 
-func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
-	statistic, err := GetStatisticByAddressBytes(ctx, validatorAddr)
+func slash(ctx contract.Context, validatorAddr loom.Address, slashPercentage loom.BigUInt) error {
+	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "")
 	}
@@ -2190,6 +2227,33 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 
 	return saveState(ctx, state)
 }
+
+func (c *DPOS) SetMaxDowntimePercentage(ctx contract.Context, req *SetMaxDowntimePercentageRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		return errors.New("DPOS v3.4 is not enabled")
+	}
+
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 SetMaxDowntimePercentage", "sender", sender, "request", req)
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	if err := validatePercentage(req.MaxDowntimePercentage.Value); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
+	state.Params.MaxDowntimePercentage = req.MaxDowntimePercentage
+
+	return saveState(ctx, state)
+}
+
 
 func (c *DPOS) SetMinCandidateFee(ctx contract.Context, req *SetMinCandidateFeeRequest) error {
 	sender := ctx.Message().Sender
