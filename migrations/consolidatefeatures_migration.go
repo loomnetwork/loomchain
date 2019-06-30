@@ -1,9 +1,7 @@
 package migrations
 
 import (
-	"github.com/pkg/errors"
-
-	"github.com/gogo/protobuf/proto"
+	"bytes"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 )
 
@@ -16,10 +14,13 @@ func ConsolidateFeaturesMigration(ctx *MigrationContext) error {
 	featuresFromState := ctx.state.Range([]byte(featurePrefix))
 	for _, m := range featuresFromState {
 		var f cctypes.Feature
-		if err := proto.Unmarshal(m.Value, &f); err != nil {
-			return errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
+		data := ctx.state.Get(featureKey(string(m.Key)))
+		if bytes.Equal(data, []byte{1}) {
+		    f.Status = cctypes.Feature_ENABLED
+		}else {
+			f.Status = cctypes.Feature_DISABLED
 		}
-		if err := chainconfigCtx.Set(featureKey(f.Name), &f); err != nil {
+		if err := chainconfigCtx.Set(featureKey(string(m.Key)), &f); err != nil {
 			return err
 		}
 	}
