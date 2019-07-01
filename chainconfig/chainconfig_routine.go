@@ -1,7 +1,6 @@
 package chainconfig
 
 import (
-	"fmt"
 	"runtime"
 	"strconv"
 	"time"
@@ -86,7 +85,6 @@ func (cc *ChainConfigRoutine) run() {
 			} else {
 				// NOTE: errors are logged by the client, no need to log again
 				chainConfigClient.VoteToEnablePendingFeatures(cc.buildNumber)
-				fmt.Println(isBuildnumberEqual)
 				if !isBuildnumberEqual {
 					validatorInfo, err := chainConfigClient.GetBuildNumber()
 					if err != nil {
