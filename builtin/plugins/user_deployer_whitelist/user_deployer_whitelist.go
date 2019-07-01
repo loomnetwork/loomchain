@@ -377,7 +377,7 @@ func GetTierMap(ctx contract.StaticContext) (map[TierID]Tier, error) {
 	for _, rangeEntry := range ctx.Range([]byte(tierKeyPrefix)) {
 		var tier Tier
 		if err := proto.Unmarshal(rangeEntry.Value, &tier); err != nil {
-			return nil, errors.Wrap(err, "Marshalling error")
+			return nil, errors.Wrap(err, "failed to unmarshal tier")
 		}
 		tierMap[tier.TierID] = tier
 
