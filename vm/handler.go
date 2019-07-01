@@ -79,7 +79,15 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
 	}
 
-	if h.AllowNamedEVMContract || tx.VmType == VMType_PLUGIN {
+	if state.FeatureEnabled(loomchain.EvmContractNameFeature, false) {
+		if h.AllowNamedEVMContract || tx.VmType == VMType_PLUGIN {
+			reg := h.CreateRegistry(state)
+			err := reg.Register(tx.Name, addr, caller)
+			if err != nil {
+				return r, err
+			}
+		}
+	} else {
 		reg := h.CreateRegistry(state)
 		err := reg.Register(tx.Name, addr, caller)
 		if err != nil {
