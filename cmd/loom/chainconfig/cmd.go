@@ -335,8 +335,10 @@ loom chain-cfg add-config dpos.feeFloor --build 866 --vote-threshold 70
 `
 
 func AddConfigCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	var buildNumber uint64
 	var voteThreshold uint64
+	var value string
 	cmd := &cobra.Command{
 		Use:     "add-config <config name 1> ... <config name N>",
 		Short:   "Add new config",
@@ -347,15 +349,13 @@ func AddConfigCmd() *cobra.Command {
 					return fmt.Errorf("Invalid config name")
 				}
 			}
-			if voteThreshold == 0 {
-				return fmt.Errorf("Invalid vote threshold")
-			}
 			req := &cctype.AddConfigRequest{
 				Names:         args,
 				BuildNumber:   buildNumber,
 				VoteThreshold: voteThreshold,
+				Value:         value,
 			}
-			err := cli.CallContract(chainConfigContractName, "AddConfig", req, nil)
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "AddConfig", req, nil)
 			if err != nil {
 				return err
 			}
@@ -365,8 +365,9 @@ func AddConfigCmd() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number that supports this config")
 	cmdFlags.Uint64Var(&voteThreshold, "vote-threshold", 0, "Set vote threshold")
+	cmdFlags.StringVar(&value, "value", "", "Set value of the config")
 	cmd.MarkFlagRequired("build")
-	cmd.MarkFlagRequired("vote-threshold")
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -375,13 +376,15 @@ loom chainconfig list-configs
 `
 
 func ListConfigsCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "list-configs",
 		Short:   "Display all configs",
 		Example: listConfigsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ListConfigsResponse
-			err := cli.StaticCallContract(chainConfigContractName, "ListConfigs", &cctype.ListConfigsRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName,
+				"ListConfigs", &cctype.ListConfigsRequest{}, &resp)
 			if err != nil {
 				return err
 			}
@@ -393,6 +396,8 @@ func ListConfigsCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const getConfigCmdExample = `
@@ -400,14 +405,18 @@ loom chain-cfg get-config dpos.feeFloor
 `
 
 func GetConfigCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
 		Use:     "get-config <config name>",
 		Short:   "Get config by config name",
 		Example: getConfigCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.GetConfigResponse
-			err := cli.StaticCallContract(chainConfigContractName, "GetConfig", &cctype.GetConfigRequest{Name: args[0]}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				&flags, chainConfigContractName,
+				"GetConfig", &cctype.GetConfigRequest{Name: args[0]}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -419,6 +428,8 @@ func GetConfigCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 const setConfigCmdExample = `
@@ -426,6 +437,7 @@ loom chain-cfg set-config dpos.feeFloor --value 15
 `
 
 func SetConfigCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	var value string
 	cmd := &cobra.Command{
 		Use:     "set-config <config name>",
@@ -440,7 +452,7 @@ func SetConfigCmd() *cobra.Command {
 				Name:  args[0],
 				Value: value,
 			}
-			err := cli.CallContract(chainConfigContractName, "SetConfig", req, nil)
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetConfig", req, nil)
 			if err != nil {
 				return err
 			}
@@ -449,6 +461,7 @@ func SetConfigCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&value, "value", "", "Set value of config")
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -457,6 +470,7 @@ loom chain-cfg config-value dpos.feeFloor
 `
 
 func ChainConfigCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "config-value <config name>",
 		Short:   "Get the activated value on chain of a config",
@@ -470,7 +484,7 @@ func ChainConfigCmd() *cobra.Command {
 			req := &cctype.ConfigValueResponse{
 				Name: args[0],
 			}
-			err := cli.StaticCallContract(chainConfigContractName, "ConfigValue", req, &resp)
+			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "ConfigValue", req, &resp)
 			if err != nil {
 				return err
 			}
@@ -482,6 +496,7 @@ func ChainConfigCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -490,6 +505,7 @@ loom chain-cfg remove-config dpos.feeFloor dpos.lockTime
 `
 
 func RemoveConfigCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "remove-config <config name 1> ... <config name N>",
 		Short:   "Remove config by config name",
@@ -501,7 +517,8 @@ func RemoveConfigCmd() *cobra.Command {
 					return fmt.Errorf("Invalid feature name")
 				}
 			}
-			if err := cli.CallContract(
+			if err := cli.CallContractWithFlags(
+				&flags,
 				chainConfigContractName,
 				"RemoveConfig",
 				&cctype.RemoveConfigRequest{
@@ -514,6 +531,7 @@ func RemoveConfigCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 

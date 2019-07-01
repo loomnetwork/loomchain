@@ -98,6 +98,8 @@ var (
 	ErrConfigAlreadyExists = errors.New("[ChainConfig] config already exists")
 	// ErrConfigAlreadySettled is returned if a validator tries to vote a confg that's already settled
 	ErrConfigAlreadySettled = errors.New("[ChainConfig] config already settled")
+	// ErrConfigNonVotable is returned if a validator tries to vote a non-votable config
+	ErrConfigNonVotable = errors.New("[ChainConfig] config is not votable")
 )
 
 const (
@@ -361,9 +363,6 @@ func (c *ChainConfig) AddConfig(ctx contract.Context, req *AddConfigRequest) err
 			return ErrInvalidRequest
 		}
 	}
-	if req.VoteThreshold == 0 {
-		return ErrInvalidRequest
-	}
 
 	// TODO: config should have its own permission
 	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
@@ -380,6 +379,15 @@ func (c *ChainConfig) AddConfig(ctx contract.Context, req *AddConfigRequest) err
 			BuildNumber:   req.BuildNumber,
 			Status:        ConfigVoting,
 			VoteThreshold: req.VoteThreshold,
+		}
+
+		if config.VoteThreshold == 0 {
+			sender := ctx.Message().Sender
+			vote := &Vote{
+				Validator: sender.MarshalPB(),
+				Value:     req.Value,
+			}
+			config.Votes = []*Vote{vote}
 		}
 
 		if err := ctx.Set(configKey(name), &config); err != nil {
@@ -446,6 +454,10 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 	var config Config
 	if err := ctx.Get(configKey(req.Name), &config); err != nil {
 		return errors.Wrapf(err, "config '%s' not found", req.Name)
+	}
+
+	if config.VoteThreshold == 0 {
+		return ErrConfigNonVotable
 	}
 
 	// if the config has already been settled there's no point in recording additional votes
