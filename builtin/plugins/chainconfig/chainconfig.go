@@ -186,6 +186,27 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 	return nil
 }
 
+
+func AddSpecficFeature(ctx contract.Context, name string, blockHeight uint64) error {
+	if name == "" {
+		return ErrInvalidRequest
+	}
+	if found := ctx.Has(featureKey(name)); found {
+		return ErrFeatureAlreadyExists
+	}
+	feature := Feature{
+		Name:        name,
+		Status:      FeatureEnabled,
+		BlockHeight: blockHeight,
+	}
+	if err := ctx.Set(featureKey(name), &feature); err != nil {
+		return err
+	}
+	return nil
+}
+
+
+
 // RemoveFeature should be called by the contract owner to remove features.
 // NOTE: Features can only be removed before they're activated by the chain.
 func (c *ChainConfig) RemoveFeature(ctx contract.Context, req *RemoveFeatureRequest) error {
@@ -496,6 +517,7 @@ func enableFeature(ctx contract.Context, name string) error {
 
 	return ctx.Set(featureKey(name), &feature)
 }
+
 
 func addFeature(ctx contract.Context, name string, buildNumber uint64, autoEnable bool) error {
 	if name == "" {
