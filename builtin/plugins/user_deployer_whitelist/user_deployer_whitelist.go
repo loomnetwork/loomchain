@@ -372,17 +372,17 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 	return nil
 }
 
-func GetTierMap(ctx contract.StaticContext) map[TierID]Tier {
+func GetTierMap(ctx contract.StaticContext) (map[TierID]Tier, error) {
 	tierMap := make(map[TierID]Tier, 0)
 	for _, rangeEntry := range ctx.Range([]byte(tierKeyPrefix)) {
 		var tier Tier
 		if err := proto.Unmarshal(rangeEntry.Value, &tier); err != nil {
-			return nil
+			return nil, errors.Wrap(err, "Marshalling error")
 		}
 		tierMap[tier.TierID] = tier
 
 	}
-	return tierMap
+	return tierMap, nil
 }
 
 //GetTierInfo standalone function to get tier information

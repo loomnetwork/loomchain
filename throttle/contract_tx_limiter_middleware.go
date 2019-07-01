@@ -61,13 +61,19 @@ type blockTxn struct {
 var TxLimiter *contractTxLimiter
 
 func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, curBlockHeight int64) bool {
-	_, ok := txl.contractToBlockTrx[contractAddr.String()]
+	blockTx, ok := txl.contractToBlockTrx[contractAddr.String()]
 	if !ok {
 		return false
 	}
+	// if execution reaches here => tierID and tier are valid
 	tierID := txl.contractToTierMap[contractAddr.String()]
 	tier := txl.tierMap[tierID]
-	blockTx := txl.contractToBlockTrx[contractAddr.String()]
+	// reset contractToBlockTrx if curBlock is out of range
+	if blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) {
+		blockHeight := (curBlockHeight / int64(tier.BlockRange)) * int64(tier.BlockRange)
+		blockTx = &blockTxn{0, blockHeight}
+		txl.contractToBlockTrx[contractAddr.String()] = blockTx
+	}
 	if int64(tier.MaxTx) > blockTx.txn {
 		return false
 	} else {
@@ -78,16 +84,11 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHeight int64) {
 	blockTx, ok := txl.contractToBlockTrx[contractAddr.String()]
 	if !ok {
-		txl.contractToBlockTrx[contractAddr.String()] = &blockTxn{1, curBlockHeight}
-		return
-	}
-	// reset blockTxn if block is out of range
-	tierID := txl.contractToTierMap[contractAddr.String()]
-	tier := txl.tierMap[tierID]
-
-	if blockTx.blockHeight < curBlockHeight-int64(tier.BlockRange) {
-		blockTx.txn = 0
-		blockTx.blockHeight = curBlockHeight
+		tierID := txl.contractToTierMap[contractAddr.String()]
+		tier := txl.tierMap[tierID]
+		// resetting the blockHeight to lower bound of range instead of curblockheight
+		blockHeight := (curBlockHeight / int64(tier.BlockRange)) * int64(tier.BlockRange)
+		txl.contractToBlockTrx[contractAddr.String()] = &blockTxn{1, blockHeight}
 		return
 	}
 	blockTx.txn++
@@ -153,7 +154,10 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 				if er != nil {
 					return res, errors.Wrap(err, "throttle: context creation")
 				}
-				TxLimiter.tierMap = udw.GetTierMap(ctx)
+				TxLimiter.tierMap, err = udw.GetTierMap(ctx)
+				if err != nil {
+					return res, errors.Wrap(err, "throttle: GetTierMap error")
+				}
 				TxLimiter.tierDataLastUpdated = time.Now().Unix()
 			}
 
@@ -166,7 +170,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 				}
 				tierInfo, er := udw.GetTierInfo(ctx, contractTierID)
 				if er != nil {
-					return res, errors.Wrap(err, "throttle: getTierInfo issue")
+					return res, errors.Wrap(err, "throttle: getTierInfo error")
 				}
 				TxLimiter.tierMap[contractTierID] = tierInfo
 			}
