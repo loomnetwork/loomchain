@@ -89,6 +89,9 @@ var (
 	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
 	// ErrFeatureNotFound indicates that a feature does not exist
 	ErrFeatureNotFound = errors.New("[ChainConfig] feature not found")
+	// ErrFeatureNotEnabled indacates that a feature has not been enabled
+	// by majority of validators, and has not been activated on the chain.
+	ErrFeatureNotEnabled = errors.New("[ChainConfig] feature not enabled")
 
 	// ErrConfigNotFound indicates that a config does not exist
 	ErrConfigNotFound = errors.New("[ChainConfig] config not found")
@@ -358,6 +361,10 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 
 // AddConfig should be called by the contract owner to add new config the validators can vote.
 func (c *ChainConfig) AddConfig(ctx contract.Context, req *AddConfigRequest) error {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+		return ErrFeatureNotEnabled
+	}
+
 	for _, name := range req.Names {
 		if name == "" {
 			return ErrInvalidRequest
@@ -421,6 +428,10 @@ func (c *ChainConfig) GetConfig(ctx contract.StaticContext, req *GetConfigReques
 
 // SetConfig should be called by a validator to indicate they want to propose a new config value.
 func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) error {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+		return ErrFeatureNotEnabled
+	}
+
 	if req.Name == "" || req.Value == "" {
 		return ErrInvalidRequest
 	}
@@ -500,6 +511,10 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 
 // RemoveConfig should be called by the contract owner to remove configs.
 func (c *ChainConfig) RemoveConfig(ctx contract.Context, req *RemoveConfigRequest) error {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+		return ErrFeatureNotEnabled
+	}
+
 	if len(req.Names) == 0 {
 		return ErrInvalidRequest
 	}

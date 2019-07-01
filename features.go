@@ -49,6 +49,9 @@ const (
 	// Enables usage of ctx.Validators() in ChainConfig contract.
 	ChainCfgVersion1_1 = "chaincfg:v1.1"
 
+	// Enables votable config in the ChainConfig contract.
+	ChainCfgVersion1_3 = "chaincfg:v1.3"
+
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
 	EvmDBFeature = "db:evm"

@@ -51,6 +51,7 @@ type StoreState struct {
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
+	cfg             map[string]string
 }
 
 var _ = State(&StoreState{})
@@ -78,12 +79,19 @@ func NewStoreState(
 ) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
+	// load state config
+	configRange := store.Range([]byte(configPrefix))
+	cfg := make(map[string]string)
+	for _, data := range configRange {
+		cfg[string(data.Key)] = string(data.Value)
+	}
 	return &StoreState{
 		ctx:             ctx,
 		store:           store,
 		block:           blockHeader,
 		validators:      loom.NewValidatorSet(),
 		getValidatorSet: getValidatorSet,
+		cfg:             cfg,
 	}
 }
 
@@ -160,12 +168,7 @@ func (s *StoreState) SetFeature(name string, val bool) {
 }
 
 func (s *StoreState) ChainConfig() loom.Config {
-	configRange := s.store.Range([]byte(configPrefix))
-	configs := make(map[string]string)
-	for _, data := range configRange {
-		configs[string(data.Key)] = string(data.Value)
-	}
-	return loom.NewChainConfig(configs)
+	return loom.NewChainConfig(s.cfg)
 }
 
 func (s *StoreState) SetConfig(name, value string) {
@@ -461,8 +464,10 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		if err := chainConfigManager.SetConfigs(a.height()); err != nil {
-			panic(err)
+		if state.FeatureEnabled(ChainCfgVersion1_3, false) {
+			if err := chainConfigManager.SetConfigs(a.height()); err != nil {
+				panic(err)
+			}
 		}
 	}
 
