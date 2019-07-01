@@ -132,7 +132,7 @@ func (cc *ChainConfigClient) SetBuildNumber(buildNumber uint64) error {
 	return nil
 }
 
-func (cc *ChainConfigClient) GetBuildNumber() (*GetValidatorInfoResponse, error) {
+func (cc *ChainConfigClient) GetValidatorInfo() (*GetValidatorInfoResponse, error) {
 	var resp GetValidatorInfoResponse
 	if _, err := cc.contract.StaticCall(
 		"GetValidatorInfo",
@@ -140,7 +140,7 @@ func (cc *ChainConfigClient) GetBuildNumber() (*GetValidatorInfoResponse, error)
 		cc.caller,
 		&resp,
 	); err != nil {
-		cc.logger.Error("Failed to Get build number in ChainConfig contract", "err", err)
+		cc.logger.Error("Failed to Get Validator information in ChainConfig contract", "err", err)
 		return nil, err
 	}
 	return &resp, nil
