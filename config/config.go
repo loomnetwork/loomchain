@@ -539,7 +539,8 @@ TxLimiter:
   MaxTxsPerSession: {{ .TxLimiter.MaxTxsPerSession }} 
 ContractTxLimiter:
   Enabled: {{ .ContractTxLimiter.Enabled }}
-  RefreshInterval: {{ .ContractTxLimiter.RefreshInterval }}
+  ContractDataRefreshInterval: {{ .ContractTxLimiter.ContractDataRefreshInterval }}
+  TierDataRefreshInterval: {{ .ContractTxLimiter.TierDataRefreshInterval }}
 
 #
 # ContractLoader
