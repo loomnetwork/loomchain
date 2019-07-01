@@ -134,7 +134,8 @@ type Config struct {
 
 	Auth *auth.Config
 
-	EvmStore *evm.EvmStoreConfig
+	EvmStore  *evm.EvmStoreConfig
+	EvmConfig *evm.EvmConfig
 
 	// Dragons
 	EVMDebugEnabled bool
@@ -408,6 +409,7 @@ func DefaultConfig() *Config {
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
+	cfg.EvmConfig = evm.DefaultEvmConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -714,6 +716,14 @@ EvmStore:
   CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
   # NumCachedRoots defines a number of in-memory cached EVM roots
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
+{{end}}
+
+{{if .EvmConfig -}}
+#
+# EvmConfig
+#
+EvmConfig:
+AllowNamedEvmContract: {{.EvmConfig.AllowNamedEvmContract}}
 {{end}}
 
 # 
