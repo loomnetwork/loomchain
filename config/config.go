@@ -388,7 +388,7 @@ func DefaultConfig() *Config {
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.TronTransferGateway = DefaultTronTGConfig(cfg.RPCProxyPort)
-	cfg.BinanceTransferGateway = DefaultBinanceTGConfig(cfg.RPCProxyPort)
+	cfg.BinanceTransferGateway = DefaultBinanceTGConfig()
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()

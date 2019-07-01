@@ -2409,7 +2409,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, 2, len(candidates))
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr1)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
 		require.Nil(t, err)
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
 	}
@@ -2422,7 +2422,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, []uint64{0, 0, 0, 0}, rec2.DowntimeRecords[0].Periods)
 
 	for i := int64(0); i < int64(periodLength); i++ {
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), addr2)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2)
 		require.Nil(t, err)
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
 	}
@@ -2448,6 +2448,134 @@ func TestDowntimeFunctions(t *testing.T) {
 
 	recAll, err := dpos.DowntimeRecord(pctx, nil)
 	assert.Equal(t, 2, len(recAll.DowntimeRecords))
+}
+
+func TestJailOfflineValidators(t *testing.T) {
+	pctx := createCtx()
+	pctx.SetFeature(loomchain.DPOSVersion3_3, true)
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(addr2, 1000000000000000000),
+			makeAccount(delegatorAddress1, 100000000),
+			makeAccount(delegatorAddress2, 100000000),
+			makeAccount(delegatorAddress3, 100000000),
+		},
+	})
+
+	periodLength := uint64(12)
+	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          21,
+		RegistrationRequirement: registrationFee,
+		DowntimePeriod:          periodLength,
+		OracleAddress:           oracleAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	dposCtx := pctx.WithAddress(dpos.Address)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+	whitelistAmount := big.NewInt(1000000000000)
+	err = dpos.WhitelistCandidate(dposCtx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(dposCtx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+	err = dpos.RegisterCandidate(dposCtx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	approvalAmount := big.NewInt(200)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(approvalAmount)},
+	})
+	require.Nil(t, err)
+
+	delegationAmount := big.NewInt(100)
+	err = dpos.Delegate(dposCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+	err = dpos.Delegate(dposCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+	elect(dposCtx, dpos.Address)
+	// after an election, a validator will be jailed
+	elect(dposCtx, dpos.Address)
+
+	previousRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+	require.NoError(t, err)
+
+	candidates, err := LoadCandidateList(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(candidates))
+
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
+	}
+
+	// after an election, a validator will be jailed
+	elect(dposCtx, dpos.Address)
+
+	// the jailed validator should not gain any rewards after an election
+	currentRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+
+	require.NoError(t, err)
+	require.Equal(t, previousRewardDistribution.String(), currentRewardDistribution.String())
+
+	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.Jailed)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
+	require.Nil(t, err)
+	require.False(t, statistic.Jailed)
+
+	err = dpos.Unjail(dposCtx.WithSender(addr1), nil)
+	require.NoError(t, err)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.False(t, statistic.Jailed)
+
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
+	}
+	// after an election, a validator will be jailed again
+	elect(dposCtx, dpos.Address)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.Jailed)
+
+	err = dpos.Unjail(dposCtx.WithSender(addr2), &addr1)
+	require.Error(t, err)
+
+	// test the oracle unjails a jailed validator
+	err = dpos.Unjail(dposCtx.WithSender(oracleAddr), &addr1)
+	require.NoError(t, err)
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.False(t, statistic.Jailed)
 }
 
 // UTILITIES

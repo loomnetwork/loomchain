@@ -24,6 +24,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
@@ -339,21 +340,27 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 }
 
 // Attempts to construct the context of the Address Mapper contract.
-func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
-	vm := lcp.NewPluginVM(
-		s.Loader,
-		state,
-		s.CreateRegistry(state),
-		nil, // event handler
-		log.Default,
-		s.NewABMFactory,
-		nil, // receipt writer
-		nil, // receipt reader
-	)
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "addressmapper")
+}
 
-	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+func (s *QueryServer) createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
+	ctx, err := lcp.NewInternalContractContext(
+		name,
+		lcp.NewPluginVM(
+			s.Loader,
+			state,
+			s.CreateRegistry(state),
+			nil, // event handler
+			log.Default,
+			s.NewABMFactory,
+			nil, // receipt writer
+			nil, // receipt reader
+		),
+		true,
+	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+		return nil, errors.Wrapf(err, "failed to create %s context", name)
 	}
 	return ctx, nil
 }
@@ -1051,8 +1058,37 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	return eth.EncUint(nonce), nil
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getbalance
+// uses ethcoin contract to return the balance corresponding to the address
 func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
-	return eth.Quantity("0x0"), nil
+	owner, err := eth.DecDataToAddress(s.ChainID, address)
+	if err != nil {
+		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid block height %s", block)
+	}
+	if int64(height) != snapshot.Block().Height {
+		return "", errors.Errorf("height %s not latest", block)
+	}
+
+	ctx, err := s.createStaticContractCtx(snapshot, "ethcoin")
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+	amount, err := ethcoin.BalanceOf(ctx, owner)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+	if amount == nil {
+		return eth.Quantity("0x0"), errors.Errorf("No amount returned for address %s", address)
+	}
+
+	return eth.EncBigInt(*amount.Int), nil
 }
 
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
@@ -1119,7 +1155,6 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 
 		return jsonReceipt, nil
 	}
-
 	return completeReceipt(txResults, blockResult, &txReceipt), nil
 }
 

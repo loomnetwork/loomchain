@@ -53,6 +53,11 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		}
 	}
 
+	state, err := dposv3.LoadState(m.ctx)
+	if err != nil {
+		return err
+	}
+
 	// A VoteInfo struct is created for every active validator. If
 	// SignedLastBlock is not true for any of the validators, slash them for
 	// inactivity. TODO limit slashes to once per election cycle
@@ -62,7 +67,7 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 				m.ctx, voteInfo.Validator.Address, candidates,
 			)
 			if err == nil && downtimeTrackingEnabled {
-				err = dposv3.UpdateDowntimeRecord(m.ctx, address)
+				err = dposv3.UpdateDowntimeRecord(m.ctx, state.Params.DowntimePeriod, address)
 				if err != nil {
 					return err
 				}

@@ -2,6 +2,7 @@ package eth
 
 import (
 	"encoding/hex"
+	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
@@ -217,6 +218,10 @@ func EncInt(value int64) Quantity {
 
 func EncUint(value uint64) Quantity {
 	return Quantity("0x" + strconv.FormatUint(value, 16))
+}
+
+func EncBigInt(value big.Int) Quantity {
+	return Quantity("0x" + value.Text(16))
 }
 
 // Hex

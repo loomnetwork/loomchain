@@ -154,7 +154,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil },
+		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
@@ -221,7 +221,7 @@ func TestChainIdVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil },
+		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
