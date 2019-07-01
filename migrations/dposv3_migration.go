@@ -2,11 +2,10 @@ package migrations
 
 import (
 	"encoding/json"
-
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 
-	loom "github.com/loomnetwork/go-loom"
-	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
@@ -28,10 +27,12 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	if err != nil {
 		return err
 	}
+
 	_, chainconfigCtx, err := resolveChainConfig(ctx)
 	if err != nil {
 		return err
 	}
+
 	// This init information is ignored because dposv3.Initialize resets all
 	// contract storage. However, ctx.DeployContract requires making a dummy
 	// call to dposv3.Init initially.
@@ -67,16 +68,12 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	}
 	dposv3.Initialize(dposv3Ctx, initializationState)
 
-	// Switch over to DPOSv3
-	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
 	// Set feature in chainconfig Contract
-	var feature cctypes.Feature
-	feature.Status = cctypes.Feature_ENABLED
-	feature.BlockHeight = uint64(chainconfigCtx.Block().Height)
-	if err := chainconfigCtx.Set(featureKey(loomchain.DPOSVersion3Feature), &feature); err != nil {
+	if err := chainconfig.AddSpecficFeature(chainconfigCtx,string(featureKey(loomchain.DPOSVersion3Feature)),uint64(chainconfigCtx.Block().Height)); err != nil {
 		return err
 	}
-
+	// Switch over to DPOSv3
+	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
 	return nil
 }
 
