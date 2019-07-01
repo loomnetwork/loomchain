@@ -37,6 +37,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
+	lvm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -53,6 +54,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/migrations"
@@ -72,8 +74,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ed25519"
-
-	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var (
@@ -1127,9 +1127,12 @@ func deployContract(
 		return err
 	}
 
-	err = registry.Register(contractCfg.Name, addr, addr)
-	if err != nil {
-		return err
+	conf, err := common.ParseConfig()
+	if vmType == lvm.VMType_PLUGIN || conf.EvmConfig.AllowNamedEvmContract {
+		err = registry.Register(contractCfg.Name, addr, addr)
+		if err != nil {
+			return err
+		}
 	}
 
 	logger.Info("Deployed contract",
