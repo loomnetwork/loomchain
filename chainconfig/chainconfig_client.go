@@ -12,12 +12,14 @@ import (
 )
 
 type (
-	ListFeaturesRequest   = cctypes.ListFeaturesRequest
-	ListFeaturesResponse  = cctypes.ListFeaturesResponse
-	Feature               = cctypes.Feature
-	EnableFeatureRequest  = cctypes.EnableFeatureRequest
-	EnableFeatureResponse = cctypes.EnableFeatureResponse
-	SetValidatorInfo      = cctypes.SetValidatorInfoRequest
+	ListFeaturesRequest      = cctypes.ListFeaturesRequest
+	ListFeaturesResponse     = cctypes.ListFeaturesResponse
+	Feature                  = cctypes.Feature
+	EnableFeatureRequest     = cctypes.EnableFeatureRequest
+	EnableFeatureResponse    = cctypes.EnableFeatureResponse
+	SetValidatorInfo         = cctypes.SetValidatorInfoRequest
+	GetValidatorInfoRequest  = cctypes.GetValidatorInfoRequest
+	GetValidatorInfoResponse = cctypes.GetValidatorInfoResponse
 )
 
 const (
@@ -128,4 +130,18 @@ func (cc *ChainConfigClient) SetBuildNumber(buildNumber uint64) error {
 		return err
 	}
 	return nil
+}
+
+func (cc *ChainConfigClient) GetBuildNumber() (*GetValidatorInfoResponse, error) {
+	var resp GetValidatorInfoResponse
+	if _, err := cc.contract.StaticCall(
+		"GetValidatorInfo",
+		&GetValidatorInfoRequest{Address: cc.caller.MarshalPB()},
+		cc.caller,
+		&resp,
+	); err != nil {
+		cc.logger.Error("Failed to Get build number in ChainConfig contract", "err", err)
+		return nil, err
+	}
+	return &resp, nil
 }
