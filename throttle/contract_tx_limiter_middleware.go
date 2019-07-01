@@ -68,13 +68,7 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 	// if execution reaches here => tierID and tier are valid
 	tierID := txl.contractToTierMap[contractAddr.String()]
 	tier := txl.tierMap[tierID]
-	// reset contractToBlockTrx if curBlock is out of range
-	if blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) {
-		blockHeight := (curBlockHeight / int64(tier.BlockRange)) * int64(tier.BlockRange)
-		blockTx = &blockTxn{0, blockHeight}
-		txl.contractToBlockTrx[contractAddr.String()] = blockTx
-	}
-	if int64(tier.MaxTx) > blockTx.txn {
+	if blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) || int64(tier.MaxTx) > blockTx.txn {
 		return false
 	} else {
 		return true
@@ -83,12 +77,12 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 
 func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHeight int64) {
 	blockTx, ok := txl.contractToBlockTrx[contractAddr.String()]
-	if !ok {
-		tierID := txl.contractToTierMap[contractAddr.String()]
-		tier := txl.tierMap[tierID]
+	tierID := txl.contractToTierMap[contractAddr.String()]
+	tier := txl.tierMap[tierID]
+	if !ok || blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) {
 		// resetting the blockHeight to lower bound of range instead of curblockheight
-		blockHeight := (curBlockHeight / int64(tier.BlockRange)) * int64(tier.BlockRange)
-		txl.contractToBlockTrx[contractAddr.String()] = &blockTxn{1, blockHeight}
+		rangeStart := (((curBlockHeight - 1) / int64(tier.BlockRange)) * int64(tier.BlockRange)) + 1
+		txl.contractToBlockTrx[contractAddr.String()] = &blockTxn{1, rangeStart}
 		return
 	}
 	blockTx.txn++

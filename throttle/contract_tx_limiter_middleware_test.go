@@ -141,7 +141,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		for j := 0; j < 3; j++ {
 			allowed = false
-			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 0 + int64(i)}, nil, nil)
+			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 1 + int64(i)}, nil, nil)
 			processMiddleware(state, txSignedEVM1.Inner)
 			require.Equal(t, allowed, true)
 		}
@@ -155,7 +155,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	for i := 10; i < 20; i++ {
 		for j := 0; j < 3; j++ {
 			allowed = false
-			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 0 + int64(i)}, nil, nil)
+			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 1 + int64(i)}, nil, nil)
 			processMiddleware(state, txSignedEVM1.Inner)
 			require.Equal(t, allowed, true)
 		}
