@@ -32,3 +32,23 @@ func (cfg *EvmStoreConfig) Clone() *EvmStoreConfig {
 	clone := *cfg
 	return &clone
 }
+
+type EvmConfig struct {
+
+	// NumCachedRoots defines a number of in-memory cached EVM roots
+	AllowNamedEvmContract bool
+}
+
+func DefaultEvmConfig() *EvmConfig {
+	return &EvmConfig{
+		AllowNamedEvmContract: true,
+	}
+}
+
+func (cfg *EvmConfig) Clone() *EvmConfig {
+	if cfg == nil {
+		return nil
+	}
+	clone := *cfg
+	return &clone
+}
