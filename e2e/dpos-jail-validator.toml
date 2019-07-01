@@ -77,6 +77,13 @@
   Condition = "contains"
   Expected = [""]
 
+# Send txs to increase block height
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 10 -k {{index $.NodePrivKeyPathList 2}}"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 10 -k {{index $.NodePrivKeyPathList 2}}"
+
 [[TestCases]]
   Delay = 2000
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
