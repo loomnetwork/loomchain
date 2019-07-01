@@ -53,7 +53,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Deploy deployerWhitelist and coin contract to deploy a contract for initializing contractToTierMap
+	// Deploy deployerWhitelist and  coin contract to deploy a contract for initializing contractToTierMap
 	dwContract := &deployer_whitelist.DeployerWhitelist{}
 	dwAddr := fakeCtx.CreateContract(deployer_whitelist.Contract)
 	dctx := fakeCtx.WithAddress(dwAddr)
