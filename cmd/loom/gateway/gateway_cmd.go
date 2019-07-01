@@ -23,6 +23,7 @@ func NewGatewayCommand() *cobra.Command {
 		newGetContractMappingCommand(),
 		newListContractMappingsCommand(),
 		newUpdateTrustedValidatorsCommand(),
+		newUpdateBinanceTransferFeeCommnad(),
 	)
 	return cmd
 }
