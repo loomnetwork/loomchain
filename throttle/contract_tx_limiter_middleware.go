@@ -48,7 +48,7 @@ type contractTxLimiter struct {
 	contractToTierMap       map[string]udw.TierID
 	contractDataLastUpdated int64
 	// track of no. of txns in previous blocks per contract
-	contractStatsMap  map[string]*contractStats
+	contractStatsMap    map[string]*contractStats
 	tierMap             map[udw.TierID]udw.Tier
 	tierDataLastUpdated int64
 }
@@ -68,7 +68,7 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 	// if execution reaches here => tierID and tier are valid
 	tierID := txl.contractToTierMap[contractAddr.String()]
 	tier := txl.tierMap[tierID]
-	if blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) || int64(tier.MaxTx) > blockTx.txn {
+	if blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) || int64(tier.MaxTxs) > blockTx.txn {
 		return false
 	} else {
 		return true

@@ -121,7 +121,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 			},
 			Name:       tier.Name,
 			BlockRange: tier.BlockRange,
-			MaxTx:      tier.MaxTx,
+			MaxTxs:     tier.MaxTxs,
 		}
 
 		if err := ctx.Set(TierKey(tier.TierID), tier); err != nil {
@@ -331,7 +331,7 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 	if req.BlockRange <= 0 {
 		return errors.New("[UserDeployerWhitelist] blockRange must be greater than zero")
 	}
-	if req.MaxTx <= 0 {
+	if req.MaxTxs <= 0 {
 		return errors.New("[UserDeployerWhitelist] MaxTx must be greater than zero")
 	}
 
@@ -340,7 +340,7 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 		Fee:        req.Fee,
 		Name:       req.Name,
 		BlockRange: req.BlockRange,
-		MaxTx:      req.MaxTx,
+		MaxTxs:     req.MaxTxs,
 	}
 	err := ctx.Set(TierKey(req.TierID), tier)
 	if err != nil {
