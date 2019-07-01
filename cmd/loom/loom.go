@@ -1128,7 +1128,14 @@ func deployContract(
 	}
 
 	conf, err := common.ParseConfig()
-	if vmType == lvm.VMType_PLUGIN || conf.EvmConfig.AllowNamedEvmContract {
+	if state.FeatureEnabled(loomchain.EvmContractNameFeature, false) {
+		if vmType == lvm.VMType_PLUGIN || conf.EvmConfig.AllowNamedEvmContract {
+			err = registry.Register(contractCfg.Name, addr, addr)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
 		err = registry.Register(contractCfg.Name, addr, addr)
 		if err != nil {
 			return err
