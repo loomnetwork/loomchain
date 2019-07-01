@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"bytes"
-
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 )
 
@@ -21,9 +20,12 @@ func ConsolidateFeaturesMigration(ctx *MigrationContext) error {
 		} else {
 			f.Status = cctypes.Feature_DISABLED
 		}
-		if err := chainconfigCtx.Set(featureKey(string(m.Key)), &f); err != nil {
-			return err
+		if found := chainconfigCtx.Has(featureKey(string(m.Key))); !found {
+			if err := chainconfigCtx.Set(featureKey(string(m.Key)), &f); err != nil {
+				return err
+			}
 		}
+
 	}
 	return nil
 }
