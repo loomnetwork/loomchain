@@ -89,7 +89,7 @@ func (cc *ChainConfigRoutine) run() {
 					validatorInfo, err := chainConfigClient.GetValidatorInfo()
 					if err != nil {
 						cc.logger.Error("Failed to retreive build number", "err", err)
-					} else {
+					} else if validatorInfo.Validator != nil {
 						buildNumber := validatorInfo.Validator.GetBuildNumber()
 						if buildNumber < cc.buildNumber {
 							if err := chainConfigClient.SetBuildNumber(cc.buildNumber); err != nil {
