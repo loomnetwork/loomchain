@@ -16,7 +16,8 @@ import (
 
 type DeployTxHandler struct {
 	*Manager
-	CreateRegistry registry.RegistryFactoryFunc
+	CreateRegistry        registry.RegistryFactoryFunc
+	AllowNamedEVMContract bool
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -78,8 +79,13 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
 	}
 
-	reg := h.CreateRegistry(state)
-	reg.Register(tx.Name, addr, caller)
+	if h.AllowNamedEVMContract || tx.VmType == VMType_PLUGIN {
+		reg := h.CreateRegistry(state)
+		err := reg.Register(tx.Name, addr, caller)
+		if err != nil {
+			return r, err
+		}
+	}
 
 	if tx.VmType == VMType_EVM {
 		r.Info = utils.DeployEvm
