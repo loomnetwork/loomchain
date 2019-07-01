@@ -16,6 +16,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"fmt"
+	"strconv"
 	"strings"
 
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
@@ -37,6 +38,7 @@ import (
 
 const GatewayName = "gateway"
 const LoomGatewayName = "loomcoin-gateway"
+const BinanceGatewayName = "binance-gateway"
 
 const getOraclesCmdExample = `
 ./loom gateway get-oracles gateway --key path/to/loom_priv.key
@@ -61,6 +63,10 @@ const replaceOwnerCmdExample = `
 const withdrawFundsCmdExample = `
 ./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key path/to/loom_priv.key OR
 ./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
+`
+
+const updateBinanceTransferFeeCmdExample = `
+./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
@@ -294,6 +300,8 @@ func newGetStateCommand() *cobra.Command {
 				name = GatewayName
 			} else if strings.Compare(args[0], LoomGatewayName) == 0 {
 				name = LoomGatewayName
+			} else if strings.Compare(args[0], BinanceGatewayName) == 0 {
+				name = BinanceGatewayName
 			} else {
 				return errors.New("Invalid gateway name")
 			}
@@ -581,4 +589,60 @@ func formatJSON(pb proto.Message) (string, error) {
 		EmitDefaults: true,
 	}
 	return marshaler.MarshalToString(pb)
+}
+
+func newUpdateBinanceTransferFeeCommnad() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "set-withdraw-fee <fee> [gateway]",
+		Short:   "Update binance gateway transfer fee",
+		Example: updateBinanceTransferFeeCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var name string
+			if strings.Compare(args[1], BinanceGatewayName) == 0 {
+				name = BinanceGatewayName
+			} else {
+				return errors.New("Invalid request. Only binance gateway has fee.")
+			}
+
+			var transferFee *types.BigUInt
+			fee, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			if fee >= 0 {
+				transferFee = &types.BigUInt{Value: *loom.NewBigUIntFromInt(fee)}
+			} else {
+				return errors.New("Invalid fee argument")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayUpdateBinanceTransferFeeRequest{
+				TransferFee: transferFee,
+			}
+
+			_, err = gateway.Call("UpdateBinanceTransferFee", req, signer, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	return cmd
 }
