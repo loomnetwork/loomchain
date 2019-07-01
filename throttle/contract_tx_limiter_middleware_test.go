@@ -43,7 +43,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 		Fee:        100,
 		Name:       "Tier1",
 		BlockRange: 10,
-		MaxTx:      30,
+		MaxTxs:      30,
 	}
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)
