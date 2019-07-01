@@ -187,7 +187,7 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 }
 
 
-func AddSpecficFeature(ctx contract.Context, name string, blockHeight uint64) error {
+func AddSpecificFeature(ctx contract.Context, name string, blockHeight uint64) error {
 	if name == "" {
 		return ErrInvalidRequest
 	}

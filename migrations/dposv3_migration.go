@@ -69,7 +69,7 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	dposv3.Initialize(dposv3Ctx, initializationState)
 
 	// Set feature in chainconfig Contract
-	if err := chainconfig.AddSpecficFeature(chainconfigCtx,string(featureKey(loomchain.DPOSVersion3Feature)),uint64(chainconfigCtx.Block().Height)); err != nil {
+	if err := chainconfig.AddSpecificFeature(chainconfigCtx,string(featureKey(loomchain.DPOSVersion3Feature)),uint64(chainconfigCtx.Block().Height)); err != nil {
 		return err
 	}
 	// Switch over to DPOSv3
