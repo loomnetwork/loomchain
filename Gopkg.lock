@@ -291,11 +291,11 @@
 
 [[projects]]
   branch = "tmreal"
-  digest = "1:60785defba0e22715577a369c00475446ef9bdca93f0f92c774932f6ff504e6e"
+  digest = "1:9575d2627d57f3c52cbf233e29fd623db8879235bcb6aaacee28822c28bb37e4"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "23f0b990b308f0e932fbd541c1dc77f6ec580fb9"
+  revision = "43d2409a5e3a3e7911a8e8d460e385764b8a55f1"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
