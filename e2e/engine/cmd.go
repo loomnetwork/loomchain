@@ -220,8 +220,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 								nodeStarted = true
 								break
 							}
-							time.Sleep(time.Duration(1) * time.Second)
-
+							time.Sleep(time.Duration(time.Second))
 						}
 						if !nodeStarted {
 							return fmt.Errorf("node %s did not start", cmd.Args[1])
