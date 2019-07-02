@@ -1,8 +1,6 @@
 package chainconfig
 
 import (
-	"time"
-
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -560,12 +558,11 @@ func removeFeature(ctx contract.Context, name string) error {
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})
 
 func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorInfoRequest) error {
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_2, false) {
-		return ErrFeatureNotEnabled
-	}
-
 	if req.BuildNumber == 0 {
 		return ErrInvalidRequest
+	}
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_2, false) {
+		return ErrFeatureNotEnabled
 	}
 	senderAddr := ctx.Message().Sender
 	validators, err := getCurrentValidators(ctx)
@@ -586,7 +583,7 @@ func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorIn
 	validator := &ValidatorInfo{
 		Address:     senderAddr.MarshalPB(),
 		BuildNumber: req.BuildNumber,
-		UpdatedAt:   uint64(time.Now().Unix()),
+		UpdatedAt:   uint64(ctx.Now().Unix()),
 	}
 	return ctx.Set(validatorInfoKey(senderAddr), validator)
 }
@@ -609,7 +606,7 @@ func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValid
 	}, nil
 }
 
-// ListValidatorsInfo return info validators
+// ListValidatorsInfo returns the build number for each validators
 func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListValidatorsInfoRequest) (*ListValidatorsInfoResponse, error) {
 	validatorRange := ctx.Range([]byte(validatorInfoPrefix))
 	validators := []*ValidatorInfo{}
