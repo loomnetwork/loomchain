@@ -71,11 +71,11 @@ func (cc *ChainConfigRoutine) RunWithRecovery() {
 	if cc.cfg.EnableFeatureStartupDelay > 0 {
 		time.Sleep(time.Duration(cc.cfg.EnableFeatureStartupDelay) * time.Second)
 	}
-
 	cc.run()
 }
 
 func (cc *ChainConfigRoutine) run() {
+	isBuildNumberEqual := false
 	for {
 		if cc.node.IsValidator() {
 			dappClient := client.NewDAppChainRPCClient(cc.chainID, cc.cfg.DAppChainWriteURI, cc.cfg.DAppChainReadURI)
@@ -85,6 +85,26 @@ func (cc *ChainConfigRoutine) run() {
 			} else {
 				// NOTE: errors are logged by the client, no need to log again
 				_ = chainConfigClient.VoteToEnablePendingFeatures(cc.buildNumber)
+				if !isBuildNumberEqual {
+					validatorInfo, err := chainConfigClient.GetValidatorInfo()
+					if err != nil {
+						cc.logger.Error("Failed to retreive build number", "err", err)
+					} else {
+						buildNumber := uint64(0)
+						if validatorInfo.Validator != nil {
+							buildNumber = validatorInfo.Validator.GetBuildNumber()
+						}
+						if buildNumber != cc.buildNumber {
+							if err := chainConfigClient.SetBuildNumber(cc.buildNumber); err != nil {
+								cc.logger.Error("Failed to set build number", "err", err)
+							} else {
+								isBuildNumberEqual = true
+							}
+						} else {
+							isBuildNumberEqual = true
+						}
+					}
+				}
 			}
 		}
 		time.Sleep(time.Duration(cc.cfg.EnableFeatureInterval) * time.Second)
