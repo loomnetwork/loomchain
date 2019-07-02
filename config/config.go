@@ -69,7 +69,7 @@ type Config struct {
 	Karma                       *KarmaConfig
 	GoContractDeployerWhitelist *throttle.GoContractDeployerWhitelistConfig
 	TxLimiter                   *throttle.TxLimiterConfig
-
+	ContractTxLimiter           *throttle.ContractTxLimiterConfig
 	// Logging
 	LogDestination     string
 	ContractLogLevel   string
@@ -394,6 +394,7 @@ func DefaultConfig() *Config {
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
+	cfg.ContractTxLimiter = throttle.DefaultContractTxLimiterConfig()
 	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
 	cfg.DPOSv2OracleConfig = DefaultDPOS2OracleConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
@@ -438,6 +439,7 @@ func (c *Config) Clone() *Config {
 	clone.AppStore = c.AppStore.Clone()
 	clone.HsmConfig = c.HsmConfig.Clone()
 	clone.TxLimiter = c.TxLimiter.Clone()
+	clone.ContractTxLimiter = c.ContractTxLimiter.Clone()
 	clone.EventStore = c.EventStore.Clone()
 	clone.EventDispatcher = c.EventDispatcher.Clone()
 	clone.Auth = c.Auth.Clone()
@@ -537,6 +539,10 @@ TxLimiter:
   Enabled: {{ .TxLimiter.Enabled }}
   SessionDuration: {{ .TxLimiter.SessionDuration }}
   MaxTxsPerSession: {{ .TxLimiter.MaxTxsPerSession }} 
+ContractTxLimiter:
+  Enabled: {{ .ContractTxLimiter.Enabled }}
+  ContractDataRefreshInterval: {{ .ContractTxLimiter.ContractDataRefreshInterval }}
+  TierDataRefreshInterval: {{ .ContractTxLimiter.TierDataRefreshInterval }}
 
 #
 # ContractLoader

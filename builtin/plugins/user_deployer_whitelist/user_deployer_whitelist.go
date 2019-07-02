@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
@@ -118,7 +119,9 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 			Fee: &types.BigUInt{
 				Value: *fees,
 			},
-			Name: tier.Name,
+			Name:       tier.Name,
+			BlockRange: tier.BlockRange,
+			MaxTxs:     tier.MaxTxs,
 		}
 
 		if err := ctx.Set(TierKey(tier.TierID), tier); err != nil {
@@ -325,10 +328,19 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
+	if req.BlockRange <= 0 {
+		return errors.New("[UserDeployerWhitelist] blockRange must be greater than zero")
+	}
+	if req.MaxTxs <= 0 {
+		return errors.New("[UserDeployerWhitelist] MaxTx must be greater than zero")
+	}
+
 	tier := &Tier{
-		TierID: req.TierID,
-		Fee:    req.Fee,
-		Name:   req.Name,
+		TierID:     req.TierID,
+		Fee:        req.Fee,
+		Name:       req.Name,
+		BlockRange: req.BlockRange,
+		MaxTxs:     req.MaxTxs,
 	}
 	err := ctx.Set(TierKey(req.TierID), tier)
 	if err != nil {
@@ -358,6 +370,51 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
 	}
 	return nil
+}
+
+func GetTierMap(ctx contract.StaticContext) (map[TierID]Tier, error) {
+	tierMap := make(map[TierID]Tier, 0)
+	for _, rangeEntry := range ctx.Range([]byte(tierKeyPrefix)) {
+		var tier Tier
+		if err := proto.Unmarshal(rangeEntry.Value, &tier); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal tier")
+		}
+		tierMap[tier.TierID] = tier
+
+	}
+	return tierMap, nil
+}
+
+//GetTierInfo standalone function to get tier information
+func GetTierInfo(ctx contract.StaticContext, tierID udwtypes.TierID) (udwtypes.Tier, error) {
+	var tier Tier
+	err := ctx.Get(TierKey(tierID), &tier)
+	if err != nil {
+		return Tier{}, errors.Wrap(err, "Failed to get Tier Information")
+	}
+	return tier, nil
+}
+
+// GetContractTierMapping create a map of contract to TxLimiter to be used in ContractTxLimiter
+func GetContractTierMapping(ctx contract.StaticContext) (map[string]TierID, error) {
+	contractToTierMap := make(map[string]TierID, 0)
+	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
+		var deployer UserDeployerState
+		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
+			return nil, errors.Wrap(err, "unmarshal UserDeployerState")
+		}
+		var tier Tier
+		err := ctx.Get(TierKey(deployer.TierID), &tier)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get Tier Information")
+		}
+		contracts := deployer.Contracts
+		for _, contract := range contracts {
+			key := loom.UnmarshalAddressPB(contract.ContractAddress).String()
+			contractToTierMap[key] = tier.TierID
+		}
+	}
+	return contractToTierMap, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&UserDeployerWhitelist{})
