@@ -723,7 +723,7 @@ EvmStore:
 # EvmConfig
 #
 EvmConfig:
-AllowNamedEvmContract: {{.EvmConfig.AllowNamedEvmContract}}
+  AllowNamedEvmContract: {{ .EvmConfig.AllowNamedEvmContract }}
 {{end}}
 
 # 
