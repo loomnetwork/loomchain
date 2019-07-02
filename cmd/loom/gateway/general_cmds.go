@@ -65,7 +65,7 @@ const withdrawFundsCmdExample = `
 ./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
 `
 
-const updateBinanceTransferFeeCmdExample = `
+const setWithdrawFeeCmdExample = `
 ./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
 `
 
@@ -591,11 +591,11 @@ func formatJSON(pb proto.Message) (string, error) {
 	return marshaler.MarshalToString(pb)
 }
 
-func newUpdateBinanceTransferFeeCommnad() *cobra.Command {
+func newSetWithdrawFeeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-withdraw-fee <fee> [gateway]",
-		Short:   "Update binance gateway transfer fee",
-		Example: updateBinanceTransferFeeCmdExample,
+		Short:   "Sets the fee the gateway should charge per withdrawal",
+		Example: setWithdrawFeeCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -611,7 +611,7 @@ func newUpdateBinanceTransferFeeCommnad() *cobra.Command {
 			if strings.Compare(args[1], BinanceGatewayName) == 0 {
 				name = BinanceGatewayName
 			} else {
-				return errors.New("Invalid request. Only binance gateway has fee.")
+				return errors.New("only Binance gateway has withdrawal fees.")
 			}
 
 			var transferFee *types.BigUInt
@@ -637,7 +637,7 @@ func newUpdateBinanceTransferFeeCommnad() *cobra.Command {
 				TransferFee: transferFee,
 			}
 
-			_, err = gateway.Call("UpdateBinanceTransferFee", req, signer, nil)
+			_, err = gateway.Call("SetTransferFee", req, signer, nil)
 			if err != nil {
 				return err
 			}
