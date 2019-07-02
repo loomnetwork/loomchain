@@ -479,7 +479,7 @@ func saveState(ctx contract.Context, state *State) error {
 	return ctx.Set(stateKey, state)
 }
 
-func loadState(ctx contract.StaticContext) (*State, error) {
+func LoadState(ctx contract.StaticContext) (*State, error) {
 	var state State
 	err := ctx.Get(stateKey, &state)
 	if err != nil {
