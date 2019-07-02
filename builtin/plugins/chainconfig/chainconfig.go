@@ -467,7 +467,9 @@ func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) err
 		return errors.Wrapf(err, "config '%s' not found", req.Name)
 	}
 
-	if config.VoteThreshold == 0 {
+	// only the contract owner can set value of non-votable config
+	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
+	if config.VoteThreshold == 0 && !contractOwner {
 		return ErrConfigNonVotable
 	}
 
