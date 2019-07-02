@@ -176,7 +176,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 				Value: *whitelistingfees,
 			},
 			BlockRange: 10,
-			MaxTx:      20,
+			MaxTxs:     20,
 		})
 
 	require.NoError(t, err)
@@ -190,7 +190,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 				Value: *whitelistingfees,
 			},
 			BlockRange: 10,
-			MaxTx:      20,
+			MaxTxs:     20,
 		})
 
 	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be Modified Only by Owner")
