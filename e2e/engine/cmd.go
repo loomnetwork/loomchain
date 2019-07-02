@@ -201,6 +201,33 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					event := node.Event{Action: node.ActionStop, Duration: node.Duration{time.Duration(duration)}, Delay: node.Duration{time.Duration(0)}, Node: nodeId}
 					eventC <- &event
 					out = []byte(fmt.Sprintf("Sending Node Event: %s\n", event))
+				} else if cmd.Args[0] == "wait_node_to_start" {
+					if len(cmd.Args) > 1 {
+						maxRetries := 10
+						if len(cmd.Args) > 2 {
+							max, err := strconv.Atoi(cmd.Args[2])
+							if err == nil {
+								maxRetries = max
+							}
+						}
+						nodeStarted := false
+						for i := maxRetries; i > 0; i-- {
+							node, ok := e.conf.Nodes[cmd.Args[1]]
+							if !ok {
+								return fmt.Errorf("node %s is not found", cmd.Args[1])
+							}
+							if err := checkNodeReady(node); err == nil {
+								nodeStarted = true
+								break
+							}
+							time.Sleep(time.Duration(1) * time.Second)
+
+						}
+						if !nodeStarted {
+							return fmt.Errorf("node %s did not start", cmd.Args[1])
+						}
+					}
+
 				} else {
 					out, err = cmd.CombinedOutput()
 				}
