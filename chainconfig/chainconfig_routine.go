@@ -89,11 +89,12 @@ func (cc *ChainConfigRoutine) run() {
 					validatorInfo, err := chainConfigClient.GetValidatorInfo()
 					if err != nil {
 						cc.logger.Error("Failed to retreive build number", "err", err)
-					} else if validatorInfo.Validator == nil {
-						chainConfigClient.SetBuildNumber(0) // Set build number to 0 when validator never vote before
 					} else {
-						buildNumber := validatorInfo.Validator.GetBuildNumber()
-						if buildNumber < cc.buildNumber {
+						buildNumber := uint64(0)
+						if validatorInfo.Validator != nil {
+							buildNumber = validatorInfo.Validator.GetBuildNumber()
+						}
+						if buildNumber != cc.buildNumber {
 							if err := chainConfigClient.SetBuildNumber(cc.buildNumber); err != nil {
 								cc.logger.Error("Failed to set build number", "err", err)
 							} else {
