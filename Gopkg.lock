@@ -44,17 +44,6 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:0594af97b2f4cec6554086eeace6597e20a4b69466eb4ada25adf9f4300dddd2"
-  name = "github.com/garyburd/redigo"
-  packages = [
-    "internal",
-    "redis",
-  ]
-  pruneopts = "UT"
-  revision = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
-  version = "v1.6.0"
-
-[[projects]]
   digest = "1:4062bc6de62d73e2be342243cf138cf499b34d558876db8d9430e2149388a4d8"
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
