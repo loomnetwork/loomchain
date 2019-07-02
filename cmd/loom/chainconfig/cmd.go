@@ -353,7 +353,7 @@ func SetValidatorInfoCmd() *cobra.Command {
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	cmdFlags := cmd.Flags()
-	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set a validator's information ")
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Specifies the build number the validator is running")
 	return cmd
 }
 
