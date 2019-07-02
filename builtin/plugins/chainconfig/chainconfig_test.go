@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/stretchr/testify/suite"
@@ -549,6 +550,7 @@ func (c *ChainConfigTestSuite) TestChainConfigFourValidators() {
 		},
 	}
 	pctx = pctx.WithValidators(validators)
+	pctx.SetFeature(loomchain.ChainCfgVersion1_3, true)
 
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
