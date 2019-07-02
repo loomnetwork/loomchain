@@ -301,12 +301,12 @@
   version = "v0.14.0"
 
 [[projects]]
-  branch = "master"
+  branch = "tmreal"
   digest = "1:60785defba0e22715577a369c00475446ef9bdca93f0f92c774932f6ff504e6e"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "16606ddeb69d1a57e2db65dbec29f3e67c7e28f8"
+  revision = "23f0b990b308f0e932fbd541c1dc77f6ec580fb9"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]

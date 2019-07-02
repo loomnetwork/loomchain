@@ -79,7 +79,7 @@ ignored = [
 [[override]]
   name = "github.com/tendermint/iavl"
   source = "https://github.com/loomnetwork/iavl.git"
-  branch = "master"
+  branch = "tmreal"
 
 [[override]]
   name = "github.com/tendermint/go-amino"
