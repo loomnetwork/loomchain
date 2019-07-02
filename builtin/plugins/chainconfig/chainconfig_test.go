@@ -185,7 +185,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	})
 	require.Equal(ErrFeatureNotEnabled, err)
 	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
-		BuildNumber: 0,
+		BuildNumber: 101,
 	})
 	require.Equal(ErrFeatureNotEnabled, err)
 	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
