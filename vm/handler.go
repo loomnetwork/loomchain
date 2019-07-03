@@ -82,7 +82,7 @@ func (h *DeployTxHandler) ProcessTx(
 	if h.AllowNamedEVMContract || tx.VmType == VMType_PLUGIN {
 		reg := h.CreateRegistry(state)
 		err := reg.Register(tx.Name, addr, caller)
-		if err != nil && state.FeatureEnabled(loomchain.EvmContractNameFeature, false) { // if feature enable is on then handle the error
+		if err != nil && state.FeatureEnabled(loomchain.CheckRegistryErrorFeature, false) { // if feature enable is on then handle the error
 			return r, err
 		}
 	}
