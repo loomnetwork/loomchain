@@ -44,17 +44,6 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:0594af97b2f4cec6554086eeace6597e20a4b69466eb4ada25adf9f4300dddd2"
-  name = "github.com/garyburd/redigo"
-  packages = [
-    "internal",
-    "redis",
-  ]
-  pruneopts = "UT"
-  revision = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
-  version = "v1.6.0"
-
-[[projects]]
   digest = "1:4062bc6de62d73e2be342243cf138cf499b34d558876db8d9430e2149388a4d8"
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
@@ -301,12 +290,12 @@
   version = "v0.14.0"
 
 [[projects]]
-  branch = "hack1"
-  digest = "1:fa0ec427da9a605bc7ca7af80e8547c883c0d316b11052f88095993151a8150b"
+  branch = "tmreal"
+  digest = "1:9575d2627d57f3c52cbf233e29fd623db8879235bcb6aaacee28822c28bb37e4"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "1d05fd16128544e7783c1adc1ed48daa02eafeff"
+  revision = "43d2409a5e3a3e7911a8e8d460e385764b8a55f1"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
