@@ -55,10 +55,6 @@ func verifyEthereumTransacton(signedTx SignedTx) ([]byte, error) {
 		return nil, err
 	}
 
-	if txTx.Id != ethID {
-		return nil, errors.Errorf("wrong transaction id %v for ethereum trnasactions", txTx.Id)
-	}
-
 	var msg vm.MessageTx
 	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
 		return nil, err

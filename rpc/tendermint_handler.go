@@ -21,7 +21,9 @@ import (
 )
 
 const (
-	ethChainID = "native-eth"
+	ethChainID = "eth"
+	deployId    = uint32(1)
+	callId      = uint32(2)
 )
 
 var (
@@ -122,8 +124,11 @@ func ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
 	}
 	msg.From = EthToLoomAddress(from).MarshalPB()
 
-	txTx := &ltypes.Transaction{
-		Id: ethID,
+	txTx := &ltypes.Transaction{}
+	if tx.To() == nil {
+		txTx.Id = deployId
+	} else {
+		txTx.Id = callId
 	}
 	txTx.Data, err = proto.Marshal(msg)
 	if err != nil {
