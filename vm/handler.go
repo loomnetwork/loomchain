@@ -79,11 +79,10 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
 	}
 
-	isEvmFeatureEnabled := state.FeatureEnabled(loomchain.EvmContractNameFeature, false)
-	if !isEvmFeatureEnabled || h.AllowNamedEVMContract || tx.VmType == VMType_PLUGIN {
+	if h.AllowNamedEVMContract || tx.VmType == VMType_PLUGIN {
 		reg := h.CreateRegistry(state)
 		err := reg.Register(tx.Name, addr, caller)
-		if err != nil && isEvmFeatureEnabled { // if feature enable is on then handle the error
+		if err != nil && state.FeatureEnabled(loomchain.EvmContractNameFeature, false) { // if feature enable is on then handle the error
 			return r, err
 		}
 	}
