@@ -48,7 +48,7 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadca
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
 		return nil, err
 	}
-	from, err := lauth.VerifyEthereumTransacton(signedTx)
+	from, err := lauth.VerifySolidity66Byte(signedTx)
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +78,8 @@ func tendermintToEthereumTx(tmTx types.Tx) (*etypes.Transaction, error) {
 		return nil, err
 	}
 
-	var ethTx vm.EthTx
-	if err := proto.Unmarshal(msg.Data, &ethTx); err != nil {
-		return nil, err
-	}
-
 	var tx etypes.Transaction
-	err = tx.UnmarshalJSON(ethTx.EthereumTransaction)
+	err = tx.UnmarshalJSON(msg.Data)
 	if err != nil {
 		return nil, err
 	}

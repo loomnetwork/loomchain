@@ -104,16 +104,8 @@ func EthToLoomAddress(ethAddr ecommon.Address) loom.Address {
 }
 
 func ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
-	ethTx := &vm.EthTx{
-		EthereumTransaction: txBytes,
-	}
-
-	var err error
 	msg := &vm.MessageTx{}
-	msg.Data, err = proto.Marshal(ethTx)
-	if err != nil {
-		return nil, err
-	}
+	msg.Data = txBytes
 
 	var tx types.Transaction
 	if err := tx.UnmarshalJSON(txBytes); err != nil {

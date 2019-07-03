@@ -25,6 +25,9 @@ const (
 )
 
 func VerifySolidity66Byte(tx SignedTx) ([]byte, error) {
+	if tx.Signature == nil {
+		return verifyEthereumTransacton(tx)
+	}
 	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature)
 	if err != nil {
 		return nil, errors.Wrap(err, "verify solidity key")
@@ -41,7 +44,7 @@ func verifyTron(tx SignedTx) ([]byte, error) {
 	return tronAddr.Bytes(), nil
 }
 
-func VerifyEthereumTransacton(signedTx SignedTx) ([]byte, error) {
+func verifyEthereumTransacton(signedTx SignedTx) ([]byte, error) {
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
 		return nil, err
@@ -61,13 +64,8 @@ func VerifyEthereumTransacton(signedTx SignedTx) ([]byte, error) {
 		return nil, err
 	}
 
-	var ethTx vm.EthTx
-	if err := proto.Unmarshal(msg.Data, &ethTx); err != nil {
-		return nil, err
-	}
-
 	var tx etypes.Transaction
-	if err := tx.UnmarshalJSON(ethTx.EthereumTransaction); err != nil {
+	if err := tx.UnmarshalJSON(msg.Data); err != nil {
 		return nil, eth.NewErrorf(eth.EcParseError, "Parse params", "unmarshalling ethereum transaction, %v", err)
 	}
 	chainConfig := utils.DefaultChainConfig()

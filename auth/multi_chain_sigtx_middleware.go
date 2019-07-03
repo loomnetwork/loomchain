@@ -23,7 +23,6 @@ const (
 	LoomSignedTxType     SignedTxType = "loom"
 	EthereumSignedTxType SignedTxType = "eth"
 	TronSignedTxType     SignedTxType = "tron"
-	EthereumTransaction  SignedTxType = "native-eth"
 )
 
 // AccountType is used to specify which address should be used on-chain to identify a tx sender.
@@ -42,7 +41,6 @@ var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
 	LoomSignedTxType:     verifyEd25519,
 	EthereumSignedTxType: VerifySolidity66Byte,
 	TronSignedTxType:     verifyTron,
-	EthereumTransaction:  VerifyEthereumTransacton,
 }
 
 type originRecoveryFunc func(tx SignedTx) ([]byte, error)
@@ -104,7 +102,7 @@ func NewMultiChainSignatureTxMiddleware(
 			)
 		}
 
-		if !bytes.Equal(recoveredAddr, msgSender.Local) && msgSender.ChainID != string(EthereumTransaction) {
+		if !bytes.Equal(recoveredAddr, msgSender.Local) {//&& msgSender.ChainID != string(EthereumTransaction) {
 			return r, fmt.Errorf("message sender %s doesn't match origin %s",
 				hex.EncodeToString(msgSender.Local), hex.EncodeToString(recoveredAddr),
 			)
