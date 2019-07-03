@@ -855,6 +855,7 @@ func loadApp(
 			err := deployContract(
 				state,
 				contractCfg,
+				cfg,
 				vmManager,
 				rootAddr,
 				registry,
@@ -1107,6 +1108,7 @@ func loadApp(
 func deployContract(
 	state loomchain.State,
 	contractCfg config.ContractConfig,
+	chainCfg *config.Config,
 	vmManager *vm.Manager,
 	rootAddr loom.Address,
 	registry regcommon.Registry,
@@ -1134,8 +1136,7 @@ func deployContract(
 		return err
 	}
 
-	conf, err := common.ParseConfig()
-	if !state.FeatureEnabled(loomchain.EvmContractNameFeature, false) || conf.EvmConfig.AllowNamedEvmContract || vmType == lvm.VMType_PLUGIN {
+	if !state.FeatureEnabled(loomchain.EvmContractNameFeature, false) || chainCfg.EvmConfig.AllowNamedEvmContract || vmType == lvm.VMType_PLUGIN {
 		err = registry.Register(contractCfg.Name, addr, addr)
 		if err != nil {
 			return err
