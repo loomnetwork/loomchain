@@ -66,6 +66,6 @@ const (
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
 
-	// Enable EVMconfig option for solidity contract to have name or not
-	EvmContractNameFeature = "evm:contract-name-allow"
+	// Enable EVMconfig option to allow checking the registry error
+	CheckRegistryErrorFeature = "registry:check-error"
 )
