@@ -51,7 +51,7 @@ type originRecoveryFunc func(tx SignedTx) ([]byte, error)
 // specific signing algos.
 func NewMultiChainSignatureTxMiddleware(
 	chains map[string]ChainConfig,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.Context, error),
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
@@ -151,7 +151,7 @@ func NewMultiChainSignatureTxMiddleware(
 func getMappedAccountAddress(
 	state loomchain.State,
 	addr loom.Address,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.Context, error),
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (loom.Address, error) {
 	ctx, err := createAddressMapperCtx(state)
 	if err != nil {

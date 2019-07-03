@@ -6,6 +6,7 @@ PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
 # Allow location of transfer-gateway package to be overriden via env var
 PKG_TRANSFER_GATEWAY?=github.com/loomnetwork/transfer-gateway
+PKG_BINANCE_TGORACLE=github.com/loomnetwork/binance-tgoracle
 
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src
 
@@ -21,6 +22,7 @@ LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
+BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
@@ -39,6 +41,8 @@ BTCD_GIT_REV = 7d2daa5bfef28c5e282571bc06416516936115ee
 # that don't appear to be compatible with the gogo protobuf & protoc versions we use.
 # google.golang.org/genproto seems to be pulled in by the grpc package.
 GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
+# Specifies the loomnetwork/binance-tgoracle branch/revision to use.
+BINANCE_TG_GIT_REV = init-build
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -70,7 +74,7 @@ WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH
 
 E2E_TESTS_TIMEOUT = 28m
 
-.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
@@ -98,6 +102,9 @@ loomcoin_tgoracle: $(TRANSFER_GATEWAY_DIR)
 
 tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
 	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+
+binance_tgoracle: $(BINANCE_TGORACLE_DIR)
+	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_BINANCE_TRORACLE)/cmd/$@
 
 pcoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
@@ -186,6 +193,10 @@ $(SSHA3_DIR):
 $(TRANSFER_GATEWAY_DIR):
 	git clone -q git@github.com:loomnetwork/transfer-gateway.git $@
 	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV)
+
+$(BINANCE_TGORACLE_DIR):
+	git clone -q git@github.com:loomnetwork/binace-tgoracle.git $@
+	cd $(BINANCE_TGORACLE_DIR) && git checkout master && git pull && git checkout $(BINANCE_TG_GIT_REV)
 
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd

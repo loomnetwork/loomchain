@@ -22,6 +22,12 @@ func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return gateway.DefaultTronConfig(rpcProxyPort)
 }
 
+func DefaultBinanceTGConfig() *TransferGatewayConfig {
+	return &TransferGatewayConfig{
+		ContractEnabled: true, // enabled by default for easier production deployment
+	}
+}
+
 func DefaultDPOS2OracleConfig() *OracleSerializableConfig {
 	return &OracleSerializableConfig{}
 }
@@ -158,6 +164,13 @@ TronTransferGateway:
     MainnetPrivateKeyPath: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .TronTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"
   {{- end}}
+
+#
+# Binance Transfer Gateway
+#
+BinanceTransferGateway:
+  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+  ContractEnabled: {{ .BinanceTransferGateway.ContractEnabled }}
 
 #
 # Oracle serializable 

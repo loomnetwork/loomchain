@@ -18,6 +18,10 @@ func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{}
 }
 
+func DefaultBinanceTGConfig() *TransferGatewayConfig {
+	return &TransferGatewayConfig{}
+}
+
 // Clone returns a deep clone of the config.
 func (c *TransferGatewayConfig) Clone() *TransferGatewayConfig {
 	if c == nil {

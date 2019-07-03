@@ -8,6 +8,8 @@ const (
 	TGHotWalletFeature = "tg:hot-wallet"
 	// Enables prevention of zero amount token withdrawals in the Gateway contract
 	TGCheckZeroAmount = "tg:check-zamt"
+	//Enables workaround for handling of ERC721 deposits in the Gateway contract
+	TGFixERC721Feature = "tg:fix-erc721"
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
 	AuthSigTxFeaturePrefix = "auth:sigtx:"
@@ -23,6 +25,10 @@ const (
 	// Enables slashing metrics
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_2 = "dpos:v3.2"
+
+	// Enables jailing offline validators
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_3 = "dpos:v3.3"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
@@ -46,6 +52,9 @@ const (
 
 	// Enables usage of ctx.Validators() in ChainConfig contract.
 	ChainCfgVersion1_1 = "chaincfg:v1.1"
+
+	// Enables validator build number tracking via the ChainConfig contract.
+	ChainCfgVersion1_2 = "chaincfg:v1.2"
 
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
