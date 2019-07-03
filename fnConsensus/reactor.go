@@ -86,7 +86,10 @@ type FnConsensusReactor struct {
 	cfg *ReactorConfig
 }
 
-func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB, parsableConfig *ReactorConfigParsable) (*FnConsensusReactor, error) {
+func NewFnConsensusReactor(
+	chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB,
+	parsableConfig *ReactorConfigParsable,
+) (*FnConsensusReactor, error) {
 	parsedConfig, err := parsableConfig.Parse()
 	if err != nil {
 		return nil, err
@@ -355,7 +358,7 @@ func (f *FnConsensusReactor) voteRoutine() {
 	currentValidators := f.getValidatorSet()
 
 	// Initializing these vars with sane value to calculate initial time
-	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
+	areWeValidator, _ := f.areWeValidator(currentValidators)
 
 OUTER_LOOP:
 	for {
@@ -371,7 +374,7 @@ OUTER_LOOP:
 			break OUTER_LOOP
 		case <-proposeTimer.C:
 			currentValidators := f.getValidatorSet()
-			areWeValidator, ownValidatorIndex = f.areWeValidator(currentValidators)
+			areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 			if !areWeValidator {
 				break
@@ -402,27 +405,38 @@ OUTER_LOOP:
 }
 
 func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.ValidatorSet, validatorIndex int) {
-
 	message, signature, err := f.safeGetMessageAndSignature(fn, nil)
 	if err != nil {
-		f.Logger.Error("FnConsensusReactor: received error while executing fn.GetMessageAndSignature", "fnID", fnID, "error", err, "method", voteMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: received error while executing fn.GetMessageAndSignature",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
 		return
 	}
 
 	hash, err := f.calculateMessageHash(message)
 	if err != nil {
-		f.Logger.Error("FnConsensusReactor: unable to calculate message hash", "fnID", fnID, "error", err, "method", voteMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: unable to calculate message hash",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
 		return
 	}
 
 	if err = f.safeMapMessage(fn, nil, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-		f.Logger.Error("FnConsensusReactor: received error while executing fn.MapMessage", "fnID", fnID, "error", err, "method", voteMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: received error while executing fn.MapMessage",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
 		return
 	}
 
 	executionRequest, err := NewFnExecutionRequest(fnID, f.fnRegistry)
 	if err != nil {
-		f.Logger.Error("FnConsensusReactor: unable to create Fn execution request as FnID is invalid", "fnID", fnID, "error", err, "method", voteMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: unable to create Fn execution request as FnID is invalid",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
 		return
 	}
 
@@ -444,7 +458,10 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	voteSet, err := NewVoteSet(currentNonce, f.chainID, validatorIndex,
 		votesetPayload, f.privValidator, currentValidators)
 	if err != nil {
-		f.Logger.Error("FnConsensusReactor: unable to create new voteset", "fnID", fnID, "error", err, "method", voteMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: unable to create new voteset",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
 		return
 	}
 
@@ -453,20 +470,27 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	if aggregateExecutionResponse != nil {
 		f.safeSubmitMultiSignedMessage(fn, nil,
 			safeCopyBytes(aggregateExecutionResponse.Hash),
-			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures))
+			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
+		)
 		return
 	}
 
 	f.state.CurrentVoteSets[fnID] = voteSet
 
 	if err := SaveReactorState(f.db, f.state, true); err != nil {
-		f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "error", err, "method", voteMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: unable to save state",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
 		return
 	}
 
 	marshalledBytes, err := voteSet.Marshal()
 	if err != nil {
-		f.Logger.Error(fmt.Sprintf("FnConsensusReactor: Unable to marshal currentVoteSet at FnID: %s", fnID), "error", err, "method", voteMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: Unable to marshal currentVoteSet",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
 		return
 	}
 
@@ -474,10 +498,12 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 }
 
 func (f *FnConsensusReactor) commit(fnID string) {
-
 	fn := f.fnRegistry.Get(fnID)
 	if fn == nil {
-		f.Logger.Error("FnConsensusReactor: fn is nil while trying to access it in commit routine, Ignoring...", "method", commitMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: fn is nil while trying to access it in commit routine, ignoring...",
+			"method", commitMethodID,
+		)
 		return
 	}
 
@@ -491,30 +517,46 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	currentNonce := f.state.CurrentNonces[fnID]
 
 	if err := currentVoteSet.IsValid(f.chainID, currentValidators, f.fnRegistry); err != nil {
-		f.Logger.Error("FnConsensusReactor: Invalid VoteSet found", "VoteSet", currentVoteSet, "error", err, "method", commitMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid VoteSet found",
+			"VoteSet", currentVoteSet, "err", err, "method", commitMethodID)
+
 		delete(f.state.CurrentVoteSets, fnID)
+
 		if err := SaveReactorState(f.db, f.state, true); err != nil {
-			f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "error", err, "method", commitMethodID)
+			f.Logger.Error(
+				"FnConsensusReactor: unable to save state",
+				"fnID", fnID, "err", err, "method", commitMethodID,
+			)
 			return
 		}
 		return
 	}
 
 	if !currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
-		f.Logger.Info("No consensus achieved", "fnID", fnID, "VoteSet", currentVoteSet, "Payload",
-			currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response, "method", commitMethodID)
+		f.Logger.Info(
+			"No consensus achieved",
+			"fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload,
+			"Response", currentVoteSet.Payload.Response, "method", commitMethodID,
+		)
 
 		previousConvergedVoteSet := f.state.PreviousMajVoteSets[fnID]
 		if previousConvergedVoteSet != nil {
 			marshalledBytesOfPreviousVoteSet, err := previousConvergedVoteSet.Marshal()
 			if err != nil {
-				f.Logger.Error("unable to marshal PreviousMajVoteSet", "error", err, "fnID", fnID, "method", commitMethodID)
+				f.Logger.Error(
+					"unable to marshal PreviousMajVoteSet",
+					"err", err, "fnID", fnID, "method", commitMethodID,
+				)
 				return
 			}
 
 			marshalledBytesOfCurrentVoteSet, err := currentVoteSet.Marshal()
 			if err != nil {
-				f.Logger.Error("unable to marshal Current Vote set", "error", err, "fnID", fnID, "method", commitMethodID)
+				f.Logger.Error(
+					"unable to marshal Current Vote set",
+					"err", err, "fnID", fnID, "method", commitMethodID,
+				)
 				return
 			}
 
@@ -530,7 +572,11 @@ func (f *FnConsensusReactor) commit(fnID string) {
 		if areWeValidator {
 			majExecutionResponse := currentVoteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 			if majExecutionResponse != nil {
-				f.Logger.Info("Maj-consensus achieved", "fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload, "Response", currentVoteSet.Payload.Response, "method", commitMethodID)
+				f.Logger.Info(
+					"Maj-consensus achieved",
+					"fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload,
+					"Response", currentVoteSet.Payload.Response, "method", commitMethodID,
+				)
 				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
 				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
@@ -548,7 +594,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 
 	if err := SaveReactorState(f.db, f.state, true); err != nil {
-		f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "error", err, "method", commitMethodID)
+		f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "err", err, "method", commitMethodID)
 		return
 	}
 }
@@ -632,19 +678,29 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 
 	remoteMajVoteSet := &FnVoteSet{}
 	if err := remoteMajVoteSet.Unmarshal(msgBytes); err != nil {
-		f.Logger.Error("FnConsensusReactor: Invalid Data passed, ignoring...", "error", err, "method", maj23MsgHandlerMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", maj23MsgHandlerMethodID,
+		)
 		return
 	}
 
-	// We might have recently changed validator set, so Maybe this voteset is valid with previousValidatorSet and not current
-	// We dont need to validate the proposer, as it might be outdated in our case
+	// We might have recently changed validator set, so maybe this voteset is valid with
+	// previousValidatorSet and not current. We dont need to validate the proposer, as it might be
+	// outdated in our case.
 	if err := remoteMajVoteSet.IsValid(f.chainID, currentValidatorSet, f.fnRegistry); err != nil {
 		if previousValidatorSet == nil {
-			f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...", "error", err, "method", maj23MsgHandlerMethodID)
+			f.Logger.Error(
+				"FnConsensusReactor: Invalid VoteSet specified, ignoring...",
+				"err", err, "method", maj23MsgHandlerMethodID,
+			)
 			return
 		}
 		if err := remoteMajVoteSet.IsValid(f.chainID, previousValidatorSet, f.fnRegistry); err != nil {
-			f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...", "error", err, "method", maj23MsgHandlerMethodID)
+			f.Logger.Error(
+				"FnConsensusReactor: Invalid VoteSet specified, ignoring...",
+				"err", err, "method", maj23MsgHandlerMethodID,
+			)
 			return
 		}
 		validatorSetWhichSignedRemoteVoteSet = previousValidatorSet
@@ -686,7 +742,10 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 	}
 
 	if err := SaveReactorState(f.db, f.state, true); err != nil {
-		f.Logger.Error("FnConsensusReactor: unable to save reactor state", "error", err, "method", maj23MsgHandlerMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: unable to save reactor state",
+			"err", err, "method", maj23MsgHandlerMethodID,
+		)
 		return
 	}
 
@@ -696,7 +755,10 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 
 	marshalledBytes, err := previousMaj23VoteSet.Marshal()
 	if err != nil {
-		f.Logger.Error("FnConsensusReactor: unable to marshal bytes", "error", err, "method", maj23MsgHandlerMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: unable to marshal bytes",
+			"err", err, "method", maj23MsgHandlerMethodID,
+		)
 		return
 	}
 
@@ -712,14 +774,20 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 	remoteVoteSet := &FnVoteSet{}
 	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
-		f.Logger.Error("FnConsensusReactor: Invalid Data passed, ignoring...", "error", err, "method", voteSetMsgHandlerMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", voteSetMsgHandlerMethodID,
+		)
 		return
 	}
 
 	fnID := remoteVoteSet.GetFnID()
 
 	if err := remoteVoteSet.IsValid(f.chainID, currentValidators, f.fnRegistry); err != nil {
-		f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...", "error", err, "method", voteSetMsgHandlerMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid VoteSet specified, ignoring...",
+			"err", err, "method", voteSetMsgHandlerMethodID,
+		)
 		return
 	}
 
@@ -745,17 +813,20 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 	}
 
 	switch f.compareFnVoteSets(remoteVoteSet, currentVoteSet, currentNonce, currentValidators) {
-	// Both vote set have same trustworthy ness, so merge
+	// Both votesets have same trustworthiness, so merge
 	case 0:
 		if didWeContribute, err = f.state.CurrentVoteSets[fnID].Merge(currentValidators, remoteVoteSet); err != nil {
-			f.Logger.Error("FnConsensusReactor: Unable to merge remote vote set into our own.", "error", err, "method", voteSetMsgHandlerMethodID)
+			f.Logger.Error(
+				"FnConsensusReactor: Unable to merge remote vote set into our own.",
+				"err", err, "method", voteSetMsgHandlerMethodID,
+			)
 			return
 		}
 		currentVoteSet = f.state.CurrentVoteSets[fnID]
 		currentNonce = f.state.CurrentNonces[fnID]
 
 		hasOurVoteSetChanged = didWeContribute
-		break
+
 	// Remote voteset is more trustworthy, so replace
 	case 1:
 		f.state.CurrentVoteSets[fnID] = remoteVoteSet
@@ -766,13 +837,12 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		hasOurVoteSetChanged = true
 		didWeContribute = false
-		break
+
 	// Current voteset is more trustworthy
 	case -1:
 		if currentVoteSet == nil {
 			return
 		}
-		break
 	}
 
 	if areWeValidator && !currentVoteSet.HaveWeAlreadySigned(ownValidatorIndex) {
@@ -780,18 +850,27 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		message, signature, err := f.safeGetMessageAndSignature(fn, nil)
 		if err != nil {
-			f.Logger.Error("FnConsensusReactor: received error while executing fn.GetMessageAndSignature", "fnID", fnID, "error", err, "method", voteSetMsgHandlerMethodID)
+			f.Logger.Error(
+				"FnConsensusReactor: received error while executing fn.GetMessageAndSignature",
+				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
+			)
 			return
 		}
 
 		hash, err := f.calculateMessageHash(message)
 		if err != nil {
-			f.Logger.Error("FnConsensusReactor: unable to calculate message hash", "fnID", fnID, "error", err, "method", voteSetMsgHandlerMethodID)
+			f.Logger.Error(
+				"FnConsensusReactor: unable to calculate message hash",
+				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
+			)
 			return
 		}
 
 		if err = f.safeMapMessage(fn, nil, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-			f.Logger.Error("FnConsensusReactor: received error while executing fn.MapMessage", "fnID", fnID, "error", err, "method", voteSetMsgHandlerMethodID)
+			f.Logger.Error(
+				"FnConsensusReactor: received error while executing fn.MapMessage",
+				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
+			)
 			return
 		}
 
@@ -800,7 +879,10 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 			OracleSignature: signature,
 		}, currentValidators, ownValidatorIndex, f.privValidator)
 		if err != nil {
-			f.Logger.Error("FnConsensusError: unable to add agree vote to current voteset, ignoring...", "error", err, "method", voteSetMsgHandlerMethodID)
+			f.Logger.Error(
+				"FnConsensusError: unable to add agree vote to current voteset, ignoring...",
+				"err", err, "method", voteSetMsgHandlerMethodID,
+			)
 			return
 		}
 
@@ -818,7 +900,10 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 	marshalledBytes, err := currentVoteSet.Marshal()
 	if err != nil {
-		f.Logger.Error(fmt.Sprintf("FnConsensusReactor: Unable to marshal currentVoteSet at FnID: %s", fnID), "error", err, "method", voteSetMsgHandlerMethodID)
+		f.Logger.Error(
+			"FnConsensusReactor: Unable to marshal currentVoteSet",
+			"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
+		)
 		return
 	}
 
@@ -843,10 +928,8 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 	switch chID {
 	case FnVoteSetChannel:
 		f.handleVoteSetChannelMessage(sender, msgBytes)
-		break
 	case FnMajChannel:
 		f.handleMaj23VoteSetChannel(sender, msgBytes)
-		break
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
