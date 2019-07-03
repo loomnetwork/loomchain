@@ -1136,9 +1136,9 @@ func deployContract(
 		return err
 	}
 
-	if !state.FeatureEnabled(loomchain.EvmContractNameFeature, false) || chainCfg.EvmConfig.AllowNamedEvmContract || vmType == lvm.VMType_PLUGIN {
+	if chainCfg.EvmConfig.AllowNamedEvmContract || vmType == lvm.VMType_PLUGIN {
 		err = registry.Register(contractCfg.Name, addr, addr)
-		if err != nil {
+		if err != nil && state.FeatureEnabled(loomchain.EvmContractNameFeature, false) { // if feature enable is on then handle the error
 			return err
 		}
 	}
