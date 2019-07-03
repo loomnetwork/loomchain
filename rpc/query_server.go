@@ -1136,7 +1136,7 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	}
 	txHash, err := eth.DecDataToBytes(txObj.Hash)
 	if err != nil {
-		return eth.TxObjToReceipt(txObj, contractAddr), errors.Wrapf(err, "invalid loom transaction hash %h", txObj.Hash)
+		return eth.TxObjToReceipt(txObj, contractAddr), errors.Wrapf(err, "invalid loom transaction hash %x", txObj.Hash)
 	}
 	txReceipt, err := rh.GetReceipt(state, txHash)
 	if err != nil {

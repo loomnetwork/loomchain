@@ -119,7 +119,7 @@ func ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
 	if err := tx.UnmarshalJSON(txBytes); err != nil {
 		return nil, eth.NewErrorf(eth.EcParseError, "Parse params", "unmarshalling ethereum transaction, %v", err)
 	}
-	if msg.To != nil {
+	if tx.To() != nil {
 		msg.To = EthToLoomAddress(*tx.To()).MarshalPB()
 	}
 	chainConfig := utils.DefaultChainConfig()
