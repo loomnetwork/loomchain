@@ -923,7 +923,7 @@ func loadApp(
 
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
 		cfg.Auth,
-		getContractCtx("addressmapper", vmManager),
+		getContractStaticCtx("addressmapper", vmManager),
 	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
@@ -939,6 +939,13 @@ func loadApp(
 
 	if cfg.TxLimiter.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.NewTxLimiterMiddleware(cfg.TxLimiter))
+	}
+
+	if cfg.ContractTxLimiter.Enabled {
+		contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
+		txMiddleWare = append(
+			txMiddleWare, throttle.NewContractTxLimiterMiddleware(cfg.ContractTxLimiter, contextFactory),
+		)
 	}
 
 	if cfg.DeployerWhitelist.ContractEnabled {
@@ -1143,13 +1150,25 @@ func deployContract(
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
+type staticContextFactory func(state loomchain.State) (contractpb.StaticContext, error)
+
 func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), false)
+	}
+}
+
+func getContractStaticCtx(pluginName string, vmManager *vm.Manager) staticContextFactory {
+	return func(state loomchain.State) (contractpb.StaticContext, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), true)
 	}
 }
 
@@ -1186,10 +1205,11 @@ func initQueryService(
 		Help:      "Number of requests received.",
 	}, fieldKeys)
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "query_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "query_service",
+		Name:       "request_latency_microseconds",
+		Help:       "Total duration of requests in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)

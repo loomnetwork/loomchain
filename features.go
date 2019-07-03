@@ -6,7 +6,10 @@ const (
 	TGCheckTxHashFeature = "tg:check-txhash"
 	// Enables hot wallet (users can submit Ethereum deposit tx hashes).
 	TGHotWalletFeature = "tg:hot-wallet"
-
+	// Enables prevention of zero amount token withdrawals in the Gateway contract
+	TGCheckZeroAmount = "tg:check-zamt"
+	//Enables workaround for handling of ERC721 deposits in the Gateway contract
+	TGFixERC721Feature = "tg:fix-erc721"
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
 	AuthSigTxFeaturePrefix = "auth:sigtx:"
@@ -22,6 +25,10 @@ const (
 	// Enables slashing metrics
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_2 = "dpos:v3.2"
+
+	// Enables jailing offline validators
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_3 = "dpos:v3.3"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)

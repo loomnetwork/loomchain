@@ -26,18 +26,20 @@ func init() {
 
 	pruneTime = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "prune_duration",
-			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "prune_duration",
+			Help:       "How long IAVLStore.Prune() took to execute (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error"},
 	)
 	iavlSaveVersionDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "save_version",
-			Help:      "How long IAVLStore.SaveVersion() took to execute (in seconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "save_version",
+			Help:       "How long IAVLStore.SaveVersion() took to execute (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{},
 	)
 }

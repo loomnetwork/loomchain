@@ -64,34 +64,38 @@ func init() {
 
 	getDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "get",
-			Help:      "How long CachingStore.Get() took to execute (in miliseconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "get",
+			Help:       "How long CachingStore.Get() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error", "isCacheHit"})
 
 	hasDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "has",
-			Help:      "How long CachingStore.Has() took to execute (in miliseconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "has",
+			Help:       "How long CachingStore.Has() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error", "isCacheHit"})
 
 	deleteDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "delete",
-			Help:      "How long CachingStore.Delete() took to execute (in miliseconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "delete",
+			Help:       "How long CachingStore.Delete() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error"})
 
 	setDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "set",
-			Help:      "How long CachingStore.Set() took to execute (in miliseconds)",
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "set",
+			Help:       "How long CachingStore.Set() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error"})
 
 	cacheHits = kitprometheus.NewCounterFrom(

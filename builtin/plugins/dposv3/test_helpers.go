@@ -250,6 +250,18 @@ func (dpos *testDPOSContract) RemoveWhitelistedCandidate(ctx *plugin.FakeContext
 	return err
 }
 
+func (dpos *testDPOSContract) Unjail(ctx *plugin.FakeContext, candidate *loom.Address) error {
+	var validator *types.Address
+	if candidate != nil {
+		validator = candidate.MarshalPB()
+	}
+	err := dpos.Contract.Unjail(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&UnjailRequest{Validator: validator},
+	)
+	return err
+}
+
 func (dpos *testDPOSContract) Delegate(ctx *plugin.FakeContext, validator *loom.Address, amount *big.Int, tier *uint64, referrer *string) error {
 	req := &DelegateRequest{
 		ValidatorAddress: validator.MarshalPB(),

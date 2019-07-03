@@ -20,7 +20,10 @@ func NewGatewayCommand() *cobra.Command {
 		newAddOracleCommand(),
 		newRemoveOracleCommand(),
 		newGetOraclesCommand(),
+		newGetContractMappingCommand(),
+		newListContractMappingsCommand(),
 		newUpdateTrustedValidatorsCommand(),
+		newSetWithdrawFeeCommand(),
 	)
 	return cmd
 }

@@ -35,5 +35,13 @@ func loadGatewayContracts(cfg *config.Config) []goloomplugin.Contract {
 		}
 	}
 
+	if cfg.BinanceTransferGateway.ContractEnabled {
+		if cfg.BinanceTransferGateway.Unsafe {
+			contracts = append(contracts, gateway.UnsafeBinanceContract)
+		} else {
+			contracts = append(contracts, gateway.BinanceContract)
+		}
+	}
+
 	return contracts
 }
