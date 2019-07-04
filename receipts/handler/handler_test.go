@@ -59,8 +59,7 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	require.EqualValues(t, int(10), len(handler.receiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
 
-	var reader loomchain.ReadReceiptHandler
-	reader = handler
+	var reader loomchain.ReadReceiptHandler = handler
 
 	pendingHashList := reader.GetPendingTxHashList()
 	require.EqualValues(t, 10, len(pendingHashList))
@@ -109,12 +108,8 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
 	require.NoError(t, err)
 
-	var writer loomchain.WriteReceiptHandler
-	writer = handler
-
-	var receiptHandler loomchain.ReceiptHandlerStore
-	receiptHandler = handler
-
+	var writer loomchain.WriteReceiptHandler = handler
+	var receiptHandler loomchain.ReceiptHandlerStore = handler
 	var txHashList [][]byte
 
 	// mock block
@@ -160,8 +155,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	require.EqualValues(t, int(9), len(handler.receiptsCache))
 	require.EqualValues(t, int(9), len(txHashList))
 
-	var reader loomchain.ReadReceiptHandler
-	reader = handler
+	var reader loomchain.ReadReceiptHandler = handler
 
 	pendingHashList := reader.GetPendingTxHashList()
 	require.EqualValues(t, 9, len(pendingHashList))

@@ -33,8 +33,15 @@ import (
 	tmLog "github.com/tendermint/tendermint/libs/log"
 )
 
-func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnRegistry fnConsensus.FnRegistry, cfg *cfg.Config, logger tmLog.Logger,
-	cachedDBProvider node.DBProvider, reactorConfig *fnConsensus.ReactorConfigParsable) (*fnConsensus.FnConsensusReactor, error) {
+func CreateFnConsensusReactor(
+	chainID string,
+	privVal types.PrivValidator,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *cfg.Config,
+	logger tmLog.Logger,
+	cachedDBProvider node.DBProvider,
+	reactorConfig *fnConsensus.ReactorConfigParsable,
+) (*fnConsensus.FnConsensusReactor, error) {
 	fnConsensusDB, err := cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
 	if err != nil {
 		return nil, err
@@ -45,7 +52,9 @@ func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnReg
 		return nil, err
 	}
 
-	fnConsensusReactor, err := fnConsensus.NewFnConsensusReactor(chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB, reactorConfig)
+	fnConsensusReactor, err := fnConsensus.NewFnConsensusReactor(
+		chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB, reactorConfig,
+	)
 	if err != nil {
 		return nil, err
 	}
