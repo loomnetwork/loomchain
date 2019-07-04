@@ -44,9 +44,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 			return err
 		}
 
-		for _, val := range genDoc.Validators {
-			genValidators = append(genValidators, val)
-		}
+		genValidators = append(genValidators, genDoc.Validators...)
 	}
 
 	var genesisTime time.Time
@@ -72,7 +70,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 	}
 
 	// Initialize the override validators
-	var overrideValidators []*fnConsensus.OverrideValidatorParsable
+	overrideValidators := make([]*fnConsensus.OverrideValidatorParsable, 0, len(genValidators))
 	for _, val := range genValidators {
 		address := val.Address
 		overrideValidators = append(overrideValidators, &fnConsensus.OverrideValidatorParsable{

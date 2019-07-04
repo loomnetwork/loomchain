@@ -174,7 +174,7 @@ func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),
-		Address:          EncAddress(log.Caller),
+		Address:          EncAddress(log.Address),
 		Data:             data,
 		TransactionIndex: EncInt(int64(log.TransactionIndex)),
 		BlockHash:        EncBytes(log.BlockHash),
