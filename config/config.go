@@ -134,8 +134,8 @@ type Config struct {
 
 	Auth *auth.Config
 
-	EvmStore  *evm.EvmStoreConfig
-	EvmConfig *evm.EvmConfig
+	EvmStore              *evm.EvmStoreConfig
+	AllowNamedEvmContract bool
 
 	// Dragons
 	EVMDebugEnabled bool
@@ -381,10 +381,11 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:        "",
-		DeployEnabled: true,
-		CallEnabled:   true,
-		DPOSVersion:   3,
+		Oracle:                "",
+		DeployEnabled:         true,
+		CallEnabled:           true,
+		DPOSVersion:           3,
+		AllowNamedEvmContract: false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -410,7 +411,6 @@ func DefaultConfig() *Config {
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
-	cfg.EvmConfig = evm.DefaultEvmConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -770,11 +770,6 @@ PluginsDir: "{{ .PluginsDir }}"
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
-{{if .EvmConfig -}}
-#
-# EvmConfig
-#
-EvmConfig:
-  AllowNamedEvmContract: {{ .EvmConfig.AllowNamedEvmContract }}
-{{end}}
+AllowNamedEvmContract: {{ .AllowNamedEvmContract }}
+
 ` + transferGatewayLoomYamlTemplate
