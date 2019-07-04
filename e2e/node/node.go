@@ -243,9 +243,7 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	cmd.Stdout = os.Stdout
 	errC := make(chan error)
 	go func() {
-		select {
-		case errC <- cmd.Run():
-		}
+		errC <- cmd.Run()
 	}()
 
 	for {
@@ -267,13 +265,11 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 
 				dur := event.Duration.Duration
 				// consume error when killing process
-				select {
-				case e := <-errC:
-					if e != nil {
-						// check error
-					}
-					fmt.Printf("stopped node %d for %v\n", n.ID, dur)
+				e := <-errC
+				if e != nil {
+					// check error
 				}
+				fmt.Printf("stopped node %d for %v\n", n.ID, dur)
 
 				// restart
 				time.Sleep(dur)
@@ -281,9 +277,7 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 				cmd.Dir = n.Dir
 				go func() {
 					fmt.Printf("starting node %d after %v\n", n.ID, dur)
-					select {
-					case errC <- cmd.Run():
-					}
+					errC <- cmd.Run()
 				}()
 			}
 		case err := <-errC:

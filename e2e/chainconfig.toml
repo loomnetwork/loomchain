@@ -54,9 +54,34 @@
   Expected = []
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg add-feature chaincfg:v1.2 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
   Expected = ['hardfork','newfeature','multichain','dposv3']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg enable-feature chaincfg:v1.2 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg enable-feature chaincfg:v1.2 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg enable-feature chaincfg:v1.2 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg enable-feature chaincfg:v1.2 -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "excludes"
+  Expected = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
@@ -122,3 +147,41 @@
   RunCmd = "{{ $.LoomPath }} chain-cfg get-feature feature2"
   Condition = "contains"
   Expected = ['feature2', '567']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 578 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['Error','not authorized']
+
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 578 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-validator-info {{index $.NodeAddressList 0}}"
+  Condition = "contains"
+  Expected = ['buildNumber', '578']
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+[[TestCases]]
+  Delay = 5000
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+  [[TestCases]]
+  Delay = 5000
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-validators "
+  Condition = "contains"
+  Expected = ['validator','578','50']
