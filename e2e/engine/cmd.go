@@ -232,7 +232,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 						}
 					}
 
-				} else if cmd.Args[0] == "wait_block_height_to_increase" {
+				} else if cmd.Args[0] == "wait_for_block_height_to_increase" {
 					if len(cmd.Args) > 2 {
 						maxWaitingTime := 60 // 60s
 						maxRetries := 3
@@ -259,7 +259,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 							time.Sleep(time.Duration(time.Second))
 						}
 					}
-				} else if cmd.Args[0] == "wait_node_to_catch_up" {
+				} else if cmd.Args[0] == "wait_for_node_to_catch_up" {
 					if len(cmd.Args) > 1 {
 						maxWaitingTime := 60 // 60s
 						for i := maxWaitingTime; i > 0; i-- {

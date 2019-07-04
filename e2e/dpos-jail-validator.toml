@@ -71,11 +71,11 @@
 
 # wait node 1 to catch up
 [[TestCases]]
-  RunCmd = "wait_node_to_catch_up 1"
+  RunCmd = "wait_for_node_to_catch_up 1"
 
 # wait block height to increase at least 5 blocks
 [[TestCases]]
-  RunCmd = "wait_block_height_to_increase 0 5"
+  RunCmd = "wait_for_block_height_to_increase 0 5"
 
 # check downtime periods, it should be cleared out after 5 blocks
 [[TestCases]]
@@ -102,7 +102,7 @@
 
 # wait block height to increase at least 2 blocks
 [[TestCases]]
-  RunCmd = "wait_block_height_to_increase 0 2"
+  RunCmd = "wait_for_block_height_to_increase 0 2"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"

@@ -30,7 +30,7 @@
   Expected = ['Error']
 
 [[TestCases]]
-  RunCmd = "wait_block_height_to_increase 0 2"
+  RunCmd = "wait_for_block_height_to_increase 0 2"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg get-feature auto-enabled:feature-1"
