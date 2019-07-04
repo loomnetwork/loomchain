@@ -115,7 +115,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, err
 	}
 
-	m.ctx.Logger().Debug("DPOS EndBlock", "NewValidatorsList", fmt.Sprint("%v+", validatorList))
+	m.ctx.Logger().Debug("DPOS EndBlock", "NewValidatorsList", fmt.Sprintf("%v+", validatorList))
 
 	// Clearing current validators by passing in list of zero-power update to
 	// tendermint.
