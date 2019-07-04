@@ -824,9 +824,9 @@ func loadApp(
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager:               vmManager,
-		CreateRegistry:        createRegistry,
-		AllowNamedEVMContract: cfg.EvmConfig.AllowNamedEvmContract,
+		Manager:                vmManager,
+		CreateRegistry:         createRegistry,
+		AllowNamedEVMContracts: cfg.AllowNamedEvmContract,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
