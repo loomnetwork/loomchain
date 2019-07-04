@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
@@ -262,8 +263,8 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
-func (c *contractContext) ChainConfig() loom.Config {
-	return c.VM.State.ChainConfig()
+func (c *contractContext) Config() *cctypes.Config {
+	return c.VM.State.Config()
 }
 
 func (c *contractContext) Validators() []*ltypes.Validator {

@@ -1,6 +1,10 @@
 package chainconfig
 
 import (
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -32,18 +36,12 @@ type (
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 
-	Config              = cctypes.Config
-	Vote                = cctypes.Vote
-	Proposal            = cctypes.Proposal
-	AddConfigRequest    = cctypes.AddConfigRequest
-	GetConfigRequest    = cctypes.GetConfigRequest
-	GetConfigResponse   = cctypes.GetConfigResponse
-	ListConfigsRequest  = cctypes.ListConfigsRequest
-	ListConfigsResponse = cctypes.ListConfigsResponse
-	SetConfigRequest    = cctypes.SetConfigRequest
-	ConfigValueRequest  = cctypes.ConfigValueRequest
-	ConfigValueResponse = cctypes.ConfigValueResponse
-	RemoveConfigRequest = cctypes.RemoveConfigRequest
+	Config         = cctypes.Config
+	AppStoreConfig = cctypes.AppStoreConfig
+
+	GetCfgSettingRequest  = cctypes.GetCfgSettingRequest
+	GetCfgSettingResponse = cctypes.GetCfgSettingResponse
+	SetCfgSettingRequest  = cctypes.SetCfgSettingRequest
 
 	ValidatorInfo              = cctypes.ValidatorInfo
 	GetValidatorInfoRequest    = cctypes.GetValidatorInfoRequest
@@ -64,15 +62,6 @@ const (
 	FeatureEnabled = cctypes.Feature_ENABLED
 	// FeatureDisabled is not currently used.
 	FeatureDisabled = cctypes.Feature_DISABLED
-
-	// ConfigVoting status indicates new config settings are being voted.
-	ConfigVoting = cctypes.Config_VOTING
-	// ConfigSettled status indicates a new config setting has been settled by majority of validators, but
-	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
-	ConfigSettled = cctypes.Config_SETTLED
-	// ConfigActivated status indicates a new config has been voted by majority of validators, and
-	// has been activated on the chain.
-	ConfigActivated = cctypes.Config_ACTIVATED
 )
 
 var (
@@ -110,6 +99,8 @@ var (
 	ErrConfigAlreadySettled = errors.New("[ChainConfig] config already settled")
 	// ErrConfigNonVotable is returned if a validator tries to vote a non-votable config
 	ErrConfigNonVotable = errors.New("[ChainConfig] config is not votable")
+	// ErrConfigWrongType returned when types of value and config variable mismatch
+	ErrConfigWrongType = errors.New("[ChainConfig] wrong variable type")
 )
 
 const (
@@ -124,14 +115,11 @@ var (
 	addFeaturePerm = []byte("addf")
 
 	paramsKey = []byte("params")
+	configKey = []byte("cfg")
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
-}
-
-func configKey(configName string) []byte {
-	return util.PrefixKey([]byte(configPrefix), []byte(configName))
 }
 
 func validatorInfoKey(addr loom.Address) []byte {
@@ -371,313 +359,53 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
-// AddConfig should be called by the contract owner to add new config the validators can vote.
-func (c *ChainConfig) AddConfig(ctx contract.Context, req *AddConfigRequest) error {
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
-		return ErrFeatureNotEnabled
-	}
-
-	for _, name := range req.Names {
-		if name == "" {
-			return ErrInvalidRequest
-		}
-	}
-
-	// TODO: config should have its own permission
-	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
-	}
-
-	for _, name := range req.Names {
-		if found := ctx.Has(configKey(name)); found {
-			return ErrConfigAlreadyExists
-		}
-
-		config := Config{
-			Name:          name,
-			BuildNumber:   req.BuildNumber,
-			Status:        ConfigVoting,
-			VoteThreshold: req.VoteThreshold,
-		}
-
-		if config.VoteThreshold == 0 {
-			sender := ctx.Message().Sender
-			vote := &Vote{
-				Validator: sender.MarshalPB(),
-				Value:     req.Value,
-			}
-			config.Votes = []*Vote{vote}
-		}
-
-		if err := ctx.Set(configKey(name), &config); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // GetConfig returns info about a specific config.
-func (c *ChainConfig) GetConfig(ctx contract.StaticContext, req *GetConfigRequest) (*GetConfigResponse, error) {
-	if req.Name == "" {
-		return nil, ErrInvalidRequest
+func (c *ChainConfig) GetCfgSetting(ctx contract.StaticContext, req *GetCfgSettingRequest) (*GetCfgSettingResponse, error) {
+	var config *Config
+	var inStoreConfig Config
+	if err := ctx.Get(configKey, &inStoreConfig); err != nil {
+		config = DefaultConfig()
+	} else {
+		config = &inStoreConfig
 	}
-
-	curValidators, err := getCurrentValidators(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	config, err := getConfig(ctx, req.Name, curValidators)
-	if err != nil {
-		return nil, err
-	}
-
-	return &GetConfigResponse{
+	return &GetCfgSettingResponse{
 		Config: config,
 	}, nil
 }
 
-// SetConfig should be called by a validator to indicate they want to propose a new config value.
-func (c *ChainConfig) SetConfig(ctx contract.Context, req *SetConfigRequest) error {
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
-		return ErrFeatureNotEnabled
-	}
+// SetCfgSetting should be called by a validator to indicate they want to propose a new config value.
+func (c *ChainConfig) SetCfgSetting(ctx contract.Context, req *SetCfgSettingRequest) error {
+	// if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+	// 	return ErrFeatureNotEnabled
+	// }
 
 	if req.Name == "" || req.Value == "" {
 		return ErrInvalidRequest
 	}
 
-	// check if this is a called from a validator
-	curValidators, err := getCurrentValidators(ctx)
-	if err != nil {
+	var config *Config
+	var inStoreConfig Config
+	if err := ctx.Get(configKey, &inStoreConfig); err != nil {
+		config = DefaultConfig()
+	} else {
+		config = &inStoreConfig
+	}
+
+	if err := setConfig(config, req.Name, req.Value); err != nil {
 		return err
 	}
 
-	// create validators hash map for checking valid validator
-	curValidatorsHashMap := make(map[string]bool, 0)
-	for _, validator := range curValidators {
-		curValidatorsHashMap[validator.String()] = true
-	}
-
-	sender := ctx.Message().Sender
-
-	found := false
-	for _, v := range curValidators {
-		if sender.Compare(v) == 0 {
-			found = true
-			break
-		}
-	}
-	if !found {
+	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
+	if !contractOwner {
 		return ErrNotAuthorized
 	}
 
-	// record the fact that the validator is ready to set the config
-	var config Config
-	if err := ctx.Get(configKey(req.Name), &config); err != nil {
-		return errors.Wrapf(err, "config '%s' not found", req.Name)
-	}
-
-	// only the contract owner can set value of non-votable config
-	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
-	if config.VoteThreshold == 0 && !contractOwner {
-		return ErrConfigNonVotable
-	}
-
-	// if the config has already been settled there's no point in recording additional votes
-	if config.Status == ConfigSettled {
-		return ErrConfigAlreadySettled
-		// if a validator sets a config that has been activated, change config status to voting,
-	} else if config.Status == ConfigActivated {
-		config.Status = ConfigVoting
-	}
-
-	votes := make([]*Vote, 0)
-	var vote *Vote
-	for _, v := range config.Votes {
-		// only add valid votes to vote list
-		voterAddr := loom.UnmarshalAddressPB(v.Validator).String()
-		if curValidatorsHashMap[voterAddr] {
-			votes = append(votes, v)
-		}
-
-		// find the vote of this validator
-		if sender.Compare(loom.UnmarshalAddressPB(v.Validator)) == 0 {
-			vote = v
-		}
-	}
-
-	if vote == nil {
-		vote := &Vote{
-			Validator: sender.MarshalPB(),
-			Value:     req.Value,
-		}
-		votes = append(votes, vote)
-	} else {
-		vote.Value = req.Value
-	}
-
-	config.Votes = votes
-
-	return ctx.Set(configKey(req.Name), &config)
+	return ctx.Set(configKey, config)
 }
 
-// RemoveConfig should be called by the contract owner to remove configs.
-func (c *ChainConfig) RemoveConfig(ctx contract.Context, req *RemoveConfigRequest) error {
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
-		return ErrFeatureNotEnabled
-	}
-
-	if len(req.Names) == 0 {
-		return ErrInvalidRequest
-	}
-	for _, name := range req.Names {
-		if name == "" {
-			return ErrInvalidRequest
-		}
-		// TODO: config should have its own permission
-		if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
-			return ErrNotAuthorized
-		}
-		if found := ctx.Has(configKey(name)); !found {
-			return ErrConfigNotFound
-		}
-		ctx.Delete(configKey(name))
-	}
-	return nil
-}
-
-// ConfigValue checks value of a specific config that is currently set on the chain, which means that
-// it has been voted by a sufficient number of validators, and has been set.
-func (c *ChainConfig) ConfigValue(ctx contract.StaticContext, req *ConfigValueRequest) (*ConfigValueResponse, error) {
-	if req.Name == "" {
-		return nil, ErrInvalidRequest
-	}
-	cfg := ctx.ChainConfig()
-	val := cfg.GetConfig(req.Name)
-	return &ConfigValueResponse{
-		Name:  req.Name,
-		Value: val,
-	}, nil
-}
-
-// ListConfigs returns info about all the currently known configs.
-func (c *ChainConfig) ListConfigs(ctx contract.StaticContext, req *ListConfigsRequest) (*ListConfigsResponse, error) {
-	curValidators, err := getCurrentValidators(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	configRange := ctx.Range([]byte(configPrefix))
-	configs := []*Config{}
-	for _, m := range configRange {
-		var cfg Config
-		if err := proto.Unmarshal(m.Value, &cfg); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal config %s", string(m.Key))
-		}
-		config, err := getConfig(ctx, cfg.Name, curValidators)
-		if err != nil {
-			return nil, err
-		}
-		configs = append(configs, config)
-	}
-
-	return &ListConfigsResponse{
-		Configs: configs,
-	}, nil
-}
-
-// SetConfigs updates the status of configs that haven't been activated yet:
-// - A VOTING config will become SETTLED once the percentage of validators that have voted to set
-//   a particular value reaches a certain threshold.
-// - A SETTLED config will become ACTIVATED after a sufficient number of block confirmations.
-// Returns a list of configs whose status has changed from SETTLED to ACTIVTED at the given height.
-func SetConfigs(ctx contract.Context, blockHeight, buildNumber uint64) ([]*Config, error) {
-	params, err := getParams(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	curValidators, err := getCurrentValidators(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	configRange := ctx.Range([]byte(configPrefix))
-	activatedConfigs := make([]*Config, 0)
-	for _, data := range configRange {
-		var cfg Config
-		if err := proto.Unmarshal(data.Value, &cfg); err != nil {
-			return nil, errors.Wrapf(err, "failed to unmarshal config %s", string(data.Key))
-		}
-		// this one will calculate the percentage for voting config
-		config, err := getConfig(ctx, cfg.Name, curValidators)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to get config info %s", cfg.Name)
-		}
-
-		switch config.Status {
-		case ConfigVoting:
-			proposal := getMostPopularProposal(config.Proposals)
-			if proposal == nil {
-				continue
-			}
-			if proposal.Percentage >= config.VoteThreshold {
-				config.Status = ConfigSettled
-				config.BlockHeight = blockHeight
-				config.Settlement = proposal
-				if err := ctx.Set(configKey(config.Name), config); err != nil {
-					return nil, err
-				}
-				ctx.Logger().Info(
-					"[Config status changed]",
-					"name", config.Name,
-					"from", ConfigVoting,
-					"to", ConfigSettled,
-					"block_height", blockHeight,
-					"percentage", proposal.Percentage,
-					"value", proposal.Value,
-				)
-			}
-		case ConfigSettled:
-			if blockHeight > (config.BlockHeight + params.NumBlockConfirmations) {
-				if buildNumber < config.BuildNumber {
-					return nil, ErrConfigNotSupported
-				}
-				config.Status = ConfigActivated
-				if err := ctx.Set(configKey(config.Name), config); err != nil {
-					return nil, err
-				}
-				activatedConfigs = append(activatedConfigs, config)
-				ctx.Logger().Info(
-					"[Config status changed]",
-					"name", config.Name,
-					"from", ConfigSettled,
-					"to", ConfigActivated,
-					"block_height", blockHeight,
-					"percentage", config.Settlement.Percentage,
-					"value", config.Settlement.Value,
-				)
-			}
-		}
-
-	}
-	return activatedConfigs, nil
-}
-
-// ConfigList returns the list of configs on the chainconfig contract
-func ConfigList(ctx contract.Context) ([]*Config, error) {
-	configRange := ctx.Range([]byte(configPrefix))
-	configList := make([]*Config, 0)
-	for _, data := range configRange {
-		var config Config
-		if err := proto.Unmarshal(data.Value, &config); err != nil {
-			return nil, errors.Wrapf(err, "failed to unmarshal config %s", string(data.Key))
-		}
-		configList = append(configList, &config)
-	}
-	return configList, nil
+// GetConfig updates the status of configs that haven't been activated yet:
+func GetConfig(ctx contract.Context) (*Config, error) {
+	return &Config{}, nil
 }
 
 func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
@@ -903,64 +631,6 @@ func removeFeature(ctx contract.Context, name string) error {
 	return nil
 }
 
-func getConfig(ctx contract.StaticContext, name string, curValidators []loom.Address) (*Config, error) {
-	var config Config
-	if err := ctx.Get(configKey(name), &config); err != nil {
-		return nil, err
-	}
-
-	if config.Status != ConfigVoting {
-		return &config, nil
-	}
-
-	// Calculate percentage of voted candidates by validators
-	validatorsHashMap := map[string]bool{}
-	candidateScores := map[string]int{}
-
-	for _, v := range curValidators {
-		validatorsHashMap[v.String()] = true
-	}
-	for _, vote := range config.Votes {
-		// Only count valid validator votes
-		validator := loom.UnmarshalAddressPB(vote.Validator)
-		if validatorsHashMap[validator.String()] {
-			candidateScores[vote.Value]++
-		}
-	}
-
-	if len(curValidators) == 0 {
-		return &config, nil
-	}
-
-	proposals := make([]*Proposal, 0)
-	for value, voteScore := range candidateScores {
-		proposal := &Proposal{
-			Value:      value,
-			Percentage: uint64((voteScore * 100) / len(curValidators)),
-		}
-		proposals = append(proposals, proposal)
-	}
-	config.Proposals = proposals
-
-	return &config, nil
-}
-
-func getMostPopularProposal(proposals []*Proposal) *Proposal {
-	var proposal *Proposal
-	for i, p := range proposals {
-		if i == 0 {
-			proposal = p
-			continue
-		}
-		if p.Percentage > proposal.Percentage {
-			proposal = p
-		}
-	}
-	return proposal
-}
-
-var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})
-
 func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorInfoRequest) error {
 	if req.BuildNumber == 0 {
 		return ErrInvalidRequest
@@ -1026,3 +696,58 @@ func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListVa
 		Validators: validators,
 	}, nil
 }
+
+func setConfig(config *Config, key, value string) error {
+	fieldNames := strings.Split(key, ".")
+	if len(fieldNames) > 2 {
+		return ErrConfigNotFound
+	}
+	var field reflect.Value
+	if len(fieldNames) == 1 {
+		cfgInterface := reflect.ValueOf(config)
+		field = reflect.Indirect(cfgInterface).FieldByName(fieldNames[0])
+	} else if len(fieldNames) == 2 {
+		cfgInterface := reflect.ValueOf(config)
+		structInterface := reflect.Indirect(cfgInterface).FieldByName(fieldNames[0])
+		field = reflect.Indirect(structInterface).FieldByName(fieldNames[1])
+	}
+	return setField(&field, value)
+}
+
+func setField(field *reflect.Value, value string) error {
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(value)
+	case reflect.Uint64:
+		val, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || val < 0 {
+			return ErrConfigWrongType
+		}
+		field.SetUint(uint64(val))
+	case reflect.Int64:
+		val, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ErrConfigWrongType
+		}
+		field.SetInt(val)
+	case reflect.Bool:
+		val, err := strconv.ParseBool(value)
+		if err != nil {
+			return ErrConfigWrongType
+		}
+		field.SetBool(val)
+	default:
+		return ErrConfigWrongType
+	}
+	return nil
+}
+
+func DefaultConfig() *Config {
+	return &Config{
+		AppStoreConfig: &AppStoreConfig{
+			DeletedVmKeys: 50,
+		},
+	}
+}
+
+var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})

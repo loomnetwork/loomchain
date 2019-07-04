@@ -68,45 +68,12 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	return nil
 }
 
-func (c *ChainConfigManager) SetConfigs(blockHeight int64) error {
-	configs, err := chainconfig.SetConfigs(c.ctx, uint64(blockHeight), c.build)
-	if err != nil {
-		// When an unsupported config has been activated by the rest of the chain
-		// panic to prevent the node from processing any further blocks until it's
-		// upgraded to a new build that supports the config.
-		if err == chainconfig.ErrConfigNotSupported {
-			panic(err)
-		}
-		return err
-	}
-	for _, config := range configs {
-		c.state.SetConfig(config.Name, config.Settlement.Value)
-	}
-
-	// The following logic remove configs that do not
-	configListHashMap := make(map[string]bool)
-	configListOnChain := c.state.Range([]byte(configPrefix))
-	configListOnContract, err := chainconfig.ConfigList(c.ctx)
+func (c *ChainConfigManager) UpdateConfig(blockHeight int64) error {
+	config, err := chainconfig.GetConfig(c.ctx)
 	if err != nil {
 		return err
 	}
 
-	// Make hashmap of configs on chain
-	for _, config := range configListOnChain {
-		configListHashMap[string(config.Key)] = true
-	}
-
-	// Cross out configs that still exist on the contract
-	for _, config := range configListOnContract {
-		configListHashMap[string(config.Name)] = false
-	}
-
-	// Delete configs (on chain) that do not exist anymore
-	for configName, deleted := range configListHashMap {
-		if deleted {
-			c.state.DeleteConfig(configName)
-		}
-	}
-
+	c.state.SetConfig(config)
 	return nil
 }

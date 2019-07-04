@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
@@ -13,6 +14,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -31,7 +33,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
-	ChainConfig() loom.Config
+	Config() *cctypes.Config
 }
 
 type State interface {
@@ -41,8 +43,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	SetConfig(string, string)
-	DeleteConfig(string)
+	SetConfig(*cctypes.Config)
 }
 
 type StoreState struct {
@@ -51,7 +52,7 @@ type StoreState struct {
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
-	cfg             map[string]string
+	config          *cctypes.Config
 }
 
 var _ = State(&StoreState{})
@@ -79,19 +80,12 @@ func NewStoreState(
 ) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
-	// load state config
-	configRange := store.Range([]byte(configPrefix))
-	cfg := make(map[string]string)
-	for _, data := range configRange {
-		cfg[string(data.Key)] = string(data.Value)
-	}
 	return &StoreState{
 		ctx:             ctx,
 		store:           store,
 		block:           blockHeader,
 		validators:      loom.NewValidatorSet(),
 		getValidatorSet: getValidatorSet,
-		cfg:             cfg,
 	}
 }
 
@@ -137,15 +131,11 @@ func (s *StoreState) Context() context.Context {
 
 var (
 	featurePrefix = "feature"
-	configPrefix  = "config"
+	configKey     = "config"
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
-}
-
-func configKey(configName string) []byte {
-	return util.PrefixKey([]byte(configPrefix), []byte(configName))
 }
 
 func (s *StoreState) FeatureEnabled(name string, val bool) bool {
@@ -167,16 +157,28 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) ChainConfig() loom.Config {
-	return loom.NewChainConfig(s.cfg)
+func (s *StoreState) SetConfig(config *cctypes.Config) {
+	s.config = config
+	configBytes, err := proto.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	s.store.Set([]byte(configKey), configBytes)
 }
 
-func (s *StoreState) SetConfig(name, value string) {
-	s.store.Set(configKey(name), []byte(value))
-}
-
-func (s *StoreState) DeleteConfig(name string) {
-	s.store.Delete(configKey(name))
+func (s *StoreState) Config() *cctypes.Config {
+	if s.config == nil {
+		configBytes := s.store.Get([]byte(configKey))
+		if configBytes != nil {
+			var config cctypes.Config
+			err := proto.Unmarshal(configBytes, &config)
+			if err != nil {
+				panic(err)
+			}
+			s.config = &config
+		}
+	}
+	return s.config
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -281,7 +283,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
-	SetConfigs(blockHeight int64) error
+	UpdateConfig(blockHeight int64) error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -465,7 +467,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		}
 
 		if state.FeatureEnabled(ChainCfgVersion1_3, false) {
-			if err := chainConfigManager.SetConfigs(a.height()); err != nil {
+			if err := chainConfigManager.UpdateConfig(a.height()); err != nil {
 				panic(err)
 			}
 		}

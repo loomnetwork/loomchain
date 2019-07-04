@@ -42,16 +42,8 @@ func TestContractChainConfig(t *testing.T) {
 		"chainconfig.genesis.json",
 		"chainconfig-routine-loom.yaml",
 	}
-	test4 := Test{
-		"chainconfig-config",
-		"chainconfig-config.toml",
-		4,
-		4,
-		"chainconfig.genesis.json",
-		"chainconfig-loom.yaml",
-	}
 	tests := make([]Test, 0)
-	tests = append(tests, test1, test2, test3, test4)
+	tests = append(tests, test1, test2, test3)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
