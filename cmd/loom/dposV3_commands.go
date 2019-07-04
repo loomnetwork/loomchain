@@ -1062,18 +1062,18 @@ func SetMaxDowntimePercentageCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "set-max-downtime-percentage [max downtime percentage]",
-		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
+		Short: "Set crash fault downtime percentage expressed in basis points",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			maxDowntimePercentage, err := cli.ParseAmount(args[0])
+			maxDowntimePercentage, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
 			}
 
 			err = cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "SetMaximumDowntimePercentage", &dposv3.SetMaxDowntimePercentageRequest{
+				&flags, DPOSV3ContractName, "SetMaxDowntimePercentage", &dposv3.SetMaxDowntimePercentageRequest{
 					MaxDowntimePercentage: &types.BigUInt{
-						Value: *maxDowntimePercentage,
+						Value: *loom.NewBigUIntFromInt(maxDowntimePercentage),
 					},
 				}, nil)
 			if err != nil {

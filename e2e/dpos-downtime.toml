@@ -6,13 +6,18 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
-  Expected = [ 'dpos:v3.2' ]
+  Expected = [ 'dpos:v3.2', 'dpos:v3.4' ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 set-downtime-period 5 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 set-max-downtime-percentage 100 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Excluded = ["Error"]
 
