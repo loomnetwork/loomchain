@@ -7,11 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loomnetwork/go-loom"
+
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/cli"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/spf13/cobra"
 )
 
@@ -410,25 +413,39 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			var respDPOS dposv3.ListCandidatesResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, "dposV3", "ListCandidates", &dposv3.ListCandidatesRequest{}, &respDPOS,
+			)
+			if err != nil {
+				return err
+			}
+
 			type maxLength struct {
+				Name        int
 				Validator   int
 				BuildNumber int
 				UpdateAt    int
 			}
 
-			ml := maxLength{Validator: 42, BuildNumber: 5, UpdateAt: 29}
+			ml := maxLength{Name: 20, Validator: 42, BuildNumber: 5, UpdateAt: 29}
 
 			sort.Slice(resp.Validators[:], func(i, j int) bool {
 				return resp.Validators[i].BuildNumber < resp.Validators[j].BuildNumber
 			})
 
+			nameList := make(map[string]string)
+			for _, c := range respDPOS.Candidates {
+				nameList[loom.UnmarshalAddressPB(c.Candidate.Address).Local.String()] = c.Candidate.GetName()
+			}
+
 			fmt.Printf(
-				"%-*s | %-*s | %-*s |\n", ml.Validator, "validator",
+				"%-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Validator, "validator",
 				ml.BuildNumber, "build", ml.UpdateAt, "Last Update")
 			fmt.Printf(
-				strings.Repeat("-", ml.Validator+ml.BuildNumber+ml.UpdateAt+8) + "\n")
+				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.UpdateAt+10) + "\n")
 			for _, value := range resp.Validators {
-				fmt.Printf("%-*s | %-*d | %-*s |\n", ml.Validator, value.Address.Local.String(),
+				fmt.Printf("%-*s | %-*s | %-*d | %-*s |\n", ml.Name, nameList[value.Address.Local.String()], ml.Validator, value.Address.Local.String(),
 					ml.BuildNumber, value.BuildNumber, ml.UpdateAt, time.Unix(int64(value.UpdatedAt), 0).UTC())
 			}
 
@@ -444,6 +461,7 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			for k, v := range counters {
 				fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(resp.Validators))
 			}
+
 			return nil
 		},
 	}
