@@ -178,7 +178,9 @@ func checkKitty(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	return res
 }
 
-func makeZombie(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData, name string) []byte {
+func makeZombie(
+	t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData, name string,
+) []byte {
 	abiZFactory, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie factory interface ", err)
@@ -218,7 +220,9 @@ func getZombies(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	return res
 }
 
-func zombieFeed(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData, zombieId, kittyId uint) []byte {
+func zombieFeed(
+	t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData, zombieId, kittyId uint,
+) []byte {
 	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie feeding interface ", err)
@@ -231,7 +235,9 @@ func zombieFeed(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	return res
 }
 
-func setKittyAddress(t *testing.T, vm lvm.VM, caller, kittyAddr, contractAddr loom.Address, data FiddleContractData) []byte {
+func setKittyAddress(
+	t *testing.T, vm lvm.VM, caller, kittyAddr, contractAddr loom.Address, data FiddleContractData,
+) []byte {
 	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie feeding interface ", err)

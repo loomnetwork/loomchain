@@ -200,7 +200,9 @@ func (c *ethCoinIntegrationTestHelper) destroyContract(ctx *plugin.FakeContextWi
 	return c.callEVM(ctx, "destroyContract", receiverAddr)
 }
 
-func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, method string, params ...interface{}) error {
+func (c *ethCoinIntegrationTestHelper) callEVM(
+	ctx *plugin.FakeContextWithEVM, method string, params ...interface{},
+) error {
 	input, err := c.contractABI.Pack(method, params...)
 	if err != nil {
 		return err
@@ -213,7 +215,9 @@ func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, m
 	return nil
 }
 
-func (c *ethCoinIntegrationTestHelper) staticCallEVM(ctx *plugin.FakeContextWithEVM, method string, result interface{}, params ...interface{}) error {
+func (c *ethCoinIntegrationTestHelper) staticCallEVM(
+	ctx *plugin.FakeContextWithEVM, method string, result interface{}, params ...interface{},
+) error {
 	input, err := c.contractABI.Pack(method, params...)
 	if err != nil {
 		return err
