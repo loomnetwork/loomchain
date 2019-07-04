@@ -1,7 +1,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
-  Expected = ['registry:check-error']
+  Expected = ['deploytx:v1.1']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"

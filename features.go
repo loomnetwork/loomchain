@@ -70,5 +70,5 @@ const (
 	AppStoreVersion3_1 = "appstore:v3.1"
 
 	// Enable option to allow checking the registry error
-	DeployTxVersion1_1Feature = "deploytx:1.1"
+	DeployTxVersion1_1Feature = "deploytx:v1.1"
 )

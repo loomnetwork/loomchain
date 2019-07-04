@@ -23,7 +23,7 @@
                 },
                 "features": [
                     {
-                        "name": "registry:check-error",
+                        "name": "deploytx:v1.1",
                         "status": "WAITING"
                     }
                 ]

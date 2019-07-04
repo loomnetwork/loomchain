@@ -8,5 +8,4 @@ AppStore:
   Version: 3
 CachingStoreConfig:
   CachingEnabled: true
-EvmConfig:
-  AllowNamedEvmContract: false
+AllowNamedEvmContract: false
