@@ -37,7 +37,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
-	lvm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -1136,11 +1135,9 @@ func deployContract(
 		return err
 	}
 
-	if chainCfg.EvmConfig.AllowNamedEvmContract || vmType == lvm.VMType_PLUGIN {
-		err = registry.Register(contractCfg.Name, addr, addr)
-		if err != nil && state.FeatureEnabled(loomchain.CheckRegistryErrorFeature, false) { // if feature enable is on then handle the error
-			return err
-		}
+	err = registry.Register(contractCfg.Name, addr, addr)
+	if err != nil {
+		return err
 	}
 
 	logger.Info("Deployed contract",
