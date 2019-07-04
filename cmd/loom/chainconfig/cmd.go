@@ -7,10 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/loomnetwork/go-loom"
-
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/cli"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
@@ -408,8 +407,9 @@ func ListValidatorsInfoCmd() *cobra.Command {
 		Example: listValidatorsInfoCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ListValidatorsInfoResponse
-			err := cli.StaticCallContractWithFlags(&flags, chainConfigContractName, "ListValidatorsInfo",
-				&cctype.ListValidatorsInfoRequest{}, &resp)
+			err := cli.StaticCallContractWithFlags(
+				&flags, chainConfigContractName, "ListValidatorsInfo", &cctype.ListValidatorsInfoRequest{}, &resp,
+			)
 			if err != nil {
 				return err
 			}
@@ -445,8 +445,11 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			fmt.Printf(
 				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.UpdateAt+10) + "\n")
 			for _, value := range resp.Validators {
-				fmt.Printf("%-*s | %-*s | %-*d | %-*s |\n", ml.Name, nameList[value.Address.Local.String()], ml.Validator, value.Address.Local.String(),
-					ml.BuildNumber, value.BuildNumber, ml.UpdateAt, time.Unix(int64(value.UpdatedAt), 0).UTC())
+				fmt.Printf(
+					"%-*s | %-*s | %-*d | %-*s |\n",
+					ml.Name, nameList[value.Address.Local.String()], ml.Validator, value.Address.Local.String(),
+					ml.BuildNumber, value.BuildNumber, ml.UpdateAt, time.Unix(int64(value.UpdatedAt), 0).UTC(),
+				)
 			}
 
 			counters := make(map[uint64]int)
