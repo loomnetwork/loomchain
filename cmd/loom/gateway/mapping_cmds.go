@@ -386,7 +386,7 @@ func newGetContractMappingCommand() *cobra.Command {
 				ml.To = len(mapping.Address)
 			}
 			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
-			if mapping.IsPending == true {
+			if mapping.IsPending {
 				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "PENDING")
 			} else {
 				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "CONFIRMED")
