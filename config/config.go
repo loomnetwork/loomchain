@@ -724,14 +724,6 @@ EvmStore:
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
 {{end}}
 
-{{if .EvmConfig -}}
-#
-# EvmConfig
-#
-EvmConfig:
-  AllowNamedEvmContract: {{ .EvmConfig.AllowNamedEvmContract }}
-{{end}}
-
 # 
 #  FnConsensus reactor on/off switch + config
 #
@@ -778,4 +770,11 @@ PluginsDir: "{{ .PluginsDir }}"
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
+{{if .EvmConfig -}}
+#
+# EvmConfig
+#
+EvmConfig:
+  AllowNamedEvmContract: {{ .EvmConfig.AllowNamedEvmContract }}
+{{end}}
 ` + transferGatewayLoomYamlTemplate
