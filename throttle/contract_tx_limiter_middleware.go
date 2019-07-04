@@ -45,8 +45,9 @@ func (c *ContractTxLimiterConfig) Clone() *ContractTxLimiterConfig {
 
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
-	contractToTierMap       map[string]udw.TierID
-	contractDataLastUpdated int64
+	contractToTierMap         map[string]udw.TierID
+	inactiveDeployerContracts map[string]bool
+	contractDataLastUpdated   int64
 	// track of no. of txns in previous blocks per contract
 	contractStatsMap    map[string]*contractStats
 	tierMap             map[udw.TierID]udw.Tier
@@ -126,6 +127,25 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if msgTx.VmType != vm.VMType_EVM {
 			return next(state, txBytes, isCheckTx)
 		}
+		if TxLimiter.inactiveDeployerContracts == nil || TxLimiter.contractDataLastUpdated+
+			cfg.ContractDataRefreshInterval < time.Now().Unix() {
+			ctx, err := createUserDeployerWhitelistCtx(state)
+			if err != nil {
+				return res, errors.Wrap(err, "throttle: context creation")
+			}
+			inactiveDeployerContracts, err := udw.GetInactiveDeployerContracts(ctx)
+			if err != nil {
+				return res, errors.Wrap(err, "throttle: inactiveDeployerContracts creation")
+			}
+			TxLimiter.inactiveDeployerContracts = inactiveDeployerContracts
+			// TxLimiter.contractDataLastUpdated will be updated after updating contractToTierMap
+		}
+		contractAddr := loom.UnmarshalAddressPB(msg.To)
+		// contracts which are deployed by deleted deployers should be throttled
+		if TxLimiter.inactiveDeployerContracts[contractAddr.String()] {
+			return res, errors.Wrap(err, "throttle: deployer of the contract is deleted")
+		}
+
 		if TxLimiter.contractToTierMap == nil || TxLimiter.contractDataLastUpdated+cfg.ContractDataRefreshInterval < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
@@ -138,7 +158,6 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			TxLimiter.contractToTierMap = contractToTierMap
 			TxLimiter.contractDataLastUpdated = time.Now().Unix()
 		}
-		contractAddr := loom.UnmarshalAddressPB(msg.To)
 		// contracts the limiter doesn't know about shouldn't be throttled
 		contractTierID, ok := TxLimiter.contractToTierMap[contractAddr.String()]
 		if !ok {
