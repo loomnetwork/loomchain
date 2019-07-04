@@ -69,39 +69,38 @@
   Condition = "contains"
   Expected = ["periods"]
 
-# wait block height to increase 
+# wait node 1 to catch up
 [[TestCases]]
   RunCmd = "wait_node_to_catch_up 1"
 
-# wait block height to increase 
+# wait block height to increase at least 5 blocks
 [[TestCases]]
   RunCmd = "wait_block_height_to_increase 0 5"
 
 # check downtime periods, it should be cleared out after 5 blocks
 [[TestCases]]
-  Delay = 5000
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["periods"]
 
-# check if node 1 is jailed
+# node 1 should be jailed as it is offline for 15s
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["jailed\": true"]
 
-# check downtime periods, it should be cleared out after 5 blocks
+# check downtime periods before unjailing the validator
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
-  Expected = ["periods"]
+  Expected = ["periods", "0"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = [""]
 
-# wait block height to increase 
+# wait block height to increase at least 2 blocks
 [[TestCases]]
   RunCmd = "wait_block_height_to_increase 0 2"
 
