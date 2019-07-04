@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	deployId  uint32  = iota
+	deployId  uint32  = iota  +1
 	callId
 	migrationId
 	ethId
