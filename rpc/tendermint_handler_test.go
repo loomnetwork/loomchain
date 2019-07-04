@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/stretchr/testify/require"
 
@@ -71,12 +72,12 @@ func TestTendermintPRCFunc(t *testing.T) {
 		ethKey, err := crypto.GenerateKey()
 		require.NoError(t, err)
 		tx, err := types.SignTx(testTx.tx, signer, ethKey)
-
 		local, err := types.Sender(signer, tx)
 		require.NoError(t, err)
-		inData, err := tx.MarshalJSON()
+		inData, err := rlp.EncodeToBytes(&tx)
 
 		payload := `{"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["` + eth.EncBytes(inData) + `"],"id":99}`
+
 		req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(string(payload)))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)

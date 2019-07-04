@@ -6,6 +6,7 @@ import (
 
 	ecommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
 	ttypes "github.com/tendermint/tendermint/types"
@@ -110,12 +111,14 @@ func ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
 	msg.Data = txBytes
 
 	var tx types.Transaction
-	if err := tx.UnmarshalJSON(txBytes); err != nil {
-		return nil, eth.NewErrorf(eth.EcParseError, "Parse params", "unmarshalling ethereum transaction, %v", err)
+	if err := rlp.DecodeBytes(txBytes, &tx); err != nil {
+		return nil, err
 	}
+
 	if tx.To() != nil {
 		msg.To = EthToLoomAddress(*tx.To()).MarshalPB()
 	}
+
 	chainConfig := utils.DefaultChainConfig()
 	ethSigner := types.MakeSigner(&chainConfig, blockNumber)
 	from, err := types.Sender(ethSigner, &tx)

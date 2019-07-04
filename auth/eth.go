@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/protobuf/proto"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
@@ -17,7 +18,6 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 
 	"github.com/loomnetwork/loomchain/evm/utils"
-	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
 const (
@@ -61,9 +61,10 @@ func verifyEthereumTransacton(signedTx SignedTx) ([]byte, error) {
 	}
 
 	var tx etypes.Transaction
-	if err := tx.UnmarshalJSON(msg.Data); err != nil {
-		return nil, eth.NewErrorf(eth.EcParseError, "Parse params", "unmarshalling ethereum transaction, %v", err)
+	if err := rlp.DecodeBytes(msg.Data, &tx); err != nil {
+		return nil, err
 	}
+
 	chainConfig := utils.DefaultChainConfig()
 	ethSigner := etypes.MakeSigner(&chainConfig, big.NewInt(1))
 	from, err := etypes.Sender(ethSigner, &tx)

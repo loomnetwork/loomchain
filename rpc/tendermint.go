@@ -3,6 +3,7 @@ package rpc
 import (
 	"github.com/ethereum/go-ethereum/common"
 	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -57,7 +58,6 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadca
 }
 
 func tendermintToEthereumTx(tmTx types.Tx) (*etypes.Transaction, error) {
-	var err error
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tmTx), &signedTx); err != nil {
 		return nil, err
@@ -79,8 +79,7 @@ func tendermintToEthereumTx(tmTx types.Tx) (*etypes.Transaction, error) {
 	}
 
 	var tx etypes.Transaction
-	err = tx.UnmarshalJSON(msg.Data)
-	if err != nil {
+	if err := rlp.DecodeBytes(msg.Data, &tx); err != nil {
 		return nil, err
 	}
 	return &tx, nil
