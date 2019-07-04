@@ -261,7 +261,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 				} else if cmd.Args[0] == "wait_for_node_to_catch_up" {
 					if len(cmd.Args) > 1 {
-						maxWaitingTime := 60 // 60s
+						maxWaitingTime := 120 // 120s
 						for i := maxWaitingTime; i > 0; i-- {
 							cachingUp, err := nodeCatchingUp(e.conf.Nodes[cmd.Args[1]])
 							if err == nil && !cachingUp {
@@ -409,7 +409,8 @@ func checkNodeReady(n *node.Node) error {
 
 func nodeCatchingUp(n *node.Node) (bool, error) {
 	type CatchingUp struct {
-		CatchingUp bool `json:"catching_up"`
+		CatchingUp         bool   `json:"catching_up"`
+		LastestBlockHeight string `json:"latest_block_height"`
 	}
 	type SyncInfo struct {
 		CatchingUpResult CatchingUp `json:"sync_info"`

@@ -69,11 +69,11 @@
   Condition = "contains"
   Expected = ["periods"]
 
-# wait node 1 to catch up
+# wait for node 1 to catch up
 [[TestCases]]
   RunCmd = "wait_for_node_to_catch_up 1"
 
-# wait block height to increase at least 5 blocks
+# wait for block height to increase at least 5 blocks
 [[TestCases]]
   RunCmd = "wait_for_block_height_to_increase 0 5"
 
@@ -100,7 +100,7 @@
   Condition = "contains"
   Expected = [""]
 
-# wait block height to increase at least 2 blocks
+# wait for block height to increase at least 2 blocks
 [[TestCases]]
   RunCmd = "wait_for_block_height_to_increase 0 2"
 
