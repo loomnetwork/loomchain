@@ -89,17 +89,14 @@ func NewDeployerWhitelistMiddleware(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		if tx.Id != deployId && tx.Id != migrationId {
-			return next(state, txBytes, isCheckTx)
-		}
+		switch tx.Id {
+		case callId:
+		case deployId: {
+			var msg vm.MessageTx
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+			}
 
-		var msg vm.MessageTx
-		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-		}
-
-		// Process deployTx, checking for permission to deploy contract
-		if tx.Id == deployId {
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
 				return res, errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
@@ -124,8 +121,29 @@ func NewDeployerWhitelistMiddleware(
 					return res, err
 				}
 			}
-
-		} else if tx.Id == migrationId {
+		}
+		case ethId: {
+			var msg vm.MessageTx
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+			}
+			isDeploy, err := isEthDeploy(msg.Data)
+			if err != nil {
+				return res, err
+			}
+			if !isDeploy {
+				return next(state, txBytes, isCheckTx)
+			}
+			origin := auth.Origin(state.Context())
+			ctx, err := createDeployerWhitelistCtx(state)
+			if err != nil {
+				return res, err
+			}
+			if err := isAllowedToDeployEVM(ctx, origin); err != nil {
+				return res, err
+			}
+		}
+		case migrationId:
 			// Process migrationTx, checking for permission to migrate contract
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
@@ -135,8 +153,9 @@ func NewDeployerWhitelistMiddleware(
 			if err := isAllowedToMigrate(ctx, origin); err != nil {
 				return res, err
 			}
+		default:
+			return res, errors.Errorf("unrecognised tx id %v", tx.Id)
 		}
-
 		return next(state, txBytes, isCheckTx)
 	}), nil
 }

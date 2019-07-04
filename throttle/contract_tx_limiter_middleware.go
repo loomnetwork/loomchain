@@ -4,13 +4,14 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -112,20 +113,41 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}
-		if tx.Id != callId {
-			return next(state, txBytes, isCheckTx)
-		}
+
 		var msg vm.MessageTx
-		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+		switch tx.Id {
+		case callId: {
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+			}
+			var msgTx vm.CallTx
+			if err := proto.Unmarshal(msg.Data, &msgTx); err != nil {
+				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
+			}
+			if msgTx.VmType != vm.VMType_EVM {
+				return next(state, txBytes, isCheckTx)
+			}
 		}
-		var msgTx vm.CallTx
-		if err := proto.Unmarshal(msg.Data, &msgTx); err != nil {
-			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
-		}
-		if msgTx.VmType != vm.VMType_EVM {
+		case deployId:
 			return next(state, txBytes, isCheckTx)
+		case ethId: {
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+			}
+			isDeploy, err := isEthDeploy(msg.Data)
+			if err != nil {
+				return res, err
+			}
+			if isDeploy {
+				return next(state, txBytes, isCheckTx)
+			}
 		}
+		case migrationId:
+			return next(state, txBytes, isCheckTx)
+		default:
+			return res, errors.Errorf("unrecognised tx id %v", tx.Id)
+		}
+
 		if TxLimiter.contractToTierMap == nil || TxLimiter.contractDataLastUpdated+cfg.ContractDataRefreshInterval < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {

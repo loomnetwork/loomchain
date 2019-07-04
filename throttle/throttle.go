@@ -7,6 +7,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/ulule/limiter"
+	"github.com/ulule/limiter/drivers/store/memory"
+
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
@@ -14,14 +17,13 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/ulule/limiter"
-	"github.com/ulule/limiter/drivers/store/memory"
 )
 
 const (
-	deployId    = uint32(1)
-	callId      = uint32(2)
-	migrationId = uint32(3)
+	deployId  uint32  = iota
+	callId
+	migrationId
+	ethId
 )
 
 type Throttle struct {
@@ -106,14 +108,12 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 	return nil
 }
 
-func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, origin loom.Address, txId uint32) (*common.BigUInt, error) {
+func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, origin loom.Address, isDeployTx bool) (*common.BigUInt, error) {
 	// TODO: maybe should only count karma from active sources
-	if txId == deployId {
-		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY)
-	} else if txId == callId {
-		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
+	if isDeployTx {
+		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY )
 	} else {
-		return nil, errors.Errorf("unknown transaction id %d", txId)
+		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
 	}
 }
 

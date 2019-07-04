@@ -9,10 +9,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-
+	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
+	
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -20,9 +22,10 @@ import (
 )
 
 const (
-	deployId    = uint32(1)
-	callId      = uint32(2)
-	migrationTx = uint32(3)
+	deployId  uint32  = iota
+	callId
+	migrationId
+	ethId       
 )
 
 var (
@@ -165,7 +168,7 @@ func GetTxObjectFromBlockResult(
 				}
 			}
 			if deployTx.Value != nil {
-				txObj.Value = eth.EncInt(deployTx.Value.Value.Int64())
+				txObj.Value = eth.EncBigInt(*deployTx.Value.Value.Int)
 			}
 		}
 	case callId:
@@ -181,10 +184,23 @@ func GetTxObjectFromBlockResult(
 				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
 			}
 			if callTx.Value != nil {
-				txObj.Value = eth.EncInt(callTx.Value.Value.Int64())
+				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
 			}
 		}
-	case migrationTx:
+	case ethId:
+		{
+			var ethTx etypes.Transaction
+			if err := rlp.DecodeBytes(msg.Data, &ethTx); err != nil {
+				return eth.GetEmptyTxObject(), nil, err
+			}
+			if ethTx.To() != nil {
+				to := eth.EncAddress(msg.To)
+				txObj.To = &to
+			}
+			txObj.Value = eth.EncBigInt(*ethTx.Value())
+			input = ethTx.Data()
+		}
+	case migrationId:
 		to := eth.EncAddress(msg.To)
 		txObj.To = &to
 		input = msg.Data
