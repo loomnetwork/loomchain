@@ -58,6 +58,18 @@
                     }
                 ]
             }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dposV3",
+            "location": "dposV3:3.0.0",
+            "init": {
+                "params": {
+                    "validatorCount": "21",
+                    "electionCycleLength": "0"
+                }
+            }
         }
     ]
 }
