@@ -69,6 +69,6 @@ const (
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
 
-	// Enable EVMconfig option to allow checking the registry error
-	CheckRegistryErrorFeature = "registry:check-error"
+	// Enable option to allow checking the registry error
+	DeployTxVersion1_1Feature = "deploytx:1.1"
 )
