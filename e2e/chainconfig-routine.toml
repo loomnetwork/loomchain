@@ -24,12 +24,15 @@
   Expected = ['auto-enabled:feature-1','auto-enabled:feature-2','auto-enabled:feature-3']
   
 [[TestCases]]
+  Delay = 20000
   RunCmd = "{{ $.LoomPath }} chain-cfg add-feature chaincfg:v1.2 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Expected = ['Error']
 
 [[TestCases]]
-  Delay = 20000
+  RunCmd = "wait_block_height_to_increase 0 2"
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg get-feature auto-enabled:feature-1"
   Condition = "contains"
   Expected = ['ENABLED','100']
