@@ -41,10 +41,10 @@ func NewCmd(conf lib.Config, tc lib.Tests) Engine {
 }
 
 type abciResponseInfo2 struct {
-	Data             string `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	Version          string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	LastBlockHeight  string `protobuf:"varint,3,opt,name=last_block_height,json=lastBlockHeight,proto3" json:"last_block_height,omitempty"`
-	LastBlockAppHash []byte `protobuf:"bytes,4,opt,name=last_block_app_hash,json=lastBlockAppHash,proto3" json:"last_block_app_hash,omitempty"`
+	Data             string `json:"data,omitempty"`
+	Version          string `json:"version,omitempty"`
+	LastBlockHeight  string `json:"last_block_height,omitempty"`
+	LastBlockAppHash []byte `json:"last_block_app_hash,omitempty"`
 }
 
 func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
@@ -198,9 +198,40 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 							nodeId = int(nodeIdArg)
 						}
 					}
-					event := node.Event{Action: node.ActionStop, Duration: node.Duration{time.Duration(duration)}, Delay: node.Duration{time.Duration(0)}, Node: nodeId}
+					event := node.Event{
+						Action:   node.ActionStop,
+						Duration: node.Duration{Duration: time.Duration(duration)},
+						Delay:    node.Duration{Duration: time.Duration(0)},
+						Node:     nodeId,
+					}
 					eventC <- &event
-					out = []byte(fmt.Sprintf("Sending Node Event: %s\n", event))
+					out = []byte(fmt.Sprintf("Sending Node Event: %v\n", event))
+				} else if cmd.Args[0] == "wait_node_to_start" {
+					if len(cmd.Args) > 1 {
+						maxRetries := 10
+						if len(cmd.Args) > 2 {
+							max, err := strconv.Atoi(cmd.Args[2])
+							if err == nil {
+								maxRetries = max
+							}
+						}
+						nodeStarted := false
+						for i := maxRetries; i > 0; i-- {
+							node, ok := e.conf.Nodes[cmd.Args[1]]
+							if !ok {
+								return fmt.Errorf("node %s is not found", cmd.Args[1])
+							}
+							if err := checkNodeReady(node); err == nil {
+								nodeStarted = true
+								break
+							}
+							time.Sleep(time.Duration(time.Second))
+						}
+						if !nodeStarted {
+							return fmt.Errorf("node %s did not start", cmd.Args[1])
+						}
+					}
+
 				} else {
 					out, err = cmd.CombinedOutput()
 				}

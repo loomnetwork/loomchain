@@ -58,19 +58,32 @@
   Condition = "contains"
   Expected = ["chainId\": \"default"]
 
+# kill node 1 for 15s, it should be jailed after going offline for 15s
 [[TestCases]]
-  RunCmd = "kill_and_restart_node 10 1"
+  RunCmd = "kill_and_restart_node 15 1"
 
+# wait node 1 to start, maximum time is 30s
 [[TestCases]]
-  Delay = 17000
+  RunCmd = "wait_node_to_start 1 30"
+
+# add some delay so that downtime periods of node 1 are cleared out
+[[TestCases]]
+  Delay = 10000
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["periods"]
 
+# check if node 1 is jailed
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
   Expected = ["jailed\": true"]
+
+# check downtime periods, it should be cleared out
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["periods"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}}"

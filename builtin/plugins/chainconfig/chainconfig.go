@@ -44,6 +44,13 @@ type (
 	ConfigValueRequest  = cctypes.ConfigValueRequest
 	ConfigValueResponse = cctypes.ConfigValueResponse
 	RemoveConfigRequest = cctypes.RemoveConfigRequest
+
+	ValidatorInfo              = cctypes.ValidatorInfo
+	GetValidatorInfoRequest    = cctypes.GetValidatorInfoRequest
+	GetValidatorInfoResponse   = cctypes.GetValidatorInfoResponse
+	SetValidatorInfoRequest    = cctypes.SetValidatorInfoRequest
+	ListValidatorsInfoRequest  = cctypes.ListValidatorsInfoRequest
+	ListValidatorsInfoResponse = cctypes.ListValidatorsInfoResponse
 )
 
 const (
@@ -106,9 +113,10 @@ var (
 )
 
 const (
-	featurePrefix = "ft"
-	configPrefix  = "cfg"
-	ownerRole     = "owner"
+	featurePrefix       = "ft"
+	configPrefix        = "cfg"
+	ownerRole           = "owner"
+	validatorInfoPrefix = "vi"
 )
 
 var (
@@ -124,6 +132,10 @@ func featureKey(featureName string) []byte {
 
 func configKey(configName string) []byte {
 	return util.PrefixKey([]byte(configPrefix), []byte(configName))
+}
+
+func validatorInfoKey(addr loom.Address) []byte {
+	return util.PrefixKey([]byte(validatorInfoPrefix), addr.Bytes())
 }
 
 type ChainConfig struct {
@@ -948,3 +960,69 @@ func getMostPopularProposal(proposals []*Proposal) *Proposal {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})
+
+func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorInfoRequest) error {
+	if req.BuildNumber == 0 {
+		return ErrInvalidRequest
+	}
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_2, false) {
+		return ErrFeatureNotEnabled
+	}
+	senderAddr := ctx.Message().Sender
+	validators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return err
+	}
+	isValidator := false
+	for _, validator := range validators {
+		if validator.Compare(senderAddr) == 0 {
+			isValidator = true
+			break
+		}
+	}
+	if !isValidator {
+		return ErrNotAuthorized
+	}
+
+	validator := &ValidatorInfo{
+		Address:     senderAddr.MarshalPB(),
+		BuildNumber: req.BuildNumber,
+		UpdatedAt:   uint64(ctx.Now().Unix()),
+	}
+	return ctx.Set(validatorInfoKey(senderAddr), validator)
+}
+
+func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValidatorInfoRequest) (*GetValidatorInfoResponse, error) {
+	if req.Address == nil {
+		return nil, ErrInvalidRequest
+	}
+	address := loom.UnmarshalAddressPB(req.Address)
+
+	var validatorInfo ValidatorInfo
+	err := ctx.Get(validatorInfoKey(address), &validatorInfo)
+	if err == contract.ErrNotFound {
+		return &GetValidatorInfoResponse{}, nil
+	} else if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve validator info")
+	}
+	return &GetValidatorInfoResponse{
+		Validator: &validatorInfo,
+	}, nil
+}
+
+// ListValidatorsInfo returns the build number for each validators
+func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListValidatorsInfoRequest) (*ListValidatorsInfoResponse, error) {
+	validatorRange := ctx.Range([]byte(validatorInfoPrefix))
+	validators := []*ValidatorInfo{}
+	for _, m := range validatorRange {
+		var v ValidatorInfo
+		if err := proto.Unmarshal(m.Value, &v); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal validators %s", string(m.Key))
+		}
+		validators = append(validators, &v)
+	}
+
+	return &ListValidatorsInfoResponse{
+		Validators: validators,
+	}, nil
+}

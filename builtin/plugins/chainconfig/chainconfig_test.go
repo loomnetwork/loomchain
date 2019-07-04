@@ -2,8 +2,11 @@ package chainconfig
 
 import (
 	"encoding/base64"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/loomnetwork/loomchain"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
@@ -54,6 +57,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
 	chainID := "default"
 	addr1 := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
+	buildNumber := uint64(1020)
 	//setup fake contract
 	validators := []*loom.Validator{
 		&loom.Validator{
@@ -65,6 +69,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		ChainID: chainID,
 		Time:    time.Now().Unix(),
 	}).WithValidators(validators)
+
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -175,6 +180,31 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		DefaultVal: true,
 	})
 	require.Equal(true, featureEnabled.Value)
+
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.Equal(ErrFeatureNotEnabled, err)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: 101,
+	})
+	require.Equal(ErrFeatureNotEnabled, err)
+	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: 0,
+	})
+	require.Equal(ErrInvalidRequest, err)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.NoError(err)
+	validatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
+	require.NoError(err)
+	require.Equal(buildNumber, validatorInfo.Validator.BuildNumber)
+
+	listValidators, err := chainconfigContract.ListValidatorsInfo(ctx, &ListValidatorsInfoRequest{})
+	require.NoError(err)
+	require.Equal(1, len(listValidators.Validators))
 }
 
 func (c *ChainConfigTestSuite) TestPermission() {
@@ -185,7 +215,6 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	pubKeyB64_2, _ := encoder.DecodeString(pubKey2)
 	addr1 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	addr2 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_2)}
-	//setup fake contract
 	validators := []*loom.Validator{
 		&loom.Validator{
 			PubKey: pubKeyB64_1,
@@ -260,6 +289,12 @@ func (c *ChainConfigTestSuite) TestPermission() {
 			VoteThreshold:         60,
 			NumBlockConfirmations: 5,
 		},
+	})
+	require.Equal(ErrNotAuthorized, err)
+
+	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
+		BuildNumber: 1000,
 	})
 	require.Equal(ErrNotAuthorized, err)
 }
@@ -400,6 +435,32 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	chainconfigContract.FeatureEnabled(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &plugintypes.FeatureEnabledRequest{
 		Name: featureName,
 	})
+
+	fmt.Println(formatJSON(featureEnable))
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.Error(ErrFeatureNotEnabled, err)
+	pctx.SetFeature(loomchain.ChainCfgVersion1_2, true)
+	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
+		BuildNumber: 0,
+	})
+	require.Equal(ErrInvalidRequest, err)
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.NoError(err)
+	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
+		BuildNumber: buildNumber,
+	})
+	require.NoError(err)
+	validatorInfo, err := chainconfigContract.GetValidatorInfo(ctx, &GetValidatorInfoRequest{Address: addr1.MarshalPB()})
+	require.NoError(err)
+	require.Equal(buildNumber, validatorInfo.Validator.BuildNumber)
+
+	listValidators, err := chainconfigContract.ListValidatorsInfo(ctx, &ListValidatorsInfoRequest{})
+	require.NoError(err)
+	require.Equal(2, len(listValidators.Validators))
 }
 
 func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {

@@ -13,6 +13,7 @@ PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GENPROTO_DIR = $(GOPATH)/src/google.golang.org/genproto
+YUBIHSM_DIR = $(GOPATH)/src/github.com/certusone/yubihsm-go
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GRPC_DIR = $(GOPATH)/src/google.golang.org/grpc
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
@@ -43,6 +44,8 @@ BTCD_GIT_REV = 7d2daa5bfef28c5e282571bc06416516936115ee
 GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 # Specifies the loomnetwork/binance-tgoracle branch/revision to use.
 BINANCE_TG_GIT_REV = init-build
+# Lock down certusone/yubihsm-go revision
+YUBIHSM_REV = 0299fd5d703d2a576125b414abbe172eaec9f65e
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -218,7 +221,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
 		golang.org/x/sys/cpu \
-		github.com/loomnetwork/yubihsm-go \
+		github.com/certusone/yubihsm-go \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap \
@@ -234,6 +237,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
+	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
 

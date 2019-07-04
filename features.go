@@ -53,7 +53,10 @@ const (
 	// Enables usage of ctx.Validators() in ChainConfig contract.
 	ChainCfgVersion1_1 = "chaincfg:v1.1"
 
-	// Enables votable config in the ChainConfig contract.
+	// Enables validator build number tracking via the ChainConfig contract.
+	ChainCfgVersion1_2 = "chaincfg:v1.2"
+
+	// Enables config setting in the ChainConfig contract.
 	ChainCfgVersion1_3 = "chaincfg:v1.3"
 
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
