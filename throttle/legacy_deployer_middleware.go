@@ -26,10 +26,6 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 			return res, errors.Wrapf(err, "unmarshal tx %v", txBytes)
 		}
 
-		if tx.Id == ethId {
-			return res, errors.New("tx id 4 (ethereum txs) not supported")
-		}
-
 		if tx.Id != deployId {
 			return next(state, txBytes, isCheckTx)
 		}
