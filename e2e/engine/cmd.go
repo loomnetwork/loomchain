@@ -264,7 +264,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 						maxWaitingTime := 60 // 60s
 						for i := maxWaitingTime; i > 0; i-- {
 							cachingUp, err := nodeCatchingUp(e.conf.Nodes[cmd.Args[1]])
-							nodeCatchingUp(e.conf.Nodes[cmd.Args[2]]) // to see block increases
 							if err == nil && !cachingUp {
 								break
 							}
