@@ -290,7 +290,7 @@ func Mint(ctx contract.Context) error {
 	if year.Cmp(loom.NewBigUIntFromInt(1)) == 0 {
 		//Determines minting amount at the beginning block of year or at block height at which minting is enabled
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
-		//Minting Amount Computation for starting year
+			//Minting Amount Computation for starting year
 			amount = baseAmount.Div(baseAmount, blocksGeneratedPerYear)
 			err = ctx.Set(mintingAmountKey, &types.BigUInt{
 				Value: *amount,
@@ -305,10 +305,12 @@ func Mint(ctx contract.Context) error {
 			if strings.EqualFold("div", operator) {
 				changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
 				basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
-			} else {
+			} else if strings.EqualFold("exp", operator) {
 				changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
 				changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
 				basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+			} else {
+				return errors.New("Invalid operator - Operator should be div or exp")
 			}
 			var econ Economy
 			err := ctx.Get(economyKey, &econ)
