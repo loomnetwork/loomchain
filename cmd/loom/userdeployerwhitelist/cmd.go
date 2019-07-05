@@ -229,10 +229,16 @@ func setTierInfoCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var fee *types.BigUInt
 			tierID, err := strconv.ParseInt(args[0], 10, 64)
-			blockrange, err := strconv.ParseInt(blockRange, 10, 64)
-			maxtxs, err :=	strconv.ParseInt(maxTxs, 10, 64)
 			if err != nil {
 				return errors.Wrapf(err, "tierID %s does not parse as integer", args[0])
+			}
+			blockrange, err := strconv.ParseInt(blockRange, 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "blockRange %s does not parse as integer", blockRange)
+			}
+			maxtxs, err :=	strconv.ParseInt(maxTxs, 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "maxTxs %s does not parse as integer", maxTxs)
 			}
 			rpcClient := getDAppChainClient(&flags)
 			udwAddress, err := rpcClient.Resolve("user-deployer-whitelist")
