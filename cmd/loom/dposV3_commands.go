@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
@@ -527,11 +529,43 @@ func DowntimeRecordCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+
+			var respDPOS dposv3.ListCandidatesResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, "dposV3", "ListCandidates", &dposv3.ListCandidatesRequest{}, &respDPOS,
+			)
 			if err != nil {
 				return err
 			}
-			fmt.Println(out)
+
+			nameList := make(map[string]string)
+			for _, c := range respDPOS.Candidates {
+				nameList[loom.UnmarshalAddressPB(c.Candidate.Address).Local.String()] = c.Candidate.GetName()
+			}
+
+			type maxLength struct {
+				Name    int
+				Address int
+				Period  int
+			}
+			ml := maxLength{Name: 40, Address: 42, Period: 8}
+			fmt.Printf(
+				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Address, "address",
+				ml.Period, "period 1", ml.Period, "period 2", ml.Period, "period 3", ml.Period, "period 4")
+			fmt.Printf(
+				strings.Repeat("-", ml.Name+ml.Address+(4*ml.Period)+17) + "\n")
+			for _, v := range resp.DowntimeRecords {
+				addr := loom.UnmarshalAddressPB(v.Validator).Local.String()
+				fmt.Printf(
+					"%-*s | %-*s | %-*d | %-*d | %-*d | %-*d |\n",
+					ml.Name, nameList[addr],
+					ml.Address, addr,
+					ml.Period, v.Periods[0],
+					ml.Period, v.Periods[1],
+					ml.Period, v.Periods[2],
+					ml.Period, v.Periods[3])
+			}
+			fmt.Println("PeriodLength : ", resp.PeriodLength)
 			return nil
 		},
 	}
