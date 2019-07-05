@@ -58,6 +58,8 @@ var (
 	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
 	// Invalid whitelisting fees check
 	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] fee must be greater than zero")
+	ErrInvalidBlockRange =  errors.New("[UserDeployerWhitelist] BlockRange must be greater than zero")
+	ErrInvalidMaxTxs = errors.New("[UserDeployerWhitelist] Max Txs must be greater than zero")
 )
 
 const (
@@ -114,6 +116,12 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	for _, tier := range req.TierInfo {
 		fees := loom.NewBigUIntFromInt(int64(tier.Fee))
 		fees.Mul(fees, div)
+		if tier.BlockRange == 0 {
+			return ErrInvalidBlockRange
+		}
+		if tier.MaxTxs == 0 {
+			return ErrInvalidMaxTxs
+		}
 		tier := &Tier{
 			TierID: tier.TierID,
 			Fee: &types.BigUInt{
