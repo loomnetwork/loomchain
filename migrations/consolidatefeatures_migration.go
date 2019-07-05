@@ -2,7 +2,8 @@ package migrations
 
 import (
 	"bytes"
-	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+
+	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 )
 
 func ConsolidateFeaturesMigration(ctx *MigrationContext) error {
@@ -13,19 +14,11 @@ func ConsolidateFeaturesMigration(ctx *MigrationContext) error {
 	}
 	featuresFromState := ctx.state.Range([]byte(featurePrefix))
 	for _, m := range featuresFromState {
-		var f cctypes.Feature
 		data := ctx.state.Get(featureKey(string(m.Key)))
 		if bytes.Equal(data, []byte{1}) {
-			f.Status = cctypes.Feature_ENABLED
-		} else {
-			f.Status = cctypes.Feature_DISABLED
+			//Blockheight = 0, means blockHeight is not applicable, as blockheight at which feature was enabled is not known
+			chainconfig.SyncEnabledFeature(chainconfigCtx, string(m.Key), 0)
 		}
-		if found := chainconfigCtx.Has(featureKey(string(m.Key))); !found {
-			if err := chainconfigCtx.Set(featureKey(string(m.Key)), &f); err != nil {
-				return err
-			}
-		}
-
 	}
 	return nil
 }
