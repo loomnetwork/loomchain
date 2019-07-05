@@ -215,12 +215,12 @@ func getTierInfoCmd() *cobra.Command {
 }
 
 const setTierCmdExample = `
-loom dev set-tier 0 --fee 100 --name Tier1 
+loom dev set-tier 0 --fee 100 --name Tier1 --blockRange 10 --maxTxs 2 
 `
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var inputFee, tierName string
+	var inputFee, tierName, blockRange, maxTxs string
 	cmd := &cobra.Command{
 		Use:     "set-tier <tier> [options]",
 		Short:   "Set tier details",
@@ -229,6 +229,8 @@ func setTierInfoCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var fee *types.BigUInt
 			tierID, err := strconv.ParseInt(args[0], 10, 64)
+			blockrange, err := strconv.ParseInt(blockRange, 10, 64)
+			maxtxs, err :=	strconv.ParseInt(maxTxs, 10, 64)
 			if err != nil {
 				return errors.Wrapf(err, "tierID %s does not parse as integer", args[0])
 			}
@@ -263,16 +265,32 @@ func setTierInfoCmd() *cobra.Command {
 			if len(tierName) == 0 {
 				tierName = getTierInfoResp.Tier.Name
 			}
+			if blockrange == 0 {
+				return fmt.Errorf("blockrange must be greater than zero")
+			}
+			if maxtxs == 0 {
+				return fmt.Errorf("maxtxs must be greater than zero")
+			}
+			if len(blockRange) == 0 {
+				blockrange = int64(getTierInfoResp.Tier.BlockRange)
+			}
+			if len(maxTxs) == 0 {
+				maxtxs = int64(getTierInfoResp.Tier.MaxTxs)
+			}
 			req := &udwtypes.SetTierInfoRequest{
-				Fee:    fee,
-				Name:   tierName,
-				TierID: udwtypes.TierID(tierID),
+				Fee:        fee,
+				Name:       tierName,
+				BlockRange: uint64(blockrange),
+				MaxTxs:     uint64(maxtxs),
+				TierID:     udwtypes.TierID(tierID),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		}}
 
 	cmd.Flags().StringVarP(&inputFee, "fee", "f", "", "Tier fee")
 	cmd.Flags().StringVarP(&tierName, "name", "n", "", "Tier name")
+	cmd.Flags().StringVarP(&blockRange, "blockRange", "b", "" , "Block range")
+	cmd.Flags().StringVarP(&maxTxs, "maxTxs", "t", "", "Max transactions")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
