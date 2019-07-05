@@ -1,3 +1,4 @@
+//nolint
 package chain
 
 import (

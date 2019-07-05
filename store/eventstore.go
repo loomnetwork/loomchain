@@ -15,7 +15,6 @@ const (
 	blockHeightKeyPrefix           byte = 1
 	pluginNameKeyPrefix            byte = 2
 	contractIDBlockHeightKeyPrefix byte = 3
-	pluginNameTopicKeyPrefix       byte = 4
 	lastContractIDKeyPrefix             = 5
 )
 
@@ -151,10 +150,6 @@ func prefixContractIDBlockHightEventIndex(contractID uint64, blockHeight uint64,
 
 func prefixContractIDBlockHight(contractID uint64, blockHeight uint64) []byte {
 	return util.PrefixKey([]byte{contractIDBlockHeightKeyPrefix}, uint64ToBytes(contractID), uint64ToBytes(blockHeight))
-}
-
-func prefixPluginNameTopic(pluginName string, topic string) []byte {
-	return util.PrefixKey([]byte{pluginNameTopicKeyPrefix}, []byte(pluginName), []byte(topic))
 }
 
 func prefixLastContractID() []byte {

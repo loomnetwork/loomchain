@@ -2,14 +2,18 @@ package chainconfig
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/cli"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +35,9 @@ func NewChainCfgCommand() *cobra.Command {
 		ListFeaturesCmd(),
 		FeatureEnabledCmd(),
 		RemoveFeatureCmd(),
+		SetValidatorInfoCmd(),
+		GetValidatorInfoCmd(),
+		ListValidatorsInfoCmd(),
 	)
 	return cmd
 }
@@ -324,6 +331,147 @@ func RemoveFeatureCmd() *cobra.Command {
 	return cmd
 }
 
+const setValidatorInfoCmdExample = `
+loom chain-cfg set-validator-info --build 1000 --key path/to/private_key
+`
+
+func SetValidatorInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	buildNumber := uint64(0)
+	cmd := &cobra.Command{
+		Use:     "set-validator-info",
+		Short:   "Set validator informations",
+		Example: setValidatorInfoCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			request := &cctype.SetValidatorInfoRequest{
+				BuildNumber: buildNumber,
+			}
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetValidatorInfo", request, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	cmdFlags := cmd.Flags()
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Specifies the build number the validator is running")
+	return cmd
+}
+
+const getValidatorInfoCmdExample = `
+loom chain-cfg get-validator-info 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+`
+
+func GetValidatorInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "get-validator-info",
+		Short:   "Get validator informations",
+		Example: getValidatorInfoCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.GetValidatorInfoResponse
+			addr, _ := cli.ParseAddress(args[0], flags.ChainID)
+
+			if err := cli.StaticCallContractWithFlags(&flags,
+				chainConfigContractName,
+				"GetValidatorInfo",
+				&cctype.GetValidatorInfoRequest{Address: addr.MarshalPB()},
+				&resp,
+			); err != nil {
+				return err
+			}
+
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const listValidatorsInfoCmdExample = `
+loom chain-cfg list-validators 
+`
+
+func ListValidatorsInfoCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "list-validators",
+		Short:   "Show info stored for each validator",
+		Example: listValidatorsInfoCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.ListValidatorsInfoResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, chainConfigContractName, "ListValidatorsInfo", &cctype.ListValidatorsInfoRequest{}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			var respDPOS dposv3.ListCandidatesResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, "dposV3", "ListCandidates", &dposv3.ListCandidatesRequest{}, &respDPOS,
+			)
+			if err != nil {
+				return err
+			}
+
+			type maxLength struct {
+				Name        int
+				Validator   int
+				BuildNumber int
+				UpdateAt    int
+			}
+
+			ml := maxLength{Name: 20, Validator: 42, BuildNumber: 5, UpdateAt: 29}
+
+			sort.Slice(resp.Validators[:], func(i, j int) bool {
+				return resp.Validators[i].BuildNumber < resp.Validators[j].BuildNumber
+			})
+
+			nameList := make(map[string]string)
+			for _, c := range respDPOS.Candidates {
+				nameList[loom.UnmarshalAddressPB(c.Candidate.Address).Local.String()] = c.Candidate.GetName()
+			}
+
+			fmt.Printf(
+				"%-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Validator, "validator",
+				ml.BuildNumber, "build", ml.UpdateAt, "Last Update")
+			fmt.Printf(
+				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.UpdateAt+10) + "\n")
+			for _, value := range resp.Validators {
+				fmt.Printf(
+					"%-*s | %-*s | %-*d | %-*s |\n",
+					ml.Name, nameList[value.Address.Local.String()], ml.Validator, value.Address.Local.String(),
+					ml.BuildNumber, value.BuildNumber, ml.UpdateAt, time.Unix(int64(value.UpdatedAt), 0).UTC(),
+				)
+			}
+
+			counters := make(map[uint64]int)
+			for _, validator := range resp.Validators {
+				counters[validator.BuildNumber]++
+			}
+			fmt.Printf(
+				"\n%-*s| %-*s | \n", 11, "BuildNumber", 10, "Percentage")
+			fmt.Printf(
+				strings.Repeat("-", 27) + "\n")
+
+			for k, v := range counters {
+				fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(resp.Validators))
+			}
+
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 // Utils
 
 func formatJSON(pb proto.Message) (string, error) {
@@ -338,3 +486,9 @@ func uintLength(n uint64) int {
 	str := strconv.FormatUint(n, 10)
 	return len(str)
 }
+
+type ByBuild []cctype.ValidatorInfo
+
+func (a ByBuild) Len() int           { return len(a) }
+func (a ByBuild) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByBuild) Less(i, j int) bool { return a[i].BuildNumber < a[j].BuildNumber }

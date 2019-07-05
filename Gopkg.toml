@@ -43,7 +43,6 @@ ignored = [
   "github.com/go-kit/kit*",
   "github.com/grpc-ecosystem/go-grpc-prometheus*",
   "github.com/prometheus/client_golang/prometheus*",
-  "github.com/loomnetwork/yubihsm-go*",
   "github.com/loomnetwork/transfer-gateway*",
   "github.com/certusone/yubihsm-go*",
   "github.com/jmhodges/levigo*", # can only build it with the right c packages

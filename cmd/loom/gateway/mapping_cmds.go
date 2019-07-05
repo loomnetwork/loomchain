@@ -173,7 +173,7 @@ func newMapAccountsCommand() *cobra.Command {
 			}
 
 			var foreignOwnerAddr loom.Address
-			req := &amtypes.AddressMapperAddIdentityMappingRequest{}
+			var req *amtypes.AddressMapperAddIdentityMappingRequest
 			if !interactive {
 				// get it from the key
 				ethOwnerKey, err := crypto.LoadECDSA(ethKeyPath)
@@ -221,6 +221,9 @@ func newMapAccountsCommand() *cobra.Command {
 				)
 
 				sign, err := getSignatureInteractive(hash)
+				if err != nil {
+					return err
+				}
 				// Do a local recovery on the signature to make sure the user is passing the correct byte
 				signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:])
 				if err != nil {
@@ -386,7 +389,7 @@ func newGetContractMappingCommand() *cobra.Command {
 				ml.To = len(mapping.Address)
 			}
 			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
-			if mapping.IsPending == true {
+			if mapping.IsPending {
 				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "PENDING")
 			} else {
 				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "CONFIRMED")

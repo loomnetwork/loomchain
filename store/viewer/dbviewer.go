@@ -31,7 +31,6 @@ func investigate(name, path string) error {
 		prefixRange := loomstore.Range([]byte(prefix))
 		totalLength := 0
 		for _, entry := range prefixRange {
-			entry = entry
 			totalLength += len(entry.Value)
 		}
 		fmt.Println(prefix, "\t", len(prefixRange), "\t", totalLength)

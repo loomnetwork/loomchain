@@ -233,7 +233,7 @@ func testTxOrigin(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm l
 	expected := caller.Local
 	require.True(
 		t,
-		bytes.Compare(actual, expected) == 0,
+		bytes.Equal(actual, expected),
 		"returned address should match caller",
 	)
 }
@@ -248,7 +248,7 @@ func testMsgSender(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm 
 	expected := caller.Local
 	require.True(
 		t,
-		bytes.Compare(actual, expected) == 0,
+		bytes.Equal(actual, expected),
 		"returned address should match caller",
 	)
 }

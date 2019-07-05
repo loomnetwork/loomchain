@@ -9,6 +9,8 @@ import (
 )
 
 type WriteReceiptHandler interface {
-	GetEventsFromLogs(logs []*eth_types.Log, blockHeight int64, caller, contract loom.Address, input []byte) []*types.EventData
+	GetEventsFromLogs(
+		logs []*eth_types.Log, blockHeight int64, caller, contract loom.Address, input []byte,
+	) []*types.EventData
 	CacheReceipt(state State, caller, addr loom.Address, events []*types.EventData, err error) ([]byte, error)
 }

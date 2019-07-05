@@ -58,34 +58,53 @@
   Condition = "contains"
   Expected = ["chainId\": \"default"]
 
+# kill node 1 for 15s, it should be jailed after going offline for 15s
 [[TestCases]]
-  RunCmd = "kill_and_restart_node 10 1"
+  RunCmd = "kill_and_restart_node 15 1"
 
+# add some delay so that downtime periods of node 1 are cleared out
 [[TestCases]]
-  Delay = 17000
-  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}}"
+  Delay = 15000
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["periods"]
 
+# wait for node 1 to catch up
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
+  RunCmd = "wait_for_node_to_catch_up 1"
+
+# wait for block height to increase at least 5 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 5"
+
+# check downtime periods, it should be cleared out after 5 blocks
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
+  Condition = "contains"
+  Expected = ["periods"]
+
+# node 1 should be jailed as it is offline for 15s
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["jailed\": true"]
 
+# check downtime periods before unjailing the validator
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
+  Condition = "contains"
+  Expected = ["periods", "0"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = [""]
 
-# Send txs to increase block height
+# wait for block height to increase at least 2 blocks
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV3 10 -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "wait_for_block_height_to_increase 0 2"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV3 10 -k {{index $.NodePrivKeyPathList 2}}"
-
-[[TestCases]]
-  Delay = 2000
-  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
+  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "excludes"
   Excluded = ["jailed\": true"]
