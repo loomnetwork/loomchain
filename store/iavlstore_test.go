@@ -102,8 +102,8 @@ func testOrphans(t *testing.T, store *IAVLStore, diskDb db.DB, flushInterval int
 }
 
 func TestIavl(t *testing.T) {
-	numBlocks = 10
-	blockSize = 10
+	numBlocks = 20
+	blockSize = 5
 	flushInterval = int64(9)
 
 	log.Setup("debug", "file://-")
@@ -114,7 +114,7 @@ func TestIavl(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 
 	blocks = nil
-	blocks = iavl.GenerateBlocks2(numBlocks, blockSize)
+	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize)
 	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
 	for _, program := range blocks {
 		require.NoError(t, program.Execute(tree))

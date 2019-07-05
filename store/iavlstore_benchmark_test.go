@@ -56,7 +56,7 @@ func TestBenchmark(t *testing.T) {
 	maxVersions = 2
 	fmt.Println("numBlocks", numBlocks, "blockSize", blockSize)
 	blocks = nil
-	blocks = iavl.GenerateBlocks2(numBlocks, blockSize)
+	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize)
 	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
 	for _, program := range blocks {
 		if err := program.Execute(tree); err != nil {
@@ -66,7 +66,6 @@ func TestBenchmark(t *testing.T) {
 
 	t.Run("normal", benchNormal)
 	t.Run("flush20", benchflush20)
-	//t.Run("flush100", benchflush100)
 	t.Run("MaxVers", benchMaxVersions)
 
 	files, err := ioutil.ReadDir("./testdata")
@@ -134,12 +133,6 @@ func benchNormal(t *testing.T) {
 func benchflush20(t *testing.T) {
 	timeIavlStore(t, "flush20", benchmarkflush20)
 }
-func benchFlush50(t *testing.T) {
-	timeIavlStore(t, "flush50", benchmarkFlush50)
-}
-func benchflush100(t *testing.T) {
-	timeIavlStore(t, "flush100", benchmarkflush100)
-}
 func benchMaxVersions(t *testing.T) {
 	timeIavlStore(t, "maxVersions", benchmarkMaxVersions)
 }
@@ -189,28 +182,6 @@ func benchmarkflush20(b require.TestingT, name string) {
 	testno++
 	diskDb := getDiskDb(b, name)
 	store, err := NewIAVLStore(diskDb, 0, 0, 20)
-	require.NoError(b, err)
-	executeBlocks(b, blocks, *store)
-	_, _, err = store.tree.SaveVersion()
-	require.NoError(b, err)
-	diskDb.Close()
-}
-
-func benchmarkFlush50(b require.TestingT, name string) {
-	testno++
-	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, 0, 0, 50)
-	require.NoError(b, err)
-	executeBlocks(b, blocks, *store)
-	_, _, err = store.tree.SaveVersion()
-	require.NoError(b, err)
-	diskDb.Close()
-}
-
-func benchmarkflush100(b require.TestingT, name string) {
-	testno++
-	diskDb := getDiskDb(b, name)
-	store, err := NewIAVLStore(diskDb, 0, 0, 100)
 	require.NoError(b, err)
 	executeBlocks(b, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
