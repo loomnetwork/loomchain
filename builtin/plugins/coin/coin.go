@@ -270,8 +270,8 @@ func Mint(ctx contract.Context) error {
 	changeRatioNumerator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
 	changeRatioDenominator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
 	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
-	totalSupply := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
-	totalSupply.Mul(totalSupply, div)
+	baseAmount := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
+	baseAmount.Mul(baseAmount, div)
 	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
 	basePercentage := loom.NewBigUIntFromInt(int64(policy.BasePercentage))
 	operator := policy.Operator
@@ -291,7 +291,7 @@ func Mint(ctx contract.Context) error {
 		//Determines minting amount at the beginning block of year or at block height at which minting is enabled
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
 		//Minting Amount Computation for starting year
-			amount = totalSupply.Div(totalSupply, blocksGeneratedPerYear)
+			amount = baseAmount.Div(baseAmount, blocksGeneratedPerYear)
 			err = ctx.Set(mintingAmountKey, &types.BigUInt{
 				Value: *amount,
 			})
@@ -317,8 +317,8 @@ func Mint(ctx contract.Context) error {
 			}
 			//Fetches Total Supply from coin contract and applies inflation ratio on total Supply- Happens at
 			//beginning block for that year or block height at which minting is enabled
-			totalSupply = &econ.TotalSupply.Value
-			inflationforYear := totalSupply.Mul(totalSupply, basePercentage)
+			baseAmount = &econ.TotalSupply.Value
+			inflationforYear := baseAmount.Mul(baseAmount, basePercentage)
 			inflationforYear = inflationforYear.Div(inflationforYear, changeRatioDenominator)
 			inflationforYear = inflationforYear.Div(inflationforYear, loom.NewBigUIntFromInt(100))
 			amount = inflationforYear.Div(inflationforYear, blocksGeneratedPerYear)
@@ -331,11 +331,11 @@ func Mint(ctx contract.Context) error {
 			}
 		}
 	}
-	var amount1 = &types.BigUInt{
+	var mintingAmount = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
 	//Minting Amount Per block derived from ctx after minting amount is determined for year
-	err = ctx.Get(mintingAmountKey, amount1)
+	err = ctx.Get(mintingAmountKey, mintingAmount)
 	if err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func Mint(ctx contract.Context) error {
 	if amount == loom.NewBigUIntFromInt(0) {
 		return nil // No more coins to be minted on block creation
 	}
-	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), loom.NewBigUIntFromInt(amount1.Value.Int64()))
+	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), loom.NewBigUIntFromInt(mintingAmount.Value.Int64()))
 }
 
 // ERC20 methods
