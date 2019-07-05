@@ -1,3 +1,5 @@
+// +build evm
+
 package throttle
 
 import (
@@ -28,6 +30,7 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 
 	txSignedPlugin := mockSignedTx(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
 	txSignedEVM := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
+	txSignedEth := mockSignedTx(t, uint64(2), ethId, vm.VMType_EVM, loom.Address{})
 	txSignedMigration := mockSignedTx(t, uint64(3), migrationId, vm.VMType_EVM, contract)
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
@@ -55,14 +58,19 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	// unauthorized deployer (DeployTx EVM)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, guestCtx)
 	require.Equal(t, ErrNotAuthorized, err)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEth, guestCtx)
+	require.Equal(t, ErrNotAuthorized, err)
 	// unauthorized deployer (MigrationTx)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, guestCtx)
 	require.Equal(t, ErrNotAuthorized, err)
+
 
 	// authorized deployer
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedPlugin, ownerCtx)
 	require.NoError(t, err)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, ownerCtx)
+	require.NoError(t, err)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEth, ownerCtx)
 	require.NoError(t, err)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, ownerCtx)
 	require.NoError(t, err)

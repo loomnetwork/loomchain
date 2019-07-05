@@ -1,3 +1,5 @@
+// +build evm
+
 package throttle
 
 import (
@@ -69,6 +71,9 @@ func TestKarmaMiddleWare(t *testing.T) {
 	txSigned := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contract)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
+	txSigned = mockSignedTx(t, uint64(1), ethId, vm.VMType_EVM, contract)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.Error(t, err)
 
 	// deploy contract
 	txSigned = mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
@@ -79,6 +84,9 @@ func TestKarmaMiddleWare(t *testing.T) {
 	txSigned = mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
+	txSigned = mockSignedTx(t, uint64(1), ethId, vm.VMType_EVM, contract)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.NoError(t, err)
 
 	// deactivate contract
 	record, err := karma.GetContractRecord(contractContext, contract)
@@ -87,6 +95,9 @@ func TestKarmaMiddleWare(t *testing.T) {
 
 	// call now fails
 	txSigned = mockSignedTx(t, uint64(4), callId, vm.VMType_EVM, contract)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.Error(t, err)
+	txSigned = mockSignedTx(t, uint64(1), ethId, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 }
