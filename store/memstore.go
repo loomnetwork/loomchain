@@ -21,7 +21,7 @@ func (m *MemStore) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
 	for key, value := range m.store {
-		if strings.HasPrefix(key, string(prefix)) == true {
+		if strings.HasPrefix(key, string(prefix)) {
 			k, err := util.UnprefixKey([]byte(key), prefix)
 			if err != nil {
 				panic(err)
