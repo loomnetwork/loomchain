@@ -146,6 +146,7 @@ type ethCoinIntegrationTestHelper struct {
 	Address loom.Address
 }
 
+//nolint:unused
 func (c *ethCoinIntegrationTestHelper) contractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
 	return contract.WrapPluginContext(ctx.WithAddress(c.Address))
 }
