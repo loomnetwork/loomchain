@@ -54,22 +54,19 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	if err != nil {
 		return err
 	}
-
 	// Dump dposv2 state into a v3-compatible form and transfer dposv2 balance
 	// to dposv3
 	initializationState, err := dposv2.Dump(dposv2Ctx, dposv3Addr)
 	if err != nil {
 		return err
 	}
-
 	dposv3Ctx, err := ctx.ContractContext("dposV3")
 	if err != nil {
 		return err
 	}
 	dposv3.Initialize(dposv3Ctx, initializationState)
-
 	// Set feature in chainconfig Contract
-	if err := chainconfig.AddSpecificFeature(chainconfigCtx,loomchain.DPOSVersion3Feature,uint64(chainconfigCtx.Block().Height)); err != nil {
+	if err := chainconfig.SyncEnabledFeature(chainconfigCtx, loomchain.DPOSVersion3Feature, uint64(chainconfigCtx.Block().Height)); err != nil {
 		return err
 	}
 	// Switch over to DPOSv3
