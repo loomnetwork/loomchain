@@ -170,23 +170,23 @@ func (s *StoreState) SetCfgSetting(cfgSetting *cctypes.CfgSetting) {
 }
 
 func (s *StoreState) Config(version uint64) *cctypes.Config {
-	if s.config == nil {
-		config := defaultConfig()
-		cfgSettingsRange := s.store.Range([]byte(configPrefix))
-		for _, cfgSettingBytes := range cfgSettingsRange {
-			if cfgSettingBytes.Value != nil {
-				var cfgSetting cctypes.CfgSetting
-				err := proto.Unmarshal(cfgSettingBytes.Value, &cfgSetting)
-				if err != nil {
-					panic(err)
-				}
-				if cfgSetting.Version <= version {
-					_ = setConfig(config, cfgSetting.Name, cfgSetting.Value)
-				}
+	config := defaultConfig()
+	config.Version = version
+	cfgSettingsRange := s.store.Range([]byte(configPrefix))
+	for _, cfgSettingBytes := range cfgSettingsRange {
+		if cfgSettingBytes.Value != nil {
+			var cfgSetting cctypes.CfgSetting
+			err := proto.Unmarshal(cfgSettingBytes.Value, &cfgSetting)
+			if err != nil {
+				panic(err)
+			}
+			if cfgSetting.Version <= version {
+				_ = setConfig(config, cfgSetting.Name, cfgSetting.Value)
 			}
 		}
 	}
-	return s.config
+
+	return config
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -474,11 +474,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		if state.FeatureEnabled(ChainCfgVersion1_3, false) {
-			if err := chainConfigManager.UpdateConfig(a.height()); err != nil {
-				panic(err)
-			}
+		//if state.FeatureEnabled(ChainCfgVersion1_3, false) {
+		if err := chainConfigManager.UpdateConfig(a.height()); err != nil {
+			panic(err)
 		}
+		//}
 	}
 
 	storeTx.Commit()

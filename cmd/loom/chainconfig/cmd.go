@@ -35,6 +35,8 @@ func NewChainCfgCommand() *cobra.Command {
 		RemoveFeatureCmd(),
 		SetCfgSettingCmd(),
 		GetCfgSettingCmd(),
+		ListCfgSettingsCmd(),
+		ChainConfigCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
 		ListValidatorsInfoCmd(),
@@ -395,21 +397,21 @@ func GetValidatorInfoCmd() *cobra.Command {
 	return cmd
 }
 
-const getCfgSettingCmdExample = `
-loom chain-cfg get-cfg-setting dpos.feeFloor
+const listCfgSettingsCmdExample = `
+loom chain-cfg list-cfg-settings 
 `
 
-func GetCfgSettingCmd() *cobra.Command {
+func ListCfgSettingsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "get-cfg-setting",
-		Short:   "Get config by config name",
-		Example: getCfgSettingCmdExample,
+		Use:     "list-cfg-settings",
+		Short:   "show all cfg settings in the ChainConfig contract",
+		Example: listCfgSettingsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp cctype.GetCfgSettingResponse
+			var resp cctype.ListCfgSettingsResponse
 			err := cli.StaticCallContractWithFlags(
 				&flags, chainConfigContractName,
-				"GetCfgSetting", &cctype.GetCfgSettingRequest{}, &resp,
+				"ListCfgSettings", &cctype.ListCfgSettingsRequest{}, &resp,
 			)
 			if err != nil {
 				return err
@@ -426,6 +428,76 @@ func GetCfgSettingCmd() *cobra.Command {
 	return cmd
 }
 
+const getCfgSettingCmdExample = `
+loom chain-cfg get-cfg-setting dpos.feeFloor
+`
+
+func GetCfgSettingCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "get-cfg-setting",
+		Short:   "Get config by config name",
+		Example: getCfgSettingCmdExample,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.GetCfgSettingResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, chainConfigContractName,
+				"GetCfgSetting", &cctype.GetCfgSettingRequest{
+					Name: args[0],
+				}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const chainConfigCmdExample = `
+loom chain-cfg chain-config
+`
+
+func ChainConfigCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	var version uint64
+	cmd := &cobra.Command{
+		Use:     "config",
+		Short:   "Get chain config",
+		Example: getCfgSettingCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.ChainConfigResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, chainConfigContractName,
+				"ChainConfig", &cctype.ChainConfigRequest{
+					Version: version,
+				}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Uint64Var(&version, "version", 0, "Set version of config")
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 const setCfgSettingCmdExample = `
 loom chain-cfg set-cfg-setting dpos.feeFloor --value 15
 `
@@ -433,18 +505,20 @@ loom chain-cfg set-cfg-setting dpos.feeFloor --value 15
 func SetCfgSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var value string
+	var version uint64
 	cmd := &cobra.Command{
 		Use:     "set-cfg-setting <config name>",
 		Short:   "Set config setting",
 		Example: setCfgSettingCmdExample,
-		Args:    cobra.RangeArgs(1, 1),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" || value == "" {
 				return fmt.Errorf("Invalid config name")
 			}
 			req := &cctype.SetCfgSettingRequest{
-				Name:  args[0],
-				Value: value,
+				Name:    args[0],
+				Value:   value,
+				Version: version,
 			}
 			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetCfgSetting", req, nil)
 			if err != nil {
@@ -455,6 +529,9 @@ func SetCfgSettingCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&value, "value", "", "Set value of config")
+	cmdFlags.Uint64Var(&version, "version", 0, "Set version of config")
+	cmd.MarkFlagRequired("version")
+	cmd.MarkFlagRequired("value")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }

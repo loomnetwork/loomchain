@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/loomnetwork/go-loom"
@@ -73,11 +74,9 @@ func (c *ChainConfigManager) UpdateConfig(blockHeight int64) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("UPDATE CONFIG", cfgSettings)
 	for _, cfgSetting := range cfgSettings {
-		c.state.SetConfig(feature.Name, true)
+		c.state.SetCfgSetting(cfgSetting)
 	}
-
-	c.state.SetConfig(config)
 	return nil
 }

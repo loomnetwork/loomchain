@@ -263,8 +263,8 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
-func (c *contractContext) Config() *cctypes.Config {
-	return c.VM.State.Config()
+func (c *contractContext) Config(version uint64) *cctypes.Config {
+	return c.VM.State.Config(version)
 }
 
 func (c *contractContext) Validators() []*ltypes.Validator {

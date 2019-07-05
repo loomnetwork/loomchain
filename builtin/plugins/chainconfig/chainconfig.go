@@ -1,6 +1,8 @@
 package chainconfig
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -35,9 +37,14 @@ type (
 	Config         = cctypes.Config
 	AppStoreConfig = cctypes.AppStoreConfig
 
-	GetCfgSettingRequest  = cctypes.GetCfgSettingRequest
-	GetCfgSettingResponse = cctypes.GetCfgSettingResponse
-	SetCfgSettingRequest  = cctypes.SetCfgSettingRequest
+	CfgSetting              = cctypes.CfgSetting
+	GetCfgSettingRequest    = cctypes.GetCfgSettingRequest
+	GetCfgSettingResponse   = cctypes.GetCfgSettingResponse
+	SetCfgSettingRequest    = cctypes.SetCfgSettingRequest
+	ListCfgSettingsRequest  = cctypes.ListCfgSettingsRequest
+	ListCfgSettingsResponse = cctypes.ListCfgSettingsResponse
+	ChainConfigRequest      = cctypes.ChainConfigRequest
+	ChainConfigResponse     = cctypes.ChainConfigResponse
 
 	ValidatorInfo              = cctypes.ValidatorInfo
 	GetValidatorInfoRequest    = cctypes.GetValidatorInfoRequest
@@ -58,6 +65,9 @@ const (
 	FeatureEnabled = cctypes.Feature_ENABLED
 	// FeatureDisabled is not currently used.
 	FeatureDisabled = cctypes.Feature_DISABLED
+
+	CfgSettingPending   = cctypes.CfgSetting_PENDING
+	CfgSettingActivated = cctypes.CfgSetting_ACTIVATED
 )
 
 var (
@@ -101,7 +111,7 @@ var (
 
 const (
 	featurePrefix       = "ft"
-	configPrefix        = "cfg"
+	cfgSettingPrefix    = "cfg"
 	ownerRole           = "owner"
 	validatorInfoPrefix = "vi"
 )
@@ -111,11 +121,14 @@ var (
 	addFeaturePerm = []byte("addf")
 
 	paramsKey = []byte("params")
-	configKey = []byte("cfg")
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+func cfgSettingKey(cfgSettingName string) []byte {
+	return util.PrefixKey([]byte(cfgSettingPrefix), []byte(cfgSettingName))
 }
 
 func validatorInfoKey(addr loom.Address) []byte {
@@ -355,14 +368,59 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
+func UpdateConfig(ctx contract.Context) ([]*CfgSetting, error) {
+	cfgSettingsRange := ctx.Range([]byte(cfgSettingPrefix))
+	cfgSettings := make([]*CfgSetting, 0)
+	for _, m := range cfgSettingsRange {
+		var cfg CfgSetting
+		if err := proto.Unmarshal(m.Value, &cfg); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal CfgSetting %s", string(m.Key))
+		}
+		if cfg.Status == CfgSettingPending {
+			cfg.Status = CfgSettingActivated
+			cfgSettings = append(cfgSettings, &cfg)
+			if err := ctx.Set(cfgSettingKey(cfg.Name), &cfg); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return cfgSettings, nil
+}
+
 // GetConfig returns info about a specific config.
 func (c *ChainConfig) GetCfgSetting(ctx contract.StaticContext, req *GetCfgSettingRequest) (*GetCfgSettingResponse, error) {
+	if req.Name == "" {
+		return nil, ErrInvalidRequest
+	}
+
 	var cfgSetting CfgSetting
-	if err := ctx.Get(configKey, &cfgSetting); err != nil {
+	fmt.Println(string(cfgSettingKey(req.Name)))
+	err := ctx.Get(cfgSettingKey(req.Name), &cfgSetting)
+	if err != nil {
 		return nil, err
 	}
+
 	return &GetCfgSettingResponse{
-		CfgSetting: config,
+		CfgSetting: &cfgSetting,
+	}, nil
+}
+
+// GetConfig returns info about a specific config.
+func (c *ChainConfig) ListCfgSettings(ctx contract.StaticContext, req *ListCfgSettingsRequest) (*ListCfgSettingsResponse, error) {
+	cfgSettingsRange := ctx.Range([]byte(cfgSettingPrefix))
+	cfgSettings := make([]*CfgSetting, 0)
+	fmt.Println(cfgSettingsRange)
+	for _, m := range cfgSettingsRange {
+		var cfg CfgSetting
+		if err := proto.Unmarshal(m.Value, &cfg); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal CfgSetting %s", string(m.Key))
+		}
+		cfgSettings = append(cfgSettings, &cfg)
+	}
+
+	return &ListCfgSettingsResponse{
+		CfgSettings: cfgSettings,
 	}, nil
 }
 
@@ -372,28 +430,32 @@ func (c *ChainConfig) SetCfgSetting(ctx contract.Context, req *SetCfgSettingRequ
 	// 	return ErrFeatureNotEnabled
 	// }
 
-	if req.Name == "" || req.Value == "" {
-		return ErrInvalidRequest
-	}
-
-	var config *Config
-	var inStoreConfig Config
-	if err := ctx.Get(configKey, &inStoreConfig); err != nil {
-		config = DefaultConfig()
-	} else {
-		config = &inStoreConfig
-	}
-
-	if err := setConfig(config, req.Name, req.Value); err != nil {
-		return err
-	}
-
 	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
 	if !contractOwner {
 		return ErrNotAuthorized
 	}
 
-	return ctx.Set(configKey, config)
+	if req.Name == "" || req.Value == "" || req.Version == 0 {
+		return ErrInvalidRequest
+	}
+
+	cfgSetting := &CfgSetting{
+		Name:    req.Name,
+		Value:   req.Value,
+		Version: req.Version,
+		Status:  CfgSettingPending,
+	}
+
+	return ctx.Set(cfgSettingKey(req.Name), cfgSetting)
+}
+
+func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
+	if req.Version == 0 {
+		return nil, ErrInvalidRequest
+	}
+	return &ChainConfigResponse{
+		Config: ctx.Config(req.Version),
+	}, nil
 }
 
 // GetConfig updates the status of configs that haven't been activated yet:
