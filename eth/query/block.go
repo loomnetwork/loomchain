@@ -142,7 +142,7 @@ func GetTxObjectFromBlockResult(
 		return eth.GetEmptyTxObject(), nil, err
 	}
 	txObj.From = eth.EncAddress(msg.From)
-	fmt.Printf("piers GetTxObjectFromBlockResult msg.Data %X\n", msg.Data)
+
 	var input []byte
 	switch txTx.Id {
 	case deployId:
