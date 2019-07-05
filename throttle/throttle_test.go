@@ -1,3 +1,5 @@
+// +build evm
+
 package throttle
 
 import (
@@ -94,7 +96,18 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 			require.NoError(t, err)
 		}
 	}
+
+	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
+		txSigned := mockSignedTx(t, uint64(i), ethId, vm.VMType_EVM, loom.Address{})
+		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+
+		if i <= deployKarma.Value.Int64() {
+			require.NoError(t, err)
+		}
+	}
 }
+
+
 
 func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
@@ -176,7 +189,8 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 		})
 		require.NoError(t, err)
 	}
-	case ethId: {
+
+	case ethId: { // to ~ empty indicates deploy tx
 		ethBytes, err := ethTxBytes(sequence, to, origBytes)
 		require.NoError(t, err)
 		messageTx, err = proto.Marshal(&vm.MessageTx{
