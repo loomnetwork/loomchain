@@ -1,10 +1,6 @@
 package chainconfig
 
 import (
-	"reflect"
-	"strconv"
-	"strings"
-
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -361,15 +357,12 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 
 // GetConfig returns info about a specific config.
 func (c *ChainConfig) GetCfgSetting(ctx contract.StaticContext, req *GetCfgSettingRequest) (*GetCfgSettingResponse, error) {
-	var config *Config
-	var inStoreConfig Config
-	if err := ctx.Get(configKey, &inStoreConfig); err != nil {
-		config = DefaultConfig()
-	} else {
-		config = &inStoreConfig
+	var cfgSetting CfgSetting
+	if err := ctx.Get(configKey, &cfgSetting); err != nil {
+		return nil, err
 	}
 	return &GetCfgSettingResponse{
-		Config: config,
+		CfgSetting: config,
 	}, nil
 }
 
@@ -695,59 +688,6 @@ func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListVa
 	return &ListValidatorsInfoResponse{
 		Validators: validators,
 	}, nil
-}
-
-func setConfig(config *Config, key, value string) error {
-	fieldNames := strings.Split(key, ".")
-	if len(fieldNames) > 2 {
-		return ErrConfigNotFound
-	}
-	var field reflect.Value
-	if len(fieldNames) == 1 {
-		cfgInterface := reflect.ValueOf(config)
-		field = reflect.Indirect(cfgInterface).FieldByName(fieldNames[0])
-	} else if len(fieldNames) == 2 {
-		cfgInterface := reflect.ValueOf(config)
-		structInterface := reflect.Indirect(cfgInterface).FieldByName(fieldNames[0])
-		field = reflect.Indirect(structInterface).FieldByName(fieldNames[1])
-	}
-	return setField(&field, value)
-}
-
-func setField(field *reflect.Value, value string) error {
-	switch field.Kind() {
-	case reflect.String:
-		field.SetString(value)
-	case reflect.Uint64:
-		val, err := strconv.ParseInt(value, 10, 64)
-		if err != nil || val < 0 {
-			return ErrConfigWrongType
-		}
-		field.SetUint(uint64(val))
-	case reflect.Int64:
-		val, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return ErrConfigWrongType
-		}
-		field.SetInt(val)
-	case reflect.Bool:
-		val, err := strconv.ParseBool(value)
-		if err != nil {
-			return ErrConfigWrongType
-		}
-		field.SetBool(val)
-	default:
-		return ErrConfigWrongType
-	}
-	return nil
-}
-
-func DefaultConfig() *Config {
-	return &Config{
-		AppStoreConfig: &AppStoreConfig{
-			DeletedVmKeys: 50,
-		},
-	}
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})

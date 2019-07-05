@@ -33,7 +33,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
-	Config() *cctypes.Config
+	Config(uint64) *cctypes.Config
 }
 
 type State interface {
@@ -43,7 +43,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	SetConfig(*cctypes.Config)
+	SetCfgSetting(*cctypes.CfgSetting)
 }
 
 type StoreState struct {
@@ -131,11 +131,15 @@ func (s *StoreState) Context() context.Context {
 
 var (
 	featurePrefix = "feature"
-	configKey     = "config"
+	configPrefix  = "config"
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+func configKey(configName string) []byte {
+	return util.PrefixKey([]byte(configPrefix), []byte(configName))
 }
 
 func (s *StoreState) FeatureEnabled(name string, val bool) bool {
@@ -157,25 +161,29 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) SetConfig(config *cctypes.Config) {
-	s.config = config
-	configBytes, err := proto.Marshal(config)
+func (s *StoreState) SetCfgSetting(cfgSetting *cctypes.CfgSetting) {
+	cfgBytes, err := proto.Marshal(cfgSetting)
 	if err != nil {
 		panic(err)
 	}
-	s.store.Set([]byte(configKey), configBytes)
+	s.store.Set(configKey(cfgSetting.Name), cfgBytes)
 }
 
-func (s *StoreState) Config() *cctypes.Config {
+func (s *StoreState) Config(version uint64) *cctypes.Config {
 	if s.config == nil {
-		configBytes := s.store.Get([]byte(configKey))
-		if configBytes != nil {
-			var config cctypes.Config
-			err := proto.Unmarshal(configBytes, &config)
-			if err != nil {
-				panic(err)
+		config := defaultConfig()
+		cfgSettingsRange := s.store.Range([]byte(configPrefix))
+		for _, cfgSettingBytes := range cfgSettingsRange {
+			if cfgSettingBytes.Value != nil {
+				var cfgSetting cctypes.CfgSetting
+				err := proto.Unmarshal(cfgSettingBytes.Value, &cfgSetting)
+				if err != nil {
+					panic(err)
+				}
+				if cfgSetting.Version <= version {
+					_ = setConfig(config, cfgSetting.Name, cfgSetting.Value)
+				}
 			}
-			s.config = &config
 		}
 	}
 	return s.config

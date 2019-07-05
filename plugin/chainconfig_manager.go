@@ -69,9 +69,13 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 }
 
 func (c *ChainConfigManager) UpdateConfig(blockHeight int64) error {
-	config, err := chainconfig.GetConfig(c.ctx)
+	cfgSettings, err := chainconfig.UpdateConfig(c.ctx)
 	if err != nil {
 		return err
+	}
+
+	for _, cfgSetting := range cfgSettings {
+		c.state.SetConfig(feature.Name, true)
 	}
 
 	c.state.SetConfig(config)
