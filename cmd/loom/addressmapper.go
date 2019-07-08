@@ -89,6 +89,7 @@ func GetMapping() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-mapping",
 		Short: "Get mapping address",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp amtypes.AddressMapperGetMappingResponse
 			from, err := cli.ParseAddress(args[0], flags.ChainID)
