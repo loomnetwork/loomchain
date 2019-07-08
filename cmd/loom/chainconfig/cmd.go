@@ -432,14 +432,14 @@ func ListCfgSettingsCmd() *cobra.Command {
 }
 
 const getCfgSettingCmdExample = `
-loom chain-cfg get-cfg-setting dpos.feeFloor
+loom chain-cfg get-cfg-setting AppStoreConfig.DeletedVmKeys
 `
 
 func GetCfgSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "get-cfg-setting",
-		Short:   "Get config by config name",
+		Short:   "Get config setting by config key",
 		Example: getCfgSettingCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -473,7 +473,7 @@ func ChainConfigCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "config",
-		Short:   "Get on-chain configuration ",
+		Short:   "Get on-chain cfg settings",
 		Example: chainConfigCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ChainConfigResponse
@@ -497,7 +497,7 @@ func ChainConfigCmd() *cobra.Command {
 }
 
 const setCfgSettingCmdExample = `
-loom chain-cfg set-cfg-setting dpos.feeFloor --value 15
+loom chain-cfg set-cfg-setting AppStoreConfig.DeletedVmKeys --value 100 --version 1
 `
 
 func SetCfgSettingCmd() *cobra.Command {
@@ -511,7 +511,7 @@ func SetCfgSettingCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" || value == "" {
-				return fmt.Errorf("Invalid config name")
+				return fmt.Errorf("invalid config key")
 			}
 			req := &cctype.SetCfgSettingRequest{
 				Name:    args[0],
@@ -542,12 +542,12 @@ func RemoveCfgSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "remove-cfg-setting <config name>",
-		Short:   "Remove configuration setting",
+		Short:   "Remove config setting by key name",
 		Example: removeCfgSettingCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" {
-				return fmt.Errorf("Invalid configuration name")
+				return fmt.Errorf("invalid config key")
 			}
 			req := &cctype.RemoveCfgSettingRequest{
 				Name: args[0],
