@@ -16,10 +16,6 @@ import (
 	lauth "github.com/loomnetwork/loomchain/auth"
 )
 
-const (
-	ethID = uint32(4)
-)
-
 type TendermintRpc interface {
 	BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 }
@@ -53,6 +49,7 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadca
 	if err != nil {
 		return nil, err
 	}
+
 	mt.txs = append([]EthTxInfo{{ethTx, common.BytesToAddress(from)}}, mt.txs...)
 	return &ctypes.ResultBroadcastTx{}, nil
 }
