@@ -16,11 +16,6 @@ var (
 	ErrChainConfigContractNotFound = errors.New("[ChainConfigManager] ChainContract contract not found")
 )
 
-const (
-	// This configPrefix must have the same value as configPrefix in app.go
-	configPrefix = "config"
-)
-
 // ChainConfigManager implements loomchain.ChainConfigManager interface
 type ChainConfigManager struct {
 	ctx   contract.Context

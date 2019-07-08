@@ -543,7 +543,7 @@ func RemoveCfgSettingCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove-cfg-setting <config name>",
 		Short:   "Remove configuration setting",
-		Example: setCfgSettingCmdExample,
+		Example: removeCfgSettingCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" {
