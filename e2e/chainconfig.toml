@@ -163,7 +163,7 @@
   Condition = "contains"
   Expected = ['buildNumber', '578']
 
-  [[TestCases]]
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
@@ -219,3 +219,60 @@
   RunCmd = "{{ $.LoomPath }} chain-cfg list-validators "
   Condition = "contains"
   Expected = ['validator','578','50','LOOM_0','LOOM_1','LOOM_2']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg config"
+  Condition = "contains"
+  Expected = ['50','1']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-cfg-setting AppStoreConfig.DeletedVmKeys --value 777 --version 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-cfg-setting AppStoreConfig.DeletedVmKeys"
+  Condition = "contains"
+  Expected = ['777']
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg config"
+  Condition = "contains"
+  Expected = ['777']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg remove-cfg-setting AppStoreConfig.DeletedVmKeys -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error'] 
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg config"
+  Condition = "contains"
+  Expected = ['50']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-cfg-setting AppStoreConfig.DeletedVmKeys --value 555 --version 2 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-cfg-setting AppStoreConfig.DeletedVmKeys"
+  Condition = "contains"
+  Expected = ['555']
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg config"
+  Condition = "contains"
+  Expected = ['50','1']

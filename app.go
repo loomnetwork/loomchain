@@ -477,11 +477,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		//if state.FeatureEnabled(ChainCfgVersion1_3, false) {
-		if err := chainConfigManager.UpdateConfig(); err != nil {
-			panic(err)
+		if state.FeatureEnabled(ChainCfgVersion1_3, false) {
+			if err := chainConfigManager.UpdateConfig(); err != nil {
+				panic(err)
+			}
 		}
-		//}
 	}
 
 	storeTx.Commit()

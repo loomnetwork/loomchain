@@ -1,8 +1,6 @@
 package chainconfig
 
 import (
-	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -400,14 +398,13 @@ func UpdateConfig(ctx contract.Context) ([]*CfgSetting, error) {
 	return cfgSettings, nil
 }
 
-// GetConfig returns info about a specific config.
+// GetConfig returns info about a specific cfg setting.
 func (c *ChainConfig) GetCfgSetting(ctx contract.StaticContext, req *GetCfgSettingRequest) (*GetCfgSettingResponse, error) {
 	if req.Name == "" {
 		return nil, ErrInvalidRequest
 	}
 
 	var cfgSetting CfgSetting
-	fmt.Println(string(cfgSettingKey(req.Name)))
 	err := ctx.Get(cfgSettingKey(req.Name), &cfgSetting)
 	if err != nil {
 		return nil, err
@@ -418,11 +415,10 @@ func (c *ChainConfig) GetCfgSetting(ctx contract.StaticContext, req *GetCfgSetti
 	}, nil
 }
 
-// GetConfig returns info about a specific config.
+// ListCfgSettings returns a list of cfg settings in the ChainConfig contract
 func (c *ChainConfig) ListCfgSettings(ctx contract.StaticContext, req *ListCfgSettingsRequest) (*ListCfgSettingsResponse, error) {
 	cfgSettingsRange := ctx.Range([]byte(cfgSettingPrefix))
 	cfgSettings := make([]*CfgSetting, 0)
-	fmt.Println(cfgSettingsRange)
 	for _, m := range cfgSettingsRange {
 		var cfg CfgSetting
 		if err := proto.Unmarshal(m.Value, &cfg); err != nil {
@@ -436,7 +432,7 @@ func (c *ChainConfig) ListCfgSettings(ctx contract.StaticContext, req *ListCfgSe
 	}, nil
 }
 
-// SetCfgSetting should be called by a validator to indicate they want to propose a new config value.
+// SetCfgSetting should be called by a contract owner to set a new cfg setting value.
 func (c *ChainConfig) SetCfgSetting(ctx contract.Context, req *SetCfgSettingRequest) error {
 	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
 		return ErrFeatureNotEnabled
