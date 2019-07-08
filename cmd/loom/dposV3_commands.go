@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -542,6 +543,7 @@ func DowntimeRecordCmdV3() *cobra.Command {
 				Address        string
 				Name           string
 				DownTimeRecord *dposv3.DowntimeRecord
+				Jailed         string
 			}
 			var nameList []mapper
 
@@ -559,22 +561,28 @@ func DowntimeRecordCmdV3() *cobra.Command {
 				}
 			}
 
+			sort.Slice(nameList[:], func(i, j int) bool {
+				return nameList[i].Name < nameList[j].Name
+			})
+
 			type maxLength struct {
 				Name    int
 				Address int
 				Period  int
+				Jailed  int
 			}
-			ml := maxLength{Name: 40, Address: 42, Period: 8}
+			ml := maxLength{Name: 40, Address: 42, Period: 8, Jailed: 6}
 			fmt.Printf(
-				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Address, "address",
-				ml.Period, "period 1", ml.Period, "period 2", ml.Period, "period 3", ml.Period, "period 4")
+				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Address, "address",
+				ml.Jailed, "jailed", ml.Period, "period 1", ml.Period, "period 2", ml.Period, "period 3", ml.Period, "period 4")
 			fmt.Printf(
-				strings.Repeat("-", ml.Name+ml.Address+(4*ml.Period)+17) + "\n")
+				strings.Repeat("-", ml.Name+ml.Address+(4*ml.Period)+19) + "\n")
 			for i := range nameList {
 				fmt.Printf(
-					"%-*s | %-*s | %*d | %*d | %*d | %*d |\n",
+					"%-*s | %-*s | %*s | %*d | %*d | %*d | %*d |\n",
 					ml.Name, nameList[i].Name,
 					ml.Address, nameList[i].Address,
+					ml.Jailed, "Y",
 					ml.Period, nameList[i].DownTimeRecord.Periods[0],
 					ml.Period, nameList[i].DownTimeRecord.Periods[1],
 					ml.Period, nameList[i].DownTimeRecord.Periods[2],
