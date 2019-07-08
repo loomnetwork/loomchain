@@ -854,7 +854,6 @@ func loadApp(
 			err := deployContract(
 				state,
 				contractCfg,
-				cfg,
 				vmManager,
 				rootAddr,
 				registry,
@@ -1107,7 +1106,6 @@ func loadApp(
 func deployContract(
 	state loomchain.State,
 	contractCfg config.ContractConfig,
-	chainCfg *config.Config,
 	vmManager *vm.Manager,
 	rootAddr loom.Address,
 	registry regcommon.Registry,
