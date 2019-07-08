@@ -336,7 +336,7 @@ RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
 Condition = "contains"
 Expected = ['not authorized']
 RunCmd = """
-{{ $.LoomPath }} dev set-tier 0 --fee 200 --name Tier2 --blockRange 10 --maxTxs 2 -k {{index $.AccountPrivKeyPathList \
+{{ $.LoomPath }} dev set-tier 0 --fee 200 --name Tier2 --block-range 10 --max-txs 2 -k {{index $.AccountPrivKeyPathList \
 0}}"""
 
 #Checks whitelisting fees cannot be less than equal to zero.
@@ -346,21 +346,21 @@ RunCmd = """
 Condition = "contains"
 Expected = ['fee must be greater than zero']
 RunCmd = """
-{{ $.LoomPath }} dev set-tier 0 --fee 0 --name Tier2 --blockRange 10 --maxTxs 2 -k {{index $.AccountPrivKeyPathList \
+{{ $.LoomPath }} dev set-tier 0 --fee 0 --name Tier2 --block-range 10 --max-txs 2 -k {{index $.AccountPrivKeyPathList \
 0}}"""
 
 [[TestCases]]
 Condition = "contains"
 Expected = ['blockrange must be greater than zero']
 RunCmd = """
-{{ $.LoomPath }} dev set-tier 0 --fee 10 --name Tier2 --blockRange 0 --maxTxs 2 -k {{index $.AccountPrivKeyPathList \
+{{ $.LoomPath }} dev set-tier 0 --fee 10 --name Tier2 --block-range 0 --max-txs 2 -k {{index $.AccountPrivKeyPathList \
 0}}"""
 
 [[TestCases]]
 Condition = "contains"
 Expected = ['maxtxs must be greater than zero']
 RunCmd = """
-{{ $.LoomPath }} dev set-tier 0 --fee 10 --name Tier2 --blockRange 10 --maxTxs 0 -k {{index $.AccountPrivKeyPathList \
+{{ $.LoomPath }} dev set-tier 0 --fee 10 --name Tier2 --block-range 10 --max-txs 0 -k {{index $.AccountPrivKeyPathList \
 0}}"""
 
 [[TestCases]]
