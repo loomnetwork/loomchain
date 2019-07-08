@@ -826,7 +826,7 @@ func loadApp(
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager:                vmManager,
 		CreateRegistry:         createRegistry,
-		AllowNamedEVMContracts: cfg.AllowNamedEvmContract,
+		AllowNamedEVMContracts: cfg.AllowNamedEvmContracts,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
