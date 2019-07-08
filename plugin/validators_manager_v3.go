@@ -59,8 +59,8 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 	}
 
 	// A VoteInfo struct is created for every active validator. If
-	// SignedLastBlock is not true for any of the validators, slash them for
-	// inactivity. TODO limit slashes to once per election cycle
+	// SignedLastBlock is not true for any of the validators, record the missed block
+	// for the validator using the `UpdateDowntimeRecord` function.
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
 			address, err := dposv3.GetLocalCandidateAddressFromTendermintAddress(

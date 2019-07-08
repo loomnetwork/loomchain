@@ -1379,7 +1379,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 				slash := true;
 				downtime := getDowntimeRecord(ctx, statistic)
 				for i := uint64(0); i < 4; i++ {
-					if (maximumMissedBlocks < downtime.Periods[0]) {
+					if (maximumMissedBlocks >= downtime.Periods[i]) {
 						slash = false;
 						break;
 					}
