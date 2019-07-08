@@ -128,11 +128,21 @@ func ListMappingCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return errors.Wrap(err, "format JSON response")
+			type maxLength struct {
+				From   int
+				To     int
+				Status int
 			}
-			fmt.Println(out)
+			ml := maxLength{From: 50, To: 50, Status: 9}
+
+			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
+			for _, value := range resp.Mappings {
+				fmt.Printf("%-*s | %-*s |\n",
+					ml.From, loom.UnmarshalAddressPB(value.From).String(),
+					ml.To, loom.UnmarshalAddressPB(value.To).String())
+			}
+			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
+
 			return nil
 		},
 	}
