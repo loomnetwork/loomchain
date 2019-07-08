@@ -22,7 +22,7 @@ func investigate(name, path string) error {
 	if err != nil {
 		return err
 	}
-	loomstore, err := store.NewIAVLStore(db, 0, 0)
+	loomstore, err := store.NewIAVLStore(db, 0, 0, 0)
 	if err != nil {
 		return err
 	}
