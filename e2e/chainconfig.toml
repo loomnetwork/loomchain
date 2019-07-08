@@ -153,7 +153,6 @@
   Condition = "contains"
   Expected = ['Error','not authorized']
 
-
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 578 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
@@ -182,6 +181,41 @@
   Expected = ['Error','RPC error']
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 0}} 100 3 -k {{index $.NodePrivKeyPathList 0}} --name LOOM_0"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 1}} 100 3 -k {{index $.NodePrivKeyPathList 1}} --name LOOM_1"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 2}} 100 3 -k {{index $.NodePrivKeyPathList 2}} --name LOOM_2"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-validators "
   Condition = "contains"
-  Expected = ['validator','578','50']
+  Expected = ['validator','578','50','LOOM_0','LOOM_1','LOOM_2']

@@ -273,7 +273,7 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 
 				// restart
 				time.Sleep(dur)
-				cmd = exec.CommandContext(ctx, n.LoomPath, "run")
+				cmd = exec.CommandContext(ctx, n.LoomPath, "run", "--persistent-peers", n.PersistentPeers)
 				cmd.Dir = n.Dir
 				go func() {
 					fmt.Printf("starting node %d after %v\n", n.ID, dur)

@@ -20,6 +20,7 @@ linters:
     - scopelint
     - stylecheck
     - dupl
+    - prealloc # re-enable later when we quash the more annoying stuff
 linters-settings:
 #   govet:
 #     check-shadowing: true
