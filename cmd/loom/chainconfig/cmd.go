@@ -38,6 +38,7 @@ func NewChainCfgCommand() *cobra.Command {
 		SetCfgSettingCmd(),
 		GetCfgSettingCmd(),
 		ListCfgSettingsCmd(),
+		RemoveCfgSettingCmd(),
 		ChainConfigCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
@@ -470,18 +471,15 @@ loom chain-cfg chain-config
 
 func ChainConfigCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var version uint64
 	cmd := &cobra.Command{
 		Use:     "config",
-		Short:   "Get chain config",
-		Example: getCfgSettingCmdExample,
+		Short:   "Get on-chain configuration ",
+		Example: chainConfigCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ChainConfigResponse
 			err := cli.StaticCallContractWithFlags(
 				&flags, chainConfigContractName,
-				"ChainConfig", &cctype.ChainConfigRequest{
-					Version: version,
-				}, &resp,
+				"ChainConfig", &cctype.ChainConfigRequest{}, &resp,
 			)
 			if err != nil {
 				return err
@@ -494,8 +492,6 @@ func ChainConfigCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.Uint64Var(&version, "version", 0, "Set version of config")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
@@ -534,6 +530,35 @@ func SetCfgSettingCmd() *cobra.Command {
 	cmdFlags.Uint64Var(&version, "version", 0, "Set version of config")
 	cmd.MarkFlagRequired("version")
 	cmd.MarkFlagRequired("value")
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const removeCfgSettingCmdExample = `
+loom chain-cfg remove-cfg-setting AppStoreConfig.DeletedVmKeys
+`
+
+func RemoveCfgSettingCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "remove-cfg-setting <config name>",
+		Short:   "Remove configuration setting",
+		Example: setCfgSettingCmdExample,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] == "" {
+				return fmt.Errorf("Invalid configuration name")
+			}
+			req := &cctype.RemoveCfgSettingRequest{
+				Name: args[0],
+			}
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "RemoveCfgSetting", req, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }

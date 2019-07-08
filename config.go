@@ -18,7 +18,7 @@ var (
 
 func defaultConfig() *cctypes.Config {
 	return &cctypes.Config{
-		Version: 1,
+		Version: uint64(CfgSettingVersion),
 		AppStoreConfig: &cctypes.AppStoreConfig{
 			DeletedVmKeys: 50,
 		},

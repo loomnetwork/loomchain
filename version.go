@@ -10,6 +10,7 @@ var (
 	HashicorpGitSHA    = ""
 	BtcdGitSHA         = ""
 	TransferGatewaySHA = ""
+	CfgSettingVersion  = 1
 )
 
 func FullVersion() string {

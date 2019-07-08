@@ -33,7 +33,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
-	Config(uint64) *cctypes.Config
+	Config() *cctypes.Config
 }
 
 type State interface {
@@ -44,6 +44,7 @@ type State interface {
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
 	SetCfgSetting(*cctypes.CfgSetting)
+	RemoveCfgSetting(string)
 }
 
 type StoreState struct {
@@ -169,9 +170,12 @@ func (s *StoreState) SetCfgSetting(cfgSetting *cctypes.CfgSetting) {
 	s.store.Set(configKey(cfgSetting.Name), cfgBytes)
 }
 
-func (s *StoreState) Config(version uint64) *cctypes.Config {
+func (s *StoreState) RemoveCfgSetting(cfgSettingName string) {
+	s.store.Delete(configKey(cfgSettingName))
+}
+
+func (s *StoreState) Config() *cctypes.Config {
 	config := defaultConfig()
-	config.Version = version
 	cfgSettingsRange := s.store.Range([]byte(configPrefix))
 	for _, cfgSettingBytes := range cfgSettingsRange {
 		if cfgSettingBytes.Value != nil {
@@ -180,12 +184,11 @@ func (s *StoreState) Config(version uint64) *cctypes.Config {
 			if err != nil {
 				panic(err)
 			}
-			if cfgSetting.Version <= version {
+			if cfgSetting.Version <= config.Version {
 				_ = setConfig(config, cfgSetting.Name, cfgSetting.Value)
 			}
 		}
 	}
-
 	return config
 }
 
@@ -291,7 +294,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
-	UpdateConfig(blockHeight int64) error
+	UpdateConfig() error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -475,7 +478,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		}
 
 		//if state.FeatureEnabled(ChainCfgVersion1_3, false) {
-		if err := chainConfigManager.UpdateConfig(a.height()); err != nil {
+		if err := chainConfigManager.UpdateConfig(); err != nil {
 			panic(err)
 		}
 		//}

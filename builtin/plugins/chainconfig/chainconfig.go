@@ -41,6 +41,7 @@ type (
 	GetCfgSettingRequest    = cctypes.GetCfgSettingRequest
 	GetCfgSettingResponse   = cctypes.GetCfgSettingResponse
 	SetCfgSettingRequest    = cctypes.SetCfgSettingRequest
+	RemoveCfgSettingRequest = cctypes.RemoveCfgSettingRequest
 	ListCfgSettingsRequest  = cctypes.ListCfgSettingsRequest
 	ListCfgSettingsResponse = cctypes.ListCfgSettingsResponse
 	ChainConfigRequest      = cctypes.ChainConfigRequest
@@ -66,8 +67,12 @@ const (
 	// FeatureDisabled is not currently used.
 	FeatureDisabled = cctypes.Feature_DISABLED
 
-	CfgSettingPending   = cctypes.CfgSetting_PENDING
+	// CfgSettingPending status indicates a cfg setting has not been activated yet.
+	CfgSettingPending = cctypes.CfgSetting_PENDING
+	// CfgSettingActivated status indicates a cfg settting has already been activated.
 	CfgSettingActivated = cctypes.CfgSetting_ACTIVATED
+	// CfgSettingRemoving status indicates a cfg setting is going to be removed.
+	CfgSettingRemoving = cctypes.CfgSetting_REMOVING
 )
 
 var (
@@ -368,6 +373,10 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
+// UpdateConfig updates the status of cfg settings:
+// - A PENDING cfg setting will become ACTIVATED once UpdateConfig is called by a chainconfig manager
+// - A REMOVING cfg setting will be deleted once UpdateConfig is called by a chainconfig manager
+// Returns a list of cfg settings whose status has changed from PENDING to ACTIVATED and deleted cfg settings.
 func UpdateConfig(ctx contract.Context) ([]*CfgSetting, error) {
 	cfgSettingsRange := ctx.Range([]byte(cfgSettingPrefix))
 	cfgSettings := make([]*CfgSetting, 0)
@@ -382,6 +391,9 @@ func UpdateConfig(ctx contract.Context) ([]*CfgSetting, error) {
 			if err := ctx.Set(cfgSettingKey(cfg.Name), &cfg); err != nil {
 				return nil, err
 			}
+		} else if cfg.Status == CfgSettingRemoving {
+			cfgSettings = append(cfgSettings, &cfg)
+			ctx.Delete(cfgSettingKey(cfg.Name))
 		}
 	}
 
@@ -426,9 +438,9 @@ func (c *ChainConfig) ListCfgSettings(ctx contract.StaticContext, req *ListCfgSe
 
 // SetCfgSetting should be called by a validator to indicate they want to propose a new config value.
 func (c *ChainConfig) SetCfgSetting(ctx contract.Context, req *SetCfgSettingRequest) error {
-	// if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
-	// 	return ErrFeatureNotEnabled
-	// }
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+		return ErrFeatureNotEnabled
+	}
 
 	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
 	if !contractOwner {
@@ -449,12 +461,33 @@ func (c *ChainConfig) SetCfgSetting(ctx contract.Context, req *SetCfgSettingRequ
 	return ctx.Set(cfgSettingKey(req.Name), cfgSetting)
 }
 
-func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
-	if req.Version == 0 {
-		return nil, ErrInvalidRequest
+// RemoveCfgSetting should be called by a validator to indicate they want to propose a new config value.
+func (c *ChainConfig) RemoveCfgSetting(ctx contract.Context, req *RemoveCfgSettingRequest) error {
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+		return ErrFeatureNotEnabled
 	}
+
+	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
+	if !contractOwner {
+		return ErrNotAuthorized
+	}
+
+	if req.Name == "" {
+		return ErrInvalidRequest
+	}
+
+	var cfgSetting CfgSetting
+	if err := ctx.Get(cfgSettingKey(req.Name), &cfgSetting); err != nil {
+		return errors.Wrapf(err, "cfg setting '%s' not found", req.Name)
+	}
+	cfgSetting.Status = CfgSettingRemoving
+
+	return ctx.Set(cfgSettingKey(req.Name), &cfgSetting)
+}
+
+func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
 	return &ChainConfigResponse{
-		Config: ctx.Config(req.Version),
+		Config: ctx.Config(),
 	}, nil
 }
 

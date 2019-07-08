@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/loomnetwork/go-loom"
@@ -69,14 +68,17 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	return nil
 }
 
-func (c *ChainConfigManager) UpdateConfig(blockHeight int64) error {
+func (c *ChainConfigManager) UpdateConfig() error {
 	cfgSettings, err := chainconfig.UpdateConfig(c.ctx)
 	if err != nil {
 		return err
 	}
-	fmt.Println("UPDATE CONFIG", cfgSettings)
 	for _, cfgSetting := range cfgSettings {
-		c.state.SetCfgSetting(cfgSetting)
+		if cfgSetting.Status == chainconfig.CfgSettingRemoving {
+			c.state.RemoveCfgSetting(cfgSetting.Name)
+		} else if cfgSetting.Status == chainconfig.CfgSettingActivated {
+			c.state.SetCfgSetting(cfgSetting)
+		}
 	}
 	return nil
 }
