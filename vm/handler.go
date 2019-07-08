@@ -16,7 +16,8 @@ import (
 
 type DeployTxHandler struct {
 	*Manager
-	CreateRegistry registry.RegistryFactoryFunc
+	CreateRegistry         registry.RegistryFactoryFunc
+	AllowNamedEVMContracts bool
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -43,6 +44,11 @@ func (h *DeployTxHandler) ProcessTx(
 	err = proto.Unmarshal(msg.Data, &tx)
 	if err != nil {
 		return r, err
+	}
+
+	version1_1 := state.FeatureEnabled(loomchain.DeployTxVersion1_1Feature, false)
+	if version1_1 && (tx.VmType == VMType_EVM) && (len(tx.Name) > 0) && !h.AllowNamedEVMContracts {
+		return r, errors.New("named evm contracts are not allowed")
 	}
 
 	vm, err := h.Manager.InitVM(tx.VmType, state)
@@ -79,7 +85,9 @@ func (h *DeployTxHandler) ProcessTx(
 	}
 
 	reg := h.CreateRegistry(state)
-	reg.Register(tx.Name, addr, caller)
+	if err := reg.Register(tx.Name, addr, caller); err != nil && version1_1 {
+		return r, err
+	}
 
 	if tx.VmType == VMType_EVM {
 		r.Info = utils.DeployEvm
