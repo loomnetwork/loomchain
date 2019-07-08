@@ -89,9 +89,6 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		// The conflicting vote data is kept within the consensus engine itself.
 		m.ctx.Logger().Debug("DPOS BeginBlock", "ByzantineEvidence", fmt.Sprintf("%v+", evidence))
 
-		// TODO what prevents someone from resubmitting evidence?
-		// evidence.ValidateBasic() seems to already be called by Tendermint,
-		// I think it takes care of catching duplicates as well...
 		if evidence.Height > (currentHeight - 100) {
 			m.ctx.Logger().Debug("DPOS BeginBlock Byzantine Slashing", "FreshEvidenceHeight", evidence.Height, "CurrentHeight", currentHeight)
 			//err := m.SlashDoubleSign(evidence.Validator.Address)
