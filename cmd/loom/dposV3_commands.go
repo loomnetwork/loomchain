@@ -543,7 +543,7 @@ func DowntimeRecordCmdV3() *cobra.Command {
 				Address        string
 				Name           string
 				DownTimeRecord *dposv3.DowntimeRecord
-				Jailed         string
+				Jailed         bool
 			}
 			var nameList []mapper
 
@@ -554,7 +554,7 @@ func DowntimeRecordCmdV3() *cobra.Command {
 							Address:        loom.UnmarshalAddressPB(d.GetValidator()).Local.String(),
 							Name:           c.Candidate.GetName(),
 							DownTimeRecord: d,
-							Jailed:         strconv.FormatBool(c.Statistic.Jailed),
+							Jailed:         c.Statistic.Jailed,
 						}
 						nameList = append(nameList, a)
 						break
@@ -580,7 +580,7 @@ func DowntimeRecordCmdV3() *cobra.Command {
 				strings.Repeat("-", ml.Name+ml.Address+ml.Jailed+(4*ml.Period)+19) + "\n")
 			for i := range nameList {
 				fmt.Printf(
-					"%-*s | %-*s | %*s | %*d | %*d | %*d | %*d |\n",
+					"%-*s | %-*s | %*v | %*d | %*d | %*d | %*d |\n",
 					ml.Name, nameList[i].Name,
 					ml.Address, nameList[i].Address,
 					ml.Jailed, nameList[i].Jailed,
