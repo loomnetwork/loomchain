@@ -487,11 +487,6 @@ func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRe
 	}, nil
 }
 
-// GetConfig updates the status of configs that haven't been activated yet:
-func GetConfig(ctx contract.Context) (*Config, error) {
-	return &Config{}, nil
-}
-
 func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
 	// TODO: Replace all this with ctx.Validators() when it's hooked up to DPOSv3 (and ideally DPOSv2)
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
