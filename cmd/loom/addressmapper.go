@@ -102,15 +102,21 @@ func GetMapping() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
+			type maxLength struct {
+				From   int
+				To     int
+				Status int
 			}
-			fmt.Println(out)
+			ml := maxLength{From: 50, To: 50, Status: 9}
+
+			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
+
+			fmt.Printf("%-*s | %-*s |\n",
+				ml.From, loom.UnmarshalAddressPB(resp.From).String(),
+				ml.To, loom.UnmarshalAddressPB(resp.To).String())
 			return nil
 		},
 	}
-
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
