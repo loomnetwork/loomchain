@@ -1376,12 +1376,10 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 			}
 
 			if downtimeSlashingEnabled {
-				// TODO when Ohm's PR is merged, I can rebase & use the
-				// `getDowntimeRecord(ctx, statistic)` function he wrote here
-
 				slash := true;
+				downtime := getDowntimeRecord(ctx, statistic)
 				for i := uint64(0); i < 4; i++ {
-					if (maximumMissedBlocks < (statistic.RecentlyMissedBlocks >> (16*i) & 0xFFFF)) {
+					if (maximumMissedBlocks < downtime.Periods[0]) {
 						slash = false;
 						break;
 					}
@@ -1398,7 +1396,6 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 			if err := SetStatistic(ctx, statistic); err != nil {
 				return err
 			}
-
 		}
 	}
 
@@ -1509,12 +1506,6 @@ func slash(ctx contract.Context, validatorAddr loom.Address, slashPercentage loo
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "")
-	}
-
-	// If slashing percentage is less than current total slash percentage, do
-	// not further increase total slash percentage during this election period
-	if slashPercentage.Cmp(&statistic.SlashPercentage.Value) < 0 {
-		return nil
 	}
 
 	updatedAmount := common.BigZero()

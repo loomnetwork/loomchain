@@ -12,7 +12,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 set-downtime-period 5 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 set-downtime-period 2 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Excluded = ["Error"]
 
@@ -84,7 +84,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 3}} 200000 -k {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "kill_and_restart_node 100 1"
+  RunCmd = "kill_and_restart_node 150 1"
 
 # Explicitly testing that currently offline node is among the validator set
 [[TestCases]]
