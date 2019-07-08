@@ -557,7 +557,7 @@ func DowntimeRecordCmdV3() *cobra.Command {
 			for _, v := range resp.DowntimeRecords {
 				addr := loom.UnmarshalAddressPB(v.Validator).Local.String()
 				fmt.Printf(
-					"%-*s | %-*s | %-*d | %-*d | %-*d | %-*d |\n",
+					"%-*s | %-*s | %*d | %*d | %*d | %*d |\n",
 					ml.Name, nameList[addr],
 					ml.Address, addr,
 					ml.Period, v.Periods[0],
