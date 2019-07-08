@@ -554,7 +554,7 @@ func DowntimeRecordCmdV3() *cobra.Command {
 							Address:        loom.UnmarshalAddressPB(d.GetValidator()).Local.String(),
 							Name:           c.Candidate.GetName(),
 							DownTimeRecord: d,
-							Jailed:         boolToString(c.Statistic.Jailed),
+							Jailed:         strconv.FormatBool(c.Statistic.Jailed),
 						}
 						nameList = append(nameList, a)
 						break
@@ -1133,12 +1133,4 @@ func NewDPOSV3Command() *cobra.Command {
 		UnjailValidatorCmdV3(),
 	)
 	return cmd
-}
-
-func boolToString(b bool) string {
-	if b == true {
-		return "Yes"
-	} else {
-		return "No"
-	}
 }
