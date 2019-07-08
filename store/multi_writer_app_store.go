@@ -84,8 +84,8 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	}
 	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
-		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
-			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
+		log.Error(fmt.Sprintf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
+			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot))
 	}
 
 	// feature flag overrides SaveEVMStateToIAVL
