@@ -538,9 +538,25 @@ func DowntimeRecordCmdV3() *cobra.Command {
 				return err
 			}
 
-			nameList := make(map[string]string)
-			for _, c := range respDPOS.Candidates {
-				nameList[loom.UnmarshalAddressPB(c.Candidate.Address).Local.String()] = c.Candidate.GetName()
+			type mapper struct {
+				Address        string
+				Name           string
+				DownTimeRecord *dposv3.DowntimeRecord
+			}
+			var nameList []mapper
+
+			for _, d := range resp.DowntimeRecords {
+				for _, c := range respDPOS.Candidates {
+					if d.Validator.Local.Compare(c.Candidate.Address.Local) == 0 {
+						a := mapper{
+							Address:        loom.UnmarshalAddressPB(d.GetValidator()).Local.String(),
+							Name:           c.Candidate.GetName(),
+							DownTimeRecord: d,
+						}
+						nameList = append(nameList, a)
+						break
+					}
+				}
 			}
 
 			type maxLength struct {
@@ -554,16 +570,15 @@ func DowntimeRecordCmdV3() *cobra.Command {
 				ml.Period, "period 1", ml.Period, "period 2", ml.Period, "period 3", ml.Period, "period 4")
 			fmt.Printf(
 				strings.Repeat("-", ml.Name+ml.Address+(4*ml.Period)+17) + "\n")
-			for _, v := range resp.DowntimeRecords {
-				addr := loom.UnmarshalAddressPB(v.Validator).Local.String()
+			for i := range nameList {
 				fmt.Printf(
 					"%-*s | %-*s | %*d | %*d | %*d | %*d |\n",
-					ml.Name, nameList[addr],
-					ml.Address, addr,
-					ml.Period, v.Periods[0],
-					ml.Period, v.Periods[1],
-					ml.Period, v.Periods[2],
-					ml.Period, v.Periods[3])
+					ml.Name, nameList[i].Name,
+					ml.Address, nameList[i].Address,
+					ml.Period, nameList[i].DownTimeRecord.Periods[0],
+					ml.Period, nameList[i].DownTimeRecord.Periods[1],
+					ml.Period, nameList[i].DownTimeRecord.Periods[2],
+					ml.Period, nameList[i].DownTimeRecord.Periods[3])
 			}
 			fmt.Println("PeriodLength : ", resp.PeriodLength)
 			return nil
