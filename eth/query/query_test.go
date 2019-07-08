@@ -42,8 +42,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
-	var writer loomchain.WriteReceiptHandler
-	writer = receiptHandler
+	var writer loomchain.WriteReceiptHandler = receiptHandler
 
 	require.NoError(t, err)
 	state := common.MockState(0)
@@ -178,8 +177,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
-	var writer loomchain.WriteReceiptHandler
-	writer = receiptHandler
+	var writer loomchain.WriteReceiptHandler = receiptHandler
 
 	require.NoError(t, err)
 	ethFilter := eth.EthBlockFilter{

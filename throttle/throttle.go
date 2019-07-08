@@ -116,8 +116,3 @@ func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, o
 		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
 	}
 }
-
-func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
-	contractState := chainState.WithPrefix(loom.DataPrefix(t.karmaContractAddress))
-	return contractState, nil
-}

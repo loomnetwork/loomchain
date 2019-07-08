@@ -87,7 +87,7 @@ func (p *EthTxPoll) LegacyPoll(
 	p.lastBlockRead = uint64(state.Block().Height)
 
 	blocksMsg := types.EthFilterEnvelope_EthTxHashList{
-		&types.EthTxHashList{EthTxHash: txHashes},
+		EthTxHashList: &types.EthTxHashList{EthTxHash: txHashes},
 	}
 	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
 	return p, r, err
