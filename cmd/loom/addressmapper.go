@@ -139,21 +139,20 @@ func ListMappingCmd() *cobra.Command {
 				To   int
 			}
 			ml := maxLength{From: 50, To: 50}
-			toList := make(map[string]bool)
+			addressList := make(map[string]bool)
 			for _, value := range resp.Mappings {
 				fromAddr := loom.UnmarshalAddressPB(value.From).String()
 				toAddr := loom.UnmarshalAddressPB(value.To).String()
-				if !toList[fromAddr] {
-					toList[toAddr] = true
-				} else {
+				if addressList[toAddr] || addressList[fromAddr] {
 					continue
 				}
+				addressList[fromAddr] = true
+				addressList[toAddr] = true
 				fmt.Printf("%-*s | %-*s |\n",
 					ml.From, fromAddr,
 					ml.To, toAddr)
 			}
 			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
-
 			return nil
 		},
 	}
