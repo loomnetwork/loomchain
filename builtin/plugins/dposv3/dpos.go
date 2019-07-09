@@ -1390,6 +1390,8 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 						return err
 					}
 
+					// load updated statistic that was modified by the call to
+					// SlashInactivity
 					statistic, err = GetStatistic(ctx, candidateAddress)
 					if err != nil {
 						if err == contract.ErrNotFound {
