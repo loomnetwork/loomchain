@@ -226,10 +226,10 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 	featureList := make(map[string]bool)
 	for _, m := range featureRange {
 		var f Feature
-		featureList[f.Name] = true
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
 		}
+		featureList[f.Name] = true
 		feature, err := getFeature(ctx, f.Name, curValidators)
 		if err != nil {
 			return nil, err
