@@ -220,7 +220,7 @@ loom dev set-tier 0 --fee 100 --name Tier1 --block-range 10 --max-txs 2
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var inputFee, tierName, blockRangeStr, maxTxsStr string
+	var inputFee, tierName string
 	var blockRange, maxTxs uint64
 	cmd := &cobra.Command{
 		Use:     "set-tier <tier> [options]",
@@ -264,42 +264,32 @@ func setTierInfoCmd() *cobra.Command {
 			if len(tierName) == 0 {
 				tierName = getTierInfoResp.Tier.Name
 			}
-			if len(blockRangeStr) == 0 {
+			if blockRange == 0 {
 				blockRange = getTierInfoResp.Tier.BlockRange
-			} else {
-				blockRange, err = strconv.ParseUint(blockRangeStr, 10, 64)
-				if err != nil {
-					return errors.Wrap(err, "failed to parse block range")
-				}
-				if blockRange == 0 {
-					return fmt.Errorf("block range must be greater than zero")
-				}
 			}
-			if len(maxTxsStr) == 0 {
+			if blockRange == 0 {
+				return fmt.Errorf("block range must be greater than zero")
+			}
+			if maxTxs == 0 {
 				maxTxs = getTierInfoResp.Tier.MaxTxs
-			} else {
-				maxTxs, err = strconv.ParseUint(maxTxsStr, 10, 64)
-				if err != nil {
-					return errors.Wrap(err, "failed to parse max txs")
-				}
-				if maxTxs == 0 {
-					return fmt.Errorf("max-txs must be greater than zero")
-				}
+			}
+			if maxTxs == 0 {
+				return fmt.Errorf("max-txs must be greater than zero")
 			}
 			req := &udwtypes.SetTierInfoRequest{
 				Fee:        fee,
 				Name:       tierName,
+				TierID:     udwtypes.TierID(tierID),
 				BlockRange: blockRange,
 				MaxTxs:     maxTxs,
-				TierID:     udwtypes.TierID(tierID),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		}}
 
 	cmd.Flags().StringVarP(&inputFee, "fee", "f", "", "Tier fee")
 	cmd.Flags().StringVarP(&tierName, "name", "n", "", "Tier name")
-	cmd.Flags().StringVar(&blockRangeStr, "block-range", "", "Block range")
-	cmd.Flags().StringVar(&maxTxsStr, "max-txs", "", "Max txs per block range")
+	cmd.Flags().Uint64Var(&blockRange, "block-range", 0, "Block range")
+	cmd.Flags().Uint64Var(&maxTxs, "max-txs", 0, "Max txs per block range")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
