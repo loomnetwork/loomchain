@@ -120,6 +120,6 @@ func (c *FakeContextWithEVM) FeatureEnabled(name string, value bool) bool {
 	return c.State.FeatureEnabled(name, value)
 }
 
-func (c *FakeContextWithEVM) GetEnabledFeatures() []string {
+func (c *FakeContextWithEVM) EnabledFeatures() []string {
 	return nil
 }
