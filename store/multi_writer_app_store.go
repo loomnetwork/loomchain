@@ -220,12 +220,12 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *MultiWriterAppStore) loadFeaturesAndCfgSettings() {
-	featureRange := s.Range(featurePrefix)
+	featureRange := s.appStore.Range(featurePrefix)
 	for _, feature := range featureRange {
 		s.multiWriterStoreCache.Set(feature.Key, feature.Value)
 	}
 
-	configRange := s.Range(configPrefix)
+	configRange := s.appStore.Range(configPrefix)
 	for _, config := range configRange {
 		s.multiWriterStoreCache.Set(config.Key, config.Value)
 	}
