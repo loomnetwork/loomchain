@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/loomnetwork/go-loom"
 
 	"github.com/spf13/cobra"
 
@@ -152,12 +155,24 @@ func ListReferrersCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
+			type maxLength struct {
+				Name    int
+				Address int
 			}
-			fmt.Println(out)
+			ml := maxLength{Name: 20, Address: 50}
+
+			for _, r := range resp.Referrers {
+				if ml.Name < len(r.Name) {
+					ml.Name = len(r.Name)
+				}
+			}
+
+			fmt.Printf("%-*s | %-*s |\n", ml.Name, "referrer name", ml.Address, "address")
+			fmt.Printf(strings.Repeat("-", ml.Name+ml.Address+5) + "\n")
+			for _, r := range resp.Referrers {
+				fmt.Printf("%-*s | %-*s |"+"\n", ml.Name, r.Name, ml.Address, loom.UnmarshalAddressPB(r.GetReferrerAddress()).String())
+			}
+
 			return nil
 		},
 	}
