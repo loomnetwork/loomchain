@@ -53,6 +53,11 @@
             "name": "mw:userdeploy-wl",
             "status": "WAITING",
             "autoEnable": true
+          },
+          {
+            "name": "userdeploy-wl:v1.1",
+            "status": "WAITING",
+            "autoEnable": true
           }
         ]
       }
