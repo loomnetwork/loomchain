@@ -264,7 +264,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-referrers"
   Condition = "contains"
-  Excluded = ["acct2","acct1"]
+  Expected = ["acct1","acct2"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
