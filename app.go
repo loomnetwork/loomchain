@@ -31,7 +31,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
-	GetEnabledFeatures() []string
+	EnabledFeatures() []string
 }
 
 type State interface {
@@ -133,14 +133,14 @@ func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
-func (s *StoreState) GetEnabledFeatures() []string {
+func (s *StoreState) EnabledFeatures() []string {
 	enabledFeatures := make([]string, 0)
 	featuresFromState := s.Range([]byte(featurePrefix))
 	for _, m := range featuresFromState {
 		data := s.Get(featureKey(string(m.Key)))
 		if bytes.Equal(data, []byte{1}) {
+			enabledFeatures = append(enabledFeatures, string(m.Key))
 		}
-		enabledFeatures = append(enabledFeatures, string(m.Key))
 	}
 	return enabledFeatures
 }
