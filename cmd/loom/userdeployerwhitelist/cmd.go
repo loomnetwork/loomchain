@@ -220,8 +220,8 @@ loom dev set-tier 0 --fee 100 --name Tier1 --block-range 10 --max-txs 2
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
-	var inputFee, tierName, blockRange, maxTxs string
-	var blockrange, maxtxs int64
+	var inputFee, tierName, blockRangeStr, maxTxsStr string
+	var blockRange, maxTxs uint64
 	cmd := &cobra.Command{
 		Use:     "set-tier <tier> [options]",
 		Short:   "Set tier details",
@@ -264,33 +264,33 @@ func setTierInfoCmd() *cobra.Command {
 			if len(tierName) == 0 {
 				tierName = getTierInfoResp.Tier.Name
 			}
-			if len(blockRange) == 0 {
-				blockrange = int64(getTierInfoResp.Tier.BlockRange)
+			if len(blockRangeStr) == 0 {
+				blockRange = getTierInfoResp.Tier.BlockRange
 			} else {
-				blockrange, err = strconv.ParseInt(blockRange, 10, 64)
+				blockRange, err = strconv.ParseUint(blockRangeStr, 10, 64)
 				if err != nil {
-					return errors.Wrapf(err, "block range %s does not parse as integer", blockRange)
+					return errors.Wrap(err, "failed to parse block range")
 				}
-				if blockrange == 0 {
+				if blockRange == 0 {
 					return fmt.Errorf("block range must be greater than zero")
 				}
 			}
-			if len(maxTxs) == 0 {
-				maxtxs = int64(getTierInfoResp.Tier.MaxTxs)
+			if len(maxTxsStr) == 0 {
+				maxTxs = getTierInfoResp.Tier.MaxTxs
 			} else {
-				maxtxs, err = strconv.ParseInt(maxTxs, 10, 64)
+				maxTxs, err = strconv.ParseUint(maxTxsStr, 10, 64)
 				if err != nil {
-					return errors.Wrapf(err, "max-txs %s does not parse as integer", maxTxs)
+					return errors.Wrap(err, "failed to parse max txs")
 				}
-				if maxtxs == 0 {
+				if maxTxs == 0 {
 					return fmt.Errorf("max-txs must be greater than zero")
 				}
 			}
 			req := &udwtypes.SetTierInfoRequest{
 				Fee:        fee,
 				Name:       tierName,
-				BlockRange: uint64(blockrange),
-				MaxTxs:     uint64(maxtxs),
+				BlockRange: blockRange,
+				MaxTxs:     maxTxs,
 				TierID:     udwtypes.TierID(tierID),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
@@ -298,8 +298,8 @@ func setTierInfoCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&inputFee, "fee", "f", "", "Tier fee")
 	cmd.Flags().StringVarP(&tierName, "name", "n", "", "Tier name")
-	cmd.Flags().StringVarP(&blockRange, "block-range", "b", "", "Block range")
-	cmd.Flags().StringVarP(&maxTxs, "max-txs", "t", "", "Max transactions")
+	cmd.Flags().StringVar(&blockRangeStr, "block-range", "", "Block range")
+	cmd.Flags().StringVar(&maxTxsStr, "max-txs", "", "Max txs per block range")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
