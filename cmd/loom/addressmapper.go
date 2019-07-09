@@ -136,17 +136,22 @@ func ListMappingCmd() *cobra.Command {
 				return errors.Wrap(err, "static call contract")
 			}
 			type maxLength struct {
-				From   int
-				To     int
-				Status int
+				From int
+				To   int
 			}
-			ml := maxLength{From: 50, To: 50, Status: 9}
-
-			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
+			ml := maxLength{From: 50, To: 50}
+			toList := make(map[string]bool)
 			for _, value := range resp.Mappings {
+				fromAddr := loom.UnmarshalAddressPB(value.From).String()
+				toAddr := loom.UnmarshalAddressPB(value.To).String()
+				if !toList[fromAddr] {
+					toList[toAddr] = true
+				} else {
+					continue
+				}
 				fmt.Printf("%-*s | %-*s |\n",
-					ml.From, loom.UnmarshalAddressPB(value.From).String(),
-					ml.To, loom.UnmarshalAddressPB(value.To).String())
+					ml.From, fromAddr,
+					ml.To, toAddr)
 			}
 			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
 
