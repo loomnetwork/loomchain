@@ -38,7 +38,7 @@ type (
 )
 
 var (
-	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
+	// ErrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
 	ErrNotAuthorized = errors.New("[UserDeployerWhitelist] not authorized")
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
@@ -46,7 +46,7 @@ var (
 	ErrInvalidRequest = errors.New("[UserDeployerWhitelist] invalid request")
 	// ErrOwnerNotSpecified returned if init request does not have owner address
 	ErrOwnerNotSpecified = errors.New("[UserDeployerWhitelist] owner not specified")
-	// ErrFeatureFound returned if an owner try to set an existing feature
+	// ErrDeployerAlreadyExists returned if an owner try to set an existing feature
 	ErrDeployerAlreadyExists = errors.New("[UserDeployerWhitelist] deployer already exists")
 	// ErrDeployerDoesNotExist returned if an owner try to to remove a deployer that does not exist
 	ErrDeployerDoesNotExist = errors.New("[UserDeployerWhitelist] deployer does not exist")
@@ -56,10 +56,12 @@ var (
 	ErrInvalidTier = errors.New("[UserDeployerWhitelist] Invalid Tier")
 	// ErrMissingTierInfo is returned if init doesnt get atleast one tier
 	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
-	// Invalid whitelisting fees check
+	// ErrInvalidWhitelistingFee indicates the specified fee is invalid
 	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] fee must be greater than zero")
-	ErrInvalidBlockRange =  errors.New("[UserDeployerWhitelist] BlockRange must be greater than zero")
-	ErrInvalidMaxTxs = errors.New("[UserDeployerWhitelist] Max Txs must be greater than zero")
+	// ErrInvalidBlockRange indicates the specified block range is invalid
+	ErrInvalidBlockRange = errors.New("[UserDeployerWhitelist] block range must be greater than zero")
+	// ErrInvalidMaxTxs indicates the specified max txs count is invalid
+	ErrInvalidMaxTxs = errors.New("[UserDeployerWhitelist] max txs must be greater than zero")
 )
 
 const (
@@ -336,11 +338,11 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
-	if req.BlockRange <= 0 {
-		return errors.New("[UserDeployerWhitelist] blockRange must be greater than zero")
+	if req.BlockRange == 0 {
+		return ErrInvalidBlockRange
 	}
-	if req.MaxTxs <= 0 {
-		return errors.New("[UserDeployerWhitelist] MaxTx must be greater than zero")
+	if req.MaxTxs == 0 {
+		return ErrInvalidMaxTxs
 	}
 
 	tier := &Tier{
