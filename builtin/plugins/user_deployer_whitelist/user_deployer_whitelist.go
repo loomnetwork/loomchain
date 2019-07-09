@@ -12,6 +12,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/pkg/errors"
 )
@@ -80,15 +81,15 @@ var (
 type UserDeployerWhitelist struct {
 }
 
-func DeployerStateKey(deployer loom.Address) []byte {
+func deployerStateKey(deployer loom.Address) []byte {
 	return util.PrefixKey([]byte(deployerStatePrefix), deployer.Bytes())
 }
 
-func UserStateKey(user loom.Address) []byte {
+func userStateKey(user loom.Address) []byte {
 	return util.PrefixKey([]byte(userStatePrefix), user.Bytes())
 }
 
-func TierKey(tierID TierID) []byte {
+func tierKey(tierID TierID) []byte {
 	var buf bytes.Buffer
 	binary.Write(&buf, binary.BigEndian, tierID)
 	return util.PrefixKey([]byte(tierKeyPrefix), buf.Bytes())
@@ -115,26 +116,30 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	// TODO: Add relevant methods to manage owner and permissions later on.
 	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
 
-	for _, tier := range req.TierInfo {
-		fees := loom.NewBigUIntFromInt(int64(tier.Fee))
+	for _, ti := range req.TierInfo {
+		fees := loom.NewBigUIntFromInt(int64(ti.Fee))
 		fees.Mul(fees, div)
-		if tier.BlockRange == 0 {
-			return ErrInvalidBlockRange
-		}
-		if tier.MaxTxs == 0 {
-			return ErrInvalidMaxTxs
-		}
 		tier := &Tier{
-			TierID: tier.TierID,
+			TierID: ti.TierID,
 			Fee: &types.BigUInt{
 				Value: *fees,
 			},
-			Name:       tier.Name,
-			BlockRange: tier.BlockRange,
-			MaxTxs:     tier.MaxTxs,
+			Name: ti.Name,
 		}
 
-		if err := ctx.Set(TierKey(tier.TierID), tier); err != nil {
+		if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
+			if ti.BlockRange == 0 {
+				return ErrInvalidBlockRange
+			}
+			if ti.MaxTxs == 0 {
+				return ErrInvalidMaxTxs
+			}
+
+			tier.BlockRange = ti.BlockRange
+			tier.MaxTxs = ti.MaxTxs
+		}
+
+		if err := ctx.Set(tierKey(tier.TierID), tier); err != nil {
 			return err
 		}
 	}
@@ -158,11 +163,11 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		return errors.Wrap(err, "unable to get address of coin contract")
 	}
 	// Check the deployer account is not already whitelisted
-	if ctx.Has(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
+	if ctx.Has(deployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
 		return ErrDeployerAlreadyExists
 	}
 	var tierInfo Tier
-	if err := ctx.Get(TierKey(req.TierID), &tierInfo); err != nil {
+	if err := ctx.Get(tierKey(req.TierID), &tierInfo); err != nil {
 		return err
 	}
 	var whitelistingFees *types.BigUInt
@@ -188,22 +193,21 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	}
 
 	var userState UserState
-	if err := ctx.Get(UserStateKey(userAddr), &userState); err != nil {
+	if err := ctx.Get(userStateKey(userAddr), &userState); err != nil {
 		// This is taking care of boundary case also that user is whitelisting deployers for first time
 		if err != contract.ErrNotFound {
 			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 		}
 	}
 	userState.Deployers = append(userState.Deployers, req.DeployerAddr)
-	if err := ctx.Set(UserStateKey(userAddr), &userState); err != nil {
+	if err := ctx.Set(userStateKey(userAddr), &userState); err != nil {
 		return errors.Wrap(err, "Failed to Save Deployers mapping in user state")
 	}
 	deployer := &UserDeployerState{
 		Address: req.DeployerAddr,
 		TierID:  req.TierID,
 	}
-	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
-	if err != nil {
+	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer); err != nil {
 		return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
 	}
 	return nil
@@ -223,7 +227,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	// check if sender is the user who whitelisted the DeployerAddr, if so remove from userState
 	userAddr := ctx.Message().Sender
 	var userState UserState
-	if err := ctx.Get(UserStateKey(userAddr), &userState); err != nil {
+	if err := ctx.Get(userStateKey(userAddr), &userState); err != nil {
 		if err != contract.ErrNotFound {
 			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 		}
@@ -246,7 +250,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	}
 
 	userState.Deployers = survivedDeployers
-	if err := ctx.Set(UserStateKey(userAddr), &userState); err != nil {
+	if err := ctx.Set(userStateKey(userAddr), &userState); err != nil {
 		return errors.Wrap(err, "failed to Save Deployers mapping in user state")
 	}
 	// remove from deployerwhitelist contract
@@ -257,10 +261,10 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 		return errors.Wrap(err, "failed to remove deployer")
 	}
 	// remove from current contract deployer address
-	if !ctx.Has(DeployerStateKey(deployerAddr)) {
+	if !ctx.Has(deployerStateKey(deployerAddr)) {
 		return ErrDeployerDoesNotExist
 	}
-	ctx.Delete(DeployerStateKey(deployerAddr))
+	ctx.Delete(deployerStateKey(deployerAddr))
 	return nil
 }
 
@@ -274,7 +278,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 		return nil, ErrInvalidRequest
 	}
 	deployers := []*UserDeployerState{}
-	err := ctx.Get(UserStateKey(loom.UnmarshalAddressPB(req.UserAddr)), &userState)
+	err := ctx.Get(userStateKey(loom.UnmarshalAddressPB(req.UserAddr)), &userState)
 	if err != nil {
 		if err == contract.ErrNotFound {
 			return &GetUserDeployersResponse{}, nil
@@ -283,7 +287,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 	}
 	for _, deployerAddr := range userState.Deployers {
 		var userDeployerState UserDeployerState
-		err = ctx.Get(DeployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployerState)
+		err = ctx.Get(deployerStateKey(loom.UnmarshalAddressPB(deployerAddr)), &userDeployerState)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 		}
@@ -304,7 +308,7 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 	var userDeployer UserDeployerState
-	err := ctx.Get(DeployerStateKey(deployerAddr), &userDeployer)
+	err := ctx.Get(deployerStateKey(deployerAddr), &userDeployer)
 	if err != nil {
 		if err == contract.ErrNotFound {
 			return &GetDeployedContractsResponse{}, nil
@@ -321,8 +325,7 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 	ctx contract.StaticContext, req *GetTierInfoRequest,
 ) (*GetTierInfoResponse, error) {
 	var tier Tier
-	err := ctx.Get(TierKey(req.TierID), &tier)
-	if err != nil {
+	if err := ctx.Get(tierKey(req.TierID), &tier); err != nil {
 		return nil, errors.Wrap(err, "Failed to get Tier Information")
 	}
 	return &GetTierInfoResponse{
@@ -338,22 +341,26 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
-	if req.BlockRange == 0 {
-		return ErrInvalidBlockRange
-	}
-	if req.MaxTxs == 0 {
-		return ErrInvalidMaxTxs
-	}
 
 	tier := &Tier{
-		TierID:     req.TierID,
-		Fee:        req.Fee,
-		Name:       req.Name,
-		BlockRange: req.BlockRange,
-		MaxTxs:     req.MaxTxs,
+		TierID: req.TierID,
+		Fee:    req.Fee,
+		Name:   req.Name,
 	}
-	err := ctx.Set(TierKey(req.TierID), tier)
-	if err != nil {
+
+	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
+		if req.BlockRange == 0 {
+			return ErrInvalidBlockRange
+		}
+		if req.MaxTxs == 0 {
+			return ErrInvalidMaxTxs
+		}
+
+		tier.BlockRange = req.BlockRange
+		tier.MaxTxs = req.MaxTxs
+	}
+
+	if err := ctx.Set(tierKey(req.TierID), tier); err != nil {
 		return errors.Wrap(err, "Failed to modify TierInfo")
 	}
 	return nil
@@ -363,7 +370,7 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 // contract is successfully deployed to record the deployment in the UserDeployerWhitelist contract.
 func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contractAddr loom.Address) error {
 	var userDeployer UserDeployerState
-	err := ctx.Get(DeployerStateKey(deployerAddress), &userDeployer)
+	err := ctx.Get(deployerStateKey(deployerAddress), &userDeployer)
 	// If key is not part of whitelisted keys then error will be logged
 	if err != nil {
 		if err == contract.ErrNotFound {
@@ -375,8 +382,7 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 		ContractAddress: contractAddr.MarshalPB(),
 	}
 	userDeployer.Contracts = append(userDeployer.Contracts, &contract)
-	err = ctx.Set(DeployerStateKey(deployerAddress), &userDeployer)
-	if err != nil {
+	if err := ctx.Set(deployerStateKey(deployerAddress), &userDeployer); err != nil {
 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
 	}
 	return nil
@@ -398,7 +404,7 @@ func GetTierMap(ctx contract.StaticContext) (map[TierID]Tier, error) {
 //GetTierInfo standalone function to get tier information
 func GetTierInfo(ctx contract.StaticContext, tierID udwtypes.TierID) (udwtypes.Tier, error) {
 	var tier Tier
-	err := ctx.Get(TierKey(tierID), &tier)
+	err := ctx.Get(tierKey(tierID), &tier)
 	if err != nil {
 		return Tier{}, errors.Wrap(err, "Failed to get Tier Information")
 	}
@@ -414,7 +420,7 @@ func GetContractTierMapping(ctx contract.StaticContext) (map[string]TierID, erro
 			return nil, errors.Wrap(err, "unmarshal UserDeployerState")
 		}
 		var tier Tier
-		err := ctx.Get(TierKey(deployer.TierID), &tier)
+		err := ctx.Get(tierKey(deployer.TierID), &tier)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get Tier Information")
 		}

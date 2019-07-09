@@ -75,9 +75,13 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 	blockTx, ok := txl.contractStatsMap[contractAddr.String()]
 	tierID := txl.contractToTierMap[contractAddr.String()]
 	tier := txl.tierMap[tierID]
-	if !ok || blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) {
+	blockRange := int64(4096) // prevent divide by zero just in case tier doesn't have a range set
+	if tier.BlockRange > 0 {
+		blockRange = int64(tier.BlockRange)
+	}
+	if !ok || blockTx.blockHeight <= (curBlockHeight-blockRange) {
 		// resetting the blockHeight to lower bound of range instead of curblockheight
-		rangeStart := (((curBlockHeight - 1) / int64(tier.BlockRange)) * int64(tier.BlockRange)) + 1
+		rangeStart := (((curBlockHeight - 1) / blockRange) * blockRange) + 1
 		txl.contractStatsMap[contractAddr.String()] = &contractStats{1, rangeStart}
 		return
 	}

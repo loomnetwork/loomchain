@@ -44,6 +44,9 @@ const (
 	// Enables post commit middleware for user-deployer-whitelist
 	UserDeployerWhitelistFeature = "mw:userdeploy-wl"
 
+	// Enables block range & max txs fields in tier info stored in User Deployer Whitelist contract
+	UserDeployerWhitelistVersion1_1Feature = "userdeploy-wl:v1.1"
+
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
 

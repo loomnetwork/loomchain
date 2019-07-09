@@ -6,12 +6,13 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve user-deployer-whitelist 10000 -k {{index $.AccountPrivKeyPathList 0}}"
-  Condition = ""
+  Condition = "excludes"
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
@@ -20,8 +21,8 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 1 {{index $.AccountAddressList 2}} -k {{index $.AccountPrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev list-deployers {{index $.AccountAddressList 0}}"
@@ -30,8 +31,8 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
@@ -64,231 +65,232 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = [ ]
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b simple_sol1.bin -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = "contains"
+  Condition = "excludes"
+  Excluded = ['Error']
   Datafiles = [
     { Filename = "simple_sol1.bin", Contents = "708060405234801561001057600080fd5b5060bd8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c146062575b600080fd5b606060048036036020811015604b57600080fd5b8101908080359060200190929190505050607e565b005b60686088565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058205df5fd0119476c8d9e72cba533fd6dcf4cd6f498344d4350bee12be12b2472170029" }
   ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev list-contracts {{index $.AccountAddressList 1}} "
-  Condition = "contains"
-  Expected = ['']
+  Condition = "excludes"
+  Excluded = ['Error']
 
 # Checks whitelisting fees is debited from user after adding deployer
 [[TestCases]]
