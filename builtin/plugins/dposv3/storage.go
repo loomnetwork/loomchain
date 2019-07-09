@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 )
 
@@ -26,7 +27,12 @@ var (
 	referrersKey   = []byte("referrers")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
+	referrerPrefix       = []byte("rf")
 )
+
+func referrerKey(referrerName string) []byte {
+	return util.PrefixKey([]byte(referrerPrefix), []byte(referrerName))
+}
 
 func sortValidators(validators []*Validator) []*Validator {
 	sort.Sort(byPubkey(validators))
@@ -448,7 +454,7 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 
 func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 	var address types.Address
-	err := ctx.Get(append(referrersKey, name...), &address)
+	err := ctx.Get(referrerKey(name), &address)
 	if err != nil {
 		return nil
 	}
@@ -456,7 +462,7 @@ func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 }
 
 func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
-	return ctx.Set(append(referrersKey, name...), address)
+	return ctx.Set(referrerKey(name), address)
 }
 
 func GetLocalCandidateAddressFromTendermintAddress(

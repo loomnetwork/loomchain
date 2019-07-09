@@ -1,7 +1,6 @@
 package dposv3
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -106,6 +106,9 @@ type (
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
+	Referrer                          = dtypes.Referrer
+	ListReferrersRequest              = dtypes.ListReferrersRequest
+	ListReferrersResponse             = dtypes.ListReferrersResponse
 	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
 	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
@@ -1333,6 +1336,25 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 
 	return &ListAllDelegationsResponse{
 		ListResponses: responses,
+	}, nil
+}
+
+func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
+	ctx.Logger().Debug("DPOSv3 ListReferrers", "request", req)
+	referrerRange := ctx.Range([]byte(referrerPrefix))
+	referrers := make([]*Referrer, 0)
+	for _, referrer := range referrerRange {
+		var r Referrer
+		var addr types.Address
+		if err := proto.Unmarshal(referrer.Value, &addr); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal referrer %s", string(referrer.Key))
+		}
+		r.ReferrerAddress = &addr
+		r.Name = string(referrer.Key)
+		referrers = append(referrers, &r)
+	}
+	return &ListReferrersResponse{
+		Referrers: referrers,
 	}, nil
 }
 
