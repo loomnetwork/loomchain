@@ -45,7 +45,6 @@ import (
 	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
-	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
@@ -1313,7 +1312,6 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		resolveCmd,
 		unsafeCmd,
-		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		userdeployer.NewUserDeployCommand(),
