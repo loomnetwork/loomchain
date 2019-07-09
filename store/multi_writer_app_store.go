@@ -388,6 +388,9 @@ func (c *multiWriterStoreCache) Delete(key []byte) {
 }
 
 func (c *multiWriterStoreCache) Range(prefix []byte) plugin.RangeData {
+	c.RLock()
+	defer c.RUnlock()
+
 	keys := []string{}
 	for key := range c.cache {
 		if util.HasPrefix([]byte(key), prefix) {

@@ -214,7 +214,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	require.False(store.Has(vmPrefixKey("gg")))
 }
 
-func (m *MultiWriterAppStoreTestSuite) TestMultiWriterStoreCacheRange() {
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterStoreCache() {
 	require := m.Require()
 	store, err := mockMultiWriterStore()
 	require.NoError(err)
@@ -232,6 +232,16 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterStoreCacheRange() {
 	require.Equal(rangeData[0].Value, rangeDataAppStore[0].Value)
 	require.Equal(rangeData[1].Value, rangeDataAppStore[1].Value)
 	require.Equal(rangeData[2].Value, rangeDataAppStore[2].Value)
+
+	cachedData := store.Get(featureKey("db:evm"))
+	diskData := store.appStore.Get(featureKey("db:evm"))
+	require.Equal(cachedData, diskData)
+
+	store.Delete(featureKey("dpos:v3.1"))
+	cachedData = store.Get(featureKey("dpos:v3.1"))
+	diskData = store.appStore.Get(featureKey("dpos:v3.1"))
+	require.Equal(diskData, cachedData)
+	require.Equal(0, len(cachedData))
 }
 
 func mockMultiWriterStore() (*MultiWriterAppStore, error) {
