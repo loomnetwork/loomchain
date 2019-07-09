@@ -223,9 +223,10 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 	}
 	featureRange := ctx.Range([]byte(featurePrefix))
 	features := []*Feature{}
-	concatenatedFeatures := []*Feature{}
+	featureList := make(map[string]bool)
 	for _, m := range featureRange {
 		var f Feature
+		featureList[f.Name] = true
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
 		}
@@ -235,34 +236,20 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 		}
 		features = append(features, feature)
 	}
-	featuresFromState := ctx.GetEnabledFeatures()
-	for _, feature := range features {
-		concatenatedFeatures = append(concatenatedFeatures, feature)
-	}
+	featuresFromState := ctx.EnabledFeatures()
 	for _, feature := range featuresFromState {
-		var f Feature
-		f.Name = feature
-		f.BlockHeight = 0
-		f.BuildNumber = 0
-		f.Status = cctypes.Feature_ENABLED
-		concatenatedFeatures = append(concatenatedFeatures, &f)
-	}
-	concatenatedFeatures = Unique(concatenatedFeatures)
-	return &ListFeaturesResponse{
-		Features: concatenatedFeatures,
-	}, nil
-}
-
-func Unique(features []*Feature) []*Feature {
-	keys := make(map[string]bool)
-	featureSet := []*Feature{}
-	for _, feature := range features {
-		if _, value := keys[feature.Name]; !value {
-			keys[feature.Name] = true
-			featureSet = append(featureSet, feature)
+		if !featureList[feature] {
+			features = append(features, &Feature{
+				Name:        feature,
+				BlockHeight: 0,
+				BuildNumber: 0,
+				Status:      cctypes.Feature_ENABLED,
+			})
 		}
 	}
-	return featureSet
+	return &ListFeaturesResponse{
+		Features: features,
+	}, nil
 }
 
 // GetFeature returns info about a specific feature.
