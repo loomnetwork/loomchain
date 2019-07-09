@@ -316,23 +316,26 @@ func init() {
 		Help:      "Number of requests received.",
 	}, fieldKeys)
 	deliverTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "application",
-		Name:      "delivertx_latency_microseconds",
-		Help:      "Total duration of delivertx in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "delivertx_latency_microseconds",
+		Help:       "Total duration of delivertx in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, []string{"method", "error", "evm"})
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "application",
-		Name:      "checktx_latency_microseconds",
-		Help:      "Total duration of checktx in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "checktx_latency_microseconds",
+		Help:       "Total duration of checktx in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 	commitBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "application",
-		Name:      "commit_block_latency_microseconds",
-		Help:      "Total duration of commit block in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "commit_block_latency_microseconds",
+		Help:       "Total duration of commit block in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -343,10 +346,11 @@ func init() {
 	}, fieldKeys)
 
 	validatorFuncLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "application",
-		Name:      "validator_election_latency",
-		Help:      "Total duration of validator election in seconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "validator_election_latency",
+		Help:       "Total duration of validator election in seconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, []string{})
 }
 
