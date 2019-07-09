@@ -104,11 +104,10 @@ func GetMapping() *cobra.Command {
 				return err
 			}
 			type maxLength struct {
-				From   int
-				To     int
-				Status int
+				From int
+				To   int
 			}
-			ml := maxLength{From: 50, To: 50, Status: 9}
+			ml := maxLength{From: 50, To: 50}
 
 			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
 
