@@ -141,18 +141,15 @@ func ListCandidatesCmdV3() *cobra.Command {
 
 func ListReferrersCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
-	fmt.Println("__ListReferrer command")
 	cmd := &cobra.Command{
 		Use:   "list-referrers",
 		Short: "List all registered referrers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("__ListReferrer command_1")
 			var resp dposv3.ListReferrersResponse
 			err := cli.StaticCallContractWithFlags(
 				&flags, DPOSV3ContractName, "ListReferrers", &dposv3.ListReferrersRequest{}, &resp,
 			)
 			if err != nil {
-				fmt.Println("__ListReferrer command_2")
 				return err
 			}
 
