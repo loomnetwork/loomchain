@@ -604,7 +604,11 @@ func ListValidatorsInfoCmd() *cobra.Command {
 
 			nameList := make(map[string]string)
 			for _, c := range respDPOS.Candidates {
-				nameList[loom.UnmarshalAddressPB(c.Candidate.Address).Local.String()] = c.Candidate.GetName()
+				n := c.Candidate.GetName()
+				nameList[loom.UnmarshalAddressPB(c.Candidate.Address).Local.String()] = n
+				if ml.Name < len(n) {
+					ml.Name = len(n)
+				}
 			}
 
 			fmt.Printf(
