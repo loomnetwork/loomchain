@@ -232,6 +232,44 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 						}
 					}
 
+				} else if cmd.Args[0] == "wait_for_block_height_to_increase" {
+					if len(cmd.Args) > 2 {
+						maxWaitingTime := 60 // 60s
+						maxRetries := 3
+						waitNBlocks, err := strconv.Atoi(cmd.Args[2])
+						if err != nil {
+							return fmt.Errorf("waiting block number is not defined, err: %s", err)
+						}
+						var lastBlockHeight int64
+						for i := maxRetries; i > 0; i-- {
+							lastBlockHeight, err = getLastBlockHeight(e.conf.Nodes[cmd.Args[1]])
+							if err != nil {
+								break
+							}
+						}
+						if lastBlockHeight == 0 {
+							return fmt.Errorf("cannot get last block height from node %s", cmd.Args[1])
+						}
+						for i := maxWaitingTime; i > 0; i-- {
+							currentBlockHeight, _ := getLastBlockHeight(e.conf.Nodes[cmd.Args[1]])
+							if currentBlockHeight > lastBlockHeight+int64(waitNBlocks) {
+								break
+							}
+							fmt.Printf("current block height %d\n", currentBlockHeight)
+							time.Sleep(time.Duration(time.Second))
+						}
+					}
+				} else if cmd.Args[0] == "wait_for_node_to_catch_up" {
+					if len(cmd.Args) > 1 {
+						maxWaitingTime := 60 // 60s
+						for i := maxWaitingTime; i > 0; i-- {
+							cachingUp, err := nodeCatchingUp(e.conf.Nodes[cmd.Args[1]])
+							if err == nil && !cachingUp {
+								break
+							}
+							time.Sleep(time.Duration(time.Second))
+						}
+					}
 				} else {
 					out, err = cmd.CombinedOutput()
 				}
@@ -367,6 +405,72 @@ func checkNodeReady(n *node.Node) error {
 		return fmt.Errorf("LastBlockHeight: %d", lastBlockHeight)
 	}
 	return nil
+}
+
+func nodeCatchingUp(n *node.Node) (bool, error) {
+	type CatchingUp struct {
+		CatchingUp         bool   `json:"catching_up"`
+		LastestBlockHeight string `json:"latest_block_height"`
+	}
+	type SyncInfo struct {
+		CatchingUpResult CatchingUp `json:"sync_info"`
+	}
+	type Response struct {
+		Result SyncInfo `json:"result"`
+	}
+
+	u := fmt.Sprintf("%s/status", n.RPCAddress)
+	client := http.Client{
+		Timeout: 500 * time.Millisecond,
+	}
+	rawResp, err := client.Get(u)
+	if err != nil {
+		return true, err
+	}
+	defer rawResp.Body.Close()
+	respBytes, _ := ioutil.ReadAll(rawResp.Body)
+	var resp Response
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return true, err
+	}
+
+	fmt.Printf("SyncInfo %+v\n", resp.Result)
+
+	return resp.Result.CatchingUpResult.CatchingUp, nil
+}
+
+func getLastBlockHeight(n *node.Node) (int64, error) {
+	type ResponseInfo struct {
+		LastBlockHeight string `json:"last_block_height"`
+	}
+	type ResultABCIInfo struct {
+		Response ResponseInfo `json:"response"`
+	}
+	type Response struct {
+		Result ResultABCIInfo `json:"result"`
+	}
+
+	u := fmt.Sprintf("%s/abci_info", n.RPCAddress)
+	client := http.Client{
+		Timeout: 500 * time.Millisecond,
+	}
+	rawResp, err := client.Get(u)
+	if err != nil {
+		return 0, err
+	}
+	defer rawResp.Body.Close()
+	respBytes, _ := ioutil.ReadAll(rawResp.Body)
+	var resp Response
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return 0, err
+	}
+
+	lastBlockHeight, err := strconv.ParseInt(resp.Result.Response.LastBlockHeight, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return lastBlockHeight, nil
 }
 
 func checkValidators(node *node.Node) ([]byte, error) {

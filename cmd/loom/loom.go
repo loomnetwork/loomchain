@@ -53,6 +53,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/migrations"
@@ -72,8 +73,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ed25519"
-
-	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var (
@@ -578,17 +577,18 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if cfg.AppStore.PruneInterval > int64(0) {
 			logger.Info("Loading Pruning IAVL Store")
 			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
-				MaxVersions: cfg.AppStore.MaxVersions,
-				BatchSize:   cfg.AppStore.PruneBatchSize,
-				Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
-				Logger:      logger,
+				MaxVersions:   cfg.AppStore.MaxVersions,
+				BatchSize:     cfg.AppStore.PruneBatchSize,
+				Interval:      time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+				Logger:        logger,
+				FlushInterval: cfg.AppStore.IAVLFlushInterval,
 			})
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			logger.Info("Loading IAVL Store")
-			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 			if err != nil {
 				return nil, err
 			}
@@ -608,7 +608,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -825,8 +825,9 @@ func loadApp(
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager:        vmManager,
-		CreateRegistry: createRegistry,
+		Manager:                vmManager,
+		CreateRegistry:         createRegistry,
+		AllowNamedEVMContracts: cfg.AllowNamedEvmContracts,
 	}
 
 	callTxHandler := &vm.CallTxHandler{

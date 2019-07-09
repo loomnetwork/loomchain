@@ -27,6 +27,8 @@ type AppStoreConfig struct {
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
 	SaveEVMStateToIAVL bool
+
+	IAVLFlushInterval int64
 }
 
 func DefaultConfig() *AppStoreConfig {
@@ -42,6 +44,7 @@ func DefaultConfig() *AppStoreConfig {
 		NodeCacheSize:        10000,
 		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
 		SaveEVMStateToIAVL:   false,
+		IAVLFlushInterval:    0, //default to zero until we know its ready
 	}
 }
 
