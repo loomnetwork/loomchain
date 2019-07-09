@@ -24,7 +24,6 @@ var (
 	candidatesKey  = []byte("candidates")
 	delegationsKey = []byte("delegation")
 	statisticsKey  = []byte("statistic")
-	referrersKey   = []byte("referrers")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
 	referrerPrefix       = []byte("rf")
