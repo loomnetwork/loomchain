@@ -20,6 +20,13 @@
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [[projects]]
+  digest = "1:95f4fdfbc8d7723bd21e467aabe98d86f06d3e2557b1ba92bf9df8aea6706784"
+  name = "github.com/btcsuite/btcutil"
+  packages = ["base58"]
+  pruneopts = "UT"
+  revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
+
+[[projects]]
   branch = "master"
   digest = "1:78097abc20f73ec968b3f67bf74deda55009caa4b801d0d04f36145c869ab3c3"
   name = "github.com/cevaris/ordered_map"
@@ -291,7 +298,7 @@
 
 [[projects]]
   branch = "tmreal2"
-  digest = "1:9575d2627d57f3c52cbf233e29fd623db8879235bcb6aaacee28822c28bb37e4"
+  digest = "1:5404ef08f18ff942573397a29a62fe03f35e94ec512c90b750ff06175fcf01f9"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
@@ -417,7 +424,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
-    "github.com/garyburd/redigo/redis",
+    "github.com/btcsuite/btcutil/base58",
     "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/gorilla/websocket",
