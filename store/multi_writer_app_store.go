@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -30,6 +31,11 @@ var (
 	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
+
+	// This is the same key as featurePrefix in app.go
+	featurePrefix = []byte("feature")
+	// This is the same key as configPrefix in app.go
+	configPrefix = []byte("config")
 
 	saveVersionDuration metrics.Histogram
 	getSnapshotDuration metrics.Histogram
@@ -64,6 +70,7 @@ type MultiWriterAppStore struct {
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
+	multiWriterStoreCache      *multiWriterStoreCache
 }
 
 // NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
@@ -72,6 +79,7 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 		appStore:                   appStore,
 		evmStore:                   evmStore,
 		onlySaveEvmStateToEvmStore: !saveEVMStateToIAVL,
+		multiWriterStoreCache:      newMultiWriterStoreCache(),
 	}
 	appStoreEvmRoot := store.appStore.Get(rootKey)
 	// if root is nil, this is the first run after migration, so get evmroot from vmvmroot
@@ -94,6 +102,7 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	}
 
 	store.setLastSavedTreeToVersion(appStore.Version())
+	store.loadFeaturesAndCfgSettings()
 	return store, nil
 }
 
@@ -105,6 +114,11 @@ func (s *MultiWriterAppStore) Delete(key []byte) {
 		}
 	} else {
 		s.appStore.Delete(key)
+	}
+
+	// Delete feature flag and cfg setting from cache
+	if util.HasPrefix(key, featurePrefix) || util.HasPrefix(key, configPrefix) {
+		s.multiWriterStoreCache.Delete(key)
 	}
 }
 
@@ -120,16 +134,32 @@ func (s *MultiWriterAppStore) Set(key, val []byte) {
 	} else {
 		s.appStore.Set(key, val)
 	}
+
+	// Cache feature flag and cfg setting
+	if util.HasPrefix(key, featurePrefix) || util.HasPrefix(key, configPrefix) {
+		s.multiWriterStoreCache.Set(key, val)
+	}
 }
 
 func (s *MultiWriterAppStore) Has(key []byte) bool {
+	// Return value from cache for features and cfg settings
+	if util.HasPrefix(key, featurePrefix) || util.HasPrefix(key, configPrefix) {
+		return s.multiWriterStoreCache.Has(key)
+	}
+
 	if util.HasPrefix(key, vmPrefix) {
 		return s.evmStore.Has(key)
 	}
+
 	return s.appStore.Has(key)
 }
 
 func (s *MultiWriterAppStore) Get(key []byte) []byte {
+	// Return value from cache for features and cfg settings
+	if util.HasPrefix(key, featurePrefix) || util.HasPrefix(key, configPrefix) {
+		return s.multiWriterStoreCache.Get(key)
+	}
+
 	if util.HasPrefix(key, vmPrefix) {
 		return s.evmStore.Get(key)
 	}
@@ -181,6 +211,18 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 	hash, version, err := s.appStore.SaveVersion()
 	s.setLastSavedTreeToVersion(version)
 	return hash, version, err
+}
+
+func (s *MultiWriterAppStore) loadFeaturesAndCfgSettings() {
+	featureRange := s.Range(featurePrefix)
+	for _, feature := range featureRange {
+		s.multiWriterStoreCache.Set(feature.Key, feature.Value)
+	}
+
+	configRange := s.Range(configPrefix)
+	for _, config := range configRange {
+		s.multiWriterStoreCache.Set(config.Key, config.Value)
+	}
 }
 
 func (s *MultiWriterAppStore) setLastSavedTreeToVersion(version int64) error {
@@ -301,4 +343,45 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 	}
 
 	return ret
+}
+
+type multiWriterStoreCache struct {
+	sync.RWMutex
+	cache map[string][]byte
+}
+
+func newMultiWriterStoreCache() *multiWriterStoreCache {
+	return &multiWriterStoreCache{
+		cache: map[string][]byte{},
+	}
+}
+
+func (c *multiWriterStoreCache) Set(key, value []byte) {
+	c.Lock()
+	c.cache[string(key)] = value
+	c.Unlock()
+}
+
+func (c *multiWriterStoreCache) Get(key []byte) []byte {
+	c.RLock()
+	defer c.RUnlock()
+	return c.cache[string(key)]
+}
+
+func (c *multiWriterStoreCache) Has(key []byte) bool {
+	c.RLock()
+	defer c.RUnlock()
+	_, has := c.cache[string(key)]
+	return has
+}
+
+func (c *multiWriterStoreCache) Delete(key []byte) {
+	c.Lock()
+	delete(c.cache, string(key))
+	c.Unlock()
+}
+
+// Need to think about this more
+func (c *multiWriterStoreCache) Range(prefix []byte) {
+
 }
