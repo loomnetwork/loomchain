@@ -262,6 +262,11 @@
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 40 -k {{index $.NodePrivKeyPathList 2}}"
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-referrers"
+  Condition = "contains"
+  Excluded = ["acct2","acct1"]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "1000", "600"]
