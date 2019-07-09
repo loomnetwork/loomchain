@@ -7,13 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/loomnetwork/go-loom"
-
-	"github.com/spf13/cobra"
-
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/spf13/cobra"
 )
 
 const DPOSV3ContractName = "dposV3"
