@@ -1495,6 +1495,10 @@ func TestReferrerRewards(t *testing.T) {
 	err = dpos.RegisterReferrer(pctx.WithSender(addr1), delegatorAddress2, "del2")
 	require.Nil(t, err)
 
+	referrers, err := dpos.ListReferrers(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, len(referrers), 2)
+
 	delegationAmount := big.NewInt(1e18)
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
