@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
-
+  
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
@@ -566,11 +567,66 @@ func DowntimeRecordCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+
+			var respDPOS dposv3.ListCandidatesResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, "dposV3", "ListCandidates", &dposv3.ListCandidatesRequest{}, &respDPOS,
+			)
 			if err != nil {
 				return err
 			}
-			fmt.Println(out)
+
+			type mapper struct {
+				Address        string
+				Name           string
+				DownTimeRecord *dposv3.DowntimeRecord
+				Jailed         bool
+			}
+			var nameList []mapper
+
+			for _, d := range resp.DowntimeRecords {
+				for _, c := range respDPOS.Candidates {
+					if d.Validator.Local.Compare(c.Candidate.Address.Local) == 0 {
+						a := mapper{
+							Address:        loom.UnmarshalAddressPB(d.GetValidator()).Local.String(),
+							Name:           c.Candidate.GetName(),
+							DownTimeRecord: d,
+							Jailed:         c.Statistic.Jailed,
+						}
+						nameList = append(nameList, a)
+						break
+					}
+				}
+			}
+
+			sort.Slice(nameList[:], func(i, j int) bool {
+				return nameList[i].Name < nameList[j].Name
+			})
+
+			type maxLength struct {
+				Name    int
+				Address int
+				Period  int
+				Jailed  int
+			}
+			ml := maxLength{Name: 40, Address: 42, Period: 8, Jailed: 6}
+			fmt.Printf(
+				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Address, "address",
+				ml.Jailed, "jailed", ml.Period, "period 1", ml.Period, "period 2", ml.Period, "period 3", ml.Period, "period 4")
+			fmt.Printf(
+				strings.Repeat("-", ml.Name+ml.Address+ml.Jailed+(4*ml.Period)+19) + "\n")
+			for i := range nameList {
+				fmt.Printf(
+					"%-*s | %-*s | %*v | %*d | %*d | %*d | %*d |\n",
+					ml.Name, nameList[i].Name,
+					ml.Address, nameList[i].Address,
+					ml.Jailed, nameList[i].Jailed,
+					ml.Period, nameList[i].DownTimeRecord.Periods[0],
+					ml.Period, nameList[i].DownTimeRecord.Periods[1],
+					ml.Period, nameList[i].DownTimeRecord.Periods[2],
+					ml.Period, nameList[i].DownTimeRecord.Periods[3])
+			}
+			fmt.Println("PeriodLength : ", resp.PeriodLength)
 			return nil
 		},
 	}
