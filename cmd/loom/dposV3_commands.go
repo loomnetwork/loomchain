@@ -139,6 +139,35 @@ func ListCandidatesCmdV3() *cobra.Command {
 	return cmd
 }
 
+func ListReferrersCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	fmt.Println("__ListReferrer command")
+	cmd := &cobra.Command{
+		Use:   "list-referrers",
+		Short: "List all registered referrers",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("__ListReferrer command_1")
+			var resp dposv3.ListReferrersResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "ListReferrers", &dposv3.ListReferrersRequest{}, &resp,
+			)
+			if err != nil {
+				fmt.Println("__ListReferrer command_2")
+				return err
+			}
+
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 func ChangeFeeCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -1046,6 +1075,7 @@ func NewDPOSV3Command() *cobra.Command {
 		ListValidatorsCmdV3(),
 		ListDelegationsCmdV3(),
 		ListAllDelegationsCmdV3(),
+		ListReferrersCmdV3(),
 		UnregisterCandidateCmdV3(),
 		UpdateCandidateInfoCmdV3(),
 		DelegateCmdV3(),
