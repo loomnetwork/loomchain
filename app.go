@@ -31,6 +31,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
+	GetEnabledFeatures() []string
 }
 
 type State interface {
@@ -132,8 +133,19 @@ func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
-func (s *StoreState) FeatureEnabled(name string, val bool) bool {
+func (s *StoreState) GetEnabledFeatures() []string {
+	enabledFeatures := make([]string, 0)
+	featuresFromState := s.Range([]byte(featurePrefix))
+	for _, m := range featuresFromState {
+		data := s.Get(featureKey(string(m.Key)))
+		if bytes.Equal(data, []byte{1}) {
+		}
+		enabledFeatures = append(enabledFeatures, string(m.Key))
+	}
+	return enabledFeatures
+}
 
+func (s *StoreState) FeatureEnabled(name string, val bool) bool {
 	data := s.store.Get(featureKey(name))
 	if len(data) == 0 {
 		return val
@@ -304,26 +316,23 @@ func init() {
 		Help:      "Number of requests received.",
 	}, fieldKeys)
 	deliverTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace:  "loomchain",
-		Subsystem:  "application",
-		Name:       "delivertx_latency_microseconds",
-		Help:       "Total duration of delivertx in microseconds.",
-		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "delivertx_latency_microseconds",
+		Help:      "Total duration of delivertx in microseconds.",
 	}, []string{"method", "error", "evm"})
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace:  "loomchain",
-		Subsystem:  "application",
-		Name:       "checktx_latency_microseconds",
-		Help:       "Total duration of checktx in microseconds.",
-		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "checktx_latency_microseconds",
+		Help:      "Total duration of checktx in microseconds.",
 	}, fieldKeys)
 	commitBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace:  "loomchain",
-		Subsystem:  "application",
-		Name:       "commit_block_latency_microseconds",
-		Help:       "Total duration of commit block in microseconds.",
-		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "commit_block_latency_microseconds",
+		Help:      "Total duration of commit block in microseconds.",
 	}, fieldKeys)
 
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -334,11 +343,10 @@ func init() {
 	}, fieldKeys)
 
 	validatorFuncLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace:  "loomchain",
-		Subsystem:  "application",
-		Name:       "validator_election_latency",
-		Help:       "Total duration of validator election in seconds.",
-		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "validator_election_latency",
+		Help:      "Total duration of validator election in seconds.",
 	}, []string{})
 }
 
