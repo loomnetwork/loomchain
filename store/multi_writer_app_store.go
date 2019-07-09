@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -170,6 +171,11 @@ func (s *MultiWriterAppStore) Get(key []byte) []byte {
 func (s *MultiWriterAppStore) Range(prefix []byte) plugin.RangeData {
 	if len(prefix) == 0 {
 		panic(errors.New("Range over nil prefix not implemented"))
+	}
+
+	// Return value from cache for features and cfg settings
+	if bytes.Compare(prefix, configPrefix) == 0 || bytes.Compare(prefix, featurePrefix) == 0 {
+		return s.multiWriterStoreCache.Range(prefix)
 	}
 
 	if bytes.Equal(prefix, vmPrefix) || util.HasPrefix(prefix, vmPrefix) {
@@ -381,7 +387,25 @@ func (c *multiWriterStoreCache) Delete(key []byte) {
 	c.Unlock()
 }
 
-// Need to think about this more
-func (c *multiWriterStoreCache) Range(prefix []byte) {
+func (c *multiWriterStoreCache) Range(prefix []byte) plugin.RangeData {
+	keys := []string{}
+	for key := range c.cache {
+		if util.HasPrefix([]byte(key), prefix) {
+			keys = append(keys, string(key))
+		}
+	}
 
+	ret := make(plugin.RangeData, 0)
+	sort.Strings(keys)
+	for _, key := range keys {
+		k, err := util.UnprefixKey([]byte(key), prefix)
+		if err != nil {
+			panic(err)
+		}
+		ret = append(ret, &plugin.RangeEntry{
+			Key:   []byte(k),
+			Value: c.cache[key],
+		})
+	}
+	return ret
 }

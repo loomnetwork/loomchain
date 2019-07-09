@@ -214,6 +214,26 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	require.False(store.Has(vmPrefixKey("gg")))
 }
 
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterStoreCacheRange() {
+	require := m.Require()
+	store, err := mockMultiWriterStore()
+	require.NoError(err)
+
+	store.Set(featureKey("db:evm"), []byte("true"))
+	store.Set(featureKey("chainconfig:v1.1"), []byte("true"))
+	store.Set(featureKey("dpos:v3.1"), []byte("true"))
+
+	rangeData := store.Range(featurePrefix)
+	rangeDataAppStore := store.appStore.Range(featurePrefix)
+	require.Equal(rangeData[0].Key, rangeDataAppStore[0].Key)
+	require.Equal(rangeData[1].Key, rangeDataAppStore[1].Key)
+	require.Equal(rangeData[2].Key, rangeDataAppStore[2].Key)
+
+	require.Equal(rangeData[0].Value, rangeDataAppStore[0].Value)
+	require.Equal(rangeData[1].Value, rangeDataAppStore[1].Value)
+	require.Equal(rangeData[2].Value, rangeDataAppStore[2].Value)
+}
+
 func mockMultiWriterStore() (*MultiWriterAppStore, error) {
 	memDb, _ := db.LoadMemDB()
 	iavlStore, err := NewIAVLStore(memDb, 0, 0, 0)
@@ -231,4 +251,12 @@ func mockMultiWriterStore() (*MultiWriterAppStore, error) {
 
 func vmPrefixKey(key string) []byte {
 	return util.PrefixKey([]byte("vm"), []byte(key))
+}
+
+func featureKey(key string) []byte {
+	return util.PrefixKey(featurePrefix, []byte(key))
+}
+
+func configKey(key string) []byte {
+	return util.PrefixKey(configPrefix, []byte(key))
 }
