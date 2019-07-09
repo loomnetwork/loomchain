@@ -19,6 +19,11 @@
   Expected = ['deployer already exists']
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 1 {{index $.AccountAddressList 2}} -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev list-deployers {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = ['default:{{index $.AccountAddressList 1}}','"TierId": "DEFAULT"']
@@ -29,10 +34,248 @@
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} deploy -b simple_sol.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
   Condition = "contains"
+  Expected = [
+                "Runtime bytecode:",
+                "[96 96 96 64 82 96 4 54 16 96 73 87 96 0 53 124 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 144 4 99 255 255 255 255 22 128 99 96 254 71 177 20 96 78 87 128 99 109 76 230 60 20 96 110 87 91 96 0 128 253 91 52 21 96 88 87 96 0 128 253 91 96 108 96 4 128 128 53 144 96 32 1 144 145 144 80 80 96 148 86 91 0 91 52 21 96 120 87 96 0 128 253 91 96 126 96 158 86 91 96 64 81 128 130 129 82 96 32 1 145 80 80 96 64 81 128 145 3 144 243 91 128 96 0 129 144 85 80 80 86 91 96 0 128 84 144 80 144 86 0 161 101 98 122 122 114 48 88 32 43 34 159 186 56 192 150 249 201 200 27 162 99 63 180 167 180 24 3 45 231 134 43 96 209 80 154 64 84 226 214 187 0 41]",
+                "Transaction receipt:",
+                "New contract deployed with address: "
+             ]
   Datafiles = [
-    { Filename = "simple_sol.bin", Contents = "608060405234801561001057600080fd5b5060bd8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c146062575b600080fd5b606060048036036020811015604b57600080fd5b8101908080359060200190929190505050607e565b005b60686088565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058205df5fd0119476c8d9e72cba533fd6dcf4cd6f498344d4350bee12be12b2472170029" }
+    { Filename = "SimpleStore.bin", Contents = "6060604052341561000f57600080fd5b60d38061001d6000396000f3006060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058202b229fba38c096f9c9c81ba2633fb4a7b418032de7862b60d1509a4054e2d6bb0029" }
+  ]
+
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 2}}"
+  All = true
+  Condition = "contains"
+  Expected = [
+                "Runtime bytecode:",
+                "[96 96 96 64 82 96 4 54 16 96 73 87 96 0 53 124 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 144 4 99 255 255 255 255 22 128 99 96 254 71 177 20 96 78 87 128 99 109 76 230 60 20 96 110 87 91 96 0 128 253 91 52 21 96 88 87 96 0 128 253 91 96 108 96 4 128 128 53 144 96 32 1 144 145 144 80 80 96 148 86 91 0 91 52 21 96 120 87 96 0 128 253 91 96 126 96 158 86 91 96 64 81 128 130 129 82 96 32 1 145 80 80 96 64 81 128 145 3 144 243 91 128 96 0 129 144 85 80 80 86 91 96 0 128 84 144 80 144 86 0 161 101 98 122 122 114 48 88 32 43 34 159 186 56 192 150 249 201 200 27 162 99 63 180 167 180 24 3 45 231 134 43 96 209 80 154 64 84 226 214 187 0 41]",
+                "Transaction receipt:",
+                "New contract deployed with address: "
+             ]
+  Datafiles = [
+    { Filename = "SimpleStore.bin", Contents = "6060604052341561000f57600080fd5b60d38061001d6000396000f3006060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058202b229fba38c096f9c9c81ba2633fb4a7b418032de7862b60d1509a4054e2d6bb0029" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = [ ]
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
+  ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['']
+  Datafiles = [
+    { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
 [[TestCases]]
@@ -47,31 +290,25 @@
   Condition = "contains"
   Expected = ['']
 
-#Checks whitelisting fees is debited from user after adding deployer
- [[TestCases]]
-   Dir = ""
-   RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
-   Condition = "contains"
-   Expected = ["99999990000000000000000000"]
-   Delay = 500
+# Checks whitelisting fees is debited from user after adding deployer
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
+  Condition = "contains"
+  Expected = ["99999980000000000000000000"]
+  Delay = 500
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev set-tier 0 --fee 200 --name Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 0 --fee 200 --name Tier2 --block-range 10 --max-txs 2 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['not authorized']
 
-#Checks whitelisting fees cannot be less than equal to zero.
+# Checks whitelisting fees cannot be less than equal to zero.
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dev set-tier 0 --fee 0 --name Tier2 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dev set-tier 0 --fee 0 --name Tier2 --block-range 10 --max-txs 2 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['fee must be greater than zero']
 
- [[TestCases]]
-   RunCmd = "{{ $.LoomPath }} dev set-tier 0 --name Tier3 -k {{index $.AccountPrivKeyPathList 0}}"
-   Condition = "contains"
-   Expected = ['']
-
- [[TestCases]]
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev get-tier 0"
   Condition = "contains"
   Expected = ['10000000000000000000', '"name": "tier1"']

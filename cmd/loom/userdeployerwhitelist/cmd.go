@@ -215,12 +215,13 @@ func getTierInfoCmd() *cobra.Command {
 }
 
 const setTierCmdExample = `
-loom dev set-tier 0 --fee 100 --name Tier1 
+loom dev set-tier 0 --fee 100 --name Tier1 --block-range 10 --max-txs 2 
 `
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var inputFee, tierName string
+	var blockRange, maxTxs uint64
 	cmd := &cobra.Command{
 		Use:     "set-tier <tier> [options]",
 		Short:   "Set tier details",
@@ -263,16 +264,32 @@ func setTierInfoCmd() *cobra.Command {
 			if len(tierName) == 0 {
 				tierName = getTierInfoResp.Tier.Name
 			}
+			if blockRange == 0 {
+				blockRange = getTierInfoResp.Tier.BlockRange
+			}
+			if blockRange == 0 {
+				return fmt.Errorf("block range must be greater than zero")
+			}
+			if maxTxs == 0 {
+				maxTxs = getTierInfoResp.Tier.MaxTxs
+			}
+			if maxTxs == 0 {
+				return fmt.Errorf("max-txs must be greater than zero")
+			}
 			req := &udwtypes.SetTierInfoRequest{
-				Fee:    fee,
-				Name:   tierName,
-				TierID: udwtypes.TierID(tierID),
+				Fee:        fee,
+				Name:       tierName,
+				TierID:     udwtypes.TierID(tierID),
+				BlockRange: blockRange,
+				MaxTxs:     maxTxs,
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		}}
 
 	cmd.Flags().StringVarP(&inputFee, "fee", "f", "", "Tier fee")
 	cmd.Flags().StringVarP(&tierName, "name", "n", "", "Tier name")
+	cmd.Flags().Uint64Var(&blockRange, "block-range", 0, "Block range")
+	cmd.Flags().Uint64Var(&maxTxs, "max-txs", 0, "Max txs per block range")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
