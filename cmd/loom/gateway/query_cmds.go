@@ -16,6 +16,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/client/erc20"
 	"github.com/loomnetwork/go-loom/client/gateway"
@@ -217,6 +218,49 @@ func newQueryUnclaimedTokensCommand() *cobra.Command {
 		&gatewayName, "gateway", "g", GatewayName,
 		"Which Gateway contract to query, gateway or loomcoin-gateway",
 	)
+	return cmd
+}
+
+const getWithdrawalReceiptExample = `
+# Get the withdrawal receipt using a Ethereum address
+loom gateway withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863 loomcoin-gateway
+
+Get the withdrawal receipt using a DappChain Address
+loom gateway withdrawal-receipt 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7 gateway
+`
+
+func newWithdrawalReceiptCommand() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "withdrawal-receipt <owner hex address> <gateway name>",
+		Short:   "Get the withdrawal receipt for an account",
+		Example: getWithdrawalReceiptExample,
+		Args:    cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
+			if err != nil {
+				return err
+			}
+			var resp tgtypes.TransferGatewayWithdrawalReceiptResponse
+			err = cli.StaticCallContractWithFlags(&flags,
+				args[1], "WithdrawalReceipt",
+				&tgtypes.TransferGatewayWithdrawalReceiptRequest{
+					Owner: addr.MarshalPB(),
+				},
+				&resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 

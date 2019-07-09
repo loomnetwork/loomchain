@@ -67,7 +67,7 @@
   Delay = 15000
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
-  Expected = ["periods"]
+  Expected = ["name","address","period"]
 
 # wait for node 1 to catch up
 [[TestCases]]
@@ -81,7 +81,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
-  Expected = ["periods"]
+  Expected = ["name","address","period"]
 
 # node 1 should be jailed as it is offline for 15s
 [[TestCases]]
@@ -93,7 +93,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
-  Expected = ["periods", "0"]
+  Expected = ["name","address","period","0"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}} -u {{index $.NodeProxyAppAddressList 2}}"

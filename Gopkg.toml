@@ -25,6 +25,8 @@
 #   unused-packages = true
 
 required = [
+  # used by transfer-gateway
+  "github.com/btcsuite/btcutil/base58",
   # required for MacOS builds it seems, but not Linux
   "golang.org/x/sys/cpu"
 ]
