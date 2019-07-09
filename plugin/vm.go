@@ -262,8 +262,8 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
-func (c *contractContext) GetEnabledFeatures() []string {
-	return c.VM.State.GetEnabledFeatures()
+func (c *contractContext) EnabledFeatures() []string {
+	return c.VM.State.EnabledFeatures()
 }
 
 func (c *contractContext) Validators() []*ltypes.Validator {
