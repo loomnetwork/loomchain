@@ -1712,6 +1712,8 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 }
 
 func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
+	ctx.Logger().Info("DPOSv3 slashValidatorDelegations", "validator", statistic.Address)
+
 	delegations, err := cachedDelegations.loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -1748,6 +1750,9 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
+	if err := SetStatistic(ctx, statistic); err != nil {
+		return err
+	}
 
 	return nil
 }

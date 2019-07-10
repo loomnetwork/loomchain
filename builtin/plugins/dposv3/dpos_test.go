@@ -2464,6 +2464,93 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, 2, len(recAll.DowntimeRecords))
 }
 
+func TestDowntimeSlashing(t *testing.T) {
+	pctx := createCtx()
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr1, 1000000000000000000),
+		},
+	})
+
+	periodLength := uint64(100)
+	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          1,
+		RegistrationRequirement: registrationFee,
+		DowntimePeriod:          periodLength,
+	})
+	require.Nil(t, err)
+	dposCtx := pctx.WithAddress(dpos.Address)
+	var feats = []string {
+		loomchain.DPOSVersion3_1,
+		loomchain.DPOSVersion3_2,
+		loomchain.DPOSVersion3_4,
+	}
+	for _, feat := range feats {
+		dposCtx.SetFeature(feat, true)
+		require.True(t, dposCtx.FeatureEnabled(feat, false))
+	}
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	candidates, err := LoadCandidateList(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(candidates))
+
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
+		require.Nil(t, err)
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	}
+
+	rec1, err := dpos.DowntimeRecord(pctx, &addr1)
+	assert.Equal(t, periodLength, rec1.PeriodLength)
+	assert.Equal(t, []uint64{periodLength - 1, periodLength, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
+
+	for i := int64(0); i < int64(periodLength); i++ {
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
+		require.Nil(t, err)
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	}
+
+	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.SlashPercentage.Value.Cmp(&defaultInactivitySlashPercentage) == 0)
+
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
+		require.Nil(t, err)
+		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	}
+
+	// the offline validator should have been slashed an additional 4 times (for
+	// a total of 5 slashes) after 8 consecutive periods of downtime
+	expectedSlashPercentage := defaultInactivitySlashPercentage.Mul(loom.NewBigUIntFromInt(5), &defaultInactivitySlashPercentage)
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.SlashPercentage.Value.Cmp(expectedSlashPercentage) == 0)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.SlashPercentage.Value.Cmp(common.BigZero()) == 0)
+}
+
 func TestJailOfflineValidators(t *testing.T) {
 	pctx := createCtx()
 	pctx.SetFeature(loomchain.DPOSVersion3_3, true)
