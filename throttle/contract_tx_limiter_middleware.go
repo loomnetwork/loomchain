@@ -59,7 +59,7 @@ func init() {
 		Namespace:  "loomchain",
 		Subsystem:  "contract_tx_limiter_middleware",
 		Name:       "contract_tx_middleware_execution_latency_microseconds",
-		Help:       "Total time taken for Contract Tx Middleware to Execute in microseconds.",
+		Help:       "Total time taken for Contract Tx Limiter Middleware to Execute in microseconds.",
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
