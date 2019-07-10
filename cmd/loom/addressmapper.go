@@ -139,27 +139,16 @@ func ListMappingCmd() *cobra.Command {
 				To   int
 			}
 			ml := maxLength{From: 50, To: 50}
-			addressList := make(map[string]bool)
 			for _, value := range resp.Mappings {
-				fromAddr := loom.UnmarshalAddressPB(value.From).String()
-				toAddr := loom.UnmarshalAddressPB(value.To).String()
-				if addressList[toAddr] || addressList[fromAddr] {
-					continue
-				}
-				addressList[fromAddr] = true
-				addressList[toAddr] = true
-				fmt.Printf("%-*s | %-*s |\n",
-					ml.From, fromAddr,
-					ml.To, toAddr)
+				fmt.Printf("%-*s -> %-*s\n",
+					ml.From, loom.UnmarshalAddressPB(value.From).String(),
+					ml.To, loom.UnmarshalAddressPB(value.To).String())
 			}
-			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
 			return nil
 		},
 	}
-
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-
 }
 
 func NewAddressMapperCommand() *cobra.Command {
