@@ -134,11 +134,10 @@ func featureKey(featureName string) []byte {
 }
 
 func (s *StoreState) EnabledFeatures() []string {
-	enabledFeatures := make([]string, 0)
 	featuresFromState := s.Range([]byte(featurePrefix))
+	enabledFeatures := make([]string, 0, len(featuresFromState))
 	for _, m := range featuresFromState {
-		data := s.Get(featureKey(string(m.Key)))
-		if bytes.Equal(data, []byte{1}) {
+		if bytes.Equal(m.Value, []byte{1}) {
 			enabledFeatures = append(enabledFeatures, string(m.Key))
 		}
 	}
