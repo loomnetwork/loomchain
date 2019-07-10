@@ -115,7 +115,7 @@ type (
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	UnjailRequest                     = dtypes.UnjailRequest
-	SetJailOfflineValidatorRequest    = dtypes.SetJailOfflineValidatorRequest
+	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -1337,9 +1337,8 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	}, nil
 }
 
-func (c *DPOS) SetJailOfflineValidator(ctx contract.Context, req *SetJailOfflineValidatorRequest) error {
+func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 SetJailValidator", "request", req)
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
 		return errors.New("DPOS v3.3 is not enabled")
 	}
@@ -1348,15 +1347,14 @@ func (c *DPOS) SetJailOfflineValidator(ctx contract.Context, req *SetJailOffline
 	if err != nil {
 		return err
 	}
-
-	if state.Params.JailOfflineValidator == req.Jailed {
-		return nil
-	}
-
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
-	state.Params.JailOfflineValidator = req.Jailed
+	if state.Params.JailOfflineValidators == req.JailOfflineValidators {
+		return nil
+	}
+
+	state.Params.JailOfflineValidators = req.JailOfflineValidators
 	return saveState(ctx, state)
 }
 
