@@ -17,6 +17,11 @@
   Excluded = ["Error"]
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 set-jail-offline true -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
@@ -108,3 +113,5 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "excludes"
   Excluded = ["jailed\": true"]
+
+
