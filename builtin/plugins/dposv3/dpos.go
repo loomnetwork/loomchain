@@ -115,6 +115,7 @@ type (
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	UnjailRequest                     = dtypes.UnjailRequest
+	SetJailOfflineValidatorRequest    = dtypes.SetJailOfflineValidatorRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -1334,6 +1335,26 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	return &ListAllDelegationsResponse{
 		ListResponses: responses,
 	}, nil
+}
+
+func (c *DPOS) SetJailValidator(ctx contract.Context, req *SetJailOfflineValidatorRequest) error {
+
+	ctx.Logger().Info("DPOSv3 SetJailValidator", "request", req)
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		return errors.New("DPOS v3.3 is not enabled")
+	}
+	if req.Validator == nil {
+		return logDposError(ctx, errors.New("SetJailValidator called with Address == nil"), req.String())
+	}
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("JAILOFFLINE_1 : ", state.Params.JailOfflineValidator)
+	state.Params.JailOfflineValidator = req.Jailed
+	fmt.Println("JAILOFFLINE_2 : ", state.Params.JailOfflineValidator)
+	return saveState(ctx, state)
 }
 
 // ***************************
