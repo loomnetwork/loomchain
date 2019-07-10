@@ -13,3 +13,7 @@ BootLegacyDPoS: true
 GoContractDeployerWhitelist:
   Enabled: true
 DeployEnabled: true
+ContractTxLimiter:
+  Enabled: true
+  ContractDataRefreshInterval: 1
+  TierDataRefreshInterval: 10

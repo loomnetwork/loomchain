@@ -119,3 +119,7 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 func (c *FakeContextWithEVM) FeatureEnabled(name string, value bool) bool {
 	return c.State.FeatureEnabled(name, value)
 }
+
+func (c *FakeContextWithEVM) EnabledFeatures() []string {
+	return nil
+}
