@@ -22,10 +22,10 @@ var (
 )
 
 var (
-	tierMapLoadLatency                   metrics.Histogram
-	contractTierMapLoadLatency           metrics.Histogram
-	contractStatsMapLoadLatency          metrics.Histogram
-	contractTxMiddlewareExecutionLatency metrics.Histogram
+	tierMapLoadLatency                          metrics.Histogram
+	contractTierMapLoadLatency                  metrics.Histogram
+	contractStatsMapLoadLatency                 metrics.Histogram
+	contractTxLimiterMiddlewareExecutionLatency metrics.Histogram
 )
 
 func init() {
@@ -55,7 +55,7 @@ func init() {
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
-	contractTxMiddlewareExecutionLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+	contractTxLimiterMiddlewareExecutionLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace:  "loomchain",
 		Subsystem:  "contract_tx_limiter_middleware",
 		Name:       "contract_tx_middleware_execution_latency_microseconds",
@@ -152,7 +152,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 	) (res loomchain.TxHandlerResult, err error) {
 		defer func(begin time.Time) {
 			lvs := []string{"method", "NewContractTxLimiterMiddleware", "error", fmt.Sprint(err != nil)}
-			contractTxMiddlewareExecutionLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+			contractTxLimiterMiddlewareExecutionLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 		}(time.Now())
 
 		if !isCheckTx {
