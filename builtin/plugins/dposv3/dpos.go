@@ -54,21 +54,21 @@ const (
 )
 
 var (
-	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
-	billionth                     = loom.BigUInt{big.NewInt(1000000000)}
-	defaultReferrerFee            = loom.BigUInt{big.NewInt(300)}
-	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
-	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
-	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
-	defaultMaxDowntimePercentage  = loom.BigUInt{big.NewInt(5000)}
-	powerCorrection               = big.NewInt(1000000000000)
-	errCandidateNotFound          = errors.New("Candidate record not found.")
-	errStatisticNotFound          = errors.New("Candidate statistic not found.")
-	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
-	errCandidateUnregistering     = errors.New("Candidate is currently unregistering.")
-	errValidatorNotFound          = errors.New("Validator record not found.")
-	errDistributionNotFound       = errors.New("Distribution record not found.")
-	errOnlyOracle                 = errors.New("Function can only be called with oracle address.")
+	secondsInYear                    = loom.BigUInt{big.NewInt(yearSeconds)}
+	billionth                        = loom.BigUInt{big.NewInt(1000000000)}
+	defaultReferrerFee               = loom.BigUInt{big.NewInt(300)}
+	blockRewardPercentage            = loom.BigUInt{big.NewInt(500)}
+	doubleSignSlashPercentage        = loom.BigUInt{big.NewInt(500)}
+	defaultInactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
+	defaultMaxDowntimePercentage     = loom.BigUInt{big.NewInt(5000)}
+	powerCorrection                  = big.NewInt(1000000000000)
+	errCandidateNotFound             = errors.New("Candidate record not found.")
+	errStatisticNotFound             = errors.New("Candidate statistic not found.")
+	errCandidateAlreadyRegistered    = errors.New("Candidate already registered.")
+	errCandidateUnregistering        = errors.New("Candidate is currently unregistering.")
+	errValidatorNotFound             = errors.New("Validator record not found.")
+	errDistributionNotFound          = errors.New("Distribution record not found.")
+	errOnlyOracle                    = errors.New("Function can only be called with oracle address.")
 )
 
 type (
@@ -178,7 +178,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 	if params.CrashSlashingPercentage == nil {
-		params.CrashSlashingPercentage = &types.BigUInt{Value: inactivitySlashPercentage}
+		params.CrashSlashingPercentage = &types.BigUInt{Value: defaultInactivitySlashPercentage}
 	}
 	if params.ByzantineSlashingPercentage == nil {
 		params.ByzantineSlashingPercentage = &types.BigUInt{Value: doubleSignSlashPercentage}

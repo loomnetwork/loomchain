@@ -2385,6 +2385,16 @@ func TestDowntimeFunctions(t *testing.T) {
 	})
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
+	var feats = []string {
+		loomchain.DPOSVersion3_1,
+		loomchain.DPOSVersion3_2,
+		loomchain.DPOSVersion3_3,
+		loomchain.DPOSVersion3_4,
+	}
+	for _, feat := range feats {
+		dposCtx.SetFeature(feat, true)
+		require.True(t, dposCtx.FeatureEnabled(feat, false))
+	}
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
@@ -2426,6 +2436,10 @@ func TestDowntimeFunctions(t *testing.T) {
 		require.Nil(t, err)
 		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
 	}
+
+	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.SlashPercentage.Value.Cmp(&defaultInactivitySlashPercentage) == 0)
 
 	rec1, err = dpos.DowntimeRecord(pctx, &addr1)
 	assert.Equal(t, []uint64{0, periodLength - 1, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
