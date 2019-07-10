@@ -215,7 +215,6 @@ func (c *ChainConfig) RemoveFeature(ctx contract.Context, req *RemoveFeatureRequ
 }
 
 // ListFeatures returns info about all the currently known features.
-// Support for fetching Features Enabled via Migration is also added
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
 	curValidators, err := getCurrentValidators(ctx)
 	if err != nil {
@@ -236,6 +235,8 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 		}
 		features = append(features, feature)
 	}
+	// Augment the feature list with features that have been enabled without going through this
+	// contract, e.g. via a migration tx.
 	featuresFromState := ctx.EnabledFeatures()
 	for _, feature := range featuresFromState {
 		if !featureList[feature] {
