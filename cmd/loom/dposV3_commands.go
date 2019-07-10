@@ -916,11 +916,11 @@ func SetDowntimePeriodCmdV3() *cobra.Command {
 	return cmd
 }
 
-func SetJailOfflineValidatorCmdV3() *cobra.Command {
+func EnableValidatorJailingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-jail-offline [bool status] ",
-		Short: "Set Jailed status to offline validator",
+		Use:   "enable-validator-jailing [enable] ",
+		Short: "Toggle jailing of offline validators",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			status, err := strconv.ParseBool(args[0])
@@ -928,8 +928,8 @@ func SetJailOfflineValidatorCmdV3() *cobra.Command {
 				return fmt.Errorf("Invalid boolean status")
 			}
 			err = cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "SetJailOfflineValidator", &dposv3.SetJailOfflineValidatorRequest{
-					Jailed: status,
+				&flags, DPOSV3ContractName, "SetJailOfflineValidator", &dposv3.EnableValidatorJailingRequest{
+					JailOfflineValidators: status,
 				}, nil)
 			if err != nil {
 				return err
@@ -1156,7 +1156,7 @@ func NewDPOSV3Command() *cobra.Command {
 		GetStateCmdV3(),
 		SetMinCandidateFeeCmdV3(),
 		UnjailValidatorCmdV3(),
-		SetJailOfflineValidatorCmdV3(),
+		EnableValidatorJailingCmd(),
 	)
 	return cmd
 }
