@@ -2474,6 +2474,7 @@ func TestDowntimeSlashing(t *testing.T) {
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			makeAccount(addr1, 1000000000000000000),
+			makeAccount(delegatorAddress1, 100000000),
 		},
 	})
 
@@ -2503,6 +2504,17 @@ func TestDowntimeSlashing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	delegationAmount := big.NewInt(100)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
 
 	require.NoError(t, elect(pctx, dpos.Address))
@@ -2546,9 +2558,22 @@ func TestDowntimeSlashing(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
+	// verify that slashingPercentage is rest to zero after election
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
 	require.True(t, statistic.SlashPercentage.Value.Cmp(common.BigZero()) == 0)
+
+	// verify that 5% of self-delegation was removed via slashing
+	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr1)
+	require.Nil(t, err)
+	expectedSlashedDelegation := CalculateFraction(*loom.NewBigUIntFromInt(9500), registrationFee.Value)
+	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
+
+	// verify that 5% of third-party delegation was removed via slashing
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
+	require.Nil(t, err)
+	expectedSlashedDelegation = CalculateFraction(*loom.NewBigUIntFromInt(9500), loom.BigUInt{delegationAmount})
+	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
 }
 
 func TestJailOfflineValidators(t *testing.T) {
