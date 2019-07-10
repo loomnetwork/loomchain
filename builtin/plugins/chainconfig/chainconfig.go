@@ -220,21 +220,34 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 	if err != nil {
 		return nil, err
 	}
-
 	featureRange := ctx.Range([]byte(featurePrefix))
 	features := []*Feature{}
+	featureList := make(map[string]bool)
 	for _, m := range featureRange {
 		var f Feature
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
 		}
+		featureList[f.Name] = true
 		feature, err := getFeature(ctx, f.Name, curValidators)
 		if err != nil {
 			return nil, err
 		}
 		features = append(features, feature)
 	}
-
+	// Augment the feature list with features that have been enabled without going through this
+	// contract, e.g. via a migration tx.
+	featuresFromState := ctx.EnabledFeatures()
+	for _, feature := range featuresFromState {
+		if !featureList[feature] {
+			features = append(features, &Feature{
+				Name:        feature,
+				BlockHeight: 0,
+				BuildNumber: 0,
+				Status:      cctypes.Feature_ENABLED,
+			})
+		}
+	}
 	return &ListFeaturesResponse{
 		Features: features,
 	}, nil
