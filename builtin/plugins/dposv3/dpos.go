@@ -1390,7 +1390,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validatorAddr loom.Address) error {
+func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, enableJailOffline bool, validatorAddr loom.Address) error {
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
@@ -1404,7 +1404,7 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validator
 	)
 
 	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) && enableJailOffline {
 		downtime := getDowntimeRecord(ctx, statistic)
 		if downtime.Periods[0] == downtimePeriod &&
 			downtime.Periods[1] == downtimePeriod &&
@@ -1416,7 +1416,6 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validator
 			}
 		}
 	}
-
 	return SetStatistic(ctx, statistic)
 }
 
