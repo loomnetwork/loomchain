@@ -175,6 +175,18 @@ func TestChangeParams(t *testing.T) {
 
 	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
 	assert.Equal(t, stateResponse.State.Params.ElectionCycleLength, int64(100))
+	assert.Equal(t, false, stateResponse.State.Params.JailOfflineValidator)
+
+	dposCtx.SetFeature(loomchain.DPOSVersion3_3, true)
+	err = dposContract.SetJailOfflineValidator(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &SetJailOfflineValidatorRequest{Jailed: true})
+	require.NoError(t, err)
+
+	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &GetStateRequest{})
+	assert.Equal(t, true, stateResponse.State.Params.JailOfflineValidator)
+
+	err = dposContract.SetJailOfflineValidator(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &SetJailOfflineValidatorRequest{Jailed: false})
+	require.Equal(t, errOnlyOracle, err)
+
 }
 
 func TestRegisterWhitelistedCandidate(t *testing.T) {

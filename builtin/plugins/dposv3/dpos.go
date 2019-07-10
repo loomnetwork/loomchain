@@ -1337,23 +1337,26 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	}, nil
 }
 
-func (c *DPOS) SetJailValidator(ctx contract.Context, req *SetJailOfflineValidatorRequest) error {
-
+func (c *DPOS) SetJailOfflineValidator(ctx contract.Context, req *SetJailOfflineValidatorRequest) error {
+	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetJailValidator", "request", req)
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
 		return errors.New("DPOS v3.3 is not enabled")
-	}
-	if req.Validator == nil {
-		return logDposError(ctx, errors.New("SetJailValidator called with Address == nil"), req.String())
 	}
 
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
-	fmt.Println("JAILOFFLINE_1 : ", state.Params.JailOfflineValidator)
+
+	if state.Params.JailOfflineValidator == req.Jailed {
+		return nil
+	}
+
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
 	state.Params.JailOfflineValidator = req.Jailed
-	fmt.Println("JAILOFFLINE_2 : ", state.Params.JailOfflineValidator)
 	return saveState(ctx, state)
 }
 
