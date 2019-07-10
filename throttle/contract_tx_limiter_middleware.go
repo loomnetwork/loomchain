@@ -1,8 +1,11 @@
 package throttle
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -11,11 +14,56 @@ import (
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 var (
 	ErrTxLimitReached = errors.New("tx limit reached, try again later")
 )
+
+var (
+	tierMapLoadLatency                   metrics.Histogram
+	contractTierMapLoadLatency           metrics.Histogram
+	contractStatsMapLoadLatency          metrics.Histogram
+	contractTxMiddlewareExecutionLatency metrics.Histogram
+)
+
+func init() {
+	fieldKeys := []string{"method", "error"}
+
+	tierMapLoadLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace:  "loomchain",
+		Subsystem:  "contract_tx_limiter_middleware",
+		Name:       "tier_map_load_latency_microseconds",
+		Help:       "Total time taken for Tier Map to Load in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	}, fieldKeys)
+
+	contractTierMapLoadLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace:  "loomchain",
+		Subsystem:  "contract_tx_limiter_middleware",
+		Name:       "contract_tier_map_load_latency_microseconds",
+		Help:       "Total time taken for Contract Tier Map to Load in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	}, fieldKeys)
+
+	contractStatsMapLoadLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace:  "loomchain",
+		Subsystem:  "contract_tx_limiter_middleware",
+		Name:       "contract_stats_map_load_latency_microseconds",
+		Help:       "Total time taken for Contract Stats Map to Load in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	}, fieldKeys)
+
+	contractTxMiddlewareExecutionLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace:  "loomchain",
+		Subsystem:  "contract_tx_limiter_middleware",
+		Name:       "contract_tx_middleware_execution_latency_microseconds",
+		Help:       "Total time taken for Contract Tx Middleware to Execute in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	}, fieldKeys)
+
+}
 
 type ContractTxLimiterConfig struct {
 	// Enables the middleware
@@ -102,6 +150,11 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
+		defer func(begin time.Time) {
+			lvs := []string{"method", "NewContractTxLimiterMiddleware", "error", fmt.Sprint(err != nil)}
+			contractTxMiddlewareExecutionLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		}(time.Now())
+
 		if !isCheckTx {
 			return next(state, txBytes, isCheckTx)
 		}
@@ -134,6 +187,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 
 		if txl.contractToTierMap == nil ||
 			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
+			start := time.Now()
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
@@ -144,6 +198,9 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			}
 			txl.contractToTierMap = contractToTierMap
 			txl.contractDataLastUpdated = time.Now().Unix()
+			contractTierMapLoadDuration := time.Since(start)
+			lvs := []string{"method", "contractTierMap Load", "error", fmt.Sprint(err != nil)}
+			contractTierMapLoadLatency.With(lvs...).Observe(contractTierMapLoadDuration.Seconds())
 		}
 
 		contractAddr := loom.UnmarshalAddressPB(msg.To)
@@ -152,9 +209,10 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if !ok {
 			return next(state, txBytes, isCheckTx)
 		}
-
+		start := time.Now()
 		if txl.tierMap == nil ||
 			(txl.tierDataLastUpdated+cfg.TierDataRefreshInterval) < time.Now().Unix() {
+
 			ctx, er := createUserDeployerWhitelistCtx(state)
 			if er != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
@@ -164,8 +222,8 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 				return res, errors.Wrap(err, "throttle: GetTierMap error")
 			}
 			txl.tierDataLastUpdated = time.Now().Unix()
-		}
 
+		}
 		// ensure that tier corresponding to contract available in tierMap
 		_, ok = txl.tierMap[contractTierID]
 		if !ok {
@@ -179,12 +237,19 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			}
 			txl.tierMap[contractTierID] = tierInfo
 		}
+		tierMapLoadDuration := time.Since(start)
+		lvs := []string{"method", "tierMap Load", "error", fmt.Sprint(err != nil)}
+		tierMapLoadLatency.With(lvs...).Observe(tierMapLoadDuration.Seconds())
 
 		if txl.isAccountLimitReached(contractAddr, state.Block().Height) {
 			return loomchain.TxHandlerResult{}, ErrTxLimitReached
 		}
-
+		start = time.Now()
 		txl.updateState(contractAddr, state.Block().Height)
+		contractStatsMapLoadDuration := time.Since(start)
+		lvs = []string{"method", "contract Stats Map Load", "error", fmt.Sprint(err != nil)}
+		contractStatsMapLoadLatency.With(lvs...).Observe(contractStatsMapLoadDuration.Seconds())
+
 		return next(state, txBytes, isCheckTx)
 	})
 }
