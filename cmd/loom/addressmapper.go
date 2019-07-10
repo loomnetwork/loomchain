@@ -109,9 +109,9 @@ func GetMapping() *cobra.Command {
 			}
 			ml := maxLength{From: 50, To: 50}
 
-			fmt.Printf("%-*s | %-*s |\n", ml.From, "From", ml.To, "To")
+			fmt.Printf("%-*s | %-*s \n", ml.From, "From", ml.To, "To")
 
-			fmt.Printf("%-*s | %-*s |\n",
+			fmt.Printf("%-*s | %-*s \n",
 				ml.From, loom.UnmarshalAddressPB(resp.From).String(),
 				ml.To, loom.UnmarshalAddressPB(resp.To).String())
 			return nil
