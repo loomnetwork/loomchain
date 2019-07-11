@@ -18,9 +18,6 @@ type AppStoreConfig struct {
 	LatestStateDBBackend string
 	LatestStateDBName    string
 
-	// Number of IAVL tree nodes to cache
-	NodeCacheSize int
-
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
 	SaveEVMStateToIAVL bool
@@ -37,7 +34,6 @@ func DefaultConfig() *AppStoreConfig {
 		PruneBatchSize:       50,
 		LatestStateDBBackend: "goleveldb",
 		LatestStateDBName:    "app_state",
-		NodeCacheSize:        10000,
 		SaveEVMStateToIAVL:   false,
 		IAVLFlushInterval:    0, //default to zero until we know its ready
 	}
