@@ -207,8 +207,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 		Address: req.DeployerAddr,
 		TierID:  req.TierID,
 	}
-	err = ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
-	if err != nil {
+	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer); err != nil {
 		return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
 	}
 	return nil
@@ -337,8 +336,7 @@ func (uw *UserDeployerWhitelist) GetTierInfo(
 	ctx contract.StaticContext, req *GetTierInfoRequest,
 ) (*GetTierInfoResponse, error) {
 	var tier Tier
-	err := ctx.Get(tierKey(req.TierID), &tier)
-	if err != nil {
+	if err := ctx.Get(tierKey(req.TierID), &tier); err != nil {
 		return nil, errors.Wrap(err, "Failed to get Tier Information")
 	}
 	return &GetTierInfoResponse{

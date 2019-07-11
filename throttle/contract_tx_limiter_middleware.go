@@ -83,7 +83,7 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 	}
 	if !ok || blockTx.blockHeight <= (curBlockHeight-blockRange) {
 		// resetting the blockHeight to lower bound of range instead of curblockheight
-		rangeStart := (((curBlockHeight - 1) / int64(tier.BlockRange)) * int64(tier.BlockRange)) + 1
+		rangeStart := (((curBlockHeight - 1) / blockRange) * blockRange) + 1
 		txl.contractStatsMap[contractAddr.String()] = &contractStats{1, rangeStart}
 		return
 	}
@@ -129,8 +129,8 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if msgTx.VmType != vm.VMType_EVM {
 			return next(state, txBytes, isCheckTx)
 		}
-		if txl.inactiveDeployerContracts == nil || txl.contractDataLastUpdated+
-			cfg.ContractDataRefreshInterval < time.Now().Unix() {
+		if txl.inactiveDeployerContracts == nil ||
+			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
@@ -148,7 +148,8 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.New("contract inactive")
 		}
 
-		if txl.contractToTierMap == nil || txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval < time.Now().Unix() {
+		if txl.contractToTierMap == nil ||
+			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
@@ -165,8 +166,8 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if !ok {
 			return next(state, txBytes, isCheckTx)
 		}
-		if txl.tierMap == nil || txl.tierDataLastUpdated+cfg.TierDataRefreshInterval <
-			time.Now().Unix() {
+		if txl.tierMap == nil ||
+			(txl.tierDataLastUpdated+cfg.TierDataRefreshInterval) < time.Now().Unix() {
 			ctx, er := createUserDeployerWhitelistCtx(state)
 			if er != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
