@@ -116,7 +116,7 @@ func NewConfig(
 		nodes = append(nodes, n)
 	}
 
-	for i := 0; i < altValidators; i++ {
+	for i := validators; i < validators + altValidators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisTmpl, yamlFile)
 		n.LogLevel = *LogLevel
 		n.LogDestination = *LogDest
@@ -220,7 +220,9 @@ func runValidators(ctx context.Context, config lib.Config, eventC chan *node.Eve
 	errC := make(chan error)
 	e := engine.New(config)
 	nctx, cancel := context.WithCancel(ctx)
-	go func() { errC <- e.Run(nctx, eventC) }()
+	go func() {
+		errC <- e.Run(nctx, eventC)
+	}()
 
 	for {
 		select {
