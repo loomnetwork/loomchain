@@ -955,12 +955,17 @@ func ListAllDelegationsCmdV3() *cobra.Command {
 
 // Oracle Commands for setting parameters
 
+const registerReferrerCmdExample = `
+loom dpos3 register-referrer referrer_name 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --key path/to/private_key
+`
+
 func RegisterReferrerCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "register-referrer [name] [address]",
-		Short: "Register a referrer wallet's name and address",
-		Args:  cobra.MinimumNArgs(2),
+		Use:     "register-referrer [name] [address]",
+		Short:   "Register a referrer wallet's name and address",
+		Example: registerReferrerCmdExample,
+		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			address, err := cli.ParseAddress(args[1], flags.ChainID)
@@ -979,12 +984,17 @@ func RegisterReferrerCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setElectionCycleCmdExample = `
+loom dpos3 set-election-cycle 30000 --key path/to/private_key
+`
+
 func SetElectionCycleCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-election-cycle [election duration]",
-		Short: "Set election cycle duration (in seconds)",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "set-election-cycle [election duration]",
+		Short:   "Set election cycle duration (in seconds)",
+		Example: setElectionCycleCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			electionCycleDuration, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
@@ -1005,12 +1015,17 @@ func SetElectionCycleCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setDowntimePeriodCmdExample = `
+loom dpos3 set-downtime-period 4096 --key path/to/private_key
+`
+
 func SetDowntimePeriodCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-downtime-period [downtime period]",
-		Short: "Set downtime period duration (in blocks)",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "set-downtime-period [downtime period]",
+		Short:   "Set downtime period duration (in blocks)",
+		Example: setDowntimePeriodCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			downtimePeriod, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
@@ -1031,12 +1046,17 @@ func SetDowntimePeriodCmdV3() *cobra.Command {
 	return cmd
 }
 
+const enebleValidatorJailingCmdExample = `
+loom dpos3 enable-validator-jailing true -k path/to/private_key
+`
+
 func EnableValidatorJailingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "enable-validator-jailing [enable] ",
-		Short: "Toggle jailing of offline validators",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "enable-validator-jailing [enable] ",
+		Short:   "Toggle jailing of offline validators",
+		Example: enebleValidatorJailingCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			status, err := strconv.ParseBool(args[0])
 			if err != nil {
@@ -1056,12 +1076,17 @@ func EnableValidatorJailingCmd() *cobra.Command {
 	return cmd
 }
 
+const setValidatorCountCmdExample = `
+loom dpos3 set-validator-count 21 --key path/to/private_key
+`
+
 func SetValidatorCountCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-validator-count [validator count]",
-		Short: "Set maximum number of validators",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "set-validator-count [validator count]",
+		Short:   "Set maximum number of validators",
+		Example: setValidatorCountCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			validatorCount, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
@@ -1082,12 +1107,17 @@ func SetValidatorCountCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setMaxYearlyRewardCmdExample = `
+loom dpos3 set-max-yearly-reward 10000 --key path/to/private_key
+`
+
 func SetMaxYearlyRewardCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-max-yearly-reward [max yearly rewward amount]",
-		Short: "Set maximum yearly reward",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "set-max-yearly-reward [max yearly rewward amount]",
+		Short:   "Set maximum yearly reward",
+		Example: setMaxYearlyRewardCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			maxYearlyReward, err := cli.ParseAmount(args[0])
 			if err != nil {
@@ -1110,12 +1140,17 @@ func SetMaxYearlyRewardCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setRegistrationRequirementCmdExample = `
+loom dpos3 set-registration-requirement 100 --key path/to/private_key
+`
+
 func SetRegistrationRequirementCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-registration-requirement [registration_requirement]",
-		Short: "Set minimum self-delegation required of a new Candidate",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "set-registration-requirement [registration_requirement]",
+		Short:   "Set minimum self-delegation required of a new Candidate",
+		Example: setRegistrationRequirementCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			registrationRequirement, err := cli.ParseAmount(args[0])
 			if err != nil {
@@ -1138,12 +1173,17 @@ func SetRegistrationRequirementCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setOracleAddressCmdExample = `
+loom dpos3 set-oracle-address 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --key path/to/private_key
+`
+
 func SetOracleAddressCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-oracle-address [oracle address]",
-		Short: "Set oracle address",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "set-oracle-address [oracle address]",
+		Short:   "Set oracle address",
+		Example: setOracleAddressCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			oracleAddress, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
@@ -1163,12 +1203,17 @@ func SetOracleAddressCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setSlashingPercentagesCmdExample = `
+loom dpos3 set-slashing-percentages 100 300 --key path/to/private_key
+`
+
 func SetSlashingPercentagesCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-slashing-percentages [crash fault slashing percentage] [byzantine fault slashing percentage",
-		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
-		Args:  cobra.MinimumNArgs(2),
+		Use:     "set-slashing-percentages [crash fault slashing percentage] [byzantine fault slashing percentage",
+		Short:   "Set crash and byzantine fualt slashing percentages expressed in basis points",
+		Example: setSlashingPercentagesCmdExample,
+		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			crashFaultSlashingPercentage, err := cli.ParseAmount(args[0])
 			if err != nil {
@@ -1198,12 +1243,17 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setMinCandidateFeeCmdExample = `
+loom dpos3 set-min-candidate-fee 900 --key path/to/private_key
+`
+
 func SetMinCandidateFeeCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "set-min-candidate-fee [min candidate fee]",
-		Short: "Set minimum candidate fee",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "set-min-candidate-fee [min candidate fee]",
+		Short:   "Set minimum candidate fee",
+		Example: setMinCandidateFeeCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			minCandidateFee, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
