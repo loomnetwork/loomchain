@@ -103,17 +103,10 @@ func GetMapping() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			type maxLength struct {
-				From int
-				To   int
-			}
-			ml := maxLength{From: 50, To: 50}
 
-			fmt.Printf("%-*s | %-*s \n", ml.From, "From", ml.To, "To")
-
-			fmt.Printf("%-*s | %-*s \n",
-				ml.From, loom.UnmarshalAddressPB(resp.From).String(),
-				ml.To, loom.UnmarshalAddressPB(resp.To).String())
+			fmt.Printf("%-*s -> %-*s \n",
+				50, loom.UnmarshalAddressPB(resp.From).String(),
+				50, loom.UnmarshalAddressPB(resp.To).String())
 			return nil
 		},
 	}
@@ -139,8 +132,10 @@ func ListMappingCmd() *cobra.Command {
 				To   int
 			}
 			ml := maxLength{From: 50, To: 50}
+
+			fmt.Printf("%-*s | %-*s \n", ml.From, "From", ml.To, "To")
 			for _, value := range resp.Mappings {
-				fmt.Printf("%-*s -> %-*s\n",
+				fmt.Printf("%-*s | %-*s\n",
 					ml.From, loom.UnmarshalAddressPB(value.From).String(),
 					ml.To, loom.UnmarshalAddressPB(value.To).String())
 			}
