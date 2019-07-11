@@ -5,9 +5,18 @@
 # Interleave Txs to strengthen test
 
 [[TestCases]]
+  RunCmd = "checkapphash"
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} karma add-karma default:{{index $.AccountAddressList 1}} sms 1 coin-deploy 1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [      "user's sources successfully updated",  ]
+
+#[[TestCases]]
+#  RunCmd = "checkapphash"
+
+#[[TestCases]]
+#  RunCmd = "check_validators"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"

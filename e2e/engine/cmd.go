@@ -47,6 +47,25 @@ type abciResponseInfo2 struct {
 	LastBlockAppHash []byte `json:"last_block_app_hash,omitempty"`
 }
 
+func getCommand(conf lib.Config, node node.Node, test lib.TestCase) (exec.Cmd, error) {
+	t, err := template.New("cmd").Parse(test.RunCmd)
+	if err != nil {
+		return exec.Cmd{}, err
+	}
+	buf := new(bytes.Buffer)
+	conf.LoomPath = node.LoomPath
+	err = t.Execute(buf, conf)
+	if err != nil {
+		return exec.Cmd{}, err
+	}
+
+	dir := conf.BaseDir
+	if test.Dir != "" {
+		dir = test.Dir
+	}
+	return makeCmd(buf.String(), dir, node)
+}
+
 func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 	if err := e.waitForClusterToStart(); err != nil {
 		return errors.Wrap(err, "❌ failed to start cluster")
@@ -54,31 +73,16 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 	fmt.Printf("cluster is ready\n")
 
 	for _, n := range e.tests.TestCases {
-		// evaluate template
-		t, err := template.New("cmd").Parse(n.RunCmd)
-		if err != nil {
-			return err
-		}
-		buf := new(bytes.Buffer)
-		err = t.Execute(buf, e.conf)
-		if err != nil {
-			return err
-		}
-
-		iter := n.Iterations
-		if iter == 0 {
-			iter = 1
-		}
-
 		dir := e.conf.BaseDir
 		if n.Dir != "" {
 			dir = n.Dir
 		}
-		base := buf.String()
-		makeTestFiles(n.Datafiles, dir)
+		if err := makeTestFiles(n.Datafiles, dir); err != nil {
+			return err
+		}
 
 		// special command to check app hash
-		if base == "checkapphash" {
+		if n.RunCmd == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
 			time.Sleep(time.Second * 1)
 			fmt.Printf("--> run all: %v \n", "checkapphash")
@@ -128,11 +132,15 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 			continue
 		}
 
+		iter := n.Iterations
+		if iter == 0 {
+			iter = 1
+		}
 		for i := 0; i < iter; i++ {
 			// check all  the nodes
 			if n.All {
 				for j, v := range e.conf.Nodes {
-					cmd, err := makeCmd(base, dir, *v)
+					cmd, err := getCommand(e.conf, *v, n)
 					if err != nil {
 						return err
 					}
@@ -161,7 +169,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				if !ok {
 					return fmt.Errorf("node 0 not found")
 				}
-				cmd, err := makeCmd(buf.String(), dir, *queryNode)
+				cmd, err := getCommand(e.conf, *queryNode, n)
 				if err != nil {
 					return err
 				}

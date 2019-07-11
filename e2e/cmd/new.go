@@ -12,8 +12,8 @@ import (
 )
 
 func newNewCommand() *cobra.Command {
-	var n, k int
-	var basedir, contractdir, loompath, name string
+	var n, altValidators, k int
+	var basedir, contractdir, loompath, loompath2, name string
 	var logLevel, logDest string
 	var genesisFile, configFile string
 	var logAppDb bool
@@ -43,6 +43,7 @@ func newNewCommand() *cobra.Command {
 			}
 
 			loompathAbs, err := filepath.Abs(loompath)
+			loompathAbs2, err := filepath.Abs(loompath2)
 			if err != nil {
 				return err
 			}
@@ -68,7 +69,7 @@ func newNewCommand() *cobra.Command {
 
 			var accounts []*node.Account
 			for i := 0; i < k; i++ {
-				acct, err := node.CreateAccount(i, conf.BaseDir, conf.LoomPath)
+				acct, err := node.CreateAccount(i, conf.BaseDir, loompathAbs)
 				if err != nil {
 					return err
 				}
@@ -77,11 +78,19 @@ func newNewCommand() *cobra.Command {
 
 			var nodes []*node.Node
 			for i := 0; i < n; i++ {
-				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisFile, configFile)
+				node := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisFile, configFile)
 				node.LogLevel = logLevel
 				node.LogDestination = logDest
 				node.LogAppDb = logAppDb
 				nodes = append(nodes, node)
+			}
+
+			for i := 0 ; i < altValidators; i++ {
+				newNode := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisFile, configFile)
+				newNode.LogLevel = logLevel
+				newNode.LogDestination = logDest
+				newNode.LogAppDb = logAppDb
+				nodes = append(nodes, newNode)
 			}
 
 			for _, node := range nodes {
@@ -118,10 +127,12 @@ func newNewCommand() *cobra.Command {
 
 	flags := command.Flags()
 	flags.IntVarP(&n, "validators", "n", 4, "The number of validators")
+	flags.IntVarP(&altValidators, "alt-validators", "m", 0, "The number of validators on alternate build")
 	flags.StringVar(&name, "name", "default", "Cluster name")
 	flags.StringVar(&basedir, "base-dir", "", "Base directory")
 	flags.StringVar(&contractdir, "contract-dir", "contracts", "Contract directory")
 	flags.StringVar(&loompath, "loom-path", "loom", "Loom binary path")
+	flags.StringVar(&loompath2, "loom-path2", "loom", "Alternate loom binary path")
 	flags.IntVarP(&k, "account", "k", 1, "Number of account to be created")
 	flags.BoolVarP(&logAppDb, "log-app-db", "a", false, "Log the app state database usage")
 	flags.BoolVarP(&useFnConsensus, "fnconsensus", "", false, "Enable fnconsensus via the reactor")

@@ -19,6 +19,7 @@ import (
 var (
 	// assume that this test runs in e2e directory
 	LoomPath    = "../loom"
+	LoomPath2   = "../loom2"
 	ContractDir = "../contracts"
 	BaseDir     = "test-data"
 )
@@ -32,7 +33,7 @@ var (
 
 func NewConfig(
 	name, testFile, genesisTmpl, yamlFile string,
-	validators, account, numEthAccounts int,
+	validators, account, numEthAccounts, altValidators int,
 	useFnConsensus bool,
 ) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
@@ -53,6 +54,7 @@ func NewConfig(
 	}
 
 	loompathAbs, err := filepath.Abs(LoomPath)
+	loompathAbs2, err := filepath.Abs(LoomPath2)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +82,7 @@ func NewConfig(
 
 	var accounts []*node.Account
 	for i := 0; i < account; i++ {
-		acct, err := node.CreateAccount(i, conf.BaseDir, conf.LoomPath)
+		acct, err := node.CreateAccount(i, conf.BaseDir, loompathAbs)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +109,15 @@ func NewConfig(
 
 	var nodes []*node.Node
 	for i := 0; i < validators; i++ {
-		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl, yamlFile)
+		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisTmpl, yamlFile)
+		n.LogLevel = *LogLevel
+		n.LogDestination = *LogDest
+		n.LogAppDb = *LogAppDb
+		nodes = append(nodes, n)
+	}
+
+	for i := 0; i < altValidators; i++ {
+		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisTmpl, yamlFile)
 		n.LogLevel = *LogLevel
 		n.LogDestination = *LogDest
 		n.LogAppDb = *LogAppDb
