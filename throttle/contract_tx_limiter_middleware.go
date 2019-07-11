@@ -102,6 +102,9 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
+		if !state.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
+			return next(state, txBytes, isCheckTx)
+		}
 		if !isCheckTx {
 			return next(state, txBytes, isCheckTx)
 		}
