@@ -51,6 +51,10 @@ export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
 
+export LOOMEXE_PATH1="../loom"
+export LOOMEXE_PATH2="../loom2"
+export MIN_VALIDATORS=1
+export MIN_ALT_VALIDATORS=1
 make test
 
 ##make test-no-evm

@@ -26,7 +26,6 @@ func TestContractDPOS(t *testing.T) {
 		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "dposv3-test-loom.yaml"},
 	}
 
-	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
 	for _, test := range tests {

@@ -12,7 +12,7 @@ import (
 )
 
 func newNewCommand() *cobra.Command {
-	var n, altValidators, k int
+	var validators, altValidators, k int
 	var basedir, contractdir, loompath, loompath2, name string
 	var logLevel, logDest string
 	var genesisFile, configFile string
@@ -43,7 +43,7 @@ func newNewCommand() *cobra.Command {
 			}
 
 			loompathAbs, err := filepath.Abs(loompath)
-			loompathAbs2, err := filepath.Abs(loompath2)
+
 			if err != nil {
 				return err
 			}
@@ -77,7 +77,7 @@ func newNewCommand() *cobra.Command {
 			}
 
 			var nodes []*node.Node
-			for i := 0; i < n; i++ {
+			for i := 0; i < validators; i++ {
 				node := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisFile, configFile)
 				node.LogLevel = logLevel
 				node.LogDestination = logDest
@@ -85,7 +85,8 @@ func newNewCommand() *cobra.Command {
 				nodes = append(nodes, node)
 			}
 
-			for i := 0 ; i < altValidators; i++ {
+			loompathAbs2, err := filepath.Abs(loompath2)
+			for i := validators ; i < validators + altValidators; i++ {
 				newNode := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisFile, configFile)
 				newNode.LogLevel = logLevel
 				newNode.LogDestination = logDest
@@ -126,7 +127,7 @@ func newNewCommand() *cobra.Command {
 	}
 
 	flags := command.Flags()
-	flags.IntVarP(&n, "validators", "n", 4, "The number of validators")
+	flags.IntVarP(&validators, "validators", "n", 4, "The number of validators")
 	flags.IntVarP(&altValidators, "alt-validators", "m", 0, "The number of validators on alternate build")
 	flags.StringVar(&name, "name", "default", "Cluster name")
 	flags.StringVar(&basedir, "base-dir", "", "Base directory")

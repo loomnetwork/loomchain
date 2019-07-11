@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -16,10 +17,17 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
+const (
+	loomExeEv = "LOOMEXE_PATH1"
+	loomExe2Ev = "LOOMEXE_PATH2"
+	minValidatorsEv = "MIN_VALIDATORS"
+	minAltValidatorsEv = "MIN_ALT_VALIDATORS"
+)
+
 var (
 	// assume that this test runs in e2e directory
-	LoomPath    = "../loom"
-	LoomPath2   = "../loom2"
+	DefaultLoomPath    = "../loom"
+	DefatulLoomPath2   = "../loom2"
 	ContractDir = "../contracts"
 	BaseDir     = "test-data"
 )
@@ -53,11 +61,6 @@ func NewConfig(
 		}
 	}
 
-	loompathAbs, err := filepath.Abs(LoomPath)
-	loompathAbs2, err := filepath.Abs(LoomPath2)
-	if err != nil {
-		return nil, err
-	}
 	contractdirAbs, err := filepath.Abs(ContractDir)
 	if err != nil {
 		return nil, err
@@ -70,7 +73,7 @@ func NewConfig(
 	conf := lib.Config{
 		Name:        name,
 		BaseDir:     basedirAbs,
-		LoomPath:    loompathAbs,
+		LoomPath:    "error",
 		ContractDir: contractdirAbs,
 		TestFile:    testFileAbs,
 		Nodes:       make(map[string]*node.Node),
@@ -80,6 +83,14 @@ func NewConfig(
 		return nil, err
 	}
 
+	LoomPath := os.Getenv(loomExeEv)
+	if len(LoomPath) == 0 {
+		LoomPath = DefaultLoomPath
+	}
+	loompathAbs, err := filepath.Abs(LoomPath)
+	if err != nil {
+		return nil, err
+	}
 	var accounts []*node.Account
 	for i := 0; i < account; i++ {
 		acct, err := node.CreateAccount(i, conf.BaseDir, loompathAbs)
@@ -107,6 +118,16 @@ func NewConfig(
 		tronAccounts = append(tronAccounts, acct)
 	}
 
+	minValidatorsEv := os.Getenv(minValidatorsEv)
+	if len(minValidatorsEv) > 0 {
+		minValidators, err := strconv.Atoi(minValidatorsEv)
+		if err != nil {
+			return nil, err
+		}
+		if minValidators > validators{
+			validators = minValidators
+		}
+	}
 	var nodes []*node.Node
 	for i := 0; i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisTmpl, yamlFile)
@@ -116,6 +137,24 @@ func NewConfig(
 		nodes = append(nodes, n)
 	}
 
+	LoomPath2 := os.Getenv(loomExe2Ev)
+	if len(LoomPath2) == 0 {
+		LoomPath2 = DefatulLoomPath2
+	}
+	loompathAbs2, err := filepath.Abs(LoomPath2)
+	if err != nil {
+		return nil, err
+	}
+	minAltValidatorsEv := os.Getenv(minAltValidatorsEv)
+	if len(minAltValidatorsEv) > 0 {
+		minAltValidators, err := strconv.Atoi(minAltValidatorsEv)
+		if err != nil {
+			return nil, err
+		}
+		if minAltValidators > validators{
+			validators = minAltValidators
+		}
+	}
 	for i := validators; i < validators + altValidators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisTmpl, yamlFile)
 		n.LogLevel = *LogLevel
