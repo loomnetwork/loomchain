@@ -17,13 +17,10 @@ type AppStoreConfig struct {
 	// values are stored in app.db
 	LatestStateDBBackend string
 	LatestStateDBName    string
-	// 1 - single mutex NodeDB, 2 - multi-mutex NodeDB
-	NodeDBVersion NodeDBVersion
+
 	// Number of IAVL tree nodes to cache
 	NodeCacheSize int
-	// Snapshot type to use, only supported by MultiReaderIAVL store
-	// (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
-	SnapshotVersion MultiReaderIAVLStoreSnapshotVersion
+
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
 	SaveEVMStateToIAVL bool
@@ -40,9 +37,7 @@ func DefaultConfig() *AppStoreConfig {
 		PruneBatchSize:       50,
 		LatestStateDBBackend: "goleveldb",
 		LatestStateDBName:    "app_state",
-		NodeDBVersion:        NodeDBV1,
 		NodeCacheSize:        10000,
-		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
 		SaveEVMStateToIAVL:   false,
 		IAVLFlushInterval:    0, //default to zero until we know its ready
 	}
