@@ -784,12 +784,17 @@ func CheckDelegatorRewardsCmdV3() *cobra.Command {
 	return cmd
 }
 
+const checkRewardCmdExample = `
+loom dpos3 check-rewards -u http://localhost:12345
+`
+
 func CheckRewardsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "check-rewards",
-		Short: "check rewards statistics",
-		Args:  cobra.MinimumNArgs(0),
+		Use:     "check-rewards",
+		Short:   "check rewards statistics",
+		Example: checkRewardCmdExample,
+		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv3.CheckRewardsResponse
 			err := cli.StaticCallContractWithFlags(
@@ -810,12 +815,17 @@ func CheckRewardsCmdV3() *cobra.Command {
 	return cmd
 }
 
+const checkAllDelegationsCmdExample = `
+loom dpos3 check-all-delegations 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+`
+
 func CheckAllDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "check-all-delegations [delegator]",
-		Short: "display all of a particular delegator's delegations",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "check-all-delegations [delegator]",
+		Short:   "display all of a particular delegator's delegations",
+		Example: checkAllDelegationsCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAccountAddress(args[0], &flags)
 			if err != nil {
@@ -842,12 +852,17 @@ func CheckAllDelegationsCmdV3() *cobra.Command {
 	return cmd
 }
 
+const timeUntilElectionCmdExample = `
+loom dpos3 time-until-election -u http://localhost:12345
+`
+
 func TimeUntilElectionCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "time-until-election",
-		Short: "check how many seconds remain until the next election",
-		Args:  cobra.MinimumNArgs(0),
+		Use:     "time-until-election",
+		Short:   "check how many seconds remain until the next election",
+		Example: timeUntilElectionCmdExample,
+		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv3.TimeUntilElectionResponse
 			err := cli.StaticCallContractWithFlags(
@@ -869,12 +884,17 @@ func TimeUntilElectionCmdV3() *cobra.Command {
 	return cmd
 }
 
+const listDelegationsCmdExample = `
+loom dpos3 list-delegations 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+`
+
 func ListDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "list-delegations <candidate address>",
-		Short: "list a candidate's delegations & delegation total",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "list-delegations <candidate address>",
+		Short:   "list a candidate's delegations & delegation total",
+		Example: listDelegationsCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
@@ -901,12 +921,17 @@ func ListDelegationsCmdV3() *cobra.Command {
 	return cmd
 }
 
+const listAllDelegationsCmdExample = `
+loom dpos3 list-all-delegations -u http://localhost:12345
+`
+
 func ListAllDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "list-all-delegations",
-		Short: "display the results of calling list_delegations for all candidates",
-		Args:  cobra.MinimumNArgs(0),
+		Use:     "list-all-delegations",
+		Short:   "display the results of calling list_delegations for all candidates",
+		Example: listAllDelegationsCmdExample,
+		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv3.ListAllDelegationsResponse
 			err := cli.StaticCallContractWithFlags(
