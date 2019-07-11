@@ -191,7 +191,6 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	deployer := &UserDeployerState{
 		Address: req.DeployerAddr,
 		TierID:  req.TierID,
-		Active:  true,
 	}
 	err = ctx.Set(DeployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr)), deployer)
 	if err != nil {
@@ -247,14 +246,13 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
 		return errors.Wrap(err, "failed to remove deployer")
 	}
-	// add active=false to UserDeployerState
 	var userDeployer UserDeployerState
 	err = ctx.Get(DeployerStateKey(deployerAddr), &userDeployer)
 	// If key is not part of whitelisted keys then error will be logged
 	if err != nil {
 		return errors.Wrap(err, "Failed to Get Deployer State")
 	}
-	userDeployer.Active = false
+	userDeployer.Inactive = true
 	err = ctx.Set(DeployerStateKey(deployerAddr), &userDeployer)
 	if err != nil {
 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
@@ -285,7 +283,7 @@ func (uw *UserDeployerWhitelist) GetUserDeployers(
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 		}
-		if req.IncludeInactive || userDeployerState.Active {
+		if req.IncludeInactive || !userDeployerState.Inactive {
 			deployers = append(deployers, &userDeployerState)
 		}
 
@@ -311,7 +309,7 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 		}
 		return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
 	}
-	if !userDeployer.Active {
+	if userDeployer.Inactive {
 		return nil, errors.Wrap(err, "Deployer is inactive")
 	}
 	return &GetDeployedContractsResponse{
@@ -386,7 +384,7 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 }
 
 func GetTierMap(ctx contract.StaticContext) (map[TierID]Tier, error) {
-	tierMap := make(map[TierID]Tier, 0)
+	tierMap := make(map[TierID]Tier)
 	for _, rangeEntry := range ctx.Range([]byte(tierKeyPrefix)) {
 		var tier Tier
 		if err := proto.Unmarshal(rangeEntry.Value, &tier); err != nil {
@@ -410,13 +408,13 @@ func GetTierInfo(ctx contract.StaticContext, tierID udwtypes.TierID) (udwtypes.T
 
 // GetContractTierMapping create a map of contract to TxLimiter to be used in ContractTxLimiter
 func GetContractTierMapping(ctx contract.StaticContext) (map[string]TierID, error) {
-	contractToTierMap := make(map[string]TierID, 0)
+	contractToTierMap := make(map[string]TierID)
 	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
 		var deployer UserDeployerState
 		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
 			return nil, errors.Wrap(err, "unmarshal UserDeployerState")
 		}
-		if !deployer.Active {
+		if deployer.Inactive {
 			continue
 		}
 		var tier Tier
@@ -435,13 +433,13 @@ func GetContractTierMapping(ctx contract.StaticContext) (map[string]TierID, erro
 
 //GetInactiveDeployerContracts get contracts of deployers which are removed to throttle them
 func GetInactiveDeployerContracts(ctx contract.StaticContext) (map[string]bool, error) {
-	inactiveDeployerContracts := make(map[string]bool, 0)
+	inactiveDeployerContracts := make(map[string]bool)
 	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
 		var deployer UserDeployerState
 		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
 			return nil, errors.Wrap(err, "unmarshal UserDeployerState")
 		}
-		if deployer.Active {
+		if !deployer.Inactive {
 			continue
 		}
 		contracts := deployer.Contracts
