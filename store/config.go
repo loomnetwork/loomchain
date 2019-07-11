@@ -12,10 +12,6 @@ type AppStoreConfig struct {
 	PruneInterval int64
 	// Number of versions to prune at a time.
 	PruneBatchSize int64
-	// DB backend to use for storing a materialized view of the latest persistent app state
-	// possible values are "none" | "goleveldb". Defaults to "none", which means the
-	// values are stored in app.db
-	LatestStateDBBackend string
 
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
@@ -26,14 +22,13 @@ type AppStoreConfig struct {
 
 func DefaultConfig() *AppStoreConfig {
 	return &AppStoreConfig{
-		Version:              3,
-		CompactOnLoad:        false,
-		MaxVersions:          0,
-		PruneInterval:        0,
-		PruneBatchSize:       50,
-		LatestStateDBBackend: "goleveldb",
-		SaveEVMStateToIAVL:   false,
-		IAVLFlushInterval:    0, //default to zero until we know its ready
+		Version:            3,
+		CompactOnLoad:      false,
+		MaxVersions:        0,
+		PruneInterval:      0,
+		PruneBatchSize:     50,
+		SaveEVMStateToIAVL: false,
+		IAVLFlushInterval:  0, //default to zero until we know its ready
 	}
 }
 
