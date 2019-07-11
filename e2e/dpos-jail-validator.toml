@@ -17,7 +17,7 @@
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 set-jail-offline true -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 enable-validator-jailing true -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Excluded = ["Error"]
 

@@ -928,7 +928,7 @@ func EnableValidatorJailingCmd() *cobra.Command {
 				return fmt.Errorf("Invalid boolean status")
 			}
 			err = cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "SetJailOfflineValidator", &dposv3.EnableValidatorJailingRequest{
+				&flags, DPOSV3ContractName, "EnableValidatorJailing", &dposv3.EnableValidatorJailingRequest{
 					JailOfflineValidators: status,
 				}, nil)
 			if err != nil {
