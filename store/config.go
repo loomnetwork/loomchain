@@ -16,7 +16,6 @@ type AppStoreConfig struct {
 	// possible values are "none" | "goleveldb". Defaults to "none", which means the
 	// values are stored in app.db
 	LatestStateDBBackend string
-	LatestStateDBName    string
 
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
@@ -33,7 +32,6 @@ func DefaultConfig() *AppStoreConfig {
 		PruneInterval:        0,
 		PruneBatchSize:       50,
 		LatestStateDBBackend: "goleveldb",
-		LatestStateDBName:    "app_state",
 		SaveEVMStateToIAVL:   false,
 		IAVLFlushInterval:    0, //default to zero until we know its ready
 	}

@@ -689,8 +689,6 @@ AppStore:
   # DB backend to use for storing a materialized view of the latest persistent app state
   # possible values are: "goleveldb". Only used by the MultiReaderIAVL store, ignored otherwise.
   LatestStateDBBackend: {{ .AppStore.LatestStateDBBackend }}
-  # Defaults to "app_state". Only used by the MultiReaderIAVL store, ignored otherwise.
-  LatestStateDBName: {{ .AppStore.LatestStateDBName }}
   # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
   SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
