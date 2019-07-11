@@ -20,7 +20,6 @@ import (
 )
 
 var (
-	// addr1        = loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr3        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 	addr4        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
@@ -35,6 +34,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	fakeCtx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	fakeCtx.SetFeature(loomchain.UserDeployerWhitelistVersion1_1Feature, true)
 	udwAddr := fakeCtx.CreateContract(udw.Contract)
 	udwContext := fakeCtx.WithAddress(udwAddr)
 	udwContract := &udw.UserDeployerWhitelist{}
@@ -43,7 +43,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 		Fee:        100,
 		Name:       "Tier1",
 		BlockRange: 10,
-		MaxTxs:      30,
+		MaxTxs:     30,
 	}
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)
@@ -102,8 +102,6 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
 	txSignedEVM1 := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contractAddr)
-	// txSignedEVM2 := mockSignedTx(t, uint64(2), callId, vm.VMType_EVM, contractAddr)
-	// txSignedEVM3 := mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contractAddr)
 	cfg := DefaultContractTxLimiterConfig()
 	contractTxLimiterMiddleware := NewContractTxLimiterMiddleware(cfg,
 		func(state loomchain.State) (contractpb.Context, error) {
@@ -113,10 +111,15 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 
 	allowed := false
 	processMiddleware := func(state loomchain.State, txbytes []byte) {
-		contractTxLimiterMiddleware.ProcessTx(state, txbytes, func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
-			allowed = true
-			return loomchain.TxHandlerResult{}, nil
-		}, true)
+		contractTxLimiterMiddleware.ProcessTx(
+			state,
+			txbytes,
+			func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+				allowed = true
+				return loomchain.TxHandlerResult{}, nil
+			},
+			true,
+		)
 	}
 	for i := 0; i < 30; i++ {
 		allowed = false
@@ -127,10 +130,6 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	allowed = false
 	processMiddleware(state, txSignedEVM1.Inner)
 	require.Equal(t, allowed, false)
-
-	// allowed = false
-	// processMiddleware(state, txSignedEVM1.Inner)
-	// require.Equal(t, allowed, false)
 
 	contractTxLimiterMiddleware = NewContractTxLimiterMiddleware(cfg,
 		func(state loomchain.State) (contractpb.Context, error) {
@@ -150,7 +149,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	allowed = false
 	processMiddleware(state, txSignedEVM1.Inner)
 	require.Equal(t, allowed, false)
-	
+
 	// reset will happen here
 	for i := 10; i < 20; i++ {
 		for j := 0; j < 3; j++ {

@@ -38,6 +38,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		TierID: udwtypes.TierID_DEFAULT,
 		Fee:    fee,
 		Name:   "Tier1",
+		BlockRange: 10,
+		MaxTxs:     20,
 	}
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)

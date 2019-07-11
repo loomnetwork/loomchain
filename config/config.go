@@ -135,6 +135,8 @@ type Config struct {
 	Auth *auth.Config
 
 	EvmStore *evm.EvmStoreConfig
+	// Allow deployment of named EVM contracts (should only be used in tests!)
+	AllowNamedEvmContracts bool
 
 	// Dragons
 	EVMDebugEnabled bool
@@ -380,10 +382,11 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:        "",
-		DeployEnabled: true,
-		CallEnabled:   true,
-		DPOSVersion:   3,
+		Oracle:                 "",
+		DeployEnabled:          true,
+		CallEnabled:            true,
+		DPOSVersion:            3,
+		AllowNamedEvmContracts: false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -768,4 +771,6 @@ PluginsDir: "{{ .PluginsDir }}"
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
+AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
+
 ` + transferGatewayLoomYamlTemplate

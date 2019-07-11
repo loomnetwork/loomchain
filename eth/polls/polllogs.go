@@ -130,7 +130,7 @@ func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
 	}
 
 	blocksMsg := types.EthFilterEnvelope_EthFilterLogList{
-		&types.EthFilterLogList{EthBlockLogs: eventLogs},
+		EthFilterLogList: &types.EthFilterLogList{EthBlockLogs: eventLogs},
 	}
 	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
 	return newLogPoll, r, err

@@ -116,8 +116,3 @@ func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, o
 		return nil, errors.Errorf("unknown transaction id %d", txId)
 	}
 }
-
-func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
-	contractState := chainState.WithPrefix(loom.DataPrefix(t.karmaContractAddress))
-	return contractState, nil
-}

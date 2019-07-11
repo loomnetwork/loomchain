@@ -22,7 +22,7 @@ func investigate(name, path string) error {
 	if err != nil {
 		return err
 	}
-	loomstore, err := store.NewIAVLStore(db, 0, 0)
+	loomstore, err := store.NewIAVLStore(db, 0, 0, 0)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,6 @@ func investigate(name, path string) error {
 		prefixRange := loomstore.Range([]byte(prefix))
 		totalLength := 0
 		for _, entry := range prefixRange {
-			entry = entry
 			totalLength += len(entry.Value)
 		}
 		fmt.Println(prefix, "\t", len(prefixRange), "\t", totalLength)

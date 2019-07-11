@@ -94,7 +94,7 @@ func (p *EthBlockPoll) LegacyPoll(state loomchain.ReadOnlyState, id string,
 	p.lastBlock = lastBlock
 
 	blocksMsg := types.EthFilterEnvelope_EthBlockHashList{
-		&types.EthBlockHashList{EthBlockHash: blockHashes},
+		EthBlockHashList: &types.EthBlockHashList{EthBlockHash: blockHashes},
 	}
 	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
 	return p, r, err

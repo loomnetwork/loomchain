@@ -225,6 +225,6 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 		FromBlock: 1,
 		ToBlock:   15,
 	}
-	events, err = eventStore.FilterEvents(filter4)
+	_, err = eventStore.FilterEvents(filter4)
 	require.Nil(t, err)
 }
