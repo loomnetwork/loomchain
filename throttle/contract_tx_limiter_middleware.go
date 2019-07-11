@@ -59,8 +59,6 @@ type contractStats struct {
 	blockHeight int64
 }
 
-var TxLimiter *contractTxLimiter
-
 func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, curBlockHeight int64) bool {
 	blockTx, ok := txl.contractStatsMap[contractAddr.String()]
 	if !ok {
@@ -69,18 +67,21 @@ func (txl *contractTxLimiter) isAccountLimitReached(contractAddr loom.Address, c
 	// if execution reaches here => tierID and tier are valid
 	tierID := txl.contractToTierMap[contractAddr.String()]
 	tier := txl.tierMap[tierID]
-	if blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) || int64(tier.MaxTxs) > blockTx.txn {
+	if blockTx.blockHeight <= (curBlockHeight-int64(tier.BlockRange)) || int64(tier.MaxTxs) > blockTx.txn {
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
 func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHeight int64) {
 	blockTx, ok := txl.contractStatsMap[contractAddr.String()]
 	tierID := txl.contractToTierMap[contractAddr.String()]
 	tier := txl.tierMap[tierID]
-	if !ok || blockTx.blockHeight <= curBlockHeight-int64(tier.BlockRange) {
+	blockRange := int64(4096) // prevent divide by zero just in case tier doesn't have a range set
+	if tier.BlockRange > 0 {
+		blockRange = int64(tier.BlockRange)
+	}
+	if !ok || blockTx.blockHeight <= (curBlockHeight-blockRange) {
 		// resetting the blockHeight to lower bound of range instead of curblockheight
 		rangeStart := (((curBlockHeight - 1) / int64(tier.BlockRange)) * int64(tier.BlockRange)) + 1
 		txl.contractStatsMap[contractAddr.String()] = &contractStats{1, rangeStart}
@@ -89,11 +90,12 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 	blockTx.txn++
 }
 
-// NewContractTxLimiterMiddleware add another tx limiter that limits how many CallTx(s) can be sent to an EVM contract within a pre-configured block range
+// NewContractTxLimiterMiddleware creates a middleware function that limits how many call txs can be
+// sent to an EVM contract within a pre-configured block range.
 func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 	createUserDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
-	TxLimiter = &contractTxLimiter{
+	txl := &contractTxLimiter{
 		contractStatsMap: make(map[string]*contractStats, 0),
 	}
 	return loomchain.TxMiddlewareFunc(func(
@@ -102,9 +104,6 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
-		if !state.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
-			return next(state, txBytes, isCheckTx)
-		}
 		if !isCheckTx {
 			return next(state, txBytes, isCheckTx)
 		}
@@ -130,7 +129,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if msgTx.VmType != vm.VMType_EVM {
 			return next(state, txBytes, isCheckTx)
 		}
-		if TxLimiter.inactiveDeployerContracts == nil || TxLimiter.contractDataLastUpdated+
+		if txl.inactiveDeployerContracts == nil || txl.contractDataLastUpdated+
 			cfg.ContractDataRefreshInterval < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
@@ -140,16 +139,16 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: inactiveDeployerContracts creation")
 			}
-			TxLimiter.inactiveDeployerContracts = inactiveDeployerContracts
+			txl.inactiveDeployerContracts = inactiveDeployerContracts
 			// TxLimiter.contractDataLastUpdated will be updated after updating contractToTierMap
 		}
 		contractAddr := loom.UnmarshalAddressPB(msg.To)
 		// contracts which are deployed by deleted deployers should be throttled
-		if TxLimiter.inactiveDeployerContracts[contractAddr.String()] {
+		if txl.inactiveDeployerContracts[contractAddr.String()] {
 			return res, errors.New("contract inactive")
 		}
 
-		if TxLimiter.contractToTierMap == nil || TxLimiter.contractDataLastUpdated+cfg.ContractDataRefreshInterval < time.Now().Unix() {
+		if txl.contractToTierMap == nil || txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
@@ -158,29 +157,29 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: contractToTierMap creation")
 			}
-			TxLimiter.contractToTierMap = contractToTierMap
-			TxLimiter.contractDataLastUpdated = time.Now().Unix()
+			txl.contractToTierMap = contractToTierMap
+			txl.contractDataLastUpdated = time.Now().Unix()
 		}
 		// contracts the limiter doesn't know about shouldn't be throttled
-		contractTierID, ok := TxLimiter.contractToTierMap[contractAddr.String()]
+		contractTierID, ok := txl.contractToTierMap[contractAddr.String()]
 		if !ok {
 			return next(state, txBytes, isCheckTx)
 		}
-		if TxLimiter.tierMap == nil || TxLimiter.tierDataLastUpdated+cfg.TierDataRefreshInterval <
+		if txl.tierMap == nil || txl.tierDataLastUpdated+cfg.TierDataRefreshInterval <
 			time.Now().Unix() {
 			ctx, er := createUserDeployerWhitelistCtx(state)
 			if er != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
-			TxLimiter.tierMap, err = udw.GetTierMap(ctx)
+			txl.tierMap, err = udw.GetTierMap(ctx)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: GetTierMap error")
 			}
-			TxLimiter.tierDataLastUpdated = time.Now().Unix()
+			txl.tierDataLastUpdated = time.Now().Unix()
 		}
 
 		// ensure that tier corresponding to contract available in tierMap
-		_, ok = TxLimiter.tierMap[contractTierID]
+		_, ok = txl.tierMap[contractTierID]
 		if !ok {
 			ctx, er := createUserDeployerWhitelistCtx(state)
 			if er != nil {
@@ -190,12 +189,12 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if er != nil {
 				return res, errors.Wrap(err, "throttle: getTierInfo error")
 			}
-			TxLimiter.tierMap[contractTierID] = tierInfo
+			txl.tierMap[contractTierID] = tierInfo
 		}
-		if TxLimiter.isAccountLimitReached(contractAddr, state.Block().Height) {
+		if txl.isAccountLimitReached(contractAddr, state.Block().Height) {
 			return loomchain.TxHandlerResult{}, ErrTxLimitReached
 		}
-		TxLimiter.updateState(contractAddr, state.Block().Height)
+		txl.updateState(contractAddr, state.Block().Height)
 
 		return next(state, txBytes, isCheckTx)
 	})
