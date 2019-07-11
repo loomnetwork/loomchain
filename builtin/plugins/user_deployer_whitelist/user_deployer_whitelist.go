@@ -260,16 +260,20 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
 		return errors.Wrap(err, "failed to remove deployer")
 	}
-	var userDeployer UserDeployerState
-	err = ctx.Get(deployerStateKey(deployerAddr), &userDeployer)
-	// If key is not part of whitelisted keys then error will be logged
-	if err != nil {
-		return errors.Wrap(err, "Failed to Get Deployer State")
-	}
-	userDeployer.Inactive = true
-	err = ctx.Set(deployerStateKey(deployerAddr), &userDeployer)
-	if err != nil {
-		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
+	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
+		var userDeployer UserDeployerState
+		if err := ctx.Get(deployerStateKey(deployerAddr), &userDeployer); err != nil {
+			return errors.Wrap(err, "Failed to Get Deployer State")
+		}
+		userDeployer.Inactive = true
+		if err := ctx.Set(deployerStateKey(deployerAddr), &userDeployer); err != nil {
+			return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
+		}
+	} else {
+		if !ctx.Has(deployerStateKey(deployerAddr)) {
+			return ErrDeployerDoesNotExist
+		}
+		ctx.Delete(deployerStateKey(deployerAddr))
 	}
 	return nil
 }
@@ -445,7 +449,7 @@ func GetContractTierMapping(ctx contract.StaticContext) (map[string]TierID, erro
 	return contractToTierMap, nil
 }
 
-//GetInactiveDeployerContracts get contracts of deployers which are removed to throttle them
+// GetInactiveDeployerContracts gets list of contract whose deployer has been rendered inactive
 func GetInactiveDeployerContracts(ctx contract.StaticContext) (map[string]bool, error) {
 	inactiveDeployerContracts := make(map[string]bool)
 	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
