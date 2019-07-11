@@ -2616,10 +2616,10 @@ func TestEnableValidatorJailing(t *testing.T) {
 	})
 
 	periodLength := uint64(12)
-	registerationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
 	dpos, err := deployDPOSContract(pctx, &Params{
 		ValidatorCount:          5,
-		RegistrationRequirement: registerationFee,
+		RegistrationRequirement: registrationFee,
 		OracleAddress:           oracleAddr.MarshalPB(),
 		DowntimePeriod:          periodLength,
 	})
@@ -2628,12 +2628,12 @@ func TestEnableValidatorJailing(t *testing.T) {
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
-		Amount:  registerationFee,
+		Amount:  registrationFee,
 	})
 	require.Nil(t, err)
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
-		Amount:  registerationFee,
+		Amount:  registrationFee,
 	})
 	require.Nil(t, err)
 
