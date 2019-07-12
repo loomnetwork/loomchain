@@ -1046,7 +1046,7 @@ func SetDowntimePeriodCmdV3() *cobra.Command {
 	return cmd
 }
 
-const enebleValidatorJailingCmdExample = `
+const enableValidatorJailingCmdExample = `
 loom dpos3 enable-validator-jailing true -k path/to/private_key
 `
 
@@ -1055,7 +1055,7 @@ func EnableValidatorJailingCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "enable-validator-jailing [enable] ",
 		Short:   "Toggle jailing of offline validators",
-		Example: enebleValidatorJailingCmdExample,
+		Example: enableValidatorJailingCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			status, err := strconv.ParseBool(args[0])
