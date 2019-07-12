@@ -1496,7 +1496,10 @@ func TestReferrerRewards(t *testing.T) {
 	require.Nil(t, err)
 
 	referrers, err := dpos.ListReferrers(pctx)
-	require.Nil(t, err)
+	require.Error(t, err)
+	pctx.SetFeature(loomchain.DPOSVersion3_5, true)
+	referrers, err = dpos.ListReferrers(pctx)
+	require.NoError(t, err)
 	assert.Equal(t, len(referrers), 2)
 
 	delegationAmount := big.NewInt(1e18)
