@@ -136,7 +136,7 @@ func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappin
 	listMappingResponse := ListMappingResponse{
 		Mappings: []*AddressMapping{},
 	}
-	addressList := make(map[string]bool)
+	addressList := make(map[string]bool, len(mappingRange)/2)
 	for _, m := range mappingRange {
 		var mapping AddressMapping
 		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
