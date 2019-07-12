@@ -67,6 +67,68 @@ func UnjailValidatorCmdV3() *cobra.Command {
 	return cmd
 }
 
+
+func MintLoomCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "mint-loom [amount]",
+		Short: "mints loom",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mintingAmount, err := cli.ParseAmount(args[0])
+			if err != nil {
+				return err
+			}
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "MintVoucher", &dposv3.MintVoucherRequest{
+					Amount: &types.BigUInt{
+						Value: *mintingAmount,
+					},
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+
+func MintERC20CmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "mint-erc20 [amount] [erc20token Address]",
+		Short: "mints erc20",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mintingAmount, err := cli.ParseAmount(args[0])
+			if err != nil {
+				return err
+			}
+			addr, err := cli.ParseAddress(args[1], flags.ChainID)
+			if err != nil {
+				return err
+			}
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "MintVoucherERC20", &dposv3.MintVoucherERC20Request{
+					Amount: &types.BigUInt{
+						Value: *mintingAmount,
+					},
+					TokenAddress:addr.MarshalPB(),
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+
 func GetStateCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
