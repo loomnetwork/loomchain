@@ -277,7 +277,6 @@ func Mint(ctx contract.Context) error {
 	operator := policy.Operator
 	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height), big.NewInt(int64(policy.BlocksGeneratedPerYear)), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
 	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
-	year = year.Add(year, loom.NewBigUIntFromInt(1))
 	var checkMintAmount = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
@@ -287,7 +286,7 @@ func Mint(ctx contract.Context) error {
 		return err
 	}
 	//Minting Amount per block is set in ctx after minting amount is determined for year
-	if year.Cmp(loom.NewBigUIntFromInt(1)) == 0 {
+	if year.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		//Determines minting amount at the beginning block of year or at block height at which minting is enabled
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
 			//Minting Amount Computation for starting year
@@ -321,6 +320,9 @@ func Mint(ctx contract.Context) error {
 			//beginning block for that year or block height at which minting is enabled
 			baseAmount = &econ.TotalSupply.Value
 			inflationforYear := baseAmount.Mul(baseAmount, basePercentage)
+			if  changeRatioDenominator.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+				return errors.New("ChangeRatioDenominator should be greater than zero")
+			}
 			inflationforYear = inflationforYear.Div(inflationforYear, changeRatioDenominator)
 			inflationforYear = inflationforYear.Div(inflationforYear, loom.NewBigUIntFromInt(100))
 			amount = inflationforYear.Div(inflationforYear, blocksGeneratedPerYear)
@@ -342,7 +344,7 @@ func Mint(ctx contract.Context) error {
 		return err
 	}
 	//Boundary case when minting amount per block becomes zero
-	if amount == loom.NewBigUIntFromInt(0) {
+	if mintingAmount.Value.Int64() == 0 {
 		return nil // No more coins to be minted on block creation
 	}
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), loom.NewBigUIntFromInt(mintingAmount.Value.Int64()))
