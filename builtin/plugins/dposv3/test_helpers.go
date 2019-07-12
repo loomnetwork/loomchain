@@ -263,7 +263,6 @@ func (dpos *testDPOSContract) Unjail(ctx *plugin.FakeContext, candidate *loom.Ad
 }
 
 func (dpos *testDPOSContract) EnableValidatorJailing(ctx *plugin.FakeContext, status bool) error {
-
 	err := dpos.Contract.EnableValidatorJailing(contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&EnableValidatorJailingRequest{JailOfflineValidators: status},
 	)
