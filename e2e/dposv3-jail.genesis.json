@@ -38,7 +38,12 @@
                   {
                     "name":"dpos:v3.3",
                     "status":"WAITING"
+                  },
+                  {
+                    "name": "dpos:v3.4",
+                    "status": "WAITING"
                   }
+                  
                 ]
             }
         },
