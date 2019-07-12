@@ -51,11 +51,14 @@ export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
 
-export LOOMEXE_PATH="../loom"
-export LOOMEXE_ALTPATH="../loom2"
-export MIN_VALIDATORS=1
-export MIN_ALT_VALIDATORS=1
-export ALWAYS_APPHASH_CHECK="yes"
+# LOOMEXE_PATH and LOOMEXE_ALTPATH are paths to the loom builds you want to test.
+# MIN_VALIDATORS and MIN_ALT_VALIDATORS how many nodes you want using each of the two builds. Will override the settings already set.
+# ALWAYS_APPHASH_CHECK if non-empty will do a chckeapphash at the end of every test.
+# export LOOMEXE_PATH="../loom"
+# export LOOMEXE_ALTPATH="../loom2"
+# export MIN_VALIDATORS=3
+# export MIN_ALT_VALIDATORS=3
+# export ALWAYS_APPHASH_CHECK="yes"
 make test
 
 ##make test-no-evm
