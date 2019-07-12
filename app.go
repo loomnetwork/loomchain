@@ -610,7 +610,6 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			}
 			receiptHandler.CommitCurrentReceipt()
 		}
-		state.Set([]byte("Piers key"), []byte("piers value"))
 		storeTx.Commit()
 	}
 	return r, nil
