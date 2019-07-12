@@ -1386,7 +1386,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 				}
 
 				if slash {
-					if statistic, err = SlashInactivity(ctx, statistic); err != nil {
+					if err = SlashInactivity(ctx, statistic); err != nil {
 						return err
 					}
 				}
@@ -1484,34 +1484,34 @@ func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic
 }
 
 // only called for validators, never delegators
-func SlashInactivity(ctx contract.Context, statistic *ValidatorStatistic) (*ValidatorStatistic, error) {
+func SlashInactivity(ctx contract.Context, statistic *ValidatorStatistic) error {
 	state, err := LoadState(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	return slash(ctx, statistic, state.Params.CrashSlashingPercentage.Value)
 }
 
-func SlashDoubleSign(ctx contract.Context, statistic *ValidatorStatistic) (*ValidatorStatistic, error) {
+func SlashDoubleSign(ctx contract.Context, statistic *ValidatorStatistic) error {
 	state, err := LoadState(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	return slash(ctx, statistic, state.Params.ByzantineSlashingPercentage.Value)
 }
 
-func slash(ctx contract.Context, statistic *ValidatorStatistic, slashPercentage loom.BigUInt) (*ValidatorStatistic, error) {
+func slash(ctx contract.Context, statistic *ValidatorStatistic, slashPercentage loom.BigUInt) error {
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&statistic.SlashPercentage.Value, &slashPercentage)
 	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
 	if err := emitSlashEvent(ctx, statistic.Address, slashPercentage); err != nil {
-		return nil, err
+		return err
 	}
 
-	return statistic, nil
+	return nil
 }
 
 // Returns the total amount of tokens which have been distributed to delegators
