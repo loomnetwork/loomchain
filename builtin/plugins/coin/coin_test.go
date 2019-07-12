@@ -2,10 +2,6 @@ package coin
 
 import (
 	"errors"
-	"math/big"
-	"testing"
-	"time"
-
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -13,6 +9,9 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"math/big"
+	"testing"
+	"time"
 )
 
 var (
@@ -231,17 +230,14 @@ func TestMintDivOperator(t *testing.T) {
 	require.Nil(t, err)
 	// Minting amount for block for year 1 for blockheight 1
 	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
-
-	pctx1 := plugin.CreateFakeContext(addr1, addr1)
-	pctx1.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx1 := contractpb.WrapPluginContext(pctx1.WithBlock(loom.BlockHeader{
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  50001,
+		Height:  50002,
 	}))
-	//Minting will start in year 2 starting from BlockHeight 50001
+	//Minting will start in year 2 starting from BlockHeight 50002
 	contract1 := &Coin{}
-	err1 := contract1.Init(ctx1, &InitRequest{
+	err1 := contract1.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
@@ -253,16 +249,16 @@ func TestMintDivOperator(t *testing.T) {
 	require.Nil(t, err1)
 
 	//Minting without any error
-	resp3, err1 := contract1.BalanceOf(ctx1,
+	resp3, err1 := contract1.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err1)
-	err1 = Mint(ctx1)
+	err1 = Mint(ctx)
 	require.Nil(t, err1)
 
 	// checking balance after minting
-	resp4, err1 := contract1.BalanceOf(ctx1,
+	resp4, err1 := contract1.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
@@ -271,20 +267,18 @@ func TestMintDivOperator(t *testing.T) {
 	amount1 = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
-	err = ctx1.Get(mintingAmountKey, amount1)
+	err = ctx.Get(mintingAmountKey, amount1)
 	testAmount := amount1.Value.Uint64()
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
-	pctx2 := plugin.CreateFakeContext(addr1, addr1)
-	pctx2.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx2 := contractpb.WrapPluginContext(pctx2.WithBlock(loom.BlockHeader{
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  100001,
+		Height:  100002,
 	}))
-	//Minting will start in year 3 from BlockHeight 100001
+	//Minting will start in year 3 from BlockHeight 100002
 	contract2 := &Coin{}
-	err2 := contract2.Init(ctx2, &InitRequest{
+	err2 := contract2.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
@@ -296,36 +290,34 @@ func TestMintDivOperator(t *testing.T) {
 	require.Nil(t, err2)
 
 	//Minting without any error
-	resp5, err2 := contract2.BalanceOf(ctx2,
+	resp5, err2 := contract2.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err2)
-	err2 = Mint(ctx2)
+	err2 = Mint(ctx)
 	require.Nil(t, err2)
 
 	// checking balance after minting
-	resp6, err2 := contract2.BalanceOf(ctx2,
+	resp6, err2 := contract2.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err2)
 
-	err = ctx2.Get(mintingAmountKey, amount1)
+	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
 
-	pctx3 := plugin.CreateFakeContext(addr1, addr1)
-	pctx3.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx3 := contractpb.WrapPluginContext(pctx3.WithBlock(loom.BlockHeader{
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  9000000000000000001,
+		Height:  9000000000000000002,
 	}))
 	//Block Height is set to very high value,
 	// Minting will stop at this stage as minting Amount per block = 0 after very long period
 	contract3 := &Coin{}
-	err3 := contract3.Init(ctx3, &InitRequest{
+	err3 := contract3.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
@@ -337,22 +329,22 @@ func TestMintDivOperator(t *testing.T) {
 	require.Nil(t, err3)
 
 	//Minting without any error
-	resp7, err3 := contract3.BalanceOf(ctx3,
+	resp7, err3 := contract3.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err3)
 	//There will be no minting at this stage as amount to mint per block becomes zero
-	err3 = Mint(ctx3)
+	err3 = Mint(ctx)
 	require.Nil(t, err3)
 	// checking balance after minting
-	resp8, err3 := contract3.BalanceOf(ctx3,
+	resp8, err3 := contract3.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err3)
 
-	err = ctx3.Get(mintingAmountKey, amount1)
+	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	// Minting stops at this stage and total supply becomes constant
 	assert.Equal(t, amount1.Value.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
@@ -360,16 +352,16 @@ func TestMintDivOperator(t *testing.T) {
 
 	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
 	// not from year 2 beginning
-	pctx5 := plugin.CreateFakeContext(addr1, addr1)
-	pctx5.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx5 := contractpb.WrapPluginContext(pctx5.WithBlock(loom.BlockHeader{
+	pctx7 := plugin.CreateFakeContext(addr1, addr1)
+	pctx7.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx7 := contractpb.WrapPluginContext(pctx7.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
 		Height:  50003,
 	}))
 	//Minting will start in year 2 starting from BlockHeight 50001
 	contract5 := &Coin{}
-	err5 := contract5.Init(ctx5, &InitRequest{
+	err5 := contract5.Init(ctx7, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
@@ -381,16 +373,16 @@ func TestMintDivOperator(t *testing.T) {
 	require.Nil(t, err5)
 
 	//Minting without any error
-	resp10, err5 := contract5.BalanceOf(ctx5,
+	resp10, err5 := contract5.BalanceOf(ctx7,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err5)
-	err5 = Mint(ctx5)
+	err5 = Mint(ctx7)
 	require.Nil(t, err5)
 
 	// checking balance after minting
-	resp11, err6 := contract5.BalanceOf(ctx5,
+	resp11, err6 := contract5.BalanceOf(ctx7,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
@@ -399,7 +391,7 @@ func TestMintDivOperator(t *testing.T) {
 	var amount5 = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
-	err = ctx5.Get(mintingAmountKey, amount5)
+	err = ctx7.Get(mintingAmountKey, amount5)
 	require.Nil(t, err)
 	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
 	//Minting Amount at height h for second year is considered to be equal to minting Amnount for first block of
@@ -462,17 +454,14 @@ func TestMintExpOperator(t *testing.T) {
 	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
-
-	pctx1 := plugin.CreateFakeContext(addr1, addr1)
-	pctx1.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx1 := contractpb.WrapPluginContext(pctx1.WithBlock(loom.BlockHeader{
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  50001,
+		Height:  50002,
 	}))
-	//Minting will start in year 2 starting from BlockHeight 50001
+	//Minting will start in year 2 starting from BlockHeight 50002
 	contract1 := &Coin{}
-	err1 := contract1.Init(ctx1, &InitRequest{
+	err1 := contract1.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
@@ -484,16 +473,16 @@ func TestMintExpOperator(t *testing.T) {
 	require.Nil(t, err1)
 
 	//Minting without any error
-	resp3, err1 := contract1.BalanceOf(ctx1,
+	resp3, err1 := contract1.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err1)
-	err1 = Mint(ctx1)
+	err1 = Mint(ctx)
 	require.Nil(t, err1)
 
 	// checking balance after minting
-	resp4, err1 := contract1.BalanceOf(ctx1,
+	resp4, err1 := contract1.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
@@ -502,21 +491,19 @@ func TestMintExpOperator(t *testing.T) {
 	amount1 = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
-	err = ctx1.Get(mintingAmountKey, amount1)
+	err = ctx.Get(mintingAmountKey, amount1)
 	testAmount := amount1.Value.Uint64()
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
 
-	pctx2 := plugin.CreateFakeContext(addr1, addr1)
-	pctx2.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx2 := contractpb.WrapPluginContext(pctx2.WithBlock(loom.BlockHeader{
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  100001,
+		Height:  100002,
 	}))
-	//Minting will start in year 3 starting from BlockHeight 100001
+	//Minting will start in year 3 starting from BlockHeight 100002
 	contract2 := &Coin{}
-	err2 := contract2.Init(ctx2, &InitRequest{
+	err2 := contract2.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
@@ -528,36 +515,34 @@ func TestMintExpOperator(t *testing.T) {
 	require.Nil(t, err2)
 
 	//Minting without any error
-	resp5, err2 := contract2.BalanceOf(ctx2,
+	resp5, err2 := contract2.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err2)
-	err2 = Mint(ctx2)
+	err2 = Mint(ctx)
 	require.Nil(t, err2)
 
 	// checking balance after minting
-	resp6, err2 := contract2.BalanceOf(ctx2,
+	resp6, err2 := contract2.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err2)
 
-	err = ctx2.Get(mintingAmountKey, amount1)
+	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
 
-	pctx3 := plugin.CreateFakeContext(addr1, addr1)
-	pctx3.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx3 := contractpb.WrapPluginContext(pctx3.WithBlock(loom.BlockHeader{
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  20000001,
+		Height:  900000002,
 	}))
 	//Block Height is set to very high value,
 	// Minting will stop at this stage as minting Amount per block = 0 after very long period
 	contract3 := &Coin{}
-	err3 := contract3.Init(ctx3, &InitRequest{
+	err3 := contract3.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
 			&InitialAccount{
 				Owner:   addr1.MarshalPB(),
@@ -569,22 +554,22 @@ func TestMintExpOperator(t *testing.T) {
 	require.Nil(t, err3)
 
 	//Minting without any error
-	resp7, err3 := contract3.BalanceOf(ctx3,
+	resp7, err3 := contract3.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err3)
 	//There will be no minting at this stage as amount to mint per block becomes zero
-	err3 = Mint(ctx3)
+	err3 = Mint(ctx)
 	require.Nil(t, err3)
 	// checking balance after minting
-	resp8, err3 := contract3.BalanceOf(ctx3,
+	resp8, err3 := contract3.BalanceOf(ctx,
 		&BalanceOfRequest{
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err3)
 
-	err = ctx3.Get(mintingAmountKey, amount1)
+	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	// Minting stops at this stage and total supply becomes constant
 	assert.Equal(t, amount1.Value.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
