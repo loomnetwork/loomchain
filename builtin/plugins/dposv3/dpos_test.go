@@ -2593,6 +2593,8 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 	})
 
 	periodLength := uint64(1000)
+	maxDowntimePercentage := &types.BigUInt{Value: *loom.NewBigUIntFromInt(400)}
+	slightlyMoreThanMaxMissedBlocks := uint64(42)
 	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
 	crashSlashingPercentage := &types.BigUInt{Value: *loom.NewBigUIntFromInt(1500)}
 	dpos, err := deployDPOSContract(pctx, &Params{
@@ -2600,7 +2602,7 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 		RegistrationRequirement: registrationFee,
 		DowntimePeriod:          periodLength,
 		CrashSlashingPercentage: crashSlashingPercentage,
-		MaxDowntimePercentage:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(400)},
+		MaxDowntimePercentage:   maxDowntimePercentage,
 	})
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
@@ -2654,7 +2656,9 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 	assert.Equal(t, 2, len(candidates))
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		if ((uint64(i) % periodLength) < slightlyMoreThanMaxMissedBlocks) {
+			require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		}
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
@@ -2679,7 +2683,9 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 
 	// 7 consecutive downtime periods should incur three slashes
 	for i := int64(0); i < int64(periodLength * 7); i++ {
-		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2))
+		if ((uint64(i) % periodLength) < slightlyMoreThanMaxMissedBlocks) {
+			require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2))
+		}
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
