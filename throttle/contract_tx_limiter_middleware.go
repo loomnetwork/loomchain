@@ -23,8 +23,8 @@ var (
 )
 
 var (
-	tierMapLoadLatency                          metrics.Histogram
-	contractTierMapLoadLatency                  metrics.Histogram
+	tierMapLoadLatency         metrics.Histogram
+	contractTierMapLoadLatency metrics.Histogram
 )
 
 func init() {
@@ -32,14 +32,14 @@ func init() {
 	tierMapLoadLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace:  "loomchain",
 		Subsystem:  "contract_tx_limiter_middleware",
-		Name:       "tier_map_load_latency_seconds",
+		Name:       "tier_map_load_latency",
 		Help:       "Total time taken for Tier Map to Load in seconds.",
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 	contractTierMapLoadLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace:  "loomchain",
 		Subsystem:  "contract_tx_limiter_middleware",
-		Name:       "contract_tier_map_load_latency_seconds",
+		Name:       "contract_tier_map_load_latency",
 		Help:       "Total time taken for Contract Tier Map to Load in seconds.",
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
@@ -116,20 +116,20 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 	blockTx.txn++
 }
 
-func LoadContractTierMap(ctx contractpb.StaticContext) (map[string]udwtypes.TierID, error) {
+func loadContractTierMap(ctx contractpb.StaticContext) (map[string]udwtypes.TierID, error) {
 	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"method", "LoadContractTierMap", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "loadContractTierMap", "error", fmt.Sprint(err != nil)}
 		contractTierMapLoadLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	contractToTierMap, err := udw.GetContractTierMapping(ctx)
 	return contractToTierMap, err
 }
 
-func LoadTierMap(ctx contractpb.StaticContext) (map[udwtypes.TierID]udwtypes.Tier, error) {
+func loadTierMap(ctx contractpb.StaticContext) (map[udwtypes.TierID]udwtypes.Tier, error) {
 	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"method", "LoadTierMap", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "loadTierMap", "error", fmt.Sprint(err != nil)}
 		tierMapLoadLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	tierMap, err := udw.GetTierMap(ctx)
@@ -185,7 +185,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
-			contractToTierMap, err := LoadContractTierMap(ctx)
+			contractToTierMap, err := loadContractTierMap(ctx)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: contractToTierMap creation")
 			}
@@ -205,7 +205,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if er != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
-			txl.tierMap, err = LoadTierMap(ctx)
+			txl.tierMap, err = loadTierMap(ctx)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: GetTierMap error")
 			}
