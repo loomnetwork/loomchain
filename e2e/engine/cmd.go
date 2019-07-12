@@ -254,9 +254,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 			}
 		}
 	}
-	if e.conf.AlwasyApphashCheck {
+	if e.conf.CheckAppHashOnExit {
 		if err := checkapphash(e.conf.Nodes); err != nil {
-			return errors.Wrap(err, "end test apphash check")
+			return errors.Wrap(err, "check apphash on exit")
 		}
 	}
 	return nil

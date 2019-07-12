@@ -20,9 +20,9 @@ import (
 const (
 	loomExeEv = "LOOMEXE_PATH1"
 	loomExe2Ev = "LOOMEXE_ALTPATH"
-	minValidatorsEv = "MIN_VALIDATORS"
-	minAltValidatorsEv = "MIN_ALT_VALIDATORS"
-	alwaysAppHashCheckEV = "ALWAYS_APPHASH_CHECK"
+	ValidatorsEv = "VALIDATORS"
+	AltValidatorsEv = "ALT_VALIDATORS"
+	checkAppHashOnExitEv = "CHECK_APPHASH_ONEXIT"
 	DefaultAltValidators = 0
 )
 
@@ -75,13 +75,12 @@ func NewConfig(
 	conf := lib.Config{
 		Name:        name,
 		BaseDir:     basedirAbs,
-		LoomPath:    "error",
 		ContractDir: contractdirAbs,
 		TestFile:    testFileAbs,
 		Nodes:       make(map[string]*node.Node),
 	}
-	alwaysAppHashChecekEV := os.Getenv(alwaysAppHashCheckEV)
-	conf.AlwasyApphashCheck = len(alwaysAppHashChecekEV) > 0
+	checkAppHashOnExitEV := os.Getenv(checkAppHashOnExitEv)
+	conf.CheckAppHashOnExit = len(checkAppHashOnExitEV) > 0
 
 	if err := os.MkdirAll(conf.BaseDir, os.ModePerm); err != nil {
 		return nil, err
@@ -122,14 +121,11 @@ func NewConfig(
 		tronAccounts = append(tronAccounts, acct)
 	}
 
-	minValidatorsEv := os.Getenv(minValidatorsEv)
+	minValidatorsEv := os.Getenv(ValidatorsEv)
 	if len(minValidatorsEv) > 0 {
-		minValidators, err := strconv.Atoi(minValidatorsEv)
+		validators, err = strconv.Atoi(minValidatorsEv)
 		if err != nil {
 			return nil, err
-		}
-		if minValidators > validators{
-			validators = minValidators
 		}
 	}
 	var nodes []*node.Node
@@ -150,14 +146,11 @@ func NewConfig(
 		return nil, err
 	}
 	altValidators := DefaultAltValidators
-	minAltValidatorsEv := os.Getenv(minAltValidatorsEv)
+	minAltValidatorsEv := os.Getenv(AltValidatorsEv)
 	if len(minAltValidatorsEv) > 0 {
-		minAltValidators, err := strconv.Atoi(minAltValidatorsEv)
+		altValidators, err = strconv.Atoi(minAltValidatorsEv)
 		if err != nil {
 			return nil, err
-		}
-		if minAltValidators > altValidators{
-			altValidators = minAltValidators
 		}
 	}
 	for i := validators; i < validators + altValidators; i++ {
