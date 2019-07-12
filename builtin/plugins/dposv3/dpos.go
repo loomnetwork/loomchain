@@ -1340,7 +1340,6 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 }
 
 func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListReferrers", "request", req)
 	referrerRange := ctx.Range([]byte(referrerPrefix))
 	referrers := make([]*Referrer, 0)
 	for _, referrer := range referrerRange {
