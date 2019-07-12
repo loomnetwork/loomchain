@@ -24,6 +24,7 @@ const (
 type (
 	InitRequest          = ctypes.InitRequest
 	MintToGatewayRequest = ctypes.MintToGatewayRequest
+	MintToDPOSRequest    = ctypes.MintToDPOSRequest
 	TotalSupplyRequest   = ctypes.TotalSupplyRequest
 	TotalSupplyResponse  = ctypes.TotalSupplyResponse
 	BalanceOfRequest     = ctypes.BalanceOfRequest
@@ -42,8 +43,7 @@ type (
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
-
-	BurnRequest = ctypes.BurnRequest
+	BurnRequest          = ctypes.BurnRequest
 )
 
 var (
@@ -118,6 +118,22 @@ func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) er
 
 	return mint(ctx, gatewayAddr, &req.Amount.Value)
 }
+
+
+// MintToDPOS adds loom coins to the loom coin DPOS contract balance, and updates the total supply.
+func (c *Coin) MintToDPOS(ctx contract.Context, req *MintToDPOSRequest) error {
+	dposAddr, err := ctx.Resolve("dposV3")
+	if err != nil {
+		return errUtil.Wrap(err, "failed to mint Loom coin")
+	}
+
+	if ctx.Message().Sender.Compare(dposAddr) != 0 {
+		return errors.New("not authorized to mint Loom coin")
+	}
+
+	return mint(ctx, dposAddr, &req.Amount.Value)
+}
+
 
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
 	if req.Owner == nil || req.Amount == nil {
