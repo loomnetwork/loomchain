@@ -2528,10 +2528,8 @@ func TestDowntimeSlashing(t *testing.T) {
 	assert.Equal(t, 1, len(candidates))
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
-		require.Nil(t, err)
-		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		require.Nil(t, err)
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
 	rec1, err := dpos.DowntimeRecord(pctx, &addr1)
@@ -2539,10 +2537,8 @@ func TestDowntimeSlashing(t *testing.T) {
 	assert.Equal(t, []uint64{periodLength - 1, periodLength, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
 
 	for i := int64(0); i < int64(periodLength); i++ {
-		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
-		require.Nil(t, err)
-		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		require.Nil(t, err)
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
 	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
@@ -2550,10 +2546,8 @@ func TestDowntimeSlashing(t *testing.T) {
 	require.True(t, statistic.SlashPercentage.Value.Cmp(&defaultInactivitySlashPercentage) == 0)
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
-		require.Nil(t, err)
-		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		require.Nil(t, err)
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
 	// the offline validator should have been slashed an additional 4 times (for
@@ -2598,13 +2592,14 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 		},
 	})
 
-	periodLength := uint64(10)
+	periodLength := uint64(1000)
 	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	crashSlashingPercentage := &types.BigUInt{Value: *loom.NewBigUIntFromInt(1500)}
 	dpos, err := deployDPOSContract(pctx, &Params{
 		ValidatorCount:          2,
 		RegistrationRequirement: registrationFee,
 		DowntimePeriod:          periodLength,
-		CrashSlashingPercentage:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(1500)},
+		CrashSlashingPercentage: crashSlashingPercentage,
 		MaxDowntimePercentage:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(400)},
 	})
 	require.Nil(t, err)
@@ -2659,56 +2654,74 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 	assert.Equal(t, 2, len(candidates))
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
-		require.Nil(t, err)
-		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		require.Nil(t, err)
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
 	for i := int64(0); i < int64(periodLength); i++ {
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2)
-		require.Nil(t, err)
-		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		require.Nil(t, err)
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
-	/*
+	for i := 0; i < 4; i++ {
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates))
+	}
+
 	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
-	require.True(t, statistic.SlashPercentage.Value.Cmp(&defaultInactivitySlashPercentage) == 0)
+	require.True(t, statistic.SlashPercentage.Value.Cmp(&crashSlashingPercentage.Value) == 0)
 
-	for i := int64(0); i < int64(periodLength*4); i++ {
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
-		require.Nil(t, err)
-		ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
+	require.Nil(t, err)
+	require.True(t, common.IsZero(statistic.SlashPercentage.Value))
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// 7 consecutive downtime periods should incur three slashes
+	for i := int64(0); i < int64(periodLength * 7); i++ {
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
-	// the offline validator should have been slashed an additional 4 times (for
-	// a total of 5 slashes) after 8 consecutive periods of downtime
-	expectedSlashPercentage := defaultInactivitySlashPercentage.Mul(loom.NewBigUIntFromInt(5), &defaultInactivitySlashPercentage)
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
+	require.Nil(t, err)
+	expectedSlashPercentage := defaultInactivitySlashPercentage.Mul(loom.NewBigUIntFromInt(3), &crashSlashingPercentage.Value)
+	require.True(t, statistic.SlashPercentage.Value.Cmp(expectedSlashPercentage) == 0)
+
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
-	require.True(t, statistic.SlashPercentage.Value.Cmp(expectedSlashPercentage) == 0)
+	require.True(t, common.IsZero(statistic.SlashPercentage.Value))
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
 	// verify that slashingPercentage is rest to zero after election
-	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
 	require.Nil(t, err)
-	require.True(t, statistic.SlashPercentage.Value.Cmp(common.BigZero()) == 0)
+	require.True(t, common.IsZero(statistic.SlashPercentage.Value))
 
-	// verify that 5% of self-delegation was removed via slashing
+	// verify that 15% of addr1's self-delegation was removed via slashing
 	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr1)
 	require.Nil(t, err)
-	expectedSlashedDelegation := CalculateFraction(*loom.NewBigUIntFromInt(9500), registrationFee.Value)
+	expectedSlashedDelegation := CalculateFraction(*loom.NewBigUIntFromInt(8500), registrationFee.Value)
 	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
 
-	// verify that 5% of third-party delegation was removed via slashing
+	// verify that 15% of addr1's third-party delegation was removed via slashing
 	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
 	require.Nil(t, err)
-	expectedSlashedDelegation = CalculateFraction(*loom.NewBigUIntFromInt(9500), loom.BigUInt{delegationAmount})
+	expectedSlashedDelegation = CalculateFraction(*loom.NewBigUIntFromInt(8500), loom.BigUInt{delegationAmount})
 	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
-	*/
+
+	// verify that 55% of addr2's self-delegation was removed via slashing
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr2, &addr2)
+	require.Nil(t, err)
+	expectedSlashedDelegation = CalculateFraction(*loom.NewBigUIntFromInt(5500), registrationFee.Value)
+	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
+
+	// verify that 55% of addr2's third-party delegation was removed via slashing
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr2, &delegatorAddress1)
+	require.Nil(t, err)
+	expectedSlashedDelegation = CalculateFraction(*loom.NewBigUIntFromInt(5500), loom.BigUInt{delegationAmount})
+	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
 }
 
 func TestJailOfflineValidators(t *testing.T) {
