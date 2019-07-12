@@ -260,7 +260,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
 		return errors.Wrap(err, "failed to remove deployer")
 	}
-	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
+	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
 		var userDeployer UserDeployerState
 		if err := ctx.Get(deployerStateKey(deployerAddr), &userDeployer); err != nil {
 			return errors.Wrap(err, "Failed to Get Deployer State")
@@ -269,12 +269,12 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 		if err := ctx.Set(deployerStateKey(deployerAddr), &userDeployer); err != nil {
 			return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
 		}
-	} else {
-		if !ctx.Has(deployerStateKey(deployerAddr)) {
-			return ErrDeployerDoesNotExist
-		}
-		ctx.Delete(deployerStateKey(deployerAddr))
+		return nil
 	}
+	if !ctx.Has(deployerStateKey(deployerAddr)) {
+		return ErrDeployerDoesNotExist
+	}
+	ctx.Delete(deployerStateKey(deployerAddr))
 	return nil
 }
 
@@ -326,9 +326,6 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 			return &GetDeployedContractsResponse{}, nil
 		}
 		return nil, errors.Wrap(err, "Failed to load whitelisted deployers state")
-	}
-	if userDeployer.Inactive {
-		return nil, errors.Wrap(err, "Deployer is inactive")
 	}
 	return &GetDeployedContractsResponse{
 		ContractAddresses: userDeployer.Contracts,
