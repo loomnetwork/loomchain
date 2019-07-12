@@ -1,7 +1,7 @@
 package dposv3
 
 import (
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -90,3 +90,19 @@ func (c *ERC20) Approve(spender loom.Address, amount *loom.BigUInt) error {
 
 	return nil
 }
+
+// MintToDPOS adds loom coins to the loom coin DPOS contract balance, and updates the total supply.
+func (c *ERC20) MintToDPOS(amount *loom.BigUInt) error {
+	req := &coin.MintToDPOSRequest{
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	}
+	err := contract.CallMethod(c.Context, c.ContractAddress, "MintToDPOS", req, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
