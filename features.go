@@ -44,6 +44,9 @@ const (
 	// Enables post commit middleware for user-deployer-whitelist
 	UserDeployerWhitelistFeature = "mw:userdeploy-wl"
 
+	// Enables block range & max txs fields in tier info stored in User Deployer Whitelist contract
+	UserDeployerWhitelistVersion1_1Feature = "userdeploy-wl:v1.1"
+
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
 
@@ -68,4 +71,7 @@ const (
 	AuxEvmDBFeature = "db:auxevm"
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
+
+	// Enable option to allow checking the registry error
+	DeployTxVersion1_1Feature = "deploytx:v1.1"
 )

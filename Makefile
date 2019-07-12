@@ -75,7 +75,7 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
-E2E_TESTS_TIMEOUT = 28m
+E2E_TESTS_TIMEOUT = 35m
 
 .PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
@@ -201,8 +201,8 @@ $(BINANCE_TGORACLE_DIR):
 	git clone -q git@github.com:loomnetwork/binace-tgoracle.git $@
 	cd $(BINANCE_TGORACLE_DIR) && git checkout master && git pull && git checkout $(BINANCE_TG_GIT_REV)
 
-validators-tool:
-	go build -o e2e/validators-tool $(PKG)/e2e/cmd
+validators-tool: $(TRANSFER_GATEWAY_DIR)
+	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	go get \
@@ -261,9 +261,6 @@ test-e2e:
 test-e2e-race:
 	go test -race -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(PKG)/e2e
 
-test-app-store-race:
-	go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestMultiReaderIAVLStore
-	#go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestIAVLStoreTestSuite
 
 vet:
 	go vet ./...
