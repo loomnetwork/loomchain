@@ -58,6 +58,7 @@ var (
 	economyKey       = []byte("economy")
 	policyKey        = []byte("policy")
 	mintingAmountKey = []byte("mintingAmount")
+	mintingHeightKey = []byte("mintingHeight")
 	decimals         = 18
 )
 
@@ -275,79 +276,152 @@ func Mint(ctx contract.Context) error {
 	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
 	basePercentage := loom.NewBigUIntFromInt(int64(policy.BasePercentage))
 	operator := policy.Operator
-	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height), big.NewInt(int64(policy.BlocksGeneratedPerYear)), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
-	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	//Checks if minting amount is computed before or it is being computed for first time
 	var checkMintAmount = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
-	//Checks if minting amount is computed before or it is being computed for first time
 	err = ctx.Get(mintingAmountKey, checkMintAmount)
 	if err != nil && err != contract.ErrNotFound {
 		return err
 	}
+	if err == contract.ErrNotFound {
+		err := ctx.Set(mintingHeightKey, &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(ctx.Block().Height),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	var mintingHeight = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err1 := ctx.Get(mintingHeightKey, mintingHeight)
+	if err1 != nil {
+		return err1
+	}
+
+	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height-mintingHeight.Value.Int64()),
+		big.NewInt(int64(policy.BlocksGeneratedPerYear)), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
+	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
 	//Minting Amount per block is set in ctx after minting amount is determined for year
 	if year.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		//Determines minting amount at the beginning block of year or at block height at which minting is enabled
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
 			//Minting Amount Computation for starting year
-			amount = baseAmount.Div(baseAmount, blocksGeneratedPerYear)
-			err = ctx.Set(mintingAmountKey, &types.BigUInt{
-				Value: *amount,
-			})
+			amount, err = ComputeforFirstYear(ctx, baseAmount, blocksGeneratedPerYear)
 			if err != nil {
-				return err
+				return errUtil.Wrap(err, "Failed Minting Block Configuration for first year")
 			}
 		}
 	} else {
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
 			//Operator Support to support different inflation ratio patterns for different year
 			if strings.EqualFold("div", operator) {
-				changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
-				basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+				amount, err = ComputeforConsecutiveYearBeginningDivOperator(ctx, baseAmount, changeRatioNumerator,
+					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, year)
+				if err != nil {
+					return errUtil.Wrap(err, "Failed Minting Block Configuration for div operator")
+				}
 			} else if strings.EqualFold("exp", operator) {
-				changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
-				changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
-				basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+				amount, err = ComputeforConsecutiveYearBeginningExpOperator(ctx, baseAmount, changeRatioNumerator,
+					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, year)
+				if err != nil {
+					return errUtil.Wrap(err, "Failed Minting Block Configuration for exp operator")
+				}
 			} else {
 				return errors.New("Invalid operator - Operator should be div or exp")
 			}
-			var econ Economy
-			err := ctx.Get(economyKey, &econ)
-			if err != nil {
-				return err
-			}
-			//Fetches Total Supply from coin contract and applies inflation ratio on total Supply- Happens at
-			//beginning block for that year or block height at which minting is enabled
-			baseAmount = &econ.TotalSupply.Value
-			inflationforYear := baseAmount.Mul(baseAmount, basePercentage)
-			if  changeRatioDenominator.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
-				return errors.New("ChangeRatioDenominator should be greater than zero")
-			}
-			inflationforYear = inflationforYear.Div(inflationforYear, changeRatioDenominator)
-			inflationforYear = inflationforYear.Div(inflationforYear, loom.NewBigUIntFromInt(100))
-			amount = inflationforYear.Div(inflationforYear, blocksGeneratedPerYear)
-			//Minting Amount per block computed starting from beginning block of that year and saved to avoid re-computations
-			err = ctx.Set(mintingAmountKey, &types.BigUInt{
-				Value: *amount,
-			})
-			if err != nil {
-				return err
-			}
+		} else {
+			amount, err = ComputeforConsecutiveYearinMiddle(ctx)
+
 		}
 	}
+	//Boundary case when minting amount per block becomes zero
+	if amount.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+		return nil // No more coins to be minted on block creation
+	}
+	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
+}
+
+func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt, blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
+	amount := baseAmount.Div(baseAmount, blocksGeneratedPerYear)
+	err := ctx.Set(mintingAmountKey, &types.BigUInt{
+		Value: *amount,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return amount, nil
+}
+
+func ComputeforConsecutiveYearBeginningDivOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
+	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
+	changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+	basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+	inflationforYear, err := ComputeInflationForYear(ctx, baseAmount, changeRatioDenominator, basePercentage)
+	if err != nil {
+		return nil, err
+	}
+	amount = inflationforYear.Div(inflationforYear, blocksGeneratedPerYear)
+	//Minting Amount per block computed starting from beginning block of that year and saved to avoid re-computations
+	err = ctx.Set(mintingAmountKey, &types.BigUInt{
+		Value: *amount,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return amount, nil
+}
+
+func ComputeforConsecutiveYearBeginningExpOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
+	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt,
+	amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
+	changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+	changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+	basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+	inflationforYear, err := ComputeInflationForYear(ctx, baseAmount, changeRatioDenominator, basePercentage)
+	if err != nil {
+		return nil, err
+	}
+	amount = inflationforYear.Div(inflationforYear, blocksGeneratedPerYear)
+	//Minting Amount per block computed starting from beginning block of that year and saved to avoid re-computations
+	err = ctx.Set(mintingAmountKey, &types.BigUInt{
+		Value: *amount,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return amount, nil
+
+}
+
+func ComputeforConsecutiveYearinMiddle(ctx contract.Context) (*common.BigUInt, error) {
 	var mintingAmount = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
 	}
-	//Minting Amount Per block derived from ctx after minting amount is determined for year
-	err = ctx.Get(mintingAmountKey, mintingAmount)
+	err := ctx.Get(mintingAmountKey, mintingAmount)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	//Boundary case when minting amount per block becomes zero
-	if mintingAmount.Value.Int64() == 0 {
-		return nil // No more coins to be minted on block creation
+	return loom.NewBigUIntFromInt(mintingAmount.Value.Int64()), nil
+}
+
+func ComputeInflationForYear(ctx contract.Context, baseAmount *common.BigUInt, changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt) (*common.BigUInt, error) {
+	var econ Economy
+	err := ctx.Get(economyKey, &econ)
+	if err != nil {
+		return nil, err
 	}
-	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), loom.NewBigUIntFromInt(mintingAmount.Value.Int64()))
+	//Fetches Total Supply from coin contract and applies inflation ratio on total Supply- Happens at
+	//beginning block for that year or block height at which minting is enabled
+	baseAmount = &econ.TotalSupply.Value
+	inflationforYear := baseAmount.Mul(baseAmount, basePercentage)
+	if changeRatioDenominator.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+		return nil, errors.New("ChangeRatioDenominator should be greater than zero")
+	}
+	inflationforYear = inflationforYear.Div(inflationforYear, changeRatioDenominator)
+	inflationforYear = inflationforYear.Div(inflationforYear, loom.NewBigUIntFromInt(100))
+	return inflationforYear, nil
 }
 
 // ERC20 methods
