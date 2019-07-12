@@ -19,9 +19,11 @@ import (
 
 const (
 	loomExeEv = "LOOMEXE_PATH1"
-	loomExe2Ev = "LOOMEXE_PATH2"
+	loomExe2Ev = "LOOMEXE_ALTPATH"
 	minValidatorsEv = "MIN_VALIDATORS"
 	minAltValidatorsEv = "MIN_ALT_VALIDATORS"
+	alwaysAppHashCheckEV = "ALWAYS_APPHASH_CHECK"
+	DefaultAltValidators = 0
 )
 
 var (
@@ -41,7 +43,7 @@ var (
 
 func NewConfig(
 	name, testFile, genesisTmpl, yamlFile string,
-	validators, account, numEthAccounts, altValidators int,
+	validators, account, numEthAccounts int,
 	useFnConsensus bool,
 ) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
@@ -78,6 +80,8 @@ func NewConfig(
 		TestFile:    testFileAbs,
 		Nodes:       make(map[string]*node.Node),
 	}
+	alwaysAppHashChecekEV := os.Getenv(alwaysAppHashCheckEV)
+	conf.AlwasyApphashCheck = len(alwaysAppHashChecekEV) > 0
 
 	if err := os.MkdirAll(conf.BaseDir, os.ModePerm); err != nil {
 		return nil, err
@@ -145,14 +149,15 @@ func NewConfig(
 	if err != nil {
 		return nil, err
 	}
+	altValidators := DefaultAltValidators
 	minAltValidatorsEv := os.Getenv(minAltValidatorsEv)
 	if len(minAltValidatorsEv) > 0 {
 		minAltValidators, err := strconv.Atoi(minAltValidatorsEv)
 		if err != nil {
 			return nil, err
 		}
-		if minAltValidators > validators{
-			validators = minAltValidators
+		if minAltValidators > altValidators{
+			altValidators = minAltValidators
 		}
 	}
 	for i := validators; i < validators + altValidators; i++ {

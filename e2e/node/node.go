@@ -243,6 +243,7 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	cmd.Stdout = os.Stdout
 	errC := make(chan error)
 	go func() {
+		fmt.Println("PIERS STARTING node", cmd.Path)
 		errC <- cmd.Run()
 	}()
 

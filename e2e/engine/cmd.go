@@ -84,50 +84,8 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		// special command to check app hash
 		if n.RunCmd == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
-			time.Sleep(time.Second * 1)
-			fmt.Printf("--> run all: %v \n", "checkapphash")
-			var apphash = make(map[string]struct{})
-			var lastBlockHeight int64
-			for _, v := range e.conf.Nodes {
-				u := fmt.Sprintf("%s/abci_info", v.RPCAddress)
-				resp, err := http.Get(u)
-				if err != nil {
-					return err
-				}
-				defer resp.Body.Close()
-				if resp.StatusCode != 200 {
-					respBytes, _ := ioutil.ReadAll(resp.Body)
-					return fmt.Errorf("post status not OK: %s, response body: %s", resp.Status, string(respBytes))
-				}
-				var info = struct {
-					JSONRPC string `json:"jsonrpc"`
-					ID      string `json:"id"`
-					Result  struct {
-						Response abciResponseInfo2 `json:"response"`
-					} `json:"result"`
-				}{}
-
-				err = json.NewDecoder(resp.Body).Decode(&info)
-				if err != nil {
-					return err
-				}
-				newLastBlockHeight, err := strconv.ParseInt(info.Result.Response.LastBlockHeight, 10, 64)
-				if err != nil {
-					return err
-				}
-				if lastBlockHeight == 0 {
-					lastBlockHeight = newLastBlockHeight
-				}
-				if lastBlockHeight == newLastBlockHeight {
-					apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
-					fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
-				}
-			}
-
-			// apphash should has only 1 entry
-			// this might not be true if network latency is hight
-			if len(apphash) != 1 {
-				return fmt.Errorf("Wrong Block.Header.AppHash")
+			if err := checkapphash(e.conf.Nodes); err != nil {
+				return errors.Wrap(err, "checking apphash")
 			}
 			continue
 		}
@@ -144,7 +102,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					if err != nil {
 						return err
 					}
-
+					//if strings.Contains(cmd.Path, "loom2") {
+					//	continue
+					//}
 					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(cmd.Args, " "))
 					if n.Delay > 0 {
 						time.Sleep(time.Duration(n.Delay) * time.Millisecond)
@@ -294,7 +254,60 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 			}
 		}
 	}
+	if e.conf.AlwasyApphashCheck {
+		if err := checkapphash(e.conf.Nodes); err != nil {
+			return errors.Wrap(err, "end test apphash check")
+		}
+	}
+	return nil
+}
 
+func checkapphash(nodes map[string]*node.Node ) error {
+	time.Sleep(time.Second * 1)
+	fmt.Printf("--> run all: %v \n", "checkapphash")
+	var apphash = make(map[string]struct{})
+	var lastBlockHeight int64
+	for _, v := range nodes {
+		u := fmt.Sprintf("%s/abci_info", v.RPCAddress)
+		resp, err := http.Get(u)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			respBytes, _ := ioutil.ReadAll(resp.Body)
+			return fmt.Errorf("post status not OK: %s, response body: %s", resp.Status, string(respBytes))
+		}
+		var info = struct {
+			JSONRPC string `json:"jsonrpc"`
+			ID      string `json:"id"`
+			Result  struct {
+				Response abciResponseInfo2 `json:"response"`
+			} `json:"result"`
+		}{}
+
+		err = json.NewDecoder(resp.Body).Decode(&info)
+		if err != nil {
+			return err
+		}
+		newLastBlockHeight, err := strconv.ParseInt(info.Result.Response.LastBlockHeight, 10, 64)
+		if err != nil {
+			return err
+		}
+		if lastBlockHeight == 0 {
+			lastBlockHeight = newLastBlockHeight
+		}
+		if lastBlockHeight == newLastBlockHeight {
+			apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
+			fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
+		}
+	}
+
+	// apphash should have only 1 entry
+	// this might not be true if network latency is hight
+	if len(apphash) != 1 {
+		return fmt.Errorf("Wrong Block.Header.AppHash")
+	}
 	return nil
 }
 
