@@ -1339,8 +1339,8 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 
 func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
 	sender := ctx.Message().Sender
-	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
-		return errors.New("DPOS v3.3 is not enabled")
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		return errors.New("DPOS v3.4 is not enabled")
 	}
 
 	state, err := LoadState(ctx)
@@ -1348,7 +1348,7 @@ func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidator
 		return err
 	}
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
-		return logDposError(ctx, errOnlyOracle, req.String())
+		return errors.New("Invalid Oracle Address")
 	}
 	if state.Params.JailOfflineValidators == req.JailOfflineValidators {
 		return nil
@@ -1390,7 +1390,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, enableJailOffline bool, validatorAddr loom.Address) error {
+func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, jailingEnabled bool, validatorAddr loom.Address) error {
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
@@ -1404,7 +1404,14 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, enableJai
 	)
 
 	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) && enableJailOffline {
+	jailOfflineValidator := false
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		jailOfflineValidator = true
+	}
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		jailOfflineValidator = jailingEnabled
+	}
+	if jailOfflineValidator {
 		downtime := getDowntimeRecord(ctx, statistic)
 		if downtime.Periods[0] == downtimePeriod &&
 			downtime.Periods[1] == downtimePeriod &&
