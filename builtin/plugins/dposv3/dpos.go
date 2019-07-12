@@ -1341,16 +1341,16 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 
 func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
 	referrerRange := ctx.Range([]byte(referrerPrefix))
-	referrers := make([]*Referrer, 0)
+	referrers := make([]*Referrer, 0, len(referrerRange))
 	for _, referrer := range referrerRange {
-		var r Referrer
 		var addr types.Address
 		if err := proto.Unmarshal(referrer.Value, &addr); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal referrer %s", string(referrer.Key))
 		}
-		r.ReferrerAddress = &addr
-		r.Name = string(referrer.Key)
-		referrers = append(referrers, &r)
+		referrers = append(referrers, &Referrer{
+			ReferrerAddress: &addr,
+			Name:            string(referrer.Key),
+		})
 	}
 	return &ListReferrersResponse{
 		Referrers: referrers,
