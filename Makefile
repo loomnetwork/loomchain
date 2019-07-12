@@ -261,9 +261,6 @@ test-e2e:
 test-e2e-race:
 	go test -race -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(PKG)/e2e
 
-test-app-store-race:
-	go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestMultiReaderIAVLStore
-	#go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestIAVLStoreTestSuite
 
 vet:
 	go vet ./...
