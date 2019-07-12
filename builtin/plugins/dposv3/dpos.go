@@ -151,6 +151,10 @@ type (
 	BatchRequest                = dtypes.BatchRequest
 	BatchRequestMeta            = dtypes.BatchRequestMeta
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
+	MintVoucherRequest          = dtypes.MintVoucherRequest
+	MintVoucherResponse         = dtypes.MintVoucherResponse
+	MintVoucherERC20Request     = dtypes.MintVoucherERC20Request
+	MintVoucherERC20Response    = dtypes.MintVoucherERC20Response
 )
 
 type DPOS struct {
@@ -291,6 +295,63 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 	return c.emitDelegatorDelegatesEvent(ctx, delegation)
 }
+
+//MintVouchers method to the DPOS contract that can be called only by delegators - Mints Loom Coin
+func (c *DPOS) MintVoucher(ctx contract.Context, req *MintVoucherRequest) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(sender) == 0 {
+			coin, err := loadCoin(ctx)
+			if err != nil {
+				return err
+			}
+			err = coin.MintToDPOS(&req.Amount.Value)
+			if err != nil {
+				return err
+			}
+			err = coin.TransferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator), &req.Amount.Value)
+			if err != nil {
+				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
+				return logDposError(ctx, err, transferFromErr)
+			}
+			break
+		}
+	}
+	return nil
+}
+
+//MintVouchersERC20 method to the DPOS contract that can be called only by delegators - Mints Generic ERC20 Token
+func (c *DPOS) MintVoucherERC20(ctx contract.Context, req *MintVoucherERC20Request) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(sender) == 0 {
+			erc20, err := loadERC20Token(ctx, loom.UnmarshalAddressPB(req.TokenAddress))
+			if err != nil {
+				return err
+			}
+			err = erc20.mintToDPOS(req.Amount.Value.Int)
+			if err != nil {
+				return err
+			}
+			err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator), req.Amount.Value.Int)
+			if err != nil {
+				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
+				return logDposError(ctx, err, transferFromErr)
+			}
+			break
+		}
+	}
+	return nil
+}
+
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	delegator := ctx.Message().Sender
@@ -1520,6 +1581,12 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 		ContractAddress: coinAddr,
 	}, nil
 }
+
+
+func loadERC20Token(ctx contract.Context, tokenAddr loom.Address) (*erc20Context, error) {
+	erc20 := newERC20Context(ctx, tokenAddr)
+    return erc20,nil
+	}
 
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
