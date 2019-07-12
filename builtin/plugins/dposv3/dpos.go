@@ -1340,6 +1340,9 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 }
 
 func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+		return nil, errors.New("DPOS v3.5 is not enabled")
+	}
 	referrerRange := ctx.Range([]byte(referrerPrefix))
 	referrers := make([]*Referrer, 0, len(referrerRange))
 	for _, referrer := range referrerRange {

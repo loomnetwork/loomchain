@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-  
+
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
@@ -141,11 +141,16 @@ func ListCandidatesCmdV3() *cobra.Command {
 	return cmd
 }
 
+const listReferrersCmdExample = `
+loom dpos3 list-referrers 
+`
+
 func ListReferrersCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "list-referrers",
-		Short: "List all registered referrers",
+		Use:     "list-referrers",
+		Short:   "List all registered referrers",
+		Example: listReferrersCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv3.ListReferrersResponse
 			err := cli.StaticCallContractWithFlags(
@@ -166,10 +171,10 @@ func ListReferrersCmdV3() *cobra.Command {
 				}
 			}
 
-			fmt.Printf("%-*s | %-*s |\n", ml.Name, "referrer name", ml.Address, "address")
-			fmt.Printf(strings.Repeat("-", ml.Name+ml.Address+5) + "\n")
+			fmt.Printf("%-*s | %-*s \n", ml.Name, "referrer name", ml.Address, "address")
+			fmt.Printf(strings.Repeat("-", ml.Name+ml.Address+4) + "\n")
 			for _, r := range resp.Referrers {
-				fmt.Printf("%-*s | %-*s |"+"\n", ml.Name, r.Name, ml.Address, loom.UnmarshalAddressPB(r.GetReferrerAddress()).String())
+				fmt.Printf("%-*s | %-*s "+"\n", ml.Name, r.Name, ml.Address, loom.UnmarshalAddressPB(r.GetReferrerAddress()).String())
 			}
 
 			return nil
