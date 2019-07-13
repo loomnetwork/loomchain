@@ -229,13 +229,14 @@ func TestMintDivOperator(t *testing.T) {
 	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	// Minting amount for block for year 1 for blockheight 1
+    //ctx is kept same to keep into account minting height
 	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
 		Height:  50002,
 	}))
-	//Minting will start in year 2 starting from BlockHeight 50002
+	//Minting in year 2 for BlockHeight 50002
 	contract1 := &Coin{}
 	err1 := contract1.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -268,7 +269,6 @@ func TestMintDivOperator(t *testing.T) {
 		Value: *loom.NewBigUIntFromInt(0),
 	}
 	err = ctx.Get(mintingAmountKey, amount1)
-	testAmount := amount1.Value.Uint64()
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
@@ -276,7 +276,7 @@ func TestMintDivOperator(t *testing.T) {
 		Time:    time.Now().Unix(),
 		Height:  100002,
 	}))
-	//Minting will start in year 3 from BlockHeight 100002
+	//Minting in year 3 at BlockHeight 100002
 	contract2 := &Coin{}
 	err2 := contract2.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -351,7 +351,7 @@ func TestMintDivOperator(t *testing.T) {
 	assert.Equal(t, amount1.Value.Uint64(), uint64(0))
 
 	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
-	// not from year 2 beginning
+	// not from year 2 beginning. Please note here operator will not apply as minting is being done for the first time
 	pctx7 := plugin.CreateFakeContext(addr1, addr1)
 	pctx7.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx7 := contractpb.WrapPluginContext(pctx7.WithBlock(loom.BlockHeader{
@@ -359,7 +359,6 @@ func TestMintDivOperator(t *testing.T) {
 		Time:    time.Now().Unix(),
 		Height:  50003,
 	}))
-	//Minting will start in year 2 starting from BlockHeight 50001
 	contract5 := &Coin{}
 	err5 := contract5.Init(ctx7, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -394,9 +393,7 @@ func TestMintDivOperator(t *testing.T) {
 	err = ctx7.Get(mintingAmountKey, amount5)
 	require.Nil(t, err)
 	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
-	//Minting Amount at height h for second year is considered to be equal to minting Amnount for first block of
-	// second year as Total Supply at both stages is assumed to be same, but in practical scenario it might be different
-	assert.Equal(t, amount5.Value.Uint64(), testAmount)
+
 
 }
 
@@ -459,7 +456,7 @@ func TestMintExpOperator(t *testing.T) {
 		Time:    time.Now().Unix(),
 		Height:  50002,
 	}))
-	//Minting will start in year 2 starting from BlockHeight 50002
+	//Minting at BlockHeight 50002
 	contract1 := &Coin{}
 	err1 := contract1.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -492,7 +489,6 @@ func TestMintExpOperator(t *testing.T) {
 		Value: *loom.NewBigUIntFromInt(0),
 	}
 	err = ctx.Get(mintingAmountKey, amount1)
-	testAmount := amount1.Value.Uint64()
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
 
@@ -501,7 +497,7 @@ func TestMintExpOperator(t *testing.T) {
 		Time:    time.Now().Unix(),
 		Height:  100002,
 	}))
-	//Minting will start in year 3 starting from BlockHeight 100002
+	//Minting at BlockHeight 100002
 	contract2 := &Coin{}
 	err2 := contract2.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -576,7 +572,7 @@ func TestMintExpOperator(t *testing.T) {
 	assert.Equal(t, amount1.Value.Uint64(), uint64(0))
 
 	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
-	// not from year 2 beginning
+	// not from year 2 beginning, Please note here operator will not apply as minting is being done for the first time
 	pctx5 := plugin.CreateFakeContext(addr1, addr1)
 	pctx5.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx5 := contractpb.WrapPluginContext(pctx5.WithBlock(loom.BlockHeader{
@@ -584,7 +580,6 @@ func TestMintExpOperator(t *testing.T) {
 		Time:    time.Now().Unix(),
 		Height:  50003,
 	}))
-	//Minting will start in year 2 starting from BlockHeight 50001
 	contract5 := &Coin{}
 	err5 := contract5.Init(ctx5, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -619,9 +614,6 @@ func TestMintExpOperator(t *testing.T) {
 	err = ctx5.Get(mintingAmountKey, amount5)
 	require.Nil(t, err)
 	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
-	//Minting Amount at height h for second year is considered to be equal to minting Amnount for first block of
-	// second year as Total Supply at both stages is assumed to be same, but in practical scenario it might be different
-	assert.Equal(t, amount5.Value.Uint64(), testAmount)
 }
 
 func TestTransfer(t *testing.T) {
