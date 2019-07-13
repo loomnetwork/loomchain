@@ -298,44 +298,42 @@ func Mint(ctx contract.Context) error {
 	if err1 != nil {
 		return err1
 	}
-
 	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height-mintingHeight.Value.Int64()),
 		big.NewInt(int64(policy.BlocksGeneratedPerYear)), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
 	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
 	//Minting Amount per block is set in ctx after minting amount is determined for year
 	if year.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
-		//Determines minting amount at the beginning block of year or at block height at which minting is enabled
-		if loom.NewBigUIntFromInt(ctx.Block().Height).Cmp(blocksGeneratedPerYear) < 0 {
-			if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
-				//Minting Amount Computation for starting year
-				amount, err = ComputeforFirstYear(ctx, baseAmount, blocksGeneratedPerYear)
-				if err != nil {
-					return errUtil.Wrap(err, "Failed Minting Block Configuration for first year")
-				}
-			}
-		} else {
-			amount, err = ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx, baseAmount, basePercentage, blocksGeneratedPerYear)
+		//Determines minting amount at the beginning block of blockchain or at block height at which minting is enabled
+		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
+			//Minting Amount Computation for starting year
+			amount, err = ComputeforFirstYear(ctx, baseAmount, blocksGeneratedPerYear)
 			if err != nil {
-				return errUtil.Wrap(err, "Failed Minting Block Configuration for first year")
+				return errUtil.Wrap(err, "Failed Minting Block for first year")
 			}
 		}
+
 	} else {
-		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
+		if modulus.Cmp(big.NewInt(1)) == 0 && err != contract.ErrNotFound {
 			//Operator Support to support different inflation ratio patterns for different year
 			if strings.EqualFold("div", operator) {
 				amount, err = ComputeforConsecutiveYearBeginningDivOperator(ctx, baseAmount, changeRatioNumerator,
 					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, year)
 				if err != nil {
-					return errUtil.Wrap(err, "Failed Minting Block Configuration for div operator")
+					return errUtil.Wrap(err, "Failed Minting Block with div operator for consecutive year")
 				}
 			} else if strings.EqualFold("exp", operator) {
 				amount, err = ComputeforConsecutiveYearBeginningExpOperator(ctx, baseAmount, changeRatioNumerator,
 					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, year)
 				if err != nil {
-					return errUtil.Wrap(err, "Failed Minting Block Configuration for exp operator")
+					return errUtil.Wrap(err, "Failed Minting Block Configuration with exp operator for consecutive year")
 				}
 			} else {
 				return errors.New("Invalid operator - Operator should be div or exp")
+			}
+		} else if err == contract.ErrNotFound {
+			amount, err = ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx, baseAmount, basePercentage, blocksGeneratedPerYear)
+			if err != nil {
+				return errUtil.Wrap(err, "Failed Minting Block Configuration for exp operator")
 			}
 		} else {
 			amount, err = ComputeforConsecutiveYearinMiddle(ctx)
