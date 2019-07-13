@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
+	"sort"
 )
 
 type (
@@ -248,6 +249,9 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 			})
 		}
 	}
+	sort.Slice(features, func(i, j int) bool {
+		return features[i].Name < features[j].Name
+	})
 	return &ListFeaturesResponse{
 		Features: features,
 	}, nil
