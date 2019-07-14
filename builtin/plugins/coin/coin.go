@@ -358,6 +358,7 @@ func Mint(ctx contract.Context) error {
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
 }
 
+//Computes minting Amount if Block Height is less than blocks generated in a year, whether its year beginning or in the middle
 func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt,
 	blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
 	amount := baseAmount.Div(baseAmount, blocksGeneratedPerYear)
@@ -378,7 +379,7 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 		return nil, err
 	}
 	//Fetches Total Supply from coin contract and applies inflation ratio on total Supply- Happens at
-	//beginning block for that year or block height at which minting is enabled
+	//beginning block for that year
 	baseAmount = &econ.TotalSupply.Value
 	inflationforYear := baseAmount.Mul(baseAmount, basePercentage)
 	inflationforYear = inflationforYear.Div(inflationforYear, loom.NewBigUIntFromInt(100))
@@ -392,6 +393,7 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 	return amount, nil
 }
 
+//Computes minting amount per year, after applying change ratio to base percentage using div operator
 func ComputeforConsecutiveYearBeginningDivOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
 	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
 	changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
@@ -411,6 +413,7 @@ func ComputeforConsecutiveYearBeginningDivOperator(ctx contract.Context, baseAmo
 	return amount, nil
 }
 
+//Computes minting amount per year, after applying change ratio to base percentage using exp operator
 func ComputeforConsecutiveYearBeginningExpOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
 	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt,
 	amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
@@ -433,6 +436,7 @@ func ComputeforConsecutiveYearBeginningExpOperator(ctx contract.Context, baseAmo
 
 }
 
+//As minting amount has been computed for year, just derives it from context to save re-computation
 func ComputeforConsecutiveYearinMiddle(ctx contract.Context) (*common.BigUInt, error) {
 	var mintingAmount = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(0),
@@ -443,6 +447,7 @@ func ComputeforConsecutiveYearinMiddle(ctx contract.Context) (*common.BigUInt, e
 	}
 	return loom.NewBigUIntFromInt(mintingAmount.Value.Int64()), nil
 }
+
 
 func ComputeInflationForYear(ctx contract.Context, baseAmount *common.BigUInt, changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt) (*common.BigUInt, error) {
 	var econ Economy
