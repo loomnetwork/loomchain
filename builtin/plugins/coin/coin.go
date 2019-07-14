@@ -355,7 +355,7 @@ func Mint(ctx contract.Context) error {
 	if mintingAmount.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		return nil // No more coins to be minted on block creation
 	}
-	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
+	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), loom.NewBigUIntFromInt(mintingAmount.Value.Int64()))
 }
 
 //First year is started from the checkpoint at which minting started
