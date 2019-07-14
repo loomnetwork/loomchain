@@ -284,6 +284,7 @@ func Mint(ctx contract.Context) error {
 		return err
 	}
 	if err == contract.ErrNotFound {
+	//Sets Minting Height - Height at which minting started
 		err := ctx.Set(mintingHeightKey, &types.BigUInt{
 			Value: *loom.NewBigUIntFromInt(ctx.Block().Height),
 		})
@@ -298,9 +299,12 @@ func Mint(ctx contract.Context) error {
 	if err1 != nil {
 		return err1
 	}
+	relativeHeight := big.NewInt(ctx.Block().Height).Sub(big.NewInt(ctx.Block().Height), big.NewInt(mintingHeight.Value.Int64()))
 	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height-mintingHeight.Value.Int64()),
 		big.NewInt(int64(policy.BlocksGeneratedPerYear)), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
 	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	//Computes relative Year by taking into Account minting Height and blocks Generated Per Year
+	relativeYear := relativeHeight.Div(relativeHeight, blocksGeneratedPerYear.Int)
 	//Minting Amount per block is set in ctx after minting amount is determined for year
 	if year.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		//Determines minting amount at the beginning block of blockchain or at block height at which minting is enabled
@@ -317,13 +321,13 @@ func Mint(ctx contract.Context) error {
 			//Operator Support to support different inflation ratio patterns for different year
 			if strings.EqualFold("div", operator) {
 				amount, err = ComputeforConsecutiveYearBeginningDivOperator(ctx, baseAmount, changeRatioNumerator,
-					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, year)
+					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, loom.NewBigUIntFromInt(relativeYear.Int64()))
 				if err != nil {
 					return errUtil.Wrap(err, "Failed Minting Block with div operator for consecutive year")
 				}
 			} else if strings.EqualFold("exp", operator) {
 				amount, err = ComputeforConsecutiveYearBeginningExpOperator(ctx, baseAmount, changeRatioNumerator,
-					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, year)
+					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, loom.NewBigUIntFromInt(relativeYear.Int64()))
 				if err != nil {
 					return errUtil.Wrap(err, "Failed Minting Block Configuration with exp operator for consecutive year")
 				}
