@@ -358,7 +358,9 @@ func Mint(ctx contract.Context) error {
 	return mint(ctx, loom.UnmarshalAddressPB(policy.MintingAccount), amount)
 }
 
-//Computes minting Amount if Block Height is less than blocks generated in a year, whether its year beginning or in the middle
+//First year is started from the checkpoint at which minting started
+//Computes minting Amount for first year if Blocks generated are less than a year, whether its year beginning or in the middle
+//Divides BaseAmountforfirstyear/Blocks generated per year to get minting Amount per block
 func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt,
 	blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
 	amount := baseAmount.Div(baseAmount, blocksGeneratedPerYear)
@@ -371,6 +373,8 @@ func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt,
 	return amount, nil
 }
 
+//Computes minting Amount for first year if Block Height is greater than blocks generated in a year, whether its year beginning or in the middle
+//Computes base Amount by taking minting height into Account (Height at which minting started), applies base percentage to compute inflation for that year which is divided by blocks generated per year to get ==> minting Amount per block
 func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, baseAmount *common.BigUInt,
 	basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
 	var econ Economy
@@ -378,8 +382,7 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 	if err != nil {
 		return nil, err
 	}
-	//Fetches Total Supply from coin contract and applies inflation ratio on total Supply- Happens at
-	//beginning block for that year
+	//Fetches Total Supply from coin contract and applies inflation ratio on total Supply
 	baseAmount = &econ.TotalSupply.Value
 	inflationforYear := baseAmount.Mul(baseAmount, basePercentage)
 	inflationforYear = inflationforYear.Div(inflationforYear, loom.NewBigUIntFromInt(100))
@@ -394,6 +397,7 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 }
 
 //Computes minting amount per year, after applying change ratio to base percentage using div operator
+//Computes inflation by multiplying base Amount with base percentage. Base percentage is computed by multiplying base percentage with change ratio on which div operator is applied according to the year.
 func ComputeforConsecutiveYearBeginningDivOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
 	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
 	changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
@@ -414,6 +418,7 @@ func ComputeforConsecutiveYearBeginningDivOperator(ctx contract.Context, baseAmo
 }
 
 //Computes minting amount per year, after applying change ratio to base percentage using exp operator
+//Computes inflation by multiplying base Amount with base percentage. Base percentage is computed by multiplying base percentage with change ratio on which exp operator is applied according to the year
 func ComputeforConsecutiveYearBeginningExpOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
 	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt,
 	amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
@@ -448,15 +453,14 @@ func ComputeforConsecutiveYearinMiddle(ctx contract.Context) (*common.BigUInt, e
 	return loom.NewBigUIntFromInt(mintingAmount.Value.Int64()), nil
 }
 
-
+//Computes inflation for that year which is divided by BlocksGeneratedPeryear to compute minting amount per block. Please note division is performed as last part of computation to avoid rounding off Loss
 func ComputeInflationForYear(ctx contract.Context, baseAmount *common.BigUInt, changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt) (*common.BigUInt, error) {
 	var econ Economy
 	err := ctx.Get(economyKey, &econ)
 	if err != nil {
 		return nil, err
 	}
-	//Fetches Total Supply from coin contract and applies inflation ratio on total Supply- Happens at
-	//beginning block for that year or block height at which minting is enabled
+	//Fetches Total Supply from coin contract and applies inflation ratio on total Supply
 	baseAmount = &econ.TotalSupply.Value
 	inflationforYear := baseAmount.Mul(baseAmount, basePercentage)
 	if changeRatioDenominator.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
