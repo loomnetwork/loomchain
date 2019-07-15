@@ -129,37 +129,26 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if msgTx.VmType != vm.VMType_EVM {
 			return next(state, txBytes, isCheckTx)
 		}
-		if txl.inactiveDeployerContracts == nil ||
+		if txl.inactiveDeployerContracts == nil || txl.contractToTierMap == nil ||
 			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
-			inactiveDeployerContracts, err := udw.GetInactiveDeployerContracts(ctx)
+			contractInfo, err := udw.GetContractInfo(ctx)
 			if err != nil {
-				return res, errors.Wrap(err, "throttle: inactiveDeployerContracts creation")
+				return res, errors.Wrap(err, "throttle: contractInfo fetch")
 			}
-			txl.inactiveDeployerContracts = inactiveDeployerContracts
+
+			txl.contractDataLastUpdated = time.Now().Unix()
+			txl.contractToTierMap = contractInfo.ContractToTierMap
+			txl.inactiveDeployerContracts = contractInfo.InactiveDeployerContracts
 			// TxLimiter.contractDataLastUpdated will be updated after updating contractToTierMap
 		}
 		contractAddr := loom.UnmarshalAddressPB(msg.To)
 		// contracts which are deployed by deleted deployers should be throttled
 		if txl.inactiveDeployerContracts[contractAddr.String()] {
 			return res, errors.New("contract inactive")
-		}
-
-		if txl.contractToTierMap == nil ||
-			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
-			ctx, err := createUserDeployerWhitelistCtx(state)
-			if err != nil {
-				return res, errors.Wrap(err, "throttle: context creation")
-			}
-			contractToTierMap, err := udw.GetContractTierMapping(ctx)
-			if err != nil {
-				return res, errors.Wrap(err, "throttle: contractToTierMap creation")
-			}
-			txl.contractToTierMap = contractToTierMap
-			txl.contractDataLastUpdated = time.Now().Unix()
 		}
 		// contracts the limiter doesn't know about shouldn't be throttled
 		contractTierID, ok := txl.contractToTierMap[contractAddr.String()]

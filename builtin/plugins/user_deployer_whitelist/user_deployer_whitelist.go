@@ -421,49 +421,34 @@ func GetTierInfo(ctx contract.StaticContext, tierID udwtypes.TierID) (udwtypes.T
 	return tier, nil
 }
 
-// GetContractTierMapping create a map of contract to TxLimiter to be used in ContractTxLimiter
-func GetContractTierMapping(ctx contract.StaticContext) (map[string]TierID, error) {
-	contractToTierMap := make(map[string]TierID)
-	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
-		var deployer UserDeployerState
-		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
-			return nil, errors.Wrap(err, "unmarshal UserDeployerState")
-		}
-		if deployer.Inactive {
-			continue
-		}
-		var tier Tier
-		err := ctx.Get(tierKey(deployer.TierID), &tier)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get Tier Information")
-		}
-		contracts := deployer.Contracts
-		for _, contract := range contracts {
-			key := loom.UnmarshalAddressPB(contract.ContractAddress).String()
-			contractToTierMap[key] = tier.TierID
-		}
-	}
-	return contractToTierMap, nil
+type ContractInfo struct {
+	ContractToTierMap         map[string]TierID
+	InactiveDeployerContracts map[string]bool
 }
 
-// GetInactiveDeployerContracts gets list of contract whose deployer has been rendered inactive
-func GetInactiveDeployerContracts(ctx contract.StaticContext) (map[string]bool, error) {
+// GetContractInfo to get ContractTierMapping and InactiveDeployerContracts for TxLimiter Middleware
+func GetContractInfo(ctx contract.StaticContext) (*ContractInfo, error) {
+	contractToTierMap := make(map[string]TierID)
 	inactiveDeployerContracts := make(map[string]bool)
 	for _, rangeEntry := range ctx.Range([]byte(deployerStatePrefix)) {
 		var deployer UserDeployerState
 		if err := proto.Unmarshal(rangeEntry.Value, &deployer); err != nil {
 			return nil, errors.Wrap(err, "unmarshal UserDeployerState")
 		}
-		if !deployer.Inactive {
-			continue
-		}
 		contracts := deployer.Contracts
 		for _, contract := range contracts {
 			key := loom.UnmarshalAddressPB(contract.ContractAddress).String()
-			inactiveDeployerContracts[key] = true
+			if deployer.Inactive {
+				inactiveDeployerContracts[key] = true
+			} else {
+				contractToTierMap[key] = deployer.TierID
+			}
 		}
 	}
-	return inactiveDeployerContracts, nil
+	return &ContractInfo{
+		ContractToTierMap:         contractToTierMap,
+		InactiveDeployerContracts: inactiveDeployerContracts,
+	}, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&UserDeployerWhitelist{})
