@@ -297,6 +297,12 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 //MintVouchers method to the DPOS contract that can be called only by delegators - Mints Generic ERC20 Token
 func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_6, false) {
+		return errors.New("DPOS v3.6 is not enabled")
+	}
+	if req.Amount == nil || req.Amount.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+		logDposError(ctx, errors.New("Minting Amount cannot be equal to zero or nil"), req.String())
+	}
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
