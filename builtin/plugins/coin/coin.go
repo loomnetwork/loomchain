@@ -284,7 +284,7 @@ func Mint(ctx contract.Context) error {
 		return err
 	}
 	if err == contract.ErrNotFound {
-	//Sets Minting Height - Height at which minting started
+		//Sets Minting Height - Height at which minting started
 		err := ctx.Set(mintingHeightKey, &types.BigUInt{
 			Value: *loom.NewBigUIntFromInt(ctx.Block().Height),
 		})
@@ -319,25 +319,16 @@ func Mint(ctx contract.Context) error {
 	} else {
 		if modulus.Cmp(big.NewInt(1)) == 0 && err != contract.ErrNotFound {
 			//Operator Support to support different inflation ratio patterns for different year
-			if strings.EqualFold("div", operator) {
-				amount, err = ComputeforConsecutiveYearBeginningDivOperator(ctx, baseAmount, changeRatioNumerator,
-					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, loom.NewBigUIntFromInt(relativeYear.Int64()))
-				if err != nil {
-					return errUtil.Wrap(err, "Failed Minting Block with div operator for consecutive year")
-				}
-			} else if strings.EqualFold("exp", operator) {
-				amount, err = ComputeforConsecutiveYearBeginningExpOperator(ctx, baseAmount, changeRatioNumerator,
-					changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount, loom.NewBigUIntFromInt(relativeYear.Int64()))
-				if err != nil {
-					return errUtil.Wrap(err, "Failed Minting Block Configuration with exp operator for consecutive year")
-				}
-			} else {
-				return errors.New("Invalid operator - Operator should be div or exp")
+			amount, err = ComputeforConsecutiveYearBeginningWithOperator(ctx, baseAmount, changeRatioNumerator,
+				changeRatioDenominator, basePercentage, blocksGeneratedPerYear, amount,
+				loom.NewBigUIntFromInt(relativeYear.Int64()), operator)
+			if err != nil {
+				return errUtil.Wrap(err, "Failed Minting Block with operator for consecutive year")
 			}
 		} else if err == contract.ErrNotFound {
 			amount, err = ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx, baseAmount, basePercentage, blocksGeneratedPerYear)
 			if err != nil {
-				return errUtil.Wrap(err, "Failed Minting Block Configuration for exp operator")
+				return errUtil.Wrap(err, "Failed Minting Block for First Year BlockHeight greater than One year")
 			}
 		} else {
 			amount, err = ComputeforConsecutiveYearinMiddle(ctx)
@@ -396,35 +387,29 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 	return amount, nil
 }
 
-//Computes minting amount per year, after applying change ratio to base percentage using div operator
-//Computes inflation by multiplying base Amount with base percentage. Base percentage is computed by multiplying base percentage with change ratio on which div operator is applied according to the year.
-func ComputeforConsecutiveYearBeginningDivOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
-	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
-	changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
-	basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
-	inflationforYear, err := ComputeInflationForYear(ctx, baseAmount, changeRatioDenominator, basePercentage)
-	if err != nil {
-		return nil, err
-	}
-	amount = inflationforYear.Div(inflationforYear, blocksGeneratedPerYear)
-	//Minting Amount per block computed starting from beginning block of that year and saved to avoid re-computations
-	err = ctx.Set(mintingAmountKey, &types.BigUInt{
-		Value: *amount,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return amount, nil
-}
-
-//Computes minting amount per year, after applying change ratio to base percentage using exp operator
-//Computes inflation by multiplying base Amount with base percentage. Base percentage is computed by multiplying base percentage with change ratio on which exp operator is applied according to the year
-func ComputeforConsecutiveYearBeginningExpOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt,
+func ComputeforConsecutiveYearBeginningWithOperator(ctx contract.Context, baseAmount *common.BigUInt,
+	changeRatioNumerator *common.BigUInt,
 	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt,
-	amount *common.BigUInt, year *common.BigUInt) (*common.BigUInt, error) {
-	changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
-	changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
-	basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+	amount *common.BigUInt, year *common.BigUInt, operator string) (*common.BigUInt, error) {
+	var err error
+	switch operator {
+	//Computes minting amount per year, after applying change ratio to base percentage using div operator
+	//Computes inflation by multiplying base Amount with base percentage. Base percentage is computed by multiplying base percentage with change ratio on which div operator is applied according to the year.
+	case "div":
+		changeRatioDenominator = changeRatioDenominator.Mul(changeRatioDenominator, year)
+		basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+	//Computes minting amount per year, after applying change ratio to base percentage using exp operator
+	//Computes inflation by multiplying base Amount with base percentage. Base percentage is computed by multiplying base percentage with change ratio on which exp operator is applied according to the year
+	case "exp":
+		changeRatioNumerator = changeRatioNumerator.Exp(changeRatioNumerator, year, nil)
+		changeRatioDenominator = changeRatioDenominator.Exp(changeRatioDenominator, year, nil)
+		basePercentage = basePercentage.Mul(basePercentage, changeRatioNumerator)
+	default:
+		err = fmt.Errorf("unrecognised operator %v", operator)
+	}
+	if err != nil {
+		return nil, err
+	}
 	inflationforYear, err := ComputeInflationForYear(ctx, baseAmount, changeRatioDenominator, basePercentage)
 	if err != nil {
 		return nil, err
@@ -438,7 +423,6 @@ func ComputeforConsecutiveYearBeginningExpOperator(ctx contract.Context, baseAmo
 		return nil, err
 	}
 	return amount, nil
-
 }
 
 //As minting amount has been computed for year, just derives it from context to save re-computation
