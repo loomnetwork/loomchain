@@ -1,6 +1,8 @@
 package chainconfig
 
 import (
+	"sort"
+
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -13,7 +15,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
-	"sort"
 )
 
 type (
