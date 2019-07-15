@@ -388,9 +388,7 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 }
 
 func ComputeforConsecutiveYearBeginningWithOperator(ctx contract.Context, baseAmount *common.BigUInt,
-	changeRatioNumerator *common.BigUInt,
-	changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt,
-	amount *common.BigUInt, year *common.BigUInt, operator string) (*common.BigUInt, error) {
+	changeRatioNumerator *common.BigUInt, changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt, operator string) (*common.BigUInt, error) {
 	var err error
 	switch operator {
 	//Computes minting amount per year, after applying change ratio to base percentage using div operator
