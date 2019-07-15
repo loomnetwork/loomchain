@@ -2533,6 +2533,7 @@ func TestDowntimeSlashing(t *testing.T) {
 	}
 
 	rec1, err := dpos.DowntimeRecord(pctx, &addr1)
+	require.Nil(t, err)
 	assert.Equal(t, periodLength, rec1.PeriodLength)
 	assert.Equal(t, []uint64{periodLength - 1, periodLength, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
 
@@ -2552,14 +2553,14 @@ func TestDowntimeSlashing(t *testing.T) {
 
 	// the offline validator should have been slashed an additional 4 times (for
 	// a total of 5 slashes) after 8 consecutive periods of downtime
-	expectedSlashPercentage := defaultInactivitySlashPercentage.Mul(loom.NewBigUIntFromInt(5), &defaultInactivitySlashPercentage)
+	expectedSlashPercentage := loom.NewBigUIntFromInt(0).Mul(loom.NewBigUIntFromInt(5), &defaultInactivitySlashPercentage)
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
 	require.True(t, statistic.SlashPercentage.Value.Cmp(expectedSlashPercentage) == 0)
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	// verify that slashingPercentage is rest to zero after election
+	// verify that slashingPercentage is reset to zero after election
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
 	require.True(t, statistic.SlashPercentage.Value.Cmp(common.BigZero()) == 0)
@@ -2667,6 +2668,9 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
+	// This simulates the passing of 4 downtime periods. Every call to
+	// ShiftDowntimeWindow successfully shifts all downtime records because the
+	// block number 0 == 0 % PERIOD, for any value of PERIOD
 	for i := 0; i < 4; i++ {
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), 0, candidates))
 	}
@@ -2691,7 +2695,7 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
 	require.Nil(t, err)
-	expectedSlashPercentage := defaultInactivitySlashPercentage.Mul(loom.NewBigUIntFromInt(3), &crashSlashingPercentage.Value)
+	expectedSlashPercentage := loom.NewBigUIntFromInt(0).Mul(loom.NewBigUIntFromInt(3), &crashSlashingPercentage.Value)
 	require.True(t, statistic.SlashPercentage.Value.Cmp(expectedSlashPercentage) == 0)
 
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
@@ -2700,7 +2704,7 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	// verify that slashingPercentage is rest to zero after election
+	// verify that slashingPercentage is reset to zero after election
 	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr2)
 	require.Nil(t, err)
 	require.True(t, common.IsZero(statistic.SlashPercentage.Value))
