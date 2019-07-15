@@ -46,6 +46,6 @@ func newNewCommand() *cobra.Command {
 	flags.StringVar(&logDest, "log-destination", "file://loom.log", "Log Destination")
 	flags.StringVarP(&genesisFile, "genesis-template", "g", "", "Path to genesis.json")
 	flags.StringVarP(&configFile, "config-template", "c", "", "Path to loom.yml")
-	flags.BoolVarP(&checkAppHashOnExit, "check-apphash", "h", false, "Check apphash on exit from test")
+	flags.BoolVarP(&checkAppHashOnExit, "check-apphash", "p", false, "Check apphash on exit from test")
 	return command
 }
