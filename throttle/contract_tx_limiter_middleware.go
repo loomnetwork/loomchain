@@ -148,7 +148,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		contractAddr := loom.UnmarshalAddressPB(msg.To)
 		// contracts which are deployed by deleted deployers should be throttled
 		if txl.inactiveDeployerContracts[contractAddr.String()] {
-			return res, errors.New("contract inactive")
+			return res, errors.New("deployer of the contract is deleted")
 		}
 		// contracts the limiter doesn't know about shouldn't be throttled
 		contractTierID, ok := txl.contractToTierMap[contractAddr.String()]
