@@ -1050,11 +1050,20 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		if err = saveCandidateList(ctx, candidates); err != nil {
+		if err := saveCandidateList(ctx, candidates); err != nil {
 			return err
 		}
 
-		slashValidatorDelegations(ctx, DefaultNoCache, statistic, candidateAddress)
+		err = slashValidatorDelegations(ctx, DefaultNoCache, statistic, candidateAddress)
+		// NOTE: we ignore the error if DPOSVersion3_4 is not enabled to retain backwards compatibility
+		if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+			if err != nil {
+				return err
+			}
+			if err := SetStatistic(ctx, statistic); err != nil {
+				return err
+			}
+		}
 	}
 
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
@@ -1652,7 +1661,12 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 					state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
 				}
 			} else {
-				slashValidatorDelegations(ctx, cachedDelegations, statistic, candidateAddress)
+				if err := slashValidatorDelegations(ctx, cachedDelegations, statistic, candidateAddress); err != nil {
+					return nil, err
+				}
+				if err := SetStatistic(ctx, statistic); err != nil {
+					return nil, err
+				}
 			}
 
 			formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
@@ -1710,7 +1724,7 @@ func slashValidatorDelegations(
 	ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic,
 	validatorAddress loom.Address,
 ) error {
-	if (statistic.SlashPercentage == nil) || common.IsZero(statistic.SlashPercentage.Value) {
+	if common.IsZero(statistic.SlashPercentage.Value) {
 		return nil
 	}
 
@@ -1752,9 +1766,6 @@ func slashValidatorDelegations(
 
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
-	if err := SetStatistic(ctx, statistic); err != nil {
-		return err
-	}
 
 	return nil
 }
