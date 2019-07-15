@@ -1348,7 +1348,7 @@ func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidator
 		return err
 	}
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
-		return errors.New("Invalid Oracle Address")
+		return errOnlyOracle
 	}
 	if state.Params.JailOfflineValidators == req.JailOfflineValidators {
 		return nil
