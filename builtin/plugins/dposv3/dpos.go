@@ -153,8 +153,6 @@ type (
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
 	MintVoucherRequest          = dtypes.MintVoucherRequest
 	MintVoucherResponse         = dtypes.MintVoucherResponse
-	MintVoucherERC20Request     = dtypes.MintVoucherERC20Request
-	MintVoucherERC20Response    = dtypes.MintVoucherERC20Response
 )
 
 type DPOS struct {
@@ -296,44 +294,21 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	return c.emitDelegatorDelegatesEvent(ctx, delegation)
 }
 
-//MintVouchers method to the DPOS contract that can be called only by delegators - Mints Loom Coin
-func (c *DPOS) MintVoucher(ctx contract.Context, req *MintVoucherRequest) error {
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
-	sender := ctx.Message().Sender
-	for _, d := range delegations {
-		if loom.UnmarshalAddressPB(d.Delegator).Compare(sender) == 0 {
-			coin, err := loadCoin(ctx)
-			if err != nil {
-				return err
-			}
-			err = coin.MintToDPOS(&req.Amount.Value)
-			if err != nil {
-				return err
-			}
-			err = coin.TransferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator), &req.Amount.Value)
-			if err != nil {
-				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
-				return logDposError(ctx, err, transferFromErr)
-			}
-			break
-		}
-	}
-	return nil
-}
 
-//MintVouchersERC20 method to the DPOS contract that can be called only by delegators - Mints Generic ERC20 Token
-func (c *DPOS) MintVoucherERC20(ctx contract.Context, req *MintVoucherERC20Request) error {
+//MintVouchers method to the DPOS contract that can be called only by delegators - Mints Generic ERC20 Token
+func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
 	sender := ctx.Message().Sender
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
 	for _, d := range delegations {
 		if loom.UnmarshalAddressPB(d.Delegator).Compare(sender) == 0 {
-			erc20, err := loadERC20Token(ctx, loom.UnmarshalAddressPB(req.TokenAddress))
+			erc20, err := loadERC20Token(ctx, loom.UnmarshalAddressPB(state.Params.VoucherTokenAddress))
 			if err != nil {
 				return err
 			}
