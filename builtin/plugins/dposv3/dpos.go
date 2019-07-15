@@ -1509,6 +1509,10 @@ func SlashDoubleSign(ctx contract.Context, statistic *ValidatorStatistic) error 
 func slash(ctx contract.Context, statistic *ValidatorStatistic, slashPercentage loom.BigUInt) error {
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&statistic.SlashPercentage.Value, &slashPercentage)
+	// this check ensures that the slash percentage never exceeds 100%
+	if updatedAmount.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 {
+		return nil
+	}
 	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
 	if err := emitSlashEvent(ctx, statistic.Address, slashPercentage); err != nil {
@@ -2235,6 +2239,9 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 func (c *DPOS) SetMaxDowntimePercentage(ctx contract.Context, req *SetMaxDowntimePercentageRequest) error {
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
 		return errors.New("DPOS v3.4 is not enabled")
+	}
+	if req.MaxDowntimePercentage == nil {
+		return logDposError(ctx, errors.New("Must supply value for MaxDowntimePercentage."), req.String())
 	}
 
 	sender := ctx.Message().Sender
