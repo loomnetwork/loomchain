@@ -320,6 +320,89 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}, nil
 }
 
+// SwapUserDeployer Allow swapping deployer keys in UserWhitelistContract
+func (uw *UserDeployerWhitelist) SwapUserDeployer(
+	ctx contract.Context, req *udwtypes.SwapUserDeployerRequest,
+) error {
+	if req.OldDeployerAddr == nil || req.NewDeployerAddr == nil {
+		return ErrInvalidRequest
+	}
+	dwAddr, err := ctx.Resolve("deployerwhitelist")
+	if err != nil {
+		return errors.Wrap(err, "unable to get address of deployer_whitelist")
+	}
+	if ctx.Has(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr))) {
+		return ErrDeployerAlreadyExists
+	}
+	// check if oldDeployerState exists and sender is the user who whitelisted the oldDeployerAddr,
+	// if so remove from userState and add the newDeployerAddr
+	oldDeployerAddr := loom.UnmarshalAddressPB(req.OldDeployerAddr)
+	var userDeployer UserDeployerState
+	err = ctx.Get(deployerStateKey(oldDeployerAddr), &userDeployer)
+	if err != nil {
+		return errors.Wrap(err, "Failed to load whitelisted deployers state")
+	}
+	userAddr := ctx.Message().Sender
+	var userState UserState
+	if err := ctx.Get(userStateKey(userAddr), &userState); err != nil {
+		return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
+	}
+	isInputDeployerAddrValid := false
+	survivedDeployers := make([]*types.Address, 0, len(userState.Deployers))
+	deployers := userState.Deployers
+	for _, addr := range deployers {
+		currentDeployerAddr := loom.UnmarshalAddressPB(addr)
+		if currentDeployerAddr.Compare(oldDeployerAddr) == 0 {
+			isInputDeployerAddrValid = true
+		} else {
+			survivedDeployers = append(survivedDeployers, addr)
+		}
+	}
+
+	if !isInputDeployerAddrValid {
+		return ErrDeployerDoesNotExist
+	}
+
+	userState.Deployers = survivedDeployers
+	survivedDeployers = append(survivedDeployers, req.NewDeployerAddr)
+	if err := ctx.Set(userStateKey(userAddr), &userState); err != nil {
+		return errors.Wrap(err, "failed to Save Deployers mapping in user state")
+	}
+	// 	Add NewDeployerAddr and remove OldDeployerAddr by calling deployer_whitelist contract
+	removeUserDeployerRequest := &RemoveUserDeployerRequest{
+		DeployerAddr: req.OldDeployerAddr,
+	}
+	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
+		return errors.Wrap(err, "failed to remove deployer")
+	}
+	addUserDeployerRequest := &dwtypes.AddUserDeployerRequest{
+		DeployerAddr: req.NewDeployerAddr,
+	}
+	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", addUserDeployerRequest, nil); err != nil {
+		return errors.Wrap(err, "failed to whitelist deployer")
+	}
+
+	// Update deployerState in userDeployerWhitelist contract by adding new state corresponding to NewDeployerAddr with tierID same as oldDeployer and modifying older one corresponding to OldDeployerAddr
+	newDeployer := &UserDeployerState{
+		Address: req.NewDeployerAddr,
+		TierID:  userDeployer.TierID,
+	}
+	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr)), newDeployer); err != nil {
+		return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
+	}
+	//TODO: need to be uncommented when txLimiter1285 is merged
+	// if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
+	// 	userDeployer.Inactive = true
+	// 	if err := ctx.Set(deployerStateKey(oldDeployerAddr), &userDeployer); err != nil {
+	// 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
+	// 	}
+	// 	return nil
+	// }
+
+	ctx.Delete(deployerStateKey(oldDeployerAddr))
+	return nil
+}
+
 // GetTierInfo returns the details of a specific tier.
 func (uw *UserDeployerWhitelist) GetTierInfo(
 	ctx contract.StaticContext, req *GetTierInfoRequest,
