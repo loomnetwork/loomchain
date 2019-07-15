@@ -1365,6 +1365,11 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 		maximumMissedBlocksBig := CalculateFraction(maxDowntimePercentage, loom.BigUInt{big.NewInt(int64(state.Params.DowntimePeriod))})
 		maximumMissedBlocks := maximumMissedBlocksBig.Uint64()
 
+		inactivitySlashPercentage := defaultInactivitySlashPercentage
+		if state.Params.CrashSlashingPercentage != nil {
+			inactivitySlashPercentage = state.Params.CrashSlashingPercentage.Value
+		}
+
 		for _, candidate := range candidates {
 			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
 			statistic, err := GetStatistic(ctx, candidateAddress)
@@ -1376,17 +1381,17 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 			}
 
 			if downtimeSlashingEnabled {
-				slash := true
+				shouldSlash := true
 				downtime := getDowntimeRecord(ctx, statistic)
 				for i := uint64(0); i < 4; i++ {
-					if (maximumMissedBlocks >= downtime.Periods[i]) {
-						slash = false
+					if maximumMissedBlocks >= downtime.Periods[i] {
+						shouldSlash = false
 						break
 					}
 				}
 
-				if slash {
-					if err = SlashInactivity(ctx, statistic); err != nil {
+				if shouldSlash {
+					if err := slash(ctx, statistic, inactivitySlashPercentage); err != nil {
 						return err
 					}
 				}
@@ -1481,16 +1486,6 @@ func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic
 			(statistic.RecentlyMissedBlocks >> 48) & 0xFFFF,
 		},
 	}
-}
-
-// only called for validators, never delegators
-func SlashInactivity(ctx contract.Context, statistic *ValidatorStatistic) error {
-	state, err := LoadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	return slash(ctx, statistic, state.Params.CrashSlashingPercentage.Value)
 }
 
 func SlashDoubleSign(ctx contract.Context, statistic *ValidatorStatistic) error {
@@ -1711,7 +1706,14 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 	return reward
 }
 
-func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
+func slashValidatorDelegations(
+	ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic,
+	validatorAddress loom.Address,
+) error {
+	if (statistic.SlashPercentage == nil) || common.IsZero(statistic.SlashPercentage.Value) {
+		return nil
+	}
+
 	ctx.Logger().Info("DPOSv3 slashValidatorDelegations", "validator", statistic.Address)
 
 	delegations, err := cachedDelegations.loadDelegationList(ctx)
@@ -1727,7 +1729,7 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 			return err
 		}
 
-		if loom.UnmarshalAddressPB(delegation.Validator).Compare(validatorAddress) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(validatorAddress) == 0 {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
@@ -2244,7 +2246,6 @@ func (c *DPOS) SetMaxDowntimePercentage(ctx contract.Context, req *SetMaxDowntim
 
 	return saveState(ctx, state)
 }
-
 
 func (c *DPOS) SetMinCandidateFee(ctx contract.Context, req *SetMinCandidateFeeRequest) error {
 	sender := ctx.Message().Sender
