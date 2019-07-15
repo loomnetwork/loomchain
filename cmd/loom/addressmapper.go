@@ -89,6 +89,7 @@ func GetMapping() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-mapping",
 		Short: "Get mapping address",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp amtypes.AddressMapperGetMappingResponse
 			from, err := cli.ParseAddress(args[0], flags.ChainID)
@@ -102,15 +103,13 @@ func GetMapping() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
+
+			fmt.Printf("%-*s -> %-*s \n",
+				50, loom.UnmarshalAddressPB(resp.From).String(),
+				50, loom.UnmarshalAddressPB(resp.To).String())
 			return nil
 		},
 	}
-
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
@@ -128,18 +127,23 @@ func ListMappingCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return errors.Wrap(err, "format JSON response")
+			type maxLength struct {
+				From int
+				To   int
 			}
-			fmt.Println(out)
+			ml := maxLength{From: 50, To: 50}
+
+			fmt.Printf("%-*s | %-*s \n", ml.From, "From", ml.To, "To")
+			for _, value := range resp.Mappings {
+				fmt.Printf("%-*s | %-*s\n",
+					ml.From, loom.UnmarshalAddressPB(value.From).String(),
+					ml.To, loom.UnmarshalAddressPB(value.To).String())
+			}
 			return nil
 		},
 	}
-
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-
 }
 
 func NewAddressMapperCommand() *cobra.Command {

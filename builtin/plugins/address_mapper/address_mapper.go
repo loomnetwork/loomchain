@@ -136,18 +136,22 @@ func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappin
 	listMappingResponse := ListMappingResponse{
 		Mappings: []*AddressMapping{},
 	}
-
+	addressList := make(map[string]bool, len(mappingRange)/2)
 	for _, m := range mappingRange {
 		var mapping AddressMapping
 		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
 			return &ListMappingResponse{}, errors.Wrap(err, "unmarshal mapping")
 		}
+		if addressList[mapping.From.String()] || addressList[mapping.To.String()] {
+			continue
+		}
 		listMappingResponse.Mappings = append(listMappingResponse.Mappings, &AddressMapping{
 			From: mapping.From,
 			To:   mapping.To,
 		})
+		addressList[mapping.From.String()] = true
+		addressList[mapping.To.String()] = true
 	}
-
 	return &listMappingResponse, nil
 }
 
