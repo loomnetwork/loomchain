@@ -119,22 +119,6 @@ func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) er
 	return mint(ctx, gatewayAddr, &req.Amount.Value)
 }
 
-
-// MintToDPOS adds loom coins to the loom coin DPOS contract balance, and updates the total supply.
-func (c *Coin) MintToDPOS(ctx contract.Context, req *MintToDPOSRequest) error {
-	dposAddr, err := ctx.Resolve("dposV3")
-	if err != nil {
-		return errUtil.Wrap(err, "failed to mint Loom coin")
-	}
-
-	if ctx.Message().Sender.Compare(dposAddr) != 0 {
-		return errors.New("not authorized to mint Loom coin")
-	}
-
-	return mint(ctx, dposAddr, &req.Amount.Value)
-}
-
-
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
 	if req.Owner == nil || req.Amount == nil {
 		return errors.New("owner or amount is nil")
