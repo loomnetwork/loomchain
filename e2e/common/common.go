@@ -46,24 +46,67 @@ func NewConfig(
 	validators, account, numEthAccounts int,
 	useFnConsensus bool,
 ) (*lib.Config, error) {
-	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
+	checkAppHashOnExitEV := os.Getenv(checkAppHashOnExitEv)
+	checkAppHashOnExit := len(checkAppHashOnExitEV) > 0
+
+	LoomPath := os.Getenv(loomExeEv)
+	if len(LoomPath) == 0 {
+		LoomPath = DefaultLoomPath
+	}
+
+	LoomPath2 := os.Getenv(loomExe2Ev)
+	if len(LoomPath2) == 0 {
+		LoomPath2 = DefatulLoomPath2
+	}
+
+	var err error
+	validatorsEv := os.Getenv(ValidatorsEv)
+	if len(validatorsEv) > 0 {
+		validators, err = strconv.Atoi(validatorsEv)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	altValidators := DefaultAltValidators
+	altValidatorsEv := os.Getenv(AltValidatorsEv)
+	if len(altValidatorsEv) > 0 {
+		altValidators, err = strconv.Atoi(altValidatorsEv)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return GenerateConfig(
+		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, LoomPath, LoomPath2,
+		validators, altValidators, account, numEthAccounts,
+		useFnConsensus, *Force, checkAppHashOnExit,
+	)
+}
+
+func GenerateConfig(
+	name, testFile, genesisTmpl, yamlFile, basedir, contractdir, loompath, loompath2 string,
+	validators, altValidators, account, numEthAccounts int,
+	useFnConsensus, force, checkAppHashOnExit bool,
+) (*lib.Config, error) {
+	basedirAbs, err := filepath.Abs(path.Join(basedir, name))
 	if err != nil {
 		return nil, err
 	}
 
 	_, err = os.Stat(basedirAbs)
-	if !*Force && err == nil {
+	if !force && err == nil {
 		return nil, fmt.Errorf("directory %s exists; please use the flag --force to create new nodes", basedirAbs)
 	}
 
-	if *Force {
+	if force {
 		err = os.RemoveAll(basedirAbs)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	contractdirAbs, err := filepath.Abs(ContractDir)
+	contractdirAbs, err := filepath.Abs(contractdir)
 	if err != nil {
 		return nil, err
 	}
@@ -74,23 +117,18 @@ func NewConfig(
 
 	conf := lib.Config{
 		Name:        name,
-		BaseDir:     basedirAbs,
-		ContractDir: contractdirAbs,
-		TestFile:    testFileAbs,
-		Nodes:       make(map[string]*node.Node),
+		BaseDir:                basedirAbs,
+		ContractDir:            contractdirAbs,
+		TestFile:               testFileAbs,
+		Nodes:                  make(map[string]*node.Node),
+		CheckAppHashOnExit:     checkAppHashOnExit,
 	}
-	checkAppHashOnExitEV := os.Getenv(checkAppHashOnExitEv)
-	conf.CheckAppHashOnExit = len(checkAppHashOnExitEV) > 0
 
 	if err := os.MkdirAll(conf.BaseDir, os.ModePerm); err != nil {
 		return nil, err
 	}
 
-	LoomPath := os.Getenv(loomExeEv)
-	if len(LoomPath) == 0 {
-		LoomPath = DefaultLoomPath
-	}
-	loompathAbs, err := filepath.Abs(LoomPath)
+	loompathAbs, err := filepath.Abs(loompath)
 	if err != nil {
 		return nil, err
 	}
@@ -121,13 +159,6 @@ func NewConfig(
 		tronAccounts = append(tronAccounts, acct)
 	}
 
-	minValidatorsEv := os.Getenv(ValidatorsEv)
-	if len(minValidatorsEv) > 0 {
-		validators, err = strconv.Atoi(minValidatorsEv)
-		if err != nil {
-			return nil, err
-		}
-	}
 	var nodes []*node.Node
 	for i := 0; i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisTmpl, yamlFile)
@@ -137,22 +168,11 @@ func NewConfig(
 		nodes = append(nodes, n)
 	}
 
-	LoomPath2 := os.Getenv(loomExe2Ev)
-	if len(LoomPath2) == 0 {
-		LoomPath2 = DefatulLoomPath2
-	}
-	loompathAbs2, err := filepath.Abs(LoomPath2)
+	loompathAbs2, err := filepath.Abs(loompath2)
 	if err != nil {
 		return nil, err
 	}
-	altValidators := DefaultAltValidators
-	minAltValidatorsEv := os.Getenv(AltValidatorsEv)
-	if len(minAltValidatorsEv) > 0 {
-		altValidators, err = strconv.Atoi(minAltValidatorsEv)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	for i := validators; i < validators + altValidators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisTmpl, yamlFile)
 		n.LogLevel = *LogLevel
