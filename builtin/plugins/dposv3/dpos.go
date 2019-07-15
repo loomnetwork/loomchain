@@ -303,15 +303,18 @@ func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error
 	if req.Amount == nil || req.Amount.Value.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
 		logDposError(ctx, errors.New("Minting Amount cannot be equal to zero or nil"), req.String())
 	}
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	if state.Params.VoucherTokenAddress == nil {
+		logDposError(ctx, errors.New("VoucherTokenAddress cannot be nil"), req.String())
+	}
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
 	sender := ctx.Message().Sender
-	state, err := LoadState(ctx)
-	if err != nil {
-		return err
-	}
 	for _, d := range delegations {
 		if loom.UnmarshalAddressPB(d.Delegator).Compare(sender) == 0 {
 			erc20, err := loadERC20Token(ctx, loom.UnmarshalAddressPB(state.Params.VoucherTokenAddress))
