@@ -4,6 +4,7 @@ package polls
 
 import (
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -184,7 +185,19 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 5, len(data), "wrong number of logs returned")
 
 	state220 := common.MockStateAt(state, uint64(220))
-	sub.Remove(id)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func(s *EthSubscriptions) {
+		defer wg.Done()
+		result, err = s.Poll(state220, id, receiptHandler)
+	}(sub)
+	go func(s *EthSubscriptions) {
+		defer wg.Done()
+		s.Remove(id)
+	}(sub)
+
+	wg.Wait()
 	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
