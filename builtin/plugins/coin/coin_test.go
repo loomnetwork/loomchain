@@ -2,6 +2,10 @@ package coin
 
 import (
 	"errors"
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -9,9 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
-	"time"
 )
 
 var (
@@ -213,6 +214,7 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err)
+	//Tests function ==> ComputeforFirstYear
 	err = Mint(ctx)
 	require.Nil(t, err)
 
@@ -229,7 +231,7 @@ func TestMintDivOperator(t *testing.T) {
 	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	// Minting amount for block for year 1 for blockheight 1
-    //ctx is kept same to keep into account minting height
+	//ctx is kept same to keep into account minting height
 	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
@@ -255,6 +257,7 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err1)
+	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator and ComputeInflationForYear
 	err1 = Mint(ctx)
 	require.Nil(t, err1)
 
@@ -271,6 +274,48 @@ func TestMintDivOperator(t *testing.T) {
 	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50020,
+	}))
+	//Minting in year 2 for BlockHeight 50020
+	contract6 := &Coin{}
+	err6 := contract6.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err1)
+
+	//Minting without any error
+	resp12, err6 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+	//Tests function ComputeforConsecutiveYearinMiddle
+	err1 = Mint(ctx)
+	require.Nil(t, err1)
+
+	// checking balance after minting
+	resp13, err6 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+
+	amount1 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err6 = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err6)
+	assert.Equal(t, amount1.Value.Uint64(), resp13.Balance.Value.Uint64()-resp12.Balance.Value.Uint64())
+
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
@@ -295,6 +340,8 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err2)
+	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator(div operator in this case),
+	// ComputeInflationForYear
 	err2 = Mint(ctx)
 	require.Nil(t, err2)
 
@@ -377,6 +424,7 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err5)
+	//Tests function ComputeforFirstYearBlockHeightgreaterthanOneyear
 	err5 = Mint(ctx7)
 	require.Nil(t, err5)
 
@@ -393,7 +441,6 @@ func TestMintDivOperator(t *testing.T) {
 	err = ctx7.Get(mintingAmountKey, amount5)
 	require.Nil(t, err)
 	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
-
 
 }
 
@@ -436,6 +483,7 @@ func TestMintExpOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err)
+	//Tests function ==> ComputeforFirstYear
 	err = Mint(ctx)
 	require.Nil(t, err)
 
@@ -475,6 +523,7 @@ func TestMintExpOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err1)
+	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator( // Exp operator in this case) and ComputeInflationForYear
 	err1 = Mint(ctx)
 	require.Nil(t, err1)
 
@@ -491,6 +540,49 @@ func TestMintExpOperator(t *testing.T) {
 	err = ctx.Get(mintingAmountKey, amount1)
 	require.Nil(t, err)
 	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
+
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50020,
+	}))
+	//Minting in year 2 for BlockHeight 50020
+	contract6 := &Coin{}
+	err6 := contract6.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err1)
+
+	//Minting without any error
+	resp12, err6 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+	//Tests function ComputeforConsecutiveYearinMiddle,
+	// ComputeInflationForYear
+	err1 = Mint(ctx)
+	require.Nil(t, err1)
+
+	// checking balance after minting
+	resp13, err6 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+
+	amount1 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err6 = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err6)
+	assert.Equal(t, amount1.Value.Uint64(), resp13.Balance.Value.Uint64()-resp12.Balance.Value.Uint64())
 
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
@@ -516,6 +608,7 @@ func TestMintExpOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err2)
+	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator( // Exp operator in this case) and ComputeInflationForYear
 	err2 = Mint(ctx)
 	require.Nil(t, err2)
 
@@ -598,6 +691,7 @@ func TestMintExpOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err5)
+	//Tests function ComputeforFirstYearBlockHeightgreaterthanOneyear
 	err5 = Mint(ctx5)
 	require.Nil(t, err5)
 
