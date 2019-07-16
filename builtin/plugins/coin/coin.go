@@ -352,8 +352,7 @@ func Mint(ctx contract.Context) error {
 //First year is started from the checkpoint at which minting started
 //Computes minting Amount for first year if Blocks generated are less than a year, whether its year beginning or in the middle
 //Divides BaseAmountforfirstyear/Blocks generated per year to get minting Amount per block
-func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt,
-	blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
+func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt, blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
 	amount := baseAmount.Div(baseAmount, blocksGeneratedPerYear)
 	err := ctx.Set(mintingAmountKey, &types.BigUInt{
 		Value: *amount,
@@ -366,8 +365,7 @@ func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt,
 
 //Computes minting Amount for first year if Block Height is greater than blocks generated in a year, whether its year beginning or in the middle
 //Computes base Amount by taking minting height into Account (Height at which minting started), applies base percentage to compute inflation for that year which is divided by blocks generated per year to get ==> minting Amount per block
-func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, baseAmount *common.BigUInt,
-	basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
+func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, baseAmount *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
 	var econ Economy
 	err := ctx.Get(economyKey, &econ)
 	if err != nil {
@@ -387,8 +385,7 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 	return amount, nil
 }
 
-func ComputeforConsecutiveYearBeginningWithOperator(ctx contract.Context, baseAmount *common.BigUInt,
-	changeRatioNumerator *common.BigUInt, changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt, operator string) (*common.BigUInt, error) {
+func ComputeforConsecutiveYearBeginningWithOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt, changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt, operator string) (*common.BigUInt, error) {
 	var err error
 	switch operator {
 	//Computes minting amount per year, after applying change ratio to base percentage using div operator
