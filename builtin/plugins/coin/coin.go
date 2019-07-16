@@ -24,7 +24,6 @@ const (
 type (
 	InitRequest          = ctypes.InitRequest
 	MintToGatewayRequest = ctypes.MintToGatewayRequest
-	MintToDPOSRequest    = ctypes.MintToDPOSRequest
 	TotalSupplyRequest   = ctypes.TotalSupplyRequest
 	TotalSupplyResponse  = ctypes.TotalSupplyResponse
 	BalanceOfRequest     = ctypes.BalanceOfRequest
