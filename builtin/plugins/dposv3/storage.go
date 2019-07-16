@@ -12,6 +12,7 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -452,6 +453,9 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+		return nil
+	}
 	var address types.Address
 	err := ctx.Get(referrerKey(name), &address)
 	if err != nil {
@@ -461,6 +465,9 @@ func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 }
 
 func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+		return errors.New("DPOS v3.5 is not enabled")
+	}
 	return ctx.Set(referrerKey(name), address)
 }
 
