@@ -33,7 +33,7 @@ type QueryService interface {
 	EthBlockNumber() (eth.Quantity, error)
 	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
 	EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error)
-	EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error)
+	EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceipt, error)
 	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
 	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
 	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
