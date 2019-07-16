@@ -146,7 +146,13 @@ type Evm struct {
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
-	p.chainConfig = defaultChainConfig()
+
+	if lstate.FeatureEnabled(loomchain.EvmConstantinopoleFeature, false) {
+		p.chainConfig = constantinopoleChainConfig()
+	} else {
+		p.chainConfig = defaultChainConfig()
+	}
+
 	p.vmConfig = defaultVmConfig(debug)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
@@ -245,6 +251,29 @@ func (e Evm) GetCode(addr loom.Address) []byte {
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
 	return vm.NewEVM(e.context, e.sdb, &e.chainConfig, e.vmConfig)
+}
+
+func constantinopoleChainConfig() params.ChainConfig {
+	cliqueCfg := params.CliqueConfig{
+		Period: 10,   // Number of seconds between blocks to enforce
+		Epoch:  1000, // Epoch length to reset votes and checkpoint
+	}
+	return params.ChainConfig{
+		ChainID:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
+		HomesteadBlock: nil,           // Homestead switch block (nil = no fork, 0 = already homestead)
+		DAOForkBlock:   nil,           // TheDAO hard-fork switch block (nil = no fork)
+		DAOForkSupport: true,          // Whether the nodes supports or opposes the DAO hard-fork
+		// EIP150 implements the Gas price changes (https://github.com/ethereum/EIPs/issues/150)
+		EIP150Block:         nil,                                  // EIP150 HF block (nil = no fork)
+		EIP150Hash:          common.BytesToHash([]byte("myHash")), // EIP150 HF hash (needed for header only clients as only gas pricing changed)
+		EIP155Block:         big.NewInt(0),                        // EIP155 HF block
+		EIP158Block:         big.NewInt(0),                        // EIP158 HF block
+		ByzantiumBlock:      big.NewInt(0),                        // Byzantium switch block (nil = no fork, 0 = already on byzantium)
+		ConstantinopleBlock: big.NewInt(0),                        // Constantinople switch block (nil = no fork, 0 = already activated)
+		// Various consensus engines
+		Ethash: new(params.EthashConfig),
+		Clique: &cliqueCfg,
+	}
 }
 
 func defaultChainConfig() params.ChainConfig {
