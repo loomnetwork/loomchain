@@ -294,7 +294,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	return c.emitDelegatorDelegatesEvent(ctx, delegation)
 }
 
-
 //MintVouchers method to the DPOS contract that can be called only by delegators - Mints Generic ERC20 Token
 func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error {
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_6, false) {
@@ -335,7 +334,6 @@ func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error
 	}
 	return nil
 }
-
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	delegator := ctx.Message().Sender
@@ -1566,11 +1564,10 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 	}, nil
 }
 
-
 func loadERC20Token(ctx contract.Context, tokenAddr loom.Address) (*erc20Context, error) {
 	erc20 := newERC20Context(ctx, tokenAddr)
-    return erc20,nil
-	}
+	return erc20, nil
+}
 
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
