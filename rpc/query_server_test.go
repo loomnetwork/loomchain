@@ -118,11 +118,13 @@ func testQueryServerContractQuery(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	var qs QueryService = &QueryServer{
-		StateProvider:  &stateProvider{},
-		Loader:         loader,
-		CreateRegistry: createRegistry,
+		LoomServer: LoomServer{
+			StateProvider:  &stateProvider{},
+			Loader:         loader,
+			CreateRegistry: createRegistry,
+			AuthCfg:        auth.DefaultConfig(),
+		},
 		BlockStore:     store.NewMockBlockStore(),
-		AuthCfg:        auth.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -172,12 +174,14 @@ func testQueryServerContractQuery(t *testing.T) {
 
 func testQueryServerNonce(t *testing.T) {
 	var qs QueryService = &QueryServer{
-		ChainID: "default",
-		StateProvider: &stateProvider{
+		LoomServer: LoomServer{
 			ChainID: "default",
+			StateProvider: &stateProvider{
+				ChainID: "default",
+			},
+			AuthCfg:    auth.DefaultConfig(),
 		},
 		BlockStore: store.NewMockBlockStore(),
-		AuthCfg:    auth.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -239,14 +243,16 @@ func testQueryMetric(t *testing.T) {
 	require.NoError(t, err)
 	// create query service
 	var qs QueryService = &QueryServer{
-		ChainID: "default",
-		StateProvider: &stateProvider{
+		LoomServer: LoomServer{
 			ChainID: "default",
+			StateProvider: &stateProvider{
+				ChainID: "default",
+			},
+			Loader:         loader,
+			CreateRegistry: createRegistry,
+			AuthCfg:        auth.DefaultConfig(),
 		},
-		Loader:         loader,
-		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
-		AuthCfg:        auth.DefaultConfig(),
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{
@@ -324,7 +330,9 @@ func testQueryServerContractEvents(t *testing.T) {
 
 	// build RPC QueryService
 	var qs QueryService = &QueryServer{
-		StateProvider: &stateProvider{},
+		LoomServer: LoomServer{
+			StateProvider: &stateProvider{},
+		},
 		BlockStore:    store.NewMockBlockStore(),
 		EventStore:    eventStore,
 	}
@@ -411,7 +419,9 @@ func testQueryServerContractEvents(t *testing.T) {
 func testQueryServerContractEventsNoEventStore(t *testing.T) {
 	// build RPC QueryService
 	var qs QueryService = &QueryServer{
-		StateProvider: &stateProvider{},
+		LoomServer: LoomServer{
+			StateProvider: &stateProvider{},
+		},
 		BlockStore:    store.NewMockBlockStore(),
 		EventStore:    nil,
 	}

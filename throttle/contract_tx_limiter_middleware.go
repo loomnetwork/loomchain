@@ -146,7 +146,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		case migrationId:
 			return next(state, txBytes, isCheckTx)
 		default:
-			return res, errors.Errorf("unrecognised tx id %v", tx.Id)
+			return next(state, txBytes, isCheckTx)
 		}
 
 		if txl.contractToTierMap == nil ||

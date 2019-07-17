@@ -11,11 +11,19 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/gogo/protobuf/proto"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ttypes "github.com/tendermint/tendermint/types"
+
+	"github.com/loomnetwork/go-loom/auth"
+	ltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/vm"
+	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -98,4 +106,64 @@ func compareTxs(t *testing.T, tx1, tx2 *types.Transaction) {
 		require.Equal(t, 0, bytes.Compare(tx1.To().Bytes(), tx2.To().Bytes()))
 	}
 	require.Equal(t, 0, tx1.Value().Cmp(tx2.Value()))
+}
+
+type EthTxInfo struct {
+	Tx   *etypes.Transaction
+	From common.Address
+}
+
+type MockTendermintRpc struct {
+	txs []EthTxInfo
+}
+
+func (mt *MockTendermintRpc) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadcastTx, error) {
+	ethTx, err := tendermintToEthereumTx(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	var signedTx auth.SignedTx
+	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
+		return nil, err
+	}
+	from, err := lauth.VerifySolidity66Byte(signedTx)
+	if err != nil {
+		return nil, err
+	}
+
+	mt.txs = append([]EthTxInfo{{ethTx, common.BytesToAddress(from)}}, mt.txs...)
+	return &ctypes.ResultBroadcastTx{}, nil
+}
+
+func (mt *MockTendermintRpc) ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
+	return nil, nil
+}
+
+func tendermintToEthereumTx(tmTx ttypes.Tx) (*etypes.Transaction, error) {
+	var signedTx auth.SignedTx
+	if err := proto.Unmarshal([]byte(tmTx), &signedTx); err != nil {
+		return nil, err
+	}
+
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return nil, err
+	}
+
+	var txTx ltypes.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
+		return nil, err
+	}
+
+	var msg vm.MessageTx
+	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
+		return nil, err
+	}
+
+	var tx etypes.Transaction
+	if err := rlp.DecodeBytes(msg.Data, &tx); err != nil {
+		return nil, err
+	}
+	return &tx, nil
 }

@@ -3,6 +3,7 @@
 package auth
 
 import (
+	"bytes"
 	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
@@ -26,7 +27,7 @@ const (
 
 func VerifySolidity66Byte(tx SignedTx) ([]byte, error) {
 	if tx.Signature == nil {
-		return verifyEthereumTransacton(tx)
+		return verifyEthTx(tx)
 	}
 	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature)
 	if err != nil {
@@ -44,7 +45,7 @@ func verifyTron(tx SignedTx) ([]byte, error) {
 	return tronAddr.Bytes(), nil
 }
 
-func verifyEthereumTransacton(signedTx SignedTx) ([]byte, error) {
+func verifyEthTx(signedTx SignedTx) ([]byte, error) {
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
 		return nil, err
@@ -71,5 +72,15 @@ func verifyEthereumTransacton(signedTx SignedTx) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if tx.To() != nil {
+		if 0 != bytes.Compare(tx.To().Bytes(), msg.To.Local) {
+			return nil, errors.Errorf("to addresses do not match, to.To: %s and msg.To %s",tx.To().String(), msg.To.String())
+		}
+	}
+	if tx.Nonce() != nonceTx.Sequence {
+		return nil, errors.Errorf("nonce from tx, %v and nonceTx.Sequence %v", tx.Nonce(), nonceTx.Sequence)
+	}
+
 	return from.Bytes(), err
 }
+

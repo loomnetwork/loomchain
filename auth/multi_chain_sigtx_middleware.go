@@ -102,7 +102,7 @@ func NewMultiChainSignatureTxMiddleware(
 			)
 		}
 
-		if !bytes.Equal(recoveredAddr, msgSender.Local) {//&& msgSender.ChainID != string(EthereumTransaction) {
+		if !bytes.Equal(recoveredAddr, msgSender.Local) {
 			return r, fmt.Errorf("message sender %s doesn't match origin %s",
 				hex.EncodeToString(msgSender.Local), hex.EncodeToString(recoveredAddr),
 			)

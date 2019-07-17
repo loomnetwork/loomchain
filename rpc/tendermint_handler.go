@@ -11,11 +11,6 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
-const (
-	ethChainID = "eth"
-	ethTxId = 4
-)
-
 var (
 	blockNumber = big.NewInt(5)
 )
