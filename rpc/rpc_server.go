@@ -37,13 +37,13 @@ func init() {
 
 // RPCServer starts up HTTP servers that handle client requests.
 func RPCServer(
-	qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string,
+	qsvc QueryService, tmsvc TendermintRpc, logger log.TMLogger, bus *QueryEventBus, bindAddr string,
 	enableUnsafeRPC bool, unsafeRPCBindAddress string,
 ) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	hub := newHub()
 	go hub.run()
-	ethHandler := MakeEthQueryServiceHandler(qsvc, logger, hub, RuntimeTendermintRpc{})
+	ethHandler := MakeEthQueryServiceHandler(qsvc, logger, hub, tmsvc)
 
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
 	// and /rpc endpoints.

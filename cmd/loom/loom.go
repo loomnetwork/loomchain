@@ -1225,25 +1225,28 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
-
-	qs := &rpc.QueryServer{
-		StateProvider:          app,
+	loomSever := rpc.LoomServer{
 		ChainID:                chainID,
+		StateProvider:          app,
 		Loader:                 loader,
+		CreateRegistry:         createRegistry,
+		NewABMFactory:          newABMFactory,
+		AuthCfg:                cfg.Auth,
+	}
+	qs := &rpc.QueryServer{
+		LoomServer:             loomSever,
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
 		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
 		EthPolls:               *polls.NewEthSubscriptions(app.EvmAuxStore, blockstore),
-		CreateRegistry:         createRegistry,
-		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
 		BlockIndexStore:        app.BlockIndexStore,
 		EventStore:             app.EventStore,
-		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 	}
+	tmsvc := &rpc.RuntimeTendermintRpc{loomSever}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
 		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
@@ -1255,7 +1258,7 @@ func initQueryService(
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
+	err = rpc.RPCServer(qsvc, tmsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
 	if err != nil {
 		return err
 	}
