@@ -21,7 +21,7 @@ contract SampleERC20Token is ERC20DAppToken, StandardToken {
     }
 
     function mintToDPOS(uint256 _amount) public {
-        require(msg.sender == gateway);
+        require(msg.sender == dpos);
         totalSupply_ = totalSupply_.add(_amount);
         balances[dpos] = balances[dpos].add(_amount);
     }
