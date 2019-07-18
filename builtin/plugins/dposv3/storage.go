@@ -12,7 +12,6 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -27,6 +26,7 @@ var (
 	statisticsKey  = []byte("statistic")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
+	referrersKey         = []byte("referrers")
 	referrerPrefix       = []byte("rf")
 )
 
@@ -453,11 +453,15 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
-	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
-		return nil
-	}
 	var address types.Address
-	err := ctx.Get(referrerKey(name), &address)
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+		err := ctx.Get(referrerKey(name), &address)
+		if err != nil {
+			return nil
+		}
+		return &address
+	}
+	err := ctx.Get(append(referrersKey, name...), &address)
 	if err != nil {
 		return nil
 	}
@@ -465,10 +469,10 @@ func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 }
 
 func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
-	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
-		return errors.New("DPOS v3.5 is not enabled")
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+		return ctx.Set(referrerKey(name), address)
 	}
-	return ctx.Set(referrerKey(name), address)
+	return ctx.Set(append(referrersKey, name...), address)
 }
 
 func GetLocalCandidateAddressFromTendermintAddress(
