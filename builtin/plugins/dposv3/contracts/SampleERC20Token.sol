@@ -21,10 +21,10 @@ contract SampleERC20Token is ERC20DAppToken, StandardToken {
         totalSupply_ = 1000000000 * (10 ** uint256(decimals));
     }
 
-    function mintToDPOS(uint256 _amount, address _dposAddress) public {
-        require(msg.sender == _dposAddress);
+    function mintToDPOS(uint256 _amount) public {
+        require(msg.sender == dpos);
         totalSupply_ = totalSupply_.add(_amount);
         balances[_dposAddress] = balances[_dposAddress].add(_amount);
-        event mintingDPOS(_amount,_dposAddress);
+        mintingDPOS(_amount,_dposAddress);
     }
 }
