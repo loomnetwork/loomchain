@@ -48,7 +48,7 @@ type (
 
 var (
 	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
-	ErrInvalidRequest      = errors.New("Coin contract invalid request")
+	ErrInvalidRequest      = errors.New("[Coin Contract] invalid request")
 )
 
 var (
@@ -234,9 +234,11 @@ func (c *Coin) BalanceOf(
 	ctx contract.StaticContext,
 	req *BalanceOfRequest,
 ) (*BalanceOfResponse, error) {
-	if req.Owner == nil {
+
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && req.Owner == nil {
 		return nil, ErrInvalidRequest
 	}
+
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	acct, err := loadAccount(ctx, owner)
 	if err != nil {
@@ -248,13 +250,12 @@ func (c *Coin) BalanceOf(
 }
 
 func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
-	if req.To == nil || req.Amount == nil {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.To == nil || req.Amount == nil) {
 		return ErrInvalidRequest
 	}
 	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
 		return c.transfer(ctx, req)
 	}
-
 	return c.legacyTransfer(ctx, req)
 }
 
@@ -299,7 +300,7 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 }
 
 func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
-	if req.Spender == nil || req.Amount == nil {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Amount == nil) {
 		return ErrInvalidRequest
 	}
 
@@ -329,7 +330,7 @@ func (c *Coin) Allowance(
 	ctx contract.StaticContext,
 	req *AllowanceRequest,
 ) (*AllowanceResponse, error) {
-	if req.Spender == nil || req.Owner == nil {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Owner == nil) {
 		return nil, ErrInvalidRequest
 	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
@@ -346,8 +347,11 @@ func (c *Coin) Allowance(
 }
 
 func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	if req.Amount == nil || req.From == nil || req.To == nil {
-		return ErrInvalidRequest
+
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) {
+		if req.Amount == nil || req.From == nil || req.To == nil {
+			return ErrInvalidRequest
+		}
 	}
 	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
 		return c.transferFrom(ctx, req)
@@ -431,7 +435,7 @@ func loadAccount(
 }
 
 func saveAccount(ctx contract.Context, acct *Account) error {
-	if acct.Owner == nil || acct.Balance == nil {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (acct.Owner == nil || acct.Balance == nil) {
 		return ErrInvalidRequest
 	}
 	owner := loom.UnmarshalAddressPB(acct.Owner)
@@ -458,8 +462,10 @@ func loadAllowance(
 }
 
 func saveAllowance(ctx contract.Context, allow *Allowance) error {
-	if allow.Owner == nil || allow.Spender == nil || allow.Amount == nil {
-		return ErrInvalidRequest
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) {
+		if allow.Owner == nil || allow.Spender == nil || allow.Amount == nil {
+			return ErrInvalidRequest
+		}
 	}
 	owner := loom.UnmarshalAddressPB(allow.Owner)
 	spender := loom.UnmarshalAddressPB(allow.Spender)
@@ -471,9 +477,6 @@ var Contract plugin.Contract = contract.MakePluginContract(&Coin{})
 // Legacy methods from v1.0.0
 
 func (c *Coin) legacyTransfer(ctx contract.Context, req *TransferRequest) error {
-	if req.Amount == nil || req.To == nil {
-		return ErrInvalidRequest
-	}
 	from := ctx.Message().Sender
 	to := loom.UnmarshalAddressPB(req.To)
 
@@ -513,9 +516,6 @@ func (c *Coin) legacyTransfer(ctx contract.Context, req *TransferRequest) error 
 }
 
 func (c *Coin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	if req.Amount == nil || req.To == nil || req.From == nil {
-		return ErrInvalidRequest
-	}
 	from := loom.UnmarshalAddressPB(req.From)
 	fromAccount, err := loadAccount(ctx, from)
 	if err != nil {

@@ -1,6 +1,7 @@
 package coin
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
@@ -222,6 +223,13 @@ func TestTransferFrom(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	nilResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: nil,
+	})
+	require.Error(t, err)
+	require.Nil(t, nilResp)
 }
 
 // Verify Coin.TransferFrom works correctly when the to & from addresses are the same.
@@ -243,7 +251,6 @@ func TestTransferFromSelf(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-
 	amount := sciNot(100, 18)
 	resp, err := contract.BalanceOf(
 		contractpb.WrapPluginContext(pctx),
@@ -495,5 +502,95 @@ func TestMintToGatewayAccess(t *testing.T) {
 			},
 		},
 	), "loomcoin gateway should be allowed to call MintToGateway")
+
+}
+
+func TestNilRequest(t *testing.T) {
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx := contractpb.WrapPluginContext(pctx)
+	contract := &Coin{}
+
+	contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			{
+				Owner:   addr1.MarshalPB(),
+				Balance: 100,
+			},
+		},
+	})
+	err := contract.Burn(ctx, &BurnRequest{
+		Owner:  nil,
+		Amount: nil,
+	})
+	require.Equal(t, err, errors.New("owner or amount is nil"))
+
+	balResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+	require.Nil(t, balResp)
+
+	err = contract.Transfer(ctx, &TransferRequest{
+		To:     nil,
+		Amount: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+
+	err = contract.Approve(ctx, &ApproveRequest{
+		Spender: nil,
+		Amount:  nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+
+	amount := sciNot(0, 18)
+	err = contract.Approve(ctx, &ApproveRequest{
+		Spender: addr2.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	})
+	require.NoError(t, err)
+
+	alwResp, err := contract.Allowance(ctx, &AllowanceRequest{
+		Owner:   nil,
+		Spender: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+	require.Nil(t, alwResp)
+
+	err = contract.TransferFrom(ctx, &TransferFromRequest{
+		From:   addr2.MarshalPB(),
+		To:     addr1.MarshalPB(),
+		Amount: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+
+	err = contract.TransferFrom(ctx, &TransferFromRequest{
+		From: addr2.MarshalPB(),
+		To:   addr1.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	})
+	require.NoError(t, err)
+
+	err = saveAccount(ctx, &Account{
+		Owner:   nil,
+		Balance: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+	err = saveAccount(ctx, &Account{
+		Owner: addr1.MarshalPB(),
+		Balance: &types.BigUInt{
+			Value: *amount,
+		}})
+	require.NoError(t, err)
+	err = saveAllowance(ctx, &Allowance{
+		Owner:   nil,
+		Spender: nil,
+		Amount:  nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
 
 }
