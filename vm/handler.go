@@ -3,10 +3,10 @@ package vm
 import (
 	"fmt"
 
-	"github.com/gogo/protobuf/proto"
+	proto "github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -61,9 +61,6 @@ func (h *DeployTxHandler) ProcessTx(
 		value = loom.NewBigUIntFromInt(0)
 	} else {
 		value = &tx.Value.Value
-		if 0 < value.Cmp(loom.NewBigUIntFromInt(0)) {
-			return r, errors.Errorf("value %v must be positive", value)
-		}
 	}
 
 	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value)
@@ -142,9 +139,6 @@ func (h *CallTxHandler) ProcessTx(
 		value = loom.NewBigUIntFromInt(0)
 	} else {
 		value = &tx.Value.Value
-		if 0 < value.Cmp(loom.NewBigUIntFromInt(0)) {
-			return r, errors.Errorf("value %v must be positive", value)
-		}
 	}
 	r.Data, err = vm.Call(origin, addr, tx.Input, value)
 	if err != nil {
