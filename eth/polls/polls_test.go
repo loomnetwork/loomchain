@@ -196,8 +196,8 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 		defer wg.Done()
 		s.Remove(id)
 	}(sub)
-
 	wg.Wait()
+
 	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
