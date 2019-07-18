@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
 
 	"github.com/loomnetwork/loomchain"
@@ -55,6 +56,9 @@ func (h *EthTxHandler) ProcessTx(
 	}
 
 	value := &loom.BigUInt{ethTx.Value()}
+	if !common.IsPositive(*value) && !common.IsZero(*value) {
+		return r, errors.Errorf("value %v must be non negative", value)
+	}
 	if ethTx.To() == nil {
 		retCreate, addr, errCreate := vm.Create(origin, ethTx.Data(), value)
 

@@ -196,6 +196,16 @@ func GetTxObjectFromBlockResult(
 			if ethTx.To() != nil {
 				to := eth.EncAddress(msg.To)
 				txObj.To = &to
+			} else {
+				var resp vm.DeployResponse
+				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
+					return eth.GetEmptyTxObject(), nil, err
+				}
+				var respData vm.DeployResponseData
+				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
+					return eth.GetEmptyTxObject(), nil, err
+				}
+				contractAddress = eth.EncPtrAddress(resp.Contract)
 			}
 			txObj.Value = eth.EncBigInt(*ethTx.Value())
 			input = ethTx.Data()
