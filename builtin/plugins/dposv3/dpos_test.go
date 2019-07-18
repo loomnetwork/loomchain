@@ -1,19 +1,20 @@
+// +build evm
+
 package dposv3
 
 import (
 	"encoding/hex"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	loom "github.com/loomnetwork/go-loom"
-	common "github.com/loomnetwork/go-loom/common"
+    "fmt"
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
@@ -32,6 +33,7 @@ var (
 	delegatorAddress6       = loom.MustParseAddress("default:0x000000000000000000040400e3edf03b825e0398")
 	chainID                 = "default"
 	startTime         int64 = 100000
+	dAppAddr = loom.Address{ChainID: "default", Local: addr1.Local}
 
 	pubKey1, _ = hex.DecodeString(validatorPubKeyHex1)
 	addr1      = loom.Address{
@@ -176,6 +178,7 @@ func TestChangeParams(t *testing.T) {
 	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
 	assert.Equal(t, stateResponse.State.Params.ElectionCycleLength, int64(100))
 }
+
 
 func TestRegisterWhitelistedCandidate(t *testing.T) {
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
@@ -329,7 +332,6 @@ func TestDelegate(t *testing.T) {
 	oracleAddr := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
 	}
-
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -478,6 +480,130 @@ func TestDelegate(t *testing.T) {
 	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
 	require.NotNil(t, err)
 }
+
+func TestMintingDPOS(t *testing.T) {
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex3)
+	addr2 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey2),
+	}
+	pctx := createCtx()
+	pctx.SetFeature(loomchain.DPOSVersion3_6, true)
+	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(delegatorAddress2, 2000000000000000000),
+			makeAccount(delegatorAddress3, 1000000000000000000),
+			makeAccount(addr1, 1000000000000000000),
+		},
+	})
+
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      21,
+		CoinContractAddress: coinAddr.MarshalPB(),
+		OracleAddress:       oracleAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	fakeCtx := CreateFakeContextWithEVM(dAppAddr, loom.RootAddress("default"))
+	erc20TokenAddress, err := deployTokenContract(fakeCtx,"SampleERC20Token",dpos.Address,addr2)
+
+	err = dpos.SetVoucherTokenAddress(pctx,&erc20TokenAddress)
+
+	erc20, err := loadERC20Token(contractpb.WrapPluginContext(dpos.Ctx), erc20TokenAddress)
+
+	require.Nil(t, err)
+
+	amount := loom.NewBigUIntFromInt(100)
+	whitelistAmount := big.NewInt(1000000000000)
+	// should fail from non-oracle
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
+	require.Equal(t, errOnlyOracle, err)
+
+	err = dpos.WhitelistCandidate(pctx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	delegationAmount := big.NewInt(100)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	response, err := coinContract.Allowance(contractpb.WrapPluginContext(coinCtx.WithSender(oracleAddr)), &coin.AllowanceRequest{
+		Owner:   addr1.MarshalPB(),
+		Spender: dpos.Address.MarshalPB(),
+	})
+	require.Nil(t, err)
+	require.True(t, delegationAmount.Cmp(response.Amount.Value.Int) == 0)
+
+	candidates, err := dpos.ListCandidates(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, len(candidates), 1)
+
+	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	// total rewards distribution should equal 0 before elections run
+	totalRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+	require.Nil(t, err)
+	assert.True(t, totalRewardDistribution.Cmp(common.BigZero()) == 0)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// total rewards distribution should equal still be zero after first election
+	totalRewardDistribution, err = dpos.CheckRewards(pctx.WithSender(addr1))
+	require.Nil(t, err)
+	assert.True(t, totalRewardDistribution.Cmp(common.BigZero()) == 0)
+
+	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+
+	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr2)
+	require.Nil(t, err)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+	require.NoError(t, err)
+	// checking erc20 balance  before minting
+	resp1,_ := erc20.balanceOf(delegatorAddress1)
+	err = dpos.MintVouchers(pctx.WithSender(delegatorAddress1),MintVoucherRequest{Amount:&types.
+		BigUInt{Value: *amount}})
+	// checking erc20 balance after minting
+	resp2, err := erc20.balanceOf(delegatorAddress1)
+	require.Nil(t, err)
+	fmt.Println(resp2.Int64())
+	require.Nil(t, err)
+	//Minting Amount is credited to the delegator
+	assert.Equal(t, amount.Uint64(), resp2.Int64(), resp1.Int64())
+
+	}
+
 
 func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	pctx := createCtx()
