@@ -269,7 +269,6 @@ func Mint(ctx contract.Context) error {
 	}
 	changeRatioNumerator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioNumerator))
 	changeRatioDenominator := loom.NewBigUIntFromInt(int64(policy.ChangeRatioDenominator))
-	blockHeight := loom.NewBigUIntFromInt(ctx.Block().Height)
 	baseAmount := loom.NewBigUIntFromInt(int64(policy.TotalSupply))
 	baseAmount.Mul(baseAmount, div)
 	blocksGeneratedPerYear := loom.NewBigUIntFromInt(int64(policy.BlocksGeneratedPerYear))
@@ -299,14 +298,15 @@ func Mint(ctx contract.Context) error {
 	if err1 != nil {
 		return err1
 	}
-	relativeHeight := big.NewInt(ctx.Block().Height).Sub(big.NewInt(ctx.Block().Height), big.NewInt(mintingHeight.Value.Int64()))
-	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height-mintingHeight.Value.Int64()),
+	finalMintingHeight := big.NewInt(mintingHeight.Value.Int64()).Sub(big.NewInt(mintingHeight.Value.Int64()), big.NewInt(int64(1)))
+	relativeHeight := big.NewInt(ctx.Block().Height).Sub(big.NewInt(ctx.Block().Height), finalMintingHeight)
+	_, modulus := big.NewInt(ctx.Block().Height).DivMod(big.NewInt(ctx.Block().Height-finalMintingHeight.Int64()),
 		big.NewInt(int64(policy.BlocksGeneratedPerYear)), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
-	year := blockHeight.Div(blockHeight, blocksGeneratedPerYear)
+	year := big.NewInt(ctx.Block().Height).Div(big.NewInt(ctx.Block().Height), big.NewInt(int64(policy.BlocksGeneratedPerYear)))
 	//Computes relative Year by taking into Account minting Height and blocks Generated Per Year
 	relativeYear := relativeHeight.Div(relativeHeight, blocksGeneratedPerYear.Int)
 	//Minting Amount per block is set in ctx after minting amount is determined for year
-	if year.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+	if year.Cmp(big.NewInt(int64(0))) == 0 {
 		//Determines minting amount at the beginning block of blockchain or at block height at which minting is enabled
 		if modulus.Cmp(big.NewInt(1)) == 0 || err == contract.ErrNotFound {
 			//Minting Amount Computation for starting year
@@ -326,7 +326,7 @@ func Mint(ctx contract.Context) error {
 				return errUtil.Wrap(err, "Failed Minting Block with operator for consecutive year")
 			}
 		} else if err == contract.ErrNotFound {
-			amount, err = ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx, baseAmount, basePercentage, blocksGeneratedPerYear)
+			amount, err = ComputeforFirstYearLargeBlockHeight(ctx, baseAmount, basePercentage, blocksGeneratedPerYear)
 			if err != nil {
 				return errUtil.Wrap(err, "Failed Minting Block for First Year BlockHeight greater than One year")
 			}
@@ -365,7 +365,7 @@ func ComputeforFirstYear(ctx contract.Context, baseAmount *common.BigUInt, block
 
 //Computes minting Amount for first year if Block Height is greater than blocks generated in a year, whether its year beginning or in the middle
 //Computes base Amount by taking minting height into Account (Height at which minting started), applies base percentage to compute inflation for that year which is divided by blocks generated per year to get ==> minting Amount per block
-func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, baseAmount *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
+func ComputeforFirstYearLargeBlockHeight(ctx contract.Context, baseAmount *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt) (*common.BigUInt, error) {
 	var econ Economy
 	err := ctx.Get(economyKey, &econ)
 	if err != nil {
@@ -385,6 +385,8 @@ func ComputeforFirstYearBlockHeightgreaterthanOneyear(ctx contract.Context, base
 	return amount, nil
 }
 
+//Computes minting Amount for consecutive year beginning ie years after first year - base percentage will be modified
+// after applying change ratio with operator. Base Amount is multiplied with base percentage to get inflation for that year
 func ComputeforConsecutiveYearBeginningWithOperator(ctx contract.Context, baseAmount *common.BigUInt, changeRatioNumerator *common.BigUInt, changeRatioDenominator *common.BigUInt, basePercentage *common.BigUInt, blocksGeneratedPerYear *common.BigUInt, amount *common.BigUInt, year *common.BigUInt, operator string) (*common.BigUInt, error) {
 	var err error
 	switch operator {
