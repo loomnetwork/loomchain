@@ -284,6 +284,7 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 	if err != nil {
 		return nil, err
 	}
+
 	return &ctypes.ResultTx{
 		Index:  txResult.Index,
 		Height: txResult.Height,
