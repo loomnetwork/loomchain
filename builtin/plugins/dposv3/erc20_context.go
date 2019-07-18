@@ -77,8 +77,9 @@ func (c *erc20Context) transfer(to loom.Address, amount *big.Int) error {
 	return err
 }
 
-func (c *erc20Context) mintToDPOS(amount *big.Int) error {
-	_, err := c.callEVM("mintToDPOS", amount)
+func (c *erc20Context) mintToDPOS(amount *big.Int, contractAddress loom.Address) error {
+	contractAddr := common.BytesToAddress(contractAddress.Local)
+	_, err := c.callEVM("mintToDPOS", amount, contractAddr)
 	return err
 }
 
@@ -98,21 +99,7 @@ func (c *erc20Context) approve(spender loom.Address, amount *big.Int) error {
 }
 
 const erc20ABI =
-`	[
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "_amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "mintToDPOS",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
+`  [
   {
     "constant": true,
     "inputs": [],
@@ -262,6 +249,24 @@ const erc20ABI =
     "type": "function"
   },
   {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_amount",
+        "type": "uint256"
+      },
+      {
+        "name": "_dposAddress",
+        "type": "address"
+      }
+    ],
+    "name": "mintToDPOS",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "constant": true,
     "inputs": [],
     "name": "symbol",
@@ -354,6 +359,23 @@ const erc20ABI =
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "_amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_dposAddress",
+        "type": "address"
+      }
+    ],
+    "name": "mintingDPOS",
+    "type": "event"
   },
   {
     "anonymous": false,
