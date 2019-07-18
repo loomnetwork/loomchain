@@ -95,6 +95,34 @@ func MintVouchersCmdV3() *cobra.Command {
 }
 
 
+func SetVoucherTokenAddressCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "set-voucher-token-address [address]",
+		Short: "sets voucher token address",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			address, err := cli.ParseAddress(args[0],"default")
+			if err != nil {
+				return err
+			}
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "SetVoucherTokenAddress", &dposv3.AddVoucherTokenAddressRequest{
+					VoucherTokenAddress:address.MarshalPB(),
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+
+
+
 func GetStateCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -1160,6 +1188,7 @@ func NewDPOSV3Command() *cobra.Command {
 		SetMinCandidateFeeCmdV3(),
 		UnjailValidatorCmdV3(),
 		MintVouchersCmdV3(),
+		SetVoucherTokenAddressCmdV3(),
 	)
 	return cmd
 }
