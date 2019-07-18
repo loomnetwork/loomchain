@@ -1,19 +1,90 @@
+// +build evm
+
 package dposv3
 
 import (
+	"context"
+	"io/ioutil"
 	"math/big"
+	"strings"
+	"time"
 
-	loom "github.com/loomnetwork/go-loom"
-	common "github.com/loomnetwork/go-loom/common"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	cmn "github.com/ethereum/go-ethereum/common"
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	levm "github.com/loomnetwork/loomchain/evm"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 type testDPOSContract struct {
 	Contract *DPOS
 	Address  loom.Address
+	Ctx *plugin.FakeContext
+}
+
+// Contract context for tests that need both Go & EVM contracts.
+type FakeContextWithEVM struct {
+	*plugin.FakeContext
+	State                    loomchain.State
+	useAccountBalanceManager bool
+}
+
+func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM {
+	block := abci.Header{
+		ChainID: "chain",
+		Height:  int64(34),
+		Time:    time.Unix(123456789, 0),
+	}
+	ctx := plugin.CreateFakeContext(caller, address).WithBlock(
+		types.BlockHeader{
+			ChainID: block.ChainID,
+			Height:  block.Height,
+			Time:    block.Time.Unix(),
+		},
+	)
+	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
+	return &FakeContextWithEVM{
+		FakeContext: ctx,
+		State:       state,
+	}
+}
+
+func deployTokenContract(ctx *FakeContextWithEVM, filename string, dpos, caller loom.Address) (loom.Address,
+	error) {
+	contractAddr := loom.Address{}
+	hexByteCode, err := ioutil.ReadFile("contracts/" + filename + ".bin")
+	if err != nil {
+		return contractAddr, err
+	}
+	abiBytes, err := ioutil.ReadFile("contracts/" + filename + ".abi")
+	if err != nil {
+		return contractAddr, err
+	}
+	contractABI, err := abi.JSON(strings.NewReader(string(abiBytes)))
+	if err != nil {
+		return contractAddr, err
+	}
+	byteCode := cmn.FromHex(string(hexByteCode))
+	// append constructor args to bytecode
+	// append constructor args to bytecode
+	input, err := contractABI.Pack("", cmn.BytesToAddress(dpos.Bytes()))
+	if err != nil {
+		return contractAddr, err
+	}
+	byteCode = append(byteCode, input...)
+
+	vm := levm.NewLoomVm(ctx.State, nil, nil, nil, false)
+	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
+	if err != nil {
+		return contractAddr, err
+	}
+	ctx.RegisterContract("", contractAddr, caller)
+	return contractAddr, nil
 }
 
 func deployDPOSContract(
@@ -31,11 +102,12 @@ func deployDPOSContract(
 	})
 
 	// Enable the feature flag which enables the reward rounding fix
-	dposCtx.SetFeature(loomchain.DPOSVersion3_1, true)
+	ctx.SetFeature(loomchain.DPOSVersion3_1, true)
 
 	return &testDPOSContract{
 		Contract: dposContract,
 		Address:  contractAddr,
+		Ctx: ctx,
 	}, err
 }
 
@@ -50,6 +122,18 @@ func (dpos *testDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*Li
 
 	return resp.ListResponses, err
 }
+
+
+func (dpos *testDPOSContract) SetVoucherTokenAddress(ctx *plugin.FakeContext, voucherTokenAddress  *loom.Address) error {
+	err := dpos.Contract.SetVoucherTokenAddress(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&AddVoucherTokenAddressRequest{VoucherTokenAddress:voucherTokenAddress.MarshalPB()})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 
 func (dpos *testDPOSContract) ListCandidates(ctx *plugin.FakeContext) ([]*CandidateStatistic, error) {
 	resp, err := dpos.Contract.ListCandidates(
@@ -347,5 +431,18 @@ func (dpos *testDPOSContract) ConsolidateDelegations(ctx *plugin.FakeContext, va
 			ValidatorAddress: validator.MarshalPB(),
 		},
 	)
+	return err
+}
+
+func (dpos *testDPOSContract) MintVouchers(ctx *plugin.FakeContext,
+	request MintVoucherRequest) error {
+	amount := loom.NewBigUIntFromInt(10)
+	err := dpos.Contract.MintVouchers(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&MintVoucherRequest{Amount: &types.BigUInt{Value: *amount}},
+	)
+	if err != nil {
+		return err
+	}
 	return err
 }
