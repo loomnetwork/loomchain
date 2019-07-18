@@ -5,6 +5,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/loomnetwork/loomchain"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -396,10 +398,17 @@ func TestGetSetReferrer(t *testing.T) {
 
 	err := SetReferrer(ctx, "hi", address1.MarshalPB())
 	assert.Nil(t, err)
-
 	address := GetReferrer(ctx, "hi")
 	assert.NotNil(t, address)
 	assert.True(t, address.Local.Compare(address1.Local) == 0)
+
+	//Enable feature dpos:v3.5
+	pctx.SetFeature(loomchain.DPOSVersion3_5, true)
+	err = SetReferrer(ctx, "hi-3.5", address1.MarshalPB())
+	assert.Nil(t, err)
+	addr := GetReferrer(ctx, "hi-3.5")
+	assert.NotNil(t, addr)
+	assert.True(t, addr.Local.Compare(address1.Local) == 0)
 
 	address = GetReferrer(ctx, "bye")
 	assert.Nil(t, address)
