@@ -195,7 +195,9 @@ func TestMintDivOperator(t *testing.T) {
 		Time:    time.Now().Unix(),
 		Height:  1,
 	}))
-	//Minting will start in year 1 for first block
+	//Minting will start in year 1 for first block of blockchain
+	//At this stage minting height will be recorded i.e height at which minting started
+	//As it is first year of blockchain, (base Amount) will be divided by (blocks generated per year) to get mintingAmountPerBLock
 	contract := &Coin{}
 	err := contract.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -214,7 +216,7 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err)
-	//Tests function ==> ComputeforFirstYear
+	//Below mint routine Tests function ==> ComputeforFirstYear
 	err = Mint(ctx)
 	require.Nil(t, err)
 
@@ -236,9 +238,12 @@ func TestMintDivOperator(t *testing.T) {
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  50002,
+		Height:  50001,
 	}))
-	//Minting in year 2 for BlockHeight 50002
+	//Minting in year 2 for BlockHeight 50001
+	//This is the first block of blockchain for second year.
+	//So base percentage will be modified by change ratio with div operator- Equivalent formula will be (basePercentage) * (
+	// changeRatioNumerator/(changeRatioDenominator*1)
 	contract1 := &Coin{}
 	err1 := contract1.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -257,7 +262,8 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err1)
-	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator and ComputeInflationForYear
+	//Below Mint Function tests function ==> ComputeforConsecutiveYearBeginningWithOperator(
+	// In this case div operator) and ComputeInflationForYear
 	err1 = Mint(ctx)
 	require.Nil(t, err1)
 
@@ -280,6 +286,8 @@ func TestMintDivOperator(t *testing.T) {
 		Height:  50020,
 	}))
 	//Minting in year 2 for BlockHeight 50020
+	//This is the scenario for minting at a certain point in year 2 where minting amount per block has already
+	//been computed for that year, In this case, there will not be any re-computation and minting Amount will just be derived from context
 	contract6 := &Coin{}
 	err6 := contract6.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -298,7 +306,7 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err6)
-	//Tests function ComputeforConsecutiveYearinMiddle
+	//Below Mint Function Tests function ComputeforConsecutiveYearinMiddle
 	err1 = Mint(ctx)
 	require.Nil(t, err1)
 
@@ -319,9 +327,14 @@ func TestMintDivOperator(t *testing.T) {
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  100002,
+		Height:  100001,
 	}))
-	//Minting in year 3 at BlockHeight 100002
+	//Minting in year 3 at BlockHeight 100001
+	//This is the scenario for minting at beginning in year 3.
+	//This is the first block of blockchain for Third year.
+	//So base percentage will be modified by change ratio with div operator- Equivalent formula will be (
+	// basePercentage) * (
+	// changeRatioNumerator/(changeRatioDenominator*2).
 	contract2 := &Coin{}
 	err2 := contract2.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -340,7 +353,8 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err2)
-	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator(div operator in this case),
+	//Below Mint Function Tests function ==> ComputeforConsecutiveYearBeginningWithOperator(
+	// div operator in this case),
 	// ComputeInflationForYear
 	err2 = Mint(ctx)
 	require.Nil(t, err2)
@@ -359,10 +373,295 @@ func TestMintDivOperator(t *testing.T) {
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
 		ChainID: "default",
 		Time:    time.Now().Unix(),
-		Height:  9000000000000000002,
+		Height:  90000000000001,
 	}))
 	//Block Height is set to very high value,
-	// Minting will stop at this stage as minting Amount per block = 0 after very long period
+	// Minting Amount per block will become very small after very long period adding negligible contribution to total
+	// supply
+	contract3 := &Coin{}
+	err3 := contract3.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err3)
+
+	//Minting without any error
+	resp7, err3 := contract3.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err3)
+	//There will be no minting at this stage as amount to mint per block becomes zero
+	err3 = Mint(ctx)
+	require.Nil(t, err3)
+	// checking balance after minting
+	resp8, err3 := contract3.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err3)
+
+	err = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	// Minting stops at this stage and total supply becomes constant
+	assert.Equal(t, amount1.Value.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
+	assert.Equal(t, amount1.Value.Uint64(), uint64(55555))
+
+	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
+	// not from year 2 beginning. Please note here operator will not apply as minting is being done for the first time
+	pctx7 := plugin.CreateFakeContext(addr1, addr1)
+	pctx7.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx7 := contractpb.WrapPluginContext(pctx7.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50003,
+	}))
+	contract5 := &Coin{}
+	err5 := contract5.Init(ctx7, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err5)
+
+	//Minting without any error
+	resp10, err5 := contract5.BalanceOf(ctx7,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err5)
+	//Below Mint Function Tests function ComputeforFirstYearLargeBlockHeight
+	err5 = Mint(ctx7)
+	require.Nil(t, err5)
+
+	// checking balance after minting
+	resp11, err6 := contract5.BalanceOf(ctx7,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+
+	var amount5 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx7.Get(mintingAmountKey, amount5)
+	require.Nil(t, err)
+	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
+
+}
+
+func TestMintExpOperator(t *testing.T) {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+	//Initializing context for CoinPolicyFeature
+	policy := &Policy{
+		ChangeRatioDenominator: 2,
+		ChangeRatioNumerator:   1,
+		MintingAccount:         addr1.MarshalPB(),
+		BlocksGeneratedPerYear: 50000,
+		BasePercentage:         10,
+		TotalSupply:            100,
+		Operator:               "exp",
+	}
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx := contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  1,
+	}))
+	//Minting will start in year 1 for first block of blockchain
+	//At this stage minting height will be recorded i.e height at which minting started
+	//As it is first year of blockchain, (base Amount) will be divided by (blocks generated per year) to get mintingAmountPerBLock
+	contract := &Coin{}
+	err := contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err)
+
+	//Minting without any error
+	resp1, err := contract.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+	//Below mint routine Tests function ==> ComputeforFirstYear
+	err = Mint(ctx)
+	require.Nil(t, err)
+
+	// checking balance after minting
+	resp2, err := contract.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err)
+
+	amount1 := &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	// Minting amount for block for year 1 for blockheight 1
+	//ctx is kept same to keep into account minting height
+	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50001,
+	}))
+	//Minting in year 2 for BlockHeight 50001
+	//This is the first block of blockchain for second year.
+	//So base percentage will be modified by change ratio with exp operator- Equivalent formula will be (
+	// basePercentage) * (
+	// (changeRatioNumerator/changeRatioDenominator)^1)
+	contract1 := &Coin{}
+	err1 := contract1.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err1)
+
+	//Minting without any error
+	resp3, err1 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err1)
+	//Below Mint Function tests function ==> ComputeforConsecutiveYearBeginningWithOperator(
+	// In this case exp operator) and ComputeInflationForYear
+	err1 = Mint(ctx)
+	require.Nil(t, err1)
+
+	// checking balance after minting
+	resp4, err1 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err1)
+
+	amount1 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  50020,
+	}))
+	//Minting in year 2 for BlockHeight 50020
+	//This is the scenario for minting at a certain point in year 2 where minting amount per block has already
+	//been computed for that year, In this case, there will not be any re-computation and minting Amount will just be derived from context
+	contract6 := &Coin{}
+	err6 := contract6.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err1)
+
+	//Minting without any error
+	resp12, err6 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+	//Below Mint Function Tests function ComputeforConsecutiveYearinMiddle
+	err1 = Mint(ctx)
+	require.Nil(t, err1)
+
+	// checking balance after minting
+	resp13, err6 := contract1.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err6)
+
+	amount1 = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(0),
+	}
+	err6 = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err6)
+	assert.Equal(t, amount1.Value.Uint64(), resp13.Balance.Value.Uint64()-resp12.Balance.Value.Uint64())
+
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  100001,
+	}))
+	//Minting in year 3 at BlockHeight 100001
+	//This is the scenario for minting at beginning in year 3.
+	//This is the first block of blockchain for Third year.
+	//So base percentage will be modified by change ratio with exp operator- Equivalent formula will be (
+	// basePercentage) * (
+	// (changeRatioNumerator/changeRatioDenominator)^2).
+	contract2 := &Coin{}
+	err2 := contract2.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(100),
+			},
+		},
+		Policy: policy,
+	})
+	require.Nil(t, err2)
+
+	//Minting without any error
+	resp5, err2 := contract2.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err2)
+	//Below Mint Function Tests function ==> ComputeforConsecutiveYearBeginningWithOperator(
+	// exp operator in this case),
+	// ComputeInflationForYear
+	err2 = Mint(ctx)
+	require.Nil(t, err2)
+
+	// checking balance after minting
+	resp6, err2 := contract2.BalanceOf(ctx,
+		&BalanceOfRequest{
+			Owner: addr1.MarshalPB(),
+		})
+	require.Nil(t, err2)
+
+	err = ctx.Get(mintingAmountKey, amount1)
+	require.Nil(t, err)
+	assert.Equal(t, amount1.Value.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
+
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		ChainID: "default",
+		Time:    time.Now().Unix(),
+		Height:  90000001,
+	}))
+	//Block Height is set to very high value,
+	// Minting Amount per block will become negligible after very long period
 	contract3 := &Coin{}
 	err3 := contract3.Init(ctx, &InitRequest{
 		Accounts: []*InitialAccount{
@@ -424,7 +723,7 @@ func TestMintDivOperator(t *testing.T) {
 			Owner: addr1.MarshalPB(),
 		})
 	require.Nil(t, err5)
-	//Tests function ComputeforFirstYearBlockHeightgreaterthanOneyear
+	//Below Mint Function Tests function ComputeforFirstYearLargeBlockHeight
 	err5 = Mint(ctx7)
 	require.Nil(t, err5)
 
@@ -439,273 +738,6 @@ func TestMintDivOperator(t *testing.T) {
 		Value: *loom.NewBigUIntFromInt(0),
 	}
 	err = ctx7.Get(mintingAmountKey, amount5)
-	require.Nil(t, err)
-	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
-
-}
-
-func TestMintExpOperator(t *testing.T) {
-	div := loom.NewBigUIntFromInt(10)
-	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
-	//Initializing context for CoinPolicyFeature
-	policy := &Policy{
-		ChangeRatioDenominator: 2,
-		ChangeRatioNumerator:   1,
-		MintingAccount:         addr1.MarshalPB(),
-		BlocksGeneratedPerYear: 50000,
-		BasePercentage:         10,
-		TotalSupply:            100,
-		Operator:               "exp",
-	}
-	pctx := plugin.CreateFakeContext(addr1, addr1)
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx := contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: "default",
-		Time:    time.Now().Unix(),
-		Height:  1,
-	}))
-	//Minting will start in year 1 for first block
-	contract := &Coin{}
-	err := contract.Init(ctx, &InitRequest{
-		Accounts: []*InitialAccount{
-			&InitialAccount{
-				Owner:   addr1.MarshalPB(),
-				Balance: uint64(100),
-			},
-		},
-		Policy: policy,
-	})
-	require.Nil(t, err)
-
-	//Minting without any error
-	resp1, err := contract.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err)
-	//Tests function ==> ComputeforFirstYear
-	err = Mint(ctx)
-	require.Nil(t, err)
-
-	// checking balance after minting
-	resp2, err := contract.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err)
-	amount1 := &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(0),
-	}
-	err = ctx.Get(mintingAmountKey, amount1)
-	require.Nil(t, err)
-	assert.Equal(t, amount1.Value.Uint64(), resp2.Balance.Value.Uint64()-resp1.Balance.Value.Uint64())
-	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: "default",
-		Time:    time.Now().Unix(),
-		Height:  50002,
-	}))
-	//Minting at BlockHeight 50002
-	contract1 := &Coin{}
-	err1 := contract1.Init(ctx, &InitRequest{
-		Accounts: []*InitialAccount{
-			&InitialAccount{
-				Owner:   addr1.MarshalPB(),
-				Balance: uint64(100),
-			},
-		},
-		Policy: policy,
-	})
-	require.Nil(t, err1)
-
-	//Minting without any error
-	resp3, err1 := contract1.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err1)
-	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator( // Exp operator in this case) and ComputeInflationForYear
-	err1 = Mint(ctx)
-	require.Nil(t, err1)
-
-	// checking balance after minting
-	resp4, err1 := contract1.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err1)
-
-	amount1 = &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(0),
-	}
-	err = ctx.Get(mintingAmountKey, amount1)
-	require.Nil(t, err)
-	assert.Equal(t, amount1.Value.Uint64(), resp4.Balance.Value.Uint64()-resp3.Balance.Value.Uint64())
-
-	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: "default",
-		Time:    time.Now().Unix(),
-		Height:  50020,
-	}))
-	//Minting in year 2 for BlockHeight 50020
-	contract6 := &Coin{}
-	err6 := contract6.Init(ctx, &InitRequest{
-		Accounts: []*InitialAccount{
-			&InitialAccount{
-				Owner:   addr1.MarshalPB(),
-				Balance: uint64(100),
-			},
-		},
-		Policy: policy,
-	})
-	require.Nil(t, err1)
-
-	//Minting without any error
-	resp12, err6 := contract1.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err6)
-	//Tests function ComputeforConsecutiveYearinMiddle,
-	// ComputeInflationForYear
-	err1 = Mint(ctx)
-	require.Nil(t, err1)
-
-	// checking balance after minting
-	resp13, err6 := contract1.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err6)
-
-	amount1 = &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(0),
-	}
-	err6 = ctx.Get(mintingAmountKey, amount1)
-	require.Nil(t, err6)
-	assert.Equal(t, amount1.Value.Uint64(), resp13.Balance.Value.Uint64()-resp12.Balance.Value.Uint64())
-
-	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: "default",
-		Time:    time.Now().Unix(),
-		Height:  100002,
-	}))
-	//Minting at BlockHeight 100002
-	contract2 := &Coin{}
-	err2 := contract2.Init(ctx, &InitRequest{
-		Accounts: []*InitialAccount{
-			&InitialAccount{
-				Owner:   addr1.MarshalPB(),
-				Balance: uint64(100),
-			},
-		},
-		Policy: policy,
-	})
-	require.Nil(t, err2)
-
-	//Minting without any error
-	resp5, err2 := contract2.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err2)
-	//Tests function ==> ComputeforConsecutiveYearBeginningWithOperator( // Exp operator in this case) and ComputeInflationForYear
-	err2 = Mint(ctx)
-	require.Nil(t, err2)
-
-	// checking balance after minting
-	resp6, err2 := contract2.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err2)
-
-	err = ctx.Get(mintingAmountKey, amount1)
-	require.Nil(t, err)
-	assert.Equal(t, amount1.Value.Uint64(), resp6.Balance.Value.Uint64()-resp5.Balance.Value.Uint64())
-
-	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: "default",
-		Time:    time.Now().Unix(),
-		Height:  900000002,
-	}))
-	//Block Height is set to very high value,
-	// Minting will stop at this stage as minting Amount per block = 0 after very long period
-	contract3 := &Coin{}
-	err3 := contract3.Init(ctx, &InitRequest{
-		Accounts: []*InitialAccount{
-			&InitialAccount{
-				Owner:   addr1.MarshalPB(),
-				Balance: uint64(100),
-			},
-		},
-		Policy: policy,
-	})
-	require.Nil(t, err3)
-
-	//Minting without any error
-	resp7, err3 := contract3.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err3)
-	//There will be no minting at this stage as amount to mint per block becomes zero
-	err3 = Mint(ctx)
-	require.Nil(t, err3)
-	// checking balance after minting
-	resp8, err3 := contract3.BalanceOf(ctx,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err3)
-
-	err = ctx.Get(mintingAmountKey, amount1)
-	require.Nil(t, err)
-	// Minting stops at this stage and total supply becomes constant
-	assert.Equal(t, amount1.Value.Uint64(), resp8.Balance.Value.Uint64()-resp7.Balance.Value.Uint64())
-	assert.Equal(t, amount1.Value.Uint64(), uint64(0))
-
-	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
-	// not from year 2 beginning, Please note here operator will not apply as minting is being done for the first time
-	pctx5 := plugin.CreateFakeContext(addr1, addr1)
-	pctx5.SetFeature(loomchain.CoinVersion1_2Feature, true)
-	ctx5 := contractpb.WrapPluginContext(pctx5.WithBlock(loom.BlockHeader{
-		ChainID: "default",
-		Time:    time.Now().Unix(),
-		Height:  50003,
-	}))
-	contract5 := &Coin{}
-	err5 := contract5.Init(ctx5, &InitRequest{
-		Accounts: []*InitialAccount{
-			&InitialAccount{
-				Owner:   addr1.MarshalPB(),
-				Balance: uint64(100),
-			},
-		},
-		Policy: policy,
-	})
-	require.Nil(t, err5)
-
-	//Minting without any error
-	resp10, err5 := contract5.BalanceOf(ctx5,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err5)
-	//Tests function ComputeforFirstYearBlockHeightgreaterthanOneyear
-	err5 = Mint(ctx5)
-	require.Nil(t, err5)
-
-	// checking balance after minting
-	resp11, err6 := contract5.BalanceOf(ctx5,
-		&BalanceOfRequest{
-			Owner: addr1.MarshalPB(),
-		})
-	require.Nil(t, err6)
-
-	var amount5 = &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(0),
-	}
-	err = ctx5.Get(mintingAmountKey, amount5)
 	require.Nil(t, err)
 	assert.Equal(t, amount5.Value.Uint64(), resp11.Balance.Value.Uint64()-resp10.Balance.Value.Uint64())
 }
