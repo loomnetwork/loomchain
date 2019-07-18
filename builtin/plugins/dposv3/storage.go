@@ -461,6 +461,11 @@ func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 		}
 		return &address
 	}
+	return DeprecatedGetReferrer(ctx, name)
+}
+
+func DeprecatedGetReferrer(ctx contract.StaticContext, name string) *types.Address {
+	var address types.Address
 	err := ctx.Get(append(referrersKey, name...), &address)
 	if err != nil {
 		return nil
@@ -472,6 +477,10 @@ func SetReferrer(ctx contract.Context, name string, address *types.Address) erro
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
 		return ctx.Set(referrerKey(name), address)
 	}
+	return DeprecatedSetReferrer(ctx, name, address)
+}
+
+func DeprecatedSetReferrer(ctx contract.Context, name string, address *types.Address) error {
 	return ctx.Set(append(referrersKey, name...), address)
 }
 
