@@ -153,6 +153,7 @@ type (
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
 	MintVoucherRequest          = dtypes.MintVoucherRequest
 	MintVoucherResponse         = dtypes.MintVoucherResponse
+	AddVoucherTokenAddressRequest = dtypes.AddVoucherTokenAddressRequest
 )
 
 type DPOS struct {
@@ -320,10 +321,15 @@ func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error
 			if err != nil {
 				return err
 			}
-			err = erc20.mintToDPOS(req.Amount.Value.Int)
+			err = erc20.mintToDPOS(req.Amount.Value.Int,ctx.ContractAddress())
 			if err != nil {
 				return err
 			}
+			amount,err := erc20.balanceOf(ctx.ContractAddress())
+			if err != nil {
+				return err
+			}
+			fmt.Println("ERC20 balance", amount)
 			err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator), req.Amount.Value.Int)
 			if err != nil {
 				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
@@ -474,6 +480,29 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 	}
 
 	return c.emitDelegatorConsolidatesEvent(ctx, newDelegation, consolidatedDelegations, unconsolidatedDelegationsCount)
+}
+
+//SetVoucherTokenAddress in DPOS contract, this is address of ERC20 Token that will be minted
+
+func (c *DPOS) SetVoucherTokenAddress(ctx contract.Context, req *AddVoucherTokenAddressRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_6, false) {
+		return errors.New("DPOS v3.6 is not enabled")
+	}
+	voucherTokenAddress := req.VoucherTokenAddress
+	ctx.Logger().Info("Set Voucher Token Address", "request", req)
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	state.Params.VoucherTokenAddress = voucherTokenAddress
+
+	if err = saveState(ctx, state); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // returns the number of delegations which were not consolidated in the event there is no error
