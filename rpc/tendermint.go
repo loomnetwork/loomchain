@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"errors"
+
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
@@ -12,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/evm/utils"
 )
 
@@ -24,11 +27,18 @@ type TendermintRpc interface {
 	ethereumToTendermintTx(txBytes []byte) (types.Tx, error)
 }
 
-type RuntimeTendermintRpc struct{
+type RuntimeTendermintRpc struct {
 	LoomServer
 }
 
 func (t RuntimeTendermintRpc) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	snapshot := t.StateProvider.ReadOnlyState()
+	if !snapshot.FeatureEnabled(loomchain.EthTxFeature, false) {
+		snapshot.Release()
+		return nil, errors.New("ethereum transactions feature not enabled")
+	}
+	snapshot.Release()
+
 	return core.BroadcastTxSync(tx)
 }
 

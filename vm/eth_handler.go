@@ -32,6 +32,10 @@ func (h *EthTxHandler) ProcessTx(
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
+	if !state.FeatureEnabled(loomchain.EthTxFeature, false) {
+		return r, errors.New("ethereum transactions feature not enabled")
+	}
+
 	var msg MessageTx
 	err := proto.Unmarshal(txBytes, &msg)
 	if err != nil {

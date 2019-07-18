@@ -73,6 +73,11 @@ func NewMultiChainSignatureTxMiddleware(
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return r, errors.Wrap(err, "failed to unmarshal Transaction")
 		}
+		if tx.Id == 4 {
+			if !state.FeatureEnabled(loomchain.EthTxFeature, false) {
+				return r, errors.New("ethereum transactions feature not enabled")
+			}
+		}
 
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {

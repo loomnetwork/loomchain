@@ -59,6 +59,9 @@ const (
 	// Enables validator build number tracking via the ChainConfig contract.
 	ChainCfgVersion1_2 = "chaincfg:v1.2"
 
+	// Enable
+	EthTxFeature = "EthTxFeature"
+
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
 	EvmDBFeature = "db:evm"

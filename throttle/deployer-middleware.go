@@ -91,27 +91,55 @@ func NewDeployerWhitelistMiddleware(
 
 		switch tx.Id {
 		case callId:
-		case deployId: {
-			var msg vm.MessageTx
-			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-			}
+		case deployId:
+			{
+				var msg vm.MessageTx
+				if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+					return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+				}
 
-			var deployTx vm.DeployTx
-			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return res, errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
-			}
+				var deployTx vm.DeployTx
+				if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
+					return res, errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
+				}
 
-			if deployTx.VmType == vm.VMType_PLUGIN {
-				origin := auth.Origin(state.Context())
-				ctx, err := createDeployerWhitelistCtx(state)
+				if deployTx.VmType == vm.VMType_PLUGIN {
+					origin := auth.Origin(state.Context())
+					ctx, err := createDeployerWhitelistCtx(state)
+					if err != nil {
+						return res, err
+					}
+					if err := isAllowedToDeployGo(ctx, origin); err != nil {
+						return res, err
+					}
+				} else if deployTx.VmType == vm.VMType_EVM {
+					origin := auth.Origin(state.Context())
+					ctx, err := createDeployerWhitelistCtx(state)
+					if err != nil {
+						return res, err
+					}
+					if err := isAllowedToDeployEVM(ctx, origin); err != nil {
+						return res, err
+					}
+				}
+			}
+		case ethId:
+			{
+				if !state.FeatureEnabled(loomchain.EthTxFeature, false) {
+					return next(state, txBytes, isCheckTx)
+				}
+
+				var msg vm.MessageTx
+				if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+					return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+				}
+				isDeploy, err := isEthDeploy(msg.Data)
 				if err != nil {
 					return res, err
 				}
-				if err := isAllowedToDeployGo(ctx, origin); err != nil {
-					return res, err
+				if !isDeploy {
+					return next(state, txBytes, isCheckTx)
 				}
-			} else if deployTx.VmType == vm.VMType_EVM {
 				origin := auth.Origin(state.Context())
 				ctx, err := createDeployerWhitelistCtx(state)
 				if err != nil {
@@ -121,28 +149,6 @@ func NewDeployerWhitelistMiddleware(
 					return res, err
 				}
 			}
-		}
-		case ethId: {
-			var msg vm.MessageTx
-			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-			}
-			isDeploy, err := isEthDeploy(msg.Data)
-			if err != nil {
-				return res, err
-			}
-			if !isDeploy {
-				return next(state, txBytes, isCheckTx)
-			}
-			origin := auth.Origin(state.Context())
-			ctx, err := createDeployerWhitelistCtx(state)
-			if err != nil {
-				return res, err
-			}
-			if err := isAllowedToDeployEVM(ctx, origin); err != nil {
-				return res, err
-			}
-		}
 		case migrationId:
 			// Process migrationTx, checking for permission to migrate contract
 			origin := auth.Origin(state.Context())
