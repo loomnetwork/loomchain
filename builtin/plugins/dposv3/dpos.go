@@ -1997,7 +1997,10 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	SetReferrer(ctx, req.Name, req.Address)
+	err = SetReferrer(ctx, req.Name, req.Address)
+	if err != nil {
+		return err
+	}
 
 	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
 }
