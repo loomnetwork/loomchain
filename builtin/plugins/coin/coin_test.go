@@ -413,7 +413,7 @@ func TestMintDivOperator(t *testing.T) {
 	assert.Equal(t, amount1.Value.Uint64(), uint64(55555))
 
 	//This scenario tests minting starts in 2nd year from block 50003, ie at a certain height,
-	// not from year 2 beginning. Please note here operator will not apply as minting is being done for the first time
+	//not from year 2 beginning. Please note here operator will not apply as minting is being done for the first time
 	pctx7 := plugin.CreateFakeContext(addr1, addr1)
 	pctx7.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	ctx7 := contractpb.WrapPluginContext(pctx7.WithBlock(loom.BlockHeader{
