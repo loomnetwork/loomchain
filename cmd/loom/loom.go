@@ -466,9 +466,9 @@ func contractInfoCommand() *cobra.Command {
 				return err
 			}
 			contractInfoResp := &contractInfo{
-				Name:    resp.GetName(),
-				Address: loom.UnmarshalAddressPB(resp.Address).String(),
-				Owner:   loom.UnmarshalAddressPB(resp.Owner).String(),
+				Name:    resp.GetContractName(),
+				Address: loom.UnmarshalAddressPB(resp.GetContractAddress()).String(),
+				Owner:   loom.UnmarshalAddressPB(resp.GetCreatorAddress()).String(),
 			}
 
 			out, err := json.MarshalIndent(contractInfoResp, "", "  ")

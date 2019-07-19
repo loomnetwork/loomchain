@@ -35,7 +35,6 @@ import (
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -579,7 +578,7 @@ func (s *QueryServer) ContractEvents(
 	}, nil
 }
 
-func (s *QueryServer) GetContractRecord(contractAddrStr string) (*registry.Record, error) {
+func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.ContractRecordResponse, error) {
 	contractAddr, err := loom.ParseAddress(contractAddrStr)
 	if err != nil {
 		return nil, err
@@ -592,7 +591,12 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*registry.Recor
 	if err != nil {
 		return nil, err
 	}
-	return rec, nil
+	k := &types.ContractRecordResponse{
+		ContractName:    rec.GetName(),
+		ContractAddress: rec.GetAddress(),
+		CreatorAddress:  rec.GetOwner(),
+	}
+	return k, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
