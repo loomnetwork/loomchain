@@ -590,7 +590,6 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*registry.Recor
 	reg := s.CreateRegistry(snapshot)
 	rec, err := reg.GetRecord(contractAddr)
 	if err != nil {
-		fmt.Println("DEBUG_2-1")
 		return nil, err
 	}
 	return rec, nil

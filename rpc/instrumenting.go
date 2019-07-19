@@ -121,7 +121,7 @@ func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *r
 
 	resp, err = m.next.GetContractRecord(contractAddr)
 	if err != nil {
-		fmt.Println("DEBUG_3")
+		return nil, err
 	}
 	return
 }
