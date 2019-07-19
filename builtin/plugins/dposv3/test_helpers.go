@@ -36,7 +36,7 @@ type FakeContextWithEVM struct {
 
 func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM {
 	block := abci.Header{
-		ChainID: "chain",
+		ChainID: "default",
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
@@ -72,7 +72,7 @@ func deployTokenContract(ctx *FakeContextWithEVM, filename string, dpos, caller 
 	byteCode := cmn.FromHex(string(hexByteCode))
 	// append constructor args to bytecode
 	// append constructor args to bytecode
-	input, err := contractABI.Pack("", cmn.BytesToAddress(dpos.Bytes()))
+	input, err := contractABI.Pack("")
 	if err != nil {
 		return contractAddr, err
 	}
@@ -446,3 +446,5 @@ func (dpos *testDPOSContract) MintVouchers(ctx *plugin.FakeContext,
 	}
 	return err
 }
+
+
