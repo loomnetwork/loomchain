@@ -60,7 +60,8 @@ func TestJsonRpcHandler(t *testing.T) {
 
 func testHttpJsonHandler(t *testing.T) {
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, nil, RuntimeTendermintRpc{})
+	ts := &RuntimeTendermintRpc{}
+	handler := MakeEthQueryServiceHandler(qs, testlog, nil, ts)
 
 	for _, test := range tests {
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
@@ -74,7 +75,8 @@ func testHttpJsonHandler(t *testing.T) {
 
 func testBatchHttpJsonHandler(t *testing.T) {
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, nil, RuntimeTendermintRpc{})
+	ts := &RuntimeTendermintRpc{}
+	handler := MakeEthQueryServiceHandler(qs, testlog, nil, ts)
 
 	blockPayload := "["
 	first := true
@@ -99,7 +101,8 @@ func testMultipleWebsocketConnections(t *testing.T) {
 	hub := newHub()
 	go hub.run()
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, hub, RuntimeTendermintRpc{})
+	ts := &RuntimeTendermintRpc{}
+	handler := MakeEthQueryServiceHandler(qs, testlog, hub, ts)
 
 	for _, test := range tests {
 		dialer := wstest.NewDialer(handler)
@@ -129,7 +132,8 @@ func testSingleWebsocketConnections(t *testing.T) {
 	hub := newHub()
 	go hub.run()
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, hub, RuntimeTendermintRpc{})
+	ts := &RuntimeTendermintRpc{}
+	handler := MakeEthQueryServiceHandler(qs, testlog, hub, ts)
 	dialer := wstest.NewDialer(handler)
 	conn, _, err := dialer.Dial("ws://localhost/eth", nil)
 	writeMutex := &sync.Mutex{}

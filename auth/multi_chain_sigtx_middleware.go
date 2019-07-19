@@ -23,6 +23,8 @@ const (
 	LoomSignedTxType     SignedTxType = "loom"
 	EthereumSignedTxType SignedTxType = "eth"
 	TronSignedTxType     SignedTxType = "tron"
+
+	ethID = uint32(4)
 )
 
 // AccountType is used to specify which address should be used on-chain to identify a tx sender.
@@ -73,7 +75,7 @@ func NewMultiChainSignatureTxMiddleware(
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return r, errors.Wrap(err, "failed to unmarshal Transaction")
 		}
-		if tx.Id == 4 {
+		if tx.Id == ethID || signedTx.Signature == nil {
 			if !state.FeatureEnabled(loomchain.EthTxFeature, false) {
 				return r, errors.New("ethereum transactions feature not enabled")
 			}

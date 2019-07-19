@@ -15,12 +15,11 @@ import (
 	"github.com/loomnetwork/loomchain/evm/utils"
 )
 
-
 func isEthDeploy(txBytes []byte) (bool, error) {
 	var tx types.Transaction
 	if err := rlp.DecodeBytes(txBytes, &tx); err != nil {
 		return false, errors.Wrap(err, "decoding ethereum transaction")
-	}	
+	}
 	return tx.To() == nil, nil
 }
 
@@ -47,7 +46,7 @@ func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 		)
 	}
 	chainConfig := utils.DefaultChainConfig()
-	signer := types.MakeSigner(&chainConfig, big.NewInt(10))
+	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	ethKey, err := crypto.GenerateKey()
 	if err != nil {
 		return nil, err
@@ -55,6 +54,6 @@ func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 	tx, err = types.SignTx(tx, signer, ethKey)
 	if err != nil {
 		return nil, err
-	}	
-	return rlp.EncodeToBytes(&tx)	
+	}
+	return rlp.EncodeToBytes(&tx)
 }

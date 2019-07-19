@@ -4,7 +4,6 @@ package auth
 
 import (
 	"bytes"
-	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -19,10 +18,6 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 
 	"github.com/loomnetwork/loomchain/evm/utils"
-)
-
-const (
-	ethID = uint32(4)
 )
 
 func VerifySolidity66Byte(tx SignedTx) ([]byte, error) {
@@ -67,14 +62,14 @@ func verifyEthTx(signedTx SignedTx) ([]byte, error) {
 	}
 
 	chainConfig := utils.DefaultChainConfig()
-	ethSigner := etypes.MakeSigner(&chainConfig, big.NewInt(1))
+	ethSigner := etypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	from, err := etypes.Sender(ethSigner, &tx)
 	if err != nil {
 		return nil, err
 	}
 	if tx.To() != nil {
 		if 0 != bytes.Compare(tx.To().Bytes(), msg.To.Local) {
-			return nil, errors.Errorf("to addresses do not match, to.To: %s and msg.To %s",tx.To().String(), msg.To.String())
+			return nil, errors.Errorf("to addresses do not match, to.To: %s and msg.To %s", tx.To().String(), msg.To.String())
 		}
 	}
 	if tx.Nonce() != nonceTx.Sequence {
@@ -83,4 +78,3 @@ func verifyEthTx(signedTx SignedTx) ([]byte, error) {
 
 	return from.Bytes(), err
 }
-

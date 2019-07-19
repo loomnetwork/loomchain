@@ -20,9 +20,9 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	ttypes "github.com/tendermint/tendermint/types"
 
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
-	ltypes "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/go-loom/vm"
+
 	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
@@ -75,7 +75,7 @@ func TestTendermintPRCFunc(t *testing.T) {
 	mt := &MockTendermintRpc{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, nil, mt)
 	chainConfig := utils.DefaultChainConfig()
-	signer := types.MakeSigner(&chainConfig, blockNumber)
+	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	for _, testTx := range ethTestTxs {
 		ethKey, err := crypto.GenerateKey()
 		require.NoError(t, err)
@@ -137,33 +137,16 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadc
 }
 
 func (mt *MockTendermintRpc) ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
-	return nil, nil
+	return ethereumToTendermintTx(mt, txBytes)
 }
 
-func tendermintToEthereumTx(tmTx ttypes.Tx) (*etypes.Transaction, error) {
-	var signedTx auth.SignedTx
-	if err := proto.Unmarshal([]byte(tmTx), &signedTx); err != nil {
-		return nil, err
-	}
+func (t *MockTendermintRpc) ChainID() string {
+	return "default"
+}
 
-	var nonceTx auth.NonceTx
-	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return nil, err
-	}
-
-	var txTx ltypes.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
-		return nil, err
-	}
-
-	var msg vm.MessageTx
-	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
-		return nil, err
-	}
-
-	var tx etypes.Transaction
-	if err := rlp.DecodeBytes(msg.Data, &tx); err != nil {
-		return nil, err
-	}
-	return &tx, nil
+func (mt *MockTendermintRpc) localToEthAccount(local []byte) (loom.Address, error) {
+	return loom.Address{
+		ChainID: "eth",
+		Local:   local,
+	}, nil
 }
