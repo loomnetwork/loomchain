@@ -9,5 +9,5 @@ contract ERC20DAppToken is ERC20 {
     // Called by the DAppChain DPOS contract to mint tokens
     //
     // NOTE: This function will only be called by the DAppChain DPOS contract to mint ERC20 tokens
-    function mintToDPOS(uint256 amount, address _dposAddress) public;
+    function mintToDPOS(uint256 amount, address _dposAddress) public return;
 }
