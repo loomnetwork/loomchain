@@ -7,12 +7,12 @@ import (
 	"sort"
 
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 )
 
@@ -146,13 +146,13 @@ type (
 	DposReferrerRegistersEvent      = dtypes.DposReferrerRegistersEvent
 	DposDelegatorClaimsRewardsEvent = dtypes.DposDelegatorClaimsRewardsEvent
 
-	RequestBatch                = dtypes.RequestBatch
-	RequestBatchTally           = dtypes.RequestBatchTally
-	BatchRequest                = dtypes.BatchRequest
-	BatchRequestMeta            = dtypes.BatchRequestMeta
-	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
-	MintVoucherRequest          = dtypes.MintVoucherRequest
-	MintVoucherResponse         = dtypes.MintVoucherResponse
+	RequestBatch                  = dtypes.RequestBatch
+	RequestBatchTally             = dtypes.RequestBatchTally
+	BatchRequest                  = dtypes.BatchRequest
+	BatchRequestMeta              = dtypes.BatchRequestMeta
+	GetRequestBatchTallyRequest   = dtypes.GetRequestBatchTallyRequest
+	MintVoucherRequest            = dtypes.MintVoucherRequest
+	MintVoucherResponse           = dtypes.MintVoucherResponse
 	AddVoucherTokenAddressRequest = dtypes.AddVoucherTokenAddressRequest
 )
 
@@ -321,16 +321,12 @@ func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error
 			if err != nil {
 				return err
 			}
-			err = erc20.mintToDPOS(req.Amount.Value.Int,ctx.ContractAddress())
+			err = erc20.mintToDPOS(req.Amount.Value.Int, ctx.ContractAddress())
 			if err != nil {
 				return err
 			}
-			amount,err := erc20.balanceOf(ctx.ContractAddress())
-			if err != nil {
-				return err
-			}
-			fmt.Println("ERC20 balance", amount)
-			err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator), req.Amount.Value.Int)
+			err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator),
+				req.Amount.Value.Int)
 			if err != nil {
 				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
 				return logDposError(ctx, err, transferFromErr)
