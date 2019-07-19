@@ -445,9 +445,10 @@ loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
 func contractInfoCommand() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "contract [ChainID:Address]",
-		Short: "Get contract information by address",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "contract [ChainID:Address]",
+		Short:   "Get contract information by address",
+		Args:    cobra.MinimumNArgs(1),
+		Example: contractInfoCommandExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ParseAddress(args[0], flags.ChainID)
 			if err != nil {
