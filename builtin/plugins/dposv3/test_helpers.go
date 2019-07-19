@@ -433,11 +433,9 @@ func (dpos *testDPOSContract) ConsolidateDelegations(ctx *plugin.FakeContext, va
 }
 
 func (dpos *testDPOSContract) MintVouchers(ctx *plugin.FakeContext,
-	request MintVoucherRequest) error {
+	request *MintVoucherRequest) error {
 	err := dpos.Contract.MintVouchers(
-		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
-		&MintVoucherRequest{Amount: &types.BigUInt{Value: *amount}},
-	)
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),request)
 	if err != nil {
 		return err
 	}
