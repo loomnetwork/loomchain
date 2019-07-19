@@ -24,7 +24,7 @@ import (
 type testDPOSContract struct {
 	Contract *DPOS
 	Address  loom.Address
-	Ctx *plugin.FakeContext
+	Ctx      *plugin.FakeContext
 }
 
 // Contract context for tests that need both Go & EVM contracts.
@@ -107,7 +107,7 @@ func deployDPOSContract(
 	return &testDPOSContract{
 		Contract: dposContract,
 		Address:  contractAddr,
-		Ctx: ctx,
+		Ctx:      ctx,
 	}, err
 }
 
@@ -123,17 +123,15 @@ func (dpos *testDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*Li
 	return resp.ListResponses, err
 }
 
-
-func (dpos *testDPOSContract) SetVoucherTokenAddress(ctx *plugin.FakeContext, voucherTokenAddress  *loom.Address) error {
+func (dpos *testDPOSContract) SetVoucherTokenAddress(ctx *plugin.FakeContext, voucherTokenAddress *loom.Address) error {
 	err := dpos.Contract.SetVoucherTokenAddress(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
-		&AddVoucherTokenAddressRequest{VoucherTokenAddress:voucherTokenAddress.MarshalPB()})
+		&AddVoucherTokenAddressRequest{VoucherTokenAddress: voucherTokenAddress.MarshalPB()})
 	if err != nil {
 		return err
 	}
 	return nil
 }
-
 
 func (dpos *testDPOSContract) ListCandidates(ctx *plugin.FakeContext) ([]*CandidateStatistic, error) {
 	resp, err := dpos.Contract.ListCandidates(
@@ -436,7 +434,6 @@ func (dpos *testDPOSContract) ConsolidateDelegations(ctx *plugin.FakeContext, va
 
 func (dpos *testDPOSContract) MintVouchers(ctx *plugin.FakeContext,
 	request MintVoucherRequest) error {
-	amount := loom.NewBigUIntFromInt(10)
 	err := dpos.Contract.MintVouchers(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&MintVoucherRequest{Amount: &types.BigUInt{Value: *amount}},
@@ -446,5 +443,3 @@ func (dpos *testDPOSContract) MintVouchers(ctx *plugin.FakeContext,
 	}
 	return err
 }
-
-
