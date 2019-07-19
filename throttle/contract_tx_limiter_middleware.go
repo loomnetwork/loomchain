@@ -21,6 +21,7 @@ import (
 var (
 	ErrTxLimitReached         = errors.New("tx limit reached, try again later")
 	ErrContractNotWhitelisted = errors.New("contract not whitelisted")
+	ErrInactiveDeployer       = errors.New("can't call contract belonging to inactive deployer")
 )
 
 var (
@@ -177,7 +178,8 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if msgTx.VmType != vm.VMType_EVM {
 			return next(state, txBytes, isCheckTx)
 		}
-		if txl.inactiveDeployerContracts == nil || txl.contractToTierMap == nil ||
+		if txl.inactiveDeployerContracts == nil ||
+			txl.contractToTierMap == nil ||
 			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
@@ -196,7 +198,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		contractAddr := loom.UnmarshalAddressPB(msg.To)
 		// contracts which are deployed by deleted deployers should be throttled
 		if txl.inactiveDeployerContracts[contractAddr.String()] {
-			return res, errors.New("deployer of the contract is deleted")
+			return res, ErrInactiveDeployer
 		}
 		// contracts the limiter doesn't know about shouldn't be throttled
 		contractTierID, ok := txl.contractToTierMap[contractAddr.String()]
