@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
@@ -108,6 +109,20 @@ func (m InstrumentingMiddleware) ContractEvents(
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	result, err = m.next.ContractEvents(fromBlock, toBlock, contractName)
+	return
+}
+
+func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *registry.Record, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetContractRecord", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetContractRecord(contractAddr)
+	if err != nil {
+		fmt.Println("DEBUG_3")
+	}
 	return
 }
 
