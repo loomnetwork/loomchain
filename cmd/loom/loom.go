@@ -24,6 +24,7 @@ import (
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
@@ -436,6 +437,41 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().Int64Var(&appHeight, "app-height", 0, "Start at the given block instead of the last block saved")
 	return cmd
 }
+
+const contractInfoCommandExample = `
+loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
+`
+
+func contractInfoCommand() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "contract [ChainID:Address]",
+		Short: "Get contract information by address",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ParseAddress(args[0], flags.ChainID)
+			if err != nil {
+				return err
+			}
+			rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
+			resp, err := rpcclient.GetContractRecord(addr)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Print(out)
+			return nil
+		},
+	}
+	return cmd
+}
+
+// func getContractInfo() error {
+// 	rpcclient := client.NewDAppChainRPCClient()
+// }
 
 //nolint:deadcode
 func recovery() {
@@ -1303,6 +1339,7 @@ func main() {
 		deployer.NewDeployCommand(),
 		userdeployer.NewUserDeployCommand(),
 		dbg.NewDebugCommand(),
+		contractInfoCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
