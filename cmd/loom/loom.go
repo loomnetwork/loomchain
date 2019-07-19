@@ -470,10 +470,6 @@ func contractInfoCommand() *cobra.Command {
 	return cmd
 }
 
-// func getContractInfo() error {
-// 	rpcclient := client.NewDAppChainRPCClient()
-// }
-
 //nolint:deadcode
 func recovery() {
 	if r := recover(); r != nil {
