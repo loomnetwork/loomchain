@@ -442,6 +442,12 @@ const contractInfoCommandExample = `
 loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
 `
 
+type contractInfo struct {
+	Name    string
+	Address string
+	Owner   string
+}
+
 func contractInfoCommand() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -459,14 +465,21 @@ func contractInfoCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+			contractInfoResp := &contractInfo{
+				Name:    resp.GetName(),
+				Address: loom.UnmarshalAddressPB(resp.Address).String(),
+				Owner:   loom.UnmarshalAddressPB(resp.Owner).String(),
+			}
+
+			out, err := json.MarshalIndent(contractInfoResp, "", "  ")
 			if err != nil {
 				return err
 			}
-			fmt.Print(out)
+			fmt.Print(string(out))
 			return nil
 		},
 	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
