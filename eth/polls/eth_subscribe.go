@@ -26,24 +26,23 @@ type EthPoll interface {
 }
 
 type EthSubscriptions struct {
-	polls map[string]EthPoll
-	lastPoll        map[string]uint64
-	timestamps      map[uint64][]string
-	mutex      *sync.RWMutex
-	lastPrune       uint64
-	evmAuxStore     *evmaux.EvmAuxStore
-	blockStore      store.BlockStore
+	polls       map[string]EthPoll
+	lastPoll    map[string]uint64
+	timestamps  map[uint64][]string
+	mutex       sync.RWMutex
+	lastPrune   uint64
+	evmAuxStore *evmaux.EvmAuxStore
+	blockStore  store.BlockStore
 }
 
 func NewEthSubscriptions(evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore) *EthSubscriptions {
 	p := &EthSubscriptions{
-		polls:                  make(map[string]EthPoll),
-		lastPoll:               make(map[string]uint64),
-		timestamps:             make(map[uint64][]string),
-		mutex:             new(sync.RWMutex),
+		polls:      make(map[string]EthPoll),
+		lastPoll:   make(map[string]uint64),
+		timestamps: make(map[uint64][]string),
 
-		evmAuxStore:            evmAuxStore,
-		blockStore:             blockStore,
+		evmAuxStore: evmAuxStore,
+		blockStore:  blockStore,
 	}
 	return p
 }
