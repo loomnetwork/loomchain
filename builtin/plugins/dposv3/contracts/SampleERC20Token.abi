@@ -160,7 +160,12 @@
       }
     ],
     "name": "mintToDPOS",
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "ok",
+        "type": "bool"
+      }
+    ],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function"
@@ -249,15 +254,16 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "name": "_dpos",
-        "type": "address"
-      }
-    ],
+    "inputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [],
+    "name": "startMining",
+    "type": "event"
   },
   {
     "anonymous": false,
