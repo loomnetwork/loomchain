@@ -572,10 +572,10 @@ func DowntimeRecordCmdV3() *cobra.Command {
 				Period  int
 				Jailed  int
 			}
-			ml := maxLength{Name: 40, Address: 42, Period: 8, Jailed: 6}
+			ml := maxLength{Name: 40, Address: 42, Period: 5, Jailed: 6}
 			fmt.Printf(
-				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Address, "address",
-				ml.Jailed, "jailed", ml.Period, "period 1", ml.Period, "period 2", ml.Period, "period 3", ml.Period, "period 4")
+				"%-*s | %-*s | %-*s | %*s | %*s | %*s | %*s |\n", ml.Name, "name", ml.Address, "address",
+				ml.Jailed, "jailed", ml.Period, "P", ml.Period, "P-1", ml.Period, "P-2", ml.Period, "P-3")
 			fmt.Printf(
 				strings.Repeat("-", ml.Name+ml.Address+ml.Jailed+(4*ml.Period)+19) + "\n")
 			for i := range nameList {
