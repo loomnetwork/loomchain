@@ -29,7 +29,7 @@ type EthSubscriptions struct {
 	polls       map[string]EthPoll
 	lastPoll    map[string]uint64
 	timestamps  map[uint64][]string
-	mutex       *sync.RWMutex
+	mutex       sync.RWMutex
 	lastPrune   uint64
 	evmAuxStore *evmaux.EvmAuxStore
 	blockStore  store.BlockStore
@@ -40,7 +40,6 @@ func NewEthSubscriptions(evmAuxStore *evmaux.EvmAuxStore, blockStore store.Block
 		polls:      make(map[string]EthPoll),
 		lastPoll:   make(map[string]uint64),
 		timestamps: make(map[uint64][]string),
-		mutex:      new(sync.RWMutex),
 
 		evmAuxStore: evmAuxStore,
 		blockStore:  blockStore,
