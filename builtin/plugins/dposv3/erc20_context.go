@@ -3,7 +3,6 @@ package dposv3
 import (
 	"math/big"
 	"strings"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	loom "github.com/loomnetwork/go-loom"
@@ -79,7 +78,7 @@ func (c *erc20Context) transfer(to loom.Address, amount *big.Int) error {
 
 func (c *erc20Context) mintToDPOS(amount *big.Int, contractAddress loom.Address) error {
 	contractAddr := common.BytesToAddress(contractAddress.Local)
-	_, err := c.callEVM("mintToDPOS", amount, contractAddr)
+	_,err := c.callEVM("mintToDPOS", amount, contractAddr)
 	return err
 }
 
@@ -99,7 +98,7 @@ func (c *erc20Context) approve(spender loom.Address, amount *big.Int) error {
 }
 
 const erc20ABI =
-`  [
+`[
   {
     "constant": true,
     "inputs": [],
@@ -261,7 +260,12 @@ const erc20ABI =
       }
     ],
     "name": "mintToDPOS",
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "ok",
+        "type": "bool"
+      }
+    ],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function"
@@ -350,15 +354,16 @@ const erc20ABI =
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "name": "_dpos",
-        "type": "address"
-      }
-    ],
+    "inputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [],
+    "name": "startMining",
+    "type": "event"
   },
   {
     "anonymous": false,
