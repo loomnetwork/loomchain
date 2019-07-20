@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -311,6 +312,10 @@ func ParseConfig() (*Config, error) {
 	hsmCfg, hsmErr := ParseHSMConfig()
 	if hsmErr == nil {
 		conf.HsmConfig = hsmCfg
+	} else if _, notFound := hsmErr.(viper.ConfigFileNotFoundError); !notFound {
+		// loom_hsm config file exists but couldn't be loaded
+		fmt.Println("DEBUG_2")
+		return nil, errors.Wrap(err, "failed to load loom_hsm config")
 	}
 	return conf, err
 }
