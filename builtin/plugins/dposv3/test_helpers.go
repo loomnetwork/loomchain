@@ -4,13 +4,9 @@ package dposv3
 
 import (
 	"context"
-	"io/ioutil"
 	"math/big"
-	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	cmn "github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -24,7 +20,7 @@ import (
 type testDPOSContract struct {
 	Contract *DPOS
 	Address  loom.Address
-	Ctx      *plugin.FakeContext
+	Ctx      *FakeContextWithEVM
 }
 
 // Contract context for tests that need both Go & EVM contracts.
@@ -54,37 +50,91 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 	}
 }
 
-func deployTokenContract(ctx *FakeContextWithEVM, filename string, dpos, caller loom.Address) (loom.Address,
-	error) {
-	contractAddr := loom.Address{}
-	hexByteCode, err := ioutil.ReadFile("contracts/" + filename + ".bin")
-	if err != nil {
-		return contractAddr, err
+func (c *FakeContextWithEVM) WithValidators(validators []*types.Validator) *FakeContextWithEVM {
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext.WithValidators(validators),
+		State:                    c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
-	abiBytes, err := ioutil.ReadFile("contracts/" + filename + ".abi")
-	if err != nil {
-		return contractAddr, err
-	}
-	contractABI, err := abi.JSON(strings.NewReader(string(abiBytes)))
-	if err != nil {
-		return contractAddr, err
-	}
-	byteCode := cmn.FromHex(string(hexByteCode))
-	// append constructor args to bytecode
-	// append constructor args to bytecode
-	input, err := contractABI.Pack("")
-	if err != nil {
-		return contractAddr, err
-	}
-	byteCode = append(byteCode, input...)
+}
 
-	vm := levm.NewLoomVm(ctx.State, nil, nil, nil, false)
-	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
-	if err != nil {
-		return contractAddr, err
+func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWithEVM {
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext.WithBlock(header),
+		State:                    c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
-	ctx.RegisterContract("", contractAddr, caller)
-	return contractAddr, nil
+}
+
+func (c *FakeContextWithEVM) WithSender(caller loom.Address) *FakeContextWithEVM {
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext.WithSender(caller),
+		State:                    c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
+	}
+}
+
+func (c *FakeContextWithEVM) WithAddress(addr loom.Address) *FakeContextWithEVM {
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext.WithAddress(addr),
+		State:                    c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
+	}
+}
+
+func (c *FakeContextWithEVM) WithFeature(name string, value bool) *FakeContextWithEVM {
+	c.State.SetFeature(name, value)
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext,
+		State:                    c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
+	}
+}
+
+func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContextWithEVM {
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext,
+		State:                    c.State,
+		useAccountBalanceManager: enable,
+	}
+}
+
+func (c *FakeContextWithEVM) AccountBalanceManager(readOnly bool) levm.AccountBalanceManager {
+	/*
+
+		ethCoinAddr, err := c.Resolve("ethcoin")
+		if err != nil {
+			panic(err)
+		}
+		return NewAccountBalanceManager(c.WithAddress(ethCoinAddr))
+	*/
+	return nil
+}
+
+func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	if c.useAccountBalanceManager {
+		createABM = c.AccountBalanceManager
+	}
+	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
+	return vm.Call(c.ContractAddress(), addr, input, value)
+}
+
+func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	if c.useAccountBalanceManager {
+		createABM = c.AccountBalanceManager
+	}
+	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
+	return vm.StaticCall(c.ContractAddress(), addr, input)
+}
+
+func (c *FakeContextWithEVM) FeatureEnabled(name string, value bool) bool {
+	return c.State.FeatureEnabled(name, value)
+}
+
+func (c *FakeContextWithEVM) EnabledFeatures() []string {
+	return nil
 }
 
 func deployDPOSContract(
@@ -107,7 +157,6 @@ func deployDPOSContract(
 	return &testDPOSContract{
 		Contract: dposContract,
 		Address:  contractAddr,
-		Ctx:      ctx,
 	}, err
 }
 
@@ -123,7 +172,7 @@ func (dpos *testDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*Li
 	return resp.ListResponses, err
 }
 
-func (dpos *testDPOSContract) SetVoucherTokenAddress(ctx *plugin.FakeContext, voucherTokenAddress *loom.Address) error {
+func (dpos *testDPOSContract) SetVoucherTokenAddress(ctx *FakeContextWithEVM, voucherTokenAddress *loom.Address) error {
 	err := dpos.Contract.SetVoucherTokenAddress(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&AddVoucherTokenAddressRequest{VoucherTokenAddress: voucherTokenAddress.MarshalPB()})
@@ -364,6 +413,10 @@ func (dpos *testDPOSContract) Delegate(ctx *plugin.FakeContext, validator *loom.
 	return err
 }
 
+func (dpos *testDPOSContract) ContractCtx(ctx *FakeContextWithEVM) contract.Context {
+	return contract.WrapPluginContext(ctx.WithAddress(dpos.Address))
+}
+
 func (dpos *testDPOSContract) Redelegate(ctx *plugin.FakeContext, validator *loom.Address, newValidator *loom.Address, amount *big.Int, index uint64, tier *uint64, referrer *string) error {
 	req := &RedelegateRequest{
 		FormerValidatorAddress: validator.MarshalPB(),
@@ -429,15 +482,5 @@ func (dpos *testDPOSContract) ConsolidateDelegations(ctx *plugin.FakeContext, va
 			ValidatorAddress: validator.MarshalPB(),
 		},
 	)
-	return err
-}
-
-func (dpos *testDPOSContract) MintVouchers(ctx *plugin.FakeContext,
-	request *MintVoucherRequest) error {
-	err := dpos.Contract.MintVouchers(
-		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),request)
-	if err != nil {
-		return err
-	}
 	return err
 }
