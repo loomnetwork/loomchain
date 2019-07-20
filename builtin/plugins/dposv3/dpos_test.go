@@ -480,6 +480,7 @@ func TestDelegate(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+//Below Test tests MinttoDPOS functionality of DPOS contract
 func TestMintingDPOS(t *testing.T) {
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
 	oracleAddr := loom.Address{
@@ -491,13 +492,14 @@ func TestMintingDPOS(t *testing.T) {
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey2),
 	}
-	pctx := createCtx()
-	pctx.SetFeature(loomchain.DPOSVersion3_6, true)
-	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	fakeCtx := CreateFakeContextWithEVM1(dAppAddr, loom.RootAddress("default"))
+	//Set DPOS version 3.6 Feature so that minting can be done
+	fakeCtx.WithFeature(loomchain.DPOSVersion3_6, true)
+	fakeCtx.WithFeature(loomchain.CoinVersion1_1Feature, true)
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
-	coinCtx := pctx.WithAddress(coinAddr)
+	coinAddr := fakeCtx.CreateContract(coin.Contract)
+	coinCtx := fakeCtx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			makeAccount(delegatorAddress1, 1000000000000000000),
@@ -507,29 +509,29 @@ func TestMintingDPOS(t *testing.T) {
 		},
 	})
 
-	dpos, err := deployDPOSContract(pctx.WithAddress(loom.RootAddress("default")), &Params{
+	//Deploy DPOS contract
+	dpos, err := deployDPOSContract1(fakeCtx, &Params{
 		ValidatorCount:      21,
 		CoinContractAddress: coinAddr.MarshalPB(),
 		OracleAddress:       oracleAddr.MarshalPB(),
 	})
 	require.Nil(t, err)
-	fakeCtx := CreateFakeContextWithEVM(dAppAddr, loom.RootAddress("default"))
+	//Deploy ERC20 Token Contract with mint to DPOS functionality
 	erc20TokenAddress, err := deployTokenContract(fakeCtx, "SampleERC20Token", dpos.Address, addr2)
 
-	err = dpos.SetVoucherTokenAddress(pctx, &erc20TokenAddress)
+	err = dpos.SetVoucherTokenAddressEVM(fakeCtx, &erc20TokenAddress)
 
 	require.Nil(t, err)
 
 	amount := loom.NewBigUIntFromInt(100)
 	whitelistAmount := big.NewInt(1000000000000)
-	// should fail from non-oracle
-	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
+	err = dpos.WhitelistCandidateEVM(fakeCtx.WithSender(addr1), addr1, whitelistAmount, 0)
 	require.Equal(t, errOnlyOracle, err)
 
-	err = dpos.WhitelistCandidate(pctx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
+	err = dpos.WhitelistCandidateEVM(fakeCtx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
 	require.Nil(t, err)
 
-	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	err = dpos.RegisterCandidateEVM(fakeCtx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 
 	delegationAmount := big.NewInt(100)
@@ -539,18 +541,19 @@ func TestMintingDPOS(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	response, err := coinContract.Allowance(contractpb.WrapPluginContext(coinCtx.WithSender(oracleAddr)), &coin.AllowanceRequest{
-		Owner:   addr1.MarshalPB(),
-		Spender: dpos.Address.MarshalPB(),
-	})
+	response, err := coinContract.Allowance(contractpb.WrapPluginContext(coinCtx.WithSender(oracleAddr)),
+		&coin.AllowanceRequest{
+			Owner:   addr1.MarshalPB(),
+			Spender: dpos.Address.MarshalPB(),
+		})
 	require.Nil(t, err)
 	require.True(t, delegationAmount.Cmp(response.Amount.Value.Int) == 0)
 
-	candidates, err := dpos.ListCandidates(pctx)
+	candidates, err := dpos.ListCandidatesEVM(fakeCtx)
 	require.Nil(t, err)
 	assert.Equal(t, len(candidates), 1)
 
-	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	err = dpos.DelegateEVM(fakeCtx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
@@ -560,21 +563,18 @@ func TestMintingDPOS(t *testing.T) {
 	require.Nil(t, err)
 
 	// total rewards distribution should equal 0 before elections run
-	totalRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+	totalRewardDistribution, err := dpos.CheckRewardsEVM(fakeCtx.WithSender(addr1))
 	require.Nil(t, err)
 	assert.True(t, totalRewardDistribution.Cmp(common.BigZero()) == 0)
-
-	require.NoError(t, elect(pctx, dpos.Address))
-
 	// total rewards distribution should equal still be zero after first election
-	totalRewardDistribution, err = dpos.CheckRewards(pctx.WithSender(addr1))
+	totalRewardDistribution, err = dpos.CheckRewardsEVM(fakeCtx.WithSender(addr1))
 	require.Nil(t, err)
 	assert.True(t, totalRewardDistribution.Cmp(common.BigZero()) == 0)
 
-	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	err = dpos.DelegateEVM(fakeCtx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
 
-	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr2)
+	_, delegatedAmount, _, err := dpos.CheckDelegationEVM(fakeCtx, &addr1, &addr2)
 	require.Nil(t, err)
 	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
 
@@ -584,11 +584,19 @@ func TestMintingDPOS(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	err = dpos.DelegateEVM(fakeCtx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
-	err = dpos.MintVouchers(pctx.WithSender(delegatorAddress1), MintVoucherRequest{Amount: &types.
+	//DPOS with mint vouchers called by delegator
+	err = dpos.MintVouchersEVM(fakeCtx.WithSender(delegatorAddress1), &MintVoucherRequest{Amount: &types.
 		BigUInt{Value: *amount}})
 	require.Nil(t, err)
+	erc20 := newERC20StaticContext(dpos.ContractCtxEVM(fakeCtx), erc20TokenAddress)
+	balanceDPOS, err := erc20.balanceOf(dpos.Address)
+	require.Equal(t, balanceDPOS.Int64(), int64(0))
+	//ERC20 balance of dpos contract=0 as amount minted was transferred to delegator
+	balanceDelegator, err := erc20.balanceOf(delegatorAddress1)
+	//ERC20 Balance of delegator equal to amount of erc20 minted to dpos
+	require.Equal(t, balanceDelegator.Int64(), amount.Int64())
 }
 
 func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
