@@ -597,6 +597,19 @@ func TestMintingDPOS(t *testing.T) {
 	balanceDelegator, err := erc20.balanceOf(delegatorAddress1)
 	//ERC20 Balance of delegator equal to amount of erc20 minted to dpos
 	require.Equal(t, balanceDelegator.Int64(), amount.Int64())
+   //In case of Mint Vouchers request sent by a non-delegator, minting does not take place
+	err = dpos.MintVouchersEVM(fakeCtx.WithSender(addr4), &MintVoucherRequest{Amount: &types.
+	BigUInt{Value: *amount}})
+	require.Nil(t, err)
+	//DPOS erc20 balance is zero, as minting does not take place
+	balanceDPOS, err = erc20.balanceOf(dpos.Address)
+	require.Nil(t, err)
+	require.Equal(t, balanceDPOS.Int64(), int64(0))
+	//Non delegator erc20 balance is 0, as minting does not take place in this step as request was from a non delegator
+	balanceNonDelegator, err := erc20.balanceOf(addr4)
+	require.Nil(t, err)
+	require.Equal(t, balanceNonDelegator.Int64(), int64(0))
+
 }
 
 func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
