@@ -94,7 +94,6 @@ func MintVouchersCmdV3() *cobra.Command {
 	return cmd
 }
 
-
 func SetVoucherTokenAddressCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
@@ -102,7 +101,7 @@ func SetVoucherTokenAddressCmdV3() *cobra.Command {
 		Short: "sets voucher token address",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			address, err := cli.ParseAddress(args[0],"default")
+			address, err := cli.ParseAddress(args[0],flags.ChainID)
 			if err != nil {
 				return err
 			}
