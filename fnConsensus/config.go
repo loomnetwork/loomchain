@@ -39,10 +39,7 @@ func (r *ReactorConfigParsable) Parse() (*ReactorConfig, error) {
 	reactorConfig.OverrideValidators = make([]*OverrideValidator, len(r.OverrideValidators))
 
 	for i, overrideValidator := range r.OverrideValidators {
-		if strings.HasPrefix(overrideValidator.Address, "0x") {
-			overrideValidator.Address = overrideValidator.Address[2:]
-		}
-		address, err := hex.DecodeString(overrideValidator.Address)
+		address, err := hex.DecodeString(strings.TrimPrefix(overrideValidator.Address, "0x"))
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse override validator's address")
 		}

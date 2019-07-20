@@ -87,7 +87,7 @@ func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
 // VALIDATION
 
 func validateCandidateFee(ctx contract.Context, fee uint64) error {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}

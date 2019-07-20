@@ -12,11 +12,14 @@ import (
 )
 
 type (
-	ListFeaturesRequest   = cctypes.ListFeaturesRequest
-	ListFeaturesResponse  = cctypes.ListFeaturesResponse
-	Feature               = cctypes.Feature
-	EnableFeatureRequest  = cctypes.EnableFeatureRequest
-	EnableFeatureResponse = cctypes.EnableFeatureResponse
+	ListFeaturesRequest      = cctypes.ListFeaturesRequest
+	ListFeaturesResponse     = cctypes.ListFeaturesResponse
+	Feature                  = cctypes.Feature
+	EnableFeatureRequest     = cctypes.EnableFeatureRequest
+	EnableFeatureResponse    = cctypes.EnableFeatureResponse
+	SetValidatorInfo         = cctypes.SetValidatorInfoRequest
+	GetValidatorInfoRequest  = cctypes.GetValidatorInfoRequest
+	GetValidatorInfoResponse = cctypes.GetValidatorInfoResponse
 )
 
 const (
@@ -114,4 +117,31 @@ func (cc *ChainConfigClient) hasVoted(feature *Feature) bool {
 		}
 	}
 	return false
+}
+
+func (cc *ChainConfigClient) SetBuildNumber(buildNumber uint64) error {
+	if _, err := cc.contract.Call(
+		"SetValidatorInfo",
+		&SetValidatorInfo{BuildNumber: buildNumber},
+		cc.signer,
+		nil,
+	); err != nil {
+		cc.logger.Error("Failed to set build number in ChainConfig contract", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (cc *ChainConfigClient) GetValidatorInfo() (*GetValidatorInfoResponse, error) {
+	var resp GetValidatorInfoResponse
+	if _, err := cc.contract.StaticCall(
+		"GetValidatorInfo",
+		&GetValidatorInfoRequest{Address: cc.caller.MarshalPB()},
+		cc.caller,
+		&resp,
+	); err != nil {
+		cc.logger.Error("Failed to Get Validator information in ChainConfig contract", "err", err)
+		return nil, err
+	}
+	return &resp, nil
 }

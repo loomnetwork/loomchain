@@ -69,7 +69,7 @@ type Config struct {
 	Karma                       *KarmaConfig
 	GoContractDeployerWhitelist *throttle.GoContractDeployerWhitelistConfig
 	TxLimiter                   *throttle.TxLimiterConfig
-
+	ContractTxLimiter           *throttle.ContractTxLimiterConfig
 	// Logging
 	LogDestination     string
 	ContractLogLevel   string
@@ -92,6 +92,7 @@ type Config struct {
 	TransferGateway         *TransferGatewayConfig
 	LoomCoinTransferGateway *TransferGatewayConfig
 	TronTransferGateway     *TransferGatewayConfig
+	BinanceTransferGateway  *TransferGatewayConfig
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
@@ -134,6 +135,8 @@ type Config struct {
 	Auth *auth.Config
 
 	EvmStore *evm.EvmStoreConfig
+	// Allow deployment of named EVM contracts (should only be used in tests!)
+	AllowNamedEvmContracts bool
 
 	// Dragons
 	EVMDebugEnabled bool
@@ -400,18 +403,21 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:        "",
-		DeployEnabled: true,
-		CallEnabled:   true,
-		DPOSVersion:   3,
+		Oracle:                 "",
+		DeployEnabled:          true,
+		CallEnabled:            true,
+		DPOSVersion:            3,
+		AllowNamedEvmContracts: false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.TronTransferGateway = DefaultTronTGConfig(cfg.RPCProxyPort)
+	cfg.BinanceTransferGateway = DefaultBinanceTGConfig()
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
+	cfg.ContractTxLimiter = throttle.DefaultContractTxLimiterConfig()
 	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
 	cfg.DPOSv2OracleConfig = DefaultDPOS2OracleConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
@@ -455,6 +461,7 @@ func (c *Config) Clone() *Config {
 	clone.AppStore = c.AppStore.Clone()
 	clone.HsmConfig = c.HsmConfig.Clone()
 	clone.TxLimiter = c.TxLimiter.Clone()
+	clone.ContractTxLimiter = c.ContractTxLimiter.Clone()
 	clone.EventStore = c.EventStore.Clone()
 	clone.EventDispatcher = c.EventDispatcher.Clone()
 	clone.Auth = c.Auth.Clone()
@@ -600,6 +607,10 @@ TxLimiter:
   Enabled: {{ .TxLimiter.Enabled }}
   SessionDuration: {{ .TxLimiter.SessionDuration }}
   MaxTxsPerSession: {{ .TxLimiter.MaxTxsPerSession }} 
+ContractTxLimiter:
+  Enabled: {{ .ContractTxLimiter.Enabled }}
+  ContractDataRefreshInterval: {{ .ContractTxLimiter.ContractDataRefreshInterval }}
+  TierDataRefreshInterval: {{ .ContractTxLimiter.TierDataRefreshInterval }}
 
 #
 # ContractLoader
@@ -742,17 +753,6 @@ AppStore:
   PruneInterval: {{ .AppStore.PruneInterval }}
   # Number of versions to prune at a time.
   PruneBatchSize: {{ .AppStore.PruneBatchSize }}
-  # DB backend to use for storing a materialized view of the latest persistent app state
-  # possible values are: "goleveldb". Only used by the MultiReaderIAVL store, ignored otherwise.
-  LatestStateDBBackend: {{ .AppStore.LatestStateDBBackend }}
-  # Defaults to "app_state". Only used by the MultiReaderIAVL store, ignored otherwise.
-  LatestStateDBName: {{ .AppStore.LatestStateDBName }}
-  # 1 - single mutex NodeDB, 2 - multi-mutex NodeDB
-  NodeDBVersion: {{ .AppStore.NodeDBVersion }}
-  NodeCacheSize: {{ .AppStore.NodeCacheSize }}
-  # Snapshot type to use, only supported by MultiReaderIAVL store
-  # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
-  SnapshotVersion: {{ .AppStore.SnapshotVersion }}
   # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
   SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
@@ -827,4 +827,6 @@ PluginsDir: "{{ .PluginsDir }}"
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
+AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
+
 ` + transferGatewayLoomYamlTemplate

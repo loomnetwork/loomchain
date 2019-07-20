@@ -45,7 +45,6 @@ import (
 	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
-	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
@@ -53,6 +52,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/migrations"
@@ -72,8 +72,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ed25519"
-
-	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var (
@@ -578,37 +576,25 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if cfg.AppStore.PruneInterval > int64(0) {
 			logger.Info("Loading Pruning IAVL Store")
 			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
-				MaxVersions: cfg.AppStore.MaxVersions,
-				BatchSize:   cfg.AppStore.PruneBatchSize,
-				Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
-				Logger:      logger,
+				MaxVersions:   cfg.AppStore.MaxVersions,
+				BatchSize:     cfg.AppStore.PruneBatchSize,
+				Interval:      time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+				Logger:        logger,
+				FlushInterval: cfg.AppStore.IAVLFlushInterval,
 			})
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			logger.Info("Loading IAVL Store")
-			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 			if err != nil {
 				return nil, err
 			}
 		}
-	} else if cfg.AppStore.Version == 2 {
-		logger.Info("Loading MultiReaderIAVL Store")
-		valueDB, err := cdb.LoadDB(
-			cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(),
-			cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
-		)
-		if err != nil {
-			return nil, err
-		}
-		appStore, err = store.NewMultiReaderIAVLStore(db, valueDB, cfg.AppStore)
-		if err != nil {
-			return nil, err
-		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -825,8 +811,9 @@ func loadApp(
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager:        vmManager,
-		CreateRegistry: createRegistry,
+		Manager:                vmManager,
+		CreateRegistry:         createRegistry,
+		AllowNamedEVMContracts: cfg.AllowNamedEvmContracts,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
@@ -922,7 +909,7 @@ func loadApp(
 
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
 		cfg.Auth,
-		getContractCtx("addressmapper", vmManager),
+		getContractStaticCtx("addressmapper", vmManager),
 	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
@@ -938,6 +925,13 @@ func loadApp(
 
 	if cfg.TxLimiter.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.NewTxLimiterMiddleware(cfg.TxLimiter))
+	}
+
+	if cfg.ContractTxLimiter.Enabled {
+		contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
+		txMiddleWare = append(
+			txMiddleWare, throttle.NewContractTxLimiterMiddleware(cfg.ContractTxLimiter, contextFactory),
+		)
 	}
 
 	if cfg.DeployerWhitelist.ContractEnabled {
@@ -1142,13 +1136,25 @@ func deployContract(
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
+type staticContextFactory func(state loomchain.State) (contractpb.StaticContext, error)
+
 func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), false)
+	}
+}
+
+func getContractStaticCtx(pluginName string, vmManager *vm.Manager) staticContextFactory {
+	return func(state loomchain.State) (contractpb.StaticContext, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), true)
 	}
 }
 
@@ -1185,10 +1191,11 @@ func initQueryService(
 		Help:      "Number of requests received.",
 	}, fieldKeys)
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "query_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "query_service",
+		Name:       "request_latency_microseconds",
+		Help:       "Total duration of requests in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
@@ -1292,7 +1299,6 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		resolveCmd,
 		unsafeCmd,
-		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		userdeployer.NewUserDeployCommand(),

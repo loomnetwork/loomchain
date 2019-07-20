@@ -262,6 +262,10 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
+func (c *contractContext) EnabledFeatures() []string {
+	return c.VM.State.EnabledFeatures()
+}
+
 func (c *contractContext) Validators() []*ltypes.Validator {
 	return c.VM.State.Validators()
 }
@@ -324,12 +328,11 @@ func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.Contrac
 }
 
 // NewInternalContractContext creates an internal Go contract context.
-func NewInternalContractContext(contractName string, pluginVM *PluginVM) (contractpb.Context, error) {
+func NewInternalContractContext(contractName string, pluginVM *PluginVM, readOnly bool) (contractpb.Context, error) {
 	caller := loom.RootAddress(pluginVM.State.Block().ChainID)
 	contractAddr, err := pluginVM.Registry.Resolve(contractName)
 	if err != nil {
 		return nil, err
 	}
-	readOnly := false
 	return contractpb.WrapPluginContext(pluginVM.CreateContractContext(caller, contractAddr, readOnly)), nil
 }

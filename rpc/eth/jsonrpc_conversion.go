@@ -2,6 +2,7 @@ package eth
 
 import (
 	"encoding/hex"
+	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
@@ -173,7 +174,7 @@ func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),
-		Address:          EncAddress(log.Caller),
+		Address:          EncAddress(log.Address),
 		Data:             data,
 		TransactionIndex: EncInt(int64(log.TransactionIndex)),
 		BlockHash:        EncBytes(log.BlockHash),
@@ -217,6 +218,10 @@ func EncInt(value int64) Quantity {
 
 func EncUint(value uint64) Quantity {
 	return Quantity("0x" + strconv.FormatUint(value, 16))
+}
+
+func EncBigInt(value big.Int) Quantity {
+	return Quantity("0x" + value.Text(16))
 }
 
 // Hex

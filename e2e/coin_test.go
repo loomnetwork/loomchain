@@ -18,11 +18,7 @@ func TestContractCoin(t *testing.T) {
 	}{
 		{"coin-1", "coin.toml", 1, 10, "coin.genesis.json", ""},
 		{"coin-2", "coin.toml", 2, 10, "coin.genesis.json", ""},
-		{"coin-2-r2", "coin.toml", 2, 10, "coin.genesis.json", "coin-test-loom.yaml"},
 		{"coin-4", "coin.toml", 4, 10, "coin.genesis.json", ""},
-		{"coin-4-r2", "coin.toml", 4, 10, "coin.genesis.json", "coin-test-loom.yaml"},
-		{"coin-6", "coin.toml", 6, 10, "coin.genesis.json", ""},
-		{"coin-8", "coin.toml", 8, 10, "coin.genesis.json", ""},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"

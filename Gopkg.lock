@@ -20,13 +20,9 @@
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [[projects]]
-  digest = "1:d17099fb1aae071174db067e43a02780bbe534a279e0506783acd33c4f4b131c"
+  digest = "1:95f4fdfbc8d7723bd21e467aabe98d86f06d3e2557b1ba92bf9df8aea6706784"
   name = "github.com/btcsuite/btcutil"
-  packages = [
-    ".",
-    "base58",
-    "bech32",
-  ]
+  packages = ["base58"]
   pruneopts = "UT"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
@@ -301,16 +297,17 @@
   version = "v0.14.0"
 
 [[projects]]
-  branch = "multi-mutex-nodedb"
-  digest = "1:c463c5a9951f564b1a7713406a7b0655d7964d234bca6d7d0fbb2789be55ce51"
+  branch = "tmreal2"
+  digest = "1:5404ef08f18ff942573397a29a62fe03f35e94ec512c90b750ff06175fcf01f9"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "421b71b2dc0f0d7ad013a811383c293aa546c038"
-  source = "https://github.com/enlight/iavl.git"
+  revision = "45ae3144d0e8f894502f09de56de2a65118651fe"
+  source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
-  digest = "1:a1eb813569fbe2ba8c6b8e25c8b7a7acbc7f01d486362043d4494cf949308096"
+  branch = "loomchain"
+  digest = "1:70d9461d1f2ba2ef6ecd33c03ebb5be662affdd2411785bcf17e33137a68ab1c"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -363,7 +360,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "29bb7b1ad483bec3c797ce24a5135465fccfa5f6"
+  revision = "9d871e29f9d34ee6563a821c78e1a23b8984c822"
   source = "https://github.com/loomnetwork/tendermint.git"
 
 [[projects]]
@@ -445,11 +442,11 @@
     "github.com/syndtr/goleveldb/leveldb/filter",
     "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/util",
-    "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/go-amino",
     "github.com/tendermint/iavl",
     "github.com/tendermint/tendermint/abci/server",
     "github.com/tendermint/tendermint/abci/types",
+    "github.com/tendermint/tendermint/blockchain",
     "github.com/tendermint/tendermint/config",
     "github.com/tendermint/tendermint/crypto",
     "github.com/tendermint/tendermint/crypto/ed25519",

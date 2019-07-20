@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/cli"
@@ -173,7 +173,7 @@ func newMapAccountsCommand() *cobra.Command {
 			}
 
 			var foreignOwnerAddr loom.Address
-			req := &amtypes.AddressMapperAddIdentityMappingRequest{}
+			var req *amtypes.AddressMapperAddIdentityMappingRequest
 			if !interactive {
 				// get it from the key
 				ethOwnerKey, err := crypto.LoadECDSA(ethKeyPath)
@@ -221,6 +221,9 @@ func newMapAccountsCommand() *cobra.Command {
 				)
 
 				sign, err := getSignatureInteractive(hash)
+				if err != nil {
+					return err
+				}
 				// Do a local recovery on the signature to make sure the user is passing the correct byte
 				signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:])
 				if err != nil {
@@ -262,6 +265,140 @@ func newMapAccountsCommand() *cobra.Command {
 	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
 	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
 	cmdFlags.BoolVar(&interactive, "interactive", false, "Make the mapping of an account interactive by requiring the signature to be provided by the user instead of signing inside the client.")
+	return cmd
+}
+
+const ListContractMappingCmdExample = `
+loom gateway list-contract-mappings
+`
+
+func newListContractMappingsCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "list-contract-mappings",
+		Short:   "List all contract mappings",
+		Example: ListContractMappingCmdExample,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayListContractMappingRequest{}
+			resp := &tgtypes.TransferGatewayListContractMappingResponse{}
+			_, err = gateway.StaticCall("ListContractMapping", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.ListContractMapping")
+			}
+			type maxLength struct {
+				From   int
+				To     int
+				Status int
+			}
+			ml := maxLength{From: 50, To: 50, Status: 9}
+			for _, value := range resp.PendingMappings {
+				if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
+					ml.From = len(loom.UnmarshalAddressPB(value.ForeignContract).String())
+				}
+				if len(loom.UnmarshalAddressPB(value.LocalContract).String()) > ml.To {
+					ml.To = len(loom.UnmarshalAddressPB(value.LocalContract).String())
+				}
+			}
+			for _, value := range resp.ConfimedMappings {
+				if len(loom.UnmarshalAddressPB(value.From).String()) > ml.From {
+					ml.From = len(loom.UnmarshalAddressPB(value.From).String())
+				}
+				if len(loom.UnmarshalAddressPB(value.To).String()) > ml.To {
+					ml.To = len(loom.UnmarshalAddressPB(value.To).String())
+				}
+			}
+			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
+			for _, value := range resp.PendingMappings {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
+			}
+			for _, value := range resp.ConfimedMappings {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To, loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
+			}
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	return cmd
+}
+
+const getContractMappingCmdExample = `
+loom gateway get-contract-mapping 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+`
+
+type Mapping struct {
+	Address   string `json:"address"`
+	IsPending bool   `json:"is_pending"`
+	Found     bool   `json:"found"`
+}
+
+func newGetContractMappingCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "get-contract-mapping <contract-addr>",
+		Short:   "Get Contract Mapping",
+		Example: getContractMappingCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var mapping Mapping
+			var contractAddr loom.Address
+			var err error
+			contractAddr, err = cli.ParseAddress(args[0], gatewayCmdFlags.ChainID)
+			if err != nil {
+				return err
+			}
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayGetContractMappingRequest{
+				From: contractAddr.MarshalPB(),
+			}
+			resp := &tgtypes.TransferGatewayGetContractMappingResponse{}
+			_, err = gateway.StaticCall("GetContractMapping", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.GetContractMapping")
+			}
+			if resp.MappedAddress != nil {
+				mapping.Address = loom.UnmarshalAddressPB(resp.MappedAddress).String()
+				mapping.IsPending = resp.IsPending
+				mapping.Found = resp.Found
+			} else {
+				fmt.Println("No mapping found")
+				return nil
+			}
+			type maxLength struct {
+				From   int
+				To     int
+				Status int
+			}
+			ml := maxLength{From: 50, To: 50, Status: 9}
+			if len(contractAddr.String()) > ml.From {
+				ml.From = len(contractAddr.String())
+			}
+			if len(mapping.Address) > ml.To {
+				ml.To = len(mapping.Address)
+			}
+			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
+			if mapping.IsPending {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "PENDING")
+			} else {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, contractAddr, ml.To, mapping.Address, ml.Status, "CONFIRMED")
+			}
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
 	return cmd
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
@@ -278,6 +279,8 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 		if err != nil {
 			return resp, err
 		}
+	} else {
+		caller = loom.RootAddress(s.ChainID)
 	}
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
@@ -336,21 +339,27 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 }
 
 // Attempts to construct the context of the Address Mapper contract.
-func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
-	vm := lcp.NewPluginVM(
-		s.Loader,
-		state,
-		s.CreateRegistry(state),
-		nil, // event handler
-		log.Default,
-		s.NewABMFactory,
-		nil, // receipt writer
-		nil, // receipt reader
-	)
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "addressmapper")
+}
 
-	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+func (s *QueryServer) createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
+	ctx, err := lcp.NewInternalContractContext(
+		name,
+		lcp.NewPluginVM(
+			s.Loader,
+			state,
+			s.CreateRegistry(state),
+			nil, // event handler
+			log.Default,
+			s.NewABMFactory,
+			nil, // receipt writer
+			nil, // receipt reader
+		),
+		true,
+	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+		return nil, errors.Wrapf(err, "failed to create %s context", name)
 	}
 	return ctx, nil
 }
@@ -763,13 +772,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 		return resp, nil
 	}
 	if err != nil {
-		resp, err = getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
-		if err != nil {
-			// return empty response if cannot find hash
-			resp.Status = eth.EncInt(int64(StatusTxFail))
-			return resp, nil
-		}
-		return resp, err
+		return getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
 	}
 	snapshot.Release()
 
@@ -1054,8 +1057,37 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	return eth.EncUint(nonce), nil
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getbalance
+// uses ethcoin contract to return the balance corresponding to the address
 func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
-	return eth.Quantity("0x0"), nil
+	owner, err := eth.DecDataToAddress(s.ChainID, address)
+	if err != nil {
+		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid block height %s", block)
+	}
+	if int64(height) != snapshot.Block().Height {
+		return "", errors.Errorf("height %s not latest", block)
+	}
+
+	ctx, err := s.createStaticContractCtx(snapshot, "ethcoin")
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+	amount, err := ethcoin.BalanceOf(ctx, owner)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+	if amount == nil {
+		return eth.Quantity("0x0"), errors.Errorf("No amount returned for address %s", address)
+	}
+
+	return eth.EncBigInt(*amount.Int), nil
 }
 
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
@@ -1107,7 +1139,20 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	}
 	txReceipt, err := rh.GetReceipt(state, txHash)
 	if err != nil {
-		return eth.TxObjToReceipt(txObj, contractAddr), err
+		jsonReceipt := eth.TxObjToReceipt(txObj, contractAddr)
+		if txResults.TxResult.Code == abci.CodeTypeOK {
+			jsonReceipt.Status = eth.EncInt(int64(StatusTxSuccess))
+		} else {
+			jsonReceipt.Status = eth.EncInt(int64(StatusTxFail))
+		}
+		if txResults.TxResult.Info == utils.CallEVM || txResults.TxResult.Info == utils.CallPlugin {
+			if jsonReceipt.To == nil || len(*jsonReceipt.To) == 0 {
+				jsonReceipt.To = jsonReceipt.ContractAddress
+			}
+			jsonReceipt.ContractAddress = nil
+		}
+
+		return jsonReceipt, nil
 	}
 	return completeReceipt(txResults, blockResult, &txReceipt), nil
 }

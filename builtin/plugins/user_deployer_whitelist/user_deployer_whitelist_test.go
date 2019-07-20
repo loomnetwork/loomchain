@@ -38,6 +38,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		TierID: udwtypes.TierID_DEFAULT,
 		Fee:    fee,
 		Name:   "Tier1",
+		BlockRange: 10,
+		MaxTxs:     20,
 	}
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)
@@ -175,6 +177,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 			Fee: &types.BigUInt{
 				Value: *whitelistingfees,
 			},
+			BlockRange: 10,
+			MaxTxs:     20,
 		})
 
 	require.NoError(t, err)
@@ -187,6 +191,8 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 			Fee: &types.BigUInt{
 				Value: *whitelistingfees,
 			},
+			BlockRange: 10,
+			MaxTxs:     20,
 		})
 
 	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be Modified Only by Owner")

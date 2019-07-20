@@ -4,10 +4,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
@@ -29,6 +32,34 @@ func UnregisterCandidateCmdV3() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cli.CallContractWithFlags(
 				&flags, DPOSV3ContractName, "UnregisterCandidate", &dposv3.UnregisterCandidateRequest{}, nil,
+			)
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+func UnjailValidatorCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+
+	cmd := &cobra.Command{
+		Use:   "unjail-validator",
+		Short: "Unjail a validator",
+		Args:  cobra.RangeArgs(0, 1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var validator *types.Address
+			if len(args) == 1 {
+				addr, err := cli.ParseAddress(args[0], flags.ChainID)
+				if err != nil {
+					return err
+				}
+				validator = addr.MarshalPB()
+			}
+
+			return cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "Unjail", &dposv3.UnjailRequest{
+					Validator: validator,
+				}, nil,
 			)
 		},
 	}
@@ -499,11 +530,66 @@ func DowntimeRecordCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+
+			var respDPOS dposv3.ListCandidatesResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, "dposV3", "ListCandidates", &dposv3.ListCandidatesRequest{}, &respDPOS,
+			)
 			if err != nil {
 				return err
 			}
-			fmt.Println(out)
+
+			type mapper struct {
+				Address        string
+				Name           string
+				DownTimeRecord *dposv3.DowntimeRecord
+				Jailed         bool
+			}
+			var nameList []mapper
+
+			for _, d := range resp.DowntimeRecords {
+				for _, c := range respDPOS.Candidates {
+					if d.Validator.Local.Compare(c.Candidate.Address.Local) == 0 {
+						a := mapper{
+							Address:        loom.UnmarshalAddressPB(d.GetValidator()).Local.String(),
+							Name:           c.Candidate.GetName(),
+							DownTimeRecord: d,
+							Jailed:         c.Statistic.Jailed,
+						}
+						nameList = append(nameList, a)
+						break
+					}
+				}
+			}
+
+			sort.Slice(nameList[:], func(i, j int) bool {
+				return nameList[i].Name < nameList[j].Name
+			})
+
+			type maxLength struct {
+				Name    int
+				Address int
+				Period  int
+				Jailed  int
+			}
+			ml := maxLength{Name: 40, Address: 42, Period: 8, Jailed: 6}
+			fmt.Printf(
+				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Address, "address",
+				ml.Jailed, "jailed", ml.Period, "period 1", ml.Period, "period 2", ml.Period, "period 3", ml.Period, "period 4")
+			fmt.Printf(
+				strings.Repeat("-", ml.Name+ml.Address+ml.Jailed+(4*ml.Period)+19) + "\n")
+			for i := range nameList {
+				fmt.Printf(
+					"%-*s | %-*s | %*v | %*d | %*d | %*d | %*d |\n",
+					ml.Name, nameList[i].Name,
+					ml.Address, nameList[i].Address,
+					ml.Jailed, nameList[i].Jailed,
+					ml.Period, nameList[i].DownTimeRecord.Periods[0],
+					ml.Period, nameList[i].DownTimeRecord.Periods[1],
+					ml.Period, nameList[i].DownTimeRecord.Periods[2],
+					ml.Period, nameList[i].DownTimeRecord.Periods[3])
+			}
+			fmt.Println("PeriodLength : ", resp.PeriodLength)
 			return nil
 		},
 	}
@@ -1044,6 +1130,7 @@ func NewDPOSV3Command() *cobra.Command {
 		TimeUntilElectionCmdV3(),
 		GetStateCmdV3(),
 		SetMinCandidateFeeCmdV3(),
+		UnjailValidatorCmdV3(),
 	)
 	return cmd
 }

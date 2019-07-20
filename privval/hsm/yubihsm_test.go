@@ -11,11 +11,6 @@ import (
 )
 
 const (
-	DefaultYubiConnURL       = "127.0.0.1:12345"
-	DefaultYubiAuthKeyID     = 1
-	DefaultYubiPassword      = "password"
-	DefaultYubiSignKeyDomain = 1
-
 	YubiHsmInfoConf    = "yhsm_test.json"
 	YubiHsmPrivValConf = "yhsm_priv_validator.json"
 )

@@ -8,6 +8,8 @@ const (
 	TGHotWalletFeature = "tg:hot-wallet"
 	// Enables prevention of zero amount token withdrawals in the Gateway contract
 	TGCheckZeroAmount = "tg:check-zamt"
+	//Enables workaround for handling of ERC721 deposits in the Gateway contract
+	TGFixERC721Feature = "tg:fix-erc721"
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
 	AuthSigTxFeaturePrefix = "auth:sigtx:"
@@ -24,6 +26,10 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_2 = "dpos:v3.2"
 
+	// Enables jailing offline validators
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_3 = "dpos:v3.3"
+
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
 	DPOSVersion2_1 = "dpos:v2.1"
@@ -38,6 +44,9 @@ const (
 	// Enables post commit middleware for user-deployer-whitelist
 	UserDeployerWhitelistFeature = "mw:userdeploy-wl"
 
+	// Enables block range & max txs fields in tier info stored in User Deployer Whitelist contract
+	UserDeployerWhitelistVersion1_1Feature = "userdeploy-wl:v1.1"
+
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
 
@@ -46,6 +55,9 @@ const (
 
 	// Enables usage of ctx.Validators() in ChainConfig contract.
 	ChainCfgVersion1_1 = "chaincfg:v1.1"
+
+	// Enables validator build number tracking via the ChainConfig contract.
+	ChainCfgVersion1_2 = "chaincfg:v1.2"
 
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
@@ -59,4 +71,7 @@ const (
 	AuxEvmDBFeature = "db:auxevm"
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
+
+	// Enable option to allow checking the registry error
+	DeployTxVersion1_1Feature = "deploytx:v1.1"
 )

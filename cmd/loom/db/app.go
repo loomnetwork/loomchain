@@ -67,7 +67,7 @@ func newGetAppHeightCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			iavlStore, err := store.NewIAVLStore(db, 0, 0)
+			iavlStore, err := store.NewIAVLStore(db, 0, 0, 0)
 			if err != nil {
 				return err
 			}
