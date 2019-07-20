@@ -1338,7 +1338,7 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 }
 
 func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
-	sender := ctx.Message().Sender
+
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
 		return errors.New("DPOS v3.4 is not enabled")
 	}
@@ -1347,6 +1347,7 @@ func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidator
 	if err != nil {
 		return err
 	}
+	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return errOnlyOracle
 	}
