@@ -315,18 +315,22 @@ func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error
 		return err
 	}
 	sender := ctx.Message().Sender
+	ctx.Logger().Info("Mint Vouchers", "delegator", sender, "request", req)
 	for _, d := range delegations {
+		//Match mint-vouchers is called via delegator
 		if loom.UnmarshalAddressPB(d.Delegator).Compare(sender) == 0 {
 			erc20, err := loadERC20Token(ctx, loom.UnmarshalAddressPB(state.Params.VoucherTokenAddress))
 			if err != nil {
 				return err
 			}
+			//Start Minting ERC20 to DPOS
 			err = erc20.mintToDPOS(req.Amount.Value.Int, ctx.ContractAddress())
 			if err != nil {
 				return err
 			}
-			err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator),
-				req.Amount.Value.Int)
+			err = erc20.approve(ctx.ContractAddress(), req.Amount.Value.Int)
+			//Minted Amount transferred from DPOS contract to Delegator which called mint-vouchers
+			err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator), req.Amount.Value.Int)
 			if err != nil {
 				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
 				return logDposError(ctx, err, transferFromErr)
@@ -479,14 +483,15 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 }
 
 //SetVoucherTokenAddress in DPOS contract, this is address of ERC20 Token that will be minted
-
 func (c *DPOS) SetVoucherTokenAddress(ctx contract.Context, req *AddVoucherTokenAddressRequest) error {
+	ctx.Logger().Info("Set Voucher Token Address", "request", req)
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_6, false) {
 		return errors.New("DPOS v3.6 is not enabled")
 	}
+	if req.VoucherTokenAddress == nil {
+		logDposError(ctx, errors.New("VoucherTokenAddress cannot be nil"), req.String())
+	}
 	voucherTokenAddress := req.VoucherTokenAddress
-	ctx.Logger().Info("Set Voucher Token Address", "request", req)
-
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
