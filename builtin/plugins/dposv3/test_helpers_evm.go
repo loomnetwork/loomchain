@@ -156,8 +156,7 @@ func deployTokenContract(ctx *FakeContextWithEVM, filename string, dpos, caller 
 	}
 	byteCode := cmn.FromHex(string(hexByteCode))
 	// append constructor args to bytecode
-	// append constructor args to bytecode
-	input, err := contractABI.Pack("")
+	input, err := contractABI.Pack("", cmn.BytesToAddress(dpos.Local))
 	if err != nil {
 		return contractAddr, err
 	}
