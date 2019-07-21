@@ -319,24 +319,32 @@ func (c *DPOS) MintVouchers(ctx contract.Context, req *MintVoucherRequest) error
 	for _, d := range delegations {
 		//Match mint-vouchers is called via delegator
 		if loom.UnmarshalAddressPB(d.Delegator).Compare(sender) == 0 {
-			erc20, err := loadERC20Token(ctx, loom.UnmarshalAddressPB(state.Params.VoucherTokenAddress))
+			err = minttoDPOS(ctx, state, req, d.Delegator)
 			if err != nil {
 				return err
-			}
-			//Start Minting ERC20 to DPOS
-			err = erc20.mintToDPOS(req.Amount.Value.Int, ctx.ContractAddress())
-			if err != nil {
-				return err
-			}
-			err = erc20.approve(ctx.ContractAddress(), req.Amount.Value.Int)
-			//Minted Amount transferred from DPOS contract to Delegator which called mint-vouchers
-			err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(d.Delegator), req.Amount.Value.Int)
-			if err != nil {
-				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
-				return logDposError(ctx, err, transferFromErr)
 			}
 			break
 		}
+	}
+	return nil
+}
+
+func minttoDPOS(ctx contract.Context, state *State, req *MintVoucherRequest, delegator *types.Address) error {
+	erc20, err := loadERC20Token(ctx, loom.UnmarshalAddressPB(state.Params.VoucherTokenAddress))
+	if err != nil {
+		return err
+	}
+	//Start Minting ERC20 to DPOS
+	err = erc20.mintToDPOS(req.Amount.Value.Int)
+	if err != nil {
+		return err
+	}
+	err = erc20.approve(ctx.ContractAddress(), req.Amount.Value.Int)
+	//Minted Amount transferred from DPOS contract to Delegator which called mint-vouchers
+	err = erc20.transferFrom(ctx.ContractAddress(), loom.UnmarshalAddressPB(delegator), req.Amount.Value.Int)
+	if err != nil {
+		transferFromErr := fmt.Sprintf("Failed coin TransferFrom - MintVoucher, %v, %s", ctx.ContractAddress().String(), req.Amount.Value.String())
+		return logDposError(ctx, err, transferFromErr)
 	}
 	return nil
 }
