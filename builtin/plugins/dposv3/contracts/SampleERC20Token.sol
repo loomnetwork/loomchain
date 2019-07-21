@@ -1,30 +1,23 @@
 pragma solidity ^0.4.24;
 
-import "openzeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
-import "./ERC20DAppToken.sol";
+import 'zeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 
-contract SampleERC20Token is ERC20DAppToken, StandardToken {
-    // DPOS contract address
+contract SampleERC20Token is MintableToken{
     address public dpos;
-
     string public name = "ERC20";
     string public symbol = "ERC";
-    uint8 public decimals = 6;
-    event startMining();
-    event mintingDPOS(uint256 _amount, address _dposAddress);
+    uint8 public constant decimals = 6;
+    uint256 public INITIAL_SUPPLY = 10000 * (10 ** uint256(decimals));
 
-    /**
-     * @dev Constructor function
-     */
-    constructor() public {
-        emit startMining();
-        totalSupply_ = 1000000000 * (10 ** uint256(decimals));
+    constructor(address _dpos) public {
+        dpos = _dpos;
+        totalSupply_ = INITIAL_SUPPLY;
     }
 
-    function mintToDPOS(uint256 _amount, address _dposAddress) public returns (bool ok){
-        emit mintingDPOS(_amount,_dposAddress);
+    function mintToDPOS(uint256 _amount) public {
+        require(msg.sender == dpos, "only the DPOS is allowed to mint");
         totalSupply_ = totalSupply_.add(_amount);
-        balances[_dposAddress] = balances[_dposAddress].add(_amount);
-        return true;
+        balances[dpos] = balances[dpos].add(_amount);
     }
+
 }
