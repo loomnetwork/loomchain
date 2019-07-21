@@ -77,9 +77,8 @@ func (c *erc20Context) transfer(to loom.Address, amount *big.Int) error {
 	return err
 }
 
-func (c *erc20Context) mintToDPOS(amount *big.Int, contractAddress loom.Address) error {
-	contractAddr := common.BytesToAddress(contractAddress.Local)
-	_, err := c.callEVM("mintToDPOS", amount, contractAddr)
+func (c *erc20Context) mintToDPOS(amount *big.Int) error {
+	_, err := c.callEVM("mintToDPOS", amount)
 	return err
 }
 
@@ -99,6 +98,34 @@ func (c *erc20Context) approve(spender loom.Address, amount *big.Int) error {
 }
 
 const erc20ABI = `[
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "mintToDPOS",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "mintingFinished",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
   {
     "constant": true,
     "inputs": [],
@@ -180,6 +207,20 @@ const erc20ABI = `[
   {
     "constant": true,
     "inputs": [],
+    "name": "INITIAL_SUPPLY",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "decimals",
     "outputs": [
       {
@@ -189,6 +230,29 @@ const erc20ABI = `[
     ],
     "payable": false,
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_to",
+        "type": "address"
+      },
+      {
+        "name": "_amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "mint",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -234,9 +298,32 @@ const erc20ABI = `[
     "type": "function"
   },
   {
+    "constant": false,
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "finishMinting",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "constant": true,
     "inputs": [],
-    "name": "dpos",
+    "name": "owner",
     "outputs": [
       {
         "name": "",
@@ -248,26 +335,17 @@ const erc20ABI = `[
     "type": "function"
   },
   {
-    "constant": false,
-    "inputs": [
+    "constant": true,
+    "inputs": [],
+    "name": "dpos",
+    "outputs": [
       {
-        "name": "_amount",
-        "type": "uint256"
-      },
-      {
-        "name": "_dposAddress",
+        "name": "",
         "type": "address"
       }
     ],
-    "name": "mintToDPOS",
-    "outputs": [
-      {
-        "name": "ok",
-        "type": "bool"
-      }
-    ],
     "payable": false,
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -354,32 +432,80 @@ const erc20ABI = `[
     "type": "function"
   },
   {
-    "inputs": [],
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "_dpos",
+        "type": "address"
+      }
+    ],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
   {
     "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Mint",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [],
-    "name": "startMining",
+    "name": "MintFinished",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "name": "_amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "name": "_dposAddress",
+        "indexed": true,
+        "name": "previousOwner",
         "type": "address"
       }
     ],
-    "name": "mintingDPOS",
+    "name": "OwnershipRenounced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
     "type": "event"
   },
   {
