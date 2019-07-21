@@ -460,6 +460,23 @@ const erc20ABI = `[
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "name": "_amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "dpos",
+        "type": "address"
+      }
+    ],
+    "name": "mintTODPOS",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "name": "to",
         "type": "address"
