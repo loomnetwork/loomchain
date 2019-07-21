@@ -8,6 +8,7 @@ contract SampleERC20Token is MintableToken{
     string public symbol = "ERC";
     uint8 public constant decimals = 6;
     uint256 public INITIAL_SUPPLY = 10000 * (10 ** uint256(decimals));
+    event mintTODPOS(uint256 _amount, address dpos);
 
     constructor(address _dpos) public {
         dpos = _dpos;
@@ -18,6 +19,7 @@ contract SampleERC20Token is MintableToken{
         require(msg.sender == dpos, "only the DPOS is allowed to mint");
         totalSupply_ = totalSupply_.add(_amount);
         balances[dpos] = balances[dpos].add(_amount);
+        emit mintTODPOS(_amount,dpos);
     }
 
 }
