@@ -127,10 +127,13 @@
   Condition = "contains"
   Expected = ["2000000000000000000"]
 
+[[TestCases]]
+  RunCmd = "wait_node_to_start 1 200"
+
 # Node 1 staked 1.25M in order to become a validator, if the node was properly
 # slashed, the node's self-delegation should now be a bit less than 1.25M so the
 # figure "125" should not be present in the response.
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
-#  Condition = "excludes"
-#  Excluded = ["125"]
+  Condition = "excludes"
+  Excluded = ["125"]
