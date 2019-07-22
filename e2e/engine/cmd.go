@@ -279,10 +279,18 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 				fmt.Printf("--> output:\n%s\n", out)
 
+				//trim and save contract address  form deploy-go response
+				if n.SavedOutput {
+					outStr := string(out)
+					index := strings.Index(outStr, "default:")
+					e.conf.SavedVariable = append(e.conf.SavedVariable, outStr[index:index+50])
+				}
+
 				err = checkConditions(e, n, out)
 				if err != nil {
 					return err
 				}
+
 			}
 		}
 	}
