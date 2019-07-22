@@ -8,8 +8,9 @@
   Condition = "contains"
   Expected = [ '"result": "0x' ]
 
- [[TestCases]]
-   RunCmd = "/bin/sleep 5s"
+# Wait for transaction to be posted
+[[TestCases]]
+   RunCmd = "/bin/sleep 3s"
 
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1","latest"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
