@@ -447,6 +447,16 @@ type contractInfo struct {
 	Address string
 	Owner   string
 }
+type gatewayFlags struct {
+	ChainID        string
+	URI            string
+	HSMConfigPath  string
+	PrivKeyPath    string
+	EthPrivKeyPath string
+	Algo           string
+}
+
+var gatewayCmdFlags gatewayFlags
 
 func contractInfoCommand() *cobra.Command {
 	var flags cli.ContractCallFlags
@@ -460,7 +470,7 @@ func contractInfoCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
+			rpcclient := client.NewDAppChainRPCClient(flags.ChainID, flags.URI+"/rpc", flags.URI+"/query")
 			resp, err := rpcclient.GetContractRecord(addr)
 			if err != nil {
 				return err
