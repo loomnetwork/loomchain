@@ -23,7 +23,6 @@ const (
 	tokenDecimals                  = 18
 	billionthsBasisPointRatio      = 100000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
-	defaultFee                     = 25
 	BONDING                        = dtypes.Delegation_BONDING
 	BONDED                         = dtypes.Delegation_BONDED
 	UNBONDING                      = dtypes.Delegation_UNBONDING
@@ -199,31 +198,6 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		LastElectionTime:          0,
 		TotalValidatorDelegations: loom.BigZeroPB(),
 		TotalRewardDistribution:   loom.BigZeroPB(),
-	}
-
-	candidates, err := LoadCandidateList(ctx)
-	if err != nil {
-		return err
-	}
-
-	for i, validator := range req.Validators {
-		candidateAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
-		newCandidate := &Candidate{
-			PubKey:                validator.PubKey,
-			Address:               candidateAddr.MarshalPB(),
-			Fee:                   defaultFee,
-			NewFee:                defaultFee,
-			Name:                  fmt.Sprintf("candidate-%d", i),
-			Description:           fmt.Sprintf("candidate-%d", i),
-			Website:               "",
-			State:                 REGISTERED,
-			MaxReferralPercentage: defaultReferrerFee.Uint64(),
-		}
-		candidates.Set(newCandidate)
-	}
-
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
 	}
 
 	return saveState(ctx, state)
@@ -1564,7 +1538,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate == nil {
-			ctx.Logger().Info("Attempted to reward validator no longer on candidates list.", "validator", validator)
+			ctx.Logger().Debug("Attempted to reward validator no longer on candidates list.", "validator", validator)
 			continue
 		}
 
