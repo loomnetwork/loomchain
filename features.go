@@ -51,6 +51,10 @@ const (
 	// Enables block range & max txs fields in tier info stored in User Deployer Whitelist contract
 	UserDeployerWhitelistVersion1_1Feature = "userdeploy-wl:v1.1"
 
+	// Makes UserDeployerWhitelist.RemoveUserDeployer mark deployer accounts as inactive instead of
+	// deleting them.
+	UserDeployerWhitelistVersion1_2Feature = "userdeploy-wl:v1.2"
+
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
 
