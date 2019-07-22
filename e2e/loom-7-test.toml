@@ -40,7 +40,7 @@
   Condition = "contains"
   Expected = [
     "Attempting to deploy 1 contracts",
-    "Contract SimpleStore deplyed to address",
+    "Contract SimpleStore deployed to address",
     "1 contract(s) successfully deployed"
   ]
   # Default genesis.json file including coin and dposV3 contracts.
