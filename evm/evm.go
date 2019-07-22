@@ -148,7 +148,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	p.sdb = sdb
 
 	if lstate.FeatureEnabled(loomchain.EvmConstantinopoleFeature, false) {
-		p.chainConfig = constantinopoleChainConfig()
+		p.chainConfig = constantinopleChainConfig()
 	} else {
 		p.chainConfig = defaultChainConfig()
 	}
@@ -253,7 +253,7 @@ func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	return vm.NewEVM(e.context, e.sdb, &e.chainConfig, e.vmConfig)
 }
 
-func constantinopoleChainConfig() params.ChainConfig {
+func constantinopleChainConfig() params.ChainConfig {
 	cliqueCfg := params.CliqueConfig{
 		Period: 10,   // Number of seconds between blocks to enforce
 		Epoch:  1000, // Epoch length to reset votes and checkpoint
