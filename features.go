@@ -30,7 +30,7 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
 
-	// Enables referrer functions
+	// Enables ListReferrers method
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_5 = "dpos:v3.5"
 
