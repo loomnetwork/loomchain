@@ -314,7 +314,6 @@ func ParseConfig() (*Config, error) {
 		conf.HsmConfig = hsmCfg
 	} else if _, notFound := hsmErr.(viper.ConfigFileNotFoundError); !notFound {
 		// loom_hsm config file exists but couldn't be loaded
-		fmt.Println("DEBUG_2")
 		return nil, errors.Wrap(err, "failed to load loom_hsm config")
 	}
 	return conf, err
