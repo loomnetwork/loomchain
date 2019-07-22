@@ -447,16 +447,6 @@ type contractInfo struct {
 	Address string
 	Owner   string
 }
-type gatewayFlags struct {
-	ChainID        string
-	URI            string
-	HSMConfigPath  string
-	PrivKeyPath    string
-	EthPrivKeyPath string
-	Algo           string
-}
-
-var gatewayCmdFlags gatewayFlags
 
 func contractInfoCommand() *cobra.Command {
 	var flags cli.ContractCallFlags
