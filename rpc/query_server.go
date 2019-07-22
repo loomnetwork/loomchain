@@ -111,12 +111,12 @@ type StateProvider interface {
 // - POST request to "/nonce" endpoint with form-encoded key param.
 
 type LoomServer struct {
-	ChainID                string
+	ChainID string
 	StateProvider
-	Loader                 lcp.Loader
-	CreateRegistry         registry.RegistryFactoryFunc
-	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
-	AuthCfg    *auth.Config
+	Loader         lcp.Loader
+	CreateRegistry registry.RegistryFactoryFunc
+	NewABMFactory  lcp.NewAccountBalanceManagerFactoryFunc
+	AuthCfg        *auth.Config
 }
 
 // Attempts to construct the context of the Address Mapper contract.
@@ -157,8 +157,8 @@ func (l *LoomServer) localToEthAccount(local []byte) (loom.Address, error) {
 		return loom.Address{}, errors.New("loomchain not configured for ethereum accounts")
 	}
 	addr := loom.Address{
-		ChainID:        chianId,
-		Local:          local,
+		ChainID: chianId,
+		Local:   local,
 	}
 
 	snapshot := l.StateProvider.ReadOnlyState()
@@ -394,8 +394,6 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	}
 	return eth.EncBytes(code), nil
 }
-
-
 
 // Nonce returns the nonce of the last committed tx sent by the given account.
 // NOTE: Either the key or the account must be provided. The account (if not empty) is used in
@@ -1066,6 +1064,7 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 	return true, nil
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactioncount
 func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
