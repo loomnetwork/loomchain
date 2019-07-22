@@ -402,14 +402,13 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr)), newDeployer); err != nil {
 		return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
 	}
-	//TODO: need to be uncommented when txLimiter1285 is merged
-	// if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
-	// 	userDeployer.Inactive = true
-	// 	if err := ctx.Set(deployerStateKey(oldDeployerAddr), &userDeployer); err != nil {
-	// 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
-	// 	}
-	// 	return nil
-	// }
+	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
+		userDeployer.Inactive = true
+		if err := ctx.Set(deployerStateKey(oldDeployerAddr), &userDeployer); err != nil {
+			return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
+		}
+		return nil
+	}
 
 	ctx.Delete(deployerStateKey(oldDeployerAddr))
 	return nil
