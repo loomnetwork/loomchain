@@ -1515,11 +1515,7 @@ func slash(ctx contract.Context, statistic *ValidatorStatistic, slashPercentage 
 	}
 	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
-	if err := emitSlashEvent(ctx, statistic.Address, slashPercentage); err != nil {
-		return err
-	}
-
-	return nil
+	return emitSlashEvent(ctx, statistic.Address, slashPercentage)
 }
 
 // Returns the total amount of tokens which have been distributed to delegators
