@@ -9,7 +9,6 @@
 
 [[TestCases]]
   Dir = ""
-  Save = true
   RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
