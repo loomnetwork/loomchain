@@ -151,8 +151,10 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					fmt.Printf("--> output:\n%s\n", out)
 
-					saveContractAddress(out, e)
-
+					err = saveContractAddress(out, e)
+					if err != nil {
+						return err
+					}
 					err = checkConditions(e, n, out)
 					if err != nil {
 						return err
@@ -281,7 +283,10 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 				fmt.Printf("--> output:\n%s\n", out)
 
-				saveContractAddress(out, e)
+				err = saveContractAddress(out, e)
+				if err != nil {
+					return err
+				}
 				err = checkConditions(e, n, out)
 				if err != nil {
 					return err
@@ -529,9 +534,10 @@ func isLoomCmd(cmd string) bool {
 }
 
 //save contract address  form deploy-go, deploy command response
-func saveContractAddress(out []byte, e *engineCmd) {
+func saveContractAddress(out []byte, e *engineCmd) error {
 	if outStr := string(out); strings.Contains(outStr, "deployed") && strings.Contains(outStr, "address") {
 		index := strings.Index(outStr, "default:")
 		e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
 	}
+	return nil
 }
