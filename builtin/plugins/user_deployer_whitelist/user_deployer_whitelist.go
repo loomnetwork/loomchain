@@ -339,6 +339,9 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 	if req.OldDeployerAddr == nil || req.NewDeployerAddr == nil {
 		return ErrInvalidRequest
 	}
+	if !ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
+		return errors.New("Feature not enabled")
+	}
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of deployer_whitelist")
@@ -352,7 +355,7 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 	var userDeployer UserDeployerState
 	err = ctx.Get(deployerStateKey(oldDeployerAddr), &userDeployer)
 	if err != nil {
-		return errors.Wrap(err, "Failed to load whitelisted deployers state")
+		return errors.Wrap(err, "no deployers found")
 	}
 	userAddr := ctx.Message().Sender
 	var userState UserState
@@ -361,8 +364,7 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 	}
 	isInputDeployerAddrValid := false
 	survivedDeployers := make([]*types.Address, 0, len(userState.Deployers))
-	deployers := userState.Deployers
-	for _, addr := range deployers {
+	for _, addr := range userState.Deployers {
 		currentDeployerAddr := loom.UnmarshalAddressPB(addr)
 		if currentDeployerAddr.Compare(oldDeployerAddr) == 0 {
 			isInputDeployerAddrValid = true
@@ -375,12 +377,12 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 		return ErrDeployerDoesNotExist
 	}
 
-	userState.Deployers = survivedDeployers
 	survivedDeployers = append(survivedDeployers, req.NewDeployerAddr)
+	userState.Deployers = survivedDeployers
 	if err := ctx.Set(userStateKey(userAddr), &userState); err != nil {
 		return errors.Wrap(err, "failed to Save Deployers mapping in user state")
 	}
-	// 	Add NewDeployerAddr and remove OldDeployerAddr by calling deployer_whitelist contract
+	// Update DeployerWhitelist contract to reflect the deployer account swap
 	removeUserDeployerRequest := &RemoveUserDeployerRequest{
 		DeployerAddr: req.OldDeployerAddr,
 	}
@@ -400,17 +402,12 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 		TierID:  userDeployer.TierID,
 	}
 	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr)), newDeployer); err != nil {
-		return errors.Wrap(err, "Failed to Save WhitelistedDeployer in whitelisted deployers state")
+		return errors.Wrap(err, "failed to save new deployer")
 	}
-	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
-		userDeployer.Inactive = true
-		if err := ctx.Set(deployerStateKey(oldDeployerAddr), &userDeployer); err != nil {
-			return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")
-		}
-		return nil
+	userDeployer.Inactive = true
+	if err := ctx.Set(deployerStateKey(oldDeployerAddr), &userDeployer); err != nil {
+		return errors.Wrap(err, "failed to save old deployer")
 	}
-
-	ctx.Delete(deployerStateKey(oldDeployerAddr))
 	return nil
 }
 
