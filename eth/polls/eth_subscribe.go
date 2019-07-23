@@ -51,43 +51,27 @@ func (s *EthSubscriptions) Add(poll EthPoll, height uint64) string {
 	id := utils.GetId()
 
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.polls[id] = poll
 	s.lastPoll[id] = height
 	s.timestamps[height] = append(s.timestamps[height], id)
-	s.mutex.Unlock()
 
-	s.pruneSubs(height)
+	if height > BlockTimeout {
+		for h := s.lastPrune; h < height-BlockTimeout; h++ {
+			for _, id := range s.timestamps[h] {
+				delete(s.polls, id)
+				delete(s.lastPoll, id)
+			}
+
+			delete(s.timestamps, h)
+		}
+		s.lastPrune = height
+	}
 
 	return id
 }
 
-func (s *EthSubscriptions) pruneSubs(height uint64) {
-	if height > BlockTimeout {
-		for h := s.lastPrune; h < height-BlockTimeout; h++ {
-			idsToRemove := []string{}
-
-			s.mutex.RLock()
-			for _, id := range s.timestamps[h] {
-				idsToRemove = append(idsToRemove, id)
-			}
-			s.mutex.RUnlock()
-
-			for _, id := range idsToRemove {
-				s.Remove(id)
-			}
-
-			s.mutex.Lock()
-			delete(s.timestamps, h)
-			s.mutex.Unlock()
-		}
-		s.lastPrune = height
-	}
-}
-
 func (s *EthSubscriptions) resetTimestamp(polledId string, height uint64) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	lp := s.lastPoll[polledId]
 	for i, id := range s.timestamps[lp] {
 		if id == polledId {
@@ -140,14 +124,14 @@ func (s *EthSubscriptions) Poll(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	poll, ok := s.polls[id]
 	if !ok {
-		s.mutex.Unlock()
 		return nil, fmt.Errorf("subscription not found")
 	}
 	newPoll, result, err := poll.Poll(state, id, readReceipts)
 	s.polls[id] = newPoll
-	s.mutex.Unlock()
 
 	s.resetTimestamp(id, uint64(state.Block().Height))
 	return result, err
@@ -158,14 +142,14 @@ func (s *EthSubscriptions) LegacyPoll(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) ([]byte, error) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	poll, ok := s.polls[id]
 	if !ok {
-		s.mutex.Unlock()
 		return nil, fmt.Errorf("subscription not found")
 	}
 	newPoll, result, err := poll.LegacyPoll(state, id, readReceipts)
 	s.polls[id] = newPoll
-	s.mutex.Unlock()
 
 	s.resetTimestamp(id, uint64(state.Block().Height))
 	return result, err
