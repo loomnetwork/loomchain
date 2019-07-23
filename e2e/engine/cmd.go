@@ -150,6 +150,12 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 						fmt.Printf("--> error: %s\n", err)
 					}
 					fmt.Printf("--> output:\n%s\n", out)
+					//trim and save contract address  form deploy-go response
+					if n.Save {
+						outStr := string(out)
+						index := strings.Index(outStr, "default:")
+						e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
+					}
 
 					err = checkConditions(e, n, out)
 					if err != nil {
