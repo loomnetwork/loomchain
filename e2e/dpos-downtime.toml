@@ -22,6 +22,12 @@
   Excluded = ["Error"]
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 set-slashing-percentages 500 500 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+
+[[TestCases]]
   RunCmd = "kill_and_restart_node 10 1"
 
 [[TestCases]]
