@@ -58,7 +58,7 @@ export GORACE="log_path=`pwd`/racelog"
 # export LOOMEXE_ALTPATH="../loom2"
 # export VALIDATORS=3
 # export ALT_VALIDATORS=3
-# export CHECK_APPHASH_ONEXIT="true"
+# export CHECK_APPHASH_AFTERCMDS="true"
 make test
 
 ##make test-no-evm
