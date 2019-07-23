@@ -1030,11 +1030,11 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 		Short: "Set crash and byzantine fualt slashing percentages expressed in basis points",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			crashFaultSlashingPercentage, err := cli.ParseAmount(args[0])
+			crashFaultSlashingPercentage, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
 			}
-			byzantineFaultSlashingPercentage, err := cli.ParseAmount(args[1])
+			byzantineFaultSlashingPercentage, err := strconv.ParseInt(args[1], 10, 64)
 			if err != nil {
 				return err
 			}
@@ -1042,10 +1042,10 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 			err = cli.CallContractWithFlags(
 				&flags, DPOSV3ContractName, "SetSlashingPercentages", &dposv3.SetSlashingPercentagesRequest{
 					CrashSlashingPercentage: &types.BigUInt{
-						Value: *crashFaultSlashingPercentage,
+						Value: *loom.NewBigUIntFromInt(crashFaultSlashingPercentage),
 					},
 					ByzantineSlashingPercentage: &types.BigUInt{
-						Value: *byzantineFaultSlashingPercentage,
+						Value: *loom.NewBigUIntFromInt(byzantineFaultSlashingPercentage),
 					},
 				}, nil)
 			if err != nil {

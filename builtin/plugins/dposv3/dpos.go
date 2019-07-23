@@ -2226,6 +2226,11 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
+	if req.CrashSlashingPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 ||
+		req.ByzantineSlashingPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 {
+		return errors.New("Invalid slashing percentage")
+	}
+
 	state.Params.CrashSlashingPercentage = req.CrashSlashingPercentage
 	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
 
