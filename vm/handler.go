@@ -3,11 +3,10 @@ package vm
 import (
 	"fmt"
 
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
-	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -61,11 +60,6 @@ func (h *DeployTxHandler) ProcessTx(
 	if tx.Value == nil {
 		value = loom.NewBigUIntFromInt(0)
 	} else {
-		if state.FeatureEnabled(loomchain.CheckTxValueFeature, false) &&
-			!common.IsPositive(tx.Value.Value) &&
-			!common.IsZero(tx.Value.Value) {
-			return r, errors.Errorf("value %v must be non negative", value)
-		}
 		value = &tx.Value.Value
 	}
 
@@ -144,11 +138,6 @@ func (h *CallTxHandler) ProcessTx(
 	if tx.Value == nil {
 		value = loom.NewBigUIntFromInt(0)
 	} else {
-		if state.FeatureEnabled(loomchain.CheckTxValueFeature, false) &&
-			!common.IsPositive(tx.Value.Value) &&
-			!common.IsZero(tx.Value.Value) {
-			return r, errors.Errorf("value %v must be non negative", value)
-		}
 		value = &tx.Value.Value
 	}
 	r.Data, err = vm.Call(origin, addr, tx.Input, value)

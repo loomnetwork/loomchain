@@ -218,6 +218,9 @@ func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID, valueString 
 		if _, ok := value.SetString(valueString, 0); !ok {
 			return *new(loom.Address), nil, nil, errors.Wrapf(err, "invalid value %v", value)
 		}
+		if 0 > value.Cmp(big.NewInt(0)) {
+			return *new(loom.Address), nil, nil, errors.Errorf("value %v, must be non-negative", value)
+		}
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
@@ -399,6 +402,9 @@ func callTx(addr, name, input, privFile, publicFile, algo, callerChainID, valueS
 	if len(valueString) > 0 {
 		if _, ok := value.SetString(valueString, 0); !ok {
 			return nil, errors.Wrapf(err, "invalid value %v", value)
+		}
+		if 0 > value.Cmp(big.NewInt(0)) {
+			return nil, errors.Errorf("value %v, must be non-negative", value)
 		}
 	}
 

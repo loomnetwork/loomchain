@@ -15,10 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/log"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
@@ -137,10 +139,11 @@ func (m *evmAccountBalanceManager) Transfer(from, to common.Address, amount *big
 
 // TODO: this shouldn't be exported, rename to wrappedEVM
 type Evm struct {
-	sdb         vm.StateDB
-	context     vm.Context
-	chainConfig params.ChainConfig
-	vmConfig    vm.Config
+	sdb                 vm.StateDB
+	context             vm.Context
+	chainConfig         params.ChainConfig
+	vmConfig            vm.Config
+	checkTxValueFeature bool
 }
 
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
@@ -148,6 +151,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	p.sdb = sdb
 	p.chainConfig = defaultChainConfig()
 	p.vmConfig = defaultVmConfig(debug)
+	p.checkTxValueFeature = lstate.FeatureEnabled(loomchain.CheckTxValueFeature, false)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -190,6 +194,9 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 		val = common.Big0
 	} else {
 		val = value.Int
+		if e.checkTxValueFeature && 0 > val.Cmp(common.Big0) {
+			return nil, loom.Address{}, errors.Errorf("value %v must be non negative", value)
+		}
 	}
 	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
@@ -222,6 +229,9 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 		if val == nil {
 			//there seems like there are serialization issues where we can get bad data here
 			val = common.Big0
+		}
+		if e.checkTxValueFeature && 0 > val.Cmp(common.Big0) {
+			return nil, errors.Errorf("value %v must be non negative", value)
 		}
 	}
 	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, val)
