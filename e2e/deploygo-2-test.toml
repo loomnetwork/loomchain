@@ -28,8 +28,8 @@
     { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"coin\",\"location\":\"coin:1.0.0\",\"init\":null},{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dposV3\",\"location\":\"dposV3:3.0.0\",\"init\":{\"params\":{\"validatorCount\":\"21\",\"electionCycleLength\":\"604800\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
   ]
 
-[[TestCases]]
-All = true
-RunCmd = "{{ $.LoomPath }} contract {{index $.ContractAddressList 0}}"
-Condition = "contains"
-Expected = ["Name","Address","Owner"]
+# [[TestCases]]
+# All = true
+# RunCmd = "{{ $.LoomPath }} contract {{index $.ContractAddressList 0}}"
+# Condition = "contains"
+# Expected = ["Name","Address","Owner"]
