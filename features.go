@@ -76,5 +76,5 @@ const (
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
 
 	// Enables constantinopole hard fork in evm interpreter
-	EvmConstantinopleFeature = "constantinopole:evm"
+	EvmConstantinopleFeature = "evm:constantinopole"
 )
