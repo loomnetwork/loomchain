@@ -253,16 +253,17 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 			}
 		}
-	}
-	if e.conf.CheckAppHashOnExit {
-		if err := checkapphash(e.conf.Nodes); err != nil {
-			return errors.Wrap(err, "check apphash on exit")
+		if e.conf.CheckAppHashAfterCmd {
+			if err := checkapphash(e.conf.Nodes); err != nil {
+				return errors.Wrapf(err, "check apphash failed after test command, %s", n.RunCmd)
+			}
 		}
 	}
+
 	return nil
 }
 
-func checkapphash(nodes map[string]*node.Node ) error {
+func checkapphash(nodes map[string]*node.Node) error {
 	time.Sleep(time.Second * 1)
 	fmt.Printf("--> run all: %v \n", "checkapphash")
 	var apphash = make(map[string]struct{})

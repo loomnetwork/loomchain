@@ -42,7 +42,7 @@ type Config struct {
 	NodeRPCAddressList      []string
 	NodeProxyAppAddressList []string
 
-	CheckAppHashOnExit bool
+	CheckAppHashAfterCmd bool
 }
 
 func WriteConfig(conf Config, filename string) error {

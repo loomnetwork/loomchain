@@ -18,20 +18,20 @@ import (
 )
 
 const (
-	loomExeEv = "LOOMEXE_PATH1"
-	loomExe2Ev = "LOOMEXE_ALTPATH"
-	ValidatorsEv = "VALIDATORS"
-	AltValidatorsEv = "ALT_VALIDATORS"
-	checkAppHashOnExitEv = "CHECK_APPHASH_ONEXIT"
-	DefaultAltValidators = 0
+	loomExeEv             = "LOOMEXE_PATH1"
+	loomExe2Ev            = "LOOMEXE_ALTPATH"
+	ValidatorsEv          = "VALIDATORS"
+	AltValidatorsEv       = "ALT_VALIDATORS"
+	checkAppHashAfterCmds = "CHECK_APPHASH_AFTERCMDS"
+	DefaultAltValidators  = 0
 )
 
 var (
 	// assume that this test runs in e2e directory
-	DefaultLoomPath    = "../loom"
-	DefatulLoomPath2   = "../loom2"
-	ContractDir = "../contracts"
-	BaseDir     = "test-data"
+	DefaultLoomPath  = "../loom"
+	DefatulLoomPath2 = "../loom2"
+	ContractDir      = "../contracts"
+	BaseDir          = "test-data"
 )
 
 var (
@@ -46,8 +46,8 @@ func NewConfig(
 	validators, account, numEthAccounts int,
 	useFnConsensus bool,
 ) (*lib.Config, error) {
-	checkAppHashOnExitEV := os.Getenv(checkAppHashOnExitEv)
-	checkAppHashOnExit := len(checkAppHashOnExitEV) > 0
+	checkAppHashAfterEV := os.Getenv(checkAppHashAfterCmds)
+	checkAppHashAfterCmds := len(checkAppHashAfterEV) > 0
 
 	LoomPath := os.Getenv(loomExeEv)
 	if len(LoomPath) == 0 {
@@ -60,28 +60,51 @@ func NewConfig(
 	}
 
 	var err error
+	evValidators := uint64(0)
 	validatorsEv := os.Getenv(ValidatorsEv)
 	if len(validatorsEv) > 0 {
-		validators, err = strconv.Atoi(validatorsEv)
+		evValidators, err = strconv.ParseUint(validatorsEv, 0, 64)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	altValidators := DefaultAltValidators
+	evAltValidators := uint64(0)
 	altValidatorsEv := os.Getenv(AltValidatorsEv)
 	if len(altValidatorsEv) > 0 {
-		altValidators, err = strconv.Atoi(altValidatorsEv)
+		evAltValidators, err = strconv.ParseUint(altValidatorsEv, 0, 32)
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	v, altV, err := splitValidators(uint64(validators), evValidators, evAltValidators)
 
 	return GenerateConfig(
 		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, LoomPath, LoomPath2,
-		validators, altValidators, account, numEthAccounts,
-		useFnConsensus, *Force, checkAppHashOnExit,
+		int(v), int(altV), account, numEthAccounts,
+		useFnConsensus, *Force, checkAppHashAfterCmds,
 	)
+}
+
+func splitValidators(validators, evValidators, evAltValidators uint64) (uint64, uint64, error) {
+	if validators == 0 {
+		return 0, 0, nil
+	}
+
+	if validators == 1 {
+		return 1, 0, nil
+	}
+
+	if validators >= evValidators+evAltValidators {
+		return validators - evAltValidators, evAltValidators, nil
+	}
+
+	if validators <= evValidators+1 {
+		return validators - 1, 1, nil
+	}
+
+	return evValidators, validators - evValidators, nil
 }
 
 func GenerateConfig(
@@ -116,12 +139,12 @@ func GenerateConfig(
 	}
 
 	conf := lib.Config{
-		Name:        name,
-		BaseDir:                basedirAbs,
-		ContractDir:            contractdirAbs,
-		TestFile:               testFileAbs,
-		Nodes:                  make(map[string]*node.Node),
-		CheckAppHashOnExit:     checkAppHashOnExit,
+		Name:                 name,
+		BaseDir:              basedirAbs,
+		ContractDir:          contractdirAbs,
+		TestFile:             testFileAbs,
+		Nodes:                make(map[string]*node.Node),
+		CheckAppHashAfterCmd: checkAppHashOnExit,
 	}
 
 	if err := os.MkdirAll(conf.BaseDir, os.ModePerm); err != nil {
@@ -173,7 +196,7 @@ func GenerateConfig(
 		return nil, err
 	}
 
-	for i := validators; i < validators + altValidators; i++ {
+	for i := validators; i < validators+altValidators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisTmpl, yamlFile)
 		n.LogLevel = *LogLevel
 		n.LogDestination = *LogDest
