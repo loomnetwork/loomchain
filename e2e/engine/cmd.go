@@ -285,9 +285,11 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 				fmt.Printf("--> output:\n%s\n", out)
 
-				err = saveContractAddress(out, e)
-				if err != nil {
-					return err
+				if out != nil {
+					err = saveContractAddress(out, e)
+					if err != nil {
+						return err
+					}
 				}
 				err = checkConditions(e, n, out)
 				if err != nil {
