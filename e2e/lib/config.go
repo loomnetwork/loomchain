@@ -42,7 +42,7 @@ type Config struct {
 	NodeRPCAddressList      []string
 	NodeProxyAppAddressList []string
 
-	SavedVariable []string
+	ContractAddressList []string
 }
 
 func WriteConfig(conf Config, filename string) error {
