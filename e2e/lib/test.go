@@ -24,7 +24,6 @@ type TestCase struct {
 	All        bool       `toml:"All"`
 	Node       int        `toml:"Node"`
 	Datafiles  []Datafile `toml:"Datafiles"`
-	Save       bool       `toml:"Save`
 }
 
 type Tests struct {
