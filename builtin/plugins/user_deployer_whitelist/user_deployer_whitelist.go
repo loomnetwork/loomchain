@@ -398,14 +398,19 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 
 	// Update deployerState in userDeployerWhitelist contract by adding new state corresponding to NewDeployerAddr with tierID same as oldDeployer and modifying older one corresponding to OldDeployerAddr
 	newDeployer := &UserDeployerState{
-		Address: req.NewDeployerAddr,
-		TierID:  userDeployer.TierID,
+		Address:   req.NewDeployerAddr,
+		TierID:    userDeployer.TierID,
+		Contracts: userDeployer.Contracts,
 	}
 	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr)), newDeployer); err != nil {
 		return errors.Wrap(err, "failed to save new deployer")
 	}
-	userDeployer.Inactive = true
-	if err := ctx.Set(deployerStateKey(oldDeployerAddr), &userDeployer); err != nil {
+	oldDeployer := &UserDeployerState{
+		Address:  req.OldDeployerAddr,
+		TierID:   userDeployer.TierID,
+		Inactive: true,
+	}
+	if err := ctx.Set(deployerStateKey(oldDeployerAddr), oldDeployer); err != nil {
 		return errors.Wrap(err, "failed to save old deployer")
 	}
 	return nil
@@ -470,6 +475,7 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 	contract := udwtypes.DeployerContract{
 		ContractAddress: contractAddr.MarshalPB(),
 	}
+	
 	userDeployer.Contracts = append(userDeployer.Contracts, &contract)
 	if err := ctx.Set(deployerStateKey(deployerAddress), &userDeployer); err != nil {
 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")

@@ -22,7 +22,7 @@ func TestMiddleware(t *testing.T) {
 			"deployerwhitelist.genesis.json", "deployerwhitelist-loom.yaml",
 		},
 		{
-			"userdeployerwhitelist", "userdeployerwhitelist.toml", 1, 4,
+			"userdeployerwhitelist", "userdeployerwhitelist.toml", 1, 6,
 			"userdeployerwhitelist.genesis.json", "userdeployerwhitelist-loom.yaml",
 		},
 		{
