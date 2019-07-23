@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,7 @@ type deployTxFlags struct {
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
 	Name       string `json:"name"`
+	Value      string `json:"value"`
 }
 
 func setChainFlags(fs *pflag.FlagSet) {
@@ -170,7 +172,7 @@ func newDeployCommand() *cobra.Command {
 			}
 			addr, runBytecode, txReceipt, err := deployTx(
 				flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name, cli.TxFlags.Algo,
-				callerChainID,
+				callerChainID, flags.Value,
 			)
 			if err != nil {
 				return err
@@ -185,11 +187,12 @@ func newDeployCommand() *cobra.Command {
 	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
 	deployCmd.Flags().StringVarP(&flags.Name, "name", "n", "", "contract name")
 	deployCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	deployCmd.Flags().StringVarP(&flags.Value, "value", "v", "0", "value amount")
 	setChainFlags(deployCmd.Flags())
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID string) (loom.Address, []byte, []byte, error) {
+func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID, valueString string) (loom.Address, []byte, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile, algo, callerChainID)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")
@@ -210,8 +213,15 @@ func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID string) (loom
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "decoding the data in deployment file")
 	}
 
+	value := big.NewInt(0)
+	if len(valueString) > 0 {
+		if _, ok := value.SetString(valueString, 0); !ok {
+			return *new(loom.Address), nil, nil, errors.Wrapf(err, "invalid value %v", value)
+		}
+	}
+
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
-	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
+	respB, err := rpcclient.CommitDeployTx2(clientAddr, signer, vm.VMType_EVM, bytecode, name, value)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
 	}
@@ -305,6 +315,7 @@ type callTxFlags struct {
 	PublicFile   string `json:"publicfile"`
 	PrivFile     string `json:"privfile"`
 	Loom         bool   `json:"loom"`
+	Value        string `json:"value"`
 }
 
 //TODO depreciate this, I don't believe its needed anymore
@@ -321,7 +332,7 @@ func newCallEvmCommand() *cobra.Command {
 			}
 			resp, err := callTx(
 				flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile,
-				flags.PublicFile, cli.TxFlags.Algo, callerChainID,
+				flags.PublicFile, cli.TxFlags.Algo, callerChainID, flags.Value,
 			)
 			if err != nil {
 				return err
@@ -335,11 +346,12 @@ func newCallEvmCommand() *cobra.Command {
 	callCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
 	callCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
 	callCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	callCmd.Flags().StringVarP(&flags.Value, "value", "v", "0", "value amount")
 	callCmd.PersistentFlags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(callCmd.PersistentFlags())
 	return callCmd
 }
-func callTx(addr, name, input, privFile, publicFile, algo, callerChainID string) ([]byte, error) {
+func callTx(addr, name, input, privFile, publicFile, algo, callerChainID, valueString string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 	var contractAddr loom.Address
 	var err error
@@ -382,7 +394,15 @@ func callTx(addr, name, input, privFile, publicFile, algo, callerChainID string)
 	if err != nil {
 		return nil, err
 	}
-	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
+
+	value := big.NewInt(0)
+	if len(valueString) > 0 {
+		if _, ok := value.SetString(valueString, 0); !ok {
+			return nil, errors.Wrapf(err, "invalid value %v", value)
+		}
+	}
+
+	return rpcclient.CommitCallTx2(clientAddr, contractAddr, signer, vm.VMType_EVM, incode, value)
 }
 
 type getBlockByNumerTxFlags struct {

@@ -74,4 +74,7 @@ const (
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
+
+	// Restrict the 'value' field to zero or positive amounts
+	CheckTxValueFeature = "tx:check-value"
 )

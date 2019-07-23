@@ -7,12 +7,12 @@ import (
 	"github.com/pkg/errors"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
-	"github.com/loomnetwork/go-loom/common"
 )
 
 type DeployTxHandler struct {
@@ -61,7 +61,9 @@ func (h *DeployTxHandler) ProcessTx(
 	if tx.Value == nil {
 		value = loom.NewBigUIntFromInt(0)
 	} else {
-		if !common.IsPositive(tx.Value.Value) && !common.IsZero(tx.Value.Value) {
+		if state.FeatureEnabled(loomchain.CheckTxValueFeature, false) &&
+			!common.IsPositive(tx.Value.Value) &&
+			!common.IsZero(tx.Value.Value) {
 			return r, errors.Errorf("value %v must be non negative", value)
 		}
 		value = &tx.Value.Value
@@ -142,7 +144,9 @@ func (h *CallTxHandler) ProcessTx(
 	if tx.Value == nil {
 		value = loom.NewBigUIntFromInt(0)
 	} else {
-		if !common.IsPositive(tx.Value.Value) && !common.IsZero(tx.Value.Value) {
+		if state.FeatureEnabled(loomchain.CheckTxValueFeature, false) &&
+			!common.IsPositive(tx.Value.Value) &&
+			!common.IsZero(tx.Value.Value) {
 			return r, errors.Errorf("value %v must be non negative", value)
 		}
 		value = &tx.Value.Value
