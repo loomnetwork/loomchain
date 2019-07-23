@@ -22,12 +22,6 @@
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 set-slashing-percentages 500 500 -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "excludes"
-  Excluded = ["Error"]
-
-
-[[TestCases]]
   RunCmd = "kill_and_restart_node 10 1"
 
 [[TestCases]]
@@ -92,12 +86,15 @@
 [[TestCases]]
   RunCmd = "kill_and_restart_node 190 1"
 
+# wait for 10 blocks so that the offline validator delegations get slashed
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 10"
+
 # Explicitly testing that currently offline node is among the validator set
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 1}}", "{{index $.NodeBase64AddressList 2}}", "{{index $.NodeBase64AddressList 3}}"]
-  Delay = 18000
 
 # Checking that killed node is indeed offline
 [[TestCases]]
@@ -133,13 +130,11 @@
   Condition = "contains"
   Expected = ["2000000000000000000"]
 
-[[TestCases]]
-  RunCmd = "wait_node_to_start 1 200"
-
 # Node 1 staked 1.25M in order to become a validator, if the node was properly
 # slashed, the node's self-delegation should now be a bit less than 1.25M so the
-# figure "125" should not be present in the response.
+# figure "1250000000000000000000000" should not be present in the response.
+# this is not a very reliable test but I think we can live with it for now
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
   Condition = "excludes"
-  Excluded = ["125"]
+  Excluded = ["1250000000000000000000000"]
