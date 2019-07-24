@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -76,6 +77,7 @@ import (
 
 var (
 	appHeightKey = []byte("appheight")
+	rootKey      = []byte("vmroot")
 )
 
 var RootCmd = &cobra.Command{
@@ -598,14 +600,32 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
+		iavlStoreRoot := iavlStore.Get(rootKey)
+
 		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
 		if err != nil {
 			return nil, err
 		}
+		evmStoreRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
+		fmt.Println("BEFORE EVM version : %d", evmVersion)
+		fmt.Println("BEFORE IAVL version : %d", iavlStore.Version())
+		if !bytes.Equal(iavlStoreRoot, evmStoreRoot) && evmVersion < iavlStore.Version() {
+			// downgrade iavlStore version
+			fmt.Println("EVM version : %d", evmVersion)
+			fmt.Println("IAVL version : %d", iavlStore.Version())
+			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, evmVersion, cfg.AppStore.IAVLFlushInterval)
+			if err != nil {
+				return nil, err
+			}
+		}
+		fmt.Println("NEW EVM version : %d", evmVersion)
+		fmt.Println("NEW IAVL version : %d", iavlStore.Version())
+
 		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
 			return nil, err
 		}
+
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
