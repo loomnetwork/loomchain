@@ -28,7 +28,7 @@
         '"data": "excess input arguments, expected 0 got 1"',
   ]
 
-# Confirm that an invalid transaction reciept returns a null result.
+# Confirm that an invalid transaction reciept for an invalid hash returns a null result.
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["0x1111111111111111111111111111111111111111111111111111111111111111"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
