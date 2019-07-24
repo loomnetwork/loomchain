@@ -151,15 +151,8 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					fmt.Printf("--> output:\n%s\n", out)
 
-					// if out != nil {
-					// 	err = saveContractAddress(out, e)
-					// 	if err != nil {
-					// 		return err
-					// 	}
-					// }
-
 					outStr := string(out)
-					if len(outStr) >= 50 && strings.Contains(outStr, "deployed") {
+					if strings.Contains(outStr, "deployed to address") || strings.Contains(outStr, "deployed with address") {
 						index := strings.Index(outStr, "default:")
 						e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
 					}
@@ -292,7 +285,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				fmt.Printf("--> output:\n%s\n", out)
 
 				outStr := string(out)
-				if len(outStr) >= 50 && strings.Contains(outStr, "deployed") {
+				if strings.Contains(outStr, "deployed to address") || strings.Contains(outStr, "deployed with address") {
 					index := strings.Index(outStr, "default:")
 					e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
 				}
