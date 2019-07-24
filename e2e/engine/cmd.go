@@ -312,7 +312,7 @@ func checkapphash(nodes map[string]*node.Node) error {
 			apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
 			fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
 		} else {
-			return errors.Errorf("node did not catch up with latest block")
+			return errors.New("node did not catch up with latest block")
 		}
 	}
 
