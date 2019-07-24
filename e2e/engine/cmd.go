@@ -21,7 +21,9 @@ import (
 )
 
 var (
-	loomCmds = []string{"loom", "blueprint-cli"}
+	loomCmds      = []string{"loom", "blueprint-cli"}
+	sleepInterval = 1000 * time.Millisecond
+	waitIntervals = 100
 )
 
 type engineCmd struct {
@@ -253,7 +255,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 			}
 		}
-		if e.conf.CheckAppHashAfterCmd {
+		if e.conf.CheckAppHash {
 			if err := checkapphash(e.conf.Nodes); err != nil {
 				return errors.Wrapf(err, "check apphash failed after test command, %s", n.RunCmd)
 			}
@@ -268,6 +270,7 @@ func checkapphash(nodes map[string]*node.Node) error {
 	fmt.Printf("--> run all: %v \n", "checkapphash")
 	var apphash = make(map[string]struct{})
 	var lastBlockHeight int64
+
 	for _, v := range nodes {
 		u := fmt.Sprintf("%s/abci_info", v.RPCAddress)
 		resp, err := http.Get(u)
@@ -298,9 +301,18 @@ func checkapphash(nodes map[string]*node.Node) error {
 		if lastBlockHeight == 0 {
 			lastBlockHeight = newLastBlockHeight
 		}
+
+		for i := 0; i < waitIntervals; i++ {
+			if lastBlockHeight == newLastBlockHeight {
+				break
+			}
+			time.Sleep(sleepInterval)
+		}
 		if lastBlockHeight == newLastBlockHeight {
 			apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
 			fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
+		} else {
+			return errors.Errorf("node did not catch up with latest block")
 		}
 	}
 

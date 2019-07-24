@@ -13,7 +13,7 @@ func newNewCommand() *cobra.Command {
 	var genesisFile, configFile string
 	var logAppDb bool
 	var force bool
-	var useFnConsensus, checkAppHashOnExit bool
+	var useFnConsensus, checkAppHash bool
 	command := &cobra.Command{
 		Use:           "new",
 		Short:         "Create n nodes to run loom",
@@ -21,9 +21,9 @@ func newNewCommand() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(ccmd *cobra.Command, args []string) error {
 			_, err := common.GenerateConfig(
-				name, "", genesisFile,configFile, basedir, contractdir, loompath, loompath2,
+				name, "", genesisFile, configFile, basedir, contractdir, loompath, loompath2,
 				validators, altValidators, k, numEthAccounts,
-				useFnConsensus, force, checkAppHashOnExit,
+				useFnConsensus, force, checkAppHash,
 			)
 			return err
 		},
@@ -46,6 +46,6 @@ func newNewCommand() *cobra.Command {
 	flags.StringVar(&logDest, "log-destination", "file://loom.log", "Log Destination")
 	flags.StringVarP(&genesisFile, "genesis-template", "g", "", "Path to genesis.json")
 	flags.StringVarP(&configFile, "config-template", "c", "", "Path to loom.yml")
-	flags.BoolVarP(&checkAppHashOnExit, "check-apphash", "p", false, "Check apphash on exit from test")
+	flags.BoolVarP(&checkAppHash, "check-apphash", "p", false, "Check apphash on exit from test")
 	return command
 }
