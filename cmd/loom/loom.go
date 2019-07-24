@@ -600,26 +600,23 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-		iavlStoreRoot := iavlStore.Get(rootKey)
+		appStoreEvmRoot := iavlStore.Get(rootKey)
 
 		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
 		if err != nil {
 			return nil, err
 		}
-		evmStoreRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
-		fmt.Println("BEFORE EVM version : %d", evmVersion)
-		fmt.Println("BEFORE IAVL version : %d", iavlStore.Version())
-		if !bytes.Equal(iavlStoreRoot, evmStoreRoot) && evmVersion < iavlStore.Version() {
+
+		evmStoreEvmRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
+		if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) && evmVersion < iavlStore.Version() {
 			// downgrade iavlStore version
-			fmt.Println("EVM version : %d", evmVersion)
-			fmt.Println("IAVL version : %d", iavlStore.Version())
+			log.Info(fmt.Sprintf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X", evmVersion, evmStoreEvmRoot, iavlStore.Version(), appStoreEvmRoot))
+			log.Info(fmt.Sprintf("Try to load app.db at height %d", evmVersion))
 			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, evmVersion, cfg.AppStore.IAVLFlushInterval)
 			if err != nil {
 				return nil, err
 			}
 		}
-		fmt.Println("NEW EVM version : %d", evmVersion)
-		fmt.Println("NEW IAVL version : %d", iavlStore.Version())
 
 		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
