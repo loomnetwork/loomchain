@@ -41,8 +41,7 @@ type Config struct {
 	NodePrivKeyPathList     []string
 	NodeRPCAddressList      []string
 	NodeProxyAppAddressList []string
-
-	ContractAddressList []string
+	ContractAddressList     []string
 }
 
 func WriteConfig(conf Config, filename string) error {

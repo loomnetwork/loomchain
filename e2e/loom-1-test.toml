@@ -1,5 +1,6 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 2}}"
+  SaveContractAddress = true
   All = true
   Condition = "contains"
   Expected = [

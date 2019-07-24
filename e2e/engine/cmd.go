@@ -151,11 +151,12 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					fmt.Printf("--> output:\n%s\n", out)
 
-					outStr := string(out)
-					if strings.Contains(outStr, "deployed to address") || strings.Contains(outStr, "deployed with address") {
+					if n.SaveContractAddress {
+						outStr := string(out)
 						index := strings.Index(outStr, "default:")
 						e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
 					}
+
 					err = checkConditions(e, n, out)
 					if err != nil {
 						return err
@@ -284,8 +285,8 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 				fmt.Printf("--> output:\n%s\n", out)
 
-				outStr := string(out)
-				if strings.Contains(outStr, "deployed to address") || strings.Contains(outStr, "deployed with address") {
+				if n.SaveContractAddress {
+					outStr := string(out)
 					index := strings.Index(outStr, "default:")
 					e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
 				}
