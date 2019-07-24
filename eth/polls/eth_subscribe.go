@@ -71,6 +71,7 @@ func (s *EthSubscriptions) Add(poll EthPoll, height uint64) string {
 	return id
 }
 
+// This function is not thread-safe. The mutex must be locked before calling it.
 func (s *EthSubscriptions) resetTimestamp(polledId string, height uint64) {
 	lp := s.lastPoll[polledId]
 	for i, id := range s.timestamps[lp] {
