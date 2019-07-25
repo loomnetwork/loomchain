@@ -30,6 +30,10 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
 
+	// Enables flag to allow jailing offline validators
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_4 = "dpos:v3.4"
+
 	// Enables ListReferrers method
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_5 = "dpos:v3.5"

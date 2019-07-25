@@ -118,6 +118,7 @@ type (
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	UnjailRequest                     = dtypes.UnjailRequest
+	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -1360,6 +1361,27 @@ func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersReque
 	}, nil
 }
 
+func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		return errors.New("DPOS v3.4 is not enabled")
+	}
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+	if state.Params.JailOfflineValidators == req.JailOfflineValidators {
+		return nil
+	}
+
+	state.Params.JailOfflineValidators = req.JailOfflineValidators
+	return saveState(ctx, state)
+}
+
 // ***************************
 // REWARDS & SLASHING
 // ***************************
@@ -1392,7 +1414,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validatorAddr loom.Address) error {
+func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, jailingEnabled bool, validatorAddr loom.Address) error {
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
@@ -1406,7 +1428,14 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validator
 	)
 
 	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
+	jailOfflineValidator := false
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		jailOfflineValidator = true
+	}
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		jailOfflineValidator = jailingEnabled
+	}
+	if jailOfflineValidator {
 		downtime := getDowntimeRecord(ctx, statistic)
 		if downtime.Periods[0] == downtimePeriod &&
 			downtime.Periods[1] == downtimePeriod &&
@@ -1418,7 +1447,6 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validator
 			}
 		}
 	}
-
 	return SetStatistic(ctx, statistic)
 }
 
