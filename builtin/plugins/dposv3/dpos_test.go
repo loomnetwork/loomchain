@@ -2434,7 +2434,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	// DPOSV3 feature not enable , enable jail offline set to false
 	enableJailOffline := false
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1)
+		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr1)
 		require.Nil(t, err)
 		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
 		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr1)
@@ -2449,7 +2449,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	assert.Equal(t, []uint64{0, 0, 0, 0}, rec2.DowntimeRecords[0].Periods)
 
 	for i := int64(0); i < int64(periodLength); i++ {
-		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2)
+		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr2)
 		require.Nil(t, err)
 		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
 		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr2)
@@ -2545,7 +2545,7 @@ func TestDowntimeSlashing(t *testing.T) {
 	assert.Equal(t, 1, len(candidates))
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
@@ -2555,7 +2555,7 @@ func TestDowntimeSlashing(t *testing.T) {
 	assert.Equal(t, []uint64{periodLength - 1, periodLength, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
 
 	for i := int64(0); i < int64(periodLength); i++ {
-		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
@@ -2564,7 +2564,7 @@ func TestDowntimeSlashing(t *testing.T) {
 	require.True(t, statistic.SlashPercentage.Value.Cmp(&defaultInactivitySlashPercentage) == 0)
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
-		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
@@ -2593,6 +2593,114 @@ func TestDowntimeSlashing(t *testing.T) {
 	require.Nil(t, err)
 	expectedSlashedDelegation = CalculateFraction(*loom.NewBigUIntFromInt(9500), loom.BigUInt{delegationAmount})
 	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
+}
+
+func TestDowntimeSlashingWithZeroSlshingPercentage(t *testing.T) {
+	pctx := createCtx()
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(delegatorAddress1, 100000000),
+		},
+	})
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	periodLength := uint64(100)
+	registrationFee := &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:          1,
+		RegistrationRequirement: registrationFee,
+		DowntimePeriod:          periodLength,
+		OracleAddress:           oracleAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	dposCtx := pctx.WithAddress(dpos.Address)
+	var feats = []string{
+		loomchain.DPOSVersion3_1,
+		loomchain.DPOSVersion3_2,
+		loomchain.DPOSVersion3_4,
+	}
+	for _, feat := range feats {
+		dposCtx.SetFeature(feat, true)
+		require.True(t, dposCtx.FeatureEnabled(feat, false))
+	}
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	delegationAmount := big.NewInt(100)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	candidates, err := LoadCandidateList(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(candidates))
+
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
+	}
+
+	require.NoError(t, dpos.SetSlashingPercentage(pctx.WithSender(oracleAddr), int64(0), int64(0)))
+
+	rec1, err := dpos.DowntimeRecord(pctx, &addr1)
+	require.Nil(t, err)
+	assert.Equal(t, periodLength, rec1.PeriodLength)
+	assert.Equal(t, []uint64{periodLength - 1, periodLength, periodLength, periodLength}, rec1.DowntimeRecords[0].Periods)
+
+	for i := int64(0); i < int64(periodLength); i++ {
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
+	}
+
+	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, (statistic.SlashPercentage.Value.String() == "0"))
+
+	for i := int64(0); i < int64(periodLength*4); i++ {
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
+		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
+	}
+
+	// the offline validator should not be slashed as slashing percentage is 0
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.SlashPercentage.Value.String() == "0")
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// verify that slashingPercentage is reset to zero after election
+	statistic, err = GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
+	require.Nil(t, err)
+	require.True(t, statistic.SlashPercentage.Value.Cmp(common.BigZero()) == 0)
+
+	// verify no slashing has been applied
+	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr1)
+	require.Nil(t, err)
+	assert.True(t, delegatedAmount.Cmp(delegationAmount) == 0)
 }
 
 func TestComplexDowntimeSlashing(t *testing.T) {
@@ -2675,13 +2783,13 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
 		if (uint64(i) % periodLength) < slightlyMoreThanMaxMissedBlocks {
-			require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr1))
+			require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
 		}
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
 	for i := int64(0); i < int64(periodLength); i++ {
-		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2))
+		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr2))
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
 
@@ -2705,7 +2813,7 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 	// 7 consecutive downtime periods should incur three slashes
 	for i := int64(0); i < int64(periodLength*7); i++ {
 		if (uint64(i) % periodLength) < slightlyMoreThanMaxMissedBlocks {
-			require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, addr2))
+			require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr2))
 		}
 		require.NoError(t, ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates))
 	}
