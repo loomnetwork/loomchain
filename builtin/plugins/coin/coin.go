@@ -235,10 +235,9 @@ func (c *Coin) BalanceOf(
 	req *BalanceOfRequest,
 ) (*BalanceOfResponse, error) {
 
-	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && req.Owner == nil {
+	if req.Owner == nil {
 		return nil, ErrInvalidRequest
 	}
-
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	acct, err := loadAccount(ctx, owner)
 	if err != nil {
@@ -330,7 +329,7 @@ func (c *Coin) Allowance(
 	ctx contract.StaticContext,
 	req *AllowanceRequest,
 ) (*AllowanceResponse, error) {
-	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Owner == nil) {
+	if req.Spender == nil || req.Owner == nil {
 		return nil, ErrInvalidRequest
 	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
