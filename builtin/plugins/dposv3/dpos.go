@@ -1338,7 +1338,6 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 }
 
 func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
-
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
 		return errors.New("DPOS v3.4 is not enabled")
 	}
