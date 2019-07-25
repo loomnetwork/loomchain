@@ -77,12 +77,15 @@ func UnjailValidatorCmdV3() *cobra.Command {
 	return cmd
 }
 
-
+const mintVouchersCmdExample = `
+loom dpos3 mint-vouchers 100 --k path/to/private_key
+`
 func MintVouchersCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "mint-vouchers [amount]",
 		Short: "mints erc20, can be called only by delegator",
+		Example: mintVouchersCmdExample,
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mintingAmount, err := cli.ParseAmount(args[0])
@@ -105,11 +108,15 @@ func MintVouchersCmdV3() *cobra.Command {
 	return cmd
 }
 
+const SetVoucherTokenAddressCmdExample = `
+loom dpos3 set-voucher-token-address 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --k path/to/private_key
+`
 func SetVoucherTokenAddressCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "set-voucher-token-address [address]",
-		Short: "sets voucher token address",
+		Short: "sets voucher token address (erc20 contract address)",
+		Example: SetVoucherTokenAddressCmdExample,
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			address, err := cli.ParseAddress(args[0],flags.ChainID)
