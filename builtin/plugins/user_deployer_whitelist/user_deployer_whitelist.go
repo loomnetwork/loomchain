@@ -400,17 +400,12 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 	newDeployer := &UserDeployerState{
 		Address:   req.NewDeployerAddr,
 		TierID:    userDeployer.TierID,
-		Contracts: userDeployer.Contracts,
 	}
 	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr)), newDeployer); err != nil {
 		return errors.Wrap(err, "failed to save new deployer")
 	}
-	oldDeployer := &UserDeployerState{
-		Address:  req.OldDeployerAddr,
-		TierID:   userDeployer.TierID,
-		Inactive: true,
-	}
-	if err := ctx.Set(deployerStateKey(oldDeployerAddr), oldDeployer); err != nil {
+	userDeployer.Inactive = true
+	if err := ctx.Set(deployerStateKey(oldDeployerAddr), &userDeployer); err != nil {
 		return errors.Wrap(err, "failed to save old deployer")
 	}
 	return nil

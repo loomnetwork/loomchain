@@ -10,6 +10,7 @@
   Condition = "excludes"
   Excluded = ['Error']
 
+
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 0 {{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "excludes"
@@ -363,7 +364,7 @@
 # Test if after swaping a deployer, newDeployer can now deploy while old not
 # Steps: 1. Add a deployer 2. Deploy contract 
 # 3. swap oldDeployer with newDeployer 4. deploy error now for oldDeployer 
-# 5. Deploy successful for newDeployer 6. transaction successful for oldContract
+# 5. Deploy successful for newDeployer 6. transaction unsuccessful for oldContract
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dev add-deployer --tier 0 {{index $.AccountAddressList 4}} -k {{index $.AccountPrivKeyPathList 0}}"
@@ -415,8 +416,8 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStoreSwap -k {{index $.AccountPrivKeyPathList 4}}"
-  Condition = "excludes"
-  Excluded = ['Error']
+  Condition = "contains"
+  Expected = ["Error"]
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
