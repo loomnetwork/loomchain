@@ -456,7 +456,7 @@ func contractInfoCommand() *cobra.Command {
 		Args:    cobra.MinimumNArgs(1),
 		Example: contractInfoCommandExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0], flags.ChainID)
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}

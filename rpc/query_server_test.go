@@ -444,7 +444,6 @@ func testQueryServerContractEventsNoEventStore(t *testing.T) {
 }
 
 func testQueryServerGetContractRecord(t *testing.T) {
-
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 		BlockStore:    store.NewMockBlockStore(),
@@ -459,11 +458,8 @@ func testQueryServerGetContractRecord(t *testing.T) {
 	defer ts.Close()
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
-
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
-
 	t.Run("Contract query should return error", func(t *testing.T) {
-
 		params := map[string]interface{}{}
 		params["contract"] = ""
 		resp := &types.ContractRecordResponse{}

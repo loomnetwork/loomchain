@@ -589,12 +589,12 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 	reg := s.CreateRegistry(snapshot)
 	rec, err := reg.GetRecord(contractAddr)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "no contract exists at %s", contractAddr.String())
 	}
 	k := &types.ContractRecordResponse{
-		ContractName:    rec.GetName(),
-		ContractAddress: rec.GetAddress(),
-		CreatorAddress:  rec.GetOwner(),
+		ContractName:    rec.Name,
+		ContractAddress: rec.Address,
+		CreatorAddress:  rec.Owner,
 	}
 	return k, nil
 }
@@ -1164,7 +1164,7 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	}
 	txHash, err := eth.DecDataToBytes(txObj.Hash)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid loom transaction hash %h", txObj.Hash)
+		return nil, errors.Wrapf(err, "invalid loom transaction hash %X", txObj.Hash)
 	}
 	txReceipt, err := rh.GetReceipt(state, txHash)
 	if err != nil {
