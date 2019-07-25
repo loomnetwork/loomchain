@@ -82,4 +82,7 @@ const (
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
+
+	// Enables Constantinople hard fork in EVM interpreter
+	EvmConstantinopleFeature = "evm:constantinople"
 )
