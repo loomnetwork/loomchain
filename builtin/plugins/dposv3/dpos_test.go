@@ -2437,7 +2437,6 @@ func TestDowntimeFunctions(t *testing.T) {
 		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr1)
 		require.Nil(t, err)
 		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr1)
 		require.Nil(t, err)
 	}
 
@@ -2452,7 +2451,6 @@ func TestDowntimeFunctions(t *testing.T) {
 		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr2)
 		require.Nil(t, err)
 		err = ShiftDowntimeWindow(contractpb.WrapPluginContext(dposCtx), i, candidates)
-		UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr2)
 		require.Nil(t, err)
 	}
 
