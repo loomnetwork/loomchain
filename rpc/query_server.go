@@ -272,7 +272,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
-func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
+func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
 	var caller loom.Address
 	if len(query.From) > 0 {
 		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
@@ -703,7 +703,7 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
-func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
+func (s *QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -954,14 +954,14 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 
 // todo add EthNewBlockFilter EthNewPendingTransactionFilter EthUninstallFilter EthGetFilterChanges and EthGetFilterLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
-func (s QueryServer) EthNewBlockFilter() (eth.Quantity, error) {
+func (s *QueryServer) EthNewBlockFilter() (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 	return eth.Quantity(s.EthPolls.AddBlockPoll(uint64(snapshot.Block().Height))), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
-func (s QueryServer) EthNewPendingTransactionFilter() (eth.Quantity, error) {
+func (s *QueryServer) EthNewPendingTransactionFilter() (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 	return eth.Quantity(s.EthPolls.AddTxPoll(uint64(snapshot.Block().Height))), nil
