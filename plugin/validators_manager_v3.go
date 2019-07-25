@@ -67,7 +67,7 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 				m.ctx, voteInfo.Validator.Address, candidates,
 			)
 			if err == nil && downtimeTrackingEnabled {
-				err = dposv3.UpdateDowntimeRecord(m.ctx, state.Params.DowntimePeriod, address)
+				err = dposv3.UpdateDowntimeRecord(m.ctx, state.Params.DowntimePeriod, state.Params.JailOfflineValidators, address)
 				if err != nil {
 					return err
 				}

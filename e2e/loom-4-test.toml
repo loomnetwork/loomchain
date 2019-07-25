@@ -46,7 +46,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} addressmapper list-mappings"
   Condition = "contains"
-  Expected = [ "mappings", '"chainId": "default"', '"chainId": "eth"' ]
+  Expected = [ "default", "eth" ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore --algo secp256k1 --chain default --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
@@ -77,7 +77,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} addressmapper list-mappings"
   Condition = "contains"
-  Expected = [ "mappings", '"chainId": "default"', '"chainId": "tron"' ]
+  Expected = ["default" , "tron" ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStoreTron --algo tron --chain default --caller-chain tron -k {{index $.EthAccountPrivKeyPathList 1}}"

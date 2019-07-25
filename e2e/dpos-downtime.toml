@@ -116,17 +116,17 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}}"
   Condition = "contains"
-  Expected = ["name","address","period"]
+  Expected = ["name","address","P"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 2}}"
   Condition = "contains"
-  Expected = ["name","address","period"]
+  Expected = ["name","address","P"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record"
   Condition = "contains"
-  Expected = ["name","address","period"]
+  Expected = ["name","address","P"]
 
 # Attempting to do dPoS transaction with only 2 of 3 elected validators online
 [[TestCases]]

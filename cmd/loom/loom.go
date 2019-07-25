@@ -592,19 +592,6 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 				return nil, err
 			}
 		}
-	} else if cfg.AppStore.Version == 2 {
-		logger.Info("Loading MultiReaderIAVL Store")
-		valueDB, err := cdb.LoadDB(
-			cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(),
-			cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
-		)
-		if err != nil {
-			return nil, err
-		}
-		appStore, err = store.NewMultiReaderIAVLStore(db, valueDB, cfg.AppStore)
-		if err != nil {
-			return nil, err
-		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
 		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)

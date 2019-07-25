@@ -686,17 +686,6 @@ AppStore:
   PruneInterval: {{ .AppStore.PruneInterval }}
   # Number of versions to prune at a time.
   PruneBatchSize: {{ .AppStore.PruneBatchSize }}
-  # DB backend to use for storing a materialized view of the latest persistent app state
-  # possible values are: "goleveldb". Only used by the MultiReaderIAVL store, ignored otherwise.
-  LatestStateDBBackend: {{ .AppStore.LatestStateDBBackend }}
-  # Defaults to "app_state". Only used by the MultiReaderIAVL store, ignored otherwise.
-  LatestStateDBName: {{ .AppStore.LatestStateDBName }}
-  # 1 - single mutex NodeDB, 2 - multi-mutex NodeDB
-  NodeDBVersion: {{ .AppStore.NodeDBVersion }}
-  NodeCacheSize: {{ .AppStore.NodeCacheSize }}
-  # Snapshot type to use, only supported by MultiReaderIAVL store
-  # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
-  SnapshotVersion: {{ .AppStore.SnapshotVersion }}
   # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
   SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
