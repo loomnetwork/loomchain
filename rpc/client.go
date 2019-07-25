@@ -65,10 +65,9 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				logger.Error("websocket client read message error", "err", err)
-				break
-			}
+			logger.Error("websocket client read message error", "err", err)
+			websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure)
+			break
 		}
 
 		outBytes, ethError := handleMessage(message, funcMap, c.conn)
