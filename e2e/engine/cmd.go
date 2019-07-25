@@ -104,9 +104,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					if err != nil {
 						return err
 					}
-					//if strings.Contains(cmd.Path, "loom2") {
-					//	continue
-					//}
 					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(cmd.Args, " "))
 					if n.Delay > 0 {
 						time.Sleep(time.Duration(n.Delay) * time.Millisecond)
@@ -268,7 +265,8 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 func checkapphash(nodes map[string]*node.Node) error {
 	time.Sleep(time.Second * 1)
 	fmt.Printf("--> run all: %v \n", "checkapphash")
-	var apphash = make(map[string]struct{})
+
+	var apphashs = make(map[int64]string)
 	var lastBlockHeight int64
 
 	for _, v := range nodes {
@@ -302,24 +300,16 @@ func checkapphash(nodes map[string]*node.Node) error {
 			lastBlockHeight = newLastBlockHeight
 		}
 
-		for i := 0; i < waitIntervals; i++ {
-			if lastBlockHeight == newLastBlockHeight {
-				break
+		currentAppHash := string(info.Result.Response.LastBlockAppHash)
+		fmt.Printf("--> GET: %s, AppHash: %0xX, height %v\n", u, currentAppHash, newLastBlockHeight)
+		if previousApphash, found := apphashs[newLastBlockHeight]; found {
+			if previousApphash != currentAppHash {
+				return fmt.Errorf("multiple apphashes %s and %s found at height %v",
+					previousApphash, currentAppHash, newLastBlockHeight)
 			}
-			time.Sleep(sleepInterval)
-		}
-		if lastBlockHeight == newLastBlockHeight {
-			apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
-			fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
 		} else {
-			return errors.New("node did not catch up with latest block")
+			apphashs[newLastBlockHeight] = currentAppHash
 		}
-	}
-
-	// apphash should have only 1 entry
-	// this might not be true if network latency is hight
-	if len(apphash) != 1 {
-		return fmt.Errorf("Wrong Block.Header.AppHash")
 	}
 	return nil
 }
