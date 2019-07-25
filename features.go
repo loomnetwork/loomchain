@@ -85,4 +85,7 @@ const (
 
 	// Restrict the 'value' field to zero or positive amounts
 	CheckTxValueFeature = "tx:check-value"
+
+	// Enables Constantinople hard fork in EVM interpreter
+	EvmConstantinopleFeature = "evm:constantinople"
 )
