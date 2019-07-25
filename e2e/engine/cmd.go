@@ -151,12 +151,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					fmt.Printf("--> output:\n%s\n", out)
 
-					if n.SaveContractAddress {
-						outStr := string(out)
-						index := strings.Index(outStr, "default:")
-						e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
-					}
-
 					err = checkConditions(e, n, out)
 					if err != nil {
 						return err
@@ -284,12 +278,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					fmt.Printf("--> error: %s\n", err)
 				}
 				fmt.Printf("--> output:\n%s\n", out)
-
-				if n.SaveContractAddress {
-					outStr := string(out)
-					index := strings.Index(outStr, "default:")
-					e.conf.ContractAddressList = append(e.conf.ContractAddressList, outStr[index:index+50])
-				}
 
 				err = checkConditions(e, n, out)
 				if err != nil {

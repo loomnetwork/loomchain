@@ -16,7 +16,6 @@
 [[TestCases]]
   Dir = ""
   RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 1}}"
-  SaveContractAddress = true
   Condition = "contains"
   Expected = [
     "Attempting to deploy 2 contracts",
@@ -31,6 +30,6 @@
 
 [[TestCases]]
 All = true
-RunCmd = "{{ $.LoomPath }} contract {{index $.ContractAddressList 0}}"
+RunCmd = "{{ $.LoomPath }} contract coin"
 Condition = "contains"
-Expected = ["Name","Address","Owner"]
+Expected = ["Name","Address","Owner","coin"]
