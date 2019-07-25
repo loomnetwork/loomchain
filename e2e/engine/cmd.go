@@ -335,6 +335,15 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			if !strings.Contains(string(out), expected) {
 				return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
 			}
+
+			var v interface{}
+			json.Unmarshal(out, &v)
+			if v != nil {
+				data := v.(map[string]interface{})
+				for k, v := range data {
+					iter(k, v)
+				}
+			}
 		}
 	case "excludes":
 		var excludeds []string
@@ -361,6 +370,26 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
 	}
 	return nil
+}
+
+func iter(k string, v interface{}) {
+	switch v := v.(type) {
+	case int:
+		fmt.Println("index : ", k, " value : ", v, "(integer)")
+	case string:
+		fmt.Println("index : ", k, " value : ", v, "(string)")
+	case float64:
+		fmt.Println("index : ", k, " value : ", v, "(float64)")
+	case []interface{}:
+		fmt.Println("index : ", k, " value : ", v, "(array):")
+		for i, u := range v {
+			iter(string(i), u)
+		}
+	case interface{}:
+		fmt.Println("index : ", k, " value : ", v, "(Interface)")
+	default:
+		fmt.Println("index : ", k, " value : ", v, "(unknown)")
+	}
 }
 
 func checkNodeReady(n *node.Node) error {
