@@ -158,7 +158,7 @@ protoc-gen-gogo:
 
 %.pb.go: %.proto protoc-gen-gogo
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
-	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
+	$(PROTOC) --gogo_out=$(GOPATH)/src $(GOPATH)/src/$(PKG)/$<
 
 get_lint:
 	@echo "--> Installing lint"
