@@ -26,10 +26,11 @@ type EthPoll interface {
 }
 
 type EthSubscriptions struct {
-	polls       map[string]EthPoll
-	lastPoll    map[string]uint64
-	timestamps  map[uint64][]string
-	mutex       sync.RWMutex
+	polls      map[string]EthPoll
+	lastPoll   map[string]uint64
+	timestamps map[uint64][]string
+	mutex      sync.RWMutex // locks the 3 maps above
+
 	lastPrune   uint64
 	evmAuxStore *evmaux.EvmAuxStore
 	blockStore  store.BlockStore
@@ -52,6 +53,7 @@ func (s *EthSubscriptions) Add(poll EthPoll, height uint64) string {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
 	s.polls[id] = poll
 	s.lastPoll[id] = height
 	s.timestamps[height] = append(s.timestamps[height], id)
