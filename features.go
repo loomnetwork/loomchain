@@ -30,8 +30,13 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
 
+  //Enables minting vouchers to dpos contract 
 	//Enables DPOS v3.6
 	DPOSVersion3_6 = "dpos:v3.6"
+  
+	// Enables flag to allow jailing offline validators
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_4 = "dpos:v3.4"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
@@ -49,6 +54,10 @@ const (
 
 	// Enables block range & max txs fields in tier info stored in User Deployer Whitelist contract
 	UserDeployerWhitelistVersion1_1Feature = "userdeploy-wl:v1.1"
+
+	// Makes UserDeployerWhitelist.RemoveUserDeployer mark deployer accounts as inactive instead of
+	// deleting them.
+	UserDeployerWhitelistVersion1_2Feature = "userdeploy-wl:v1.2"
 
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
@@ -77,4 +86,7 @@ const (
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
+
+	// Enables Constantinople hard fork in EVM interpreter
+	EvmConstantinopleFeature = "evm:constantinople"
 )

@@ -393,6 +393,13 @@ func (dpos *testDPOSContract) Unjail(ctx *plugin.FakeContext, candidate *loom.Ad
 	return err
 }
 
+func (dpos *testDPOSContract) EnableValidatorJailing(ctx *plugin.FakeContext, status bool) error {
+	err := dpos.Contract.EnableValidatorJailing(contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&EnableValidatorJailingRequest{JailOfflineValidators: status},
+	)
+	return err
+}
+
 func (dpos *testDPOSContract) Delegate(ctx *plugin.FakeContext, validator *loom.Address, amount *big.Int, tier *uint64, referrer *string) error {
 	req := &DelegateRequest{
 		ValidatorAddress: validator.MarshalPB(),
