@@ -36,9 +36,8 @@ func (m *mockLoomCoinGateway) DummyMethod(ctx contractpb.Context, req *MintToGat
 }
 
 func TestTransfer(t *testing.T) {
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
+	pctx := plugin.CreateFakeContext(addr1, addr2)
+	ctx := contractpb.WrapPluginContext(pctx)
 
 	amount := loom.NewBigUIntFromInt(100)
 	contract := &Coin{}
@@ -74,6 +73,14 @@ func TestTransfer(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	err = contract.Transfer(contractpb.WrapPluginContext(pctx), &TransferRequest{
+		To:     nil,
+		Amount: nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
+
 }
 
 func sciNot(m, n int64) *loom.BigUInt {
@@ -135,10 +142,9 @@ func TestTransferToSelf(t *testing.T) {
 
 func TestApprove(t *testing.T) {
 	contract := &Coin{}
+	pctx := plugin.CreateFakeContext(addr1, addr2)
+	ctx := contractpb.WrapPluginContext(pctx)
 
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
 	acct := &Account{
 		Owner: addr1.MarshalPB(),
 		Balance: &types.BigUInt{
@@ -162,6 +168,13 @@ func TestApprove(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 40, int(allowResp.Amount.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	err = contract.Approve(contractpb.WrapPluginContext(pctx), &ApproveRequest{
+		Spender: nil,
+		Amount:  nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
 }
 
 func TestTransferFrom(t *testing.T) {
@@ -230,6 +243,7 @@ func TestTransferFrom(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Nil(t, nilResp)
+
 }
 
 // Verify Coin.TransferFrom works correctly when the to & from addresses are the same.
@@ -356,6 +370,12 @@ func TestMintToGateway(t *testing.T) {
 	})
 	require.Nil(t, err)
 	require.Equal(t, newLoomCoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	err = contract.MintToGateway(contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)), &MintToGatewayRequest{
+		Amount: nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
 }
 
 func TestBurn(t *testing.T) {
@@ -565,6 +585,12 @@ func TestNilRequest(t *testing.T) {
 		Amount: nil,
 	})
 	require.Equal(t, err, ErrInvalidRequest)
+
+	err = contract.Transfer(ctx, &TransferRequest{
+		To:     nil,
+		Amount: nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
 
 	err = contract.TransferFrom(ctx, &TransferFromRequest{
 		From: addr2.MarshalPB(),
