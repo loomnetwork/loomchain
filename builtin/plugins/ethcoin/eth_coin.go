@@ -145,7 +145,7 @@ func (c *ETHCoin) TotalSupply(ctx contract.StaticContext, req *TotalSupplyReques
 }
 
 func (c *ETHCoin) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
-	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && req.Owner == nil {
+	if req.Owner == nil {
 		return nil, ErrInvalidRequest
 	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
@@ -295,7 +295,7 @@ func (c *ETHCoin) Approve(ctx contract.Context, req *ApproveRequest) error {
 }
 
 func (c *ETHCoin) Allowance(ctx contract.StaticContext, req *AllowanceRequest) (*AllowanceResponse, error) {
-	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Owner == nil || req.Spender == nil) {
+	if req.Owner == nil || req.Spender == nil {
 		return nil, ErrInvalidRequest
 	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
