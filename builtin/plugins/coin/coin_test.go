@@ -574,23 +574,4 @@ func TestNilRequest(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-
-	err = saveAccount(ctx, &Account{
-		Owner:   nil,
-		Balance: nil,
-	})
-	require.Equal(t, err, ErrInvalidRequest)
-	err = saveAccount(ctx, &Account{
-		Owner: addr1.MarshalPB(),
-		Balance: &types.BigUInt{
-			Value: *amount,
-		}})
-	require.NoError(t, err)
-	err = saveAllowance(ctx, &Allowance{
-		Owner:   nil,
-		Spender: nil,
-		Amount:  nil,
-	})
-	require.Equal(t, err, ErrInvalidRequest)
-
 }
