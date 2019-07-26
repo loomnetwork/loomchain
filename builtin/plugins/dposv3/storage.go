@@ -477,7 +477,8 @@ func SetReferrer(ctx contract.Context, name string, address *types.Address) erro
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
 		return ctx.Set(referrerKey(name), address)
 	}
-	return DeprecatedSetReferrer(ctx, name, address)
+	DeprecatedSetReferrer(ctx, name, address)
+	return nil
 }
 
 func DeprecatedSetReferrer(ctx contract.Context, name string, address *types.Address) error {

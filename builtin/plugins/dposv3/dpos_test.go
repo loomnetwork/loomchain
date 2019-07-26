@@ -1500,8 +1500,6 @@ func TestReferrerRewards(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(validators), 1)
 
-	referrers, err := dpos.ListReferrers(pctx)
-	require.Error(t, err)
 	pctx.SetFeature(loomchain.DPOSVersion3_5, true)
 	del1Name := "del1"
 	// Register two referrers
@@ -1511,9 +1509,9 @@ func TestReferrerRewards(t *testing.T) {
 	err = dpos.RegisterReferrer(pctx.WithSender(addr1), delegatorAddress2, "del2")
 	require.Nil(t, err)
 
-	referrers, err = dpos.ListReferrers(pctx)
+	referrers, err := dpos.ListReferrers(pctx)
 	require.NoError(t, err)
-	assert.Equal(t, len(referrers), 2)
+	assert.Equal(t, 2, len(referrers))
 
 	delegationAmount := big.NewInt(1e18)
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{

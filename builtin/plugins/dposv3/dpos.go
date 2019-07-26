@@ -1341,9 +1341,6 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 }
 
 func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
-	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
-		return nil, errors.New("DPOS v3.5 is not enabled")
-	}
 	referrerRange := ctx.Range([]byte(referrerPrefix))
 	referrers := make([]*Referrer, 0, len(referrerRange))
 	for _, referrer := range referrerRange {
@@ -2025,11 +2022,9 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	err = SetReferrer(ctx, req.Name, req.Address)
-	if err != nil {
+	if err := SetReferrer(ctx, req.Name, req.Address); err != nil {
 		return err
 	}
-
 	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
 }
 
