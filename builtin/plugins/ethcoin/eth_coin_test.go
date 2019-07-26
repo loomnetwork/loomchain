@@ -20,9 +20,8 @@ var (
 )
 
 func TestTransfer(t *testing.T) {
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
+	pctx := plugin.CreateFakeContext(addr1, addr2)
+	ctx := contractpb.WrapPluginContext(pctx)
 
 	amount := loom.NewBigUIntFromInt(100)
 	contract := &ETHCoin{}
@@ -58,6 +57,14 @@ func TestTransfer(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	resp, err = contract.BalanceOf(contractpb.WrapPluginStaticContext(pctx), &BalanceOfRequest{
+		Owner: nil,
+	})
+	require.Error(t, err, ErrInvalidRequest)
+	require.Nil(t, resp)
+
 }
 
 func sciNot(m, n int64) *loom.BigUInt {
@@ -104,6 +111,14 @@ func TestTransferToSelf(t *testing.T) {
 	require.NoError(t, err)
 	// the transfer was from addr2 to addr2 so the balance of addr2 should remain unchanged
 	assert.Equal(t, *amount, resp.Balance.Value)
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	err = contract.Transfer(contractpb.WrapPluginContext(pctx), &TransferRequest{
+		To:     nil,
+		Amount: &types.BigUInt{Value: *amount},
+	})
+	require.Error(t, err)
+	assert.Equal(t, ErrInvalidRequest, err)
 }
 
 func TestApprove(t *testing.T) {
@@ -135,6 +150,25 @@ func TestApprove(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 40, int(allowResp.Amount.Value.Int64()))
+
+	pctx := plugin.CreateFakeContext(addr1, addr2)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+
+	err = contract.Approve(contractpb.WrapPluginContext(pctx), &ApproveRequest{
+		Spender: nil,
+		Amount:  nil,
+	})
+	assert.Error(t, err)
+	assert.Equal(t, ErrInvalidRequest, err)
+
+	resp, err := contract.Allowance(contractpb.WrapPluginContext(pctx), &AllowanceRequest{
+		Owner:   nil,
+		Spender: nil,
+	})
+	assert.Error(t, err)
+	assert.Equal(t, ErrInvalidRequest, err)
+	require.Nil(t, resp)
+
 }
 
 func TestTransferFrom(t *testing.T) {
@@ -196,6 +230,16 @@ func TestTransferFrom(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	amount := sciNot(100, 18)
+	err = contract.TransferFrom(contractpb.WrapPluginContext(pctx), &TransferFromRequest{
+		To:     nil,
+		From:   nil,
+		Amount: &types.BigUInt{Value: *amount},
+	})
+	require.Error(t, err)
+	assert.Equal(t, ErrInvalidRequest, err)
 }
 
 // Verify ETHCoin.TransferFrom works correctly when the to & from addresses are the same.
