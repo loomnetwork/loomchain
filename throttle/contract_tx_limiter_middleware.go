@@ -19,7 +19,9 @@ import (
 )
 
 var (
-	ErrTxLimitReached = errors.New("tx limit reached, try again later")
+	ErrTxLimitReached         = errors.New("tx limit reached, try again later")
+	ErrContractNotWhitelisted = errors.New("contract not whitelisted")
+	ErrInactiveDeployer       = errors.New("can't call contract belonging to inactive deployer")
 )
 
 var (
@@ -72,8 +74,9 @@ func (c *ContractTxLimiterConfig) Clone() *ContractTxLimiterConfig {
 
 type contractTxLimiter struct {
 	// contract_address to limiting parametres structure
-	contractToTierMap       map[string]udw.TierID
-	contractDataLastUpdated int64
+	contractToTierMap         map[string]udw.TierID
+	inactiveDeployerContracts map[string]bool
+	contractDataLastUpdated   int64
 	// track of no. of txns in previous blocks per contract
 	contractStatsMap    map[string]*contractStats
 	tierMap             map[udw.TierID]udw.Tier
@@ -116,14 +119,14 @@ func (txl *contractTxLimiter) updateState(contractAddr loom.Address, curBlockHei
 	blockTx.txn++
 }
 
-func loadContractTierMap(ctx contractpb.StaticContext) (map[string]udwtypes.TierID, error) {
+func loadContractTierMap(ctx contractpb.StaticContext) (*udw.ContractInfo, error) {
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "loadContractTierMap", "error", fmt.Sprint(err != nil)}
 		contractTierMapLoadLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	contractToTierMap, err := udw.GetContractTierMapping(ctx)
-	return contractToTierMap, err
+	contractInfo, err := udw.GetContractInfo(ctx)
+	return contractInfo, err
 }
 
 func loadTierMap(ctx contractpb.StaticContext) (map[udwtypes.TierID]udwtypes.Tier, error) {
@@ -161,11 +164,9 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}
-
 		if tx.Id != callId {
 			return next(state, txBytes, isCheckTx)
 		}
-
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
 			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
@@ -174,26 +175,31 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if err := proto.Unmarshal(msg.Data, &msgTx); err != nil {
 			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 		}
-
 		if msgTx.VmType != vm.VMType_EVM {
 			return next(state, txBytes, isCheckTx)
 		}
-
-		if txl.contractToTierMap == nil ||
+		if txl.inactiveDeployerContracts == nil ||
+			txl.contractToTierMap == nil ||
 			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
 			ctx, err := createUserDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
-			contractToTierMap, err := loadContractTierMap(ctx)
+			contractInfo, err := loadContractTierMap(ctx)
 			if err != nil {
-				return res, errors.Wrap(err, "throttle: contractToTierMap creation")
+				return res, errors.Wrap(err, "throttle: contractInfo fetch")
 			}
-			txl.contractToTierMap = contractToTierMap
-			txl.contractDataLastUpdated = time.Now().Unix()
-		}
 
+			txl.contractDataLastUpdated = time.Now().Unix()
+			txl.contractToTierMap = contractInfo.ContractToTierMap
+			txl.inactiveDeployerContracts = contractInfo.InactiveDeployerContracts
+			// TxLimiter.contractDataLastUpdated will be updated after updating contractToTierMap
+		}
 		contractAddr := loom.UnmarshalAddressPB(msg.To)
+		// contracts which are deployed by deleted deployers should be throttled
+		if txl.inactiveDeployerContracts[contractAddr.String()] {
+			return res, ErrInactiveDeployer
+		}
 		// contracts the limiter doesn't know about shouldn't be throttled
 		contractTierID, ok := txl.contractToTierMap[contractAddr.String()]
 		if !ok {
@@ -224,11 +230,11 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			}
 			txl.tierMap[contractTierID] = tierInfo
 		}
-
 		if txl.isAccountLimitReached(contractAddr, state.Block().Height) {
 			return loomchain.TxHandlerResult{}, ErrTxLimitReached
 		}
 		txl.updateState(contractAddr, state.Block().Height)
+
 		return next(state, txBytes, isCheckTx)
 	})
 }
