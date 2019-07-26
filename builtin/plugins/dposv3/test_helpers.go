@@ -154,7 +154,7 @@ func (dpos *testDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer
 
 func (dpos *testDPOSContract) ListReferrers(ctx *plugin.FakeContext) ([]*Referrer, error) {
 	resp, err := dpos.Contract.ListReferrers(
-		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		contract.WrapPluginStaticContext(ctx.WithAddress(dpos.Address)),
 		&ListReferrersRequest{},
 	)
 	if err != nil {
