@@ -55,6 +55,7 @@ const (
 var (
 	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
 	billionth                     = loom.BigUInt{big.NewInt(1000000000)}
+	defaultFee                    = uint64(25)
 	defaultReferrerFee            = loom.BigUInt{big.NewInt(300)}
 	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
@@ -191,6 +192,37 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.DowntimePeriod = defaultDowntimePeriod
 	}
 
+	candidates, err := LoadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	for i, validator := range req.Validators {
+		candidateAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+		newCandidate := &Candidate{
+			PubKey:                validator.PubKey,
+			Address:               candidateAddr.MarshalPB(),
+			Fee:                   defaultFee,
+			NewFee:                defaultFee,
+			Name:                  fmt.Sprintf("candidate-%d", i),
+			State:                 REGISTERED,
+			MaxReferralPercentage: defaultReferrerFee.Uint64(),
+		}
+		candidates.Set(newCandidate)
+		err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
+			CandidateAddress: candidateAddr.MarshalPB(),
+			Amount:           params.RegistrationRequirement,
+			LocktimeTier:     TIER_ZERO,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	if err = saveCandidateList(ctx, candidates); err != nil {
+		return err
+	}
+
 	state := &State{
 		Params:     params,
 		Validators: req.Validators,
@@ -200,7 +232,6 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		TotalValidatorDelegations: loom.BigZeroPB(),
 		TotalRewardDistribution:   loom.BigZeroPB(),
 	}
-
 	return saveState(ctx, state)
 }
 
@@ -1566,7 +1597,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate == nil {
-			ctx.Logger().Debug("Attempted to reward validator no longer on candidates list.", "validator", validator)
+			ctx.Logger().Info("Attempted to reward validator no longer on candidates list.", "validator", validator)
 			continue
 		}
 

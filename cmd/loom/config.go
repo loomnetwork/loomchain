@@ -71,9 +71,15 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Init:       dposV2Init,
 		})
 	} else if cfg.DPOSVersion == 3 {
+		oracleAddr := &types.Address{
+			ChainId: chainID,
+			Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+		}
 		dposV3Init, err := marshalInit(&dposv3.InitRequest{
 			Params: &dposv3.Params{
-				ValidatorCount: 21,
+				ValidatorCount:      21,
+				ElectionCycleLength: 0,
+				OracleAddress:       oracleAddr,
 			},
 			Validators: []*loom.Validator{
 				validator,
@@ -90,6 +96,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Location:   "dposV3:3.0.0",
 			Init:       dposV3Init,
 		})
+
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
