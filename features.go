@@ -30,7 +30,7 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
 
-	// Enables flag to allow jailing offline validators
+	// Enables both downtime slashing and a parameter flag to toggle jailing offline validators on/off
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_4 = "dpos:v3.4"
 
@@ -82,4 +82,7 @@ const (
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
+
+	// Enables Constantinople hard fork in EVM interpreter
+	EvmConstantinopleFeature = "evm:constantinople"
 )
