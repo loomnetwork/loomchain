@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -788,6 +789,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	if err != nil {
 		return nil, err
 	}
+	txReceipt.TransactionIndex, err = s.getTransactionIndex(&txReceipt)
 	if int32(len(blockResult.Block.Data.Txs)) <= txReceipt.TransactionIndex {
 		return nil, errors.Errorf(
 			"Transaction index %v out of bounds for transactions in block %v",
@@ -1126,6 +1128,38 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 		height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, hash)
 		return uint64(height), err
 	}
+}
+
+func (s *QueryServer) getTransactionIndex(txReceipt *types.EvmTxReceipt) (int32, error) {
+	height := int64(txReceipt.BlockNumber)
+	results, err := s.BlockStore.GetBlockResults(&height)
+	if err != nil {
+		return 0, err
+	}
+	for index, result := range results.Results.DeliverTx {
+
+		var txHash []byte
+		switch result.Info {
+		case utils.DeployEvm:
+			dr := vm.DeployResponse{}
+			if err := proto.Unmarshal(result.Data, &dr); err != nil {
+				continue
+			}
+			drd := vm.DeployResponseData{}
+			if err := proto.Unmarshal(dr.Output, &drd); err != nil {
+				continue
+			}
+			txHash = drd.TxHash
+		case utils.CallEVM:
+			txHash = result.Data
+		default:
+			continue
+		}
+		if 0 == bytes.Compare(txHash, txReceipt.TxHash) {
+			return int32(index), nil
+		}
+	}
+	return 0, fmt.Errorf("cannot find tx hash %x at height %v", txReceipt.TxHash, height)
 }
 
 func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
