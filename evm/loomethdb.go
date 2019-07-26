@@ -33,6 +33,13 @@ type LoomEthdb struct {
 	ethdb.Compacter
 }
 
+// BatchReplay wraps basic batch operations.
+type BatchReplay interface {
+	Put(key, value []byte)
+	Delete(key []byte)
+}
+
+
 func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
 	p := new(LoomEthdb)
 	p.state = store.PrefixKVStore(vmPrefix, _state)
@@ -83,7 +90,6 @@ type batch struct {
 	cache       []kvPair
 	parentStore *LoomEthdb
 	size        int
-	ethdb.Batch
 }
 
 func (b *batch) Put(key, value []byte) error {
@@ -116,6 +122,23 @@ func (b *batch) Write() error {
 	}
 	return nil
 }
+
+
+func (b *batch) Replay(w ethdb.KeyValueWriter) error{
+	for _, kv := range b.cache {
+		if kv.value == nil{
+			if err := w.Delete(kv.key); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := w.Put(kv.key, kv.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 
 func (b *batch) Reset() {
 	b.cache = make([]kvPair, 0)
