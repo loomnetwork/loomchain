@@ -2593,7 +2593,7 @@ func TestDowntimeSlashing(t *testing.T) {
 	assert.True(t, delegatedAmount.Cmp(expectedSlashedDelegation.Int) == 0)
 }
 
-func TestDowntimeSlashingWithZeroSlshingPercentage(t *testing.T) {
+func TestDowntimeSlashingWithZeroSlashingPercentage(t *testing.T) {
 	pctx := createCtx()
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
@@ -2624,6 +2624,7 @@ func TestDowntimeSlashingWithZeroSlshingPercentage(t *testing.T) {
 	var feats = []string{
 		loomchain.DPOSVersion3_1,
 		loomchain.DPOSVersion3_2,
+		loomchain.DPOSVersion3_3,
 		loomchain.DPOSVersion3_4,
 	}
 	for _, feat := range feats {
@@ -2676,7 +2677,7 @@ func TestDowntimeSlashingWithZeroSlshingPercentage(t *testing.T) {
 
 	statistic, err := GetStatistic(contractpb.WrapPluginContext(dposCtx), addr1)
 	require.Nil(t, err)
-	require.True(t, (statistic.SlashPercentage.Value.String() == "0"))
+	require.True(t, statistic.SlashPercentage.Value.String() == "0")
 
 	for i := int64(0); i < int64(periodLength*4); i++ {
 		require.NoError(t, UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, false, addr1))
