@@ -2241,6 +2241,12 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 }
 
 func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		if req.CrashSlashingPercentage == nil || req.ByzantineSlashingPercentage == nil {
+			return errors.New("slashing percentages must be specified")
+		}
+	}
+
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetSlashingPercentage", "sender", sender, "request", req)
 
