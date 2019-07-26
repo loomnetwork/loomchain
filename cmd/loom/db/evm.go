@@ -139,7 +139,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("\n--- EVM state at app height %d ---\n%s\n", appStore.Version(), string(vm.RawDump()))
+			fmt.Printf("\n--- EVM state at app height %d ---\n%s\n", appStore.Version(), string(vm.RawDump(false, false, true)))
 			return nil
 		},
 	}
@@ -279,7 +279,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("\n--- EVM state at app height %d ---\n%s\n", appStore.Version(), string(vm.RawDump()))
+			fmt.Printf("\n--- EVM state at app height %d ---\n%s\n", appStore.Version(), string(vm.RawDump(false, false, true)))
 			return nil
 		},
 	}
