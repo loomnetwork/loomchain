@@ -790,11 +790,8 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		return nil, err
 	}
 	txReceipt.TransactionIndex, err = s.getTransactionIndex(&txReceipt)
-	if int32(len(blockResult.Block.Data.Txs)) <= txReceipt.TransactionIndex {
-		return nil, errors.Errorf(
-			"Transaction index %v out of bounds for transactions in block %v",
-			txReceipt.TransactionIndex, len(blockResult.Block.Data.Txs),
-		)
+	if err != nil {
+		return nil, err
 	}
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
