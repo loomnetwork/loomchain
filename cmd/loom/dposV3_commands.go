@@ -1215,11 +1215,11 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 		Example: setSlashingPercentagesCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			crashFaultSlashingPercentage, err := cli.ParseAmount(args[0])
+			crashFaultSlashingPercentage, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
 			}
-			byzantineFaultSlashingPercentage, err := cli.ParseAmount(args[1])
+			byzantineFaultSlashingPercentage, err := strconv.ParseInt(args[1], 10, 64)
 			if err != nil {
 				return err
 			}
@@ -1227,10 +1227,38 @@ func SetSlashingPercentagesCmdV3() *cobra.Command {
 			err = cli.CallContractWithFlags(
 				&flags, DPOSV3ContractName, "SetSlashingPercentages", &dposv3.SetSlashingPercentagesRequest{
 					CrashSlashingPercentage: &types.BigUInt{
-						Value: *crashFaultSlashingPercentage,
+						Value: *loom.NewBigUIntFromInt(crashFaultSlashingPercentage),
 					},
 					ByzantineSlashingPercentage: &types.BigUInt{
-						Value: *byzantineFaultSlashingPercentage,
+						Value: *loom.NewBigUIntFromInt(byzantineFaultSlashingPercentage),
+					},
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+func SetMaxDowntimePercentageCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "set-max-downtime-percentage [max downtime percentage]",
+		Short: "Set crash fault downtime percentage expressed in basis points",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			maxDowntimePercentage, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "SetMaxDowntimePercentage", &dposv3.SetMaxDowntimePercentageRequest{
+					MaxDowntimePercentage: &types.BigUInt{
+						Value: *loom.NewBigUIntFromInt(maxDowntimePercentage),
 					},
 				}, nil)
 			if err != nil {
@@ -1316,6 +1344,7 @@ func NewDPOSV3Command() *cobra.Command {
 		SetRegistrationRequirementCmdV3(),
 		SetOracleAddressCmdV3(),
 		SetSlashingPercentagesCmdV3(),
+		SetMaxDowntimePercentageCmdV3(),
 		ChangeFeeCmdV3(),
 		TimeUntilElectionCmdV3(),
 		GetStateCmdV3(),

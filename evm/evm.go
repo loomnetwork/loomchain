@@ -146,7 +146,9 @@ type Evm struct {
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
-	p.chainConfig = defaultChainConfig()
+
+	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(loomchain.EvmConstantinopleFeature, false))
+
 	p.vmConfig = defaultVmConfig(debug)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
@@ -247,11 +249,17 @@ func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	return vm.NewEVM(e.context, e.sdb, &e.chainConfig, e.vmConfig)
 }
 
-func defaultChainConfig() params.ChainConfig {
+func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 	cliqueCfg := params.CliqueConfig{
 		Period: 10,   // Number of seconds between blocks to enforce
 		Epoch:  1000, // Epoch length to reset votes and checkpoint
 	}
+
+	var constantinopleBlock *big.Int
+	if enableConstantinople {
+		constantinopleBlock = big.NewInt(0)
+	}
+
 	return params.ChainConfig{
 		ChainID:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
 		HomesteadBlock: nil,           // Homestead switch block (nil = no fork, 0 = already homestead)
@@ -263,7 +271,7 @@ func defaultChainConfig() params.ChainConfig {
 		EIP155Block:         big.NewInt(0),                        // EIP155 HF block
 		EIP158Block:         big.NewInt(0),                        // EIP158 HF block
 		ByzantiumBlock:      big.NewInt(0),                        // Byzantium switch block (nil = no fork, 0 = already on byzantium)
-		ConstantinopleBlock: nil,                                  // Constantinople switch block (nil = no fork, 0 = already activated)
+		ConstantinopleBlock: constantinopleBlock,                  // Constantinople switch block (nil = no fork, 0 = already activated)
 		// Various consensus engines
 		Ethash: new(params.EthashConfig),
 		Clique: &cliqueCfg,
@@ -324,7 +332,7 @@ func defaultContext() vm.Context {
 }
 
 func NewMockEnv(db vm.StateDB, origin common.Address) *vm.EVM {
-	chainContext := defaultChainConfig()
+	chainContext := defaultChainConfig(false)
 	context := defaultContext()
 	context.Origin = origin
 	return vm.NewEVM(context, db, &chainContext, defaultVmConfig(false))
