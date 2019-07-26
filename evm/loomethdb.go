@@ -26,6 +26,11 @@ type LoomEthdb struct {
 	state      store.KVStore
 	lock       sync.RWMutex
 	logContext *ethdbLogContext
+	ethdb.Reader
+	ethdb.Writer
+	ethdb.Iteratee
+	ethdb.Stater
+	ethdb.Compacter
 }
 
 func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
@@ -53,7 +58,8 @@ func (s *LoomEthdb) Delete(key []byte) error {
 	return nil
 }
 
-func (s *LoomEthdb) Close() {
+func (s *LoomEthdb) Close() error {
+	return nil
 }
 
 func (s *LoomEthdb) NewBatch() ethdb.Batch {
@@ -77,6 +83,7 @@ type batch struct {
 	cache       []kvPair
 	parentStore *LoomEthdb
 	size        int
+	ethdb.Batch
 }
 
 func (b *batch) Put(key, value []byte) error {
@@ -150,6 +157,7 @@ type LogBatch struct {
 	batch      batch
 	params     LogParams
 	logContext *ethdbLogContext
+	ethdb.Batch
 }
 
 const batchHeaderWithContext = `
