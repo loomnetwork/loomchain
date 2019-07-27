@@ -39,7 +39,6 @@ type BatchReplay interface {
 	Delete(key []byte)
 }
 
-
 func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
 	p := new(LoomEthdb)
 	p.state = store.PrefixKVStore(vmPrefix, _state)
@@ -123,10 +122,9 @@ func (b *batch) Write() error {
 	return nil
 }
 
-
-func (b *batch) Replay(w ethdb.KeyValueWriter) error{
+func (b *batch) Replay(w ethdb.KeyValueWriter) error {
 	for _, kv := range b.cache {
-		if kv.value == nil{
+		if kv.value == nil {
 			if err := w.Delete(kv.key); err != nil {
 				return err
 			}
@@ -138,7 +136,6 @@ func (b *batch) Replay(w ethdb.KeyValueWriter) error{
 	}
 	return nil
 }
-
 
 func (b *batch) Reset() {
 	b.cache = make([]kvPair, 0)
@@ -174,6 +171,7 @@ type LogParams struct {
 	LogPutDump         bool
 	LogWriteDump       bool
 	LogBeforeWriteDump bool
+	LogReplay          bool
 }
 
 type LogBatch struct {
@@ -215,6 +213,7 @@ func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
 		LogPutDump:         false,
 		LogWriteDump:       true,
 		LogBeforeWriteDump: false,
+		LogReplay:          true,
 	}
 
 	if !loggerStarted {
@@ -276,6 +275,14 @@ func (b *LogBatch) Write() error {
 		logger.Println("Write, after : ")
 		b.batch.Dump(logger)
 	}
+	return err
+}
+
+func (b *LogBatch) Replay(w ethdb.KeyValueWriter) error {
+	if b.params.LogReplay {
+		logger.Println("Replay")
+	}
+	err := b.batch.Replay(w)
 	return err
 }
 
