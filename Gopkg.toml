@@ -97,6 +97,10 @@ ignored = [
 [[constraint]]
   name = "github.com/btcsuite/btcutil"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
+
+[[constraint]]
+  name = "github.com/loomnetwork/mamamerkle"
+  revision = "80089d23d292cdbff7b2b22bb8834670c23917e7"
   
 [prune]
   go-tests = true
