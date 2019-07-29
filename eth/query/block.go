@@ -370,7 +370,14 @@ func DeprecatedGetBlockByHash(
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if info.BlockMetas[i] != nil {
 				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts, evmAuxStore)
+					return DeprecatedGetBlockByNumber(
+						blockStore,
+						state,
+						info.BlockMetas[i].Header.Height,
+						full,
+						readReceipts,
+						evmAuxStore,
+					)
 				}
 			}
 		}

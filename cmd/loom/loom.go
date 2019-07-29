@@ -1226,12 +1226,12 @@ func initQueryService(
 		return err
 	}
 	loomSever := rpc.LoomServer{
-		ChainID:                chainID,
-		StateProvider:          app,
-		Loader:                 loader,
-		CreateRegistry:         createRegistry,
-		NewABMFactory:          newABMFactory,
-		AuthCfg:                cfg.Auth,
+		ChainID:        chainID,
+		StateProvider:  app,
+		Loader:         loader,
+		CreateRegistry: createRegistry,
+		NewABMFactory:  newABMFactory,
+		AuthCfg:        cfg.Auth,
 	}
 	qs := &rpc.QueryServer{
 		LoomServer:             loomSever,
@@ -1246,7 +1246,7 @@ func initQueryService(
 		EventStore:             app.EventStore,
 		EvmAuxStore:            app.EvmAuxStore,
 	}
-	tmsvc := &rpc.RuntimeTendermintRpc{loomSever}
+	tmsvc := &rpc.RuntimeTendermintRpc{LoomServer: loomSever}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
 		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),

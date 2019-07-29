@@ -180,35 +180,35 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		chainConfigInitRequest := cctypes.InitRequest{
 			Owner: contractOwner,
 			Features: []*cctypes.Feature{
-				&cctypes.Feature{
+				{
 					Name:   loomchain.DPOSVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
+				{
 					Name:   loomchain.ChainCfgVersion1_1,
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
+				{
 					Name:   loomchain.CoinVersion1_1Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
+				{
 					Name:   loomchain.AppStoreVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
+				{
 					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
+				{
 					Name:   loomchain.EthTxFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
+				{
 					Name:   loomchain.CheckTxValueFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
+				{
 					Name:   loomchain.EvmConstantinopleFeature,
 					Status: chainconfig.FeatureWaiting,
 				},

@@ -59,7 +59,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, err
 	}
 
-	value := &loom.BigUInt{ethTx.Value()}
+	value := &loom.BigUInt{Int: ethTx.Value()}
 	if !common.IsPositive(*value) && !common.IsZero(*value) {
 		return r, errors.Errorf("value %v must be non negative", value)
 	}

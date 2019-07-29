@@ -267,7 +267,7 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 	}
 	debug := false
 
-	if evmDebuggingEnabled == true {
+	if evmDebuggingEnabled {
 		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
 		logCfg = vm.LogConfig{
 			DisableMemory:  true, // disable memory capture

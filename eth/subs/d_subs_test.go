@@ -17,8 +17,6 @@ import (
 
 const (
 	allFilter = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
-	// testFilter = "{\"address\":\"0x8888F1F195AfA192cFee860698584C030f4c9Db1\",\"topics\":[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",null,[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",\"0x0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc\"]]}"
-	// noneFilter = "{\"address\":\"\",\"topics\":[]}"
 )
 
 var (
