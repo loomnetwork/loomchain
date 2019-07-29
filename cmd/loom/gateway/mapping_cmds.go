@@ -128,6 +128,99 @@ func newMapContractsCommand() *cobra.Command {
 	return cmd
 }
 
+const mapBinanceContractsCmdExample = `
+./loom gateway map-binance-contracts \
+	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 LOOM-172 \
+	--eth-key path/to/binance_priv.key \
+	--key path/to/loom_priv.key
+./loom gateway map-binance-contracts \
+	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 LOOM-172 \
+	--key <base64-encoded-private-key-of-gateway-owner>
+	--authorized
+`
+
+func newMapBinanceContractsCommand() *cobra.Command {
+	var authorized bool
+	var chainID string
+	var gatewayType = "binance-gateway"
+	cmd := &cobra.Command{
+		Use:     "map-binance-contracts <local-contract-addr> <token-name>",
+		Short:   "Links a DAppChain token contract to an Binance token via the Transfer Gateway.",
+		Example: mapBinanceContractsCmdExample,
+		Args:    cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			ethKeyPath := gatewayCmdFlags.EthPrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			localContractAddr, err := hexToLoomAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve local contract address")
+			}
+
+			tokenNameHex := hex.EncodeToString([]byte(args[1]))
+			foreignContractAddr := common.HexToAddress(tokenNameHex)
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			if authorized {
+				req := &tgtypes.TransferGatewayAddContractMappingRequest{
+					ForeignContract: loom.Address{
+						ChainID: chainID,
+						Local:   foreignContractAddr.Bytes(),
+					}.MarshalPB(),
+					LocalContract: localContractAddr.MarshalPB(),
+				}
+
+				_, err = gateway.Call("AddAuthorizedContractMapping", req, signer, nil)
+				return err
+			}
+
+			creatorKey, err := crypto.LoadECDSA(ethKeyPath)
+			if err != nil {
+				return errors.Wrap(err, "failed to load creator Ethereum key")
+			}
+
+			hash := ssha.SoliditySHA3(
+				[]string{"address", "address"},
+				foreignContractAddr,
+				localContractAddr.Local.String(),
+			)
+			sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_BINANCE)
+			if err != nil {
+				return errors.Wrap(err, "failed to generate creator signature")
+			}
+
+			// no ForeignContractTxHash for binance
+			req := &tgtypes.TransferGatewayAddContractMappingRequest{
+				ForeignContract: loom.Address{
+					ChainID: chainID,
+					Local:   foreignContractAddr.Bytes(),
+				}.MarshalPB(),
+				LocalContract:             localContractAddr.MarshalPB(),
+				ForeignContractCreatorSig: sig,
+			}
+
+			_, err = gateway.Call("AddContractMapping", req, signer, nil)
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
+	cmdFlags.StringVar(&chainID, "chain-id", "binance", "Foreign chain id")
+	return cmd
+}
+
 const mapAccountsCmdExample = `
 ./loom gateway map-accounts	--key path/to/loom_priv.key --eth-key path/to/eth_priv.key OR
 ./loom gateway map-accounts --interactive --key path/to/loom_priv.key --eth-address <your-eth-address>
@@ -220,12 +313,14 @@ func newMapAccountsCommand() *cobra.Command {
 					foreignOwnerAddr.Local.String(),
 				)
 
-				sign, err := getSignatureInteractive(hash)
+				sign, err := getSignatureInteractive(hash, evmcompat.SignatureType_GETH)
 				if err != nil {
 					return err
 				}
+				// allow only SignatureType_GETH for the recover address function
+				allowSigTypes := []evmcompat.SignatureType{evmcompat.SignatureType_GETH}
 				// Do a local recovery on the signature to make sure the user is passing the correct byte
-				signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:])
+				signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:], allowSigTypes)
 				if err != nil {
 					return err
 				}
@@ -402,7 +497,7 @@ func newGetContractMappingCommand() *cobra.Command {
 	return cmd
 }
 
-func getSignatureInteractive(hash []byte) ([prefixedSigLength]byte, error) {
+func getSignatureInteractive(hash []byte, sigType evmcompat.SignatureType) ([prefixedSigLength]byte, error) {
 	// get it from the signature
 	fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x)\n")
 	fmt.Printf("0x%v\n", hex.EncodeToString(hash))
@@ -430,7 +525,7 @@ func getSignatureInteractive(hash []byte) ([prefixedSigLength]byte, error) {
 
 	// create the prefixed sig so that it matches the way it's verified on address mapper
 	var sigBytes [prefixedSigLength]byte
-	prefix := byte(evmcompat.SignatureType_GETH)
+	prefix := byte(sigType)
 	typedSig := append(make([]byte, 0, prefixedSigLength), prefix)
 	copy(sigBytes[:], append(typedSig, sigStripped...))
 

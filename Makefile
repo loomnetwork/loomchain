@@ -43,7 +43,7 @@ BTCD_GIT_REV = 7d2daa5bfef28c5e282571bc06416516936115ee
 # google.golang.org/genproto seems to be pulled in by the grpc package.
 GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 # Specifies the loomnetwork/binance-tgoracle branch/revision to use.
-BINANCE_TG_GIT_REV = init-build
+BINANCE_TG_GIT_REV = HEAD
 # Lock down certusone/yubihsm-go revision
 YUBIHSM_REV = 0299fd5d703d2a576125b414abbe172eaec9f65e
 
@@ -198,7 +198,7 @@ $(TRANSFER_GATEWAY_DIR):
 	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV)
 
 $(BINANCE_TGORACLE_DIR):
-	git clone -q git@github.com:loomnetwork/binace-tgoracle.git $@
+	git clone -q git@github.com:loomnetwork/binance-tgoracle.git $@
 	cd $(BINANCE_TGORACLE_DIR) && git checkout master && git pull && git checkout $(BINANCE_TG_GIT_REV)
 
 validators-tool: $(TRANSFER_GATEWAY_DIR)
