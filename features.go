@@ -13,6 +13,11 @@ const (
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
 	AuthSigTxFeaturePrefix = "auth:sigtx:"
+	// The list of allowed feature flags for multi chain signature tx
+	AuthSigTxDefault = "auth:sigtx:default"
+	AuthSigTxEth     = "auth:sigtx:eth"
+	AuthSigTxTron    = "auth:sigtx:tron"
+	AuthSigTxBinance = "auth:sigtx:binance"
 
 	// Enables DPOS v3
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!

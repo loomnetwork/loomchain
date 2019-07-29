@@ -1058,7 +1058,7 @@ func setupPlasmaTxAuthWithKey(ctx contractpb.Context, ethPrivKey *ecdsa.PrivateK
 		return loom.Address{}, err
 	}
 
-	ethLocalAddress, err := evmcompat.RecoverAddressFromTypedSig(hash, signature)
+	ethLocalAddress, err := evmcompat.RecoverAddressFromTypedSig(hash, signature, []evmcompat.SignatureType{evmcompat.SignatureType_EIP712})
 	if err != nil {
 		return loom.Address{}, err
 	}

@@ -376,7 +376,8 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		return errors.Wrapf(err, "unable to calculate plasmaTx hash")
 	}
 
-	senderEthAddressFromPlasmaSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedPlasmaTxHash, req.Plasmatx.Signature)
+	allowedSigTypes := evmcompat.GetAllowedSignatureTypes(ctx)
+	senderEthAddressFromPlasmaSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedPlasmaTxHash, req.Plasmatx.Signature, allowedSigTypes)
 	if err != nil {
 		return errors.Wrapf(err, "unable to recover sender address from plasmatx signature")
 	}
