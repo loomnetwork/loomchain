@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -82,7 +83,16 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 		return ErrInvalidRequest
 	}
 
-	allowedSigTypes := evmcompat.GetAllowedSignatureTypes(ctx)
+	allowedSigTypes := []evmcompat.SignatureType{
+		evmcompat.SignatureType_EIP712,
+		evmcompat.SignatureType_GETH,
+		evmcompat.SignatureType_TREZOR,
+		evmcompat.SignatureType_TRON,
+	}
+	if ctx.FeatureEnabled(loomchain.AddressMapperVersion1_1, false) {
+		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_BINANCE)
+	}
+
 	callerAddr := ctx.Message().Sender
 	if callerAddr.Compare(from) == 0 {
 		if err := verifySig(from, to, to.ChainID, req.Signature, allowedSigTypes); err != nil {
@@ -219,11 +229,7 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType e
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
-	sig, err := evmcompat.GenerateTypedSig(hash, key, sigType)
-	if err != nil {
-		return nil, err
-	}
-	return sig, nil
+	return evmcompat.GenerateTypedSig(hash, key, sigType)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})

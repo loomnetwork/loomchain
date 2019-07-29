@@ -128,6 +128,99 @@ func newMapContractsCommand() *cobra.Command {
 	return cmd
 }
 
+const mapBinanceContractsCmdExample = `
+./loom gateway map-binance-contracts \
+	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 LOOM-172 \
+	--eth-key path/to/binance_priv.key \
+	--key path/to/loom_priv.key
+./loom gateway map-binance-contracts \
+	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 LOOM-172 \
+	--key <base64-encoded-private-key-of-gateway-owner>
+	--authorized
+`
+
+func newMapBinanceContractsCommand() *cobra.Command {
+	var authorized bool
+	var chainID string
+	var gatewayType = "binance-gateway"
+	cmd := &cobra.Command{
+		Use:     "map-binance-contracts <local-contract-addr> <token-name>",
+		Short:   "Links a DAppChain token contract to an Binance token via the Transfer Gateway.",
+		Example: mapBinanceContractsCmdExample,
+		Args:    cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			ethKeyPath := gatewayCmdFlags.EthPrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			localContractAddr, err := hexToLoomAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve local contract address")
+			}
+
+			tokenNameHex := hex.EncodeToString([]byte(args[1]))
+			foreignContractAddr := common.HexToAddress(tokenNameHex)
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			if authorized {
+				req := &tgtypes.TransferGatewayAddContractMappingRequest{
+					ForeignContract: loom.Address{
+						ChainID: chainID,
+						Local:   foreignContractAddr.Bytes(),
+					}.MarshalPB(),
+					LocalContract: localContractAddr.MarshalPB(),
+				}
+
+				_, err = gateway.Call("AddAuthorizedContractMapping", req, signer, nil)
+				return err
+			}
+
+			creatorKey, err := crypto.LoadECDSA(ethKeyPath)
+			if err != nil {
+				return errors.Wrap(err, "failed to load creator Ethereum key")
+			}
+
+			hash := ssha.SoliditySHA3(
+				[]string{"address", "address"},
+				foreignContractAddr,
+				localContractAddr.Local.String(),
+			)
+			sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_BINANCE)
+			if err != nil {
+				return errors.Wrap(err, "failed to generate creator signature")
+			}
+
+			// no ForeignContractTxHash for binance
+			req := &tgtypes.TransferGatewayAddContractMappingRequest{
+				ForeignContract: loom.Address{
+					ChainID: chainID,
+					Local:   foreignContractAddr.Bytes(),
+				}.MarshalPB(),
+				LocalContract:             localContractAddr.MarshalPB(),
+				ForeignContractCreatorSig: sig,
+			}
+
+			_, err = gateway.Call("AddContractMapping", req, signer, nil)
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
+	cmdFlags.StringVar(&chainID, "chain-id", "binance", "Foreign chain id")
+	return cmd
+}
+
 const mapAccountsCmdExample = `
 ./loom gateway map-accounts	--key path/to/loom_priv.key --eth-key path/to/eth_priv.key OR
 ./loom gateway map-accounts --interactive --key path/to/loom_priv.key --eth-address <your-eth-address>
@@ -455,97 +548,4 @@ func getDAppChainClient() *client.DAppChainRPCClient {
 	writeURI := gatewayCmdFlags.URI + "/rpc"
 	readURI := gatewayCmdFlags.URI + "/query"
 	return client.NewDAppChainRPCClient(gatewayCmdFlags.ChainID, writeURI, readURI)
-}
-
-const mapBinanceContractsCmdExample = `
-./loom gateway map-binance-contracts \
-	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 LOOM-172 \
-	--eth-key path/to/binance_priv.key \
-	--key path/to/loom_priv.key
-./loom gateway map-binance-contracts \
-	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 LOOM-172 \
-	--key <base64-encoded-private-key-of-gateway-owner>
-	--authorized
-`
-
-func newMapBinanceContractsCommand() *cobra.Command {
-	var authorized bool
-	var chainID string
-	var gatewayType = "binance-gateway"
-	cmd := &cobra.Command{
-		Use:     "map-binance-contracts <local-contract-addr> <token-name>",
-		Short:   "Links a DAppChain token contract to an Binance token via the Transfer Gateway.",
-		Example: mapBinanceContractsCmdExample,
-		Args:    cobra.MinimumNArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			loomKeyPath := gatewayCmdFlags.PrivKeyPath
-			ethKeyPath := gatewayCmdFlags.EthPrivKeyPath
-			hsmPath := gatewayCmdFlags.HSMConfigPath
-			algo := gatewayCmdFlags.Algo
-			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
-			if err != nil {
-				return err
-			}
-
-			localContractAddr, err := hexToLoomAddress(args[0])
-			if err != nil {
-				return errors.Wrap(err, "failed to resolve local contract address")
-			}
-
-			tokenNameHex := hex.EncodeToString([]byte(args[1]))
-			foreignContractAddr := common.HexToAddress(tokenNameHex)
-
-			rpcClient := getDAppChainClient()
-			gatewayAddr, err := rpcClient.Resolve(gatewayType)
-			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
-			}
-			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
-
-			if authorized {
-				req := &tgtypes.TransferGatewayAddContractMappingRequest{
-					ForeignContract: loom.Address{
-						ChainID: chainID,
-						Local:   foreignContractAddr.Bytes(),
-					}.MarshalPB(),
-					LocalContract: localContractAddr.MarshalPB(),
-				}
-
-				_, err = gateway.Call("AddAuthorizedContractMapping", req, signer, nil)
-				return err
-			}
-
-			creatorKey, err := crypto.LoadECDSA(ethKeyPath)
-			if err != nil {
-				return errors.Wrap(err, "failed to load creator Ethereum key")
-			}
-
-			hash := ssha.SoliditySHA3(
-				[]string{"address", "address"},
-				foreignContractAddr,
-				localContractAddr.Local.String(),
-			)
-			sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_BINANCE)
-			if err != nil {
-				return errors.Wrap(err, "failed to generate creator signature")
-			}
-
-			// no ForeignContractTxHash for binance
-			req := &tgtypes.TransferGatewayAddContractMappingRequest{
-				ForeignContract: loom.Address{
-					ChainID: chainID,
-					Local:   foreignContractAddr.Bytes(),
-				}.MarshalPB(),
-				LocalContract:             localContractAddr.MarshalPB(),
-				ForeignContractCreatorSig: sig,
-			}
-
-			_, err = gateway.Call("AddContractMapping", req, signer, nil)
-			return err
-		},
-	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
-	cmdFlags.StringVar(&chainID, "chain-id", "binance", "Foreign chain id")
-	return cmd
 }

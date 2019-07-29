@@ -98,8 +98,7 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("recovery function for Tx type %v not found", chain.TxType)
 		}
 
-		allowedSigTypes := getAllowedSignatureTypes(state)
-		recoveredAddr, err := recoverOrigin(signedTx, allowedSigTypes)
+		recoveredAddr, err := recoverOrigin(signedTx, getAllowedSignatureTypes(state, msgSender.ChainID))
 		if err != nil {
 			return r, errors.Wrapf(err, "failed to recover origin (tx type %v, chain ID %s)",
 				chain.TxType, msgSender.ChainID,
@@ -193,19 +192,33 @@ func verifyEd25519(tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
 }
 
-// getAllowedSignatureTypes returns a list of allowed signature types from the given state
-func getAllowedSignatureTypes(state loomchain.State) []evmcompat.SignatureType {
-	// always allow SignatureType_EIP712 by default
-	allowedSigTypes := []evmcompat.SignatureType{evmcompat.SignatureType_EIP712}
+func getAllowedSignatureTypes(state loomchain.State, chainID string) []evmcompat.SignatureType {
+	if !state.FeatureEnabled(loomchain.MultiChainSigTxMiddlewareVersion1_1, false) {
+		return []evmcompat.SignatureType{
+			evmcompat.SignatureType_EIP712,
+			evmcompat.SignatureType_GETH,
+			evmcompat.SignatureType_TREZOR,
+			evmcompat.SignatureType_TRON,
+		}
+	}
 
-	if state.FeatureEnabled(loomchain.AuthSigTxEth, false) {
-		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_GETH)
+	// TODO: chain <-> sig type associations should be in the loom.yml, not hard-coded here
+	switch chainID {
+	case "tron":
+		if state.FeatureEnabled(loomchain.AuthSigTxFeaturePrefix+"tron", false) {
+			return []evmcompat.SignatureType{evmcompat.SignatureType_TRON}
+		}
+	case "binance":
+		if state.FeatureEnabled(loomchain.AuthSigTxFeaturePrefix+"binance", false) {
+			return []evmcompat.SignatureType{evmcompat.SignatureType_BINANCE}
+		}
+	default:
+		return []evmcompat.SignatureType{
+			evmcompat.SignatureType_EIP712,
+			evmcompat.SignatureType_GETH,
+			evmcompat.SignatureType_TREZOR,
+		}
 	}
-	if state.FeatureEnabled(loomchain.AuthSigTxTron, false) {
-		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_TRON)
-	}
-	if state.FeatureEnabled(loomchain.AuthSigTxBinance, false) {
-		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_BINANCE)
-	}
-	return allowedSigTypes
+
+	return nil
 }

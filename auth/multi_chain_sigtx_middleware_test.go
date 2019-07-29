@@ -172,9 +172,7 @@ func TestBinanceSigning(t *testing.T) {
 
 func TestEthAddressMappingVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(loomchain.AuthSigTxEth, true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	fakeCtx.SetFeature(loomchain.AuthSigTxEth, true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
@@ -226,7 +224,6 @@ func TestEthAddressMappingVerification(t *testing.T) {
 		To:        ethPublicAddr.MarshalPB(),
 		Signature: sig,
 	}
-	mapping = mapping
 	require.NoError(t, am.AddIdentityMapping(amCtx, &mapping))
 
 	// tx using address mapping from eth account. No error this time as mapped loom account is found.
@@ -235,11 +232,16 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestBinancesAddressMappingVerification(t *testing.T) {
+func TestBinanceAddressMappingVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(loomchain.AuthSigTxBinance, true)
+	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
+	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	fakeCtx.SetFeature(loomchain.AuthSigTxBinance, true)
+	// FIXME: Having to set feature flags twice is pretty stupid... need to fix this state/ctx mess.
+	fakeCtx.SetFeature(loomchain.AddressMapperVersion1_1, true)
+	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	fakeCtx.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
@@ -291,7 +293,6 @@ func TestBinancesAddressMappingVerification(t *testing.T) {
 		To:        foreignPublicAddr.MarshalPB(),
 		Signature: sig,
 	}
-	mapping = mapping
 	require.NoError(t, am.AddIdentityMapping(amCtx, &mapping))
 
 	// tx using address mapping from binance account. No error this time as mapped loom account is found.
@@ -302,15 +303,15 @@ func TestBinancesAddressMappingVerification(t *testing.T) {
 
 func TestChainIdVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(loomchain.AuthSigTxDefault, true)
-	state.SetFeature(loomchain.AuthSigTxEth, true)
-	state.SetFeature(loomchain.AuthSigTxTron, true)
-	state.SetFeature(loomchain.AuthSigTxBinance, true)
+	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
+	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	fakeCtx.SetFeature(loomchain.AuthSigTxDefault, true)
-	fakeCtx.SetFeature(loomchain.AuthSigTxEth, true)
-	fakeCtx.SetFeature(loomchain.AuthSigTxTron, true)
-	fakeCtx.SetFeature(loomchain.AuthSigTxBinance, true)
+	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
+	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
@@ -330,7 +331,7 @@ func TestChainIdVerification(t *testing.T) {
 			AccountType: NativeAccountType,
 		},
 		"binance": {
-			TxType:      TronSignedTxType,
+			TxType:      BinanceSignedTxType,
 			AccountType: NativeAccountType,
 		},
 	}
