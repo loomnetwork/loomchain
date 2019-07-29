@@ -21,6 +21,7 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/vm"
 )
@@ -472,6 +473,8 @@ func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.
 			localAddr, signer, err = secp256k1Signer(privKeyB64)
 		case "tron":
 			localAddr, signer, err = tronSigner(privKeyB64)
+		case "binance":
+			localAddr, signer, err = binanceSigner(privKeyB64)
 		default:
 			err = fmt.Errorf("unrecognised algorithm %v", algo)
 		}
@@ -541,6 +544,21 @@ func tronSigner(keyFilename string) ([]byte, auth.Signer, error) {
 	signer := &auth.TronSigner{PrivateKey: key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot get public key from private key")
+	}
+
+	return localAddr, signer, nil
+}
+
+func binanceSigner(keyFilename string) ([]byte, auth.Signer, error) {
+	key, err := crypto.LoadECDSA(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
+	}
+	signer := auth.NewBinanceSigner(crypto.FromECDSA(key))
+
+	localAddr, err := loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(signer.PublicKey()).Hex())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot get public key from private key")
 	}
