@@ -21,6 +21,7 @@ type Data string
 type BlockHeight string
 
 const (
+	NoData             Data     = "0x"
 	ZeroedQuantity     Quantity = "0x0"
 	ZeroedData         Data     = "0x0"
 	ZeroedData8Bytes   Data     = "0x0000000000000000"
@@ -166,7 +167,7 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 }
 
 func EncEvent(log types.EventData) JsonLog {
-	data := ZeroedData64bytes
+	data := NoData
 	if len(log.EncodedBody) > 0 {
 		data = EncBytes(log.EncodedBody)
 	}
