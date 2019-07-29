@@ -225,7 +225,7 @@ func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID, valueString 
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
-	respB, err := rpcclient.CommitDeployTx2(clientAddr, signer, vm.VMType_EVM, bytecode, name, value)
+	respB, err := rpcclient.CommitDeployTxWithValue(clientAddr, signer, vm.VMType_EVM, bytecode, name, value)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
 	}
@@ -409,7 +409,7 @@ func callTx(addr, name, input, privFile, publicFile, algo, callerChainID, valueS
 		}
 	}
 
-	return rpcclient.CommitCallTx2(clientAddr, contractAddr, signer, vm.VMType_EVM, incode, value)
+	return rpcclient.CommitCallTxWithValue(clientAddr, contractAddr, signer, vm.VMType_EVM, incode, value)
 }
 
 type getBlockByNumerTxFlags struct {
