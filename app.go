@@ -535,7 +535,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if a.curBlockHeader.Height == 0 {
 		return ok
 	}
-	log.Info("piers tm hash", fmt.Sprintf("tm hash:  0x%x\n\n", ttypes.Tx(txBytes).Hash()))
+	log.Info("tendermint transaction hash", fmt.Sprintf("tm hash,  0x%x\n\n", ttypes.Tx(txBytes).Hash()))
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
