@@ -45,7 +45,7 @@ func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 			data,
 		)
 	}
-	chainConfig := utils.DefaultChainConfig()
+	chainConfig := utils.DefaultChainConfig(true)
 	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	ethKey, err := crypto.GenerateKey()
 	if err != nil {

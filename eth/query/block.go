@@ -6,15 +6,15 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
-	
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	deployId  uint32  = iota + 1
+	deployId uint32 = iota + 1
 	callId
 	migrationId
-	ethId       
+	ethId
 )
 
 var (
@@ -196,6 +196,9 @@ func GetTxObjectFromBlockResult(
 			if ethTx.To() != nil {
 				to := eth.EncAddress(msg.To)
 				txObj.To = &to
+				if len(txResult.TxResult.Data) > 0 {
+					txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
+				}
 			} else {
 				var resp vm.DeployResponse
 				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
@@ -206,6 +209,9 @@ func GetTxObjectFromBlockResult(
 					return eth.GetEmptyTxObject(), nil, err
 				}
 				contractAddress = eth.EncPtrAddress(resp.Contract)
+				if len(respData.TxHash) > 0 {
+					txObj.Hash = eth.EncBytes(respData.TxHash)
+				}
 			}
 			txObj.Value = eth.EncBigInt(*ethTx.Value())
 			input = ethTx.Data()

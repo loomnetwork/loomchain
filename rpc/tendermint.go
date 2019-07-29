@@ -68,7 +68,7 @@ func ethereumToTendermintTx(trpc TendermintRpc, txBytes []byte) (types.Tx, error
 		}.MarshalPB()
 	}
 
-	chainConfig := utils.DefaultChainConfig()
+	chainConfig := utils.DefaultChainConfig(true)
 	ethSigner := etypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	ethFrom, err := etypes.Sender(ethSigner, &tx)
 	if err != nil {

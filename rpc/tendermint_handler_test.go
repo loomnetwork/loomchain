@@ -35,7 +35,8 @@ type ethTestTx struct {
 }
 
 var (
-	bigZero    = big.NewInt(0)
+	bigZero = big.NewInt(0)
+
 	ethTestTxs = []ethTestTx{
 		{
 			types.NewTransaction(
@@ -45,6 +46,16 @@ var (
 				0,
 				bigZero,
 				[]byte("input parameters"),
+			),
+		},
+		{
+			types.NewTransaction(
+				1,
+				common.HexToAddress("0x3d7Fc003CD15B4c42C9300708673eA22b386AA2A"),
+				bigZero,
+				0,
+				bigZero,
+				[]byte{96, 254, 71, 177, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 219},
 			),
 		},
 		{
