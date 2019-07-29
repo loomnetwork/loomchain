@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
@@ -23,6 +24,7 @@ const (
 	LoomSignedTxType     SignedTxType = "loom"
 	EthereumSignedTxType SignedTxType = "eth"
 	TronSignedTxType     SignedTxType = "tron"
+	BinanceSignedTxType  SignedTxType = "binance"
 
 	ethID = uint32(4)
 )
@@ -43,9 +45,10 @@ var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
 	LoomSignedTxType:     verifyEd25519,
 	EthereumSignedTxType: VerifySolidity66Byte,
 	TronSignedTxType:     verifyTron,
+	BinanceSignedTxType:  VerifySolidity66Byte,
 }
 
-type originRecoveryFunc func(tx SignedTx) ([]byte, error)
+type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
 
 // NewMultiChainSignatureTxMiddleware returns tx signing middleware that supports a set of chain
 // specific signing algos.
@@ -102,7 +105,7 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("recovery function for Tx type %v not found", chain.TxType)
 		}
 
-		recoveredAddr, err := recoverOrigin(signedTx)
+		recoveredAddr, err := recoverOrigin(signedTx, getAllowedSignatureTypes(state, msgSender.ChainID))
 		if err != nil {
 			return r, errors.Wrapf(err, "failed to recover origin (tx type %v, chain ID %s)",
 				chain.TxType, msgSender.ChainID,
@@ -180,7 +183,7 @@ func getMappedAccountAddress(
 	return mappedAddr, nil
 }
 
-func verifyEd25519(tx SignedTx) ([]byte, error) {
+func verifyEd25519(tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 	if len(tx.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid public key length")
 	}
@@ -194,4 +197,35 @@ func verifyEd25519(tx SignedTx) ([]byte, error) {
 	}
 
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
+}
+
+func getAllowedSignatureTypes(state loomchain.State, chainID string) []evmcompat.SignatureType {
+	if !state.FeatureEnabled(loomchain.MultiChainSigTxMiddlewareVersion1_1, false) {
+		return []evmcompat.SignatureType{
+			evmcompat.SignatureType_EIP712,
+			evmcompat.SignatureType_GETH,
+			evmcompat.SignatureType_TREZOR,
+			evmcompat.SignatureType_TRON,
+		}
+	}
+
+	// TODO: chain <-> sig type associations should be in the loom.yml, not hard-coded here
+	switch chainID {
+	case "tron":
+		if state.FeatureEnabled(loomchain.AuthSigTxFeaturePrefix+"tron", false) {
+			return []evmcompat.SignatureType{evmcompat.SignatureType_TRON}
+		}
+	case "binance":
+		if state.FeatureEnabled(loomchain.AuthSigTxFeaturePrefix+"binance", false) {
+			return []evmcompat.SignatureType{evmcompat.SignatureType_BINANCE}
+		}
+	default:
+		return []evmcompat.SignatureType{
+			evmcompat.SignatureType_EIP712,
+			evmcompat.SignatureType_GETH,
+			evmcompat.SignatureType_TREZOR,
+		}
+	}
+
+	return nil
 }

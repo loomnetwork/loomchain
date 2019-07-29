@@ -148,7 +148,7 @@ type Evm struct {
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
-	p.chainConfig = utils.DefaultChainConfig()
+	p.chainConfig = utils.DefaultChainConfig(lstate.FeatureEnabled(loomchain.EvmConstantinopleFeature, false))
 	p.vmConfig = defaultVmConfig(debug)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
@@ -303,7 +303,7 @@ func defaultContext() vm.Context {
 }
 
 func NewMockEnv(db vm.StateDB, origin common.Address) *vm.EVM {
-	chainContext := utils.DefaultChainConfig()
+	chainContext := utils.DefaultChainConfig(false)
 	context := defaultContext()
 	context.Origin = origin
 	return vm.NewEVM(context, db, &chainContext, defaultVmConfig(false))

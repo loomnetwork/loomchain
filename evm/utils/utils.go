@@ -7,11 +7,17 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-func DefaultChainConfig() params.ChainConfig {
+func DefaultChainConfig(enableConstantinople bool) params.ChainConfig {
 	cliqueCfg := params.CliqueConfig{
 		Period: 10,   // Number of seconds between blocks to enforce
 		Epoch:  1000, // Epoch length to reset votes and checkpoint
 	}
+
+	var constantinopleBlock *big.Int
+	if enableConstantinople {
+		constantinopleBlock = big.NewInt(0)
+	}
+
 	return params.ChainConfig{
 		ChainID:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
 		HomesteadBlock: nil,           // Homestead switch block (nil = no fork, 0 = already homestead)
@@ -23,7 +29,7 @@ func DefaultChainConfig() params.ChainConfig {
 		EIP155Block:         big.NewInt(0),                        // EIP155 HF block
 		EIP158Block:         big.NewInt(0),                        // EIP158 HF block
 		ByzantiumBlock:      big.NewInt(0),                        // Byzantium switch block (nil = no fork, 0 = already on byzantium)
-		ConstantinopleBlock: nil,                                  // Constantinople switch block (nil = no fork, 0 = already activated)
+		ConstantinopleBlock: constantinopleBlock,                  // Constantinople switch block (nil = no fork, 0 = already activated)
 		// Various consensus engines
 		Ethash: new(params.EthashConfig),
 		Clique: &cliqueCfg,

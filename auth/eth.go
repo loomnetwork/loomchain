@@ -20,11 +20,11 @@ import (
 	"github.com/loomnetwork/loomchain/evm/utils"
 )
 
-func VerifySolidity66Byte(tx SignedTx) ([]byte, error) {
+func VerifySolidity66Byte(tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, error) {
 	if tx.Signature == nil {
 		return verifyEthTx(tx)
 	}
-	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature)
+	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature, allowSigTypes)
 	if err != nil {
 		return nil, errors.Wrap(err, "verify solidity key")
 	}
@@ -32,8 +32,8 @@ func VerifySolidity66Byte(tx SignedTx) ([]byte, error) {
 	return ethAddr.Bytes(), nil
 }
 
-func verifyTron(tx SignedTx) ([]byte, error) {
-	tronAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature)
+func verifyTron(tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, error) {
+	tronAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature, allowSigTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func verifyEthTx(signedTx SignedTx) ([]byte, error) {
 		return nil, err
 	}
 
-	chainConfig := utils.DefaultChainConfig()
+	chainConfig := utils.DefaultChainConfig(true)
 	ethSigner := etypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	from, err := etypes.Sender(ethSigner, &tx)
 	if err != nil {

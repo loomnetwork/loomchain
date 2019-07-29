@@ -14,6 +14,7 @@ import (
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gogo/protobuf/proto"
@@ -74,7 +75,7 @@ func TestTendermintPRCFunc(t *testing.T) {
 	qs := &MockQueryService{}
 	mt := &MockTendermintRpc{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, nil, mt)
-	chainConfig := utils.DefaultChainConfig()
+	chainConfig := utils.DefaultChainConfig(true)
 	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	for _, testTx := range ethTestTxs {
 		ethKey, err := crypto.GenerateKey()
@@ -127,7 +128,12 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadc
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
 		return nil, err
 	}
-	from, err := lauth.VerifySolidity66Byte(signedTx)
+	from, err := lauth.VerifySolidity66Byte(signedTx, []evmcompat.SignatureType{
+		evmcompat.SignatureType_EIP712,
+		evmcompat.SignatureType_GETH,
+		evmcompat.SignatureType_TREZOR,
+		evmcompat.SignatureType_TRON,
+	})
 	if err != nil {
 		return nil, err
 	}
