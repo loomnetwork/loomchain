@@ -139,11 +139,11 @@ func (m *evmAccountBalanceManager) Transfer(from, to common.Address, amount *big
 
 // TODO: this shouldn't be exported, rename to wrappedEVM
 type Evm struct {
-	sdb                 vm.StateDB
-	context             vm.Context
-	chainConfig         params.ChainConfig
-	vmConfig            vm.Config
-	checkTxValueFeature bool
+	sdb             vm.StateDB
+	context         vm.Context
+	chainConfig     params.ChainConfig
+	vmConfig        vm.Config
+	validateTxValue bool
 }
 
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
@@ -153,7 +153,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(loomchain.EvmConstantinopleFeature, false))
 
 	p.vmConfig = defaultVmConfig(debug)
-	p.checkTxValueFeature = lstate.FeatureEnabled(loomchain.CheckTxValueFeature, false)
+	p.validateTxValue = lstate.FeatureEnabled(loomchain.CheckTxValueFeature, false)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -196,7 +196,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 		val = common.Big0
 	} else {
 		val = value.Int
-		if e.checkTxValueFeature && 0 > val.Cmp(common.Big0) {
+		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
 			return nil, loom.Address{}, errors.Errorf("value %v must be non negative", value)
 		}
 	}
@@ -232,7 +232,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 			//there seems like there are serialization issues where we can get bad data here
 			val = common.Big0
 		}
-		if e.checkTxValueFeature && 0 > val.Cmp(common.Big0) {
+		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
 			return nil, errors.Errorf("value %v must be non negative", value)
 		}
 	}
