@@ -35,8 +35,7 @@ type ethTestTx struct {
 }
 
 var (
-	bigZero = big.NewInt(0)
-
+	bigZero    = big.NewInt(0)
 	ethTestTxs = []ethTestTx{
 		{
 			types.NewTransaction(
