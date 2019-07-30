@@ -197,6 +197,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	if params.DowntimePeriod == 0 {
 		params.DowntimePeriod = defaultDowntimePeriod
 	}
+
 	chainID := "default"
 	if req.ChainId != "" {
 		chainID = req.ChainId
@@ -862,6 +863,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	if err != nil {
 		return err
 	}
+
 	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) && common.IsPositive(state.Params.RegistrationRequirement.Value) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
