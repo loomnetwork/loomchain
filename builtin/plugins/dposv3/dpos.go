@@ -22,6 +22,7 @@ const (
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
 	billionthsBasisPointRatio      = 100000
+	hundredPercentInBasisPoints    = 10000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.Delegation_BONDING
 	BONDED                         = dtypes.Delegation_BONDED
@@ -53,20 +54,21 @@ const (
 )
 
 var (
-	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
-	billionth                     = loom.BigUInt{big.NewInt(1000000000)}
-	defaultReferrerFee            = loom.BigUInt{big.NewInt(300)}
-	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
-	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
-	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
-	powerCorrection               = big.NewInt(1000000000000)
-	errCandidateNotFound          = errors.New("Candidate record not found.")
-	errStatisticNotFound          = errors.New("Candidate statistic not found.")
-	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
-	errCandidateUnregistering     = errors.New("Candidate is currently unregistering.")
-	errValidatorNotFound          = errors.New("Validator record not found.")
-	errDistributionNotFound       = errors.New("Distribution record not found.")
-	errOnlyOracle                 = errors.New("Function can only be called with oracle address.")
+	secondsInYear                    = loom.BigUInt{big.NewInt(yearSeconds)}
+	billionth                        = loom.BigUInt{big.NewInt(1000000000)}
+	defaultReferrerFee               = loom.BigUInt{big.NewInt(300)}
+	blockRewardPercentage            = loom.BigUInt{big.NewInt(500)}
+	doubleSignSlashPercentage        = loom.BigUInt{big.NewInt(500)}
+	defaultInactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
+	defaultMaxDowntimePercentage     = loom.BigUInt{big.NewInt(5000)}
+	powerCorrection                  = big.NewInt(1000000000000)
+	errCandidateNotFound             = errors.New("Candidate record not found.")
+	errStatisticNotFound             = errors.New("Candidate statistic not found.")
+	errCandidateAlreadyRegistered    = errors.New("Candidate already registered.")
+	errCandidateUnregistering        = errors.New("Candidate is currently unregistering.")
+	errValidatorNotFound             = errors.New("Validator record not found.")
+	errDistributionNotFound          = errors.New("Distribution record not found.")
+	errOnlyOracle                    = errors.New("Function can only be called with oracle address.")
 )
 
 type (
@@ -115,6 +117,8 @@ type (
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	UnjailRequest                     = dtypes.UnjailRequest
+	SetMaxDowntimePercentageRequest   = dtypes.SetMaxDowntimePercentageRequest
+	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -175,13 +179,16 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 	if params.CrashSlashingPercentage == nil {
-		params.CrashSlashingPercentage = &types.BigUInt{Value: inactivitySlashPercentage}
+		params.CrashSlashingPercentage = &types.BigUInt{Value: defaultInactivitySlashPercentage}
 	}
 	if params.ByzantineSlashingPercentage == nil {
 		params.ByzantineSlashingPercentage = &types.BigUInt{Value: doubleSignSlashPercentage}
 	}
 	if params.RegistrationRequirement == nil {
 		params.RegistrationRequirement = &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
+	}
+	if params.MaxDowntimePercentage == nil {
+		params.MaxDowntimePercentage = &types.BigUInt{Value: defaultMaxDowntimePercentage}
 	}
 	if params.MaxYearlyReward == nil {
 		params.MaxYearlyReward = &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)}
@@ -1044,11 +1051,20 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		if err = saveCandidateList(ctx, candidates); err != nil {
+		if err := saveCandidateList(ctx, candidates); err != nil {
 			return err
 		}
 
-		slashValidatorDelegations(ctx, DefaultNoCache, statistic, candidateAddress)
+		err = slashValidatorDelegations(ctx, DefaultNoCache, statistic, candidateAddress)
+		// NOTE: we ignore the error if DPOSVersion3_4 is not enabled to retain backwards compatibility
+		if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+			if err != nil {
+				return err
+			}
+			if err := SetStatistic(ctx, statistic); err != nil {
+				return err
+			}
+		}
 	}
 
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
@@ -1336,6 +1352,27 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	}, nil
 }
 
+func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		return errors.New("DPOS v3.4 is not enabled")
+	}
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+	if state.Params.JailOfflineValidators == req.JailOfflineValidators {
+		return nil
+	}
+
+	state.Params.JailOfflineValidators = req.JailOfflineValidators
+	return saveState(ctx, state)
+}
+
 // ***************************
 // REWARDS & SLASHING
 // ***************************
@@ -1349,13 +1386,46 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	if state.Params.DowntimePeriod != 0 && (uint64(currentHeight)%state.Params.DowntimePeriod) == 0 {
 		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
 
+		downtimeSlashingEnabled := ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false)
+
+		maxDowntimePercentage := defaultMaxDowntimePercentage
+		if state.Params.MaxDowntimePercentage != nil {
+			maxDowntimePercentage = state.Params.MaxDowntimePercentage.Value
+		}
+
+		maximumMissedBlocksBig := CalculateFraction(maxDowntimePercentage, loom.BigUInt{big.NewInt(int64(state.Params.DowntimePeriod))})
+		maximumMissedBlocks := maximumMissedBlocksBig.Uint64()
+
+		inactivitySlashPercentage := defaultInactivitySlashPercentage
+		if state.Params.CrashSlashingPercentage != nil {
+			inactivitySlashPercentage = state.Params.CrashSlashingPercentage.Value
+		}
+
 		for _, candidate := range candidates {
-			statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
+			statistic, err := GetStatistic(ctx, candidateAddress)
 			if err != nil {
 				if err == contract.ErrNotFound {
 					continue
 				}
 				return err
+			}
+
+			if downtimeSlashingEnabled {
+				shouldSlash := true
+				downtime := getDowntimeRecord(ctx, statistic)
+				for i := uint64(0); i < 4; i++ {
+					if maximumMissedBlocks >= downtime.Periods[i] {
+						shouldSlash = false
+						break
+					}
+				}
+
+				if shouldSlash {
+					if err := slash(ctx, statistic, inactivitySlashPercentage); err != nil {
+						return err
+					}
+				}
 			}
 
 			statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks << 16
@@ -1368,7 +1438,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validatorAddr loom.Address) error {
+func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, jailingEnabled bool, validatorAddr loom.Address) error {
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
@@ -1382,7 +1452,14 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validator
 	)
 
 	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
+	jailOfflineValidator := false
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		jailOfflineValidator = true
+	}
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		jailOfflineValidator = jailingEnabled
+	}
+	if jailOfflineValidator {
 		downtime := getDowntimeRecord(ctx, statistic)
 		if downtime.Periods[0] == downtimePeriod &&
 			downtime.Periods[1] == downtimePeriod &&
@@ -1394,7 +1471,6 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, validator
 			}
 		}
 	}
-
 	return SetStatistic(ctx, statistic)
 }
 
@@ -1449,44 +1525,23 @@ func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic
 	}
 }
 
-// only called for validators, never delegators
-func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
+func SlashDoubleSign(ctx contract.Context, statistic *ValidatorStatistic) error {
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
 
-	return slash(ctx, validatorAddr, state.Params.CrashSlashingPercentage.Value)
+	return slash(ctx, statistic, state.Params.ByzantineSlashingPercentage.Value)
 }
 
-func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
-	state, err := LoadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	return slash(ctx, validatorAddr, state.Params.ByzantineSlashingPercentage.Value)
-}
-
-func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
-	statistic, err := GetStatisticByAddressBytes(ctx, validatorAddr)
-	if err != nil {
-		return logDposError(ctx, err, "")
-	}
-
-	// If slashing percentage is less than current total slash percentage, do
-	// not further increase total slash percentage during this election period
-	if slashPercentage.Cmp(&statistic.SlashPercentage.Value) < 0 {
-		return nil
-	}
-
+func slash(ctx contract.Context, statistic *ValidatorStatistic, slashPercentage loom.BigUInt) error {
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&statistic.SlashPercentage.Value, &slashPercentage)
-	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
-
-	if err = SetStatistic(ctx, statistic); err != nil {
-		return err
+	// this check ensures that the slash percentage never exceeds 100%
+	if updatedAmount.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 {
+		return nil
 	}
+	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
 	return emitSlashEvent(ctx, statistic.Address, slashPercentage)
 }
@@ -1634,7 +1689,12 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 					state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
 				}
 			} else {
-				slashValidatorDelegations(ctx, cachedDelegations, statistic, candidateAddress)
+				if err := slashValidatorDelegations(ctx, cachedDelegations, statistic, candidateAddress); err != nil {
+					return nil, err
+				}
+				if err := SetStatistic(ctx, statistic); err != nil {
+					return nil, err
+				}
 			}
 
 			formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
@@ -1688,7 +1748,16 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 	return reward
 }
 
-func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
+func slashValidatorDelegations(
+	ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic,
+	validatorAddress loom.Address,
+) error {
+	if common.IsZero(statistic.SlashPercentage.Value) {
+		return nil
+	}
+
+	ctx.Logger().Info("DPOSv3 slashValidatorDelegations", "validator", statistic.Address)
+
 	delegations, err := cachedDelegations.loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -1702,7 +1771,7 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 			return err
 		}
 
-		if loom.UnmarshalAddressPB(delegation.Validator).Compare(validatorAddress) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(validatorAddress) == 0 {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
@@ -2172,6 +2241,12 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 }
 
 func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		if req.CrashSlashingPercentage == nil || req.ByzantineSlashingPercentage == nil {
+			return errors.New("slashing percentages must be specified")
+		}
+	}
+
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetSlashingPercentage", "sender", sender, "request", req)
 
@@ -2185,8 +2260,42 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
+	if req.CrashSlashingPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 ||
+		req.ByzantineSlashingPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 {
+		return errors.New("Invalid slashing percentage")
+	}
+
 	state.Params.CrashSlashingPercentage = req.CrashSlashingPercentage
 	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetMaxDowntimePercentage(ctx contract.Context, req *SetMaxDowntimePercentageRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		return errors.New("DPOS v3.4 is not enabled")
+	}
+	if req.MaxDowntimePercentage == nil {
+		return logDposError(ctx, errors.New("Must supply value for MaxDowntimePercentage."), req.String())
+	}
+
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 SetMaxDowntimePercentage", "sender", sender, "request", req)
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	if err := validatePercentage(req.MaxDowntimePercentage.Value); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
+	state.Params.MaxDowntimePercentage = req.MaxDowntimePercentage
 
 	return saveState(ctx, state)
 }

@@ -200,6 +200,14 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
+				&cctypes.Feature{
+					Name:   loomchain.CheckTxValueFeature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.EvmConstantinopleFeature,
+					Status: chainconfig.FeatureWaiting,
+				},
 			},
 		}
 

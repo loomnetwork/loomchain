@@ -293,7 +293,7 @@ func (m InstrumentingMiddleware) GetEvmTransactionByHash(txHash []byte) (resp []
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxReceipt, err error) {
+func (m InstrumentingMiddleware) EthGetTransactionReceipt(hash eth.Data) (resp *eth.JsonTxReceipt, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetTransactionReceipt", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

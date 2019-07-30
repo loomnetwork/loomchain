@@ -1,6 +1,8 @@
 package chainconfig
 
 import (
+	"sort"
+
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -248,6 +250,9 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 			})
 		}
 	}
+	sort.Slice(features, func(i, j int) bool {
+		return features[i].Name < features[j].Name
+	})
 	return &ListFeaturesResponse{
 		Features: features,
 	}, nil
