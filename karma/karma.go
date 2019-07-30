@@ -10,6 +10,7 @@ import (
 
 var (
 	// TODO: eliminate
+	// nolint : unused, varcheck, deadcode
 	lastKarmaUpkeepKey = []byte("last:upkeep:karma")
 )
 
