@@ -70,7 +70,7 @@ func (c *ChainConfigManager) UpdateConfig() error {
 	}
 	for _, setting := range settings {
 		c.state.SetConfig(setting)
-		chainconfig.RemoveSetting(setting.Name)
+		chainconfig.RemoveSetting(c.ctx, setting.Name)
 	}
 	return nil
 }

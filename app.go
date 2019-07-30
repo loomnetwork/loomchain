@@ -174,12 +174,12 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) SetConfig(cfgSetting *cctypes.Setting) {
-	cfgBytes, err := proto.Marshal(cfgSetting)
+func (s *StoreState) SetConfig(setting *cctypes.Setting) {
+	cfgBytes, err := proto.Marshal(setting)
 	if err != nil {
 		panic(err)
 	}
-	s.store.Set(configKey(cfgSetting.Name), cfgBytes)
+	s.store.Set(configKey(setting.Name), cfgBytes)
 }
 
 func (s *StoreState) Config() *config.Config {
@@ -401,8 +401,8 @@ func (a *Application) SetOption(req abci.RequestSetOption) abci.ResponseSetOptio
 	return abci.ResponseSetOption{}
 }
 
-func (a *Application) chainCfg(req abci.RequestSetOption) *config.Config {
-	return abci.ResponseSetOption{}
+func (a *Application) chainCfg() *config.Config {
+	return nil
 }
 
 func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {

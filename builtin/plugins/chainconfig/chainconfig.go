@@ -65,13 +65,6 @@ const (
 	FeatureEnabled = cctypes.Feature_ENABLED
 	// FeatureDisabled is not currently used.
 	FeatureDisabled = cctypes.Feature_DISABLED
-
-	// SettingPending status indicates a setting has not been activated because the majority of validators
-	// don't run the build that support this setting
-	SettingPending = cctypes.Setting_PENDING
-	// SettingActivated status indicates a setting has been activated baause the majority of validators
-	// are running the build that support this setting
-	SettingActivated = cctypes.Setting_ACTIVATED
 )
 
 var (
@@ -388,10 +381,7 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
-// UpdateConfig updates the status of cfg settings:
-// - A PENDING cfg setting will become ACTIVATED once UpdateConfig is called by a chainconfig manager
-// - A REMOVING cfg setting will be deleted once UpdateConfig is called by a chainconfig manager
-// Returns a list of cfg settings whose status has changed from PENDING to ACTIVATED and deleted cfg settings.
+// UpdateConfig returns a list of settings that are supported by majority of validators
 func UpdateConfig(ctx contract.Context) ([]*Setting, error) {
 	params, err := getParams(ctx)
 	if err != nil {
@@ -411,23 +401,17 @@ func UpdateConfig(ctx contract.Context) ([]*Setting, error) {
 		if err := proto.Unmarshal(m.Value, &setting); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal Setting %s", string(m.Key))
 		}
-		if setting.Status == SettingPending {
-			supportedValidator := 0
-			for _, validatorInfo := range validatorsInfo {
-				if validatorInfo.BuildNumber >= setting.BuildNumber {
-					supportedValidator++
-				}
+
+		supportedValidator := 0
+		for _, validatorInfo := range validatorsInfo {
+			if validatorInfo.BuildNumber >= setting.BuildNumber {
+				supportedValidator++
 			}
-			// Don't activate this config, if the number of validators that support this config
-			// has not reached the vote threshold
-			if uint64(supportedValidator/len(validatorsInfo)) < params.VoteThreshold {
-				continue
-			}
-			setting.Status = SettingActivated
+		}
+		// Return this setting, if the number of validators that support this setting
+		// has not reached the vote threshold
+		if uint64(supportedValidator/len(validatorsInfo)) >= params.VoteThreshold {
 			settings = append(settings, &setting)
-			if err := ctx.Set(settingKey(setting.Name), &setting); err != nil {
-				return nil, err
-			}
 		}
 	}
 
@@ -492,7 +476,6 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 		Name:        req.Name,
 		Value:       req.Value,
 		BuildNumber: req.BuildNumber,
-		Status:      SettingPending,
 	}
 
 	return ctx.Set(settingKey(req.Name), setting)
