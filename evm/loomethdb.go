@@ -147,8 +147,9 @@ type LogParams struct {
 }
 
 type LogBatch struct {
-	batch      batch
-	params     LogParams
+	batch  batch
+	params LogParams
+	//nolint: unused, varcheck, deadcode, structcheck
 	logContext *ethdbLogContext
 }
 
