@@ -80,6 +80,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 				ValidatorCount:      21,
 				ElectionCycleLength: 0,
 				OracleAddress:       oracleAddr,
+				InitCandidates:      true,
 			},
 			Validators: []*loom.Validator{
 				validator,
