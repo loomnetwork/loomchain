@@ -197,16 +197,16 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	if params.DowntimePeriod == 0 {
 		params.DowntimePeriod = defaultDowntimePeriod
 	}
-
-	candidates, err := LoadCandidateList(ctx)
-	if err != nil {
-		return err
+	chainID := "default"
+	if req.ChainId != "" {
+		chainID = req.ChainId
 	}
 
+	candidates := &CandidateList{}
 	// if InitCandidates is true, whitelist validators and register them for candidates
-	if params.InitCandidates {
+	if req.InitCandidates {
 		for i, validator := range req.Validators {
-			candidateAddr := loom.Address{ChainID: "default", Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+			candidateAddr := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
 			newCandidate := &Candidate{
 				PubKey:                validator.PubKey,
 				Address:               candidateAddr.MarshalPB(),
@@ -217,17 +217,16 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 				MaxReferralPercentage: defaultReferrerFee.Uint64(),
 			}
 			candidates.Set(newCandidate)
-			err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
+			if err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
 				CandidateAddress: candidateAddr.MarshalPB(),
 				Amount:           params.RegistrationRequirement,
 				LocktimeTier:     TIER_ZERO,
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
 
-		if err = saveCandidateList(ctx, candidates); err != nil {
+		if err := saveCandidateList(ctx, *candidates); err != nil {
 			return err
 		}
 	}
