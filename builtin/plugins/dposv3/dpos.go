@@ -203,30 +203,33 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		return err
 	}
 
-	for i, validator := range req.Validators {
-		candidateAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
-		newCandidate := &Candidate{
-			PubKey:                validator.PubKey,
-			Address:               candidateAddr.MarshalPB(),
-			Fee:                   defaultFee,
-			NewFee:                defaultFee,
-			Name:                  fmt.Sprintf("candidate-%d", i),
-			State:                 REGISTERED,
-			MaxReferralPercentage: defaultReferrerFee.Uint64(),
+	// if InitCandidates is true, whitelist validators and register them for candidates
+	if params.InitCandidates {
+		for i, validator := range req.Validators {
+			candidateAddr := loom.Address{ChainID: "default", Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+			newCandidate := &Candidate{
+				PubKey:                validator.PubKey,
+				Address:               candidateAddr.MarshalPB(),
+				Fee:                   defaultFee,
+				NewFee:                defaultFee,
+				Name:                  fmt.Sprintf("candidate-%d", i),
+				State:                 REGISTERED,
+				MaxReferralPercentage: defaultReferrerFee.Uint64(),
+			}
+			candidates.Set(newCandidate)
+			err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
+				CandidateAddress: candidateAddr.MarshalPB(),
+				Amount:           params.RegistrationRequirement,
+				LocktimeTier:     TIER_ZERO,
+			})
+			if err != nil {
+				return err
+			}
 		}
-		candidates.Set(newCandidate)
-		err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
-			CandidateAddress: candidateAddr.MarshalPB(),
-			Amount:           params.RegistrationRequirement,
-			LocktimeTier:     TIER_ZERO,
-		})
-		if err != nil {
+
+		if err = saveCandidateList(ctx, candidates); err != nil {
 			return err
 		}
-	}
-
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
 	}
 
 	state := &State{
@@ -860,7 +863,6 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	if err != nil {
 		return err
 	}
-
 	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) && common.IsPositive(state.Params.RegistrationRequirement.Value) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
