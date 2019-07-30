@@ -81,8 +81,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	//nolint: ineffassign
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 	evmAuxStore.ClearData()
@@ -109,7 +108,6 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
 	state27 := common.MockStateAt(state, uint64(27))
-	//nolint: ineffassign
 	result, err := sub.LegacyPoll(state27, id, receiptHandler)
 	require.NoError(t, err)
 
@@ -119,8 +117,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	//nolint: ineffassign
-	result, err = sub.LegacyPoll(state50, id, receiptHandler)
+	_, err = sub.LegacyPoll(state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -130,8 +127,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	//nolint: ineffassign
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
