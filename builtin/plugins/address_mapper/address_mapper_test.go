@@ -21,6 +21,8 @@ import (
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+
+	sigType = evmcompat.SignatureType_EIP712
 )
 
 type AddressMapperTestSuite struct {
@@ -69,7 +71,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperHasIdentityMapping() {
 	r.NoError(err)
 	s.Equal(false, hasMappingResponse.HasMapping)
 
-	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -99,7 +101,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddSameIdentityMapping() {
 	amContract := &AddressMapper{}
 	r.NoError(amContract.Init(ctx, &InitRequest{}))
 
-	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -113,7 +115,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddSameIdentityMapping() {
 		Signature: sig,
 	}), ErrAlreadyRegistered.Error(), "should error if either identity is already registered")
 
-	invertedSig, err := SignIdentityMapping(s.validDAppAddr, s.validEthAddr, s.validEthKey)
+	invertedSig, err := SignIdentityMapping(s.validDAppAddr, s.validEthAddr, s.validEthKey, sigType)
 	r.EqualError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validDAppAddr.MarshalPB(),
 		To:        s.validEthAddr.MarshalPB(),
@@ -130,7 +132,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewIdentityMapping() {
 	amContract := &AddressMapper{}
 	r.NoError(amContract.Init(ctx, &InitRequest{}))
 
-	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -162,7 +164,7 @@ func (s *AddressMapperTestSuite) TestListMapping() {
 	amContract := &AddressMapper{}
 	r.NoError(amContract.Init(ctx, &InitRequest{}))
 
-	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -186,7 +188,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvertedIdentityMapping(
 	amContract := &AddressMapper{}
 	r.NoError(amContract.Init(ctx, &InitRequest{}))
 
-	sig, err := SignIdentityMapping(s.validDAppAddr, s.validEthAddr, s.validEthKey)
+	sig, err := SignIdentityMapping(s.validDAppAddr, s.validEthAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validDAppAddr.MarshalPB(),
@@ -222,7 +224,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		To:   s.validDAppAddr.MarshalPB(),
 	}), "Should error if not signature provided")
 
-	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.invalidEthKey)
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.invalidEthKey, sigType)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -230,7 +232,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		Signature: sig,
 	}), "Should error if signature doesn't match foreign chain address")
 
-	sig, err = SignIdentityMapping(s.invalidEthAddr, s.validDAppAddr, s.validEthKey)
+	sig, err = SignIdentityMapping(s.invalidEthAddr, s.validDAppAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.invalidEthAddr.MarshalPB(),
@@ -238,7 +240,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		Signature: sig,
 	}), "Should error if from address doesn't have a Chain ID")
 
-	sig, err = SignIdentityMapping(s.validEthAddr, s.invalidDAppAddr, s.validEthKey)
+	sig, err = SignIdentityMapping(s.validEthAddr, s.invalidDAppAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -246,14 +248,14 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		Signature: sig,
 	}), "Should error if to address doesn't have a Chain ID")
 
-	sig, err = SignIdentityMapping(s.invalidEthAddr, s.invalidDAppAddr, s.validEthKey)
+	sig, err = SignIdentityMapping(s.invalidEthAddr, s.invalidDAppAddr, s.validEthKey, sigType)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.invalidEthAddr.MarshalPB(),
 		To:        s.invalidDAppAddr.MarshalPB(),
 		Signature: sig,
 	}), "Should error if both addresses don't have a Chain ID")
 
-	sig, err = SignIdentityMapping(s.validEthAddr, addr2, s.validEthKey)
+	sig, err = SignIdentityMapping(s.validEthAddr, addr2, s.validEthKey, sigType)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
