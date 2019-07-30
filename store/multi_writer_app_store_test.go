@@ -2,12 +2,17 @@ package store
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/tendermint/iavl"
+	tdb "github.com/tendermint/tendermint/libs/db"
+
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/stretchr/testify/suite"
 )
 
 type MultiWriterAppStoreTestSuite struct {
@@ -269,3 +274,70 @@ func mockMultiWriterStore(flushInterval int64) (*MultiWriterAppStore, error) {
 func vmPrefixKey(key string) []byte {
 	return util.PrefixKey([]byte("vm"), []byte(key))
 }
+
+func TestMultiWriterSnapshots(t *testing.T) {
+	numBlocks = 5
+	blockSize = 2
+	flushInterval := int64(10)
+	prefix := []byte("test")
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "dual-iavlstore")
+
+	blocks = nil
+	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, append(prefix, byte(0)))
+
+	controlStore, err := NewIAVLStore(tdb.NewMemDB(), 0, 0, flushInterval)
+	for _, block := range blocks {
+		require.NoError(t, block.Execute(controlStore.tree))
+		_, _, err := controlStore.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	testStore, err := mockMultiWriterStore(flushInterval)
+	require.NoError(t, err)
+
+	quit := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func(s *MultiWriterAppStore) {
+		defer wg.Done()
+		for _, block := range blocks {
+			require.NoError(t, block.Execute(testStore.appStore.tree))
+			_, _, err := testStore.SaveVersion()
+			require.NoError(t, err)
+		}
+		quit <- true
+	}(testStore)
+
+	go func(s *MultiWriterAppStore) {
+		defer wg.Done()
+		for {
+			switch {
+			case <-quit:
+				return
+			default:
+				{
+					snapshot := s.GetSnapshot()
+					count := 0
+					for _, _ = range snapshot.Range(prefix) {
+						count++
+					}
+					snapshot.Release()
+				}
+			}
+		}
+
+	}(testStore)
+	wg.Wait()
+
+	for _, data := range testStore.Range(prefix) {
+		value := controlStore.Get(util.PrefixKey(prefix, data.Key))
+		require.Zero(t, bytes.Compare(value, data.Value))
+	}
+	for _, data := range controlStore.Range(prefix) {
+		value := testStore.Get(util.PrefixKey(prefix, data.Key))
+		require.Zero(t, bytes.Compare(value, data.Value))
+	}
+}
+
+/**/

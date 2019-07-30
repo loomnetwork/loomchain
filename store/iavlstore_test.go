@@ -114,7 +114,7 @@ func TestIavl(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 
 	blocks = nil
-	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize)
+	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, nil)
 	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
 	for _, program := range blocks {
 		require.NoError(t, program.Execute(tree))
@@ -135,13 +135,13 @@ func testNormal(t *testing.T) {
 	_, err = diskTree.Load()
 	require.NoError(t, err)
 	/*
-	for _, entry := range store.Range(nil) {
-		_, value := tree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, entry.Value))
-		_, diskValue := diskTree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, diskValue))
+		for _, entry := range store.Range(nil) {
+			_, value := tree.Get(entry.Key)
+			require.Zero(t, bytes.Compare(value, entry.Value))
+			_, diskValue := diskTree.Get(entry.Key)
+			require.Zero(t, bytes.Compare(value, diskValue))
 
-	}*/
+		}*/
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)
@@ -162,12 +162,12 @@ func testFlush(t *testing.T) {
 	_, err = diskTree.Load()
 	require.NoError(t, err)
 	/*
-	for _, entry := range store.Range(nil) {
-		_, value := tree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, entry.Value))
-		_, diskValue := diskTree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, diskValue))
-	}*/
+		for _, entry := range store.Range(nil) {
+			_, value := tree.Get(entry.Key)
+			require.Zero(t, bytes.Compare(value, entry.Value))
+			_, diskValue := diskTree.Get(entry.Key)
+			require.Zero(t, bytes.Compare(value, diskValue))
+		}*/
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)
@@ -193,12 +193,12 @@ func testMaxVersions(t *testing.T) {
 	_, err = diskTree.Load()
 	require.NoError(t, err)
 	/*
-	for _, entry := range store.Range(nil) {
-		_, value := tree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, entry.Value))
-		_, diskValue := diskTree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, diskValue))
-	}*/
+		for _, entry := range store.Range(nil) {
+			_, value := tree.Get(entry.Key)
+			require.Zero(t, bytes.Compare(value, entry.Value))
+			_, diskValue := diskTree.Get(entry.Key)
+			require.Zero(t, bytes.Compare(value, diskValue))
+		}*/
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)

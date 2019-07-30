@@ -56,7 +56,7 @@ func TestBenchmark(t *testing.T) {
 	maxVersions = 2
 	fmt.Println("numBlocks", numBlocks, "blockSize", blockSize)
 	blocks = nil
-	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize)
+	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, nil)
 	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
 	for _, program := range blocks {
 		if err := program.Execute(tree); err != nil {
