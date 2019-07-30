@@ -21,9 +21,7 @@ import (
 )
 
 var (
-	loomCmds      = []string{"loom", "blueprint-cli"}
-	sleepInterval = 1000 * time.Millisecond
-	waitIntervals = 100
+	loomCmds = []string{"loom", "blueprint-cli"}
 )
 
 type engineCmd struct {
@@ -262,14 +260,36 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 	return nil
 }
 
+type AppHash struct {
+	apphash string
+	node    *node.Node
+	index   string
+}
+
+func sprintAppHashes(blocks map[int64]([]AppHash)) string {
+	var dump string
+	for height, block := range blocks {
+		for _, apphash := range block {
+			dump += fmt.Sprintf(
+				"\nnode %s apphash %s executable %s height %d\n",
+				apphash.index,
+				apphash.apphash,
+				apphash.node.LoomPath,
+				height,
+			)
+		}
+	}
+	return dump
+}
+
 func checkapphash(nodes map[string]*node.Node) error {
 	time.Sleep(time.Second * 1)
 	fmt.Printf("--> run all: %v \n", "checkapphash")
 
-	var apphashs = make(map[int64]string)
+	var blocks = make(map[int64]([]AppHash))
 	var lastBlockHeight int64
 
-	for _, v := range nodes {
+	for index, v := range nodes {
 		u := fmt.Sprintf("%s/abci_info", v.RPCAddress)
 		resp, err := http.Get(u)
 		if err != nil {
@@ -278,7 +298,8 @@ func checkapphash(nodes map[string]*node.Node) error {
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
 			respBytes, _ := ioutil.ReadAll(resp.Body)
-			return fmt.Errorf("post status not OK: %s, response body: %s", resp.Status, string(respBytes))
+			return fmt.Errorf(
+				"post status not OK: %s, response body: %s", resp.Status, string(respBytes))
 		}
 		var info = struct {
 			JSONRPC string `json:"jsonrpc"`
@@ -302,13 +323,20 @@ func checkapphash(nodes map[string]*node.Node) error {
 
 		currentAppHash := string(info.Result.Response.LastBlockAppHash)
 		fmt.Printf("--> GET: %s, AppHash: %0xX, height %v\n", u, currentAppHash, newLastBlockHeight)
-		if previousApphash, found := apphashs[newLastBlockHeight]; found {
-			if previousApphash != currentAppHash {
-				return fmt.Errorf("multiple apphashes %s and %s found at height %v",
-					previousApphash, currentAppHash, newLastBlockHeight)
+		blocks[newLastBlockHeight] = append(blocks[newLastBlockHeight], AppHash{
+			apphash: currentAppHash,
+			node:    v,
+			index:   index,
+		})
+	}
+	for _, block := range blocks {
+		for _, apphash1 := range block {
+			for _, apphash2 := range block {
+				if apphash1 != apphash2 {
+					return errors.Errorf("missmatching apphashs %s", sprintAppHashes(blocks))
+				}
+
 			}
-		} else {
-			apphashs[newLastBlockHeight] = currentAppHash
 		}
 	}
 	return nil
