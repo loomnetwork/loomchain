@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
@@ -33,7 +34,8 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
-	Config() *cctypes.Config
+	Config() *config.Config
+	EnabledFeatures() []string
 }
 
 type State interface {
@@ -43,8 +45,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	SetCfgSetting(*cctypes.CfgSetting)
-	RemoveCfgSetting(string)
+	SetConfig(*cctypes.Setting)
 }
 
 type StoreState struct {
@@ -143,6 +144,17 @@ func configKey(configName string) []byte {
 	return util.PrefixKey([]byte(configPrefix), []byte(configName))
 }
 
+func (s *StoreState) EnabledFeatures() []string {
+	featuresFromState := s.Range([]byte(featurePrefix))
+	enabledFeatures := make([]string, 0, len(featuresFromState))
+	for _, m := range featuresFromState {
+		if bytes.Equal(m.Value, []byte{1}) {
+			enabledFeatures = append(enabledFeatures, string(m.Key))
+		}
+	}
+	return enabledFeatures
+}
+
 func (s *StoreState) FeatureEnabled(name string, val bool) bool {
 	data := s.store.Get(featureKey(name))
 	if len(data) == 0 {
@@ -162,7 +174,7 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) SetCfgSetting(cfgSetting *cctypes.CfgSetting) {
+func (s *StoreState) SetConfig(cfgSetting *cctypes.Setting) {
 	cfgBytes, err := proto.Marshal(cfgSetting)
 	if err != nil {
 		panic(err)
@@ -170,26 +182,20 @@ func (s *StoreState) SetCfgSetting(cfgSetting *cctypes.CfgSetting) {
 	s.store.Set(configKey(cfgSetting.Name), cfgBytes)
 }
 
-func (s *StoreState) RemoveCfgSetting(cfgSettingName string) {
-	s.store.Delete(configKey(cfgSettingName))
-}
-
-func (s *StoreState) Config() *cctypes.Config {
-	config := defaultConfig()
+func (s *StoreState) Config() *config.Config {
+	cfg := config.DefaultConfig()
 	cfgSettingsRange := s.store.Range([]byte(configPrefix))
 	for _, cfgSettingBytes := range cfgSettingsRange {
 		if cfgSettingBytes.Value != nil {
-			var cfgSetting cctypes.CfgSetting
+			var cfgSetting cctypes.Setting
 			err := proto.Unmarshal(cfgSettingBytes.Value, &cfgSetting)
 			if err != nil {
 				panic(err)
 			}
-			if cfgSetting.Version <= config.Version {
-				_ = setConfig(config, cfgSetting.Name, cfgSetting.Value)
-			}
+			_ = config.SetConfig(cfg, cfgSetting.Name, cfgSetting.Value)
 		}
 	}
-	return config
+	return cfg
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -322,6 +328,7 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
+	config                      *config.Config
 }
 
 var _ abci.Application = &Application{}
@@ -391,6 +398,10 @@ func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
 }
 
 func (a *Application) SetOption(req abci.RequestSetOption) abci.ResponseSetOption {
+	return abci.ResponseSetOption{}
+}
+
+func (a *Application) chainCfg(req abci.RequestSetOption) *config.Config {
 	return abci.ResponseSetOption{}
 }
 

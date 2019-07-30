@@ -32,6 +32,7 @@ func NewUserDeployCommand() *cobra.Command {
 	cmd.AddCommand(
 		addUserDeployerCmd(),
 		removeUserDeployerCmd(),
+		swapUserDeployerCmd(),
 		getUserDeployersCmd(),
 		getDeployedContractsCmd(),
 		getTierInfoCmd(),
@@ -89,6 +90,37 @@ func removeUserDeployerCmd() *cobra.Command {
 				DeployerAddr: addr.MarshalPB(),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "RemoveUserDeployer", req, nil)
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const swapUserDeployerCmdExample = `
+loom dev swap-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 0x7262d4c97c7B93937E4810D289b7320e9dA82859
+`
+
+func swapUserDeployerCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "swap-deployer <old-deployer address> <new-deployer address>",
+		Short:   "Swap an account from the list of accounts authorized to deploy contracts on behalf of a user to new account (the caller)",
+		Example: swapUserDeployerCmdExample,
+		Args:    cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			oldDeployerAddr, err := cli.ResolveAccountAddress(args[0], &flags)
+			if err != nil {
+				return err
+			}
+			newDeployerAddr, err := cli.ResolveAccountAddress(args[1], &flags)
+			if err != nil {
+				return err
+			}
+			req := &udwtypes.SwapUserDeployerRequest{
+				OldDeployerAddr: oldDeployerAddr.MarshalPB(),
+				NewDeployerAddr: newDeployerAddr.MarshalPB(),
+			}
+			return cli.CallContractWithFlags(&flags, dwContractName, "SwapUserDeployer", req, nil)
 		},
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
@@ -215,12 +247,13 @@ func getTierInfoCmd() *cobra.Command {
 }
 
 const setTierCmdExample = `
-loom dev set-tier 0 --fee 100 --name Tier1 
+loom dev set-tier 0 --fee 100 --name Tier1 --block-range 10 --max-txs 2 
 `
 
 func setTierInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var inputFee, tierName string
+	var blockRange, maxTxs uint64
 	cmd := &cobra.Command{
 		Use:     "set-tier <tier> [options]",
 		Short:   "Set tier details",
@@ -263,16 +296,32 @@ func setTierInfoCmd() *cobra.Command {
 			if len(tierName) == 0 {
 				tierName = getTierInfoResp.Tier.Name
 			}
+			if blockRange == 0 {
+				blockRange = getTierInfoResp.Tier.BlockRange
+			}
+			if blockRange == 0 {
+				return fmt.Errorf("block range must be greater than zero")
+			}
+			if maxTxs == 0 {
+				maxTxs = getTierInfoResp.Tier.MaxTxs
+			}
+			if maxTxs == 0 {
+				return fmt.Errorf("max-txs must be greater than zero")
+			}
 			req := &udwtypes.SetTierInfoRequest{
-				Fee:    fee,
-				Name:   tierName,
-				TierID: udwtypes.TierID(tierID),
+				Fee:        fee,
+				Name:       tierName,
+				TierID:     udwtypes.TierID(tierID),
+				BlockRange: blockRange,
+				MaxTxs:     maxTxs,
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SetTierInfo", req, nil)
 		}}
 
 	cmd.Flags().StringVarP(&inputFee, "fee", "f", "", "Tier fee")
 	cmd.Flags().StringVarP(&tierName, "name", "n", "", "Tier name")
+	cmd.Flags().Uint64Var(&blockRange, "block-range", 0, "Block range")
+	cmd.Flags().Uint64Var(&maxTxs, "max-txs", 0, "Max txs per block range")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }

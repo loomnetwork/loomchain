@@ -125,6 +125,12 @@ In any given election period, a validator will not be slashed more than
 occur if, first, the validator commits an inactivity fault and later commits
 a double sign fault whose penalty is greater that that of an inactivity fault.
 
+`maximumDowntimePercentage`: Of the last four periods, a validator must sign at
+least `maximumDowntimePercentage` of blocks in order to avoid slashing. For
+example, if `maximumDowntimePercentage` is set at 20%, a validator avoids
+slashing if during the last four periods he missed [100%, 19%, 100%, 100%] of
+blocks, but not if he missed [21%, 21%, 21%, 21%] of blocks.
+
 ### Slashing Implementation
 
 Slashing calculations are carried out in `plugin/validators_manager.go` and not

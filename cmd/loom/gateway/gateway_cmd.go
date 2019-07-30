@@ -25,6 +25,7 @@ func NewGatewayCommand() *cobra.Command {
 		newUpdateTrustedValidatorsCommand(),
 		newSetWithdrawFeeCommand(),
 		newWithdrawalReceiptCommand(),
+		newMapBinanceContractsCommand(),
 	)
 	return cmd
 }

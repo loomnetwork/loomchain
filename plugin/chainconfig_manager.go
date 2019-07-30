@@ -64,16 +64,13 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 }
 
 func (c *ChainConfigManager) UpdateConfig() error {
-	cfgSettings, err := chainconfig.UpdateConfig(c.ctx)
+	settings, err := chainconfig.UpdateConfig(c.ctx)
 	if err != nil {
 		return err
 	}
-	for _, cfgSetting := range cfgSettings {
-		if cfgSetting.Status == chainconfig.CfgSettingRemoving {
-			c.state.RemoveCfgSetting(cfgSetting.Name)
-		} else if cfgSetting.Status == chainconfig.CfgSettingActivated {
-			c.state.SetCfgSetting(cfgSetting)
-		}
+	for _, setting := range settings {
+		c.state.SetConfig(setting)
+		chainconfig.RemoveSetting(setting.Name)
 	}
 	return nil
 }

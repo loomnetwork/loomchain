@@ -1,6 +1,8 @@
 package chainconfig
 
 import (
+	"sort"
+
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -35,15 +37,14 @@ type (
 	Config         = cctypes.Config
 	AppStoreConfig = cctypes.AppStoreConfig
 
-	CfgSetting              = cctypes.CfgSetting
-	GetCfgSettingRequest    = cctypes.GetCfgSettingRequest
-	GetCfgSettingResponse   = cctypes.GetCfgSettingResponse
-	SetCfgSettingRequest    = cctypes.SetCfgSettingRequest
-	RemoveCfgSettingRequest = cctypes.RemoveCfgSettingRequest
-	ListCfgSettingsRequest  = cctypes.ListCfgSettingsRequest
-	ListCfgSettingsResponse = cctypes.ListCfgSettingsResponse
-	ChainConfigRequest      = cctypes.ChainConfigRequest
-	ChainConfigResponse     = cctypes.ChainConfigResponse
+	Setting              = cctypes.Setting
+	GetSettingRequest    = cctypes.GetSettingRequest
+	GetSettingResponse   = cctypes.GetSettingResponse
+	SetSettingRequest    = cctypes.SetSettingRequest
+	ListSettingsRequest  = cctypes.ListSettingsRequest
+	ListSettingsResponse = cctypes.ListSettingsResponse
+	ChainConfigRequest   = cctypes.ChainConfigRequest
+	ChainConfigResponse  = cctypes.ChainConfigResponse
 
 	ValidatorInfo              = cctypes.ValidatorInfo
 	GetValidatorInfoRequest    = cctypes.GetValidatorInfoRequest
@@ -65,12 +66,12 @@ const (
 	// FeatureDisabled is not currently used.
 	FeatureDisabled = cctypes.Feature_DISABLED
 
-	// CfgSettingPending status indicates a cfg setting has not been activated yet.
-	CfgSettingPending = cctypes.CfgSetting_PENDING
-	// CfgSettingActivated status indicates a cfg settting has already been activated.
-	CfgSettingActivated = cctypes.CfgSetting_ACTIVATED
-	// CfgSettingRemoving status indicates a cfg setting is going to be removed.
-	CfgSettingRemoving = cctypes.CfgSetting_REMOVING
+	// SettingPending status indicates a setting has not been activated because the majority of validators
+	// don't run the build that support this setting
+	SettingPending = cctypes.Setting_PENDING
+	// SettingActivated status indicates a setting has been activated baause the majority of validators
+	// are running the build that support this setting
+	SettingActivated = cctypes.Setting_ACTIVATED
 )
 
 var (
@@ -114,7 +115,7 @@ var (
 
 const (
 	featurePrefix       = "ft"
-	cfgSettingPrefix    = "cfg"
+	settingPrefix       = "setting"
 	ownerRole           = "owner"
 	validatorInfoPrefix = "vi"
 )
@@ -130,8 +131,8 @@ func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
-func cfgSettingKey(cfgSettingName string) []byte {
-	return util.PrefixKey([]byte(cfgSettingPrefix), []byte(cfgSettingName))
+func settingKey(settingName string) []byte {
+	return util.PrefixKey([]byte(settingPrefix), []byte(settingName))
 }
 
 func validatorInfoKey(addr loom.Address) []byte {
@@ -259,21 +260,37 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 	if err != nil {
 		return nil, err
 	}
-
 	featureRange := ctx.Range([]byte(featurePrefix))
 	features := []*Feature{}
+	featureList := make(map[string]bool)
 	for _, m := range featureRange {
 		var f Feature
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
 		}
+		featureList[f.Name] = true
 		feature, err := getFeature(ctx, f.Name, curValidators)
 		if err != nil {
 			return nil, err
 		}
 		features = append(features, feature)
 	}
-
+	// Augment the feature list with features that have been enabled without going through this
+	// contract, e.g. via a migration tx.
+	featuresFromState := ctx.EnabledFeatures()
+	for _, feature := range featuresFromState {
+		if !featureList[feature] {
+			features = append(features, &Feature{
+				Name:        feature,
+				BlockHeight: 0,
+				BuildNumber: 0,
+				Status:      cctypes.Feature_ENABLED,
+			})
+		}
+	}
+	sort.Slice(features, func(i, j int) bool {
+		return features[i].Name < features[j].Name
+	})
 	return &ListFeaturesResponse{
 		Features: features,
 	}, nil
@@ -375,65 +392,89 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 // - A PENDING cfg setting will become ACTIVATED once UpdateConfig is called by a chainconfig manager
 // - A REMOVING cfg setting will be deleted once UpdateConfig is called by a chainconfig manager
 // Returns a list of cfg settings whose status has changed from PENDING to ACTIVATED and deleted cfg settings.
-func UpdateConfig(ctx contract.Context) ([]*CfgSetting, error) {
-	cfgSettingsRange := ctx.Range([]byte(cfgSettingPrefix))
-	cfgSettings := make([]*CfgSetting, 0)
-	for _, m := range cfgSettingsRange {
-		var cfg CfgSetting
-		if err := proto.Unmarshal(m.Value, &cfg); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal CfgSetting %s", string(m.Key))
-		}
-		if cfg.Status == CfgSettingPending {
-			cfg.Status = CfgSettingActivated
-			cfgSettings = append(cfgSettings, &cfg)
-			if err := ctx.Set(cfgSettingKey(cfg.Name), &cfg); err != nil {
-				return nil, err
-			}
-		} else if cfg.Status == CfgSettingRemoving {
-			cfgSettings = append(cfgSettings, &cfg)
-			ctx.Delete(cfgSettingKey(cfg.Name))
-		}
-	}
-
-	return cfgSettings, nil
-}
-
-// GetConfig returns info about a specific cfg setting.
-func (c *ChainConfig) GetCfgSetting(ctx contract.StaticContext, req *GetCfgSettingRequest) (*GetCfgSettingResponse, error) {
-	if req.Name == "" {
-		return nil, ErrInvalidRequest
-	}
-
-	var cfgSetting CfgSetting
-	err := ctx.Get(cfgSettingKey(req.Name), &cfgSetting)
+func UpdateConfig(ctx contract.Context) ([]*Setting, error) {
+	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &GetCfgSettingResponse{
-		CfgSetting: &cfgSetting,
+	settingsRange := ctx.Range([]byte(settingPrefix))
+	settings := make([]*Setting, 0)
+
+	validatorsInfo, err := listValidatorsInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range settingsRange {
+		var setting Setting
+		if err := proto.Unmarshal(m.Value, &setting); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal Setting %s", string(m.Key))
+		}
+		if setting.Status == SettingPending {
+			supportedValidator := 0
+			for _, validatorInfo := range validatorsInfo {
+				if validatorInfo.BuildNumber >= setting.BuildNumber {
+					supportedValidator++
+				}
+			}
+			// Don't activate this config, if the number of validators that support this config
+			// has not reached the vote threshold
+			if uint64(supportedValidator/len(validatorsInfo)) < params.VoteThreshold {
+				continue
+			}
+			setting.Status = SettingActivated
+			settings = append(settings, &setting)
+			if err := ctx.Set(settingKey(setting.Name), &setting); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return settings, nil
+}
+
+// RemoveSetting removes setting object stored in the contract
+func RemoveSetting(ctx contract.Context, name string) {
+	ctx.Delete(settingKey(name))
+}
+
+// GetConfig returns info about a specific cfg setting.
+func (c *ChainConfig) GetSetting(ctx contract.StaticContext, req *GetSettingRequest) (*GetSettingResponse, error) {
+	if req.Name == "" {
+		return nil, ErrInvalidRequest
+	}
+
+	var setting Setting
+	err := ctx.Get(settingKey(req.Name), &setting)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetSettingResponse{
+		Setting: &setting,
 	}, nil
 }
 
 // ListCfgSettings returns a list of cfg settings in the ChainConfig contract
-func (c *ChainConfig) ListCfgSettings(ctx contract.StaticContext, req *ListCfgSettingsRequest) (*ListCfgSettingsResponse, error) {
-	cfgSettingsRange := ctx.Range([]byte(cfgSettingPrefix))
-	cfgSettings := make([]*CfgSetting, 0)
-	for _, m := range cfgSettingsRange {
-		var cfg CfgSetting
-		if err := proto.Unmarshal(m.Value, &cfg); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal CfgSetting %s", string(m.Key))
+func (c *ChainConfig) ListSettings(ctx contract.StaticContext, req *ListSettingsRequest) (*ListSettingsResponse, error) {
+	settingsRange := ctx.Range([]byte(settingPrefix))
+	settings := make([]*Setting, 0)
+	for _, m := range settingsRange {
+		var setting Setting
+		if err := proto.Unmarshal(m.Value, &setting); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal Setting %s", string(m.Key))
 		}
-		cfgSettings = append(cfgSettings, &cfg)
+		settings = append(settings, &setting)
 	}
 
-	return &ListCfgSettingsResponse{
-		CfgSettings: cfgSettings,
+	return &ListSettingsResponse{
+		Settings: settings,
 	}, nil
 }
 
-// SetCfgSetting should be called by a contract owner to set a new cfg setting value.
-func (c *ChainConfig) SetCfgSetting(ctx contract.Context, req *SetCfgSettingRequest) error {
+// SetSetting should be called by a contract owner to set a new setting value.
+func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) error {
 	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
 		return ErrFeatureNotEnabled
 	}
@@ -443,47 +484,23 @@ func (c *ChainConfig) SetCfgSetting(ctx contract.Context, req *SetCfgSettingRequ
 		return ErrNotAuthorized
 	}
 
-	if req.Name == "" || req.Value == "" || req.Version == 0 {
+	if req.Name == "" || req.Value == "" || req.BuildNumber == 0 {
 		return ErrInvalidRequest
 	}
 
-	cfgSetting := &CfgSetting{
-		Name:    req.Name,
-		Value:   req.Value,
-		Version: req.Version,
-		Status:  CfgSettingPending,
+	setting := &Setting{
+		Name:        req.Name,
+		Value:       req.Value,
+		BuildNumber: req.BuildNumber,
+		Status:      SettingPending,
 	}
 
-	return ctx.Set(cfgSettingKey(req.Name), cfgSetting)
-}
-
-// RemoveCfgSetting should be called by a validator to indicate they want to propose a new config value.
-func (c *ChainConfig) RemoveCfgSetting(ctx contract.Context, req *RemoveCfgSettingRequest) error {
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
-		return ErrFeatureNotEnabled
-	}
-
-	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
-	if !contractOwner {
-		return ErrNotAuthorized
-	}
-
-	if req.Name == "" {
-		return ErrInvalidRequest
-	}
-
-	var cfgSetting CfgSetting
-	if err := ctx.Get(cfgSettingKey(req.Name), &cfgSetting); err != nil {
-		return errors.Wrapf(err, "cfg setting '%s' not found", req.Name)
-	}
-	cfgSetting.Status = CfgSettingRemoving
-
-	return ctx.Set(cfgSettingKey(req.Name), &cfgSetting)
+	return ctx.Set(settingKey(req.Name), setting)
 }
 
 func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
 	return &ChainConfigResponse{
-		Config: ctx.Config(),
+		Config: ctx.Config().Protobuf(),
 	}, nil
 }
 
@@ -761,6 +778,17 @@ func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValid
 
 // ListValidatorsInfo returns the build number for each validators
 func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListValidatorsInfoRequest) (*ListValidatorsInfoResponse, error) {
+	validators, err := listValidatorsInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListValidatorsInfoResponse{
+		Validators: validators,
+	}, nil
+}
+
+func listValidatorsInfo(ctx contract.StaticContext) ([]*ValidatorInfo, error) {
 	validatorRange := ctx.Range([]byte(validatorInfoPrefix))
 	validators := []*ValidatorInfo{}
 	for _, m := range validatorRange {
@@ -770,10 +798,7 @@ func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListVa
 		}
 		validators = append(validators, &v)
 	}
-
-	return &ListValidatorsInfoResponse{
-		Validators: validators,
-	}, nil
+	return validators, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})

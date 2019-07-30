@@ -35,10 +35,10 @@ func NewChainCfgCommand() *cobra.Command {
 		ListFeaturesCmd(),
 		FeatureEnabledCmd(),
 		RemoveFeatureCmd(),
-		SetCfgSettingCmd(),
-		GetCfgSettingCmd(),
-		ListCfgSettingsCmd(),
-		RemoveCfgSettingCmd(),
+		SetSettingCmd(),
+		GetSettingCmd(),
+		ListSettingsCmd(),
+		RemoveSettingCmd(),
 		ChainConfigCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
@@ -400,21 +400,21 @@ func GetValidatorInfoCmd() *cobra.Command {
 	return cmd
 }
 
-const listCfgSettingsCmdExample = `
-loom chain-cfg list-cfg-settings 
+const listSettingsCmdExample = `
+loom chain-cfg list-settings 
 `
 
-func ListCfgSettingsCmd() *cobra.Command {
+func ListSettingsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "list-cfg-settings",
-		Short:   "show all cfg settings in the ChainConfig contract",
-		Example: listCfgSettingsCmdExample,
+		Use:     "list-settings",
+		Short:   "show all settings in the ChainConfig contract",
+		Example: listSettingsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp cctype.ListCfgSettingsResponse
+			var resp cctype.ListSettingsResponse
 			err := cli.StaticCallContractWithFlags(
 				&flags, chainConfigContractName,
-				"ListCfgSettings", &cctype.ListCfgSettingsRequest{}, &resp,
+				"ListSettings", &cctype.ListSettingsRequest{}, &resp,
 			)
 			if err != nil {
 				return err
@@ -431,22 +431,22 @@ func ListCfgSettingsCmd() *cobra.Command {
 	return cmd
 }
 
-const getCfgSettingCmdExample = `
-loom chain-cfg get-cfg-setting AppStoreConfig.DeletedVmKeys
+const getSettingCmdExample = `
+loom chain-cfg get-setting AppStoreConfig.DeletedVmKeys
 `
 
-func GetCfgSettingCmd() *cobra.Command {
+func GetSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "get-cfg-setting",
+		Use:     "get-setting",
 		Short:   "Get config setting by config key",
-		Example: getCfgSettingCmdExample,
+		Example: getSettingCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp cctype.GetCfgSettingResponse
+			var resp cctype.GetSettingResponse
 			err := cli.StaticCallContractWithFlags(
 				&flags, chainConfigContractName,
-				"GetCfgSetting", &cctype.GetCfgSettingRequest{
+				"GetCfgSetting", &cctype.GetSettingRequest{
 					Name: args[0],
 				}, &resp,
 			)
@@ -497,28 +497,28 @@ func ChainConfigCmd() *cobra.Command {
 }
 
 const setCfgSettingCmdExample = `
-loom chain-cfg set-cfg-setting AppStoreConfig.DeletedVmKeys --value 100 --version 1
+loom chain-cfg set-setting AppStoreConfig.DeletedVmKeys --value 100 --version 1
 `
 
-func SetCfgSettingCmd() *cobra.Command {
+func SetSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var value string
-	var version uint64
+	var buildNumber uint64
 	cmd := &cobra.Command{
-		Use:     "set-cfg-setting <config name>",
-		Short:   "Set config setting",
+		Use:     "set-setting <config name>",
+		Short:   "Set setting",
 		Example: setCfgSettingCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" || value == "" {
 				return fmt.Errorf("invalid config key")
 			}
-			req := &cctype.SetCfgSettingRequest{
-				Name:    args[0],
-				Value:   value,
-				Version: version,
+			req := &cctype.SetSettingRequest{
+				Name:        args[0],
+				Value:       value,
+				BuildNumber: buildNumber,
 			}
-			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetCfgSetting", req, nil)
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetSetting", req, nil)
 			if err != nil {
 				return err
 			}
@@ -527,32 +527,32 @@ func SetCfgSettingCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&value, "value", "", "Set value of config")
-	cmdFlags.Uint64Var(&version, "version", 0, "Set version of config")
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set build of config")
 	cmd.MarkFlagRequired("version")
-	cmd.MarkFlagRequired("value")
+	cmd.MarkFlagRequired("build")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
-const removeCfgSettingCmdExample = `
-loom chain-cfg remove-cfg-setting AppStoreConfig.DeletedVmKeys
+const removeSettingCmdExample = `
+loom chain-cfg remove-setting AppStoreConfig.DeletedVmKeys
 `
 
-func RemoveCfgSettingCmd() *cobra.Command {
+func RemoveSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "remove-cfg-setting <config name>",
+		Use:     "remove-setting <config name>",
 		Short:   "Remove config setting by key name",
-		Example: removeCfgSettingCmdExample,
+		Example: removeSettingCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" {
 				return fmt.Errorf("invalid config key")
 			}
-			req := &cctype.RemoveCfgSettingRequest{
+			req := &cctype.RemoveSettingRequest{
 				Name: args[0],
 			}
-			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "RemoveCfgSetting", req, nil)
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "RemoveSetting", req, nil)
 			if err != nil {
 				return err
 			}
