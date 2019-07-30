@@ -157,7 +157,7 @@ func testFlush(t *testing.T) {
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
-
+	require.NoError(t, err)
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
