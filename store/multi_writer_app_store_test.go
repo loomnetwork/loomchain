@@ -339,5 +339,3 @@ func TestMultiWriterSnapshots(t *testing.T) {
 		require.Zero(t, bytes.Compare(value, data.Value))
 	}
 }
-
-/**/
