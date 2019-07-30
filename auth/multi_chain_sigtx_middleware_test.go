@@ -49,6 +49,7 @@ var (
 
 func TestSigning(t *testing.T) {
 	pk, err := crypto.GenerateKey()
+	require.NoError(t, err)
 	err = crypto.SaveECDSA("newpk", pk)
 	require.NoError(t, err)
 
