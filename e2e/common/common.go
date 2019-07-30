@@ -188,7 +188,7 @@ func GenerateConfig(
 		n.LogDestination = *LogDest
 		n.LogAppDb = *LogAppDb
 		nodes = append(nodes, n)
-		fmt.Printf("Node $v running %s\n", i, loompath)
+		fmt.Printf("Node %v running %s\n", i, loompath)
 	}
 
 	loompathAbs2, err := filepath.Abs(loompath2)
@@ -202,7 +202,7 @@ func GenerateConfig(
 		n.LogDestination = *LogDest
 		n.LogAppDb = *LogAppDb
 		nodes = append(nodes, n)
-		fmt.Printf("Node $v running %s\n", i, loompath2)
+		fmt.Printf("Node %v running %s\n", i, loompath2)
 	}
 
 	for _, n := range nodes {
