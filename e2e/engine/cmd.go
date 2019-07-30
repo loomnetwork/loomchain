@@ -332,7 +332,7 @@ func checkapphash(nodes map[string]*node.Node) error {
 	for _, block := range blocks {
 		for _, apphash1 := range block {
 			for _, apphash2 := range block {
-				if apphash1 != apphash2 {
+				if apphash1.apphash != apphash2.apphash {
 					return errors.Errorf("missmatching apphashs %s", sprintAppHashes(blocks))
 				}
 
