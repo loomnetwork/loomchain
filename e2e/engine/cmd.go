@@ -271,7 +271,7 @@ func sprintAppHashes(blocks map[int64]([]AppHash)) string {
 	for height, block := range blocks {
 		for _, apphash := range block {
 			dump += fmt.Sprintf(
-				"\nnode %s apphash %s executable %s height %d\n",
+				"\nnode %s apphash 0x%x executable %s height %d\n",
 				apphash.index,
 				apphash.apphash,
 				apphash.node.LoomPath,
