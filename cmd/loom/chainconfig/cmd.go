@@ -38,7 +38,6 @@ func NewChainCfgCommand() *cobra.Command {
 		SetSettingCmd(),
 		GetSettingCmd(),
 		ListSettingsCmd(),
-		RemoveSettingCmd(),
 		ChainConfigCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
@@ -530,35 +529,6 @@ func SetSettingCmd() *cobra.Command {
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set build of config")
 	cmd.MarkFlagRequired("version")
 	cmd.MarkFlagRequired("build")
-	cli.AddContractCallFlags(cmd.Flags(), &flags)
-	return cmd
-}
-
-const removeSettingCmdExample = `
-loom chain-cfg remove-setting AppStoreConfig.DeletedVmKeys
-`
-
-func RemoveSettingCmd() *cobra.Command {
-	var flags cli.ContractCallFlags
-	cmd := &cobra.Command{
-		Use:     "remove-setting <config name>",
-		Short:   "Remove config setting by key name",
-		Example: removeSettingCmdExample,
-		Args:    cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if args[0] == "" {
-				return fmt.Errorf("invalid config key")
-			}
-			req := &cctype.RemoveSettingRequest{
-				Name: args[0],
-			}
-			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "RemoveSetting", req, nil)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }

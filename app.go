@@ -54,7 +54,7 @@ type StoreState struct {
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
-	config          *cctypes.Config
+	config          *config.Config
 }
 
 var _ = State(&StoreState{})
@@ -79,6 +79,7 @@ func NewStoreState(
 	block abci.Header,
 	curBlockHash []byte,
 	getValidatorSet GetValidatorSet,
+	config *config.Config,
 ) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
@@ -88,6 +89,7 @@ func NewStoreState(
 		block:           blockHeader,
 		validators:      loom.NewValidatorSet(),
 		getValidatorSet: getValidatorSet,
+		config:          config,
 	}
 }
 
@@ -133,15 +135,11 @@ func (s *StoreState) Context() context.Context {
 
 var (
 	featurePrefix = "feature"
-	configPrefix  = "config"
+	configKey     = "config"
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
-}
-
-func configKey(configName string) []byte {
-	return util.PrefixKey([]byte(configPrefix), []byte(configName))
 }
 
 func (s *StoreState) EnabledFeatures() []string {
@@ -175,27 +173,11 @@ func (s *StoreState) SetFeature(name string, val bool) {
 }
 
 func (s *StoreState) SetConfig(setting *cctypes.Setting) {
-	cfgBytes, err := proto.Marshal(setting)
-	if err != nil {
-		panic(err)
-	}
-	s.store.Set(configKey(setting.Name), cfgBytes)
+
 }
 
 func (s *StoreState) Config() *config.Config {
-	cfg := config.DefaultConfig()
-	cfgSettingsRange := s.store.Range([]byte(configPrefix))
-	for _, cfgSettingBytes := range cfgSettingsRange {
-		if cfgSettingBytes.Value != nil {
-			var cfgSetting cctypes.Setting
-			err := proto.Unmarshal(cfgSettingBytes.Value, &cfgSetting)
-			if err != nil {
-				panic(err)
-			}
-			_ = config.SetConfig(cfg, cfgSetting.Name, cfgSetting.Value)
-		}
-	}
-	return cfg
+	return s.config
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -238,9 +220,12 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(
+	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
+	getValidatorSet GetValidatorSet, config *config.Config,
+) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
-		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
+		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet, config),
 		storeSnapshot: snap,
 	}
 }
@@ -402,7 +387,7 @@ func (a *Application) SetOption(req abci.RequestSetOption) abci.ResponseSetOptio
 }
 
 func (a *Application) chainCfg() *config.Config {
-	return nil
+	return a.config
 }
 
 func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
@@ -416,6 +401,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		abci.Header{},
 		nil,
 		a.GetValidatorSet,
+		a.config,
 	)
 
 	if a.Init != nil {
@@ -433,6 +419,17 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
+	// load config if it is nil
+	if a.chainCfg() == nil {
+		configByte := a.Store.Get([]byte(configKey))
+		var cfg cctypes.Config
+		err := proto.Unmarshal(configByte, &cfg)
+		if err != nil {
+			panic(err)
+		}
+		a.config = config.NewConfig(&cfg)
+	}
+
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
@@ -444,6 +441,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
+			a.config,
 		)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
@@ -464,6 +462,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
+		a.config,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -512,6 +511,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
+		a.config,
 	)
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
@@ -532,6 +532,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
+		a.config,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -624,6 +625,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
+		a.config,
 	)
 
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
@@ -729,5 +731,6 @@ func (a *Application) ReadOnlyState() State {
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
+		a.config,
 	)
 }

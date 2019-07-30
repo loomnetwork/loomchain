@@ -483,7 +483,7 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 
 func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
 	return &ChainConfigResponse{
-		Config: ctx.Config().Protobuf(),
+		Config: ctx.Config().ConfigProtobuf,
 	}, nil
 }
 
