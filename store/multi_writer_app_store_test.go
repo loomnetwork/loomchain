@@ -286,7 +286,6 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	blocks = nil
 	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, append(prefix, byte(0)))
 
-	//controlStore, err := NewIAVLStore(tdb.NewMemDB(), 0, 0, flushInterval)
 	controlStore, err := mockMultiWriterStore(flushInterval)
 	var controlHashes [][]byte
 	require.NoError(t, err)
