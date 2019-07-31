@@ -110,7 +110,7 @@ func testMultipleWebsocketConnections(t *testing.T) {
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
 	}
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second)
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -148,7 +148,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second)
 
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
