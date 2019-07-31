@@ -53,8 +53,13 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("WebSocket read panicked", "err", r)
+		}
 		c.hub.unregister <- c
-		_ = c.conn.Close()
+		if err := c.conn.Close(); err != nil {
+			logger.Info("Error closing WebSocket read pump", "err", err)
+		}
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -62,9 +67,14 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			logger.Error("websocket client read message error", "err", err)
-			websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure)
-			break
+			if websocket.IsUnexpectedCloseError(
+				err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+			) {
+				logger.Error("websocket unexpected close error", "err", err)
+			}
+			return
 		}
 
 		outBytes, ethError := handleMessage(message, funcMap, c.conn)
@@ -94,10 +104,13 @@ func (c *Client) writePump(logger log.TMLogger) {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("Websocket write panicked", "err", r)
+			logger.Error("WebSocket write panicked", "err", r)
 		}
 		ticker.Stop()
-		_ = c.conn.Close()
+		if err := c.conn.Close(); err != nil {
+			logger.Info("Error closing WebSocket write pump", "err", err)
+		}
+
 	}()
 	for {
 		select {
@@ -114,7 +127,9 @@ func (c *Client) writePump(logger log.TMLogger) {
 			}
 
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				logger.Error("error writing message to websocket", "err", err)
+				if err.Error() != "io: read/write on closed pipe" {
+					logger.Error("error writing message to websocket", "err", err)
+				}
 				return
 			}
 
@@ -122,7 +137,9 @@ func (c *Client) writePump(logger log.TMLogger) {
 			for i := 0; i < n; i++ {
 				msg := <-c.send
 				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-					logger.Error("error writing message to websocket", "err", err)
+					if err.Error() != "io: read/write on closed pipe" {
+						logger.Error("error writing message to websocket", "err", err)
+					}
 					return
 				}
 			}

@@ -100,16 +100,15 @@ func testMultipleWebsocketConnections(t *testing.T) {
 	go hub.run()
 	qs := &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
-
+	conns := []*websocket.Conn{}
 	for _, test := range tests {
 		dialer := wstest.NewDialer(handler)
 		conn, _, err := dialer.Dial("ws://localhost/eth", nil)
+		conns = append(conns, conn)
 		require.NoError(t, err)
 
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
-
-		require.NoError(t, conn.Close())
 	}
 	time.Sleep(2 * time.Second)
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
@@ -122,6 +121,9 @@ func testMultipleWebsocketConnections(t *testing.T) {
 			}
 		}
 		require.True(t, found)
+	}
+	for _, conn := range conns {
+		require.NoError(t, conn.Close())
 	}
 }
 
@@ -146,7 +148,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
