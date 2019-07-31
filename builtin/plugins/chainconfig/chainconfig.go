@@ -482,8 +482,12 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 }
 
 func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
+	config, err := ctx.Config().Protobuf()
+	if err != nil {
+		return nil, err
+	}
 	return &ChainConfigResponse{
-		Config: ctx.Config().ConfigProtobuf,
+		Config: config,
 	}, nil
 }
 

@@ -68,6 +68,7 @@ func (c *ChainConfigManager) UpdateConfig() error {
 	if err != nil {
 		return err
 	}
+
 	for _, setting := range settings {
 		c.state.SetConfig(setting)
 		chainconfig.RemoveSetting(c.ctx, setting.Name)

@@ -45,7 +45,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	SetConfig(*cctypes.Setting)
+	SetConfig(*cctypes.Setting) error
 }
 
 type StoreState struct {
@@ -172,8 +172,19 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) SetConfig(setting *cctypes.Setting) {
-
+func (s *StoreState) SetConfig(setting *cctypes.Setting) error {
+	configBytes := s.store.Get([]byte(configKey))
+	cfg := config.DefaultConfig()
+	if len(configBytes) > 0 {
+		err := proto.Unmarshal(configBytes, cfg)
+		if err != nil {
+			return err
+		}
+	}
+	if err := config.SetConfig(cfg, setting.Name, setting.Value); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *StoreState) Config() *config.Config {
@@ -414,10 +425,12 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 }
 
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+
 	block := req.Header
 	if block.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
+	fmt.Println("-----> BeginBlock", block.ChainID, block.Height)
 
 	// load config if it is nil
 	if a.chainCfg() == nil {
