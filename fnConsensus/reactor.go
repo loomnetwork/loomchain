@@ -52,8 +52,8 @@ const (
 	proposeIntervalInSeconds int64 = 10
 	CommitIntervalInSeconds  int64 = 5
 
-	// VoteSetPropogationDelay is the delay between propogating votesets to update other peers
-	VoteSetPropogationDelay = 1 * time.Second
+	// Delay between propogating votesets to update other peers
+	voteSetPropogationDelay = 1 * time.Second
 
 	// Time to wait between attempts to load TM state from state.db on startup
 	progressLoopStartDelay = 2 * time.Second
@@ -404,6 +404,7 @@ OUTER_LOOP:
 	}
 }
 
+// Creates a vote signed by the validator corresponding to the given index and broadcasts it to all peers.
 func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.ValidatorSet, validatorIndex int) {
 	message, signature, err := f.safeGetMessageAndSignature(fn)
 	if err != nil {
@@ -569,7 +570,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			// Propagate your last Maj23, to remedy any issue
 			f.broadcastMsgSync(FnMajChannel, nil, marshalledBytesOfPreviousVoteSet)
 
-			time.Sleep(VoteSetPropogationDelay)
+			time.Sleep(voteSetPropogationDelay)
 
 			// Propagate your current voteSet, to get newly joined node to sign it
 			f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytesOfCurrentVoteSet)

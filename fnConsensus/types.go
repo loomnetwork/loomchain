@@ -733,6 +733,8 @@ func (voteSet *FnVoteSet) NumberOfVotes() int {
 	return numberOfVotes
 }
 
+// HasConverged checks if the given signing threshold has been reached, returns true if it has been,
+// and false otherwise.
 func (voteSet *FnVoteSet) HasConverged(
 	signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet,
 ) bool {
