@@ -1242,7 +1242,9 @@ func applyPowerCap(validators []*Validator) []*Validator {
 	return validators
 }
 
-func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
+func (c *DPOS) TimeUntilElection(
+	ctx contract.StaticContext, req *TimeUntilElectionRequest,
+) (*TimeUntilElectionResponse, error) {
 	ctx.Logger().Debug("DPOSv3 TimeUntilEleciton", "request", req)
 
 	state, err := LoadState(ctx)
@@ -1250,7 +1252,12 @@ func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElect
 		return nil, err
 	}
 
-	remainingTime := state.Params.ElectionCycleLength - (ctx.Now().Unix() - state.LastElectionTime)
+	var remainingTime int64
+	if state.Params.ElectionCycleLength > 0 {
+		remainingTime = state.Params.ElectionCycleLength -
+			((ctx.Now().Unix() - state.LastElectionTime) % state.Params.ElectionCycleLength)
+	}
+
 	return &TimeUntilElectionResponse{
 		TimeUntilElection: remainingTime,
 	}, nil
