@@ -34,9 +34,6 @@ type (
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 
-	Config         = cctypes.Config
-	AppStoreConfig = cctypes.AppStoreConfig
-
 	Setting              = cctypes.Setting
 	GetSettingRequest    = cctypes.GetSettingRequest
 	GetSettingResponse   = cctypes.GetSettingResponse
@@ -411,7 +408,7 @@ func UpdateConfig(ctx contract.Context, buildNumber uint64) ([]*Setting, error) 
 	return settings, nil
 }
 
-// RemoveSetting removes setting object stored in the contract
+// RemoveSetting removes setting in the contract
 func RemoveSetting(ctx contract.Context, name string) {
 	ctx.Delete(settingKey(name))
 }
