@@ -73,9 +73,7 @@ func TestParseConfigWithoutHSMfileAndConfigDifferentToDefault(t *testing.T) {
 	conf.WriteToFile(exampleLoom + ".yaml")
 
 	actual, err := ParseConfig()
-	t.Log(actual.HsmConfig)
-	t.Log(conf.HsmConfig)
-	if err != nil {
+	if err != nil && err != err.(viper.ConfigFileNotFoundError) {
 		t.Error(err)
 	}
 	assert.Equal(t, conf, actual)
