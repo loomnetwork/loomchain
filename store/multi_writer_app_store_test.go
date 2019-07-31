@@ -307,6 +307,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	var testHashes [][]byte
+
 	go func(s *MultiWriterAppStore) {
 		defer wg.Done()
 		for _, block := range blocks {
@@ -339,6 +340,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 		}
 
 	}(testStore)
+
 	wg.Wait()
 
 	for _, data := range testStore.Range(prefix) {
