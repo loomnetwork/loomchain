@@ -416,7 +416,7 @@ func RemoveSetting(ctx contract.Context, name string) {
 	ctx.Delete(settingKey(name))
 }
 
-// GetConfig returns info about a specific cfg setting.
+// GetSetting returns info about a specific cfg setting.
 func (c *ChainConfig) GetSetting(ctx contract.StaticContext, req *GetSettingRequest) (*GetSettingResponse, error) {
 	if req.Name == "" {
 		return nil, ErrInvalidRequest
@@ -433,7 +433,7 @@ func (c *ChainConfig) GetSetting(ctx contract.StaticContext, req *GetSettingRequ
 	}, nil
 }
 
-// ListCfgSettings returns a list of cfg settings in the ChainConfig contract
+// ListSettings returns a list of cfg settings in the ChainConfig contract
 func (c *ChainConfig) ListSettings(ctx contract.StaticContext, req *ListSettingsRequest) (*ListSettingsResponse, error) {
 	settingsRange := ctx.Range([]byte(settingPrefix))
 	settings := make([]*Setting, 0)
