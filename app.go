@@ -184,6 +184,14 @@ func (s *StoreState) SetConfig(setting *cctypes.Setting) error {
 	if err := config.SetConfig(cfg, setting.Name, setting.Value); err != nil {
 		return err
 	}
+	configBytes, err := proto.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	s.store.Set([]byte(configKey), configBytes)
+	if err := s.config.Update(cfg); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -430,17 +438,18 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if block.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
-	fmt.Println("-----> BeginBlock", block.ChainID, block.Height)
 
 	// load config if it is nil
 	if a.chainCfg() == nil {
-		configByte := a.Store.Get([]byte(configKey))
-		var cfg cctypes.Config
-		err := proto.Unmarshal(configByte, &cfg)
-		if err != nil {
-			panic(err)
+		configBytes := a.Store.Get([]byte(configKey))
+		cfg := config.DefaultConfig()
+		if len(configBytes) > 0 {
+			err := proto.Unmarshal(configBytes, cfg)
+			if err != nil {
+				panic(err)
+			}
 		}
-		a.config = config.NewConfig(&cfg)
+		a.config = config.NewConfig(cfg)
 	}
 
 	a.curBlockHeader = block

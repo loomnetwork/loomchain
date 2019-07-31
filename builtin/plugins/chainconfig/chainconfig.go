@@ -382,7 +382,7 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 }
 
 // UpdateConfig returns a list of settings that are supported by majority of validators
-func UpdateConfig(ctx contract.Context) ([]*Setting, error) {
+func UpdateConfig(ctx contract.Context, buildNumber uint64) ([]*Setting, error) {
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
@@ -410,7 +410,10 @@ func UpdateConfig(ctx contract.Context) ([]*Setting, error) {
 		}
 		// Return this setting, if the number of validators that support this setting
 		// has not reached the vote threshold
-		if uint64(supportedValidator/len(validatorsInfo)) >= params.VoteThreshold {
+		if len(validatorsInfo) > 0 && uint64(supportedValidator/len(validatorsInfo)) >= params.VoteThreshold {
+			if buildNumber < setting.BuildNumber {
+				return nil, ErrConfigNotSupported
+			}
 			settings = append(settings, &setting)
 		}
 	}
