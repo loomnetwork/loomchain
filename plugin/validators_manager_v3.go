@@ -59,15 +59,15 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 	}
 
 	// A VoteInfo struct is created for every active validator. If
-	// SignedLastBlock is not true for any of the validators, slash them for
-	// inactivity. TODO limit slashes to once per election cycle
+	// SignedLastBlock is not true for any of the validators, record the missed block
+	// for the validator using the `UpdateDowntimeRecord` function.
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
 			address, err := dposv3.GetLocalCandidateAddressFromTendermintAddress(
 				m.ctx, voteInfo.Validator.Address, candidates,
 			)
 			if err == nil && downtimeTrackingEnabled {
-				err = dposv3.UpdateDowntimeRecord(m.ctx, state.Params.DowntimePeriod, address)
+				err = dposv3.UpdateDowntimeRecord(m.ctx, state.Params.DowntimePeriod, state.Params.JailOfflineValidators, address)
 				if err != nil {
 					return err
 				}
@@ -79,11 +79,6 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 				"validatorAddress", address,
 				"err", err,
 			)
-
-			// err := m.SlashInactivity(voteInfo.Validator.Address)
-			// if err != nil {
-			// 	return err
-			// }
 		}
 	}
 
@@ -94,9 +89,6 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		// The conflicting vote data is kept within the consensus engine itself.
 		m.ctx.Logger().Debug("DPOS BeginBlock", "ByzantineEvidence", fmt.Sprintf("%v+", evidence))
 
-		// TODO what prevents someone from resubmitting evidence?
-		// evidence.ValidateBasic() seems to already be called by Tendermint,
-		// I think it takes care of catching duplicates as well...
 		if evidence.Height > (currentHeight - 100) {
 			m.ctx.Logger().Debug("DPOS BeginBlock Byzantine Slashing", "FreshEvidenceHeight", evidence.Height, "CurrentHeight", currentHeight)
 			//err := m.SlashDoubleSign(evidence.Validator.Address)
