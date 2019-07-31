@@ -417,7 +417,9 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 	state := NewStoreState(
 		context.Background(),
 		a.Store,
-		abci.Header{},
+		abci.Header{
+			ChainID: req.ChainId,
+		},
 		nil,
 		a.GetValidatorSet,
 		a.config,
