@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/log"
+)
+
+var (
+	temp []byte
 )
 
 type MultiWriterAppStoreTestSuite struct {
@@ -310,6 +315,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 			hash, _, err := s.SaveVersion()
 			require.NoError(t, err)
 			testHashes = append(testHashes, hash)
+			fmt.Println("block")
 			time.Sleep(5 * time.Millisecond)
 		}
 		quit <- true
@@ -323,7 +329,12 @@ func TestMultiWriterSnapshots(t *testing.T) {
 				return
 			default:
 				{
+					fmt.Println("snampshot")
 					snapshot := s.GetSnapshot()
+					for _, data := range snapshot.Range(prefix) {
+						temp = data.Key
+						temp = data.Value
+					}
 					time.Sleep(time.Millisecond)
 					snapshot.Release()
 				}
