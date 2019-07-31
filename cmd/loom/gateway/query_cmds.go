@@ -485,8 +485,11 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&raw, "raw", false, "raw format output")
 	cmdFlags.StringVar(&ethURI, "eth-uri", "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241", "Ethereum URI")
-	cmdFlags.StringVar(&gatewayAddressEth, "eth-gateway-addr", "0xE080079Ac12521D57573f39543e1725EA3E16DcC", "Ethereum Gateway Address")
-	cmdFlags.StringVar(&loomCoinAddressEth, "loom-eth-addr", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "LOOM Ethereum Contract Address")
-	cmdFlags.StringVar(&loomGatewayAddressEth, "loom-eth-gateway-addr", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "LOOM Ethereum Gateway Address")
+	cmdFlags.StringVar(&gatewayAddressEth, "eth-gateway-addr", "0xE080079Ac12521D57573f39543e1725EA3E16DcC",
+		"Ethereum Gateway Address")
+	cmdFlags.StringVar(&loomCoinAddressEth, "loom-eth-addr", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0",
+		"LOOM Ethereum Contract Address")
+	cmdFlags.StringVar(&loomGatewayAddressEth, "loom-eth-gateway-addr", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570",
+		"LOOM Ethereum Gateway Address")
 	return cmd
 }
