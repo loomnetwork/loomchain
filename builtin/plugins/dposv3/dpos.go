@@ -198,16 +198,11 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.DowntimePeriod = defaultDowntimePeriod
 	}
 
-	chainID := "default"
-	if req.ChainId != "" {
-		chainID = req.ChainId
-	}
-
 	candidates := &CandidateList{}
 	// if InitCandidates is true, whitelist validators and register them for candidates
 	if req.InitCandidates {
 		for i, validator := range req.Validators {
-			candidateAddr := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+			candidateAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
 			newCandidate := &Candidate{
 				PubKey:                validator.PubKey,
 				Address:               candidateAddr.MarshalPB(),
