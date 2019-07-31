@@ -95,23 +95,23 @@ func TestTronSigning(t *testing.T) {
 	require.NoError(t, err)
 	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 	require.NoError(t, err)
+	signer := auth.TronSigner{PrivateKey: privateKey}
 	to := contract
 	nonce := uint64(7)
 
 	// Encode
 	nonceTx := []byte("nonceTx")
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	foreignLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
 	require.NoError(t, err)
 
 	hash := sha3.SoliditySHA3(
-		sha3.Address(common.BytesToAddress(ethLocalAdr)),
+		sha3.Address(common.BytesToAddress(foreignLocalAddr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
 		sha3.Uint64(nonce),
 		nonceTx,
 	)
 
-	signature, err := crypto.Sign(hash, privateKey)
-	require.NoError(t, err)
+	signature := signer.Sign(hash)
 
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
@@ -120,15 +120,13 @@ func TestTronSigning(t *testing.T) {
 	}
 
 	// Decode
-	pubAddr, err := crypto.Ecrecover(hash, tx.Signature)
+	allowedSigTypes := []evmcompat.SignatureType{evmcompat.SignatureType_TRON}
+	recoverdAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, tx.Signature, allowedSigTypes)
 	require.NoError(t, err)
+	require.True(t, bytes.Equal(recoverdAddr.Bytes(), foreignLocalAddr))
 
-	UnmarshalPubkey, err := crypto.UnmarshalPubkey(pubAddr)
-	require.NoError(t, err)
-
-	ethLocalAdr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*UnmarshalPubkey).Hex())
-	require.NoError(t, err)
-	require.True(t, bytes.Equal(ethLocalAdr, ethLocalAdr2))
+	signatureNoRecoverID := signature[1 : len(tx.Signature)-1] // remove recovery ID
+	require.True(t, auth.VerifyTronSignature(tx.PublicKey, hash, signatureNoRecoverID))
 }
 
 func TestBinanceSigning(t *testing.T) {

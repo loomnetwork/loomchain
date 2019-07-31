@@ -18,7 +18,7 @@ func verifySolidity66Byte(tx SignedTx, allowSigTypes []evmcompat.SignatureType) 
 }
 
 func verifyTron(tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, error) {
-	tronAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature, allowSigTypes)
+	tronAddr, err := evmcompat.RecoverAddressFromTypedSig(tx.Inner, tx.Signature, allowSigTypes)
 	if err != nil {
 		return nil, err
 	}
