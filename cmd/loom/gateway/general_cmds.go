@@ -362,8 +362,12 @@ func newGetOraclesCommand() *cobra.Command {
 func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	var onlyRewards bool
 	cmd := &cobra.Command{
-		Use:     "withdraw-funds",
-		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
+		Use: "withdraw-funds",
+		Short: "Withdraw your rewards to mainnet." +
+			" Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain" +
+			" gateway, which provides the user with a signature that's used for transferring funds to Ethereum." +
+			" The user is prompted to make the call by being provided with the full transaction data " +
+			"that needs to be pasted to the browser.",
 		Example: withdrawFundsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -566,23 +570,28 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 
 			sig := receipt.OracleSignature
 
-			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
+			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig,
+				common.HexToAddress(mainnetLoomAddress))
 			if err != nil {
 				return err
 			}
 
-			fmt.Println("\nPlease go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
+			fmt.Println("\nPlease go to https://www.myetherwallet.com/interface/send-offline." +
+				" Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
 			fmt.Println("To Address:", tx.To().String())
 			fmt.Println("Data:", hex.EncodeToString(tx.Data()))
 			fmt.Println("Gas Limit:", tx.Gas())
-			fmt.Println("Sign it with the account", ethAddr.Local.String(), "and it will authorize a LOOM token withdrawal to you.")
+			fmt.Println("Sign it with the account", ethAddr.Local.String(),
+				"and it will authorize a LOOM token withdrawal to you.")
 
 			return nil
 
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
+	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false,
+		"Withdraw only the rewards from the gatewy to mainnet if set to true."+
+			" If false (default), it'll try to claim rewards and then withdraw the whole user balance")
 	return cmd
 }
 

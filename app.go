@@ -203,7 +203,8 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
+	getValidatorSet GetValidatorSet) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
@@ -468,7 +469,8 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		nil,
 		a.GetValidatorSet,
 	)
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
+	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(),
+		state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		panic(err)
 	}
@@ -581,7 +583,8 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.GetValidatorSet,
 	)
 
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
+	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(),
+		state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		panic(err)
 	}
@@ -600,12 +603,14 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			if err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}
-			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
+			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height,
+				state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 			if err != nil {
 				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
 			} else {
 				if reader.GetCurrentReceipt() != nil {
-					if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+					if err = a.EventHandler.EthSubscriptionSet().
+						EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
 						log.Error("failed to load receipt", "err", err)
 					}
 				}
@@ -624,7 +629,8 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
+		log.Info(fmt.Sprintf("commit took %f seconds-----\n",
+			time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
