@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -315,7 +314,6 @@ func TestMultiWriterSnapshots(t *testing.T) {
 			hash, _, err := s.SaveVersion()
 			require.NoError(t, err)
 			testHashes = append(testHashes, hash)
-			fmt.Println("block")
 			time.Sleep(5 * time.Millisecond)
 		}
 		quit <- true
@@ -329,7 +327,6 @@ func TestMultiWriterSnapshots(t *testing.T) {
 				return
 			default:
 				{
-					fmt.Println("snampshot")
 					snapshot := s.GetSnapshot()
 					for _, data := range snapshot.Range(prefix) {
 						temp = data.Key
