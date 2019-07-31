@@ -303,8 +303,8 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	go func(s *MultiWriterAppStore) {
 		defer wg.Done()
 		for _, block := range blocks {
-			require.NoError(t, block.Execute(testStore.appStore.tree))
-			_, _, err := testStore.SaveVersion()
+			require.NoError(t, block.Execute(s.appStore.tree))
+			_, _, err := s.SaveVersion()
 			require.NoError(t, err)
 			time.Sleep(5 * time.Millisecond)
 		}
