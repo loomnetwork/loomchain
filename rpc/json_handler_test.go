@@ -111,6 +111,8 @@ func testMultipleWebsocketConnections(t *testing.T) {
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
 	}
 	time.Sleep(time.Second)
+
+	qs.mutex.RLock()
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -122,6 +124,8 @@ func testMultipleWebsocketConnections(t *testing.T) {
 		}
 		require.True(t, found)
 	}
+	qs.mutex.RUnlock()
+
 	for _, conn := range conns {
 		require.NoError(t, conn.Close())
 	}
@@ -150,6 +154,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 	wg.Wait()
 	time.Sleep(time.Second)
 
+	qs.mutex.RLock()
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -161,5 +166,6 @@ func testSingleWebsocketConnections(t *testing.T) {
 		}
 		require.True(t, found)
 	}
+	qs.mutex.RUnlock()
 	require.NoError(t, conn.Close())
 }
