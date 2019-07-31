@@ -642,83 +642,44 @@ func (c *ChainConfigTestSuite) TestCfgSettingFourValidators() {
 	})
 	require.NoError(err)
 
-	cfgSettingName := "AppStoreConfig.DeletedVmKeys"
+	cfgSettingName := "AppStoreConfig.NumEvmKeysToPrune"
 	cfgSettingValue := "777"
 
 	// Set AppStoreConfig.DeletedVmKeys to 777
-	err = chainconfigContract.SetCfgSetting(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetCfgSettingRequest{
-		Name:    cfgSettingName,
-		Version: 1,
-		Value:   cfgSettingValue,
+	err = chainconfigContract.SetSetting(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetSettingRequest{
+		Name:        cfgSettingName,
+		BuildNumber: 100,
+		Value:       cfgSettingValue,
 	})
 	require.NoError(err)
 
 	// GetCfgSetting must return the value we just set
-	getCfgResp, err := chainconfigContract.GetCfgSetting(contractpb.WrapPluginContext(pctx.WithSender(addr4)), &GetCfgSettingRequest{
+	getCfgResp, err := chainconfigContract.GetSetting(contractpb.WrapPluginContext(pctx.WithSender(addr4)), &GetSettingRequest{
 		Name: cfgSettingName,
 	})
 	require.NoError(err)
-	require.Equal(cfgSettingName, getCfgResp.CfgSetting.Name)
-	require.Equal(cfgSettingValue, getCfgResp.CfgSetting.Value)
+	require.Equal(cfgSettingName, getCfgResp.Setting.Name)
+	require.Equal(cfgSettingValue, getCfgResp.Setting.Value)
 
 	// ListCfgSettings must return only 1 cfg setting
-	listCfgResp, err := chainconfigContract.ListCfgSettings(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &ListCfgSettingsRequest{})
+	listCfgResp, err := chainconfigContract.ListSettings(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &ListSettingsRequest{})
 	require.NoError(err)
-	require.Equal(1, len(listCfgResp.CfgSettings))
+	require.Equal(1, len(listCfgResp.Settings))
 
-	// Set cfg setting to store state
-	pctx.SetCfgSetting(getCfgResp.CfgSetting)
+	// Set setting to store state config
+	pctx.SetConfig(getCfgResp.Setting)
 
 	// ChainConfig return the config which is derived from cfg settings
 	configResp, err := chainconfigContract.ChainConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &ChainConfigRequest{})
 	require.NoError(err)
-	require.Equal(uint64(1), configResp.Config.Version)
-	require.Equal(uint64(777), configResp.Config.AppStoreConfig.DeletedVmKeys)
-
-	// RemoveCfgSetting , set status of cfg setting to Removing
-	err = chainconfigContract.RemoveCfgSetting(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &RemoveCfgSettingRequest{
-		Name: cfgSettingName,
-	})
-	require.NoError(err)
-
-	// Check status of remove cfg setting
-	listCfgResp, err = chainconfigContract.ListCfgSettings(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &ListCfgSettingsRequest{})
-	require.NoError(err)
-	require.Equal(1, len(listCfgResp.CfgSettings))
-	require.Equal(CfgSettingRemoving, listCfgResp.CfgSettings[0].Status)
-
-	// Remove cfg setting from store state
-	pctx.RemoveCfgSetting(getCfgResp.CfgSetting.Name)
-
-	// This should return default config
-	configResp, err = chainconfigContract.ChainConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &ChainConfigRequest{})
-	require.NoError(err)
-	require.Equal(uint64(1), configResp.Config.Version)
-	require.Equal(uint64(50), configResp.Config.AppStoreConfig.DeletedVmKeys)
+	require.Equal(uint64(777), configResp.Config.AppStoreConfig.NumEvmKeysToPrune)
 
 	// Set a new cfg setting with higher version
-	err = chainconfigContract.SetCfgSetting(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetCfgSettingRequest{
-		Name:    cfgSettingName,
-		Version: 2,
-		Value:   cfgSettingValue,
+	err = chainconfigContract.SetSetting(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetSettingRequest{
+		Name:        cfgSettingName,
+		BuildNumber: 200,
+		Value:       cfgSettingValue,
 	})
 	require.NoError(err)
 
-	// GetCfgSetting must return the value we just set
-	getCfgResp, err = chainconfigContract.GetCfgSetting(contractpb.WrapPluginContext(pctx.WithSender(addr4)), &GetCfgSettingRequest{
-		Name: cfgSettingName,
-	})
-	require.NoError(err)
-	require.Equal(cfgSettingName, getCfgResp.CfgSetting.Name)
-	require.Equal(cfgSettingValue, getCfgResp.CfgSetting.Value)
-	require.Equal(uint64(2), getCfgResp.CfgSetting.Version)
-
-	// Set cfg setting to store state
-	pctx.SetCfgSetting(getCfgResp.CfgSetting)
-
-	// This should return default config as we are still version 1
-	configResp, err = chainconfigContract.ChainConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &ChainConfigRequest{})
-	require.NoError(err)
-	require.Equal(uint64(1), configResp.Config.Version)
-	require.Equal(uint64(50), configResp.Config.AppStoreConfig.DeletedVmKeys)
 }

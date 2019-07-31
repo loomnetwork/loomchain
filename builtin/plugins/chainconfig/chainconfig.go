@@ -92,18 +92,8 @@ var (
 	// by majority of validators, and has not been activated on the chain.
 	ErrFeatureNotEnabled = errors.New("[ChainConfig] feature not enabled")
 
-	// ErrConfigNotFound indicates that a config does not exist
-	ErrConfigNotFound = errors.New("[ChainConfig] config not found")
 	// ErrConfigNotSupported inidicates that an enabled config is not supported in the current build
 	ErrConfigNotSupported = errors.New("[ChainConfig] config is not supported in the current build")
-	// ErrConfigAlreadyExists returned if an owner try to set an existing config
-	ErrConfigAlreadyExists = errors.New("[ChainConfig] config already exists")
-	// ErrConfigAlreadySettled is returned if a validator tries to vote a confg that's already settled
-	ErrConfigAlreadySettled = errors.New("[ChainConfig] config already settled")
-	// ErrConfigNonVotable is returned if a validator tries to vote a non-votable config
-	ErrConfigNonVotable = errors.New("[ChainConfig] config is not votable")
-	// ErrConfigWrongType returned when types of value and config variable mismatch
-	ErrConfigWrongType = errors.New("[ChainConfig] wrong variable type")
 )
 
 const (
@@ -410,7 +400,7 @@ func UpdateConfig(ctx contract.Context, buildNumber uint64) ([]*Setting, error) 
 		}
 		// Return this setting, if the number of validators that support this setting
 		// has not reached the vote threshold
-		if len(validatorsInfo) > 0 && uint64(supportedValidator/len(validatorsInfo)) >= params.VoteThreshold {
+		if len(validatorsInfo) > 0 && uint64((supportedValidator*100)/len(validatorsInfo)) >= params.VoteThreshold {
 			if buildNumber < setting.BuildNumber {
 				return nil, ErrConfigNotSupported
 			}
@@ -471,7 +461,7 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 		return ErrNotAuthorized
 	}
 
-	if req.Name == "" || req.Value == "" || req.BuildNumber == 0 {
+	if req.Name == "" || req.Value == "" {
 		return ErrInvalidRequest
 	}
 

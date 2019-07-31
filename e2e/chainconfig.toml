@@ -223,50 +223,12 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg config"
   Condition = "contains"
-  Expected = ['50','1']
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-cfg-setting AppStoreConfig.DeletedVmKeys --value 777 --version 1 -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "excludes"
-  Expected = ['Error','RPC error']
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-cfg-setting AppStoreConfig.DeletedVmKeys"
-  Condition = "contains"
-  Expected = ['777']
-
-# wait for block height to increase at least 1 blocks
-[[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 1"
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg config"
-  Condition = "contains"
-  Expected = ['777']
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg remove-cfg-setting AppStoreConfig.DeletedVmKeys -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "excludes"
-  Expected = ['Error','RPC error'] 
-
-# wait for block height to increase at least 1 blocks
-[[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 1"
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg config"
-  Condition = "contains"
   Expected = ['50']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-cfg-setting AppStoreConfig.DeletedVmKeys --value 555 --version 2 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStoreConfig.NumEvmKeysToPrune --value 777 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg get-cfg-setting AppStoreConfig.DeletedVmKeys"
-  Condition = "contains"
-  Expected = ['555']
 
 # wait for block height to increase at least 1 blocks
 [[TestCases]]
@@ -275,4 +237,51 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg config"
   Condition = "contains"
-  Expected = ['50','1']
+  Expected = ['777']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-settings  -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['AppStoreConfig.NumEvmKeysToPrune'] 
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting NonExist.Config --value 777 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting NonExistConfig --value 777 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-settings"
+  Condition = "excludes"
+  Excluded = ["NonExistConfig", "NonExist.Config"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStoreConfig.NumEvmKeysToPrune --value 5555 --build 1000 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg get-setting AppStoreConfig.NumEvmKeysToPrune"
+  Condition = "contains"
+  Expected = ['5555']
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-settings"
+  Condition = "contains"
+  Expected = ['AppStoreConfig.NumEvmKeysToPrune']

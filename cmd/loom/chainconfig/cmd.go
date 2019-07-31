@@ -445,7 +445,7 @@ func GetSettingCmd() *cobra.Command {
 			var resp cctype.GetSettingResponse
 			err := cli.StaticCallContractWithFlags(
 				&flags, chainConfigContractName,
-				"GetCfgSetting", &cctype.GetSettingRequest{
+				"GetSetting", &cctype.GetSettingRequest{
 					Name: args[0],
 				}, &resp,
 			)
@@ -495,7 +495,7 @@ func ChainConfigCmd() *cobra.Command {
 	return cmd
 }
 
-const setCfgSettingCmdExample = `
+const setSettingCmdExample = `
 loom chain-cfg set-setting AppStoreConfig.DeletedVmKeys --value 100 --version 1
 `
 
@@ -506,7 +506,7 @@ func SetSettingCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-setting <config name>",
 		Short:   "Set setting",
-		Example: setCfgSettingCmdExample,
+		Example: setSettingCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "" || value == "" {

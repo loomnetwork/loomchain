@@ -26,24 +26,24 @@ func TestContractChainConfig(t *testing.T) {
 		"chainconfig.genesis.json",
 		"chainconfig-loom.yaml",
 	}
-	test2 := Test{
-		"enable-receipts-v2-feature",
-		"enable-receipts-v2-feature.toml",
-		1,
-		1,
-		"enable-receipts-v2-feature-genesis.json",
-		"enable-receipts-v2-feature-loom.yaml",
-	}
-	test3 := Test{
-		"chainconfig-routine",
-		"chainconfig-routine.toml",
-		4,
-		4,
-		"chainconfig.genesis.json",
-		"chainconfig-routine-loom.yaml",
-	}
+	// test2 := Test{
+	// 	"enable-receipts-v2-feature",
+	// 	"enable-receipts-v2-feature.toml",
+	// 	1,
+	// 	1,
+	// 	"enable-receipts-v2-feature-genesis.json",
+	// 	"enable-receipts-v2-feature-loom.yaml",
+	// }
+	// test3 := Test{
+	// 	"chainconfig-routine",
+	// 	"chainconfig-routine.toml",
+	// 	4,
+	// 	4,
+	// 	"chainconfig.genesis.json",
+	// 	"chainconfig-routine-loom.yaml",
+	// }
 	tests := make([]Test, 0)
-	tests = append(tests, test1, test2, test3)
+	tests = append(tests, test1)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
