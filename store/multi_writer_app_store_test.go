@@ -312,7 +312,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	go func(s *MultiWriterAppStore) {
 		defer wg.Done()
 		for {
-			switch {
+			select {
 			case <-quit:
 				return
 			default:
