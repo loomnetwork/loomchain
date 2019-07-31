@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/stretchr/testify/require"
@@ -318,10 +319,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 			default:
 				{
 					snapshot := s.GetSnapshot()
-					count := 0
-					for _, _ = range snapshot.Range(prefix) {
-						count++
-					}
+					time.Sleep(time.Millisecond)
 					snapshot.Release()
 				}
 			}
