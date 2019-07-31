@@ -465,14 +465,14 @@ func GetSettingCmd() *cobra.Command {
 }
 
 const chainConfigCmdExample = `
-loom chain-cfg chain-config
+loom chain-cfg config
 `
 
 func ChainConfigCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "config",
-		Short:   "Get on-chain cfg settings",
+		Short:   "Get on-chain config",
 		Example: chainConfigCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ChainConfigResponse
@@ -496,7 +496,7 @@ func ChainConfigCmd() *cobra.Command {
 }
 
 const setSettingCmdExample = `
-loom chain-cfg set-setting AppStoreConfig.DeletedVmKeys --value 100 --version 1
+loom chain-cfg set-setting AppStoreConfig.NumEvmKeysToPrune --value 100 --build 1200
 `
 
 func SetSettingCmd() *cobra.Command {
@@ -527,7 +527,7 @@ func SetSettingCmd() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&value, "value", "", "Set value of config")
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set build of config")
-	cmd.MarkFlagRequired("version")
+	cmd.MarkFlagRequired("value")
 	cmd.MarkFlagRequired("build")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
