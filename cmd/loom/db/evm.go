@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
+	"github.com/loomnetwork/loomchain/config"
 	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
@@ -35,7 +36,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 		Use:   "evm-dump",
 		Short: "Dumps EVM state stored at a specific block height",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := config.ParseConfig()
 			if err != nil {
 				return err
 			}
@@ -156,7 +157,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 		Use:   "evm-dump-2",
 		Short: "Dumps EVM state stored at a specific block height from MultiWriterAppStore",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := config.ParseConfig()
 			if err != nil {
 				return err
 			}
