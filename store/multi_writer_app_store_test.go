@@ -288,6 +288,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, append(prefix, byte(0)))
 
 	controlStore, err := NewIAVLStore(tdb.NewMemDB(), 0, 0, flushInterval)
+	require.NoError(t, err)
 	for _, block := range blocks {
 		require.NoError(t, block.Execute(controlStore.tree))
 		_, _, err := controlStore.SaveVersion()
