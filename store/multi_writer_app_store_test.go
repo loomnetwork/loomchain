@@ -306,6 +306,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 			require.NoError(t, block.Execute(testStore.appStore.tree))
 			_, _, err := testStore.SaveVersion()
 			require.NoError(t, err)
+			time.Sleep(5 * time.Millisecond)
 		}
 		quit <- true
 	}(testStore)
