@@ -8,11 +8,20 @@ const (
 	TGHotWalletFeature = "tg:hot-wallet"
 	// Enables prevention of zero amount token withdrawals in the Gateway contract
 	TGCheckZeroAmount = "tg:check-zamt"
-	//Enables workaround for handling of ERC721 deposits in the Gateway contract
+	// Enables workaround for handling of ERC721 deposits in the Gateway contract
 	TGFixERC721Feature = "tg:fix-erc721"
+	// Enables support for Binance contract mappings in the Binance Gateway contract
+	TGBinanceContractMappingFeature = "tg:binance-cm"
+
+	// Enables support for mapping DAppChain accounts to Binance accounts
+	AddressMapperVersion1_1 = "addrmapper:v1.1"
+
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
 	AuthSigTxFeaturePrefix = "auth:sigtx:"
+
+	// Enables stricter chain-specific signature verification in MultiChainSignatureTxMiddleware
+	MultiChainSigTxMiddlewareVersion1_1 = "mw:mulcsigtx:v1.1"
 
 	// Enables DPOS v3
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
@@ -82,6 +91,9 @@ const (
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
+
+	// Restrict the value of call & deploy txs to non-negative amounts
+	CheckTxValueFeature = "tx:check-value"
 
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"

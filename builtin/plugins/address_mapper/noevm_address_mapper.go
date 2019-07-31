@@ -7,6 +7,7 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
@@ -42,7 +43,7 @@ func (am *AddressMapper) AddIdentityMapping(_ contract.Context, _ *AddIdentityMa
 	return nil
 }
 
-func SignIdentityMapping(_, _ loom.Address, _ *ecdsa.PrivateKey) ([]byte, error) {
+func SignIdentityMapping(_, _ loom.Address, _ *ecdsa.PrivateKey, _ evmcompat.SignatureType) ([]byte, error) {
 	return nil, nil
 }
 
