@@ -189,6 +189,11 @@ func (m *MockQueryService) ContractEvents(
 	return nil, nil
 }
 
+func (m *MockQueryService) GetContractRecord(addr string) (*types.ContractRecordResponse, error) {
+	m.MethodsCalled = append([]string{"GetcontractRecord"}, m.MethodsCalled...)
+	return nil, nil
+}
+
 // deprecated function
 func (m *MockQueryService) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	m.MethodsCalled = append([]string{"EvmTxReceipt"}, m.MethodsCalled...)
