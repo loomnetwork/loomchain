@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/tendermint/iavl"
-	tdb "github.com/tendermint/tendermint/libs/db"
 
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/log"
@@ -287,11 +286,14 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	blocks = nil
 	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, append(prefix, byte(0)))
 
-	controlStore, err := NewIAVLStore(tdb.NewMemDB(), 0, 0, flushInterval)
+	//controlStore, err := NewIAVLStore(tdb.NewMemDB(), 0, 0, flushInterval)
+	controlStore, err := mockMultiWriterStore(flushInterval)
+	var controlHashes [][]byte
 	require.NoError(t, err)
 	for _, block := range blocks {
-		require.NoError(t, block.Execute(controlStore.tree))
-		_, _, err := controlStore.SaveVersion()
+		require.NoError(t, block.Execute(controlStore.appStore.tree))
+		hash, _, err := controlStore.SaveVersion()
+		controlHashes = append(controlHashes, hash)
 		require.NoError(t, err)
 	}
 
@@ -301,12 +303,14 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	quit := make(chan bool)
 	var wg sync.WaitGroup
 	wg.Add(2)
+	var testHashes [][]byte
 	go func(s *MultiWriterAppStore) {
 		defer wg.Done()
 		for _, block := range blocks {
 			require.NoError(t, block.Execute(s.appStore.tree))
-			_, _, err := s.SaveVersion()
+			hash, _, err := s.SaveVersion()
 			require.NoError(t, err)
+			testHashes = append(testHashes, hash)
 			time.Sleep(5 * time.Millisecond)
 		}
 		quit <- true
@@ -337,5 +341,10 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	for _, data := range controlStore.Range(prefix) {
 		value := testStore.Get(util.PrefixKey(prefix, data.Key))
 		require.Zero(t, bytes.Compare(value, data.Value))
+	}
+	require.Equal(t, len(controlHashes), numBlocks)
+	require.Equal(t, len(controlHashes), len(testHashes))
+	for i := range controlHashes {
+		require.Zero(t, bytes.Compare(controlHashes[i], testHashes[i]))
 	}
 }
