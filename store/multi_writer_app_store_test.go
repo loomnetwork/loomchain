@@ -277,8 +277,8 @@ func vmPrefixKey(key string) []byte {
 }
 
 func TestMultiWriterSnapshots(t *testing.T) {
-	numBlocks = 5
-	blockSize = 2
+	numBlocks = 25
+	blockSize = 5
 	flushInterval := int64(10)
 	prefix := []byte("test")
 	log.Setup("debug", "file://-")
