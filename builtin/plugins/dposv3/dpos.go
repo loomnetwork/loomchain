@@ -56,6 +56,7 @@ const (
 var (
 	secondsInYear                    = loom.BigUInt{big.NewInt(yearSeconds)}
 	billionth                        = loom.BigUInt{big.NewInt(1000000000)}
+	defaultFee                       = uint64(2500) // 25%
 	defaultReferrerFee               = loom.BigUInt{big.NewInt(300)}
 	blockRewardPercentage            = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage        = loom.BigUInt{big.NewInt(500)}
@@ -197,6 +198,35 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.DowntimePeriod = defaultDowntimePeriod
 	}
 
+	candidates := &CandidateList{}
+	// if InitCandidates is true, whitelist validators and register them for candidates
+	if req.InitCandidates {
+		for i, validator := range req.Validators {
+			candidateAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+			newCandidate := &Candidate{
+				PubKey:                validator.PubKey,
+				Address:               candidateAddr.MarshalPB(),
+				Fee:                   defaultFee,
+				NewFee:                defaultFee,
+				Name:                  fmt.Sprintf("candidate-%d", i),
+				State:                 REGISTERED,
+				MaxReferralPercentage: defaultReferrerFee.Uint64(),
+			}
+			candidates.Set(newCandidate)
+			if err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
+				CandidateAddress: candidateAddr.MarshalPB(),
+				Amount:           params.RegistrationRequirement,
+				LocktimeTier:     TIER_ZERO,
+			}); err != nil {
+				return err
+			}
+		}
+
+		if err := saveCandidateList(ctx, *candidates); err != nil {
+			return err
+		}
+	}
+
 	state := &State{
 		Params:     params,
 		Validators: req.Validators,
@@ -206,7 +236,6 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		TotalValidatorDelegations: loom.BigZeroPB(),
 		TotalRewardDistribution:   loom.BigZeroPB(),
 	}
-
 	return saveState(ctx, state)
 }
 
