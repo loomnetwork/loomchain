@@ -341,17 +341,17 @@ func init() {
 	beginBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace:  "loomchain",
 		Subsystem:  "application",
-		Name:       "begin_block_latency_seconds",
+		Name:       "begin_block_latency",
 		Help:       "Total duration of begin block in seconds.",
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-	}, fieldKeys)
+	}, []string{"method"})
 	endBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace:  "loomchain",
 		Subsystem:  "application",
-		Name:       "end_block_latency_seconds",
+		Name:       "end_block_latency",
 		Help:       "Total duration of end block in seconds.",
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-	}, fieldKeys)
+	}, []string{"method"})
 
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
@@ -403,11 +403,9 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 }
 
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"method", "BeginBlock", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "BeginBlock"}
 		beginBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("BeginBlock took %f seconds-----\n", time.Since(begin).Seconds()))
 	}(time.Now())
 
 	block := req.Header
@@ -477,11 +475,9 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 }
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
-	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"method", "EndBlock", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "EndBlock"}
 		endBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("EndBlock took %f seconds-----\n", time.Since(begin).Seconds()))
 	}(time.Now())
 
 	if req.Height != a.height() {
