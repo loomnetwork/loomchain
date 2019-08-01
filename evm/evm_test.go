@@ -39,7 +39,7 @@ func mockState() loomchain.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil, nil)
 }
 
 func TestProcessDeployTx(t *testing.T) {

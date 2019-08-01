@@ -171,7 +171,7 @@ func TestBinanceSigning(t *testing.T) {
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -233,7 +233,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 }
 
 func TestBinanceAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil, nil)
 	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
 	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
@@ -302,7 +302,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 }
 
 func TestChainIdVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil, nil)
 	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
 	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)

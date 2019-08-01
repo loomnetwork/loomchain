@@ -25,7 +25,7 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil, nil)
 	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
 		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)
@@ -59,7 +59,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	ctx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	ctx = context.WithValue(ctx, ContextKeyCheckTx, true)
 
-	state := loomchain.NewStoreState(ctx, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
+	state := loomchain.NewStoreState(ctx, store.NewMemStore(), abci.Header{Height: 27}, nil, nil, nil)
 
 	_, err = NonceTxMiddleware(state, nonceTxBytes,
 		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
@@ -71,7 +71,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//State is reset on every run
 	ctx2 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
-	state2 := loomchain.NewStoreState(ctx2, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
+	state2 := loomchain.NewStoreState(ctx2, store.NewMemStore(), abci.Header{Height: 27}, nil, nil, nil)
 	ctx2 = context.WithValue(ctx2, ContextKeyCheckTx, true)
 
 	//If we get the same sequence number in same block we should get an error
@@ -85,7 +85,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//State is reset on every run
 	ctx3 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
-	state3 := loomchain.NewStoreState(ctx3, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
+	state3 := loomchain.NewStoreState(ctx3, store.NewMemStore(), abci.Header{Height: 27}, nil, nil, nil)
 	ctx3 = context.WithValue(ctx3, ContextKeyCheckTx, true)
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
@@ -99,7 +99,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//Try a deliverTx at same height it should be fine
 	ctx3Dx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
-	state3Dx := loomchain.NewStoreState(ctx3Dx, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
+	state3Dx := loomchain.NewStoreState(ctx3Dx, store.NewMemStore(), abci.Header{Height: 27}, nil, nil, nil)
 	ctx3Dx = context.WithValue(ctx3Dx, ContextKeyCheckTx, true)
 
 	_, err = NonceTxMiddleware(state3Dx, nonceTxBytes,
@@ -113,7 +113,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	///--------------increase block height should kill cache
 	//State is reset on every run
 	ctx4 := context.WithValue(nil, ContextKeyOrigin, origin)
-	state4 := loomchain.NewStoreState(ctx4, store.NewMemStore(), abci.Header{Height: 28}, nil, nil)
+	state4 := loomchain.NewStoreState(ctx4, store.NewMemStore(), abci.Header{Height: 28}, nil, nil, nil)
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
 	_, err = NonceTxMiddleware(state4, nonceTxBytes,
