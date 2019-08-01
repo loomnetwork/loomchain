@@ -652,23 +652,26 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-
 		evmStoreEvmRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
-		if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) && evmVersion < iavlStore.Version() {
+		if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 			// downgrade iavlStore version
 			log.Info(fmt.Sprintf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X", evmVersion, evmStoreEvmRoot, iavlStore.Version(), appStoreEvmRoot))
-			log.Info(fmt.Sprintf("Try to load app.db at height %d", evmVersion))
-			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, evmVersion, cfg.AppStore.IAVLFlushInterval)
+			lastestVersion, _ := store.LastestIAVLStoreVersion(db, evmVersion)
+			log.Info(fmt.Sprintf("Try to load app.db at height %d", lastestVersion))
+			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, lastestVersion, cfg.AppStore.IAVLFlushInterval)
+			if err != nil {
+				return nil, err
+			}
+			evmStore.CloseDB()
+			evmStore, err = loadEvmStore(cfg, iavlStore.Version())
 			if err != nil {
 				return nil, err
 			}
 		}
-
 		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
 			return nil, err
 		}
-
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
@@ -694,7 +697,6 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 		logger.Info("VersionedCachingStore enabled")
 	}
-
 	return appStore, nil
 }
 
