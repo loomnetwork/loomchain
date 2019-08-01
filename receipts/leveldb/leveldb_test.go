@@ -8,7 +8,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
@@ -24,7 +23,6 @@ func TestReceiptsCyclicDB(t *testing.T) {
 
 	maxSize := uint64(10)
 	handler := NewLevelDbReceipts(evmAuxStore, maxSize)
-
 	// start db
 	height := uint64(1)
 	state := common.MockState(height)
@@ -33,8 +31,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	// store 5 receipts
 	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1, commit)
-	confirmStateConsistency(t, state, receipts1, height)
-
+	confirmStateConsistency(t, evmAuxStore, receipts1, height)
 	// db reaching max
 	height = 2
 	state2 := common.MockStateAt(state, height)
@@ -43,7 +40,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	// store another 7 receipts
 	require.NoError(t, handler.CommitBlock(state2, receipts2, height))
 	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...), commit)
-	confirmStateConsistency(t, state2, receipts2, height)
+	confirmStateConsistency(t, evmAuxStore, receipts2, height)
 
 	// db at max
 	height = 3
@@ -53,7 +50,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	// store another 5 receipts
 	require.NoError(t, handler.CommitBlock(state3, receipts3, height))
 	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...), commit)
-	confirmStateConsistency(t, state3, receipts3, height)
+	confirmStateConsistency(t, evmAuxStore, receipts3, height)
 
 	require.NoError(t, handler.Close())
 
@@ -79,7 +76,7 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 
 	confirmDbConsistency(t, handler, maxSize, receipts1[1].TxHash, receipts1[10].TxHash, receipts1[1:], commit)
-	confirmStateConsistency(t, state, receipts1, height)
+	confirmStateConsistency(t, evmAuxStore, receipts1, height)
 
 	require.NoError(t, handler.Close())
 
@@ -137,8 +134,8 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 	}
 }
 
-func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) {
-	txHashes, err := common.GetTxHashList(state, height)
+func confirmStateConsistency(t *testing.T, evmAuxStore *evmaux.EvmAuxStore, receipts []*types.EvmTxReceipt, height uint64) {
+	txHashes, err := evmAuxStore.GetTxHashList(height)
 	require.NoError(t, err)
 	for i := 0; i < len(receipts); i++ {
 		require.EqualValues(t, 0, bytes.Compare(txHashes[i], receipts[i].TxHash))

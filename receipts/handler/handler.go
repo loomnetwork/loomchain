@@ -21,10 +21,6 @@ const (
 	DefaultMaxReceipts    = uint64(2000)
 )
 
-func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
-	return ReceiptHandlerLevelDb, nil
-}
-
 // ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
 // loomchain.ReceiptHandlerStore interfaces.
 type ReceiptHandler struct {
