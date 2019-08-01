@@ -25,7 +25,8 @@ func TestE2eKarma(t *testing.T) {
 	common.ContractDir = "../contracts"
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0, false)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators,
+				test.accounts, 0, false)
 			if err != nil {
 				t.Fatal(err)
 			}
