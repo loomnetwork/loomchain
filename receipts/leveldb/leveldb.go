@@ -87,12 +87,12 @@ type LevelDbReceipts struct {
 	tran        *leveldb.Transaction
 }
 
-func NewLevelDbReceipts(evmAuxStore *evmaux.EvmAuxStore, maxReceipts uint64) (*LevelDbReceipts, error) {
+func NewLevelDbReceipts(evmAuxStore *evmaux.EvmAuxStore, maxReceipts uint64) *LevelDbReceipts {
 	return &LevelDbReceipts{
 		MaxDbSize:   maxReceipts,
 		evmAuxStore: evmAuxStore,
 		tran:        nil,
-	}, nil
+	}
 }
 
 func (lr LevelDbReceipts) Close() error {

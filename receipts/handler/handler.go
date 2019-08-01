@@ -28,40 +28,30 @@ func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
 // ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
 // loomchain.ReceiptHandlerStore interfaces.
 type ReceiptHandler struct {
-	v               ReceiptHandlerVersion
 	eventHandler    loomchain.EventHandler
 	leveldbReceipts *leveldb.LevelDbReceipts
-
-	mutex         *sync.RWMutex
-	receiptsCache []*types.EvmTxReceipt
-	txHashList    [][]byte
-
-	currentReceipt *types.EvmTxReceipt
+	mutex           *sync.RWMutex
+	receiptsCache   []*types.EvmTxReceipt
+	txHashList      [][]byte
+	currentReceipt  *types.EvmTxReceipt
 }
 
 func NewReceiptHandler(
-	version ReceiptHandlerVersion, eventHandler loomchain.EventHandler,
+	eventHandler loomchain.EventHandler,
 	maxReceipts uint64, evmAuxStore *evmaux.EvmAuxStore,
-) (*ReceiptHandler, error) {
-	rh := &ReceiptHandler{
-		v:              version,
-		eventHandler:   eventHandler,
-		receiptsCache:  []*types.EvmTxReceipt{},
-		txHashList:     [][]byte{},
-		currentReceipt: nil,
-		mutex:          &sync.RWMutex{},
+) *ReceiptHandler {
+	return &ReceiptHandler{
+		eventHandler:    eventHandler,
+		receiptsCache:   []*types.EvmTxReceipt{},
+		txHashList:      [][]byte{},
+		currentReceipt:  nil,
+		mutex:           &sync.RWMutex{},
+		leveldbReceipts: leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts),
 	}
-
-	leveldbHandler, err := leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts)
-	if err != nil {
-		return nil, errors.Wrap(err, "new leved db receipt handler")
-	}
-	rh.leveldbReceipts = leveldbHandler
-	return rh, nil
 }
 
 func (r *ReceiptHandler) Version() ReceiptHandlerVersion {
-	return r.v
+	return ReceiptHandlerLevelDb
 }
 
 func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
@@ -92,9 +82,10 @@ func (r *ReceiptHandler) GetCurrentReceipt() *types.EvmTxReceipt {
 
 func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
 	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	hashListCopy := make([][]byte, len(r.txHashList))
 	copy(hashListCopy, r.txHashList)
-	r.mutex.RUnlock()
 	return hashListCopy
 }
 
@@ -113,10 +104,9 @@ func (r *ReceiptHandler) ClearData() error {
 func (r *ReceiptHandler) CommitCurrentReceipt() {
 	if r.currentReceipt != nil {
 		r.mutex.Lock()
+		defer r.mutex.Unlock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
-		r.mutex.Unlock()
-
 		r.currentReceipt = nil
 	}
 }

@@ -26,7 +26,7 @@ type ReceiptHandlerStore interface {
 }
 
 type ReceiptHandlerProvider interface {
-	StoreAt(blockHeight int64, v2Feature bool) (ReceiptHandlerStore, error)
-	ReaderAt(blockHeight int64, v2Feature bool) (ReadReceiptHandler, error)
-	WriterAt(blockHeight int64, v2Feature bool) (WriteReceiptHandler, error)
+	Store() ReceiptHandlerStore
+	Reader() ReadReceiptHandler
+	Writer() WriteReceiptHandler
 }
