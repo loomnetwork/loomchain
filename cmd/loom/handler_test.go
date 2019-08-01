@@ -31,7 +31,8 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 
 	vmManager := vm.NewManager()
 	router := loomchain.NewTxRouter()
-	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(&vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry}))
+	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(&vm.DeployTxHandler{Manager: vmManager,
+		CreateRegistry: createRegistry}))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(&vm.CallTxHandler{Manager: vmManager}))
 
 	txMiddleWare := []loomchain.TxMiddleware{
