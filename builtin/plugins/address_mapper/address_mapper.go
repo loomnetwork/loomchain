@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -231,10 +230,8 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType e
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
 
-	// Tron signs msg using personal signature
 	if sigType == evmcompat.SignatureType_TRON {
-		signer := &auth.TronSigner{PrivateKey: key}
-		return signer.Sign(hash), nil
+		hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
 	}
 
 	return evmcompat.GenerateTypedSig(hash, key, sigType)
