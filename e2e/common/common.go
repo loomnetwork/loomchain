@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain/e2e/engine"
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
@@ -154,6 +156,12 @@ func GenerateConfig(
 	if err != nil {
 		return nil, err
 	}
+	if validators > 0 {
+		if _, err := os.Stat(loompathAbs); os.IsNotExist(err) {
+			return nil, errors.Errorf("cannot find loom executable %s", loompathAbs)
+		}
+	}
+
 	var accounts []*node.Account
 	for i := 0; i < account; i++ {
 		acct, err := node.CreateAccount(i, conf.BaseDir, loompathAbs)
@@ -194,6 +202,11 @@ func GenerateConfig(
 	loompathAbs2, err := filepath.Abs(loompath2)
 	if err != nil {
 		return nil, err
+	}
+	if altValidators > 0 {
+		if _, err := os.Stat(loompathAbs2); os.IsNotExist(err) {
+			return nil, errors.Errorf("cannot find alternate loom executable %s", loompathAbs2)
+		}
 	}
 
 	for i := validators; i < validators+altValidators; i++ {
