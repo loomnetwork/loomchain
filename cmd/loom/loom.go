@@ -438,10 +438,10 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
+//nolint: unused, deadcode
 const contractInfoCommandExample = `
 loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
 `
-
 type contractInfo struct {
 	Name    string
 	Address string
