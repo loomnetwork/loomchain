@@ -214,6 +214,11 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*
 	}, nil
 }
 
+func LastestIAVLStoreVersion(db dbm.DB, targetVersion int64) (int64, error) {
+	tree := iavl.NewMutableTree(db, 10000)
+	return tree.LoadVersion(targetVersion)
+}
+
 type iavlStoreSnapshot struct {
 	*IAVLStore
 }
