@@ -34,15 +34,17 @@ const (
 )
 
 const (
-	// ChannelIDs need to be unique across all the reactors.
-	// so to avoid conflict with other reactor's channel id and
-	// Give TM some wiggle room when they add more channel, we are starting
-	// channel ids from 0x50 for this reactor.
-	FnVoteSetChannel = byte(0x50)
-	FnMajChannel     = byte(0x51)
+	// Channel IDs need to be unique across all the reactors.
+	// To avoid conflict with other reactors and to give Tendermint some wiggle room when they
+	// add more channels we're using channel IDs from 0x50 onwards for this reactor.
 
-	// Max message size 2 MB
-	MaxMsgSize = 2 * 1000 * 1024
+	// FnVoteSetChannel is used to gossip votesets
+	FnVoteSetChannel = byte(0x50)
+	// FnMajChannel is used to gossip votesets that have reached 2/3+ majority
+	FnMajChannel = byte(0x51)
+
+	// MaxMsgSize is the max number of bytes that can sent on a P2P channel
+	MaxMsgSize = 2 * 1000 * 1024 // 2MB
 
 	// Adding the Commit execution buffer to both ProgressInterval and ExpiresIn
 	// so that 10 seconds interval
@@ -50,7 +52,7 @@ const (
 
 	// Denotes interval (synced across nodes) between two proposals
 	proposeIntervalInSeconds int64 = 10
-	CommitIntervalInSeconds  int64 = 5
+	commitIntervalInSeconds  int64 = 5
 
 	// Delay between propogating votesets to update other peers
 	voteSetPropogationDelay = 1 * time.Second
@@ -219,9 +221,9 @@ func calculateMessageHash(message []byte) ([]byte, error) {
 	return hash.Sum(nil), nil
 }
 
-func (f *FnConsensusReactor) calculateSleepTimeForCommit(areWeValidator bool) time.Duration {
+func calculateSleepTimeForCommit(areWeValidator bool) time.Duration {
 	currentEpochTime := time.Now().Unix()
-	baseTimeToSleep := CommitIntervalInSeconds - currentEpochTime%CommitIntervalInSeconds
+	baseTimeToSleep := commitIntervalInSeconds - currentEpochTime%commitIntervalInSeconds
 
 	const maxBoundForVariableComponent = 2 * time.Second
 	const baseCommitDelay = 100 * time.Millisecond
@@ -323,7 +325,7 @@ func (f *FnConsensusReactor) commitRoutine() {
 
 OUTER_LOOP:
 	for {
-		commitSleepTime := f.calculateSleepTimeForCommit(areWeValidator)
+		commitSleepTime := calculateSleepTimeForCommit(areWeValidator)
 		commitTimer := time.NewTimer(commitSleepTime)
 
 		select {
@@ -349,7 +351,6 @@ OUTER_LOOP:
 			for _, fnID := range fnsEligibleForCommit {
 				f.commit(fnID)
 			}
-
 		}
 	}
 }
@@ -501,9 +502,19 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
+	// NOTE: f.state is still locked at this point, so until the broadcast is complete we won't be able
+	// to receive any votesets from anyone else because both handleVoteSetChannelMessage and
+	// handleMaj23VoteSetChannel must acquire the f.state lock before they can do anything of substance.
 	f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytes)
 }
 
+// Checks if the signing threshold has been reached (2/3+ majority usually), if it has been invokes the
+// SubmitMultiSignedMessage for the given fnID. If the threshold hasn't been reached it broadcasts the
+// both the previous voteset that reached the threshold and the current voteset to all peers to help
+// them along.
+// TODO: Double-check the Ethereum Gateway uses a similar algo to calculate the threshold, otherwise
+//       we could end up in a situation where 2/3+ majority is reached here but the threshold calculated
+//       by the Ethereum Gateway is slightly more than that.
 func (f *FnConsensusReactor) commit(fnID string) {
 	fn := f.fnRegistry.Get(fnID)
 	if fn == nil {
@@ -586,6 +597,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				)
 				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
 				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
+				// Q: What relation does currentNonce have to numberOfAgreeVotes?
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
@@ -609,11 +621,15 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 }
 
+// Compares the trustworthiness of a voteset received from a peer to the current local voteset.
+// Returns zero if both votesets have the same trustworthiness, 1 if the remote voteset is more trustworthy,
+// or -1 if the local voteset is more trustworthy.
 func (f *FnConsensusReactor) compareFnVoteSets(
 	remoteVoteSet *FnVoteSet,
 	currentVoteSet *FnVoteSet,
 	currentNonce int64,
-	currentValidators *types.ValidatorSet) int {
+	currentValidators *types.ValidatorSet,
+) int {
 	if currentVoteSet == nil {
 		if currentNonce == remoteVoteSet.Nonce {
 			return 1
@@ -772,6 +788,8 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
+	// Q: If remote nonce is greater or equal to ours then we end up sending the remote voteset back
+	//    to the peer that sent it to us, why? Shouldn't we exclude that peer from the broadcast?
 	f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
 }
 

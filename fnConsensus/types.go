@@ -234,6 +234,8 @@ func (f *FnExecutionResponse) Unmarshal(bz []byte) error {
 	return cdc.UnmarshalBinaryLengthPrefixed(bz, f)
 }
 
+// Merge attempts to merge the data from another response into this one.
+// Returns true if the response was merged in, and false otherwise.
 func (f *FnExecutionResponse) Merge(anotherExecutionResponse *FnExecutionResponse) (bool, error) {
 	if anotherExecutionResponse == nil {
 		return false, fmt.Errorf("cant merge as another execution response is nil")
@@ -246,6 +248,7 @@ func (f *FnExecutionResponse) Merge(anotherExecutionResponse *FnExecutionRespons
 	hasResponseChanged := false
 
 	for i := 0; i < len(f.OracleSignatures); i++ {
+		// TODO: Hmmm, need to think about this one...
 		if f.SignatureBitArray.GetIndex(i) || !anotherExecutionResponse.SignatureBitArray.GetIndex(i) {
 			continue
 		}
@@ -752,7 +755,7 @@ func (voteSet *FnVoteSet) HaveWeAlreadySigned(ownValidatorIndex int) bool {
 	return voteSet.VoteBitArray.GetIndex(ownValidatorIndex)
 }
 
-// Should be the first function to be invoked on vote set received from Peer
+// IsValid should be the first function to be invoked when a voteset is received from a peer.
 func (voteSet *FnVoteSet) IsValid(chainID string, currentValidatorSet *types.ValidatorSet, registry FnRegistry) error {
 	var calculatedVotingPower int64
 
