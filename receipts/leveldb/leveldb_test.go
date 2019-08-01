@@ -23,8 +23,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, err)
 
 	maxSize := uint64(10)
-	handler, err := NewLevelDbReceipts(evmAuxStore, maxSize)
-	require.NoError(t, err)
+	handler := NewLevelDbReceipts(evmAuxStore, maxSize)
 
 	// start db
 	height := uint64(1)
@@ -70,8 +69,7 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	maxSize := uint64(10)
-	handler, err := NewLevelDbReceipts(evmAuxStore, maxSize)
-	require.NoError(t, err)
+	handler := NewLevelDbReceipts(evmAuxStore, maxSize)
 
 	height := uint64(1)
 	state := common.MockState(height)
@@ -151,8 +149,7 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	maxSize := uint64(10)
-	handler, err := NewLevelDbReceipts(evmAuxStore, maxSize)
-	require.NoError(t, err)
+	handler := NewLevelDbReceipts(evmAuxStore, maxSize)
 	height := uint64(1)
 	state := common.MockState(height)
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
