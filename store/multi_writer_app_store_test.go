@@ -146,8 +146,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotFlushInter
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
 	// this flushes all data to disk
-	//nolint: ineffassign
-	_, version, err = store.SaveVersion()
+	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
 	// get snapshotv2
