@@ -109,9 +109,9 @@ func TestTronSigning(t *testing.T) {
 		sha3.Uint64(nonce),
 		nonceTx,
 	)
-	hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
+	prefixedHash := evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
 
-	signature, err := evmcompat.GenerateTypedSig(signedHash, privateKey, evmcompat.SignatureType_TRON)
+	signature, err := evmcompat.GenerateTypedSig(prefixedHash, privateKey, evmcompat.SignatureType_TRON)
 	require.NoError(t, err)
 
 	tx := &auth.SignedTx{
@@ -127,7 +127,7 @@ func TestTronSigning(t *testing.T) {
 	require.True(t, bytes.Equal(recoverdAddr.Bytes(), foreignLocalAddr))
 
 	signatureNoRecoverID := signature[1 : len(tx.Signature)-1] // remove recovery ID
-	require.True(t, auth.VerifyTronSignature(tx.PublicKey, hash, signatureNoRecoverID))
+	require.True(t, crypto.VerifySignature(tx.PublicKey, prefixedHash, signatureNoRecoverID))
 }
 
 func TestBinanceSigning(t *testing.T) {
