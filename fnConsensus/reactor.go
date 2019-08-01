@@ -46,10 +46,6 @@ const (
 	// MaxMsgSize is the max number of bytes that can sent on a P2P channel
 	MaxMsgSize = 2 * 1000 * 1024 // 2MB
 
-	// Adding the Commit execution buffer to both ProgressInterval and ExpiresIn
-	// so that 10 seconds interval
-	// is maintained between sync expiration, overall expiration and new proposal
-
 	// Denotes interval (synced across nodes) between two proposals
 	proposeIntervalInSeconds int64 = 10
 	commitIntervalInSeconds  int64 = 5
@@ -508,10 +504,10 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytes)
 }
 
-// Checks if the signing threshold has been reached (2/3+ majority usually), if it has been invokes the
-// SubmitMultiSignedMessage for the given fnID. If the threshold hasn't been reached it broadcasts the
-// both the previous voteset that reached the threshold and the current voteset to all peers to help
-// them along.
+// Checks if the signing threshold has been reached (2/3+ majority usually) in the current voteset,
+// if it has been SubmitMultiSignedMessage will be invoked for the given fnID. If the threshold hasn't
+// been reached both the previous voteset that reached the threshold and the current voteset
+// will be broadcast to all peers to help them move towards consensus.
 // TODO: Double-check the Ethereum Gateway uses a similar algo to calculate the threshold, otherwise
 //       we could end up in a situation where 2/3+ majority is reached here but the threshold calculated
 //       by the Ethereum Gateway is slightly more than that.
@@ -762,9 +758,12 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
 		f.state.CurrentNonces[remoteFnID] = remoteMajVoteSet.Nonce + 1
 
-		// If we have found maj23 voteset with Nonce equal or greater than our current nonce,
+		// If we have found maj23 voteset with a nonce equal or greater than our current nonce,
 		// our current vote set is clearly outdated, and should be removed.
 		delete(f.state.CurrentVoteSets, remoteFnID)
+
+		// NOTE: f.safeSubmitMultiSignedMessage is not invoked here presumably because it was already
+		// invoked by the peers that we got the remote voteset from.
 	}
 
 	if err := saveReactorState(f.db, f.state, true); err != nil {
@@ -819,22 +818,20 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
 
-	currentNonce, ok := f.state.CurrentNonces[remoteVoteSet.GetFnID()]
+	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
 		currentNonce = 1
-		f.state.CurrentNonces[remoteVoteSet.GetFnID()] = currentNonce
+		f.state.CurrentNonces[fnID] = currentNonce
 	}
-	currentVoteSet := f.state.CurrentVoteSets[remoteVoteSet.GetFnID()]
+	currentVoteSet := f.state.CurrentVoteSets[fnID]
 
-	if currentNonce != remoteVoteSet.Nonce {
-		if currentNonce > remoteVoteSet.Nonce {
-			f.Logger.Info(
-				"FnConsensusReactor: Already seen this nonce, ignoring",
-				"currentNonce", currentNonce,
-				"remoteNonce", remoteVoteSet.Nonce,
-			)
-			return
-		}
+	if currentNonce > remoteVoteSet.Nonce {
+		f.Logger.Info(
+			"FnConsensusReactor: Already seen this nonce, ignoring",
+			"currentNonce", currentNonce,
+			"remoteNonce", remoteVoteSet.Nonce,
+		)
+		return
 	}
 
 	var didWeContribute, hasOurVoteSetChanged bool
@@ -843,16 +840,13 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 	switch f.compareFnVoteSets(remoteVoteSet, currentVoteSet, currentNonce, currentValidators) {
 	// Both votesets have same trustworthiness, so merge
 	case 0:
-		if didWeContribute, err = f.state.CurrentVoteSets[fnID].Merge(currentValidators, remoteVoteSet); err != nil {
+		if didWeContribute, err = currentVoteSet.Merge(currentValidators, remoteVoteSet); err != nil {
 			f.Logger.Error(
 				"FnConsensusReactor: Unable to merge remote vote set into our own.",
 				"err", err, "method", voteSetMsgHandlerMethodID,
 			)
 			return
 		}
-		currentVoteSet = f.state.CurrentVoteSets[fnID]
-		currentNonce = f.state.CurrentNonces[fnID]
-
 		hasOurVoteSetChanged = didWeContribute
 
 	// Remote voteset is more trustworthy, so replace
@@ -860,8 +854,8 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		f.state.CurrentVoteSets[fnID] = remoteVoteSet
 		f.state.CurrentNonces[fnID] = remoteVoteSet.Nonce
 
-		currentVoteSet = f.state.CurrentVoteSets[fnID]
-		currentNonce = f.state.CurrentNonces[fnID]
+		currentVoteSet = remoteVoteSet
+		currentNonce = remoteVoteSet.Nonce
 
 		hasOurVoteSetChanged = true
 		didWeContribute = false
@@ -918,10 +912,9 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		hasOurVoteSetChanged = true
 	}
 
-	// If our vote havent't changed, no need to annonce it, as
-	// we would have already annonunced it last time it changed
-	// This could mean no new additions happened on our existing voteset, and
-	// by logic other flags also will be false
+	// If our voteset hasn't changed, no need to announce it, as we would have already annonunced it
+	// the last time it changed. This could mean no new additions happened on our existing voteset,
+	// and by logic other flags also will be false.
 	if !hasOurVoteSetChanged {
 		return
 	}
