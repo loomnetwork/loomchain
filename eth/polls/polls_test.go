@@ -247,8 +247,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 0, len(txHashes.EthTxHash), "wrong number of logs returned")
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
-	//nolint: ineffassign
-	result, err = sub.LegacyPoll(state40, id, receiptHandler)
+	_, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
 }
