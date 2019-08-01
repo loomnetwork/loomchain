@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"sort"
 	"time"
 
@@ -177,8 +176,6 @@ func (s *EvmStore) Delete(key []byte) {
 }
 
 func (s *EvmStore) Set(key, val []byte) {
-	fmt.Println("evm_key : " + string(key))
-	fmt.Println("evm_val : " + string(val))
 	if bytes.Equal(key, rootHashKey) {
 		s.rootHash = val
 	} else {
