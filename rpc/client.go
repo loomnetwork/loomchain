@@ -58,7 +58,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 		}
 		c.hub.unregister <- c
 		if err := c.conn.Close(); err != nil {
-			logger.Info("Error closing WebSocket read pump", "err", err)
+			logger.Error("Error closing WebSocket read pump", "err", err)
 		}
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -72,7 +72,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 				websocket.CloseGoingAway,
 				websocket.CloseAbnormalClosure,
 			) {
-				logger.Error("websocket unexpected close error", "err", err)
+				logger.Error("WebSocket unexpected close error", "err", err)
 			}
 			return
 		}
@@ -108,7 +108,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 		}
 		ticker.Stop()
 		if err := c.conn.Close(); err != nil {
-			logger.Info("Error closing WebSocket write pump", "err", err)
+			logger.Error("Error closing WebSocket write pump", "err", err)
 		}
 
 	}()
@@ -117,7 +117,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 		case message, ok := <-c.send:
 			if !ok {
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					logger.Error("error writing close message to websocket", "err", err)
+					logger.Error("error writing close message to WebSocket", "err", err)
 				}
 				return
 			}
@@ -128,7 +128,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				if err.Error() != "io: read/write on closed pipe" {
-					logger.Error("error writing message to websocket", "err", err)
+					logger.Error("error writing message to WebSocket", "err", err)
 				}
 				return
 			}
@@ -138,7 +138,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 				msg := <-c.send
 				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 					if err.Error() != "io: read/write on closed pipe" {
-						logger.Error("error writing message to websocket", "err", err)
+						logger.Error("error writing message to WebSocket", "err", err)
 					}
 					return
 				}
