@@ -46,7 +46,8 @@ func TestContractChainConfig(t *testing.T) {
 	tests = append(tests, test1, test2, test3)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0, false)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators,
+				test.accounts, 0, false)
 			if err != nil {
 				t.Fatal(err)
 			}
