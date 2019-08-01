@@ -103,7 +103,7 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
 		eventHandler,
 		func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-			return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
+			return handler.ReceiptHandlerLevelDb, handler.DefaultMaxReceipts, nil
 		},
 		nil,
 	)

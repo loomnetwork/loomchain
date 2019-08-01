@@ -2,8 +2,6 @@ package receipts
 
 import (
 	"github.com/loomnetwork/loomchain"
-	legacy_v1 "github.com/loomnetwork/loomchain/receipts/chain/v1"
-	legacy_v2 "github.com/loomnetwork/loomchain/receipts/chain/v2"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
@@ -57,21 +55,11 @@ func (h *ReceiptHandlerProvider) resolve(blockHeight int64, v2Feature bool) (Rec
 	}
 	// Reuse previously created handler if the version hasn't changed
 	if (h.handler == nil) || (ver != h.handler.Version()) {
-		// TODO: if h.handler != nil then we should probably call h.handler.Close()
-		switch ver {
-		case handler.ReceiptHandlerLegacyV1:
-			h.handler = legacy_v1.NewReceiptHandler(h.eventHandler)
-
-		case handler.ReceiptHandlerLegacyV2:
-			h.handler = legacy_v2.NewReceiptHandler(h.eventHandler)
-
-		default:
-			handler, err := handler.NewReceiptHandler(ver, h.eventHandler, maxPersistentReceipts, h.evmAuxStore)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to create receipt handler at height %d", blockHeight)
-			}
-			h.handler = handler
+		handler, err := handler.NewReceiptHandler(ver, h.eventHandler, maxPersistentReceipts, h.evmAuxStore)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create receipt handler at height %d", blockHeight)
 		}
+		h.handler = handler
 	}
 	return h.handler, nil
 }
