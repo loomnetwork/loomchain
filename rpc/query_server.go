@@ -35,7 +35,7 @@ import (
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	registryFac "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
@@ -120,7 +120,7 @@ type QueryServer struct {
 	EthSubscriptions       *subs.EthSubscriptionSet
 	EthLegacySubscriptions *subs.LegacyEthSubscriptionSet
 	EthPolls               polls.EthSubscriptions
-	CreateRegistry         registry.RegistryFactoryFunc
+	CreateRegistry         registryFac.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
@@ -579,6 +579,27 @@ func (s *QueryServer) ContractEvents(
 		FromBlock: fromBlock,
 		ToBlock:   toBlock,
 	}, nil
+}
+
+func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.ContractRecordResponse, error) {
+	contractAddr, err := loom.ParseAddress(contractAddrStr)
+	if err != nil {
+		return nil, err
+	}
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	reg := s.CreateRegistry(snapshot)
+	rec, err := reg.GetRecord(contractAddr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "no contract exists at %s", contractAddr.String())
+	}
+	k := &types.ContractRecordResponse{
+		ContractName:    rec.Name,
+		ContractAddress: rec.Address,
+		CreatorAddress:  rec.Owner,
+	}
+	return k, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
@@ -1146,7 +1167,7 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	}
 	txHash, err := eth.DecDataToBytes(txObj.Hash)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid loom transaction hash %h", txObj.Hash)
+		return nil, errors.Wrapf(err, "invalid loom transaction hash %x", txObj.Hash)
 	}
 	txReceipt, err := rh.GetReceipt(state, txHash)
 	if err != nil {
