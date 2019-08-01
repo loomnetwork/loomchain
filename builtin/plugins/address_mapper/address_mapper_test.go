@@ -10,10 +10,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
 )
@@ -21,6 +23,8 @@ import (
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	addr3 = loom.MustParseAddress("chain:0x3bA260874e6Ada53d4e0010fdE38cf2CD072A1be")
+	addr4 = loom.MustParseAddress("chain:0x5BE813e5AA5ea26930edfc84ef12Cc164a652327")
 
 	sigType = evmcompat.SignatureType_EIP712
 )
@@ -33,6 +37,14 @@ type AddressMapperTestSuite struct {
 	invalidEthAddr  loom.Address
 	validDAppAddr   loom.Address
 	invalidDAppAddr loom.Address
+
+	validTronKey   *ecdsa.PrivateKey
+	validTronAddr  loom.Address
+	validDAppAddr2 loom.Address
+
+	validBinanceKey  *ecdsa.PrivateKey
+	validBinanceAddr loom.Address
+	validDAppAddr3   loom.Address
 }
 
 func (s *AddressMapperTestSuite) SetupTest() {
@@ -48,6 +60,19 @@ func (s *AddressMapperTestSuite) SetupTest() {
 	s.validEthAddr = loom.Address{ChainID: "eth", Local: ethLocalAddr}
 	s.invalidDAppAddr = loom.Address{ChainID: "", Local: addr1.Local}
 	s.validDAppAddr = loom.Address{ChainID: "chain", Local: addr1.Local}
+
+	s.validTronKey, err = crypto.GenerateKey()
+	r.NoError(err)
+	tronLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(s.validTronKey.PublicKey).Hex())
+	s.validTronAddr = loom.Address{ChainID: "tron", Local: tronLocalAddr}
+	s.validDAppAddr2 = loom.Address{ChainID: "chain", Local: addr3.Local}
+
+	s.validBinanceKey, err = crypto.GenerateKey()
+	r.NoError(err)
+	pubkey := secp256k1.CompressPubkey(s.validBinanceKey.X, s.validBinanceKey.Y)
+	binanceLocalAddr, err := loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(pubkey).Hex())
+	s.validBinanceAddr = loom.Address{ChainID: "binance", Local: binanceLocalAddr}
+	s.validDAppAddr3 = loom.Address{ChainID: "chain", Local: addr4.Local}
 
 	fmt.Printf("EthAddr: %v, DAppAddr: %v\n", s.validEthAddr, s.validDAppAddr)
 }
@@ -132,6 +157,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewIdentityMapping() {
 	amContract := &AddressMapper{}
 	r.NoError(amContract.Init(ctx, &InitRequest{}))
 
+	// Eth
 	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey, sigType)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
@@ -153,6 +179,58 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewIdentityMapping() {
 	r.NoError(err)
 	s.Equal(s.validDAppAddr.MarshalPB(), resp.From)
 	s.Equal(s.validEthAddr.MarshalPB(), resp.To)
+
+	// Tron
+	ctx = contract.WrapPluginContext(
+		plugin.CreateFakeContext(s.validDAppAddr2 /*caller*/, loom.RootAddress("chain") /*contract*/),
+	)
+	sig, err = SignIdentityMapping(s.validTronAddr, s.validDAppAddr2, s.validTronKey, evmcompat.SignatureType_TRON)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validTronAddr.MarshalPB(),
+		To:        s.validDAppAddr2.MarshalPB(),
+		Signature: sig,
+	}))
+
+	resp, err = amContract.GetMapping(ctx, &GetMappingRequest{
+		From: s.validTronAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validTronAddr.MarshalPB(), resp.From)
+	s.Equal(s.validDAppAddr2.MarshalPB(), resp.To)
+
+	resp, err = amContract.GetMapping(ctx, &GetMappingRequest{
+		From: s.validDAppAddr2.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validDAppAddr2.MarshalPB(), resp.From)
+	s.Equal(s.validTronAddr.MarshalPB(), resp.To)
+
+	// Binance
+	fakeCtx := plugin.CreateFakeContext(s.validDAppAddr3 /*caller*/, loom.RootAddress("chain") /*contract*/)
+	fakeCtx.SetFeature(loomchain.AddressMapperVersion1_1, true)
+	ctx = contract.WrapPluginContext(fakeCtx)
+	sig, err = SignIdentityMapping(s.validBinanceAddr, s.validDAppAddr3, s.validBinanceKey, evmcompat.SignatureType_BINANCE)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validBinanceAddr.MarshalPB(),
+		To:        s.validDAppAddr3.MarshalPB(),
+		Signature: sig,
+	}))
+
+	resp, err = amContract.GetMapping(ctx, &GetMappingRequest{
+		From: s.validBinanceAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validBinanceAddr.MarshalPB(), resp.From)
+	s.Equal(s.validDAppAddr3.MarshalPB(), resp.To)
+
+	resp, err = amContract.GetMapping(ctx, &GetMappingRequest{
+		From: s.validDAppAddr3.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validDAppAddr3.MarshalPB(), resp.From)
+	s.Equal(s.validBinanceAddr.MarshalPB(), resp.To)
 }
 
 func (s *AddressMapperTestSuite) TestListMapping() {
@@ -291,4 +369,34 @@ func (s *AddressMapperTestSuite) TestGethSigRecovery() {
 	addr, err := evmcompat.SolidityRecover(hash, sig[1:])
 	r.NoError(err)
 	r.Equal(common.HexToAddress("0xf17f52151ebef6c7334fad080c5704d77216b732").Hex(), addr.Hex())
+}
+
+func (s *AddressMapperTestSuite) TestTronSigRecovery() {
+	r := s.Require()
+	// hash was generated by
+	// const abi = require('ethereumjs-abi')
+	// abi.soliditySHA3(
+	//   ['address','address'],
+	//   ['0xb16a379ec18d4093666f8f38b11a3071c920207d', '0xfa4c7920accfd66b86f5fd0e69682a79f762d49e'])
+	hash, err := hex.DecodeString("e3d1790efd5ae545ed72c97a5c39f5fd489874978896677c3a7c5713219cd1f6")
+	r.NoError(err)
+	// this is how Address Mapper recreates the hash
+	hash2 := ssha.SoliditySHA3(
+		ssha.Address("b16a379ec18d4093666f8f38b11a3071c920207d"),
+		ssha.Address("fa4c7920accfd66b86f5fd0e69682a79f762d49e"),
+	)
+	r.Equal(hash, hash2)
+
+	// sig generated by signing the hash with
+	sig, err := hex.DecodeString("03b78c2b9b1df9b8a2472343d810421a0593ed75e5960a37b91fdc5ac47648cded2c276c00d069f1a74686818bf5f8b1ad317b712cb39a9d813c0ecc43266a95231c")
+	r.NoError(err)
+	// prefix hash same way tronweb does https://github.com/TRON-US/tronweb/blob/027817d54fca8a4189f4f25aca291cc9415f6e43/src/lib/trx.js#L706
+	hash = ssha.SoliditySHA3(
+		ssha.String("\x19TRON Signed Message:\n32"),
+		ssha.Bytes32(hash),
+	)
+	// addr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig, []evmcompat.SignatureType{evmcompat.SignatureType_TRON})
+	addr, err := evmcompat.SolidityRecover(hash, sig[1:])
+	r.NoError(err)
+	r.Equal(common.HexToAddress("0x96fd14f2c0da10916b972ef60c9f07a20ee7f99e").Hex(), addr.Hex())
 }
