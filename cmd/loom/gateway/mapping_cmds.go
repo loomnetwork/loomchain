@@ -111,7 +111,7 @@ func newMapContractsCommand() *cobra.Command {
 
 			req := &tgtypes.TransferGatewayAddContractMappingRequest{
 				ForeignContract: loom.Address{
-					ChainID: chainID,s
+					ChainID: chainID,
 					Local:   foreignContractAddr.Bytes(),
 				}.MarshalPB(),
 				LocalContract:             localContractAddr.MarshalPB(),
