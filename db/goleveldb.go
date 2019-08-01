@@ -44,6 +44,7 @@ func LoadGoLevelDB(name, dir string, cacheSizeMeg int, bufferSizeMeg int, collec
 	}
 
 	if collectMetrics {
+		prometheus.Unregister(metrics.NewStatsCollector(fmt.Sprintf("goleveldb_%s", name), log.Default, db)) // unregister previous registered
 		err := prometheus.Register(metrics.NewStatsCollector(fmt.Sprintf("goleveldb_%s", name), log.Default, db))
 		if err != nil {
 			db.Close()
