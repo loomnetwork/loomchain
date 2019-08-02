@@ -42,6 +42,7 @@ type (
 
 var (
 	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ErrInvalidRequest      = errors.New("[ETH coin contract] invalid request")
 )
 
 var (
@@ -78,6 +79,9 @@ func (c *ETHCoin) Init(ctx contract.Context, req *InitRequest) error {
 
 // MintToGateway adds ETH to the Gateway contract balance, and updates the total supply.
 func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && req.Amount == nil {
+		return ErrInvalidRequest
+	}
 	gatewayAddr, err := ctx.Resolve("gateway")
 	if err != nil {
 		return errors.Wrap(err, "failed to mint ETH")
@@ -141,6 +145,9 @@ func (c *ETHCoin) TotalSupply(ctx contract.StaticContext, req *TotalSupplyReques
 }
 
 func (c *ETHCoin) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
+	if req.Owner == nil {
+		return nil, ErrInvalidRequest
+	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	balance, err := BalanceOf(ctx, owner)
 	if err != nil {
@@ -205,6 +212,9 @@ func SetBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) e
 }
 
 func (c *ETHCoin) Transfer(ctx contract.Context, req *TransferRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Amount == nil || req.To == nil) {
+		return ErrInvalidRequest
+	}
 	from := ctx.Message().Sender
 	to := loom.UnmarshalAddressPB(req.To)
 	amount := req.Amount.Value
@@ -259,6 +269,9 @@ func transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt)
 }
 
 func (c *ETHCoin) Approve(ctx contract.Context, req *ApproveRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Amount == nil) {
+		return ErrInvalidRequest
+	}
 	owner := ctx.Message().Sender
 	spender := loom.UnmarshalAddressPB(req.Spender)
 
@@ -282,6 +295,9 @@ func (c *ETHCoin) Approve(ctx contract.Context, req *ApproveRequest) error {
 }
 
 func (c *ETHCoin) Allowance(ctx contract.StaticContext, req *AllowanceRequest) (*AllowanceResponse, error) {
+	if req.Owner == nil || req.Spender == nil {
+		return nil, ErrInvalidRequest
+	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	spender := loom.UnmarshalAddressPB(req.Spender)
 
@@ -296,6 +312,10 @@ func (c *ETHCoin) Allowance(ctx contract.StaticContext, req *AllowanceRequest) (
 }
 
 func (c *ETHCoin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) &&
+		(req.Amount == nil || req.From == nil || req.To == nil) {
+		return ErrInvalidRequest
+	}
 	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
 		return c.transferFrom(ctx, req)
 	}

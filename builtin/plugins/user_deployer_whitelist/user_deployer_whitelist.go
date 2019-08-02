@@ -332,6 +332,87 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}, nil
 }
 
+// SwapUserDeployer allows a user to swap one of their deployer accounts for another (essentially
+// rotating deployment keys), this operation removes one deployer account and adds another one,
+// but doesn't require the user to pay the whitelisting fee again. The deployer account that's
+// swapped out will become inactive which means that it will no longer be possible to send call txs
+// to any contracts deployed by that account when the per-contract tx limiter is enabled.
+func (uw *UserDeployerWhitelist) SwapUserDeployer(
+	ctx contract.Context, req *udwtypes.SwapUserDeployerRequest,
+) error {
+	if req.OldDeployerAddr == nil || req.NewDeployerAddr == nil {
+		return ErrInvalidRequest
+	}
+	if !ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
+		return errors.New("feature not enabled")
+	}
+	dwAddr, err := ctx.Resolve("deployerwhitelist")
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve deployer whitelist contract")
+	}
+	if ctx.Has(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr))) {
+		return ErrDeployerAlreadyExists
+	}
+
+	oldDeployerAddr := loom.UnmarshalAddressPB(req.OldDeployerAddr)
+	var oldDeployer UserDeployerState
+	err = ctx.Get(deployerStateKey(oldDeployerAddr), &oldDeployer)
+	if err != nil {
+		return errors.Wrap(err, "failed to load old deployer")
+	}
+	userAddr := ctx.Message().Sender
+	var userState UserState
+	if err := ctx.Get(userStateKey(userAddr), &userState); err != nil {
+		return errors.Wrap(err, "failed to load user state")
+	}
+	isInputDeployerAddrValid := false
+	survivedDeployers := make([]*types.Address, 0, len(userState.Deployers))
+	for _, addr := range userState.Deployers {
+		currentDeployerAddr := loom.UnmarshalAddressPB(addr)
+		if currentDeployerAddr.Compare(oldDeployerAddr) == 0 {
+			isInputDeployerAddrValid = true
+		} else {
+			survivedDeployers = append(survivedDeployers, addr)
+		}
+	}
+
+	if !isInputDeployerAddrValid {
+		return ErrDeployerDoesNotExist
+	}
+
+	survivedDeployers = append(survivedDeployers, req.NewDeployerAddr)
+	userState.Deployers = survivedDeployers
+	if err := ctx.Set(userStateKey(userAddr), &userState); err != nil {
+		return errors.Wrap(err, "failed to save user state")
+	}
+	// Update DeployerWhitelist contract to reflect the deployer account swap
+	removeUserDeployerRequest := &RemoveUserDeployerRequest{
+		DeployerAddr: req.OldDeployerAddr,
+	}
+	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
+		return errors.Wrap(err, "failed to remove deployer")
+	}
+	addUserDeployerRequest := &dwtypes.AddUserDeployerRequest{
+		DeployerAddr: req.NewDeployerAddr,
+	}
+	if err := contract.CallMethod(ctx, dwAddr, "AddUserDeployer", addUserDeployerRequest, nil); err != nil {
+		return errors.Wrap(err, "failed to whitelist deployer")
+	}
+
+	newDeployer := &UserDeployerState{
+		Address: req.NewDeployerAddr,
+		TierID:  oldDeployer.TierID,
+	}
+	if err := ctx.Set(deployerStateKey(loom.UnmarshalAddressPB(req.NewDeployerAddr)), newDeployer); err != nil {
+		return errors.Wrap(err, "failed to save new deployer")
+	}
+	oldDeployer.Inactive = true
+	if err := ctx.Set(deployerStateKey(oldDeployerAddr), &oldDeployer); err != nil {
+		return errors.Wrap(err, "failed to save old deployer")
+	}
+	return nil
+}
+
 // GetTierInfo returns the details of a specific tier.
 func (uw *UserDeployerWhitelist) GetTierInfo(
 	ctx contract.StaticContext, req *GetTierInfoRequest,
@@ -391,6 +472,7 @@ func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contract
 	contract := udwtypes.DeployerContract{
 		ContractAddress: contractAddr.MarshalPB(),
 	}
+
 	userDeployer.Contracts = append(userDeployer.Contracts, &contract)
 	if err := ctx.Set(deployerStateKey(deployerAddress), &userDeployer); err != nil {
 		return errors.Wrap(err, "Saving WhitelistedDeployer in whitelisted deployers state")

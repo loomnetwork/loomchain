@@ -248,6 +248,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 					ChainId: "default",
 					Local:   oracleAddr,
 				}
+				init.InitCandidates = false
 				jsonInit, err := marshalInit(&init)
 				if err != nil {
 					return err

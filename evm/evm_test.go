@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"strings"
@@ -149,6 +150,47 @@ func TestPrecompilesAssembly(t *testing.T) {
 	require.True(t, len(expected) <= len(ret))
 	actual = ret[:len(expected)]
 	require.Equal(t, 0, bytes.Compare(expected, actual))
+}
+
+func TestValue(t *testing.T) {
+	const negativeNumber = -34
+	const positiveNumber = 24
+
+	caller := loom.Address{
+		ChainID: "myChainID",
+		Local:   []byte("myCaller"),
+	}
+	manager := lvm.NewManager()
+	manager.Register(lvm.VMType_EVM, LoomVmFactory)
+	state := mockState()
+
+	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
+
+	testValue(t, state, vm, caller, true, negativeNumber)
+	testValue(t, state, vm, caller, true, positiveNumber)
+	testValue(t, state, vm, caller, false, negativeNumber)
+	testValue(t, state, vm, caller, false, positiveNumber)
+
+}
+
+func testValue(t *testing.T, state loomchain.State, vm lvm.VM, caller loom.Address, checkTxValueFeature bool, value int64) {
+	defer func() {
+		if r := recover(); r != nil {
+			require.True(t, !checkTxValueFeature && value < 0)
+		}
+	}()
+
+	bytetext, err := ioutil.ReadFile("testdata/GlobalProperties.bin")
+	require.NoError(t, err, "reading "+"GlobalProperties"+".bin")
+	bytecode, err := hex.DecodeString(string(bytetext))
+	require.NoError(t, err, "decoding bytecode")
+
+	state.SetFeature(loomchain.CheckTxValueFeature, checkTxValueFeature)
+	_, _, err = vm.Create(caller, bytecode, loom.NewBigUIntFromInt(value))
+	if checkTxValueFeature && value < 0 {
+		require.Error(t, err)
+		require.Equal(t, err.Error(), fmt.Sprintf("value %v must be non negative", big.NewInt(value)))
+	}
 }
 
 // This tests that the Solidity global variables match the corresponding

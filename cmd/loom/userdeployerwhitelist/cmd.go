@@ -32,6 +32,7 @@ func NewUserDeployCommand() *cobra.Command {
 	cmd.AddCommand(
 		addUserDeployerCmd(),
 		removeUserDeployerCmd(),
+		swapUserDeployerCmd(),
 		getUserDeployersCmd(),
 		getDeployedContractsCmd(),
 		getTierInfoCmd(),
@@ -89,6 +90,37 @@ func removeUserDeployerCmd() *cobra.Command {
 				DeployerAddr: addr.MarshalPB(),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "RemoveUserDeployer", req, nil)
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const swapUserDeployerCmdExample = `
+loom dev swap-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 0x7262d4c97c7B93937E4810D289b7320e9dA82859
+`
+
+func swapUserDeployerCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "swap-deployer <old-deployer address> <new-deployer address>",
+		Short:   "Swap an account from the list of accounts authorized to deploy contracts on behalf of a user to new account (the caller)",
+		Example: swapUserDeployerCmdExample,
+		Args:    cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			oldDeployerAddr, err := cli.ResolveAccountAddress(args[0], &flags)
+			if err != nil {
+				return err
+			}
+			newDeployerAddr, err := cli.ResolveAccountAddress(args[1], &flags)
+			if err != nil {
+				return err
+			}
+			req := &udwtypes.SwapUserDeployerRequest{
+				OldDeployerAddr: oldDeployerAddr.MarshalPB(),
+				NewDeployerAddr: newDeployerAddr.MarshalPB(),
+			}
+			return cli.CallContractWithFlags(&flags, dwContractName, "SwapUserDeployer", req, nil)
 		},
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
