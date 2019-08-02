@@ -215,21 +215,6 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*
 	}, nil
 }
 
-func TestIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*IAVLStore, error) {
-	tree := iavl.NewMutableTree(db, 10000)
-
-	// always keep at least 2 of the last versions
-	if (maxVersions != 0) && (maxVersions < 2) {
-		maxVersions = 2
-	}
-
-	return &IAVLStore{
-		tree:          tree,
-		maxVersions:   maxVersions,
-		flushInterval: flushInterval,
-	}, nil
-}
-
 func LastestIAVLStoreVersion(db dbm.DB, targetVersion int64) (int64, error) {
 	tree := iavl.NewMutableTree(db, 10000)
 	return tree.LoadVersion(targetVersion)
