@@ -395,7 +395,6 @@ func (s *AddressMapperTestSuite) TestTronSigRecovery() {
 		ssha.String("\x19TRON Signed Message:\n32"),
 		ssha.Bytes32(hash),
 	)
-	// addr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig, []evmcompat.SignatureType{evmcompat.SignatureType_TRON})
 	addr, err := evmcompat.SolidityRecover(hash, sig[1:])
 	r.NoError(err)
 	r.Equal(common.HexToAddress("0x96fd14f2c0da10916b972ef60c9f07a20ee7f99e").Hex(), addr.Hex())
