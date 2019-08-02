@@ -15,12 +15,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/pkg/errors"
-	// "github.com/tendermint/tendermint/crypto"
-
-	// ttypes "github.com/tendermint/tendermint/types"
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -41,13 +38,6 @@ func NewCmd(conf lib.Config, tc lib.Tests) Engine {
 		wg:    &sync.WaitGroup{},
 		errC:  make(chan error),
 	}
-}
-
-type abciResponseInfo2 struct {
-	Data             string `json:"data,omitempty"`
-	Version          string `json:"version,omitempty"`
-	LastBlockHeight  string `json:"last_block_height,omitempty"`
-	LastBlockAppHash []byte `json:"last_block_app_hash,omitempty"`
 }
 
 func getCommand(conf lib.Config, node node.Node, test lib.TestCase) (exec.Cmd, error) {
