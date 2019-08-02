@@ -647,7 +647,6 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 		appStoreEvmRoot := iavlStore.Get(rootKey)
-
 		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
 		if err != nil {
 			return nil, err
@@ -658,6 +657,32 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			log.Info(fmt.Sprintf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X", evmVersion, evmStoreEvmRoot, iavlStore.Version(), appStoreEvmRoot))
 			lastestVersion, _ := store.LastestIAVLStoreVersion(db, evmVersion)
 			log.Info(fmt.Sprintf("Try to load app.db at height %d", lastestVersion))
+			if lastestVersion == 0 {
+				iter := db.Iterator(nil, nil)
+				i := 0
+				for ; iter.Valid(); iter.Next() {
+					key := iter.Key()
+					fmt.Printf("Showing %d, %s : %s \n", i, key, iter.Value())
+					i++
+				}
+				iter.Close()
+				iter = db.Iterator(nil, nil)
+				i = 0
+				for ; iter.Valid(); iter.Next() {
+					key := iter.Key()
+					fmt.Printf("Deleting %d , %s : %s \n", i, key, iter.Value())
+					db.Delete([]byte(key))
+					i++
+				}
+				iter.Close()
+				db.Close()
+				db, err = cdb.LoadDB(
+					cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+				)
+				if err != nil {
+					return nil, err
+				}
+			}
 			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, lastestVersion, cfg.AppStore.IAVLFlushInterval)
 			if err != nil {
 				return nil, err
@@ -667,11 +692,14 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			log.Info(fmt.Sprintf("EVM roots match, evm.db(%d): %X, app.db(%d): %X", evmVersion, evmStoreEvmRoot, iavlStore.Version(), appStoreEvmRoot))
 		}
 		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
 			return nil, err
 		}
+
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
