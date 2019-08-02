@@ -593,7 +593,8 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				)
 				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
 				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
-				// Q: What relation does currentNonce have to numberOfAgreeVotes?
+				// The consensus result only needs to be sent to the cluster by a single validator,
+				// that validator is chosen in a round-robin fashion every voting round.
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
