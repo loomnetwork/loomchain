@@ -197,10 +197,26 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // the last version that was saved will be loaded.
 func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*IAVLStore, error) {
 	tree := iavl.NewMutableTree(db, 10000)
-	_, err := tree.LoadVersion(targetVersion)
-	if err != nil {
-		return nil, err
+	if targetVersion != -1 {
+		_, err := tree.LoadVersion(targetVersion)
+		if err != nil {
+			return nil, err
+		}
 	}
+	// always keep at least 2 of the last versions
+	if (maxVersions != 0) && (maxVersions < 2) {
+		maxVersions = 2
+	}
+
+	return &IAVLStore{
+		tree:          tree,
+		maxVersions:   maxVersions,
+		flushInterval: flushInterval,
+	}, nil
+}
+
+func TestIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*IAVLStore, error) {
+	tree := iavl.NewMutableTree(db, 10000)
 
 	// always keep at least 2 of the last versions
 	if (maxVersions != 0) && (maxVersions < 2) {
