@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -654,9 +655,12 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		evmStoreEvmRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
 		if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 			// downgrade iavlStore version
-			log.Info(fmt.Sprintf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X", evmVersion, evmStoreEvmRoot, iavlStore.Version(), appStoreEvmRoot))
+			log.Info(
+				"EVM root mismatch, resyncing roots...",
+				"evm.db-ver", evmVersion, "app.db-ver", iavlStore.Version(),
+				"evm.db-root", hex.EncodeToString(evmStoreEvmRoot), "app.db-evm-root", hex.EncodeToString(appStoreEvmRoot),
+			)
 			lastestVersion, _ := store.LastestIAVLStoreVersion(db, evmVersion)
-			log.Info(fmt.Sprintf("Try to load app.db at height %d", lastestVersion))
 			if lastestVersion == 0 {
 				lastestVersion = -1
 			}
