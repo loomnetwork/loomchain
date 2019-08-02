@@ -272,7 +272,7 @@ func (c *contractContext) Validators() []*ltypes.Validator {
 
 //TODO don't like how we have to check 3 places, need to clean this up
 func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, error) {
-	r, err := c.VM.receiptReader.GetReceipt(c.VM.State, hash)
+	r, err := c.VM.receiptReader.GetReceipt(hash)
 	if err != nil || len(r.TxHash) == 0 {
 		r, err = c.VM.receiptReader.GetPendingReceipt(hash)
 		if err != nil || len(r.TxHash) == 0 {

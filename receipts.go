@@ -2,6 +2,7 @@ package loomchain
 
 import (
 	"github.com/loomnetwork/go-loom/plugin/types"
+
 	"github.com/pkg/errors"
 )
 
@@ -10,7 +11,7 @@ var (
 )
 
 type ReadReceiptHandler interface {
-	GetReceipt(state ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error)
+	GetReceipt(txHash []byte) (types.EvmTxReceipt, error)
 	GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, error)
 	GetPendingTxHashList() [][]byte
 	GetCurrentReceipt() *types.EvmTxReceipt

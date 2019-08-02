@@ -508,7 +508,7 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	defer snapshot.Release()
 
 	r := s.ReceiptHandlerProvider.Reader()
-	txReceipt, err := r.GetReceipt(snapshot, txHash)
+	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "get receipt")
 	}
@@ -743,7 +743,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	defer snapshot.Release()
 
 	r := s.ReceiptHandlerProvider.Reader()
-	txReceipt, err := r.GetReceipt(snapshot, txHash)
+	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
 		// return nil response if cannot find hash
 		return nil, nil
@@ -1099,7 +1099,7 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid loom transaction hash %x", txObj.Hash)
 	}
-	txReceipt, err := rh.GetReceipt(state, txHash)
+	txReceipt, err := rh.GetReceipt(txHash)
 	if err != nil {
 		jsonReceipt := eth.TxObjToReceipt(txObj, contractAddr)
 		if txResults.TxResult.Code == abci.CodeTypeOK {
