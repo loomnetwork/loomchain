@@ -269,23 +269,20 @@ type AppHash struct {
 	index   string
 }
 
-func sprintAppHashes(blocks map[int64]([]AppHash)) string {
-	var dump string
-	for height, block := range blocks {
-		for _, apphash := range block {
-			dump += fmt.Sprintf(
-				"\nnode %s apphash 0x%x executable %s height %d\n",
-				apphash.index,
-				apphash.apphash,
-				apphash.node.LoomPath,
-				height,
-			)
-		}
+func sprintAppHashes(block []AppHash) string {
+	var hashInfo string
+	for _, apphash := range block {
+		hashInfo += fmt.Sprintf(
+			"node %s apphash 0x%x executable %s height %s\n",
+			apphash.index,
+			apphash.apphash,
+			apphash.node.LoomPath,
+		)
 	}
-	return dump
+	return hashInfo
 }
 
-func flastBlockHeight(node *node.Node) (string, error) {
+func getBlockHeight(node *node.Node) (string, error) {
 	req := fmt.Sprintf("%s/status", node.RPCAddress)
 	resp, err := http.Get(req)
 	if err != nil {
@@ -351,71 +348,41 @@ func checkapphash(nodes map[string]*node.Node) error {
 	time.Sleep(time.Second * 1)
 	fmt.Printf("--> run all: %v \n", "checkapphash")
 
-	var blocks = make(map[int64]([]AppHash))
-	var lastBlockHeight int64
-	var slastBlockHeight string
-	if node, ok := nodes["0"]; ok {
+	blockInfo := []AppHash{}
+	var blockHeight string
+	if node0, ok := nodes["0"]; ok {
 		var err error
-		slastBlockHeight, err = flastBlockHeight(node)
+		blockHeight, err = getBlockHeight(node0)
 		if err != nil {
 			return err
 		}
+	} else {
+		return errors.New("no node 0")
 	}
-	slastBlockHeight = slastBlockHeight
-	hash, err := getAppHash(nodes["0"], slastBlockHeight)
-	hash = hash
-	err = err
-
 	for index, v := range nodes {
-		u := fmt.Sprintf("%s/abci_info", v.RPCAddress)
-		resp, err := http.Get(u)
+		currentAppHash, err := getAppHash(v, blockHeight)
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			respBytes, _ := ioutil.ReadAll(resp.Body)
-			return fmt.Errorf(
-				"post status not OK: %s, response body: %s", resp.Status, string(respBytes))
-		}
-		var info = struct {
-			JSONRPC string `json:"jsonrpc"`
-			ID      string `json:"id"`
-			Result  struct {
-				Response abciResponseInfo2 `json:"response"`
-			} `json:"result"`
-		}{}
-
-		err = json.NewDecoder(resp.Body).Decode(&info)
-		if err != nil {
-			return err
-		}
-		newLastBlockHeight, err := strconv.ParseInt(info.Result.Response.LastBlockHeight, 10, 64)
-		if err != nil {
-			return err
-		}
-		if lastBlockHeight == 0 {
-			lastBlockHeight = newLastBlockHeight
-		}
-
-		currentAppHash := string(info.Result.Response.LastBlockAppHash)
-		fmt.Printf("--> GET: %s, AppHash: %0xX, height %v\n", u, currentAppHash, newLastBlockHeight)
-		blocks[newLastBlockHeight] = append(blocks[newLastBlockHeight], AppHash{
+		fmt.Printf("--> Node: %s, AppHash: %0x, height %v\n", index, currentAppHash, blockHeight)
+		blockInfo = append(blockInfo, AppHash{
 			apphash: currentAppHash,
 			node:    v,
 			index:   index,
 		})
 	}
-	for _, block := range blocks {
-		for _, apphash1 := range block {
-			for _, apphash2 := range block {
-				if apphash1.apphash != apphash2.apphash {
-					return errors.Errorf("missmatching apphases %s", sprintAppHashes(blocks))
-				}
 
+	for _, apphash1 := range blockInfo {
+		for _, apphash2 := range blockInfo {
+			if apphash1.apphash != apphash2.apphash {
+				return errors.Errorf("mismatching apphashs\n%s", sprintAppHashes(blockInfo))
 			}
+
 		}
 	}
+
+	fmt.Println()
+	fmt.Println("apphasesh--->>>>>\n", sprintAppHashes(blockInfo))
 	return nil
 }
 
