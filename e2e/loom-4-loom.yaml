@@ -20,3 +20,6 @@ Auth:
     tron:
       TxType: "tron"
       AccountType: 1
+    binance:
+      TxType: "binance"
+      AccountType: 1

@@ -8,11 +8,20 @@ const (
 	TGHotWalletFeature = "tg:hot-wallet"
 	// Enables prevention of zero amount token withdrawals in the Gateway contract
 	TGCheckZeroAmount = "tg:check-zamt"
-	//Enables workaround for handling of ERC721 deposits in the Gateway contract
+	// Enables workaround for handling of ERC721 deposits in the Gateway contract
 	TGFixERC721Feature = "tg:fix-erc721"
+	// Enables support for Binance contract mappings in the Binance Gateway contract
+	TGBinanceContractMappingFeature = "tg:binance-cm"
+
+	// Enables support for mapping DAppChain accounts to Binance accounts
+	AddressMapperVersion1_1 = "addrmapper:v1.1"
+
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
 	AuthSigTxFeaturePrefix = "auth:sigtx:"
+
+	// Enables stricter chain-specific signature verification in MultiChainSignatureTxMiddleware
+	MultiChainSigTxMiddlewareVersion1_1 = "mw:mulcsigtx:v1.1"
 
 	// Enables DPOS v3
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
@@ -29,15 +38,15 @@ const (
 	// Enables jailing offline validators
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
+  
+	// Enables both downtime slashing and a parameter flag to toggle jailing offline validators on/off
+	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	DPOSVersion3_4 = "dpos:v3.4"
 
   //Enables minting vouchers to dpos contract 
 	//Enables DPOS v3.6
 	DPOSVersion3_6 = "dpos:v3.6"
-  
-	// Enables flag to allow jailing offline validators
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
-	DPOSVersion3_4 = "dpos:v3.4"
-
+ 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
 	DPOSVersion2_1 = "dpos:v2.1"
@@ -78,6 +87,9 @@ const (
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 
+	// Enables Coin v1.2 to validate fields in request of Coin and ETH Coin contract
+	CoinVersion1_2Feature = "coin:v1.2"
+
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
 	AuxEvmDBFeature = "db:auxevm"
@@ -86,6 +98,9 @@ const (
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"
+
+	// Restrict the value of call & deploy txs to non-negative amounts
+	CheckTxValueFeature = "tx:check-value"
 
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"

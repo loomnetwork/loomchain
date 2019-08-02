@@ -24,6 +24,7 @@ import (
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
@@ -434,6 +435,51 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	cmd.Flags().StringVar(&abciServerAddr, "abci-server", "", "Serve ABCI app at specified address")
 	cmd.Flags().Int64Var(&appHeight, "app-height", 0, "Start at the given block instead of the last block saved")
+	return cmd
+}
+
+const contractInfoCommandExample = `
+loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
+`
+
+type contractInfo struct {
+	Name    string
+	Address string
+	Owner   string
+}
+
+func contractInfoCommand() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "contract [ChainID:Address]",
+		Short:   "Get contract information by address",
+		Args:    cobra.MinimumNArgs(1),
+		Example: contractInfoCommandExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
+			if err != nil {
+				return err
+			}
+			rpcclient := client.NewDAppChainRPCClient(flags.ChainID, flags.URI+"/rpc", flags.URI+"/query")
+			resp, err := rpcclient.GetContractRecord(addr)
+			if err != nil {
+				return err
+			}
+			contractInfoResp := &contractInfo{
+				Name:    resp.GetContractName(),
+				Address: loom.UnmarshalAddressPB(resp.GetContractAddress()).String(),
+				Owner:   loom.UnmarshalAddressPB(resp.GetCreatorAddress()).String(),
+			}
+
+			out, err := json.MarshalIndent(contractInfoResp, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Print(string(out))
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
@@ -1303,6 +1349,7 @@ func main() {
 		deployer.NewDeployCommand(),
 		userdeployer.NewUserDeployCommand(),
 		dbg.NewDebugCommand(),
+		contractInfoCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
