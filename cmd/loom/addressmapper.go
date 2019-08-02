@@ -61,6 +61,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 				if err != nil {
 					return errors.Wrapf(err, "bad tron private key from file% v", args[1])
 				}
+				sigType = evmcompat.SignatureType_TRON
 			case "binance":
 				privkey, err = crypto.LoadECDSA(args[1])
 				if err != nil {
