@@ -744,10 +744,6 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
-	if err != nil && errors.Cause(err) != common.ErrTxReceiptNotFound {
-		// return nil response if cannot find hash
-		return nil, nil
-	}
 	if err != nil {
 		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
 		if err != nil {

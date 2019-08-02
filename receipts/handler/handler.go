@@ -67,7 +67,7 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 			return *receipt, nil
 		}
 	}
-	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
+	return types.EvmTxReceipt{}, common.ErrPendingReceiptNotFound
 }
 
 func (r *ReceiptHandler) GetCurrentReceipt() *types.EvmTxReceipt {
@@ -108,6 +108,8 @@ func (r *ReceiptHandler) CommitCurrentReceipt() {
 }
 
 func (r *ReceiptHandler) DiscardCurrentReceipt() {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.currentReceipt = nil
 }
 
@@ -143,10 +145,4 @@ func (r *ReceiptHandler) CacheReceipt(
 	}
 	r.currentReceipt = &receipt
 	return r.currentReceipt.TxHash, err
-}
-
-func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
-	if r.currentReceipt != nil {
-		r.currentReceipt.Status = common.StatusTxFail
-	}
 }

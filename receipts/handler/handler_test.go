@@ -10,7 +10,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -50,10 +49,6 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 			require.NoError(t, err)
 			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
-			if nonce == 19 { // mock error
-				receiptHandler.SetFailStatusCurrentReceipt()
-				txError = errors.New("Some EVM error")
-			}
 			if nonce == 1 { // mock deploy transaction
 				resp.Data = []byte("proto with contract address and tx hash")
 				resp.Info = utils.DeployEvm

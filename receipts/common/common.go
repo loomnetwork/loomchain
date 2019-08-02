@@ -14,7 +14,8 @@ const (
 )
 
 var (
-	ErrTxReceiptNotFound = errors.New("Tx receipt not found")
+	ErrTxReceiptNotFound      = errors.New("Tx receipt not found")
+	ErrPendingReceiptNotFound = errors.New("Pending receipt not found")
 )
 
 func BlockHeightToBytes(height uint64) []byte {
