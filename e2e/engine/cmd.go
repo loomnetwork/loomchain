@@ -15,9 +15,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/pkg/errors"
+	// "github.com/tendermint/tendermint/crypto"
+
+	// ttypes "github.com/tendermint/tendermint/types"
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -282,12 +285,86 @@ func sprintAppHashes(blocks map[int64]([]AppHash)) string {
 	return dump
 }
 
+func flastBlockHeight(node *node.Node) (string, error) {
+	req := fmt.Sprintf("%s/status", node.RPCAddress)
+	resp, err := http.Get(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		respBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf(
+			"post status not OK: %s, response body: %s", resp.Status, string(respBytes),
+		)
+	}
+	var info = struct {
+		JSONRPC string `json:"jsonrpc"`
+		ID      string `json:"id"`
+		Result  struct {
+			SyncInfo struct {
+				LatestBlockHeight string `json:"latest_block_height,omitempty"`
+			} `json:"sync_info,omitempty"`
+		} `json:"result"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		fmt.Println("err", err)
+		return "", err
+	}
+	return info.Result.SyncInfo.LatestBlockHeight, nil
+}
+
+func getAppHash(node *node.Node, height string) (string, error) {
+	req := fmt.Sprintf("%s/commit?height=%s", node.RPCAddress, height)
+	resp, err := http.Get(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		respBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf(
+			"post status not OK: %s, response body: %s", resp.Status, string(respBytes),
+		)
+	}
+	var info = struct {
+		JSONRPC string `json:"jsonrpc"`
+		ID      string `json:"id"`
+		Result  struct {
+			SignedHeader struct {
+				Header struct {
+					AppHash string `json:"app_hash,omitempty"`
+				} `json:"header,omitempty"`
+			} `json:"signed_header,omitempty"`
+		} `json:"result"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		fmt.Println("err", err)
+		return "", err
+	}
+	return info.Result.SignedHeader.Header.AppHash, nil
+}
+
 func checkapphash(nodes map[string]*node.Node) error {
 	time.Sleep(time.Second * 1)
 	fmt.Printf("--> run all: %v \n", "checkapphash")
 
 	var blocks = make(map[int64]([]AppHash))
 	var lastBlockHeight int64
+	var slastBlockHeight string
+	if node, ok := nodes["0"]; ok {
+		var err error
+		slastBlockHeight, err = flastBlockHeight(node)
+		if err != nil {
+			return err
+		}
+	}
+	slastBlockHeight = slastBlockHeight
+	hash, err := getAppHash(nodes["0"], slastBlockHeight)
+	hash = hash
+	err = err
 
 	for index, v := range nodes {
 		u := fmt.Sprintf("%s/abci_info", v.RPCAddress)
