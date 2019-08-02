@@ -101,7 +101,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	require.EqualValues(t, 0, len(pendingHashList))
 
 	for index, txHash := range txHashList {
-		txReceipt, err := reader.GetReceipt(state, txHash)
+		txReceipt, err := reader.GetReceipt(txHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, bytes.Compare(txHash, txReceipt.TxHash))
 		require.EqualValues(t, index*2+1, txReceipt.Nonce)
