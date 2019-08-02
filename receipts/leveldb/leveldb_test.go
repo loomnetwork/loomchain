@@ -152,7 +152,7 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
 	// store 5 receipts
 	require.NoError(t, handler.CommitBlock(state, receipts1, height))
-	txHashes, err := common.GetTxHashList(state, height)
+	txHashes, err := evmAuxStore.GetTxHashList(height)
 	require.NoError(t, err)
 	a := []byte("0xf0675dc27bC62b584Ab2E8E1D483a55CFac9E960")
 	b := []byte("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")
