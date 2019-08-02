@@ -6,6 +6,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"io"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -73,6 +74,8 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 				websocket.CloseAbnormalClosure,
 			) {
 				logger.Error("WebSocket unexpected close error", "err", err)
+			} else {
+				logger.Debug("WebSocket close request", "message", err)
 			}
 			return
 		}
@@ -127,8 +130,10 @@ func (c *Client) writePump(logger log.TMLogger) {
 			}
 
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				if err.Error() != "io: read/write on closed pipe" {
+				if err != io.ErrClosedPipe {
 					logger.Error("error writing message to WebSocket", "err", err)
+				} else {
+					logger.Debug("WebSocket connection closed", "message", err)
 				}
 				return
 			}
@@ -137,8 +142,10 @@ func (c *Client) writePump(logger log.TMLogger) {
 			for i := 0; i < n; i++ {
 				msg := <-c.send
 				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-					if err.Error() != "io: read/write on closed pipe" {
+					if err != io.ErrClosedPipe {
 						logger.Error("error writing message to WebSocket", "err", err)
+					} else {
+						logger.Debug("WebSocket connection closed", "message", err)
 					}
 					return
 				}
@@ -146,6 +153,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 		case <-ticker.C:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				logger.Error("error writing ping message to WebSocket", "err", err)
 				return
 			}
 		}
