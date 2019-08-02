@@ -505,7 +505,7 @@ func TestMintingDPOS(t *testing.T) {
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey2),
 	}
-	fakeCtx := CreateFakeContextWithEVM1(dAppAddr, loom.RootAddress("default"))
+	fakeCtx := CreateFakeContextWithEVMDPOS3(dAppAddr, loom.RootAddress("default"))
 	//Set DPOS version 3.6 Feature so that minting can be done
 	fakeCtx.WithFeature(loomchain.DPOSVersion3_6, true)
 	fakeCtx.WithFeature(loomchain.CoinVersion1_1Feature, true)
@@ -523,7 +523,7 @@ func TestMintingDPOS(t *testing.T) {
 	})
 
 	//Deploy DPOS contract
-	dpos, err := deployDPOSContract1(fakeCtx, &Params{
+	dpos, err := deployDPOS3Contract(fakeCtx, &Params{
 		ValidatorCount:      21,
 		CoinContractAddress: coinAddr.MarshalPB(),
 		OracleAddress:       oracleAddr.MarshalPB(),
