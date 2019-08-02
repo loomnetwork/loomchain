@@ -24,17 +24,17 @@ import (
 type testDPOSContractEVM struct {
 	Contract *DPOS
 	Address  loom.Address
-	Ctx      *FakeContextWithEVM
+	Ctx      *FakeContextWithEVMDPOS3
 }
 
 // Contract context for tests that need both Go & EVM contracts.
-type FakeContextWithEVM1 struct {
-	*FakeContextWithEVM
+type FakeContextWithEVMDPOS3 struct {
+	*plugin.FakeContext
 	State                    loomchain.State
 	useAccountBalanceManager bool
 }
 
-func CreateFakeContextWithEVM1(caller, address loom.Address) *FakeContextWithEVM {
+func CreateFakeContextWithEVMDPOS3(caller, address loom.Address) *FakeContextWithEVMDPOS3 {
 	block := abci.Header{
 		ChainID: "default",
 		Height:  int64(34),
@@ -48,72 +48,66 @@ func CreateFakeContextWithEVM1(caller, address loom.Address) *FakeContextWithEVM
 		},
 	)
 	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
-	return &FakeContextWithEVM{
+	return &FakeContextWithEVMDPOS3{
 		FakeContext: ctx,
 		State:       state,
 	}
 }
 
-func (c *FakeContextWithEVM1) WithValidators(validators []*types.Validator) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
+func (c *FakeContextWithEVMDPOS3) WithValidators(validators []*types.Validator) *FakeContextWithEVMDPOS3 {
+	return &FakeContextWithEVMDPOS3{
 		FakeContext:              c.FakeContext.WithValidators(validators),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
-func (c *FakeContextWithEVM1) WithBlock(header loom.BlockHeader) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
+func (c *FakeContextWithEVMDPOS3) WithBlock(header loom.BlockHeader) *FakeContextWithEVMDPOS3 {
+	return &FakeContextWithEVMDPOS3{
 		FakeContext:              c.FakeContext.WithBlock(header),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
-func (c *FakeContextWithEVM1) WithSender(caller loom.Address) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
+func (c *FakeContextWithEVMDPOS3) WithSender(caller loom.Address) *FakeContextWithEVMDPOS3 {
+	return &FakeContextWithEVMDPOS3{
 		FakeContext:              c.FakeContext.WithSender(caller),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
-func (c *FakeContextWithEVM1) WithAddress(addr loom.Address) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
+func (c *FakeContextWithEVMDPOS3) WithAddress(addr loom.Address) *FakeContextWithEVMDPOS3 {
+	return &FakeContextWithEVMDPOS3{
 		FakeContext:              c.FakeContext.WithAddress(addr),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
-func (c *FakeContextWithEVM1) WithFeature(name string, value bool) *FakeContextWithEVM {
+func (c *FakeContextWithEVMDPOS3) WithFeature(name string, value bool) *FakeContextWithEVMDPOS3 {
 	c.State.SetFeature(name, value)
-	return &FakeContextWithEVM{
+	return &FakeContextWithEVMDPOS3{
 		FakeContext:              c.FakeContext,
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
-func (c *FakeContextWithEVM1) WithAccountBalanceManager(enable bool) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
+func (c *FakeContextWithEVMDPOS3) WithAccountBalanceManager(enable bool) *FakeContextWithEVMDPOS3 {
+	return &FakeContextWithEVMDPOS3{
 		FakeContext:              c.FakeContext,
 		State:                    c.State,
 		useAccountBalanceManager: enable,
 	}
 }
 
-func (c *FakeContextWithEVM1) AccountBalanceManager(readOnly bool) levm.AccountBalanceManager {
-	/*
-		ethCoinAddr, err := c.Resolve("ethcoin")
-		if err != nil {
-			panic(err)
-		}
-	*/
+func (c *FakeContextWithEVMDPOS3) AccountBalanceManager(readOnly bool) levm.AccountBalanceManager {
 	return nil
 }
 
-func (c *FakeContextWithEVM1) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+func (c *FakeContextWithEVMDPOS3) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
@@ -122,7 +116,7 @@ func (c *FakeContextWithEVM1) CallEVM(addr loom.Address, input []byte, value *lo
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
 
-func (c *FakeContextWithEVM1) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
+func (c *FakeContextWithEVMDPOS3) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
@@ -131,15 +125,15 @@ func (c *FakeContextWithEVM1) StaticCallEVM(addr loom.Address, input []byte) ([]
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }
 
-func (c *FakeContextWithEVM1) FeatureEnabled(name string, value bool) bool {
+func (c *FakeContextWithEVMDPOS3) FeatureEnabled(name string, value bool) bool {
 	return c.State.FeatureEnabled(name, value)
 }
 
-func (c *FakeContextWithEVM1) EnabledFeatures() []string {
+func (c *FakeContextWithEVMDPOS3) EnabledFeatures() []string {
 	return nil
 }
 
-func deployTokenContract(ctx *FakeContextWithEVM, filename string, dpos, caller loom.Address) (loom.Address,
+func deployTokenContract(ctx *FakeContextWithEVMDPOS3, filename string, dpos, caller loom.Address) (loom.Address,
 	error) {
 	contractAddr := loom.Address{}
 	hexByteCode, err := ioutil.ReadFile("contracts/" + filename + ".bin")
@@ -171,8 +165,8 @@ func deployTokenContract(ctx *FakeContextWithEVM, filename string, dpos, caller 
 	return contractAddr, nil
 }
 
-func deployDPOSContract1(
-	ctx *FakeContextWithEVM,
+func deployDPOS3Contract(
+	ctx *FakeContextWithEVMDPOS3,
 	params *Params,
 ) (*testDPOSContractEVM, error) {
 	dposContract := &DPOS{}
@@ -195,7 +189,7 @@ func deployDPOSContract1(
 	}, err
 }
 
-func (dpos *testDPOSContractEVM) ListAllDelegationsEVM(ctx *FakeContextWithEVM) ([]*ListDelegationsResponse, error) {
+func (dpos *testDPOSContractEVM) ListAllDelegationsEVM(ctx *FakeContextWithEVMDPOS3) ([]*ListDelegationsResponse, error) {
 	resp, err := dpos.Contract.ListAllDelegations(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ListAllDelegationsRequest{},
@@ -207,7 +201,7 @@ func (dpos *testDPOSContractEVM) ListAllDelegationsEVM(ctx *FakeContextWithEVM) 
 	return resp.ListResponses, err
 }
 
-func (dpos *testDPOSContractEVM) SetVoucherTokenAddressEVM(ctx *FakeContextWithEVM,
+func (dpos *testDPOSContractEVM) SetVoucherTokenAddressEVM(ctx *FakeContextWithEVMDPOS3,
 	voucherTokenAddress *loom.Address) error {
 	err := dpos.Contract.SetVoucherTokenAddress(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -218,7 +212,7 @@ func (dpos *testDPOSContractEVM) SetVoucherTokenAddressEVM(ctx *FakeContextWithE
 	return nil
 }
 
-func (dpos *testDPOSContractEVM) ListCandidatesEVM(ctx *FakeContextWithEVM) ([]*CandidateStatistic, error) {
+func (dpos *testDPOSContractEVM) ListCandidatesEVM(ctx *FakeContextWithEVMDPOS3) ([]*CandidateStatistic, error) {
 	resp, err := dpos.Contract.ListCandidates(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ListCandidatesRequest{},
@@ -229,7 +223,7 @@ func (dpos *testDPOSContractEVM) ListCandidatesEVM(ctx *FakeContextWithEVM) ([]*
 	return resp.Candidates, err
 }
 
-func (dpos *testDPOSContractEVM) ListValidatorsEVM(ctx *FakeContextWithEVM) ([]*ValidatorStatistic, error) {
+func (dpos *testDPOSContractEVM) ListValidatorsEVM(ctx *FakeContextWithEVMDPOS3) ([]*ValidatorStatistic, error) {
 	resp, err := dpos.Contract.ListValidators(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ListValidatorsRequest{},
@@ -240,7 +234,7 @@ func (dpos *testDPOSContractEVM) ListValidatorsEVM(ctx *FakeContextWithEVM) ([]*
 	return resp.Statistics, err
 }
 
-func (dpos *testDPOSContractEVM) CheckRewardsEVM(ctx *FakeContextWithEVM) (*common.BigUInt, error) {
+func (dpos *testDPOSContractEVM) CheckRewardsEVM(ctx *FakeContextWithEVMDPOS3) (*common.BigUInt, error) {
 	resp, err := dpos.Contract.CheckRewards(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&CheckRewardsRequest{},
@@ -251,7 +245,7 @@ func (dpos *testDPOSContractEVM) CheckRewardsEVM(ctx *FakeContextWithEVM) (*comm
 	return &resp.TotalRewardDistribution.Value, err
 }
 
-func (dpos *testDPOSContractEVM) CheckRewardDelegationEVM(ctx *FakeContextWithEVM, validator *loom.Address) (*Delegation,
+func (dpos *testDPOSContractEVM) CheckRewardDelegationEVM(ctx *FakeContextWithEVMDPOS3, validator *loom.Address) (*Delegation,
 	error) {
 	resp, err := dpos.Contract.CheckRewardDelegation(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -265,7 +259,7 @@ func (dpos *testDPOSContractEVM) CheckRewardDelegationEVM(ctx *FakeContextWithEV
 	return resp.Delegation, nil
 }
 
-func (dpos *testDPOSContractEVM) CheckDelegationEVM(ctx *FakeContextWithEVM, validator *loom.Address,
+func (dpos *testDPOSContractEVM) CheckDelegationEVM(ctx *FakeContextWithEVMDPOS3, validator *loom.Address,
 	delegator *loom.Address) ([]*Delegation, *big.Int, *big.Int, error) {
 	resp, err := dpos.Contract.CheckDelegation(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -280,7 +274,7 @@ func (dpos *testDPOSContractEVM) CheckDelegationEVM(ctx *FakeContextWithEVM, val
 	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
 }
 
-func (dpos *testDPOSContractEVM) DowntimeRecordEVM(ctx *FakeContextWithEVM,
+func (dpos *testDPOSContractEVM) DowntimeRecordEVM(ctx *FakeContextWithEVMDPOS3,
 	validator *loom.Address) (*DowntimeRecordResponse, error) {
 	var validatorAddr *types.Address
 	if validator != nil {
@@ -298,7 +292,7 @@ func (dpos *testDPOSContractEVM) DowntimeRecordEVM(ctx *FakeContextWithEVM,
 	return resp, nil
 }
 
-func (dpos *testDPOSContractEVM) CheckAllDelegationsEVM(ctx *FakeContextWithEVM, delegator *loom.Address) ([]*Delegation,
+func (dpos *testDPOSContractEVM) CheckAllDelegationsEVM(ctx *FakeContextWithEVMDPOS3, delegator *loom.Address) ([]*Delegation,
 	*big.Int, *big.Int, error) {
 	resp, err := dpos.Contract.CheckAllDelegations(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -312,7 +306,7 @@ func (dpos *testDPOSContractEVM) CheckAllDelegationsEVM(ctx *FakeContextWithEVM,
 	return resp.Delegations, resp.Amount.Value.Int, resp.WeightedAmount.Value.Int, nil
 }
 
-func (dpos *testDPOSContractEVM) RegisterReferrerEVM(ctx *FakeContextWithEVM, referrer loom.Address, name string) error {
+func (dpos *testDPOSContractEVM) RegisterReferrerEVM(ctx *FakeContextWithEVMDPOS3, referrer loom.Address, name string) error {
 	err := dpos.Contract.RegisterReferrer(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&RegisterReferrerRequest{
@@ -323,7 +317,7 @@ func (dpos *testDPOSContractEVM) RegisterReferrerEVM(ctx *FakeContextWithEVM, re
 	return err
 }
 
-func (dpos *testDPOSContractEVM) WhitelistCandidateEVM(ctx *FakeContextWithEVM, candidate loom.Address, amount *big.Int,
+func (dpos *testDPOSContractEVM) WhitelistCandidateEVM(ctx *FakeContextWithEVMDPOS3, candidate loom.Address, amount *big.Int,
 	tier LocktimeTier) error {
 	err := dpos.Contract.WhitelistCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -336,7 +330,7 @@ func (dpos *testDPOSContractEVM) WhitelistCandidateEVM(ctx *FakeContextWithEVM, 
 	return err
 }
 
-func (dpos *testDPOSContractEVM) ChangeWhitelistInfoEVM(ctx *FakeContextWithEVM, candidate *loom.Address, amount *big.Int,
+func (dpos *testDPOSContractEVM) ChangeWhitelistInfoEVM(ctx *FakeContextWithEVMDPOS3, candidate *loom.Address, amount *big.Int,
 	tier *LocktimeTier) error {
 	req := &ChangeWhitelistInfoRequest{
 		CandidateAddress: candidate.MarshalPB(),
@@ -352,7 +346,7 @@ func (dpos *testDPOSContractEVM) ChangeWhitelistInfoEVM(ctx *FakeContextWithEVM,
 	return err
 }
 
-func (dpos *testDPOSContractEVM) ChangeFeeEVM(ctx *FakeContextWithEVM, candidateFee uint64) error {
+func (dpos *testDPOSContractEVM) ChangeFeeEVM(ctx *FakeContextWithEVMDPOS3, candidateFee uint64) error {
 	err := dpos.Contract.ChangeFee(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ChangeCandidateFeeRequest{
@@ -363,7 +357,7 @@ func (dpos *testDPOSContractEVM) ChangeFeeEVM(ctx *FakeContextWithEVM, candidate
 }
 
 func (dpos *testDPOSContractEVM) RegisterCandidateEVM(
-	ctx *FakeContextWithEVM,
+	ctx *FakeContextWithEVMDPOS3,
 	pubKey []byte,
 	tier *uint64,
 	candidateFee *uint64,
@@ -407,7 +401,7 @@ func (dpos *testDPOSContractEVM) RegisterCandidateEVM(
 	return err
 }
 
-func (dpos *testDPOSContractEVM) UnregisterCandidateEVM(ctx *FakeContextWithEVM) error {
+func (dpos *testDPOSContractEVM) UnregisterCandidateEVM(ctx *FakeContextWithEVMDPOS3) error {
 	err := dpos.Contract.UnregisterCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&UnregisterCandidateRequest{},
@@ -415,7 +409,7 @@ func (dpos *testDPOSContractEVM) UnregisterCandidateEVM(ctx *FakeContextWithEVM)
 	return err
 }
 
-func (dpos *testDPOSContractEVM) RemoveWhitelistedCandidateEVM(ctx *FakeContextWithEVM, candidate *loom.Address) error {
+func (dpos *testDPOSContractEVM) RemoveWhitelistedCandidateEVM(ctx *FakeContextWithEVMDPOS3, candidate *loom.Address) error {
 	err := dpos.Contract.RemoveWhitelistedCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&RemoveWhitelistedCandidateRequest{CandidateAddress: candidate.MarshalPB()},
@@ -423,7 +417,7 @@ func (dpos *testDPOSContractEVM) RemoveWhitelistedCandidateEVM(ctx *FakeContextW
 	return err
 }
 
-func (dpos *testDPOSContractEVM) UnjailEVM(ctx *FakeContextWithEVM, candidate *loom.Address) error {
+func (dpos *testDPOSContractEVM) UnjailEVM(ctx *FakeContextWithEVMDPOS3, candidate *loom.Address) error {
 	var validator *types.Address
 	if candidate != nil {
 		validator = candidate.MarshalPB()
@@ -435,7 +429,7 @@ func (dpos *testDPOSContractEVM) UnjailEVM(ctx *FakeContextWithEVM, candidate *l
 	return err
 }
 
-func (dpos *testDPOSContractEVM) DelegateEVM(ctx *FakeContextWithEVM, validator *loom.Address, amount *big.Int,
+func (dpos *testDPOSContractEVM) DelegateEVM(ctx *FakeContextWithEVMDPOS3, validator *loom.Address, amount *big.Int,
 	tier *uint64, referrer *string) error {
 	req := &DelegateRequest{
 		ValidatorAddress: validator.MarshalPB(),
@@ -456,11 +450,11 @@ func (dpos *testDPOSContractEVM) DelegateEVM(ctx *FakeContextWithEVM, validator 
 	return err
 }
 
-func (dpos *testDPOSContractEVM) ContractCtxEVM(ctx *FakeContextWithEVM) contract.Context {
+func (dpos *testDPOSContractEVM) ContractCtxEVM(ctx *FakeContextWithEVMDPOS3) contract.Context {
 	return contract.WrapPluginContext(ctx.WithAddress(dpos.Address))
 }
 
-func (dpos *testDPOSContractEVM) RedelegateEVM(ctx *FakeContextWithEVM, validator *loom.Address,
+func (dpos *testDPOSContractEVM) RedelegateEVM(ctx *FakeContextWithEVMDPOS3, validator *loom.Address,
 	newValidator *loom.Address, amount *big.Int, index uint64, tier *uint64, referrer *string) error {
 	req := &RedelegateRequest{
 		FormerValidatorAddress: validator.MarshalPB(),
@@ -487,7 +481,7 @@ func (dpos *testDPOSContractEVM) RedelegateEVM(ctx *FakeContextWithEVM, validato
 	return err
 }
 
-func (dpos *testDPOSContractEVM) UnbondEVM(ctx *FakeContextWithEVM, validator *loom.Address, amount *big.Int,
+func (dpos *testDPOSContractEVM) UnbondEVM(ctx *FakeContextWithEVMDPOS3, validator *loom.Address, amount *big.Int,
 	index uint64) error {
 	err := dpos.Contract.Unbond(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -500,7 +494,7 @@ func (dpos *testDPOSContractEVM) UnbondEVM(ctx *FakeContextWithEVM, validator *l
 	return err
 }
 
-func (dpos *testDPOSContractEVM) CheckDelegatorRewardsEVM(ctx *FakeContextWithEVM, delegator *loom.Address) (*big.Int,
+func (dpos *testDPOSContractEVM) CheckDelegatorRewardsEVM(ctx *FakeContextWithEVMDPOS3, delegator *loom.Address) (*big.Int,
 	error) {
 	claimResponse, err := dpos.Contract.CheckRewardsFromAllValidators(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
@@ -511,7 +505,7 @@ func (dpos *testDPOSContractEVM) CheckDelegatorRewardsEVM(ctx *FakeContextWithEV
 	return amt.Value.Int, err
 }
 
-func (dpos *testDPOSContractEVM) ClaimDelegatorRewardsEVM(ctx *FakeContextWithEVM) (*big.Int, error) {
+func (dpos *testDPOSContractEVM) ClaimDelegatorRewardsEVM(ctx *FakeContextWithEVMDPOS3) (*big.Int, error) {
 	claimResponse, err := dpos.Contract.ClaimRewardsFromAllValidators(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ClaimDelegatorRewardsRequest{},
@@ -521,7 +515,7 @@ func (dpos *testDPOSContractEVM) ClaimDelegatorRewardsEVM(ctx *FakeContextWithEV
 	return amt.Value.Int, err
 }
 
-func (dpos *testDPOSContractEVM) ConsolidateDelegationsEVM(ctx *FakeContextWithEVM, validator *loom.Address) error {
+func (dpos *testDPOSContractEVM) ConsolidateDelegationsEVM(ctx *FakeContextWithEVMDPOS3, validator *loom.Address) error {
 	err := dpos.Contract.ConsolidateDelegations(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&ConsolidateDelegationsRequest{
@@ -531,7 +525,7 @@ func (dpos *testDPOSContractEVM) ConsolidateDelegationsEVM(ctx *FakeContextWithE
 	return err
 }
 
-func (dpos *testDPOSContractEVM) MintVouchersEVM(ctx *FakeContextWithEVM,
+func (dpos *testDPOSContractEVM) MintVouchersEVM(ctx *FakeContextWithEVMDPOS3,
 	request *MintVoucherRequest) error {
 	dposctx := dpos.ContractCtxEVM(ctx.WithAddress(dpos.Address))
 	err := dpos.Contract.MintVouchers(dposctx, request)
