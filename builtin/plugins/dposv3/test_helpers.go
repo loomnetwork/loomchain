@@ -1,140 +1,19 @@
-// +build evm
-
 package dposv3
 
 import (
-	"context"
 	"math/big"
-	"time"
 
-	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common"
+	loom "github.com/loomnetwork/go-loom"
+	common "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	levm "github.com/loomnetwork/loomchain/evm"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 type testDPOSContract struct {
 	Contract *DPOS
 	Address  loom.Address
-	Ctx      *FakeContextWithEVM
-}
-
-// Contract context for tests that need both Go & EVM contracts.
-type FakeContextWithEVM struct {
-	*plugin.FakeContext
-	State                    loomchain.State
-	useAccountBalanceManager bool
-}
-
-func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM {
-	block := abci.Header{
-		ChainID: "default",
-		Height:  int64(34),
-		Time:    time.Unix(123456789, 0),
-	}
-	ctx := plugin.CreateFakeContext(caller, address).WithBlock(
-		types.BlockHeader{
-			ChainID: block.ChainID,
-			Height:  block.Height,
-			Time:    block.Time.Unix(),
-		},
-	)
-	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
-	return &FakeContextWithEVM{
-		FakeContext: ctx,
-		State:       state,
-	}
-}
-
-func (c *FakeContextWithEVM) WithValidators(validators []*types.Validator) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
-		FakeContext:              c.FakeContext.WithValidators(validators),
-		State:                    c.State,
-		useAccountBalanceManager: c.useAccountBalanceManager,
-	}
-}
-
-func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
-		FakeContext:              c.FakeContext.WithBlock(header),
-		State:                    c.State,
-		useAccountBalanceManager: c.useAccountBalanceManager,
-	}
-}
-
-func (c *FakeContextWithEVM) WithSender(caller loom.Address) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
-		FakeContext:              c.FakeContext.WithSender(caller),
-		State:                    c.State,
-		useAccountBalanceManager: c.useAccountBalanceManager,
-	}
-}
-
-func (c *FakeContextWithEVM) WithAddress(addr loom.Address) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
-		FakeContext:              c.FakeContext.WithAddress(addr),
-		State:                    c.State,
-		useAccountBalanceManager: c.useAccountBalanceManager,
-	}
-}
-
-func (c *FakeContextWithEVM) WithFeature(name string, value bool) *FakeContextWithEVM {
-	c.State.SetFeature(name, value)
-	return &FakeContextWithEVM{
-		FakeContext:              c.FakeContext,
-		State:                    c.State,
-		useAccountBalanceManager: c.useAccountBalanceManager,
-	}
-}
-
-func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContextWithEVM {
-	return &FakeContextWithEVM{
-		FakeContext:              c.FakeContext,
-		State:                    c.State,
-		useAccountBalanceManager: enable,
-	}
-}
-
-func (c *FakeContextWithEVM) AccountBalanceManager(readOnly bool) levm.AccountBalanceManager {
-	/*
-
-		ethCoinAddr, err := c.Resolve("ethcoin")
-		if err != nil {
-			panic(err)
-		}
-		return NewAccountBalanceManager(c.WithAddress(ethCoinAddr))
-	*/
-	return nil
-}
-
-func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	var createABM levm.AccountBalanceManagerFactoryFunc
-	if c.useAccountBalanceManager {
-		createABM = c.AccountBalanceManager
-	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
-	return vm.Call(c.ContractAddress(), addr, input, value)
-}
-
-func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	var createABM levm.AccountBalanceManagerFactoryFunc
-	if c.useAccountBalanceManager {
-		createABM = c.AccountBalanceManager
-	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
-	return vm.StaticCall(c.ContractAddress(), addr, input)
-}
-
-func (c *FakeContextWithEVM) FeatureEnabled(name string, value bool) bool {
-	return c.State.FeatureEnabled(name, value)
-}
-
-func (c *FakeContextWithEVM) EnabledFeatures() []string {
-	return nil
 }
 
 func deployDPOSContract(
@@ -152,7 +31,7 @@ func deployDPOSContract(
 	})
 
 	// Enable the feature flag which enables the reward rounding fix
-	ctx.SetFeature(loomchain.DPOSVersion3_1, true)
+	dposCtx.SetFeature(loomchain.DPOSVersion3_1, true)
 
 	return &testDPOSContract{
 		Contract: dposContract,
@@ -170,16 +49,6 @@ func (dpos *testDPOSContract) ListAllDelegations(ctx *plugin.FakeContext) ([]*Li
 	}
 
 	return resp.ListResponses, err
-}
-
-func (dpos *testDPOSContract) SetVoucherTokenAddress(ctx *FakeContextWithEVM, voucherTokenAddress *loom.Address) error {
-	err := dpos.Contract.SetVoucherTokenAddress(
-		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
-		&AddVoucherTokenAddressRequest{VoucherTokenAddress: voucherTokenAddress.MarshalPB()})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (dpos *testDPOSContract) ListCandidates(ctx *plugin.FakeContext) ([]*CandidateStatistic, error) {
@@ -393,6 +262,17 @@ func (dpos *testDPOSContract) Unjail(ctx *plugin.FakeContext, candidate *loom.Ad
 	return err
 }
 
+func (dpos *testDPOSContract) SetSlashingPercentage(ctx *plugin.FakeContext, crashSlashingPercentage, byzantizeFaultSlashingPercentage int64) error {
+	err := dpos.Contract.SetSlashingPercentages(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&SetSlashingPercentagesRequest{
+			CrashSlashingPercentage:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(crashSlashingPercentage)},
+			ByzantineSlashingPercentage: &types.BigUInt{Value: *loom.NewBigUIntFromInt(byzantizeFaultSlashingPercentage)},
+		},
+	)
+	return err
+}
+
 func (dpos *testDPOSContract) EnableValidatorJailing(ctx *plugin.FakeContext, status bool) error {
 	err := dpos.Contract.EnableValidatorJailing(contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&EnableValidatorJailingRequest{JailOfflineValidators: status},
@@ -418,10 +298,6 @@ func (dpos *testDPOSContract) Delegate(ctx *plugin.FakeContext, validator *loom.
 		req,
 	)
 	return err
-}
-
-func (dpos *testDPOSContract) ContractCtx(ctx *FakeContextWithEVM) contract.Context {
-	return contract.WrapPluginContext(ctx.WithAddress(dpos.Address))
 }
 
 func (dpos *testDPOSContract) Redelegate(ctx *plugin.FakeContext, validator *loom.Address, newValidator *loom.Address, amount *big.Int, index uint64, tier *uint64, referrer *string) error {
