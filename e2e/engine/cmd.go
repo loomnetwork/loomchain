@@ -273,7 +273,7 @@ func sprintAppHashes(block []AppHash) string {
 	var hashInfo string
 	for _, apphash := range block {
 		hashInfo += fmt.Sprintf(
-			"node %s apphash 0x%x executable %s height %s\n",
+			"node %s apphash 0x%s executable %s\n",
 			apphash.index,
 			apphash.apphash,
 			apphash.node.LoomPath,
@@ -300,6 +300,7 @@ func getBlockHeight(node *node.Node) (string, error) {
 		ID      string `json:"id"`
 		Result  struct {
 			SyncInfo struct {
+				LastBlockAppHash  []byte `json:"last_block_app_hash,omitempty"`
 				LatestBlockHeight string `json:"latest_block_height,omitempty"`
 			} `json:"sync_info,omitempty"`
 		} `json:"result"`
@@ -364,7 +365,7 @@ func checkapphash(nodes map[string]*node.Node) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("--> Node: %s, AppHash: %0x, height %v\n", index, currentAppHash, blockHeight)
+		fmt.Printf("--> Node: %s, AppHash: 0x%s, height %v\n", index, currentAppHash, blockHeight)
 		blockInfo = append(blockInfo, AppHash{
 			apphash: currentAppHash,
 			node:    v,
@@ -377,12 +378,8 @@ func checkapphash(nodes map[string]*node.Node) error {
 			if apphash1.apphash != apphash2.apphash {
 				return errors.Errorf("mismatching apphashs\n%s", sprintAppHashes(blockInfo))
 			}
-
 		}
 	}
-
-	fmt.Println()
-	fmt.Println("apphasesh--->>>>>\n", sprintAppHashes(blockInfo))
 	return nil
 }
 
