@@ -340,6 +340,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 		}
 
 	}(testStore)
+
 	wg.Wait()
 
 	for _, data := range testStore.Range(prefix) {
