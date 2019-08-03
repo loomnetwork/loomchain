@@ -9,13 +9,137 @@ import (
 	"time"
 
 	"github.com/allegro/bigcache"
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 var (
-	separator = "|"
+	separator      = "|"
+//Prometheus metrics
+	getDuration    metrics.Histogram
+	hasDuration    metrics.Histogram
+	deleteDuration metrics.Histogram
+	setDuration    metrics.Histogram
+
+	cacheHits   metrics.Counter
+	cacheErrors metrics.Counter
+	cacheMisses metrics.Counter
 )
+
+type CachingStoreLogger struct {
+	logger *loom.Logger
+}
+
+func (c CachingStoreLogger) Printf(format string, v ...interface{}) {
+	c.logger.Info(format, v)
+}
+
+func init() {
+	const namespace = "loomchain"
+	const subsystem = "versioned_caching_store"
+
+	getDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "get",
+			Help:       "How long Versioned CachingStore.Get() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, []string{"error", "isCacheHit"})
+
+	hasDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "has",
+			Help:       "How long Versioned CachingStore.Has() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, []string{"error", "isCacheHit"})
+
+	deleteDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "delete",
+			Help:       "How long Versioned CachingStore.Delete() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, []string{"error"})
+
+	setDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Name:       "set",
+			Help:       "How long Versioned CachingStore.Set() took to execute (in miliseconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, []string{"error"})
+
+	cacheHits = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "cache_hit",
+			Help:      "Number of cache hit for get/has",
+		}, []string{"store_operation"})
+
+	cacheMisses = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "cache_miss",
+			Help:      "Number of cache miss for get/has",
+		}, []string{"store_operation"})
+
+	cacheErrors = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "cache_error",
+			Help:      "number of errors encountered while doing any operation on cache",
+		}, []string{"cache_operation"})
+
+}
+
+type CachingStoreConfig struct {
+	CachingEnabled bool
+	// CachingEnabled may be ignored in some configurations, this will force enable the caching
+	// store in those cases.
+	// WARNING: This should only used for debugging.
+	DebugForceEnable bool
+	// Number of cache shards, value must be a power of two
+	Shards int
+	// Time after we need to evict the key
+	EvictionTimeInSeconds int64
+	// interval at which clean up of expired keys will occur
+	CleaningIntervalInSeconds int64
+	// Total size of cache would be: MaxKeys*MaxSizeOfValueInBytes
+	MaxKeys               int
+	MaxSizeOfValueInBytes int
+
+	// Logs operations
+	Verbose bool
+
+	LogLevel       string
+	LogDestination string
+}
+
+func DefaultCachingStoreConfig() *CachingStoreConfig {
+	return &CachingStoreConfig{
+		CachingEnabled:            true,
+		Shards:                    1024,
+		EvictionTimeInSeconds:     60 * 60, // 1 hour
+		CleaningIntervalInSeconds: 10,      // Cleaning per 10 second
+		// Approximately 110 MB
+		MaxKeys:               50 * 10 * 100,
+		MaxSizeOfValueInBytes: 2048,
+		Verbose:               true,
+		LogDestination:        "file://-",
+		LogLevel:              "info",
+	}
+}
 
 // KeyVersionTable keeps versions of a cached key
 type KeyVersionTable map[int64]bool
@@ -63,6 +187,33 @@ func newVersionedBigCache(config *CachingStoreConfig, cacheLogger *loom.Logger) 
 	}
 	versionedCache.cache = cache
 	return versionedCache, nil
+}
+
+func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*bigcache.Config, error) {
+	if config.MaxKeys == 0 || config.MaxSizeOfValueInBytes == 0 {
+		return nil, fmt.Errorf("[CachingStoreConfig] max keys and/or max size of value cannot be zero")
+	}
+
+	if config.EvictionTimeInSeconds == 0 {
+		return nil, fmt.Errorf("[CachingStoreConfig] eviction time cannot be zero")
+	}
+
+	if config.Shards == 0 {
+		return nil, fmt.Errorf("[CachingStoreConfig] caching shards cannot be zero")
+	}
+
+	configTemplate := bigcache.DefaultConfig(time.Duration(config.EvictionTimeInSeconds) * time.Second)
+	configTemplate.Shards = config.Shards
+	configTemplate.Verbose = config.Verbose
+	configTemplate.CleanWindow = time.Duration(config.CleaningIntervalInSeconds) * time.Second
+	configTemplate.LifeWindow = time.Duration(config.EvictionTimeInSeconds) * time.Second
+	configTemplate.HardMaxCacheSize = config.MaxKeys * config.MaxSizeOfValueInBytes
+	configTemplate.MaxEntriesInWindow = config.MaxKeys
+	configTemplate.MaxEntrySize = config.MaxSizeOfValueInBytes
+	configTemplate.Verbose = config.Verbose
+	configTemplate.Logger = CachingStoreLogger{logger: logger}
+
+	return &configTemplate, nil
 }
 
 func (c *versionedBigCache) onRemove(key string, entry []byte) {
