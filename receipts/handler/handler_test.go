@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
@@ -20,10 +21,6 @@ var (
 )
 
 func TestReceiptsHandlerChain(t *testing.T) {
-	testHandler(t, ReceiptHandlerLevelDb)
-}
-
-func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
 
@@ -33,6 +30,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	handler := NewReceiptHandler(&loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
 
 	var writer loomchain.WriteReceiptHandler = handler
+	var reader loomchain.ReadReceiptHandler = handler
 	var receiptHandler loomchain.ReceiptHandlerStore = handler
 	var txHashList [][]byte
 
@@ -60,6 +58,11 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 			resp.Data = []byte("Go transaction results")
 			resp.Info = utils.CallPlugin
 		}
+		if nonce == 19 { // mock error
+			currentReceipt := reader.GetCurrentReceipt()
+			currentReceipt.Status = common.StatusTxFail
+			txError = errors.New("Some EVM error")
+		}
 
 		// mock Application.processTx
 		if txError != nil {
@@ -74,8 +77,6 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 
 	require.EqualValues(t, int(9), len(handler.receiptsCache))
 	require.EqualValues(t, int(9), len(txHashList))
-
-	var reader loomchain.ReadReceiptHandler = handler
 
 	pendingHashList := reader.GetPendingTxHashList()
 	require.EqualValues(t, 9, len(pendingHashList))
