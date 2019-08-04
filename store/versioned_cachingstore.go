@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	separator      = "|"
-//Prometheus metrics
+	separator = "|"
+	//Prometheus metrics
 	getDuration    metrics.Histogram
 	hasDuration    metrics.Histogram
 	deleteDuration metrics.Histogram
