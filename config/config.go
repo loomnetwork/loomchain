@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/evm"
-
+	"github.com/pkg/errors"
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
@@ -346,7 +346,7 @@ func ReadGenesis(path string) (*Genesis, error) {
 	var gen Genesis
 	err = dec.Decode(&gen)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err,"Failed to load genesis file")
 	}
 
 	return &gen, nil
