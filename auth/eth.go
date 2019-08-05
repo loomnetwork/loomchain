@@ -3,6 +3,8 @@
 package auth
 
 import (
+	"crypto/sha256"
+
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
@@ -23,4 +25,13 @@ func verifyTron(tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, e
 		return nil, err
 	}
 	return tronAddr.Bytes(), nil
+}
+
+func verifyBinance(tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, error) {
+	hash := sha256.Sum256(tx.Inner)
+	addr, err := evmcompat.RecoverAddressFromTypedSig(hash[:], tx.Signature, allowSigTypes)
+	if err != nil {
+		return nil, err
+	}
+	return addr.Bytes(), nil
 }
