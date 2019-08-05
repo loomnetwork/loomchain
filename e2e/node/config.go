@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/pkg/errors"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/pkg/errors"
 )
 
 type genesis struct {
