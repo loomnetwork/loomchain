@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/pkg/errors"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -33,7 +35,7 @@ func readGenesis(path string) (*genesis, error) {
 	var gen genesis
 	err = dec.Decode(&gen)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to load genesis.json file")
 	}
 
 	return &gen, nil
