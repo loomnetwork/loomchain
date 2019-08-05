@@ -89,10 +89,11 @@ type Config struct {
 	UserDeployerWhitelist *UserDeployerWhitelistConfig
 
 	// Transfer gateway
-	TransferGateway         *TransferGatewayConfig
-	LoomCoinTransferGateway *TransferGatewayConfig
-	TronTransferGateway     *TransferGatewayConfig
-	BinanceTransferGateway  *TransferGatewayConfig
+	TransferGateway          *TransferGatewayConfig
+	LoomCoinTransferGateway  *TransferGatewayConfig
+	TronTransferGateway      *TransferGatewayConfig
+	BinanceTransferGateway   *TransferGatewayConfig
+	CheckQueryServiceTimeout int
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
@@ -382,11 +383,12 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:                 "",
-		DeployEnabled:          true,
-		CallEnabled:            true,
-		DPOSVersion:            3,
-		AllowNamedEvmContracts: false,
+		Oracle:                   "",
+		DeployEnabled:            true,
+		CallEnabled:              true,
+		DPOSVersion:              3,
+		AllowNamedEvmContracts:   false,
+		CheckQueryServiceTimeout: 10000,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -507,6 +509,7 @@ EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
+CheckQueryServiceTimeout: {{ .CheckQueryServiceTimeout }}
 #
 # Network
 #

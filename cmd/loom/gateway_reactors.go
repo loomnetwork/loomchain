@@ -4,6 +4,8 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"time"
 
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/loomchain/config"
@@ -17,19 +19,49 @@ func startGatewayReactors(
 	cfg *config.Config,
 	nodeSigner glAuth.Signer,
 ) error {
+	if err := checkQueryService(cfg.TransferGateway.DAppChainReadURI, cfg.CheckQueryServiceTimeout); err != nil {
+		return err
+	}
 	if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
 		return err
 	}
 
+	if err := checkQueryService(cfg.LoomCoinTransferGateway.DAppChainReadURI, cfg.CheckQueryServiceTimeout); err != nil {
+		return err
+	}
 	if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
 		return err
 	}
 
+	if err := checkQueryService(cfg.TronTransferGateway.DAppChainReadURI, cfg.CheckQueryServiceTimeout); err != nil {
+		return err
+	}
 	if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// checkQueryService is a helper function to check if corresponding QueryService has started
+// timeout is configurable with variable CheckQueryServiceTimeout
+func checkQueryService(url string, timeout int) error {
+	timeoutTick := time.After(time.Duration(timeout) * time.Millisecond)
+	tick := time.Tick(1000 * time.Millisecond)
+	for {
+		select {
+		case <-tick:
+			var netClient = &http.Client{
+				Timeout: time.Second * 1,
+			}
+			resp, _ := netClient.Head(url)
+			if resp != nil && resp.StatusCode == 200 {
+				return nil
+			}
+		case <-timeoutTick:
+			return fmt.Errorf("CheckQueryServer timeout occured")
+		}
+	}
 }
 
 func startGatewayFn(
