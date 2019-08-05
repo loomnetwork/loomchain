@@ -202,8 +202,9 @@ func (f *FnAggregateExecutionResponse) NumberOfAgreeVotes() int {
 type FnExecutionResponse struct {
 	// Hash of the message voted on by each validator.
 	// The message itself is obtained from GetMessageAndSignature.
-	Hashes            [][]byte
-	SignatureBitArray *cmn.BitArray // tracks which validators we've received votes from
+	Hashes [][]byte
+	// Tracks which elements in OracleSignatures have valid signatures.
+	SignatureBitArray *cmn.BitArray
 	// Signature associated with each message by each validator.
 	// NOTE: The signature is not obtained by signing the the hash of the message, rather it's obtained
 	//       from GetMessageAndSignature.
@@ -517,7 +518,6 @@ func (f *FnVotePayload) SignBytes(validatorIndex int) ([]byte, error) {
 		return nil, err
 	}
 
-	// Q: Why this particular byte?
 	separator := []byte{0x50}
 
 	signBytes := make([]byte, len(requestSignBytes)+len(responseSignBytes)+len(separator))
@@ -665,7 +665,7 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int) ([]byte, error) {
 		return nil, err
 	}
 
-	// Q: Why this particular byte sequence?
+	// TODO: Replace this with amino serialization.
 	var seperator = []byte{17, 19, 23, 29}
 
 	prefix := []byte(fmt.Sprintf(
@@ -673,7 +673,6 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int) ([]byte, error) {
 		voteSet.Nonce, voteSet.ChainID, voteSet.ValidatorAddresses[validatorIndex],
 	))
 
-	// Q: Why isn't this a protobuf?
 	signBytes := make([]byte, len(prefix)+len(seperator)+len(voteSet.ValidatorsHash)+len(seperator)+len(payloadBytes))
 
 	numCopied := 0

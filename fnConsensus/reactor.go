@@ -421,7 +421,9 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	// Q: Why are the hash & message copied here?
+	// TODO: The hash & message are copied here because we don't trust the fn object not to modify
+	//       them, but we don't need to store the message from this point on so there doesn't seem
+	//       to be much point in copying it.
 	if err := f.safeMapMessage(fn, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
 		f.Logger.Error(
 			"FnConsensusReactor: received error while executing fn.MapMessage",
@@ -788,8 +790,8 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	// Q: If remote nonce is greater or equal to ours then we end up sending the remote voteset back
-	//    to the peer that sent it to us, why? Shouldn't we exclude that peer from the broadcast?
+	// TODO: If remote nonce is greater or equal to ours then we end up sending the remote voteset back
+	//       to the peer that sent it to us, we should we exclude that peer from the broadcast instead.
 	f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
 }
 
