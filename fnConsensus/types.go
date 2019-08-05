@@ -48,7 +48,7 @@ type reactorStateMarshallable struct {
 type ReactorState struct {
 	CurrentVoteSets          map[string]*FnVoteSet
 	CurrentNonces            map[string]int64
-	PreviousTimedOutVoteSets map[string]*FnVoteSet
+	PreviousTimedOutVoteSets map[string]*FnVoteSet // TODO: unused, consider removing
 	PreviousMajVoteSets      map[string]*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
 }
