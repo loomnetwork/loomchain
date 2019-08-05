@@ -124,7 +124,6 @@ func (c *Client) writePump(logger log.TMLogger) {
 				}
 				return
 			}
-
 			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
 				logger.Error("error setting write deadline", "err", err)
 			}
