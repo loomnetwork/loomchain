@@ -49,8 +49,10 @@ func NewInMemoryFnRegistry() *InMemoryFnRegistry {
 
 func (f *InMemoryFnRegistry) GetAll() []string {
 	fnIDs := make([]string, len(f.fnMap))
+
 	f.mtx.RLock()
 	defer f.mtx.RUnlock()
+
 	i := 0
 	for fnID := range f.fnMap {
 		fnIDs[i] = fnID
@@ -63,6 +65,7 @@ func (f *InMemoryFnRegistry) GetAll() []string {
 func (f *InMemoryFnRegistry) Get(fnID string) Fn {
 	f.mtx.RLock()
 	defer f.mtx.RUnlock()
+
 	return f.fnMap[fnID]
 }
 
