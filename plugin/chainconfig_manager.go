@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/loomnetwork/go-loom"
@@ -71,11 +70,11 @@ func (c *ChainConfigManager) UpdateConfig() error {
 	}
 
 	for _, setting := range settings {
-		if err := c.state.SetConfig(setting); err != nil {
+		if err := c.state.SetConfigSetting(setting); err != nil {
 			if err == chainconfig.ErrConfigNotSupported {
 				panic(err)
 			}
-			c.ctx.Logger().Info("UpdateConfig", "update config error", fmt.Sprintf("%v+", setting))
+			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
 		}
 		chainconfig.RemoveSetting(c.ctx, setting.Name)
 	}

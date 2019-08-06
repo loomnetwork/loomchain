@@ -525,8 +525,8 @@ func SetSettingCmd() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.StringVar(&value, "value", "", "Set value of config")
-	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Set build of config")
+	cmdFlags.StringVar(&value, "value", "", "Value of config setting")
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number required for this change to apply")
 	cmd.MarkFlagRequired("value")
 	cmd.MarkFlagRequired("build")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)

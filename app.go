@@ -45,7 +45,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	SetConfig(*cctypes.Setting) error
+	SetConfigSetting(*cctypes.Setting) error
 }
 
 type StoreState struct {
@@ -172,7 +172,7 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) SetConfig(setting *cctypes.Setting) error {
+func (s *StoreState) SetConfigSetting(setting *cctypes.Setting) error {
 	configBytes := s.store.Get([]byte(configKey))
 	cfg := config.DefaultConfig()
 	if len(configBytes) > 0 {
@@ -405,10 +405,6 @@ func (a *Application) SetOption(req abci.RequestSetOption) abci.ResponseSetOptio
 	return abci.ResponseSetOption{}
 }
 
-func (a *Application) chainCfg() *config.Config {
-	return a.config
-}
-
 func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
 	if a.height() != 1 {
 		panic("state version is not 1")
@@ -435,14 +431,13 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 }
 
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-
 	block := req.Header
 	if block.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
 	// load config if it is nil
-	if a.chainCfg() == nil {
+	if a.config == nil {
 		configBytes := a.Store.Get([]byte(configKey))
 		cfg := config.DefaultConfig()
 		if len(configBytes) > 0 {
