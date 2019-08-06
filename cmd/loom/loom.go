@@ -660,11 +660,11 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 				"evm.db-ver", evmVersion, "app.db-ver", iavlStore.Version(),
 				"evm.db-root", hex.EncodeToString(evmStoreEvmRoot), "app.db-evm-root", hex.EncodeToString(appStoreEvmRoot),
 			)
-			lastestVersion, _ := store.LastestIAVLStoreVersion(db, evmVersion)
-			if lastestVersion == 0 {
-				lastestVersion = -1
+			latestVersion, _ := store.LatestIAVLStoreVersion(db, evmVersion)
+			if latestVersion == 0 {
+				latestVersion = -1
 			}
-			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, lastestVersion, cfg.AppStore.IAVLFlushInterval)
+			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, latestVersion, cfg.AppStore.IAVLFlushInterval)
 			if err != nil {
 				return nil, err
 			}
