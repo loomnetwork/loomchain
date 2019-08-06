@@ -515,12 +515,10 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 		return nil, err
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
-	receiptNotFound := errors.Cause(err) == common.ErrTxReceiptNotFound
-	if err != nil && !receiptNotFound {
+	if errors.Cause(err) == common.ErrTxReceiptNotFound {
+		return proto.Marshal(&types.EvmTxReceipt{})
+	} else if err != nil {
 		return nil, errors.Wrap(err, "get receipt")
-	}
-	if receiptNotFound {
-		txReceipt = types.EvmTxReceipt{}
 	}
 
 	if len(txReceipt.Logs) > 0 {
