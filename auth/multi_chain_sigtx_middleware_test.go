@@ -100,17 +100,18 @@ func TestTronSigning(t *testing.T) {
 
 	// Encode
 	nonceTx := []byte("nonceTx")
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	foreignLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
 	require.NoError(t, err)
 
 	hash := sha3.SoliditySHA3(
-		sha3.Address(common.BytesToAddress(ethLocalAdr)),
+		sha3.Address(common.BytesToAddress(foreignLocalAddr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
 		sha3.Uint64(nonce),
 		nonceTx,
 	)
+	prefixedHash := evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
 
-	signature, err := crypto.Sign(hash, privateKey)
+	signature, err := evmcompat.GenerateTypedSig(prefixedHash, privateKey, evmcompat.SignatureType_TRON)
 	require.NoError(t, err)
 
 	tx := &auth.SignedTx{
@@ -120,21 +121,19 @@ func TestTronSigning(t *testing.T) {
 	}
 
 	// Decode
-	pubAddr, err := crypto.Ecrecover(hash, tx.Signature)
+	allowedSigTypes := []evmcompat.SignatureType{evmcompat.SignatureType_TRON}
+	recoverdAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, tx.Signature, allowedSigTypes)
 	require.NoError(t, err)
+	require.True(t, bytes.Equal(recoverdAddr.Bytes(), foreignLocalAddr))
 
-	UnmarshalPubkey, err := crypto.UnmarshalPubkey(pubAddr)
-	require.NoError(t, err)
-
-	ethLocalAdr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*UnmarshalPubkey).Hex())
-	require.NoError(t, err)
-	require.True(t, bytes.Equal(ethLocalAdr, ethLocalAdr2))
+	signatureNoRecoverID := signature[1 : len(tx.Signature)-1] // remove recovery ID
+	require.True(t, crypto.VerifySignature(tx.PublicKey, prefixedHash, signatureNoRecoverID))
 }
 
 func TestBinanceSigning(t *testing.T) {
 	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
 	require.NoError(t, err)
-	signer := auth.NewSecp256k1Signer(crypto.FromECDSA(privateKey))
+	signer := auth.NewBinanceSigner(crypto.FromECDSA(privateKey))
 	publicKey := signer.PublicKey()
 	require.NoError(t, err)
 	to := contract
@@ -423,9 +422,9 @@ func mockEd25519SignedTx(t *testing.T, key string) []byte {
 }
 
 func mockSignedTx(t *testing.T, chainID string, signer auth.Signer) []byte {
-	privateKey, err := crypto.UnmarshalPubkey(signer.PublicKey())
+	pubKey, err := crypto.UnmarshalPubkey(signer.PublicKey())
 	require.NoError(t, err)
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*privateKey).Hex())
+	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*pubKey).Hex())
 	require.NoError(t, err)
 	nonceTx := mockNonceTx(t, loom.Address{ChainID: chainID, Local: ethLocalAdr}, sequence)
 
