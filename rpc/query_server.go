@@ -515,7 +515,7 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 		return nil, err
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
-	receiptNotFound := errors.Cause(err) != common.ErrTxReceiptNotFound
+	receiptNotFound := errors.Cause(err) == common.ErrTxReceiptNotFound
 	if err != nil && !receiptNotFound {
 		return nil, errors.Wrap(err, "get receipt")
 	}
