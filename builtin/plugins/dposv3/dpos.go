@@ -2099,7 +2099,7 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	if err := SetReferrer(ctx, req.Name, req.Address); err != nil {
+	if err := setReferrer(ctx, req.Name, req.Address); err != nil {
 		return err
 	}
 	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)

@@ -396,7 +396,7 @@ func TestGetSetReferrer(t *testing.T) {
 	pctx := plugin.CreateFakeContext(address1, address1)
 	ctx := contractpb.WrapPluginContext(pctx)
 
-	err := SetReferrer(ctx, "hi", address1.MarshalPB())
+	err := setReferrer(ctx, "hi", address1.MarshalPB())
 	assert.Nil(t, err)
 	address := getReferrer(ctx, "hi")
 	assert.NotNil(t, address)
@@ -404,7 +404,7 @@ func TestGetSetReferrer(t *testing.T) {
 
 	//Enable feature dpos:v3.5
 	pctx.SetFeature(loomchain.DPOSVersion3_5, true)
-	err = SetReferrer(ctx, "hi-3.5", address1.MarshalPB())
+	err = setReferrer(ctx, "hi-3.5", address1.MarshalPB())
 	assert.Nil(t, err)
 	addr := getReferrer(ctx, "hi-3.5")
 	assert.NotNil(t, addr)
