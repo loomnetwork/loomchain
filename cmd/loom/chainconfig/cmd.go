@@ -36,8 +36,7 @@ func NewChainCfgCommand() *cobra.Command {
 		FeatureEnabledCmd(),
 		RemoveFeatureCmd(),
 		SetSettingCmd(),
-		GetSettingCmd(),
-		ListSettingsCmd(),
+		ListPendingActionsCmd(),
 		ChainConfigCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
@@ -399,55 +398,21 @@ func GetValidatorInfoCmd() *cobra.Command {
 	return cmd
 }
 
-const listSettingsCmdExample = `
-loom chain-cfg list-settings 
+const listPendingActionsCmdExample = `
+loom chain-cfg list-pending-actions
 `
 
-func ListSettingsCmd() *cobra.Command {
+func ListPendingActionsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "list-settings",
-		Short:   "show all settings in the ChainConfig contract",
-		Example: listSettingsCmdExample,
+		Use:     "list-pending-actions",
+		Short:   "show all pending actions to change setting",
+		Example: listPendingActionsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp cctype.ListSettingsResponse
+			var resp cctype.ListPendingActionsRequest
 			err := cli.StaticCallContractWithFlags(
 				&flags, chainConfigContractName,
-				"ListSettings", &cctype.ListSettingsRequest{}, &resp,
-			)
-			if err != nil {
-				return err
-			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
-			return nil
-		},
-	}
-	cli.AddContractCallFlags(cmd.Flags(), &flags)
-	return cmd
-}
-
-const getSettingCmdExample = `
-loom chain-cfg get-setting AppStoreConfig.DeletedVmKeys
-`
-
-func GetSettingCmd() *cobra.Command {
-	var flags cli.ContractCallFlags
-	cmd := &cobra.Command{
-		Use:     "get-setting",
-		Short:   "Get config setting by config key",
-		Example: getSettingCmdExample,
-		Args:    cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp cctype.GetSettingResponse
-			err := cli.StaticCallContractWithFlags(
-				&flags, chainConfigContractName,
-				"GetSetting", &cctype.GetSettingRequest{
-					Name: args[0],
-				}, &resp,
+				"ListPendingActions", &cctype.ListPendingActionsRequest{}, &resp,
 			)
 			if err != nil {
 				return err

@@ -34,14 +34,12 @@ type (
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 
-	Setting              = cctypes.Setting
-	GetSettingRequest    = cctypes.GetSettingRequest
-	GetSettingResponse   = cctypes.GetSettingResponse
-	SetSettingRequest    = cctypes.SetSettingRequest
-	ListSettingsRequest  = cctypes.ListSettingsRequest
-	ListSettingsResponse = cctypes.ListSettingsResponse
-	ChainConfigRequest   = cctypes.ChainConfigRequest
-	ChainConfigResponse  = cctypes.ChainConfigResponse
+	Action                     = cctypes.Action
+	SetSettingRequest          = cctypes.SetSettingRequest
+	ListPendingActionsRequest  = cctypes.ListPendingActionsRequest
+	ListPendingActionsResponse = cctypes.ListPendingActionsResponse
+	ChainConfigRequest         = cctypes.ChainConfigRequest
+	ChainConfigResponse        = cctypes.ChainConfigResponse
 
 	ValidatorInfo              = cctypes.ValidatorInfo
 	GetValidatorInfoRequest    = cctypes.GetValidatorInfoRequest
@@ -89,13 +87,13 @@ var (
 	// by majority of validators, and has not been activated on the chain.
 	ErrFeatureNotEnabled = errors.New("[ChainConfig] feature not enabled")
 
-	// ErrConfigNotSupported inidicates that an enabled config is not supported in the current build
-	ErrConfigNotSupported = errors.New("[ChainConfig] config is not supported in the current build")
+	// ErrConfigChangeNotSupported inidicates that config change is not supported in the current build
+	ErrConfigChangeNotSupported = errors.New("[ChainConfig] config change is not supported in the current build")
 )
 
 const (
 	featurePrefix       = "ft"
-	settingPrefix       = "setting"
+	actionPrefix        = "action"
 	ownerRole           = "owner"
 	validatorInfoPrefix = "vi"
 )
@@ -111,8 +109,8 @@ func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
-func settingKey(settingName string) []byte {
-	return util.PrefixKey([]byte(settingPrefix), []byte(settingName))
+func actionKey(actionName string) []byte {
+	return util.PrefixKey([]byte(actionPrefix), []byte(actionName))
 }
 
 func validatorInfoKey(addr loom.Address) []byte {
@@ -368,87 +366,69 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
-// UpdateConfig returns a list of settings that are supported by majority of validators
-func UpdateConfig(ctx contract.Context, buildNumber uint64) ([]*Setting, error) {
+// GetPendingActions returns a list of actions that are supported by majority of validators
+func GetPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, error) {
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	settingsRange := ctx.Range([]byte(settingPrefix))
-	settings := make([]*Setting, 0)
+	actionsRange := ctx.Range([]byte(actionPrefix))
+	actions := make([]*Action, 0)
 
 	validatorsInfo, err := listValidatorsInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, m := range settingsRange {
-		var setting Setting
-		if err := proto.Unmarshal(m.Value, &setting); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal Setting %s", string(m.Key))
+	for _, m := range actionsRange {
+		var action Action
+		if err := proto.Unmarshal(m.Value, &action); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal Action %s", string(m.Key))
 		}
 
 		supportedValidator := 0
 		for _, validatorInfo := range validatorsInfo {
-			if validatorInfo.BuildNumber >= setting.BuildNumber {
+			if validatorInfo.BuildNumber >= action.BuildNumber {
 				supportedValidator++
 			}
 		}
-		// Return this setting, if the number of validators that support this setting
+		// Return this action, if the number of validators that support this action
 		// has not reached the vote threshold
 		if len(validatorsInfo) > 0 && uint64((supportedValidator*100)/len(validatorsInfo)) >= params.VoteThreshold {
-			if buildNumber < setting.BuildNumber {
-				return nil, ErrConfigNotSupported
+			if buildNumber < action.BuildNumber {
+				return nil, ErrConfigChangeNotSupported
 			}
-			settings = append(settings, &setting)
+			actions = append(actions, &action)
 		}
 	}
 
-	return settings, nil
+	return actions, nil
 }
 
-// RemoveSetting removes setting in the contract
-func RemoveSetting(ctx contract.Context, name string) {
-	ctx.Delete(settingKey(name))
-}
-
-// GetSetting returns info about a specific cfg setting.
-func (c *ChainConfig) GetSetting(ctx contract.StaticContext, req *GetSettingRequest) (*GetSettingResponse, error) {
-	if req.Name == "" {
-		return nil, ErrInvalidRequest
-	}
-
-	var setting Setting
-	err := ctx.Get(settingKey(req.Name), &setting)
-	if err != nil {
-		return nil, err
-	}
-
-	return &GetSettingResponse{
-		Setting: &setting,
-	}, nil
-}
-
-// ListSettings returns a list of cfg settings in the ChainConfig contract
-func (c *ChainConfig) ListSettings(ctx contract.StaticContext, req *ListSettingsRequest) (*ListSettingsResponse, error) {
-	settingsRange := ctx.Range([]byte(settingPrefix))
-	settings := make([]*Setting, 0)
-	for _, m := range settingsRange {
-		var setting Setting
-		if err := proto.Unmarshal(m.Value, &setting); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal Setting %s", string(m.Key))
+// ListPendingActions returns a list of a in the ChainConfig contract
+func (c *ChainConfig) ListPendingActions(ctx contract.StaticContext, req *ListPendingActionsRequest) (*ListPendingActionsResponse, error) {
+	actionsRange := ctx.Range([]byte(actionPrefix))
+	actions := make([]*Action, 0)
+	for _, m := range actionsRange {
+		var action Action
+		if err := proto.Unmarshal(m.Value, &action); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal Action %s", string(m.Key))
 		}
-		settings = append(settings, &setting)
+		actions = append(actions, &action)
 	}
 
-	return &ListSettingsResponse{
-		Settings: settings,
+	return &ListPendingActionsResponse{
+		Actions: actions,
 	}, nil
 }
 
-// SetSetting should be called by a contract owner to set a new setting value.
+// SetAction should be called by a contract owner to set a new action to change config setting
 func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) error {
+	if req.Name == "" || req.Value == "" {
+		return ErrInvalidRequest
+	}
+
 	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
 		return ErrFeatureNotEnabled
 	}
@@ -458,17 +438,13 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 		return ErrNotAuthorized
 	}
 
-	if req.Name == "" || req.Value == "" {
-		return ErrInvalidRequest
-	}
-
-	setting := &Setting{
+	action := &Action{
 		Name:        req.Name,
 		Value:       req.Value,
 		BuildNumber: req.BuildNumber,
 	}
 
-	return ctx.Set(settingKey(req.Name), setting)
+	return ctx.Set(actionKey(req.Name), action)
 }
 
 func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
