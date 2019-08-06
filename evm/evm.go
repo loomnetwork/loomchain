@@ -15,10 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/log"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
@@ -137,17 +139,21 @@ func (m *evmAccountBalanceManager) Transfer(from, to common.Address, amount *big
 
 // TODO: this shouldn't be exported, rename to wrappedEVM
 type Evm struct {
-	sdb         vm.StateDB
-	context     vm.Context
-	chainConfig params.ChainConfig
-	vmConfig    vm.Config
+	sdb             vm.StateDB
+	context         vm.Context
+	chainConfig     params.ChainConfig
+	vmConfig        vm.Config
+	validateTxValue bool
 }
 
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
-	p.chainConfig = defaultChainConfig()
+
+	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(loomchain.EvmConstantinopleFeature, false))
+
 	p.vmConfig = defaultVmConfig(debug)
+	p.validateTxValue = lstate.FeatureEnabled(loomchain.CheckTxValueFeature, false)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -190,6 +196,9 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 		val = common.Big0
 	} else {
 		val = value.Int
+		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
+			return nil, loom.Address{}, errors.Errorf("value %v must be non negative", value)
+		}
 	}
 	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
@@ -223,6 +232,9 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 			//there seems like there are serialization issues where we can get bad data here
 			val = common.Big0
 		}
+		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
+			return nil, errors.Errorf("value %v must be non negative", value)
+		}
 	}
 	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
@@ -247,11 +259,17 @@ func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	return vm.NewEVM(e.context, e.sdb, &e.chainConfig, e.vmConfig)
 }
 
-func defaultChainConfig() params.ChainConfig {
+func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 	cliqueCfg := params.CliqueConfig{
 		Period: 10,   // Number of seconds between blocks to enforce
 		Epoch:  1000, // Epoch length to reset votes and checkpoint
 	}
+
+	var constantinopleBlock *big.Int
+	if enableConstantinople {
+		constantinopleBlock = big.NewInt(0)
+	}
+
 	return params.ChainConfig{
 		ChainID:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
 		HomesteadBlock: nil,           // Homestead switch block (nil = no fork, 0 = already homestead)
@@ -263,7 +281,7 @@ func defaultChainConfig() params.ChainConfig {
 		EIP155Block:         big.NewInt(0),                        // EIP155 HF block
 		EIP158Block:         big.NewInt(0),                        // EIP158 HF block
 		ByzantiumBlock:      big.NewInt(0),                        // Byzantium switch block (nil = no fork, 0 = already on byzantium)
-		ConstantinopleBlock: nil,                                  // Constantinople switch block (nil = no fork, 0 = already activated)
+		ConstantinopleBlock: constantinopleBlock,                  // Constantinople switch block (nil = no fork, 0 = already activated)
 		// Various consensus engines
 		Ethash: new(params.EthashConfig),
 		Clique: &cliqueCfg,
@@ -324,7 +342,7 @@ func defaultContext() vm.Context {
 }
 
 func NewMockEnv(db vm.StateDB, origin common.Address) *vm.EVM {
-	chainContext := defaultChainConfig()
+	chainContext := defaultChainConfig(false)
 	context := defaultContext()
 	context.Origin = origin
 	return vm.NewEVM(context, db, &chainContext, defaultVmConfig(false))

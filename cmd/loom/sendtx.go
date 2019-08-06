@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/vm"
 )
@@ -30,6 +32,7 @@ type deployTxFlags struct {
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
 	Name       string `json:"name"`
+	Value      string `json:"value"`
 }
 
 func setChainFlags(fs *pflag.FlagSet) {
@@ -152,7 +155,7 @@ func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
 			continue
 		}
 		addr := loom.UnmarshalAddressPB(response.Contract)
-		fmt.Printf("Contract %s deplyed to address %s\n", contract.Name, addr.String())
+		fmt.Printf("Contract %s deployed to address %s\n", contract.Name, addr.String())
 	}
 	fmt.Printf("%v contract(s) successfully deployed\n", numDeployed)
 	return nil
@@ -170,7 +173,7 @@ func newDeployCommand() *cobra.Command {
 			}
 			addr, runBytecode, txReceipt, err := deployTx(
 				flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name, cli.TxFlags.Algo,
-				callerChainID,
+				callerChainID, flags.Value,
 			)
 			if err != nil {
 				return err
@@ -185,11 +188,12 @@ func newDeployCommand() *cobra.Command {
 	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
 	deployCmd.Flags().StringVarP(&flags.Name, "name", "n", "", "contract name")
 	deployCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	deployCmd.Flags().StringVarP(&flags.Value, "value", "v", "0", "value amount")
 	setChainFlags(deployCmd.Flags())
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID string) (loom.Address, []byte, []byte, error) {
+func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID, valueString string) (loom.Address, []byte, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile, algo, callerChainID)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")
@@ -210,8 +214,18 @@ func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID string) (loom
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "decoding the data in deployment file")
 	}
 
+	value := big.NewInt(0)
+	if len(valueString) > 0 {
+		if _, ok := value.SetString(valueString, 0); !ok {
+			return *new(loom.Address), nil, nil, errors.Wrapf(err, "invalid value %v", value)
+		}
+		if 0 > value.Cmp(big.NewInt(0)) {
+			return *new(loom.Address), nil, nil, errors.Errorf("value %v, must be non-negative", value)
+		}
+	}
+
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
-	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
+	respB, err := rpcclient.CommitDeployTxWithValue(clientAddr, signer, vm.VMType_EVM, bytecode, name, value)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
 	}
@@ -305,6 +319,7 @@ type callTxFlags struct {
 	PublicFile   string `json:"publicfile"`
 	PrivFile     string `json:"privfile"`
 	Loom         bool   `json:"loom"`
+	Value        string `json:"value"`
 }
 
 //TODO depreciate this, I don't believe its needed anymore
@@ -321,7 +336,7 @@ func newCallEvmCommand() *cobra.Command {
 			}
 			resp, err := callTx(
 				flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile,
-				flags.PublicFile, cli.TxFlags.Algo, callerChainID,
+				flags.PublicFile, cli.TxFlags.Algo, callerChainID, flags.Value,
 			)
 			if err != nil {
 				return err
@@ -335,11 +350,12 @@ func newCallEvmCommand() *cobra.Command {
 	callCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
 	callCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
 	callCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	callCmd.Flags().StringVarP(&flags.Value, "value", "v", "0", "value amount")
 	callCmd.PersistentFlags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(callCmd.PersistentFlags())
 	return callCmd
 }
-func callTx(addr, name, input, privFile, publicFile, algo, callerChainID string) ([]byte, error) {
+func callTx(addr, name, input, privFile, publicFile, algo, callerChainID, valueString string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 	var contractAddr loom.Address
 	var err error
@@ -382,7 +398,18 @@ func callTx(addr, name, input, privFile, publicFile, algo, callerChainID string)
 	if err != nil {
 		return nil, err
 	}
-	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
+
+	value := big.NewInt(0)
+	if len(valueString) > 0 {
+		if _, ok := value.SetString(valueString, 0); !ok {
+			return nil, errors.Wrapf(err, "invalid value %v", value)
+		}
+		if 0 > value.Cmp(big.NewInt(0)) {
+			return nil, errors.Errorf("value %v, must be non-negative", value)
+		}
+	}
+
+	return rpcclient.CommitCallTxWithValue(clientAddr, contractAddr, signer, vm.VMType_EVM, incode, value)
 }
 
 type getBlockByNumerTxFlags struct {
@@ -472,6 +499,8 @@ func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.
 			localAddr, signer, err = secp256k1Signer(privKeyB64)
 		case "tron":
 			localAddr, signer, err = tronSigner(privKeyB64)
+		case "binance":
+			localAddr, signer, err = binanceSigner(privKeyB64)
 		default:
 			err = fmt.Errorf("unrecognised algorithm %v", algo)
 		}
@@ -541,6 +570,21 @@ func tronSigner(keyFilename string) ([]byte, auth.Signer, error) {
 	signer := &auth.TronSigner{PrivateKey: key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot get public key from private key")
+	}
+
+	return localAddr, signer, nil
+}
+
+func binanceSigner(keyFilename string) ([]byte, auth.Signer, error) {
+	key, err := crypto.LoadECDSA(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
+	}
+	signer := auth.NewBinanceSigner(crypto.FromECDSA(key))
+
+	localAddr, err := loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(signer.PublicKey()).Hex())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot get public key from private key")
 	}

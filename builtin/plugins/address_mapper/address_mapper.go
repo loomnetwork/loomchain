@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -82,13 +83,23 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 		return ErrInvalidRequest
 	}
 
+	allowedSigTypes := []evmcompat.SignatureType{
+		evmcompat.SignatureType_EIP712,
+		evmcompat.SignatureType_GETH,
+		evmcompat.SignatureType_TREZOR,
+		evmcompat.SignatureType_TRON,
+	}
+	if ctx.FeatureEnabled(loomchain.AddressMapperVersion1_1, false) {
+		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_BINANCE)
+	}
+
 	callerAddr := ctx.Message().Sender
 	if callerAddr.Compare(from) == 0 {
-		if err := verifySig(from, to, to.ChainID, req.Signature); err != nil {
+		if err := verifySig(from, to, to.ChainID, req.Signature, allowedSigTypes); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
 	} else if callerAddr.Compare(to) == 0 {
-		if err := verifySig(from, to, from.ChainID, req.Signature); err != nil {
+		if err := verifySig(from, to, from.ChainID, req.Signature, allowedSigTypes); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
 	} else {
@@ -190,7 +201,7 @@ func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingR
 	}, nil
 }
 
-func verifySig(from, to loom.Address, chainID string, sig []byte) error {
+func verifySig(from, to loom.Address, chainID string, sig []byte, allowedSigTypes []evmcompat.SignatureType) error {
 	if (chainID != from.ChainID) && (chainID != to.ChainID) {
 		return fmt.Errorf("chain ID %s doesn't match either address", chainID)
 	}
@@ -200,7 +211,7 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
 
-	signerAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig)
+	signerAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig, allowedSigTypes)
 	if err != nil {
 		return err
 	}
@@ -213,17 +224,17 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 	return nil
 }
 
-func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey) ([]byte, error) {
+func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType evmcompat.SignatureType) ([]byte, error) {
 	hash := ssha.SoliditySHA3(
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
-	sig, err := evmcompat.SoliditySign(hash, key)
-	if err != nil {
-		return nil, err
+
+	if sigType == evmcompat.SignatureType_TRON {
+		hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
 	}
-	// Prefix the sig with a single byte indicating the sig type, in this case EIP712
-	return append(make([]byte, 1, 66), sig...), nil
+
+	return evmcompat.GenerateTypedSig(hash, key, sigType)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})

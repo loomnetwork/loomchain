@@ -273,6 +273,17 @@ func (dpos *testDPOSContract) Unjail(ctx *plugin.FakeContext, candidate *loom.Ad
 	return err
 }
 
+func (dpos *testDPOSContract) SetSlashingPercentage(ctx *plugin.FakeContext, crashSlashingPercentage, byzantizeFaultSlashingPercentage int64) error {
+	err := dpos.Contract.SetSlashingPercentages(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&SetSlashingPercentagesRequest{
+			CrashSlashingPercentage:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(crashSlashingPercentage)},
+			ByzantineSlashingPercentage: &types.BigUInt{Value: *loom.NewBigUIntFromInt(byzantizeFaultSlashingPercentage)},
+		},
+	)
+	return err
+}
+
 func (dpos *testDPOSContract) EnableValidatorJailing(ctx *plugin.FakeContext, status bool) error {
 	err := dpos.Contract.EnableValidatorJailing(contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&EnableValidatorJailingRequest{JailOfflineValidators: status},

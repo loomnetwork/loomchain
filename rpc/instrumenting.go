@@ -111,6 +111,20 @@ func (m InstrumentingMiddleware) ContractEvents(
 	return
 }
 
+func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *types.ContractRecordResponse, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetContractRecord", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetContractRecord(contractAddr)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
 func (m InstrumentingMiddleware) GetEvmCode(contract string) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmCode", "error", fmt.Sprint(err != nil)}
@@ -293,7 +307,7 @@ func (m InstrumentingMiddleware) GetEvmTransactionByHash(txHash []byte) (resp []
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxReceipt, err error) {
+func (m InstrumentingMiddleware) EthGetTransactionReceipt(hash eth.Data) (resp *eth.JsonTxReceipt, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetTransactionReceipt", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

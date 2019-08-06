@@ -61,9 +61,9 @@ func (m *MockQueryService) EthGetBlockByHash(hash eth.Data, full bool) (eth.Json
 	return eth.JsonBlockObject{}, nil
 }
 
-func (m *MockQueryService) EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error) {
+func (m *MockQueryService) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceipt, error) {
 	m.MethodsCalled = append([]string{"EthGetTransactionReceipt"}, m.MethodsCalled...)
-	return eth.JsonTxReceipt{}, nil
+	return &eth.JsonTxReceipt{}, nil
 }
 
 func (m *MockQueryService) EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error) {
@@ -186,6 +186,11 @@ func (m *MockQueryService) ContractEvents(
 	fromBlock uint64, toBlock uint64, contract string,
 ) (*types.ContractEventsResult, error) {
 	m.MethodsCalled = append([]string{"ContractEvents"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) GetContractRecord(addr string) (*types.ContractRecordResponse, error) {
+	m.MethodsCalled = append([]string{"GetcontractRecord"}, m.MethodsCalled...)
 	return nil, nil
 }
 

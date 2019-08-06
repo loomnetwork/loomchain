@@ -107,7 +107,7 @@ func CreateTronAccount(id int, baseDir string) (*TronAccount, error) {
 	}
 	tronKey := key.ToECDSA()
 
-	privfile := path.Join(baseDir, fmt.Sprintf("privetronkey-%d", id))
+	privfile := path.Join(baseDir, fmt.Sprintf("privtronkey-%d", id))
 	if err := crypto.SaveECDSA(privfile, tronKey); err != nil {
 		return nil, err
 	}

@@ -165,7 +165,7 @@ func GetTxObjectFromBlockResult(
 				}
 			}
 			if deployTx.Value != nil {
-				txObj.Value = eth.EncInt(deployTx.Value.Value.Int64())
+				txObj.Value = eth.EncBigInt(*deployTx.Value.Value.Int)
 			}
 		}
 	case callId:
@@ -181,7 +181,7 @@ func GetTxObjectFromBlockResult(
 				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
 			}
 			if callTx.Value != nil {
-				txObj.Value = eth.EncInt(callTx.Value.Value.Int64())
+				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
 			}
 		}
 	case migrationTx:
