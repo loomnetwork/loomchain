@@ -211,6 +211,14 @@ func verifySig(from, to loom.Address, chainID string, sig []byte, allowedSigType
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
 
+	sigType := evmcompat.SignatureType(sig[0])
+	if sigType == evmcompat.SignatureType_BINANCE {
+		hash = evmcompat.GenSHA256(
+			ssha.Address(common.BytesToAddress(from.Local)),
+			ssha.Address(common.BytesToAddress(to.Local)),
+		)
+	}
+
 	signerAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig, allowedSigTypes)
 	if err != nil {
 		return err
@@ -232,6 +240,11 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType e
 
 	if sigType == evmcompat.SignatureType_TRON {
 		hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
+	} else if sigType == evmcompat.SignatureType_BINANCE {
+		hash = evmcompat.GenSHA256(
+			ssha.Address(common.BytesToAddress(from.Local)),
+			ssha.Address(common.BytesToAddress(to.Local)),
+		)
 	}
 
 	return evmcompat.GenerateTypedSig(hash, key, sigType)
