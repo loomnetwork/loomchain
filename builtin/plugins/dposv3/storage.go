@@ -453,10 +453,9 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func getReferrer(ctx contract.StaticContext, name string) *types.Address {
-	var address types.Address
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
-		err := ctx.Get(referrerKey(name), &address)
-		if err != nil {
+		var address types.Address
+		if err := ctx.Get(referrerKey(name), &address); err != nil {
 			return nil
 		}
 		return &address

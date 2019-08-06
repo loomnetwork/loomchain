@@ -26,25 +26,15 @@ const (
 	// Enables DPOS v3
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
-
 	// Enables precise rewards calculations in DPOSv3
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_1 = "dpos:v3.1"
-
 	// Enables slashing metrics
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_2 = "dpos:v3.2"
-
 	// Enables jailing offline validators
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
-
 	// Enables both downtime slashing and a parameter flag to toggle jailing offline validators on/off
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_4 = "dpos:v3.4"
-
-	// Enables ListReferrers method
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
+	// Fixes prefixing of referrer keys so that ListReferrers method works
 	DPOSVersion3_5 = "dpos:v3.5"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
