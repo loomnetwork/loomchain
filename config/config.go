@@ -93,7 +93,7 @@ type Config struct {
 	LoomCoinTransferGateway  *TransferGatewayConfig
 	TronTransferGateway      *TransferGatewayConfig
 	BinanceTransferGateway   *TransferGatewayConfig
-	CheckQueryServiceTimeout int
+	QueryServicePollTimeout int
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
@@ -388,7 +388,7 @@ func DefaultConfig() *Config {
 		CallEnabled:              true,
 		DPOSVersion:              3,
 		AllowNamedEvmContracts:   false,
-		CheckQueryServiceTimeout: 10000,
+		QueryServicePollTimeout: 10000,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -509,7 +509,7 @@ EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
-CheckQueryServiceTimeout: {{ .CheckQueryServiceTimeout }}
+QueryServicePollTimeout: {{ .QueryServicePollTimeout }}
 #
 # Network
 #

@@ -19,21 +19,21 @@ func startGatewayReactors(
 	cfg *config.Config,
 	nodeSigner glAuth.Signer,
 ) error {
-	if err := checkQueryService(cfg.TransferGateway.DAppChainReadURI, cfg.CheckQueryServiceTimeout); err != nil {
+	if err := checkQueryService(cfg.TransferGateway.DAppChainReadURI, cfg.QueryServicePollTimeout); err != nil {
 		return err
 	}
 	if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
 		return err
 	}
 
-	if err := checkQueryService(cfg.LoomCoinTransferGateway.DAppChainReadURI, cfg.CheckQueryServiceTimeout); err != nil {
+	if err := checkQueryService(cfg.LoomCoinTransferGateway.DAppChainReadURI, cfg.QueryServicePollTimeout); err != nil {
 		return err
 	}
 	if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
 		return err
 	}
 
-	if err := checkQueryService(cfg.TronTransferGateway.DAppChainReadURI, cfg.CheckQueryServiceTimeout); err != nil {
+	if err := checkQueryService(cfg.TronTransferGateway.DAppChainReadURI, cfg.QueryServicePollTimeout); err != nil {
 		return err
 	}
 	if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner); err != nil {
@@ -44,7 +44,7 @@ func startGatewayReactors(
 }
 
 // checkQueryService is a helper function to check if corresponding QueryService has started
-// timeout is configurable with variable CheckQueryServiceTimeout
+// timeout is configurable with variable QueryServicePollTimeout
 func checkQueryService(url string, timeout int) error {
 	timeoutTick := time.After(time.Duration(timeout) * time.Millisecond)
 	tick := time.Tick(1000 * time.Millisecond)
@@ -59,7 +59,7 @@ func checkQueryService(url string, timeout int) error {
 				return nil
 			}
 		case <-timeoutTick:
-			return fmt.Errorf("CheckQueryServer timeout occured")
+			return fmt.Errorf("Unable to connect to queryserver at %s", url)
 		}
 	}
 }
