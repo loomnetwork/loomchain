@@ -229,6 +229,11 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType e
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
+
+	if sigType == evmcompat.SignatureType_TRON {
+		hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
+	}
+
 	return evmcompat.GenerateTypedSig(hash, key, sigType)
 }
 

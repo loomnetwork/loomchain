@@ -509,7 +509,9 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
-	if err != nil {
+	if errors.Cause(err) == common.ErrTxReceiptNotFound {
+		return proto.Marshal(&types.EvmTxReceipt{})
+	} else if err != nil {
 		return nil, errors.Wrap(err, "get receipt")
 	}
 

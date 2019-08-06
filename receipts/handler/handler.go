@@ -49,7 +49,7 @@ func NewReceiptHandler(
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	receipt, err := r.leveldbReceipts.GetReceipt(txHash)
 	if err != nil {
-		return receipt, err
+		return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "%v: %v", err, err)
 	}
 	return receipt, nil
 }
