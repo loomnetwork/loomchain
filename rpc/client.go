@@ -53,6 +53,9 @@ type Client struct {
 // reads from this goroutine.
 func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("Websocket write panicked", "err", r)
+		}
 		c.hub.unregister <- c
 		_ = c.conn.Close()
 	}()
