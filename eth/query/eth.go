@@ -104,7 +104,7 @@ func GetBlockLogs(
 			var logsBlock []*ptypes.EthFilterLog
 			for _, txHash := range txHashList {
 				txReceipt, err := readReceipts.GetReceipt(state, txHash)
-				receiptNotFound = errors.Cause(err) == common.ErrTxReceiptNotFound
+				receiptNotFound := errors.Cause(err) == common.ErrTxReceiptNotFound
 				if err != nil && !receiptNotFound {
 					return nil, errors.Wrap(err, "getting receipt")
 				}
