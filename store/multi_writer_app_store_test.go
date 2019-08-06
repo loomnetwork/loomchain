@@ -15,10 +15,6 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 )
 
-var (
-	temp []byte
-)
-
 type MultiWriterAppStoreTestSuite struct {
 	suite.Suite
 }
@@ -328,12 +324,13 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	}(testStore)
 
 	for i := 0; i < numReaders; i++ {
-		go func(s *MultiWriterAppStore, index int) {
+		go func(s *MultiWriterAppStore, index int) []byte {
 			defer wg.Done()
+			var temp []byte
 			for {
 				select {
 				case <-quits[index]:
-					return
+					return temp
 				default:
 					{
 						snapshot := s.GetSnapshot()
