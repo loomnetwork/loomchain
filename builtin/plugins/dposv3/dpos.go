@@ -232,7 +232,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	// Ensure that referrer value is meaningful
-	referrerAddress := GetReferrer(ctx, req.Referrer)
+	referrerAddress := getReferrer(ctx, req.Referrer)
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -326,7 +326,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 
 		// Ensure that referrer value is meaningful
-		referrerAddress := GetReferrer(ctx, req.Referrer)
+		referrerAddress := getReferrer(ctx, req.Referrer)
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -1636,7 +1636,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						}
 
 						// if referrer is not found, do not distribute the reward
-						referrerAddress := GetReferrer(ctx, delegation.Referrer)
+						referrerAddress := getReferrer(ctx, delegation.Referrer)
 						if referrerAddress == nil {
 							continue
 						}

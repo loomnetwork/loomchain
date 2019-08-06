@@ -398,7 +398,7 @@ func TestGetSetReferrer(t *testing.T) {
 
 	err := SetReferrer(ctx, "hi", address1.MarshalPB())
 	assert.Nil(t, err)
-	address := GetReferrer(ctx, "hi")
+	address := getReferrer(ctx, "hi")
 	assert.NotNil(t, address)
 	assert.True(t, address.Local.Compare(address1.Local) == 0)
 
@@ -406,10 +406,10 @@ func TestGetSetReferrer(t *testing.T) {
 	pctx.SetFeature(loomchain.DPOSVersion3_5, true)
 	err = SetReferrer(ctx, "hi-3.5", address1.MarshalPB())
 	assert.Nil(t, err)
-	addr := GetReferrer(ctx, "hi-3.5")
+	addr := getReferrer(ctx, "hi-3.5")
 	assert.NotNil(t, addr)
 	assert.True(t, addr.Local.Compare(address1.Local) == 0)
 
-	address = GetReferrer(ctx, "bye")
+	address = getReferrer(ctx, "bye")
 	assert.Nil(t, address)
 }

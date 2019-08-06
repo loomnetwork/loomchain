@@ -25,9 +25,9 @@ var (
 	delegationsKey = []byte("delegation")
 	statisticsKey  = []byte("statistic")
 
-	requestBatchTallyKey = []byte("request_batch_tally")
-	referrersKey         = []byte("referrers")
-	referrerPrefix       = []byte("rf")
+	requestBatchTallyKey   = []byte("request_batch_tally")
+	deprecatedReferrersKey = []byte("referrers")
+	referrerPrefix         = []byte("rf")
 )
 
 func referrerKey(referrerName string) []byte {
@@ -452,7 +452,7 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 	return pbcl.Candidates, nil
 }
 
-func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
+func getReferrer(ctx contract.StaticContext, name string) *types.Address {
 	var address types.Address
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
 		err := ctx.Get(referrerKey(name), &address)
@@ -461,28 +461,28 @@ func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 		}
 		return &address
 	}
-	return DeprecatedGetReferrer(ctx, name)
+	return deprecatedGetReferrer(ctx, name)
 }
 
-func DeprecatedGetReferrer(ctx contract.StaticContext, name string) *types.Address {
+func deprecatedGetReferrer(ctx contract.StaticContext, name string) *types.Address {
 	var address types.Address
-	err := ctx.Get(append(referrersKey, name...), &address)
+	err := ctx.Get(append(deprecatedReferrersKey, name...), &address)
 	if err != nil {
 		return nil
 	}
 	return &address
 }
 
-func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
+func setReferrer(ctx contract.Context, name string, address *types.Address) error {
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
 		return ctx.Set(referrerKey(name), address)
 	}
-	DeprecatedSetReferrer(ctx, name, address)
+	deprecatedSetReferrer(ctx, name, address)
 	return nil
 }
 
-func DeprecatedSetReferrer(ctx contract.Context, name string, address *types.Address) error {
-	return ctx.Set(append(referrersKey, name...), address)
+func deprecatedSetReferrer(ctx contract.Context, name string, address *types.Address) error {
+	return ctx.Set(append(deprecatedReferrersKey, name...), address)
 }
 
 func GetLocalCandidateAddressFromTendermintAddress(

@@ -199,7 +199,10 @@ func ListReferrersCmdV3() *cobra.Command {
 			fmt.Printf("%-*s | %-*s \n", ml.Name, "referrer name", ml.Address, "address")
 			fmt.Printf(strings.Repeat("-", ml.Name+ml.Address+4) + "\n")
 			for _, r := range resp.Referrers {
-				fmt.Printf("%-*s | %-*s "+"\n", ml.Name, r.Name, ml.Address, loom.UnmarshalAddressPB(r.GetReferrerAddress()).String())
+				fmt.Printf(
+					"%-*s | %-*s "+"\n",
+					ml.Name, r.Name, ml.Address, loom.UnmarshalAddressPB(r.GetReferrerAddress()).String(),
+				)
 			}
 
 			return nil
