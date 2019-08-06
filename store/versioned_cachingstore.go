@@ -105,10 +105,6 @@ func init() {
 
 type CachingStoreConfig struct {
 	CachingEnabled bool
-	// CachingEnabled may be ignored in some configurations, this will force enable the caching
-	// store in those cases.
-	// WARNING: This should only used for debugging.
-	DebugForceEnable bool
 	// Number of cache shards, value must be a power of two
 	Shards int
 	// Time after we need to evict the key
