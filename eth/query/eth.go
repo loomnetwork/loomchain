@@ -6,11 +6,13 @@ import (
 	"fmt"
 
 	"github.com/loomnetwork/loomchain/eth/bloom"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -102,8 +104,12 @@ func GetBlockLogs(
 			var logsBlock []*ptypes.EthFilterLog
 			for _, txHash := range txHashList {
 				txReceipt, err := readReceipts.GetReceipt(state, txHash)
-				if err != nil {
+				receiptNotFound = errors.Cause(err) != common.ErrTxReceiptNotFound
+				if err != nil && !receiptNotFound {
 					return nil, errors.Wrap(err, "getting receipt")
+				}
+				if receiptNotFound {
+					txReceipt = types.EvmTxReceipt{}
 				}
 				logsTx, err := getTxHashLogs(blockStore, txReceipt, ethFilter, txHash)
 				if err != nil {

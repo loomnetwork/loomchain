@@ -515,8 +515,12 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 		return nil, err
 	}
 	txReceipt, err := r.GetReceipt(snapshot, txHash)
-	if err != nil {
+	receiptNotFound := errors.Cause(err) != common.ErrTxReceiptNotFound
+	if err != nil && !receiptNotFound {
 		return nil, errors.Wrap(err, "get receipt")
+	}
+	if receiptNotFound {
+		txReceipt = types.EvmTxReceipt{}
 	}
 
 	if len(txReceipt.Logs) > 0 {
