@@ -46,10 +46,6 @@ func NewReceiptHandler(
 	}
 }
 
-func (r *ReceiptHandler) Version() ReceiptHandlerVersion {
-	return ReceiptHandlerLevelDb
-}
-
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	receipt, err := r.leveldbReceipts.GetReceipt(txHash)
 	if err != nil {

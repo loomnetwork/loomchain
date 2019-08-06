@@ -10,7 +10,6 @@ type ReceiptReaderWriter interface {
 	loomchain.ReadReceiptHandler
 	loomchain.WriteReceiptHandler
 	loomchain.ReceiptHandlerStore
-	Version() handler.ReceiptHandlerVersion
 }
 
 // ReceiptHandlerProvider implements loomchain.ReceiptHandlerProvider interface
