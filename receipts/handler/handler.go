@@ -6,13 +6,14 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	"github.com/pkg/errors"
 )
 
 type ReceiptHandlerVersion int32
@@ -195,6 +196,11 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 func (r *ReceiptHandler) CacheReceipt(
 	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error,
 ) ([]byte, error) {
+	if r.currentReceipt != nil {
+		r.currentReceipt.Logs = append(r.currentReceipt.Logs, events...)
+		return r.currentReceipt.TxHash, nil
+	}
+
 	var status int32
 	if txErr == nil {
 		status = common.StatusTxSuccess

@@ -7,21 +7,24 @@ import (
 	"time"
 
 	"github.com/loomnetwork/go-loom/util"
+
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
+
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
 )
 
 type ReadOnlyState interface {
@@ -532,7 +535,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if a.curBlockHeader.Height == 0 {
 		return ok
 	}
-
+	log.Info("piers tendermint transaction hash", fmt.Sprintf("tm tx hash, %x, block number %d", ttypes.Tx(txBytes).Hash(), a.height()))
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
@@ -562,6 +565,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 		isEvmTx = true
 	}
+	log.Info("Piers tx resxult", fmt.Sprintf("result, %x, block number, %d", r.Data, a.height()))
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
@@ -583,7 +587,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	if err != nil {
 		panic(err)
 	}
-
+	receiptHandler.DiscardCurrentReceipt()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
@@ -593,23 +597,21 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			if err != nil {
-				log.Error("Emit Tx Event error", "err", err)
-			}
-			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
-			} else {
-				if reader.GetCurrentReceipt() != nil {
-					if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-						log.Error("failed to load receipt", "err", err)
-					}
+		err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+		if err != nil {
+			log.Error("Emit Tx Event error", "err", err)
+		}
+		reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
+		if err != nil {
+			log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
+		} else {
+			if reader.GetCurrentReceipt() != nil {
+				if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+					log.Error("failed to load receipt", "err", err)
 				}
 			}
-			receiptHandler.CommitCurrentReceipt()
 		}
+		receiptHandler.CommitCurrentReceipt()
 		storeTx.Commit()
 	}
 	return r, nil
