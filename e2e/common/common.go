@@ -20,26 +20,26 @@ import (
 )
 
 const (
-	loomExeEv       = "LOOMEXE_PATH1"
+	loomExeEv       = "LOOMEXE_PATH"
 	loomExe2Ev      = "LOOMEXE_ALTPATH"
-	ValidatorsEv    = "VALIDATORS"
-	AltValidatorsEv = "ALT_VALIDATORS"
+	validatorsEv    = "VALIDATORS"
+	altValidatorsEv = "ALT_VALIDATORS"
 	checkAppHash    = "CHECK_APP_HASH"
 )
 
 var (
 	// assume that this test runs in e2e directory
-	DefaultLoomPath  = "../loom"
-	DefatulLoomPath2 = "../loom2"
+	defaultLoomPath  = "../loom"
+	defatulLoomPath2 = "../loom2"
 	ContractDir      = "../contracts"
 	BaseDir          = "test-data"
 )
 
 var (
 	Force    = flag.Bool("Force", true, "Force to create a new directory")
-	LogLevel = flag.String("log-level", "debug", "Contract log level")
-	LogDest  = flag.String("log-destination", "file://loom.log", "Log Destination")
-	LogAppDb = flag.Bool("log-app-db", false, "Log app db usage to file")
+	logLevel = flag.String("log-level", "debug", "Contract log level")
+	logDest  = flag.String("log-destination", "file://loom.log", "Log Destination")
+	logAppDb = flag.Bool("log-app-db", false, "Log app db usage to file")
 )
 
 func NewConfig(
@@ -50,19 +50,19 @@ func NewConfig(
 	checkAppHashEV := os.Getenv(checkAppHash)
 	checkAppHash := len(checkAppHashEV) > 0
 
-	LoomPath := os.Getenv(loomExeEv)
-	if len(LoomPath) == 0 {
-		LoomPath = DefaultLoomPath
+	loomPath := os.Getenv(loomExeEv)
+	if len(loomPath) == 0 {
+		loomPath = defaultLoomPath
 	}
 
-	LoomPath2 := os.Getenv(loomExe2Ev)
-	if len(LoomPath2) == 0 {
-		LoomPath2 = DefatulLoomPath2
+	loomPath2 := os.Getenv(loomExe2Ev)
+	if len(loomPath2) == 0 {
+		loomPath2 = defatulLoomPath2
 	}
 
 	var err error
 	evValidators := uint64(0)
-	validatorsEv := os.Getenv(ValidatorsEv)
+	validatorsEv := os.Getenv(validatorsEv)
 	if len(validatorsEv) > 0 {
 		evValidators, err = strconv.ParseUint(validatorsEv, 0, 64)
 		if err != nil {
@@ -71,7 +71,7 @@ func NewConfig(
 	}
 
 	evAltValidators := uint64(0)
-	altValidatorsEv := os.Getenv(AltValidatorsEv)
+	altValidatorsEv := os.Getenv(altValidatorsEv)
 	if len(altValidatorsEv) > 0 {
 		evAltValidators, err = strconv.ParseUint(altValidatorsEv, 0, 32)
 		if err != nil {
@@ -82,7 +82,7 @@ func NewConfig(
 	v, altV := splitValidators(uint64(validators), evValidators, evAltValidators)
 
 	return GenerateConfig(
-		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, LoomPath, LoomPath2,
+		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, loomPath2,
 		int(v), int(altV), account, numEthAccounts,
 		useFnConsensus, *Force, checkAppHash,
 	)
@@ -192,9 +192,9 @@ func GenerateConfig(
 	var nodes []*node.Node
 	for i := 0; i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisTmpl, yamlFile)
-		n.LogLevel = *LogLevel
-		n.LogDestination = *LogDest
-		n.LogAppDb = *LogAppDb
+		n.LogLevel = *logLevel
+		n.LogDestination = *logDest
+		n.LogAppDb = *logAppDb
 		nodes = append(nodes, n)
 		fmt.Printf("Node %v running %s\n", i, loompath)
 	}
@@ -211,9 +211,9 @@ func GenerateConfig(
 
 	for i := validators; i < validators+altValidators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs2, conf.ContractDir, genesisTmpl, yamlFile)
-		n.LogLevel = *LogLevel
-		n.LogDestination = *LogDest
-		n.LogAppDb = *LogAppDb
+		n.LogLevel = *logLevel
+		n.LogDestination = *logDest
+		n.LogAppDb = *logAppDb
 		nodes = append(nodes, n)
 		fmt.Printf("Node %v running %s\n", i, loompath2)
 	}

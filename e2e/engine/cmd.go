@@ -77,7 +77,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		// special command to check app hash
 		if n.RunCmd == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
-			if err := checkapphash(e.conf.Nodes); err != nil {
+			if err := checkAppHash(e.conf.Nodes); err != nil {
 				return errors.Wrap(err, "checking apphash")
 			}
 			continue
@@ -244,7 +244,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 			}
 		}
 		if e.conf.CheckAppHash {
-			if err := checkapphash(e.conf.Nodes); err != nil {
+			if err := checkAppHash(e.conf.Nodes); err != nil {
 				return errors.Wrapf(err, "check apphash failed after test command, %s", n.RunCmd)
 			}
 		}
@@ -335,7 +335,7 @@ func getAppHash(node *node.Node, height string) (string, error) {
 	return info.Result.SignedHeader.Header.AppHash, nil
 }
 
-func checkapphash(nodes map[string]*node.Node) error {
+func checkAppHash(nodes map[string]*node.Node) error {
 	time.Sleep(time.Second * 1)
 	fmt.Printf("--> run all: %v \n", "checkapphash")
 
@@ -363,11 +363,9 @@ func checkapphash(nodes map[string]*node.Node) error {
 		})
 	}
 
-	for _, apphash1 := range blockInfo {
-		for _, apphash2 := range blockInfo {
-			if apphash1.apphash != apphash2.apphash {
-				return errors.Errorf("mismatching apphashs\n%s", sprintAppHashes(blockInfo))
-			}
+	for i := 1; i < len(blockInfo); i++ {
+		if blockInfo[i-1].apphash != blockInfo[i].apphash {
+			return errors.Errorf("app hash mismatch\n%s", sprintAppHashes(blockInfo))
 		}
 	}
 	return nil
