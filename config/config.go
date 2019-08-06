@@ -344,9 +344,8 @@ func ReadGenesis(path string) (*Genesis, error) {
 	dec := json.NewDecoder(file)
 
 	var gen Genesis
-	err = dec.Decode(&gen)
-	if err != nil {
-		return nil, errors.Wrap(err,"Failed to load genesis.json file")
+	if err := dec.Decode(&gen); err != nil {
+		return nil, errors.Wrap(err, "failed to decode loom genesis file")
 	}
 
 	return &gen, nil
