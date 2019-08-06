@@ -283,6 +283,7 @@ func TestMultiWriterSnapshots(t *testing.T) {
 	numBlocks = 25
 	blockSize = 5
 	flushInterval := int64(10)
+	numReaders := 100
 	prefix := []byte("test")
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "dual-iavlstore")
@@ -302,11 +303,15 @@ func TestMultiWriterSnapshots(t *testing.T) {
 
 	testStore, err := mockMultiWriterStore(flushInterval)
 	require.NoError(t, err)
-
-	quit := make(chan bool)
-	var wg sync.WaitGroup
-	wg.Add(2)
 	var testHashes [][]byte
+
+	quits := make([]chan bool, numReaders)
+	for i := range quits {
+		quits[i] = make(chan bool)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(numReaders + 1)
 
 	go func(s *MultiWriterAppStore) {
 		defer wg.Done()
@@ -317,43 +322,49 @@ func TestMultiWriterSnapshots(t *testing.T) {
 			testHashes = append(testHashes, hash)
 			time.Sleep(5 * time.Millisecond)
 		}
-		quit <- true
+		for i := range quits {
+			quits[i] <- true
+		}
 	}(testStore)
 
-	go func(s *MultiWriterAppStore) {
-		defer wg.Done()
-		for {
-			select {
-			case <-quit:
-				return
-			default:
-				{
-					snapshot := s.GetSnapshot()
-					for _, data := range snapshot.Range(prefix) {
-						temp = data.Key
-						temp = data.Value
+	for i := 0; i < numReaders; i++ {
+		go func(s *MultiWriterAppStore, index int) {
+			defer wg.Done()
+			for {
+				select {
+				case <-quits[index]:
+					return
+				default:
+					{
+						snapshot := s.GetSnapshot()
+						for _, data := range snapshot.Range(prefix) {
+							temp = data.Key
+							temp = data.Value
+						}
+						time.Sleep(time.Millisecond)
+						snapshot.Release()
 					}
-					time.Sleep(time.Millisecond)
-					snapshot.Release()
 				}
 			}
-		}
 
-	}(testStore)
+		}(testStore, i)
+	}
 
 	wg.Wait()
 
 	for _, data := range testStore.Range(prefix) {
 		value := controlStore.Get(util.PrefixKey(prefix, data.Key))
-		require.Zero(t, bytes.Compare(value, data.Value))
+		require.Equal(t, 0, bytes.Compare(value, data.Value))
 	}
 	for _, data := range controlStore.Range(prefix) {
 		value := testStore.Get(util.PrefixKey(prefix, data.Key))
-		require.Zero(t, bytes.Compare(value, data.Value))
+		require.Equal(t, 0, bytes.Compare(value, data.Value))
 	}
 	require.Equal(t, len(controlHashes), numBlocks)
 	require.Equal(t, len(controlHashes), len(testHashes))
 	for i := range controlHashes {
-		require.Zero(t, bytes.Compare(controlHashes[i], testHashes[i]))
+		require.Equal(t, 0, bytes.Compare(controlHashes[i], testHashes[i]))
 	}
 }
+
+/**/
