@@ -75,7 +75,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 			) {
 				logger.Error("WebSocket unexpected close error", "err", err)
 			} else {
-				logger.Debug("WebSocket close request", "message", err)
+				logger.Debug("WebSocket close request", "err", err)
 			}
 			return
 		}
@@ -132,7 +132,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 				if err != io.ErrClosedPipe {
 					logger.Error("error writing message to WebSocket", "err", err)
 				} else {
-					logger.Debug("WebSocket connection closed", "message", err)
+					logger.Debug("WebSocket connection closed", "err", err)
 				}
 				return
 			}
@@ -144,7 +144,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 					if err != io.ErrClosedPipe {
 						logger.Error("error writing message to WebSocket", "err", err)
 					} else {
-						logger.Debug("WebSocket connection closed", "message", err)
+						logger.Debug("WebSocket connection closed", "err", err)
 					}
 					return
 				}
