@@ -50,6 +50,9 @@ const (
 	// Enables EVM tx receipts storage in separate DB.
 	EvmTxReceiptsVersion2Feature = "receipts:v2"
 
+	// Enables storing failed EVM txs receipts and increasing account nonce
+	EvmTxReceiptsVersion2_1Feature = "receipts:v2.1"
+
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"
