@@ -49,7 +49,7 @@ func NewReceiptHandler(
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	receipt, err := r.leveldbReceipts.GetReceipt(txHash)
 	if err != nil {
-		return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "%v: %v", err, err)
+		return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "GetReceipt: %v", err)
 	}
 	return receipt, nil
 }
@@ -112,12 +112,10 @@ func (r *ReceiptHandler) DiscardCurrentReceipt() {
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	if err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height)); err != nil {
-		return err
-	}
+	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
-	return nil
+	return err
 }
 
 // TODO: this doesn't need the entire state passed in, just the block header
