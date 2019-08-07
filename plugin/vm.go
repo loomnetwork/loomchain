@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/config"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -263,7 +263,7 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
-func (c *contractContext) Config() *config.Config {
+func (c *contractContext) Config() *cctypes.Config {
 	return c.VM.State.Config()
 }
 

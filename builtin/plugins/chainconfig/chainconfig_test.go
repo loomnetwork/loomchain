@@ -584,8 +584,6 @@ func (c *ChainConfigTestSuite) TestCfgSettingFourValidators() {
 	addr2 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_2)}
 	pubKeyB64_3, _ = encoder.DecodeString(pubKey3)
 	addr3 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_3)}
-	pubKeyB64_4, _ = encoder.DecodeString(pubKey4)
-	addr4 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_4)}
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	pctx.SetFeature(loomchain.ChainCfgVersion1_3, true)
@@ -642,43 +640,35 @@ func (c *ChainConfigTestSuite) TestCfgSettingFourValidators() {
 	})
 	require.NoError(err)
 
-	cfgSettingName := "AppStoreConfig.NumEvmKeysToPrune"
-	cfgSettingValue := "777"
+	actionName := "AppStore.NumEvmKeysToPrune"
+	actionValue := "777"
 
 	// Set AppStoreConfig.DeletedVmKeys to 777
 	err = chainconfigContract.SetSetting(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetSettingRequest{
-		Name:        cfgSettingName,
+		Name:        actionName,
 		BuildNumber: 100,
-		Value:       cfgSettingValue,
+		Value:       actionValue,
 	})
 	require.NoError(err)
 
-	// GetCfgSetting must return the value we just set
-	getCfgResp, err := chainconfigContract.GetSetting(contractpb.WrapPluginContext(pctx.WithSender(addr4)), &GetSettingRequest{
-		Name: cfgSettingName,
-	})
+	// ListPendingActions must return only 1 cfg setting
+	listCfgResp, err := chainconfigContract.ListPendingActions(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &ListPendingActionsRequest{})
 	require.NoError(err)
-	require.Equal(cfgSettingName, getCfgResp.Setting.Name)
-	require.Equal(cfgSettingValue, getCfgResp.Setting.Value)
-
-	// ListCfgSettings must return only 1 cfg setting
-	listCfgResp, err := chainconfigContract.ListSettings(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &ListSettingsRequest{})
-	require.NoError(err)
-	require.Equal(1, len(listCfgResp.Settings))
+	require.Equal(1, len(listCfgResp.Actions))
 
 	// Set setting to store state config
-	pctx.SetConfig(getCfgResp.Setting)
+	pctx.SetConfigSetting(listCfgResp.Actions[0])
 
 	// ChainConfig return the config which is derived from cfg settings
 	configResp, err := chainconfigContract.ChainConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &ChainConfigRequest{})
 	require.NoError(err)
-	require.Equal(uint64(777), configResp.Config.AppStoreConfig.NumEvmKeysToPrune)
+	require.Equal(uint64(777), configResp.Config.AppStore.NumEvmKeysToPrune)
 
 	// Set a new cfg setting with higher version
 	err = chainconfigContract.SetSetting(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetSettingRequest{
-		Name:        cfgSettingName,
+		Name:        actionName,
 		BuildNumber: 200,
-		Value:       cfgSettingValue,
+		Value:       actionValue,
 	})
 	require.NoError(err)
 

@@ -34,7 +34,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
-	Config() *config.Config
+	Config() *cctypes.Config
 	EnabledFeatures() []string
 }
 
@@ -54,7 +54,7 @@ type StoreState struct {
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
-	config          *config.Config
+	config          *cctypes.Config
 }
 
 var _ = State(&StoreState{})
@@ -79,7 +79,7 @@ func NewStoreState(
 	block abci.Header,
 	curBlockHash []byte,
 	getValidatorSet GetValidatorSet,
-	config *config.Config,
+	config *cctypes.Config,
 ) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
@@ -173,29 +173,18 @@ func (s *StoreState) SetFeature(name string, val bool) {
 }
 
 func (s *StoreState) SetConfigSetting(action *cctypes.Action) error {
-	configBytes := s.store.Get([]byte(configKey))
-	cfg := config.DefaultConfig()
-	if len(configBytes) > 0 {
-		err := proto.Unmarshal(configBytes, cfg)
-		if err != nil {
-			return err
-		}
-	}
-	if err := config.SetConfigSetting(cfg, action.Name, action.Value); err != nil {
+	if err := config.SetConfigSetting(s.config, action.Name, action.Value); err != nil {
 		return err
 	}
-	configBytes, err := proto.Marshal(cfg)
+	configBytes, err := proto.Marshal(s.config)
 	if err != nil {
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)
-	if err := s.config.Update(cfg); err != nil {
-		return err
-	}
 	return nil
 }
 
-func (s *StoreState) Config() *config.Config {
+func (s *StoreState) Config() *cctypes.Config {
 	return s.config
 }
 
@@ -241,7 +230,7 @@ var _ = State(&StoreStateSnapshot{})
 // NewStoreStateSnapshot creates a new snapshot of the app state.
 func NewStoreStateSnapshot(
 	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
-	getValidatorSet GetValidatorSet, config *config.Config,
+	getValidatorSet GetValidatorSet, config *cctypes.Config,
 ) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet, config),
@@ -332,7 +321,7 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
-	config                      *config.Config
+	config                      *cctypes.Config
 }
 
 var _ abci.Application = &Application{}
@@ -460,14 +449,13 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	// load config if it is nil
 	if a.config == nil {
 		configBytes := a.Store.Get([]byte(configKey))
-		cfg := config.DefaultConfig()
+		a.config = config.DefaultConfig()
 		if len(configBytes) > 0 {
-			err := proto.Unmarshal(configBytes, cfg)
+			err := proto.Unmarshal(configBytes, a.config)
 			if err != nil {
 				panic(err)
 			}
 		}
-		a.config = config.NewConfig(cfg)
 	}
 
 	a.curBlockHeader = block
