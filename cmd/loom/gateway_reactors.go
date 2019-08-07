@@ -19,24 +19,18 @@ func startGatewayReactors(
 	cfg *config.Config,
 	nodeSigner glAuth.Signer,
 ) error {
-	if err := checkQueryService(cfg.TransferGateway.DAppChainReadURI, cfg.QueryServicePollTimeout); err != nil {
-		return err
-	}
-	if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
-		return err
-	}
-
-	if err := checkQueryService(cfg.LoomCoinTransferGateway.DAppChainReadURI, cfg.QueryServicePollTimeout); err != nil {
-		return err
-	}
-	if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
+	if err := startGatewayFn(chainID, fnRegistry,
+		cfg.TransferGateway, nodeSigner, cfg.QueryServicePollTimeout); err != nil {
 		return err
 	}
 
-	if err := checkQueryService(cfg.TronTransferGateway.DAppChainReadURI, cfg.QueryServicePollTimeout); err != nil {
+	if err := startLoomCoinGatewayFn(chainID, fnRegistry,
+		cfg.LoomCoinTransferGateway, nodeSigner, cfg.QueryServicePollTimeout); err != nil {
 		return err
 	}
-	if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner); err != nil {
+
+	if err := startTronGatewayFn(chainID, fnRegistry,
+		cfg.TronTransferGateway, nodeSigner, cfg.QueryServicePollTimeout); err != nil {
 		return err
 	}
 
@@ -69,6 +63,7 @@ func startGatewayFn(
 	fnRegistry fnConsensus.FnRegistry,
 	cfg *tgateway.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
+	queryServicePollTimeout int,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
@@ -77,7 +72,9 @@ func startGatewayFn(
 	if fnRegistry == nil {
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
-
+	if err := checkQueryService(cfg.DAppChainReadURI, queryServicePollTimeout); err != nil {
+		return err
+	}
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, cfg, nodeSigner)
 	if err != nil {
 		return err
@@ -91,6 +88,7 @@ func startLoomCoinGatewayFn(
 	fnRegistry fnConsensus.FnRegistry,
 	cfg *tgateway.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
+	queryServicePollTimeout int,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
@@ -99,7 +97,9 @@ func startLoomCoinGatewayFn(
 	if fnRegistry == nil {
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
-
+	if err := checkQueryService(cfg.DAppChainReadURI, queryServicePollTimeout); err != nil {
+		return err
+	}
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
 	if err != nil {
 		return err
@@ -108,7 +108,12 @@ func startLoomCoinGatewayFn(
 	return fnRegistry.Set("loomcoin:batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
-func startTronGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+func startTronGatewayFn(chainID string,
+	fnRegistry fnConsensus.FnRegistry,
+	cfg *tgateway.TransferGatewayConfig,
+	nodeSigner glAuth.Signer,
+	queryServicePollTimeout int,
+) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
@@ -116,7 +121,9 @@ func startTronGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *
 	if fnRegistry == nil {
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
-
+	if err := checkQueryService(cfg.DAppChainReadURI, queryServicePollTimeout); err != nil {
+		return err
+	}
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
 	if err != nil {
 		return err

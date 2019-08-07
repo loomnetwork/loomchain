@@ -93,7 +93,8 @@ type Config struct {
 	LoomCoinTransferGateway  *TransferGatewayConfig
 	TronTransferGateway      *TransferGatewayConfig
 	BinanceTransferGateway   *TransferGatewayConfig
-	QueryServicePollTimeout int
+	// timeout in milliseconds, default is 10000 i.e. 10 sec
+	QueryServicePollTimeout int 
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
