@@ -24,3 +24,11 @@ func verifyTron(tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, e
 	}
 	return tronAddr.Bytes(), nil
 }
+
+func verifyBinance(tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, error) {
+	addr, err := evmcompat.RecoverAddressFromTypedSig(evmcompat.GenSHA256(tx.Inner), tx.Signature, allowSigTypes)
+	if err != nil {
+		return nil, err
+	}
+	return addr.Bytes(), nil
+}
