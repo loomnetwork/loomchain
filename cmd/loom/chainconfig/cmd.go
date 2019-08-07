@@ -409,7 +409,7 @@ func ListPendingActionsCmd() *cobra.Command {
 		Short:   "show all pending actions to change setting",
 		Example: listPendingActionsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp cctype.ListPendingActionsRequest
+			var resp cctype.ListPendingActionsResponse
 			err := cli.StaticCallContractWithFlags(
 				&flags, chainConfigContractName,
 				"ListPendingActions", &cctype.ListPendingActionsRequest{}, &resp,

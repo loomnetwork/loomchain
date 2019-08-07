@@ -268,7 +268,7 @@
   Excluded = ["NonExistConfig", "NonExist.Config"]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStoreConfig.NumEvmKeysToPrune --value 5555 --build 1000 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.NumEvmKeysToPrune --value 5555 --build 1000 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
 

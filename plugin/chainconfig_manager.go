@@ -73,7 +73,7 @@ func (c *ChainConfigManager) UpdateConfig() error {
 		if err := c.state.SetConfigSetting(setting); err != nil {
 			c.ctx.Logger().Info("failed to apply config change", "key", setting.Name, "err", err)
 		}
-		c.ctx.Delete([]byte(setting.Name))
+		c.ctx.Delete(chainconfig.ActionKey(setting.Name))
 	}
 	return nil
 }

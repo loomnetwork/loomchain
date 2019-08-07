@@ -109,7 +109,7 @@ func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
-func actionKey(actionName string) []byte {
+func ActionKey(actionName string) []byte {
 	return util.PrefixKey([]byte(actionPrefix), []byte(actionName))
 }
 
@@ -393,8 +393,8 @@ func GetPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, err
 				supportedValidator++
 			}
 		}
-		// Return this action, if the number of validators that support this action
-		// has not reached the vote threshold
+		// Return this action, if the number of validators that supports this action
+		// has reached the vote threshold
 		if len(validatorsInfo) > 0 && uint64((supportedValidator*100)/len(validatorsInfo)) >= params.VoteThreshold {
 			if buildNumber < action.BuildNumber {
 				return nil, ErrConfigChangeNotSupported
@@ -406,7 +406,7 @@ func GetPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, err
 	return actions, nil
 }
 
-// ListPendingActions returns a list of a in the ChainConfig contract
+// ListPendingActions returns a list of pending actions in the ChainConfig contract
 func (c *ChainConfig) ListPendingActions(ctx contract.StaticContext, req *ListPendingActionsRequest) (*ListPendingActionsResponse, error) {
 	actionsRange := ctx.Range([]byte(actionPrefix))
 	actions := make([]*Action, 0)
@@ -444,7 +444,7 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 		BuildNumber: req.BuildNumber,
 	}
 
-	return ctx.Set(actionKey(req.Name), action)
+	return ctx.Set(ActionKey(req.Name), action)
 }
 
 func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
