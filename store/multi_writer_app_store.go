@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -95,6 +96,31 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
+}
+
+func LoadMultiWriterAppStore(iavlStore *IAVLStore, evmStore *EvmStore, db db.DBWrapper,
+	maxVersions, iavlFlushInterval int64) (*IAVLStore, error) {
+	appStoreEvmRoot := iavlStore.Get(rootKey)
+	evmStoreEvmRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
+	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
+		log.Info(
+			"EVM root mismatch, resyncing roots...",
+			"evm.db-ver", evmVersion, "app.db-ver", iavlStore.Version(),
+			"evm.db-root", hex.EncodeToString(evmStoreEvmRoot), "app.db-evm-root", hex.EncodeToString(appStoreEvmRoot),
+		)
+		latestVersion, err := iavl.NewMutableTree(db, 10000).LatestVersion(evmVersion)
+		if err != nil {
+			return nil, err
+		}
+		if latestVersion == 0 { //
+			latestVersion = -1
+		}
+		iavlStore, err = NewIAVLStore(db, maxVersions, latestVersion, iavlFlushInterval)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return iavlStore, nil
 }
 
 func (s *MultiWriterAppStore) Delete(key []byte) {

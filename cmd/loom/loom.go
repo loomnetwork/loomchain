@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -647,33 +645,23 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-		appStoreEvmRoot := iavlStore.Get(rootKey)
 		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
 		if err != nil {
 			return nil, err
 		}
-		evmStoreEvmRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
-		if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
-			// downgrade iavlStore version
-			log.Info(
-				"EVM root mismatch, resyncing roots...",
-				"evm.db-ver", evmVersion, "app.db-ver", iavlStore.Version(),
-				"evm.db-root", hex.EncodeToString(evmStoreEvmRoot), "app.db-evm-root", hex.EncodeToString(appStoreEvmRoot),
-			)
-			latestVersion, _ := store.LatestIAVLStoreVersion(db, evmVersion)
-			if latestVersion == 0 {
-				latestVersion = -1
-			}
-			iavlStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, latestVersion, cfg.AppStore.IAVLFlushInterval)
-			if err != nil {
-				return nil, err
-			}
+		iavlStore, err = store.LoadMultiWriterAppStore(iavlStore, evmStore, db, cfg.AppStore.MaxVersions, cfg.AppStore.IAVLFlushInterval)
+		if err != nil {
+			return nil, err
+		}
+		_, evmVersion := evmStore.Version()
+		if evmVersion != iavlStore.Version() { // reload EVMStore
 			evmStore.CloseDB()
 			evmStore, err = loadEvmStore(cfg, iavlStore.Version())
 			if err != nil {
 				return nil, err
 			}
 		}
+
 		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
 			return nil, err
