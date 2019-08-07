@@ -45,7 +45,6 @@ import (
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
 	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
-	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
@@ -779,19 +778,7 @@ func loadApp(
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-		var receiptVer handler.ReceiptHandlerVersion
-		if v2Feature {
-			receiptVer = handler.ReceiptHandlerLevelDb
-		} else {
-			var err error
-			receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-			if err != nil {
-				return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-			}
-		}
-		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-	}, evmAuxStore)
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, cfg.EVMPersistentTxReceiptsMax, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -800,15 +787,6 @@ func loadApp(
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
-		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
 		return plugin.NewPluginVM(
 			loader,
 			state,
@@ -816,8 +794,8 @@ func loadApp(
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			receiptWriter,
-			receiptReader,
+			receiptHandlerProvider.Writer(),
+			receiptHandlerProvider.Reader(),
 		), nil
 	})
 
@@ -825,16 +803,6 @@ func loadApp(
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
-			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					loader,
@@ -843,15 +811,15 @@ func loadApp(
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
