@@ -546,10 +546,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.GetValidatorSet,
 		a.config,
 	)
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		panic(err)
-	}
+	receiptHandler := a.ReceiptHandlerProvider.Store()
 	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
@@ -661,11 +658,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.config,
 	)
 
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		panic(err)
-	}
-
+	receiptHandler := a.ReceiptHandlerProvider.Store()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
@@ -680,14 +673,10 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			if err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}
-			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
-			} else {
-				if reader.GetCurrentReceipt() != nil {
-					if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-						log.Error("failed to load receipt", "err", err)
-					}
+			reader := a.ReceiptHandlerProvider.Reader()
+			if reader.GetCurrentReceipt() != nil {
+				if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+					log.Error("failed to load receipt", "err", err)
 				}
 			}
 			receiptHandler.CommitCurrentReceipt()

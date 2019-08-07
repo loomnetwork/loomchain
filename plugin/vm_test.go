@@ -200,8 +200,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	receiptHandler, err := handler.NewReceiptHandler(
-		handler.DefaultReceiptStorage,
+	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
 		handler.DefaultMaxReceipts,
 		evmAuxStore,
@@ -231,13 +230,11 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	receiptHandler, err := handler.NewReceiptHandler(
-		handler.ReceiptHandlerLevelDb,
+	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
 		handler.DefaultMaxReceipts,
 		evmAuxStore,
 	)
-	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
 	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
