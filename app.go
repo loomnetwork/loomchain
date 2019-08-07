@@ -7,21 +7,24 @@ import (
 	"time"
 
 	"github.com/loomnetwork/go-loom/util"
+
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
+
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
 )
 
 type ReadOnlyState interface {
@@ -605,6 +608,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
+	receiptHandler.DiscardCurrentReceipt()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
@@ -614,19 +618,17 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			if err != nil {
-				log.Error("Emit Tx Event error", "err", err)
-			}
-			reader := a.ReceiptHandlerProvider.Reader()
-			if reader.GetCurrentReceipt() != nil {
-				if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-					log.Error("failed to load receipt", "err", err)
-				}
-			}
-			receiptHandler.CommitCurrentReceipt()
+		err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+		if err != nil {
+			log.Error("Emit Tx Event error", "err", err)
 		}
+		reader := a.ReceiptHandlerProvider.Reader()
+		if reader.GetCurrentReceipt() != nil {
+			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+				log.Error("failed to load receipt", "err", err)
+			}
+		}
+		receiptHandler.CommitCurrentReceipt(ttypes.Tx(txBytes).Hash())
 		storeTx.Commit()
 	}
 	return r, nil

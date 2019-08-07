@@ -32,3 +32,8 @@ func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
 	}
 	return typesEvents
 }
+
+type HashPair struct {
+	TmTxHash   []byte
+	LoomTxHash []byte
+}

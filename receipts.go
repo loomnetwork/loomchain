@@ -15,11 +15,12 @@ type ReadReceiptHandler interface {
 	GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, error)
 	GetPendingTxHashList() [][]byte
 	GetCurrentReceipt() *types.EvmTxReceipt
+	GetHashFromTmHash([]byte) ([]byte, error)
 }
 
 type ReceiptHandlerStore interface {
 	CommitBlock(state State, height int64) error
-	CommitCurrentReceipt()
+	CommitCurrentReceipt(tmHash []byte)
 	DiscardCurrentReceipt()
 	ClearData() error
 	Close() error

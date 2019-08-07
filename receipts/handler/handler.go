@@ -28,6 +28,7 @@ type ReceiptHandler struct {
 	leveldbReceipts *leveldb.LevelDbReceipts
 	mutex           *sync.RWMutex
 	receiptsCache   []*types.EvmTxReceipt
+	tmTxHashIndex   []common.HashPair
 	txHashList      [][]byte
 	currentReceipt  *types.EvmTxReceipt
 }
@@ -40,13 +41,24 @@ func NewReceiptHandler(
 		eventHandler:    eventHandler,
 		receiptsCache:   []*types.EvmTxReceipt{},
 		txHashList:      [][]byte{},
+		tmTxHashIndex:   []common.HashPair{},
 		currentReceipt:  nil,
 		mutex:           &sync.RWMutex{},
 		leveldbReceipts: leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts),
 	}
 }
 
+func (r *ReceiptHandler) GetHashFromTmHash(tmHash []byte) ([]byte, error) {
+	return r.leveldbReceipts.GetHashFromTmHash(tmHash)
+}
+
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
+	// Convert if using tendermint txHash
+	loomTxHash, err := r.GetHashFromTmHash(txHash)
+	if len(loomTxHash) > 0 && err == nil {
+		txHash = loomTxHash
+	}
+
 	receipt, err := r.leveldbReceipts.GetReceipt(txHash)
 	if err != nil {
 		return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "GetReceipt: %v", err)
@@ -93,13 +105,20 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) CommitCurrentReceipt() {
+func (r *ReceiptHandler) CommitCurrentReceipt(tmHash []byte) {
 	if r.currentReceipt != nil {
 		r.mutex.Lock()
 		defer r.mutex.Unlock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
+		if len(tmHash) > 0 {
+			r.tmTxHashIndex = append(r.tmTxHashIndex, common.HashPair{
+				tmHash,
+				r.currentReceipt.TxHash},
+			)
+		}
 		r.currentReceipt = nil
+		r.tmTxHashIndex = []common.HashPair{}
 	}
 }
 
@@ -112,7 +131,7 @@ func (r *ReceiptHandler) DiscardCurrentReceipt() {
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
+	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height), r.tmTxHashIndex)
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
 	return err
@@ -124,6 +143,11 @@ func (r *ReceiptHandler) CacheReceipt(
 ) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+	if r.currentReceipt != nil {
+		r.currentReceipt.Logs = append(r.currentReceipt.Logs, events...)
+		return r.currentReceipt.TxHash, nil
+	}
+
 	var status int32
 	if txErr == nil {
 		status = common.StatusTxSuccess
