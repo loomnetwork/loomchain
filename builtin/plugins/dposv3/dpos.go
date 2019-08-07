@@ -1,7 +1,6 @@
 package dposv3
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -109,6 +109,9 @@ type (
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
+	Referrer                          = dtypes.Referrer
+	ListReferrersRequest              = dtypes.ListReferrersRequest
+	ListReferrersResponse             = dtypes.ListReferrersResponse
 	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
 	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
@@ -264,7 +267,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	// Ensure that referrer value is meaningful
-	referrerAddress := GetReferrer(ctx, req.Referrer)
+	referrerAddress := getReferrer(ctx, req.Referrer)
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -319,8 +322,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 		Index:        index,
-		Referrer:     req.Referrer,
+		Referrer:     req.Referrer, // TODO: This should be a simple index/ID, not a string.
 	}
+
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
 	}
@@ -358,7 +362,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 
 		// Ensure that referrer value is meaningful
-		referrerAddress := GetReferrer(ctx, req.Referrer)
+		referrerAddress := getReferrer(ctx, req.Referrer)
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -1388,6 +1392,24 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	}, nil
 }
 
+func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
+	referrerRange := ctx.Range([]byte(referrerPrefix))
+	referrers := make([]*Referrer, 0, len(referrerRange))
+	for _, referrer := range referrerRange {
+		var addr types.Address
+		if err := proto.Unmarshal(referrer.Value, &addr); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal referrer %s", string(referrer.Key))
+		}
+		referrers = append(referrers, &Referrer{
+			ReferrerAddress: &addr,
+			Name:            string(referrer.Key),
+		})
+	}
+	return &ListReferrersResponse{
+		Referrers: referrers,
+	}, nil
+}
+
 func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
 	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
 		return errors.New("DPOS v3.4 is not enabled")
@@ -1678,7 +1700,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						}
 
 						// if referrer is not found, do not distribute the reward
-						referrerAddress := GetReferrer(ctx, delegation.Referrer)
+						referrerAddress := getReferrer(ctx, delegation.Referrer)
 						if referrerAddress == nil {
 							continue
 						}
@@ -2078,8 +2100,9 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	SetReferrer(ctx, req.Name, req.Address)
-
+	if err := setReferrer(ctx, req.Name, req.Address); err != nil {
+		return err
+	}
 	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
 }
 

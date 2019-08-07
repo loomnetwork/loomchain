@@ -26,6 +26,9 @@
                   {
                     "name":"dpos:v3",
                     "status":"WAITING"
+                  },{
+                      "name":"dpos:v3.5",
+                      "status":"WAITING"
                   }
                 ]
             }
