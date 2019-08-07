@@ -322,8 +322,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 		Index:        index,
-		Referrer:     req.Referrer,
+		Referrer:     req.Referrer, // TODO: This should be a simple index/ID, not a string.
 	}
+
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
 	}

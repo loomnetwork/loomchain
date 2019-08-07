@@ -2,8 +2,10 @@ package dposv3
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -454,6 +456,10 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 
 func getReferrer(ctx contract.StaticContext, name string) *types.Address {
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+		if len(strings.TrimSpace(name)) == 0 {
+			return nil
+		}
+
 		var address types.Address
 		if err := ctx.Get(referrerKey(name), &address); err != nil {
 			return nil
@@ -474,8 +480,14 @@ func deprecatedGetReferrer(ctx contract.StaticContext, name string) *types.Addre
 
 func setReferrer(ctx contract.Context, name string, address *types.Address) error {
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+		if len(strings.TrimSpace(name)) == 0 {
+			return errors.New("invalid referrer name")
+		}
+
 		return ctx.Set(referrerKey(name), address)
 	}
+	// NOTE: Previous version of the contract ignored the error from SetReferrer so we discard the
+	//       error here to retain compatibility with older builds until v3.5 is enabled.
 	deprecatedSetReferrer(ctx, name, address)
 	return nil
 }
