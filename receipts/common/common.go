@@ -2,11 +2,13 @@ package common
 
 import (
 	"encoding/binary"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -70,4 +72,9 @@ func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
 		typesEvents = append(typesEvents, &typeEvent)
 	}
 	return typesEvents
+}
+
+type HashPair struct {
+	TmTxHash   []byte
+	LoomTxHash []byte
 }

@@ -44,8 +44,12 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 
 }
 
-func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, error) {
+func (r *ReceiptHandler) GetPendingReceipt(_ []byte) (types.EvmTxReceipt, error) {
 	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
+}
+
+func (r *ReceiptHandler) GetHashFromTmHash(_ []byte) ([]byte, error) {
+	return nil, nil
 }
 
 func (r *ReceiptHandler) GetCurrentReceipt() *types.EvmTxReceipt {
@@ -56,7 +60,7 @@ func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
 	return nil
 }
 
-func (r *ReceiptHandler) GetTxHashList(height uint64) ([][]byte, error) {
+func (r *ReceiptHandler) GetTxHashList(_ uint64) ([][]byte, error) {
 	return nil, nil
 }
 
@@ -68,13 +72,13 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) CommitCurrentReceipt() {
+func (r *ReceiptHandler) CommitCurrentReceipt(_ []byte) {
 }
 
 func (r *ReceiptHandler) DiscardCurrentReceipt() {
 }
 
-func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
+func (r *ReceiptHandler) CommitBlock(_ loomchain.State, _ int64) error {
 	return nil
 }
 

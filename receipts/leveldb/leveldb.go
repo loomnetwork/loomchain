@@ -9,19 +9,22 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	loom_types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
+	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var (
 	headKey          = []byte("leveldb:head")
 	tailKey          = []byte("leveldb:tail")
 	currentDbSizeKey = []byte("leveldb:size")
+	tmHashPrefix     = []byte("leveldb:tmHashprefix")
 )
 
 func WriteReceipt(
@@ -102,7 +105,27 @@ func (lr LevelDbReceipts) Close() error {
 	return nil
 }
 
-func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error {
+func (lr *LevelDbReceipts) GetHashFromTmHash(tmHash []byte) ([]byte, error) {
+	db := lr.evmAuxStore.DB()
+	return db.Get(util.PrefixKey(tmHashPrefix, tmHash), nil)
+}
+
+func (lr *LevelDbReceipts) saveTmHashIndex(tmHashIndex []common.HashPair) error {
+	for _, pair := range tmHashIndex {
+		key := util.PrefixKey(tmHashPrefix, pair.TmTxHash)
+		if err := lr.tran.Put(key, pair.LoomTxHash, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (lr *LevelDbReceipts) CommitBlock(
+	state loomchain.State,
+	receipts []*types.EvmTxReceipt,
+	height uint64,
+	tmHashIndex []common.HashPair,
+) error {
 	if len(receipts) == 0 {
 		return nil
 	}
@@ -119,6 +142,10 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		return errors.Wrap(err, "opening leveldb transaction")
 	}
 	defer lr.closeTransaction()
+
+	if err := lr.saveTmHashIndex(tmHashIndex); err != nil {
+		return err
+	}
 
 	tailReceiptItem := types.EvmTxReceiptListItem{}
 	if len(headHash) > 0 {

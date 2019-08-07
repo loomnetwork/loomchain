@@ -565,7 +565,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 		isEvmTx = true
 	}
-	log.Info("Piers tx resxult", fmt.Sprintf("result, %x, block number, %d", r.Data, a.height()))
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
@@ -611,7 +610,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 				}
 			}
 		}
-		receiptHandler.CommitCurrentReceipt()
+		receiptHandler.CommitCurrentReceipt(ttypes.Tx(txBytes).Hash())
 		storeTx.Commit()
 	}
 	return r, nil

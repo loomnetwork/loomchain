@@ -51,7 +51,7 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 			if txNum == 10 {
 				receiptHandler.SetFailStatusCurrentReceipt()
 			}
-			receiptHandler.CommitCurrentReceipt()
+			receiptHandler.CommitCurrentReceipt(nil)
 			txHashList = append(txHashList, txHash)
 		}
 	}
@@ -146,7 +146,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 			receiptHandler.DiscardCurrentReceipt()
 		} else {
 			if resp.Info == utils.CallEVM || resp.Info == utils.DeployEvm {
-				receiptHandler.CommitCurrentReceipt()
+				receiptHandler.CommitCurrentReceipt(nil)
 				txHashList = append(txHashList, txHash)
 			}
 		}

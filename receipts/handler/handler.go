@@ -48,6 +48,7 @@ type ReceiptHandler struct {
 	mutex         *sync.RWMutex
 	receiptsCache []*types.EvmTxReceipt
 	txHashList    [][]byte
+	tmTxHashIndex []common.HashPair
 
 	currentReceipt *types.EvmTxReceipt
 }
@@ -61,6 +62,7 @@ func NewReceiptHandler(
 		eventHandler:   eventHandler,
 		receiptsCache:  []*types.EvmTxReceipt{},
 		txHashList:     [][]byte{},
+		tmTxHashIndex:  []common.HashPair{},
 		currentReceipt: nil,
 		mutex:          &sync.RWMutex{},
 	}
@@ -82,12 +84,30 @@ func (r *ReceiptHandler) Version() ReceiptHandlerVersion {
 	return r.v
 }
 
+func (r *ReceiptHandler) GetHashFromTmHash(tmHash []byte) ([]byte, error) {
+	switch r.v {
+	case ReceiptHandlerChain:
+		return nil, nil
+	case ReceiptHandlerLevelDb:
+		return r.leveldbReceipts.GetHashFromTmHash(tmHash)
+	default:
+		return nil, loomchain.ErrInvalidVersion
+	}
+}
+
 func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
 	switch r.v {
 	case ReceiptHandlerChain:
 		return r.chainReceipts.GetReceipt(state, txHash)
 	case ReceiptHandlerLevelDb:
+		// see if we are looking at a tendermint transaction hash.
+		loomTxHash, err := r.GetHashFromTmHash(txHash)
+		if len(loomTxHash) > 0 && err == nil {
+			txHash = loomTxHash
+		}
+
 		receipt, err := r.leveldbReceipts.GetReceipt(txHash)
+
 		// In case receipts has been upgraded from V1 to V2 try getting the receipt from the chain.
 		if err != nil {
 			var chainErr error
@@ -153,11 +173,17 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) CommitCurrentReceipt() {
+func (r *ReceiptHandler) CommitCurrentReceipt(tmHash []byte) {
 	if r.currentReceipt != nil {
 		r.mutex.Lock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
+		if len(tmHash) > 0 {
+			r.tmTxHashIndex = append(r.tmTxHashIndex, common.HashPair{
+				tmHash,
+				r.currentReceipt.TxHash},
+			)
+		}
 		r.mutex.Unlock()
 
 		r.currentReceipt = nil
@@ -178,7 +204,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 		r.mutex.RUnlock()
 	case ReceiptHandlerLevelDb:
 		r.mutex.RLock()
-		err = r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
+		err = r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height), r.tmTxHashIndex)
 		r.mutex.RUnlock()
 	default:
 		err = loomchain.ErrInvalidVersion
@@ -187,6 +213,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	r.mutex.Lock()
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
+	r.tmTxHashIndex = []common.HashPair{}
 	r.mutex.Unlock()
 
 	return err
