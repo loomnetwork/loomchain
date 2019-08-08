@@ -2,7 +2,16 @@ package store
 
 import (
 	"fmt"
-	"github.com/loomnetwork/loomchain/config"
+	"io"
+	"io/ioutil"
+	"math"
+	"os"
+	"path"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -10,15 +19,6 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/types"
-	"io"
-	"io/ioutil"
-	"log"
-	"math"
-	"os"
-	"path"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 var (
@@ -34,8 +34,7 @@ type PruningBlockStore struct {
 	height       int64
 }
 
-
-func NewPruningBlockStore(chainDataDir string, readOnly bool, cfg *config.Config) *PruningBlockStore {
+func NewPruningBlockStore(chainDataDir string, readOnly bool, pruningAlgorithm string) *PruningBlockStore {
 	var db, blockStoreDB dbm.DB
 	if readOnly {
 		var err error
@@ -51,7 +50,7 @@ func NewPruningBlockStore(chainDataDir string, readOnly bool, cfg *config.Config
 	} else {
 		blockStoreDB = dbm.NewDB("blockstore", "leveldb", path.Join(chainDataDir, "data"))
 	}
-	if strings.EqualFold(cfg.BlockStore.PruningAlgorithm, "Copy") {
+	if strings.EqualFold(pruningAlgorithm, "Copy") {
 		db = dbm.NewDB("blockstorev1", "leveldb", path.Join(chainDataDir, "data"))
 	}
 	return &PruningBlockStore{
@@ -92,17 +91,15 @@ func (bs *PruningBlockStore) SaveSeenCommit(blockHeight int64, newSeenCommit *ty
 	return nil
 }
 
-// Purge removes any blocks in the block store below the target height.
+//This Pruning Algorithm works by removing any blocks in the block store below the target height and original database is backed up
 func (bs *PruningBlockStore) PruneviaDeletion(chainDataDir string, numBlocksToRetain, pruneGraceFactor, batchSize, logLevel int64, skipMissing, skipCompaction bool) error {
 	srcblockstorePath := path.Join(chainDataDir, "data/blockstore.db")
 	destblockstorePath := path.Join(chainDataDir, "data/blockstore.db.bak")
 	Dir(srcblockstorePath, destblockstorePath)
 	latestHeight := bs.Height()
-	fmt.Println("Current height", latestHeight)
 	var targetHeight int64
 	targetHeight = latestHeight - numBlocksToRetain
-	fmt.Println("target height", targetHeight)
-	fmt.Println("In purge via deletion")
+	//Compute grace blocks by using pruneGraceFactor
 	graceBlocks := (pruneGraceFactor / 100) * numBlocksToRetain
 	oldestHeight := int64(-1)
 	// find the oldest block
@@ -112,17 +109,18 @@ func (bs *PruningBlockStore) PruneviaDeletion(chainDataDir string, numBlocksToRe
 		oldestHeight = getHeightFromKey(oldestBlockMetaKey)
 		break
 	}
+	//Number of blocks to prune is less than grace blocks then skip pruning
 	if (targetHeight - oldestHeight) < graceBlocks {
 		bs.blockStoreDB.Close()
 		bs.db.Close()
 		return nil
 	}
+	//Minimum Height is greater than Target Height so there are no blocks to prune
 	if oldestHeight >= targetHeight {
 		bs.blockStoreDB.Close()
 		bs.db.Close()
 		return fmt.Errorf("no block below block %d", targetHeight)
 	}
-	log.Println("oldest block height", oldestHeight)
 	var progressInterval int64
 	if logLevel > 0 {
 		progressInterval = int64(targetHeight / int64(math.Pow(10, float64(logLevel))))
@@ -130,10 +128,10 @@ func (bs *PruningBlockStore) PruneviaDeletion(chainDataDir string, numBlocksToRe
 	batch := bs.blockStoreDB.NewBatch()
 	numHeight := int64(0)
 	for height := targetHeight; height >= oldestHeight; height-- {
-		fmt.Println("Pruning", height)
+		log.Info("Pruning Block at height", "height", height)
 		// if block metadata is not found, stop purging
 		if !bs.Has(calcBlockMetaKey(height)) {
-			log.Printf("block is missing at %d height", height)
+			log.Info("block is missing at height", "height", height)
 			if skipMissing {
 				continue
 			}
@@ -149,7 +147,7 @@ func (bs *PruningBlockStore) PruneviaDeletion(chainDataDir string, numBlocksToRe
 		batch.Delete(calcSeenCommitKey(height))
 
 		if progressInterval > 0 && numHeight%progressInterval == 0 {
-			log.Println(numHeight, "blocks processed: current height", height)
+			log.Info("blocks processed: current height", "height", height)
 		}
 
 		if numHeight%batchSize == 0 {
@@ -170,20 +168,17 @@ func (bs *PruningBlockStore) PruneviaDeletion(chainDataDir string, numBlocksToRe
 		if err := db.CompactRange(util.Range{}); err != nil {
 			return fmt.Errorf("failed to compact db, %s", err.Error())
 		}
-		log.Println("finished DB compaction")
+		log.Info("finished DB compaction")
 	}
 
 	return nil
 }
 
-// Copy recent blocks in the block store
+//This Pruning Algorithm works by copying recent blocks in the block store i.e blocks which are above target height to the new blockstore database and original database is backed up
 func (bs *PruningBlockStore) PruneviaCopying(chainDataDir string, numBlocksToRetain, pruneGraceFactor int64, skipMissing bool) error {
 	latestHeight := bs.Height()
-	fmt.Println("Current height", latestHeight)
 	var targetHeight int64
 	targetHeight = latestHeight - numBlocksToRetain
-	fmt.Println("target height", targetHeight)
-	fmt.Println("In purge via copying")
 	graceBlocks := (pruneGraceFactor / 100) * numBlocksToRetain
 	oldestHeight := int64(-1)
 	// find the oldest block
@@ -193,23 +188,23 @@ func (bs *PruningBlockStore) PruneviaCopying(chainDataDir string, numBlocksToRet
 		oldestHeight = getHeightFromKey(oldestBlockMetaKey)
 		break
 	}
+	//Number of blocks to prune is less than grace blocks then skip pruning
 	if (targetHeight - oldestHeight) < graceBlocks {
 		bs.blockStoreDB.Close()
 		bs.db.Close()
 		return nil
 	}
-	log.Println("oldest block height", oldestHeight)
+	//Minimum Height is greater than Target Height so there are no blocks to prune, so there is no need to copy blocks to new blockstore database
 	if oldestHeight >= targetHeight {
 		bs.blockStoreDB.Close()
 		bs.db.Close()
 		return fmt.Errorf("no block below block %d", targetHeight)
 	}
-	log.Println("oldest block height", oldestHeight)
 	for height := targetHeight; height <= latestHeight; height++ {
-		fmt.Println("Copying Block at", height)
+		log.Info("Copying Block at height", "height", height)
 		// If block metadata is not found, stop purging
 		if !bs.Has(calcBlockMetaKey(height)) {
-			log.Printf("block is missing at %d height", height)
+			log.Info("block is missing at height", "height", height)
 			if skipMissing {
 				continue
 			}
@@ -217,10 +212,8 @@ func (bs *PruningBlockStore) PruneviaCopying(chainDataDir string, numBlocksToRet
 		}
 
 		meta := bs.LoadBlockMeta(height)
-		fmt.Println("total", meta.BlockID.PartsHeader.Total)
 		partset := types.NewPartSetFromHeader(meta.BlockID.PartsHeader)
 		for i := 0; i < meta.BlockID.PartsHeader.Total; i++ {
-			fmt.Println("Adding parts", i)
 			part := bs.LoadBlockPart(height, i)
 			partset.AddPart(part)
 		}
@@ -232,12 +225,14 @@ func (bs *PruningBlockStore) PruneviaCopying(chainDataDir string, numBlocksToRet
 	}
 	bs.blockStoreDB.Close()
 	bs.db.Close()
+	//After copying original blockstore database is copied to back up blockstore database
 	srcblockstore := path.Join(chainDataDir, "data/blockstore.db")
 	renamedblockstore := path.Join(chainDataDir, "data/blockstore.db.bak")
 	err := os.Rename(srcblockstore, renamedblockstore)
 	if err != nil {
 		return err
 	}
+	//Copied blockstore database is renamed to blockstore.db
 	srcblockstore = path.Join(chainDataDir, "data/blockstorev1.db")
 	renamedblockstore = path.Join(chainDataDir, "data/blockstore.db")
 	err = os.Rename(srcblockstore, renamedblockstore)
@@ -336,7 +331,6 @@ func (bsj BlockStoreStateJSON) Save(db dbm.DB) {
 	if err != nil {
 		cmn.PanicSanity(fmt.Sprintf("Could not marshal state bytes: %v", err))
 	}
-	fmt.Println("In BlockStore State")
 	db.SetSync(blockStoreKey, bytes)
 }
 
