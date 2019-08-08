@@ -192,7 +192,7 @@ type BlockStoreConfig struct {
 	PruneOnStartup    bool  //should default to false for now
 	NumBlocksToRetain int64 // number of most recent blocks to retain when pruning
 	PruneGraceFactor  int64 // skip pruning if less than 10% of NumBlocksToRetain will be pruned
-	PruningAlgorithm  string
+	PruningAlgorithm  string //Prune via copying recent blocks or via deletion of blocks below target height
 	SkipMissing       bool
 	SkipCompaction    bool
 	BatchSize         int64
