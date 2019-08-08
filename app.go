@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/loomnetwork/go-loom/util"
@@ -615,14 +614,12 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
-		evmRevertedError := strings.Contains(err.Error(), "evm: execution reverted")
-		if evmRevertedError && state.FeatureEnabled(EvmTxReceiptsVersion2_1Feature, false) {
+		if !isCheckTx && state.FeatureEnabled(EvmTxReceiptsVersion2_1Feature, false) {
 			receiptHandler.CommitCurrentReceipt()
-			storeTx.Commit()
 		} else {
 			receiptHandler.DiscardCurrentReceipt()
-			storeTx.Rollback()
 		}
+		storeTx.Rollback()
 		return r, err
 	}
 
