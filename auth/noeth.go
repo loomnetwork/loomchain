@@ -15,3 +15,7 @@ func verifySolidity66Byte(_ SignedTx, _ []evmcompat.SignatureType) ([]byte, erro
 func verifyTron(_ SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 	return nil, fmt.Errorf("not implemented")
 }
+
+func verifyBinance(_ SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
+	return nil, fmt.Errorf("not implemented")
+}
