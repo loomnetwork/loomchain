@@ -227,7 +227,7 @@ func (s *EvmStore) Commit(version int64) []byte {
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
 	s.cache = make(map[string]cacheItem)
 	// find the last saved root
-	root, version := s.GetLastSavedRoot(targetVersion)
+	root, version := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
 		root = []byte{}
 	}
@@ -248,7 +248,7 @@ func (s *EvmStore) Version() ([]byte, int64) {
 	return s.rootHash, s.version
 }
 
-func (s *EvmStore) GetLastSavedRoot(targetVersion int64) ([]byte, int64) {
+func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	start := util.PrefixKey(vmPrefix, evmRootPrefix)
 	end := prefixRangeEnd(evmRootKey(targetVersion))
 	iter := s.evmDB.ReverseIterator(start, end)
@@ -276,7 +276,7 @@ func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
 	if exist {
 		targetRoot = val.([]byte)
 	} else {
-		targetRoot, _ = s.GetLastSavedRoot(version)
+		targetRoot, _ = s.getLastSavedRoot(version)
 	}
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }

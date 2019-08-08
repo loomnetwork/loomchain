@@ -83,7 +83,7 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 			appStoreEvmRoot = defaultRoot
 		}
 	}
-	evmStoreEvmRoot, version := store.evmStore.GetLastSavedRoot(store.appStore.Version())
+	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
 			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
@@ -121,7 +121,7 @@ func LoadMultiWriterAppStore(appstoreCfg *AppStoreConfig, evmstoreCfg *EvmStoreC
 	if err != nil {
 		return nil, err
 	}
-	evmStoreEvmRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
+	evmStoreEvmRoot, evmVersion := evmStore.getLastSavedRoot(iavlStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 		log.Info(
 			"EVM root mismatch, resyncing roots...",
