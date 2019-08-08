@@ -641,28 +641,8 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
-		if err != nil {
-			return nil, err
-		}
-		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
-		if err != nil {
-			return nil, err
-		}
-		iavlStore, err = store.LoadMultiWriterAppStore(iavlStore, evmStore, db, cfg.AppStore.MaxVersions, cfg.AppStore.IAVLFlushInterval)
-		if err != nil {
-			return nil, err
-		}
-		_, evmVersion := evmStore.Version()
-		if evmVersion != iavlStore.Version() { // reload EVMStore
-			evmStore.CloseDB()
-			evmStore, err = loadEvmStore(cfg, iavlStore.Version())
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
+		appStore, err = store.LoadMultiWriterAppStore(cfg.AppStore, cfg.EvmStore, db, cfg.AppStore.MaxVersions,
+			cfg.Metrics.Database, cfg.RootPath())
 		if err != nil {
 			return nil, err
 		}
@@ -708,26 +688,6 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 
 	eventStore := store.NewKVEventStore(db)
 	return eventStore, nil
-}
-
-func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, error) {
-	evmStoreCfg := cfg.EvmStore
-	db, err := cdb.LoadDB(
-		evmStoreCfg.DBBackend,
-		evmStoreCfg.DBName,
-		cfg.RootPath(),
-		evmStoreCfg.CacheSizeMegs,
-		evmStoreCfg.WriteBufferMegs,
-		cfg.Metrics.Database,
-	)
-	if err != nil {
-		return nil, err
-	}
-	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots)
-	if err := evmStore.LoadVersion(targetVersion); err != nil {
-		return nil, err
-	}
-	return evmStore, nil
 }
 
 func loadApp(

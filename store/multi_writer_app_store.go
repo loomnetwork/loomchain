@@ -98,9 +98,29 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	return store, nil
 }
 
-func LoadMultiWriterAppStore(iavlStore *IAVLStore, evmStore *EvmStore, db db.DBWrapper,
-	maxVersions, iavlFlushInterval int64) (*IAVLStore, error) {
+func LoadMultiWriterAppStore(appstoreCfg *AppStoreConfig, evmstoreCfg *EvmStoreConfig, appstoredb db.DBWrapper,
+	targetVersion int64, metricsDatabase bool, rootPath string) (*MultiWriterAppStore, error) {
+	iavlStore, err := NewIAVLStore(appstoredb, appstoreCfg.MaxVersions, targetVersion, appstoreCfg.IAVLFlushInterval)
+	if err != nil {
+		return nil, err
+	}
 	appStoreEvmRoot := iavlStore.Get(rootKey)
+	evmDB, err := db.LoadDB(
+		evmstoreCfg.DBBackend,
+		evmstoreCfg.DBName,
+		rootPath,
+		evmstoreCfg.CacheSizeMegs,
+		evmstoreCfg.WriteBufferMegs,
+		metricsDatabase,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	evmStore, err := loadEvmStore(evmDB, iavlStore.Version(), evmstoreCfg.NumCachedRoots)
+	if err != nil {
+		return nil, err
+	}
 	evmStoreEvmRoot, evmVersion := evmStore.GetLastSavedRoot(iavlStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 		log.Info(
@@ -108,19 +128,48 @@ func LoadMultiWriterAppStore(iavlStore *IAVLStore, evmStore *EvmStore, db db.DBW
 			"evm.db-ver", evmVersion, "app.db-ver", iavlStore.Version(),
 			"evm.db-root", hex.EncodeToString(evmStoreEvmRoot), "app.db-evm-root", hex.EncodeToString(appStoreEvmRoot),
 		)
-		latestVersion, err := iavl.NewMutableTree(db, 10000).LatestVersion(evmVersion)
+		latestVersion, err := iavl.NewMutableTree(appstoredb, 10000).LatestVersion(evmVersion)
 		if err != nil {
 			return nil, err
 		}
-		if latestVersion == 0 { //
+		if latestVersion == 0 {
 			latestVersion = -1
 		}
-		iavlStore, err = NewIAVLStore(db, maxVersions, latestVersion, iavlFlushInterval)
+		iavlStore, err = NewIAVLStore(appstoredb, appstoreCfg.MaxVersions, latestVersion, appstoreCfg.IAVLFlushInterval)
+		if err != nil {
+			return nil, err
+		}
+		evmStore.CloseDB()
+		evmDB, err = db.LoadDB(
+			evmstoreCfg.DBBackend,
+			evmstoreCfg.DBName,
+			rootPath,
+			evmstoreCfg.CacheSizeMegs,
+			evmstoreCfg.WriteBufferMegs,
+			metricsDatabase,
+		)
+		if err != nil {
+			return nil, err
+		}
+		evmStore, err = loadEvmStore(evmDB, iavlStore.Version(), evmstoreCfg.NumCachedRoots)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return iavlStore, nil
+	store := &MultiWriterAppStore{
+		appStore:                   iavlStore,
+		evmStore:                   evmStore,
+		onlySaveEvmStateToEvmStore: !appstoreCfg.SaveEVMStateToIAVL,
+	}
+	// feature flag overrides SaveEVMStateToIAVL
+	if !store.onlySaveEvmStateToEvmStore {
+		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
+	}
+	err = store.setLastSavedTreeToVersion(iavlStore.Version())
+	if err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
 func (s *MultiWriterAppStore) Delete(key []byte) {
