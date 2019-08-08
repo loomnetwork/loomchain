@@ -189,13 +189,25 @@ type BlockStoreConfig struct {
 	// Valid values: None | LRU | 2Q
 	CacheAlgorithm string
 	CacheSize      int64
+	PruneOnStartup bool  //should default to false for now
+	NumBlocksToRetain int64 // number of most recent blocks to retain when pruning
+	PruneGraceFactor int64 // skip pruning if less than 10% of NumBlocksToRetain will be pruned
+	PruningAlgorithm string
+	SkipMissing bool
+	SkipCompaction bool
 }
 
 func DefaultBlockStoreConfig() *BlockStoreConfig {
 	return &BlockStoreConfig{
 		CacheAlgorithm: "None",
 		CacheSize:      10000, //Size should be more because of blockrangebyheight API
-	}
+		PruneOnStartup: true,  // should default to false for now
+		NumBlocksToRetain: 10000, // number of most recent blocks to retain when pruning
+		PruneGraceFactor: 10, // skip pruning if less than 10% of NumBlocksToRetain will be pruned
+	    PruningAlgorithm: "Delete",
+	    SkipMissing : false,
+	    SkipCompaction : false,
+    }
 }
 
 func NewBlockStore(cfg *BlockStoreConfig) (BlockStore, error) {
