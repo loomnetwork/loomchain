@@ -640,12 +640,12 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		appStore, err = store.LoadMultiWriterAppStore(cfg.AppStore, cfg.EvmStore, db, cfg.AppStore.MaxVersions,
+		appStore, err = store.LoadMultiWriterAppStore(
+			cfg.AppStore, cfg.EvmStore, db, targetVersion,
 			cfg.Metrics.Database, cfg.RootPath())
 		if err != nil {
 			return nil, err
 		}
-
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
