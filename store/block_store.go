@@ -210,7 +210,7 @@ func DefaultBlockStoreConfig() *BlockStoreConfig {
 		SkipMissing:       false,
 		SkipCompaction:    false,
 		BatchSize:         1000,
-		LogLevel:          10,
+		LogLevel:          0,
 	}
 }
 
