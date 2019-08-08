@@ -145,7 +145,8 @@ func (r *ReceiptHandler) CacheReceipt(
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	if r.currentReceipt != nil {
-		r.currentReceipt.Logs = append(r.currentReceipt.Logs, events...)
+		receipt := leveldb.AppendEvents(*r.currentReceipt, state.Block(), events, r.eventHandler)
+		r.currentReceipt = &receipt
 		return r.currentReceipt.TxHash, nil
 	}
 
