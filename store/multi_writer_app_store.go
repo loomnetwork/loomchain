@@ -139,18 +139,6 @@ func LoadMultiWriterAppStore(appStoreCfg *AppStoreConfig, evmstoreCfg *EvmStoreC
 		if err != nil {
 			return nil, err
 		}
-		evmStore.CloseDB()
-		evmDB, err = db.LoadDB(
-			evmstoreCfg.DBBackend,
-			evmstoreCfg.DBName,
-			rootPath,
-			evmstoreCfg.CacheSizeMegs,
-			evmstoreCfg.WriteBufferMegs,
-			metricsDatabase,
-		)
-		if err != nil {
-			return nil, err
-		}
 		evmStore, err = loadEvmStore(evmDB, iavlStore.Version(), evmstoreCfg.NumCachedRoots)
 		if err != nil {
 			return nil, err

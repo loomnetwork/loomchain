@@ -265,10 +265,6 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	return nil, 0
 }
 
-func (s *EvmStore) CloseDB() {
-	s.evmDB.Close()
-}
-
 func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
 	var targetRoot []byte
 	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
