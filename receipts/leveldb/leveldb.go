@@ -87,12 +87,12 @@ type LevelDbReceipts struct {
 	tran        *leveldb.Transaction
 }
 
-func NewLevelDbReceipts(evmAuxStore *evmaux.EvmAuxStore, maxReceipts uint64) (*LevelDbReceipts, error) {
+func NewLevelDbReceipts(evmAuxStore *evmaux.EvmAuxStore, maxReceipts uint64) *LevelDbReceipts {
 	return &LevelDbReceipts{
 		MaxDbSize:   maxReceipts,
 		evmAuxStore: evmAuxStore,
 		tran:        nil,
-	}, nil
+	}
 }
 
 func (lr LevelDbReceipts) Close() error {
@@ -205,15 +205,6 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	}
 
 	filter := bloom.GenBloomFilter(events)
-
-	// if the feature is not enabled, write to both app.db and receipts.db
-	if !state.FeatureEnabled(loomchain.AuxEvmDBFeature, false) {
-		if err := common.AppendTxHashList(state, txHashArray, height); err != nil {
-			return errors.Wrap(err, "append tx list")
-		}
-		common.SetBloomFilter(state, filter, height)
-	}
-
 	if err := lr.evmAuxStore.SetTxHashList(lr.tran, txHashArray, height); err != nil {
 		return errors.Wrap(err, "append tx list")
 	}
