@@ -351,6 +351,18 @@ func newRunCommand() *cobra.Command {
 			if cfg.FnConsensus.Enabled {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
+			if cfg.BlockStore.PruneOnStartup {
+				fmt.Println("In prune on startup")
+				bs := store.NewPruningBlockStore("./chaindata", false, cfg)
+				if strings.EqualFold(cfg.BlockStore.PruningAlgorithm, "Copy") {
+					err = bs.PruneviaCopying("./chaindata", cfg.BlockStore.NumBlocksToRetain, cfg.BlockStore.PruneGraceFactor, cfg.BlockStore.SkipMissing)
+				} else {
+					err = bs.PruneviaDeletion("./chaindata", cfg.BlockStore.NumBlocksToRetain, cfg.BlockStore.PruneGraceFactor, 1, 10, cfg.BlockStore.SkipMissing, cfg.BlockStore.SkipCompaction)
+				}
+				if err != nil {
+					return err
+				}
+			}
 			var loaders []plugin.Loader
 			for _, loader := range cfg.ContractLoaders {
 				if strings.EqualFold("static", loader) {
@@ -364,6 +376,7 @@ func newRunCommand() *cobra.Command {
 				}
 			}
 			backend := initBackend(cfg, abciServerAddr, fnRegistry)
+			fmt.Println("backend")
 			loader := plugin.NewMultiLoader(loaders...)
 			termChan := make(chan os.Signal)
 			go func(c <-chan os.Signal, l plugin.Loader) {
