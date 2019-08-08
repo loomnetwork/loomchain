@@ -89,12 +89,10 @@ type Config struct {
 	UserDeployerWhitelist *UserDeployerWhitelistConfig
 
 	// Transfer gateway
-	TransferGateway          *TransferGatewayConfig
-	LoomCoinTransferGateway  *TransferGatewayConfig
-	TronTransferGateway      *TransferGatewayConfig
-	BinanceTransferGateway   *TransferGatewayConfig
-	// timeout in milliseconds, default is 10000 i.e. 10 sec
-	QueryServicePollTimeout int 
+	TransferGateway         *TransferGatewayConfig
+	LoomCoinTransferGateway *TransferGatewayConfig
+	TronTransferGateway     *TransferGatewayConfig
+	BinanceTransferGateway  *TransferGatewayConfig
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
@@ -384,12 +382,11 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:                   "",
-		DeployEnabled:            true,
-		CallEnabled:              true,
-		DPOSVersion:              3,
-		AllowNamedEvmContracts:   false,
-		QueryServicePollTimeout: 10000,
+		Oracle:                 "",
+		DeployEnabled:          true,
+		CallEnabled:            true,
+		DPOSVersion:            3,
+		AllowNamedEvmContracts: false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -510,7 +507,6 @@ EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
-QueryServicePollTimeout: {{ .QueryServicePollTimeout }}
 #
 # Network
 #
