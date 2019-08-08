@@ -352,12 +352,12 @@ func newRunCommand() *cobra.Command {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
 			if cfg.BlockStore.PruneOnStartup {
-				fmt.Println("In prune on startup")
-				bs := store.NewPruningBlockStore("./chaindata", false, cfg)
+				log.Info("Blockstore Pruning Initiated")
+				bs := store.NewPruningBlockStore("./chaindata", false, cfg.BlockStore.PruningAlgorithm)
 				if strings.EqualFold(cfg.BlockStore.PruningAlgorithm, "Copy") {
 					err = bs.PruneviaCopying("./chaindata", cfg.BlockStore.NumBlocksToRetain, cfg.BlockStore.PruneGraceFactor, cfg.BlockStore.SkipMissing)
 				} else {
-					err = bs.PruneviaDeletion("./chaindata", cfg.BlockStore.NumBlocksToRetain, cfg.BlockStore.PruneGraceFactor, 1, 10, cfg.BlockStore.SkipMissing, cfg.BlockStore.SkipCompaction)
+					err = bs.PruneviaDeletion("./chaindata", cfg.BlockStore.NumBlocksToRetain, cfg.BlockStore.PruneGraceFactor, cfg.BlockStore.BatchSize, cfg.BlockStore.LogLevel, cfg.BlockStore.SkipMissing, cfg.BlockStore.SkipCompaction)
 				}
 				if err != nil {
 					return err
@@ -376,7 +376,6 @@ func newRunCommand() *cobra.Command {
 				}
 			}
 			backend := initBackend(cfg, abciServerAddr, fnRegistry)
-			fmt.Println("backend")
 			loader := plugin.NewMultiLoader(loaders...)
 			termChan := make(chan os.Signal)
 			go func(c <-chan os.Signal, l plugin.Loader) {
