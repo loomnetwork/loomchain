@@ -38,23 +38,22 @@ func startGatewayReactors(
 // checkQueryService is a helper function to check if corresponding QueryService has started
 // timeout is configurable with variable QueryServicePollTimeout
 func checkQueryService(url string) {
-	tick := time.Tick(5000 * time.Millisecond)
+	ticker := time.NewTicker(5000 * time.Millisecond)
 	var netClient = &http.Client{
-		Timeout: time.Second * 2,
+		Timeout: time.Second * 1,
 	}
-	for {
-		select {
-		case <-tick:
-			resp, err := netClient.Head(url)
-			if err != nil {
-				log.Error("Unable to connect to queryserver at %s\n", url)
-				continue
-			}
-			if resp != nil && resp.StatusCode == 200 {
-				return
-			}
+	// to have the first tick immediately
+	for ; true; <-ticker.C {
+		resp, err := netClient.Head(url)
+		if err != nil {
+			log.Error("Error in connecting to queryserver:", url, err)
+			continue
+		}
+		if resp != nil && resp.StatusCode == 200 {
+			return
 		}
 	}
+
 }
 
 func startGatewayFn(
