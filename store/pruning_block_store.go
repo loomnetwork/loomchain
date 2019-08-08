@@ -110,7 +110,7 @@ func (bs *PruningBlockStore) PruneviaDeletion(chainDataDir string, numBlocksToRe
 		break
 	}
 	//Number of blocks to prune is less than grace blocks then skip pruning
-	if (targetHeight - oldestHeight) < graceBlocks {
+	if ((targetHeight - oldestHeight) + 1) < graceBlocks {
 		bs.blockStoreDB.Close()
 		bs.db.Close()
 		return nil
@@ -189,7 +189,7 @@ func (bs *PruningBlockStore) PruneviaCopying(chainDataDir string, numBlocksToRet
 		break
 	}
 	//Number of blocks to prune is less than grace blocks then skip pruning
-	if (targetHeight - oldestHeight) < graceBlocks {
+	if ((targetHeight - oldestHeight) + 1) < graceBlocks {
 		bs.blockStoreDB.Close()
 		bs.db.Close()
 		return nil
@@ -200,7 +200,7 @@ func (bs *PruningBlockStore) PruneviaCopying(chainDataDir string, numBlocksToRet
 		bs.db.Close()
 		return fmt.Errorf("no block below block %d", targetHeight)
 	}
-	for height := targetHeight; height <= latestHeight; height++ {
+	for height := targetHeight + 1; height <= latestHeight; height++ {
 		log.Info("Copying Block at height", "height", height)
 		// If block metadata is not found, stop purging
 		if !bs.Has(calcBlockMetaKey(height)) {
