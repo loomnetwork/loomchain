@@ -1,7 +1,9 @@
 package chainconfig
 
 import (
+	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -461,12 +463,13 @@ func ChainConfigCmd() *cobra.Command {
 }
 
 const setSettingCmdExample = `
-loom chain-cfg set-setting AppStoreConfig.NumEvmKeysToPrune --value 100 --build 1200
+loom chain-cfg set-setting AppStoreConfig.NumEvmKeysToPrune --value 100 --type uint64 --build 1200 -k private_key
 `
 
 func SetSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var value string
+	var valueType string
 	var buildNumber uint64
 	cmd := &cobra.Command{
 		Use:     "set-setting <config name>",
@@ -477,11 +480,34 @@ func SetSettingCmd() *cobra.Command {
 			if args[0] == "" || value == "" {
 				return fmt.Errorf("invalid config key")
 			}
+
+			// validate value
+			invalidValueTypeError := errors.New("invalid value type")
+			switch valueType {
+			case "string":
+				if len(value) == 0 {
+					return invalidValueTypeError
+				}
+			case "uint64", "int64":
+				_, err := strconv.ParseUint(value, 10, 64)
+				if err != nil {
+					return invalidValueTypeError
+				}
+			case "biguint":
+				bigIntAmount := big.NewInt(0)
+				if _, ok := bigIntAmount.SetString(value, 0); !ok {
+					return invalidValueTypeError
+				}
+			default:
+				return invalidValueTypeError
+			}
+
 			req := &cctype.SetSettingRequest{
 				Name:        args[0],
 				Value:       value,
 				BuildNumber: buildNumber,
 			}
+
 			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetSetting", req, nil)
 			if err != nil {
 				return err
@@ -491,8 +517,10 @@ func SetSettingCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&value, "value", "", "Value of config setting")
+	cmdFlags.StringVar(&valueType, "type", "", "Value type of config setting")
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number required for this change to apply")
 	cmd.MarkFlagRequired("value")
+	cmd.MarkFlagRequired("type")
 	cmd.MarkFlagRequired("build")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
