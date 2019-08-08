@@ -50,6 +50,14 @@ func getVersionFromEvmRootKey(key []byte) (int64, error) {
 	return version, nil
 }
 
+func LoadEvmStore(db db.DBWrapper, targetVersion int64, numCachedRoots int) (*EvmStore, error) {
+	evmStore := NewEvmStore(db, numCachedRoots)
+	if err := evmStore.LoadVersion(targetVersion); err != nil {
+		return nil, err
+	}
+	return evmStore, nil
+}
+
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
 	evmDB         db.DBWrapper

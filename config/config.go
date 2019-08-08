@@ -14,7 +14,6 @@ import (
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/evm"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
@@ -134,7 +133,7 @@ type Config struct {
 
 	Auth *auth.Config
 
-	EvmStore *evm.EvmStoreConfig
+	EvmStore *store.EvmStoreConfig
 	// Allow deployment of named EVM contracts (should only be used in tests!)
 	AllowNamedEvmContracts bool
 
@@ -410,7 +409,7 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
-	cfg.EvmStore = evm.DefaultEvmStoreConfig()
+	cfg.EvmStore = store.DefaultEvmStoreConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
