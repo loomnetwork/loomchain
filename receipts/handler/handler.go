@@ -6,12 +6,13 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	"github.com/pkg/errors"
 )
 
 type ReceiptHandlerVersion int32
@@ -118,7 +119,6 @@ func (r *ReceiptHandler) CommitCurrentReceipt(tmHash []byte) {
 			)
 		}
 		r.currentReceipt = nil
-		r.tmTxHashIndex = []common.HashPair{}
 	}
 }
 
@@ -134,6 +134,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height), r.tmTxHashIndex)
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
+	r.tmTxHashIndex = []common.HashPair{}
 	return err
 }
 
