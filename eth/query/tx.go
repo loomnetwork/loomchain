@@ -16,7 +16,7 @@ import (
 )
 
 func GetTxByHash(state loomchain.ReadOnlyState, blockStore store.BlockStore, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
-	txReceipt, err := readReceipts.GetReceipt(state, txHash)
+	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return eth.GetEmptyTxObject(), errors.Wrap(err, "reading receipt")
 	}
@@ -50,7 +50,7 @@ func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (et
 }
 
 func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
-	txReceipt, err := readReceipts.GetReceipt(state, txHash)
+	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading receipt")
 	}

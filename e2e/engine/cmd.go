@@ -241,6 +241,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				if err != nil {
 					return err
 				}
+
 			}
 		}
 		if e.conf.CheckAppHash {
