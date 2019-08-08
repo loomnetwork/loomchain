@@ -10,18 +10,18 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/loomnetwork/loomchain/evm"
-
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/evm"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
@@ -344,9 +344,8 @@ func ReadGenesis(path string) (*Genesis, error) {
 	dec := json.NewDecoder(file)
 
 	var gen Genesis
-	err = dec.Decode(&gen)
-	if err != nil {
-		return nil, err
+	if err := dec.Decode(&gen); err != nil {
+		return nil, errors.Wrap(err, "failed to decode loom genesis file")
 	}
 
 	return &gen, nil

@@ -55,7 +55,7 @@ type Client struct {
 func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("WebSocket read panicked", "err", r)
+			logger.Error("Websocket write panicked", "err", r)
 		}
 		c.hub.unregister <- c
 		if err := c.conn.Close(); err != nil {

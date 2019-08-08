@@ -152,6 +152,17 @@ func (dpos *testDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer
 	return err
 }
 
+func (dpos *testDPOSContract) ListReferrers(ctx *plugin.FakeContext) ([]*Referrer, error) {
+	resp, err := dpos.Contract.ListReferrers(
+		contract.WrapPluginStaticContext(ctx.WithAddress(dpos.Address)),
+		&ListReferrersRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Referrers, err
+}
+
 func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candidate loom.Address, amount *big.Int, tier LocktimeTier) error {
 	err := dpos.Contract.WhitelistCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
