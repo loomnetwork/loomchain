@@ -610,6 +610,15 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
+  PruneOnStartup:   {{ .BlockStore.PruneOnStartup }}
+  NumBlocksToRetain: {{ .BlockStore.NumBlocksToRetain }}
+  PruneGraceFactor: {{ .BlockStore.PruneGraceFactor }}
+  PruningAlgorithm: {{ .BlockStore.PruningAlgorithm }}
+  SkipMissing: {{ .BlockStore.SkipMissing }}
+  SkipCompaction: {{ .BlockStore.SkipCompaction }}
+  BatchSize: {{ .BlockStore.BatchSize }}
+  LogLevel: {{ .BlockStore.LogLevel }}
+
 BlockIndexStore:  
   Enabled: {{ .BlockIndexStore.Enabled }}
   # goleveldb | cleveldb | memdb
