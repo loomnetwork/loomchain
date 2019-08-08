@@ -98,9 +98,9 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	return store, nil
 }
 
-func LoadMultiWriterAppStore(appstoreCfg *AppStoreConfig, evmstoreCfg *EvmStoreConfig, appstoredb db.DBWrapper,
+func LoadMultiWriterAppStore(appStoreCfg *AppStoreConfig, evmstoreCfg *EvmStoreConfig, appStoreDB db.DBWrapper,
 	targetVersion int64, metricsDatabase bool, rootPath string) (*MultiWriterAppStore, error) {
-	iavlStore, err := NewIAVLStore(appstoredb, appstoreCfg.MaxVersions, targetVersion, appstoreCfg.IAVLFlushInterval)
+	iavlStore, err := NewIAVLStore(appStoreDB, appStoreCfg.MaxVersions, targetVersion, appStoreCfg.IAVLFlushInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +128,14 @@ func LoadMultiWriterAppStore(appstoreCfg *AppStoreConfig, evmstoreCfg *EvmStoreC
 			"evm.db-ver", evmVersion, "app.db-ver", iavlStore.Version(),
 			"evm.db-root", hex.EncodeToString(evmStoreEvmRoot), "app.db-evm-root", hex.EncodeToString(appStoreEvmRoot),
 		)
-		latestVersion, err := iavl.NewMutableTree(appstoredb, 10000).LatestVersion(evmVersion)
+		latestVersion, err := iavl.NewMutableTree(appStoreDB, 10000).LatestVersion(evmVersion)
 		if err != nil {
 			return nil, err
 		}
 		if latestVersion == 0 {
 			latestVersion = -1
 		}
-		iavlStore, err = NewIAVLStore(appstoredb, appstoreCfg.MaxVersions, latestVersion, appstoreCfg.IAVLFlushInterval)
+		iavlStore, err = NewIAVLStore(appStoreDB, appStoreCfg.MaxVersions, latestVersion, appStoreCfg.IAVLFlushInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -156,20 +156,7 @@ func LoadMultiWriterAppStore(appstoreCfg *AppStoreConfig, evmstoreCfg *EvmStoreC
 			return nil, err
 		}
 	}
-	store := &MultiWriterAppStore{
-		appStore:                   iavlStore,
-		evmStore:                   evmStore,
-		onlySaveEvmStateToEvmStore: !appstoreCfg.SaveEVMStateToIAVL,
-	}
-	// feature flag overrides SaveEVMStateToIAVL
-	if !store.onlySaveEvmStateToEvmStore {
-		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
-	}
-	err = store.setLastSavedTreeToVersion(iavlStore.Version())
-	if err != nil {
-		return nil, err
-	}
-	return store, nil
+	return NewMultiWriterAppStore(iavlStore, evmStore, appStoreCfg.SaveEVMStateToIAVL)
 }
 
 func (s *MultiWriterAppStore) Delete(key []byte) {
