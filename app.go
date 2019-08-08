@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/loomchain"
+
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
@@ -579,9 +581,20 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	state := NewStoreState(
+		context.Background(),
+		a.Store,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	)
+
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
+		if state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2_1Feature, false) {
+			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
+		}
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
