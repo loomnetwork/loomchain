@@ -225,7 +225,7 @@ func (bs *PruningBlockStore) PruneviaCopying(chainDataDir string, numBlocksToRet
 	}
 	bs.blockStoreDB.Close()
 	bs.db.Close()
-	//After copying original blockstore database is copied to back up blockstore database
+	//After copying original blockstore database is renamed to back up blockstore database
 	srcblockstore := path.Join(chainDataDir, "data/blockstore.db")
 	renamedblockstore := path.Join(chainDataDir, "data/blockstore.db.bak")
 	err := os.Rename(srcblockstore, renamedblockstore)
