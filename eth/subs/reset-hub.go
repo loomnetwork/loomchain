@@ -32,9 +32,6 @@ func (h *ethResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 
 func (h *ethResetHub) closeSubscription(id string) {
 	h.mutex.Lock()
-	if sub, ok := h.clients[id]; ok {
-		sub.Close()
-	}
 	delete(h.clients, id)
 	delete(h.unsent, id)
 	h.mutex.Unlock()

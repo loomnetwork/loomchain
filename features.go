@@ -26,22 +26,16 @@ const (
 	// Enables DPOS v3
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
-
 	// Enables precise rewards calculations in DPOSv3
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_1 = "dpos:v3.1"
-
 	// Enables slashing metrics
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_2 = "dpos:v3.2"
-
 	// Enables jailing offline validators
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_3 = "dpos:v3.3"
-
 	// Enables both downtime slashing and a parameter flag to toggle jailing offline validators on/off
-	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3_4 = "dpos:v3.4"
+	// Fixes prefixing of referrer keys so that ListReferrers method works
+	DPOSVersion3_5 = "dpos:v3.5"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
@@ -83,8 +77,12 @@ const (
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
 
+	// Enables Coin v1.2 to validate fields in request of Coin and ETH Coin contract
+	CoinVersion1_2Feature = "coin:v1.2"
+
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
+	// This feature has been deprecated along with legacy code.
 	AuxEvmDBFeature = "db:auxevm"
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"

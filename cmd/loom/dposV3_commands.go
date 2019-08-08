@@ -8,12 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/spf13/cobra"
 )
 
 const DPOSV3ContractName = "dposV3"
@@ -160,6 +159,52 @@ func ListCandidatesCmdV3() *cobra.Command {
 				return err
 			}
 			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const listReferrersCmdExample = `
+loom dpos3 list-referrers 
+`
+
+func ListReferrersCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "list-referrers",
+		Short:   "List all registered referrers",
+		Example: listReferrersCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv3.ListReferrersResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "ListReferrers", &dposv3.ListReferrersRequest{}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			type maxLength struct {
+				Name    int
+				Address int
+			}
+			ml := maxLength{Name: 20, Address: 50}
+
+			for _, r := range resp.Referrers {
+				if ml.Name < len(r.Name) {
+					ml.Name = len(r.Name)
+				}
+			}
+
+			fmt.Printf("%-*s | %-*s \n", ml.Name, "referrer name", ml.Address, "address")
+			fmt.Printf(strings.Repeat("-", ml.Name+ml.Address+4) + "\n")
+			for _, r := range resp.Referrers {
+				fmt.Printf(
+					"%-*s | %-*s "+"\n",
+					ml.Name, r.Name, ml.Address, loom.UnmarshalAddressPB(r.GetReferrerAddress()).String(),
+				)
+			}
+
 			return nil
 		},
 	}
@@ -1322,6 +1367,7 @@ func NewDPOSV3Command() *cobra.Command {
 		ListValidatorsCmdV3(),
 		ListDelegationsCmdV3(),
 		ListAllDelegationsCmdV3(),
+		ListReferrersCmdV3(),
 		UnregisterCandidateCmdV3(),
 		UpdateCandidateInfoCmdV3(),
 		DelegateCmdV3(),

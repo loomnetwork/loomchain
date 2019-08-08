@@ -176,6 +176,9 @@ func TestChangeParams(t *testing.T) {
 
 	stateResponse, err = dposContract.GetState(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &GetStateRequest{})
 	assert.Equal(t, stateResponse.State.Params.ElectionCycleLength, int64(100))
+
+	resp, err := dposContract.TimeUntilElection(contractpb.WrapPluginStaticContext(dposCtx.WithSender(addr2)), &TimeUntilElectionRequest{})
+	assert.Equal(t, stateResponse.State.Params.ElectionCycleLength, resp.TimeUntilElection)
 	assert.Equal(t, false, stateResponse.State.Params.JailOfflineValidators)
 
 	dposCtx.SetFeature(loomchain.DPOSVersion3_4, true)
@@ -822,6 +825,7 @@ func TestReward(t *testing.T) {
 	// checking that distribution is roughtly equal to 5% of delegation after one year
 	assert.Equal(t, rewardTotal.Cmp(&loom.BigUInt{big.NewInt(490000000000)}), 1)
 	assert.Equal(t, rewardTotal.Cmp(&loom.BigUInt{big.NewInt(510000000000)}), -1)
+
 }
 
 func TestElectWhitelists(t *testing.T) {
@@ -1500,6 +1504,7 @@ func TestReferrerRewards(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(validators), 1)
 
+	pctx.SetFeature(loomchain.DPOSVersion3_5, true)
 	del1Name := "del1"
 	// Register two referrers
 	err = dpos.RegisterReferrer(pctx.WithSender(addr1), delegatorAddress1, "del1")
@@ -1507,6 +1512,10 @@ func TestReferrerRewards(t *testing.T) {
 
 	err = dpos.RegisterReferrer(pctx.WithSender(addr1), delegatorAddress2, "del2")
 	require.Nil(t, err)
+
+	referrers, err := dpos.ListReferrers(pctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(referrers))
 
 	delegationAmount := big.NewInt(1e18)
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{
@@ -1707,7 +1716,7 @@ func TestRewardRoundingFix(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dpos.Delegate(pctx.WithSender(delegatorAddress4), &addr1, delegationAmount.Int, nil, &del5Name)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		require.NoError(t, elect(pctx, dpos.Address))

@@ -1,7 +1,6 @@
 package dposv3
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -56,6 +56,7 @@ const (
 var (
 	secondsInYear                    = loom.BigUInt{big.NewInt(yearSeconds)}
 	billionth                        = loom.BigUInt{big.NewInt(1000000000)}
+	defaultFee                       = uint64(2500) // 25%
 	defaultReferrerFee               = loom.BigUInt{big.NewInt(300)}
 	blockRewardPercentage            = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage        = loom.BigUInt{big.NewInt(500)}
@@ -108,6 +109,9 @@ type (
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
+	Referrer                          = dtypes.Referrer
+	ListReferrersRequest              = dtypes.ListReferrersRequest
+	ListReferrersResponse             = dtypes.ListReferrersResponse
 	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
 	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
@@ -197,6 +201,35 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.DowntimePeriod = defaultDowntimePeriod
 	}
 
+	candidates := &CandidateList{}
+	// if InitCandidates is true, whitelist validators and register them for candidates
+	if req.InitCandidates {
+		for i, validator := range req.Validators {
+			candidateAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+			newCandidate := &Candidate{
+				PubKey:                validator.PubKey,
+				Address:               candidateAddr.MarshalPB(),
+				Fee:                   defaultFee,
+				NewFee:                defaultFee,
+				Name:                  fmt.Sprintf("candidate-%d", i),
+				State:                 REGISTERED,
+				MaxReferralPercentage: defaultReferrerFee.Uint64(),
+			}
+			candidates.Set(newCandidate)
+			if err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
+				CandidateAddress: candidateAddr.MarshalPB(),
+				Amount:           params.RegistrationRequirement,
+				LocktimeTier:     TIER_ZERO,
+			}); err != nil {
+				return err
+			}
+		}
+
+		if err := saveCandidateList(ctx, *candidates); err != nil {
+			return err
+		}
+	}
+
 	state := &State{
 		Params:     params,
 		Validators: req.Validators,
@@ -206,7 +239,6 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		TotalValidatorDelegations: loom.BigZeroPB(),
 		TotalRewardDistribution:   loom.BigZeroPB(),
 	}
-
 	return saveState(ctx, state)
 }
 
@@ -235,7 +267,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	// Ensure that referrer value is meaningful
-	referrerAddress := GetReferrer(ctx, req.Referrer)
+	referrerAddress := getReferrer(ctx, req.Referrer)
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -290,8 +322,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 		Index:        index,
-		Referrer:     req.Referrer,
+		Referrer:     req.Referrer, // TODO: This should be a simple index/ID, not a string.
 	}
+
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
 	}
@@ -329,7 +362,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 
 		// Ensure that referrer value is meaningful
-		referrerAddress := GetReferrer(ctx, req.Referrer)
+		referrerAddress := getReferrer(ctx, req.Referrer)
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -1242,7 +1275,9 @@ func applyPowerCap(validators []*Validator) []*Validator {
 	return validators
 }
 
-func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
+func (c *DPOS) TimeUntilElection(
+	ctx contract.StaticContext, req *TimeUntilElectionRequest,
+) (*TimeUntilElectionResponse, error) {
 	ctx.Logger().Debug("DPOSv3 TimeUntilEleciton", "request", req)
 
 	state, err := LoadState(ctx)
@@ -1250,7 +1285,12 @@ func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElect
 		return nil, err
 	}
 
-	remainingTime := state.Params.ElectionCycleLength - (ctx.Now().Unix() - state.LastElectionTime)
+	var remainingTime int64
+	if state.Params.ElectionCycleLength > 0 {
+		remainingTime = state.Params.ElectionCycleLength -
+			((ctx.Now().Unix() - state.LastElectionTime) % state.Params.ElectionCycleLength)
+	}
+
 	return &TimeUntilElectionResponse{
 		TimeUntilElection: remainingTime,
 	}, nil
@@ -1349,6 +1389,24 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 
 	return &ListAllDelegationsResponse{
 		ListResponses: responses,
+	}, nil
+}
+
+func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
+	referrerRange := ctx.Range([]byte(referrerPrefix))
+	referrers := make([]*Referrer, 0, len(referrerRange))
+	for _, referrer := range referrerRange {
+		var addr types.Address
+		if err := proto.Unmarshal(referrer.Value, &addr); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal referrer %s", string(referrer.Key))
+		}
+		referrers = append(referrers, &Referrer{
+			ReferrerAddress: &addr,
+			Name:            string(referrer.Key),
+		})
+	}
+	return &ListReferrersResponse{
+		Referrers: referrers,
 	}, nil
 }
 
@@ -1642,7 +1700,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						}
 
 						// if referrer is not found, do not distribute the reward
-						referrerAddress := GetReferrer(ctx, delegation.Referrer)
+						referrerAddress := getReferrer(ctx, delegation.Referrer)
 						if referrerAddress == nil {
 							continue
 						}
@@ -2042,8 +2100,9 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	SetReferrer(ctx, req.Name, req.Address)
-
+	if err := setReferrer(ctx, req.Name, req.Address); err != nil {
+		return err
+	}
 	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
 }
 
