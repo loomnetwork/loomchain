@@ -3,7 +3,7 @@
   Delay = 1000
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 0}}"
@@ -41,7 +41,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 6 -k {{index $.NodePrivKeyPathList 0}}"
