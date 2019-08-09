@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -106,9 +107,47 @@ func GetStateCmdV3() *cobra.Command {
 	return cmd
 }
 
+func stringWithDecimal(s string, decimal int) (string, error) {
+	if decimal <= 0 {
+		return s, fmt.Errorf("invalid decimal %d", decimal)
+	}
+	if len(s) < 18 {
+		return s, nil
+	}
+	return s[:len(s)-decimal] + "." + s[len(s)-decimal:], nil
+}
+
+func formatTimeTier(tier string) string {
+	return LocktimeTier[tier]
+}
+
+func formatMissedBlockToPeriod(rcmb uint64) *periods {
+	return &periods{
+		Period_1: rcmb & 0xFFFF,
+		Period_2: (rcmb >> 16) & 0xFFFF,
+		Period_3: (rcmb >> 32) & 0xFFFF,
+		Period_4: (rcmb >> 48) & 0xFFFF,
+	}
+}
+
+type periods struct {
+	Period_1 uint64
+	Period_2 uint64
+	Period_3 uint64
+	Period_4 uint64
+}
+
 const listValidatorsCmdExample = `
 loom dpos3 list-validators
 `
+const decimal = 18
+
+var LocktimeTier = map[string]string{
+	"TIER_ZERO":  "2 weeks",
+	"TIER_ONE":   "3 months",
+	"TIER_TWO":   "6 months",
+	"TIER_THREE": "1 year",
+}
 
 func ListValidatorsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
@@ -124,11 +163,58 @@ func ListValidatorsCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+
+			type ValidatorStatistic struct {
+				Address               string
+				WhitelistAmount       string
+				LocktimeTier          string
+				DelegationTotal       string
+				SlashPercentage       string
+				RecentlyMissedBlocks  *periods
+				UpdateWhitelistAmount string
+				UpdateLocktimeTier    string
+				Jailed                bool
+			}
+			validatorStats := make([]ValidatorStatistic, len(resp.Statistics))
+			for i, s := range resp.Statistics {
+				if s.Address == nil {
+					validatorStats[i].Address = "nil"
+				} else {
+					validatorStats[i].Address = s.Address.Local.String()
+				}
+				if s.WhitelistAmount == nil {
+					validatorStats[i].WhitelistAmount = "nil"
+				} else {
+					validatorStats[i].WhitelistAmount, err = stringWithDecimal(s.WhitelistAmount.Value.String(), decimal)
+				}
+				if s.UpdateWhitelistAmount == nil {
+					validatorStats[i].UpdateWhitelistAmount = "nil"
+				} else {
+					validatorStats[i].UpdateWhitelistAmount, err = stringWithDecimal(s.UpdateWhitelistAmount.Value.String(), decimal)
+				}
+				if s.DelegationTotal == nil {
+					validatorStats[i].DelegationTotal = "nil"
+				} else {
+					validatorStats[i].DelegationTotal, err = stringWithDecimal(s.DelegationTotal.Value.String(), decimal)
+				}
+				validatorStats[i].Jailed = s.Jailed
+				validatorStats[i].LocktimeTier = formatTimeTier(s.LocktimeTier.String())
+				validatorStats[i].RecentlyMissedBlocks = formatMissedBlockToPeriod(s.RecentlyMissedBlocks)
+				if s.SlashPercentage == nil {
+					validatorStats[i].SlashPercentage = "nil"
+				} else {
+					validatorStats[i].SlashPercentage, err = stringWithDecimal(s.SlashPercentage.Value.String(), decimal)
+				}
+				validatorStats[i].UpdateLocktimeTier = formatTimeTier(s.UpdateLocktimeTier.String())
+				if err != nil {
+					return err
+				}
+			}
+			out, err := json.MarshalIndent(validatorStats, "", "  ")
 			if err != nil {
 				return err
 			}
-			fmt.Println(out)
+			fmt.Println(string(out))
 			return nil
 		},
 	}
