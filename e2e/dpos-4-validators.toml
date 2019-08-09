@@ -94,7 +94,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeddressList 1}}", "{{index $.NodeAddressList 2}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}", "{{index $.NodeAddressList 2}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unbond {{index $.NodeAddressList 0}} 0 0 -k {{index $.NodePrivKeyPathList 0}}"

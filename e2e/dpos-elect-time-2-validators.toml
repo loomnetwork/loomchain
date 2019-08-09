@@ -142,7 +142,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
-  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeddressList 1}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegator-rewards {{index $.NodeAddressList 0}}"
@@ -162,7 +162,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "contains"
-  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeddressList 1}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegator-rewards {{index $.NodeAddressList 0}}"
