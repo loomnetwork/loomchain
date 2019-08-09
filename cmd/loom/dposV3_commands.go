@@ -118,6 +118,12 @@ func stringWithDecimal(s string, decimal int) (string, error) {
 }
 
 func formatTimeTier(tier string) string {
+	var LocktimeTier = map[string]string{
+		"TIER_ZERO":  "2 weeks",
+		"TIER_ONE":   "3 months",
+		"TIER_TWO":   "6 months",
+		"TIER_THREE": "1 year",
+	}
 	return LocktimeTier[tier]
 }
 
@@ -141,13 +147,6 @@ const listValidatorsCmdExample = `
 loom dpos3 list-validators
 `
 const decimal = 18
-
-var LocktimeTier = map[string]string{
-	"TIER_ZERO":  "2 weeks",
-	"TIER_ONE":   "3 months",
-	"TIER_TWO":   "6 months",
-	"TIER_THREE": "1 year",
-}
 
 func ListValidatorsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
@@ -175,6 +174,10 @@ func ListValidatorsCmdV3() *cobra.Command {
 				UpdateLocktimeTier    string
 				Jailed                bool
 			}
+			type Statistics struct {
+				Statistics []ValidatorStatistic
+			}
+
 			validatorStats := make([]ValidatorStatistic, len(resp.Statistics))
 			for i, s := range resp.Statistics {
 				if s.Address == nil {
@@ -210,7 +213,10 @@ func ListValidatorsCmdV3() *cobra.Command {
 					return err
 				}
 			}
-			out, err := json.MarshalIndent(validatorStats, "", "  ")
+			formattedResp := &Statistics{
+				Statistics: validatorStats,
+			}
+			out, err := json.MarshalIndent(formattedResp, "", "  ")
 			if err != nil {
 				return err
 			}
@@ -240,11 +246,98 @@ func ListCandidatesCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+
+			type CandidateStatistic struct {
+				ValidatorAddress      string
+				WhitelistAmount       string
+				LockTimeTier          string
+				DelegationTotal       string
+				SlashPercentage       string
+				RecentlyMissedBlock   *periods
+				UpdateWhitelistAmount string
+				UpdateLocktimeTier    string
+				Jailed                bool
+				CandidateAddress      string
+				PubKey                []byte
+				Fee                   string
+				NewFee                string
+				State                 string
+				Name                  string
+				Description           string
+				Website               string
+				MaxReferralPercentage uint64
+			}
+			type Statistics struct {
+				Statistics []CandidateStatistic
+			}
+
+			candidateStats := make([]CandidateStatistic, len(resp.Candidates))
+			for i, c := range resp.Candidates {
+				if c.Statistic == nil {
+					continue
+				}
+				if c.Candidate == nil {
+					continue
+				}
+				if c.Statistic.Address == nil {
+					candidateStats[i].ValidatorAddress = "nil"
+				} else {
+					candidateStats[i].ValidatorAddress = c.Statistic.Address.Local.String()
+				}
+				if c.Statistic.WhitelistAmount == nil {
+					candidateStats[i].WhitelistAmount = "nil"
+				} else {
+					candidateStats[i].WhitelistAmount, err = stringWithDecimal(c.Statistic.WhitelistAmount.Value.String(), decimal)
+				}
+				candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
+				if c.Statistic.DelegationTotal == nil {
+					candidateStats[i].DelegationTotal = "nil"
+				} else {
+					candidateStats[i].DelegationTotal, err = stringWithDecimal(c.Statistic.DelegationTotal.Value.String(), decimal)
+				}
+				if c.Statistic.SlashPercentage == nil {
+					candidateStats[i].SlashPercentage = "nil"
+				} else {
+					candidateStats[i].SlashPercentage = c.Statistic.SlashPercentage.Value.String()
+				}
+				candidateStats[i].RecentlyMissedBlock = formatMissedBlockToPeriod(c.Statistic.RecentlyMissedBlocks)
+				if c.Statistic.UpdateWhitelistAmount == nil {
+					candidateStats[i].UpdateWhitelistAmount = "nil"
+				} else {
+					candidateStats[i].UpdateWhitelistAmount, err = stringWithDecimal(c.Statistic.UpdateLocktimeTier.String(), decimal)
+				}
+				candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
+				candidateStats[i].Jailed = c.Statistic.Jailed
+				if c.Candidate.Address == nil {
+					candidateStats[i].CandidateAddress = "nil"
+				} else {
+					candidateStats[i].CandidateAddress = c.Candidate.Address.Local.String()
+				}
+				if c.Candidate.PubKey == nil {
+					candidateStats[i].PubKey = []byte{0}
+				} else {
+					candidateStats[i].PubKey = c.Candidate.PubKey
+				}
+				candidateStats[i].Fee = strconv.FormatUint(c.Candidate.Fee, 10)
+				candidateStats[i].NewFee = strconv.FormatUint(c.Candidate.NewFee, 10)
+				candidateStats[i].State = c.Candidate.State.String()
+				candidateStats[i].Name = c.Candidate.Name
+				candidateStats[i].Description = c.Candidate.Description
+				candidateStats[i].Website = c.Candidate.Website
+				candidateStats[i].MaxReferralPercentage = c.Candidate.MaxReferralPercentage
+			}
 			if err != nil {
 				return err
 			}
-			fmt.Println(out)
+
+			formattedResp := &Statistics{
+				Statistics: candidateStats,
+			}
+			out, err := json.MarshalIndent(formattedResp, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(out))
 			return nil
 		},
 	}

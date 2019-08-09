@@ -92,7 +92,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
-  Expected = ["jailed\": true"]
+  Expected = ["Jailed\": true"]
 
 # check downtime periods before unjailing the validator
 [[TestCases]]
@@ -112,6 +112,6 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "excludes"
-  Excluded = ["jailed\": true"]
+  Excluded = ["Jailed\": true"]
 
 
