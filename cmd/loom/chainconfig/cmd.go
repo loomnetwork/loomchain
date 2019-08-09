@@ -483,6 +483,7 @@ func SetSettingCmd() *cobra.Command {
 
 			// validate value
 			invalidValueTypeError := errors.New("invalid value type")
+			invalidSettingName := errors.New("invalid setting name")
 			switch valueType {
 			case "string":
 				if len(value) == 0 {
@@ -500,6 +501,10 @@ func SetSettingCmd() *cobra.Command {
 				}
 			default:
 				return invalidValueTypeError
+			}
+
+			if args[0] != "AppStore.NumEvmKeysToPrune" {
+				return invalidSettingName
 			}
 
 			req := &cctype.SetSettingRequest{

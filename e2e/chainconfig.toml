@@ -250,18 +250,18 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg set-setting NonExist.Config --value 777 --type uint64 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "excludes"
-  Excluded = ["Error"]
+  Condition = "contains"
+  Expected = ["invalid setting name"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg set-setting NonExistConfig --value 777 --type uint64 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "excludes"
-  Excluded = ["Error"]
+  Condition = "contains"
+  Expected = ["invalid setting name"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg set-setting NonExistConfig --value abcd --type uint64 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ["invalid"]
+  Expected = ["invalid value type"]
 
 # wait for block height to increase at least 1 blocks
 [[TestCases]]

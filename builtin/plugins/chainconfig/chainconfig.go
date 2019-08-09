@@ -87,13 +87,13 @@ var (
 	// by majority of validators, and has not been activated on the chain.
 	ErrFeatureNotEnabled = errors.New("[ChainConfig] feature not enabled")
 
-	// ErrConfigChangeNotSupported inidicates that config change is not supported in the current build
+	// ErrConfigChangeNotSupported indicates that config change is not supported in the current build
 	ErrConfigChangeNotSupported = errors.New("[ChainConfig] config change is not supported in the current build")
 )
 
 const (
 	featurePrefix       = "ft"
-	actionPrefix        = "action"
+	actionPrefix        = "act"
 	ownerRole           = "owner"
 	validatorInfoPrefix = "vi"
 )
@@ -109,7 +109,7 @@ func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
-func ActionKey(actionName string) []byte {
+func actionKey(actionName string) []byte {
 	return util.PrefixKey([]byte(actionPrefix), []byte(actionName))
 }
 
@@ -366,8 +366,8 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
-// GetPendingActions returns a list of actions that are supported by majority of validators
-func GetPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, error) {
+// HarvestPendingActions returns a list of actions that are supported by majority of validators
+func HarvestPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, error) {
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
@@ -400,6 +400,7 @@ func GetPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, err
 				return nil, ErrConfigChangeNotSupported
 			}
 			actions = append(actions, &action)
+			ctx.Delete(actionKey(action.Name))
 		}
 	}
 
@@ -423,7 +424,7 @@ func (c *ChainConfig) ListPendingActions(ctx contract.StaticContext, req *ListPe
 	}, nil
 }
 
-// SetAction should be called by a contract owner to set a new action to change config setting
+// SetSetting should be called by a contract owner to set a new action to change config setting
 func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) error {
 	if req.Name == "" || req.Value == "" {
 		return ErrInvalidRequest
@@ -444,7 +445,7 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 		BuildNumber: req.BuildNumber,
 	}
 
-	return ctx.Set(ActionKey(req.Name), action)
+	return ctx.Set(actionKey(req.Name), action)
 }
 
 func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {

@@ -64,16 +64,15 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 }
 
 func (c *ChainConfigManager) UpdateConfig() error {
-	settings, err := chainconfig.GetPendingActions(c.ctx, c.build)
+	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
 	if err != nil {
 		return err
 	}
 
 	for _, setting := range settings {
-		if err := c.state.SetConfigSetting(setting); err != nil {
-			c.ctx.Logger().Info("failed to apply config change", "key", setting.Name, "err", err)
+		if err := c.state.ChangeConfigSetting(setting); err != nil {
+			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
 		}
-		c.ctx.Delete(chainconfig.ActionKey(setting.Name))
 	}
 	return nil
 }

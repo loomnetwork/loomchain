@@ -45,7 +45,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	SetConfigSetting(*cctypes.Action) error
+	ChangeConfigSetting(*cctypes.Action) error
 }
 
 type StoreState struct {
@@ -172,7 +172,7 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) SetConfigSetting(action *cctypes.Action) error {
+func (s *StoreState) ChangeConfigSetting(action *cctypes.Action) error {
 	if err := config.SetConfigSetting(s.config, action.Name, action.Value); err != nil {
 		return err
 	}
