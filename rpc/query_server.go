@@ -747,7 +747,8 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
-		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
+		// if receipt is not found, create it from TxObj
+		resp, err := createTransactionReceiptByTxObj(snapshot, s.BlockStore, r, txHash)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
 				// return nil response if cannot find hash
@@ -757,7 +758,6 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		}
 		return resp, nil
 	}
-	snapshot.Release()
 
 	height := int64(txReceipt.BlockNumber)
 	blockResult, err := s.BlockStore.GetBlockByHeight(&height)
@@ -1080,7 +1080,7 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	}
 }
 
-func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
+func createTransactionReceiptByTxObj(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
 		return nil, err
@@ -1093,28 +1093,22 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	if err != nil {
 		return nil, err
 	}
-	txHash, err := eth.DecDataToBytes(txObj.Hash)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid loom transaction hash %x", txObj.Hash)
-	}
-	txReceipt, err := rh.GetReceipt(txHash)
-	if err != nil {
-		jsonReceipt := eth.TxObjToReceipt(txObj, contractAddr)
-		if txResults.TxResult.Code == abci.CodeTypeOK {
-			jsonReceipt.Status = eth.EncInt(int64(StatusTxSuccess))
-		} else {
-			jsonReceipt.Status = eth.EncInt(int64(StatusTxFail))
-		}
-		if txResults.TxResult.Info == utils.CallEVM || txResults.TxResult.Info == utils.CallPlugin {
-			if jsonReceipt.To == nil || len(*jsonReceipt.To) == 0 {
-				jsonReceipt.To = jsonReceipt.ContractAddress
-			}
-			jsonReceipt.ContractAddress = nil
-		}
 
-		return &jsonReceipt, nil
+	jsonReceipt := eth.TxObjToReceipt(txObj, contractAddr)
+	if txResults.TxResult.Code == abci.CodeTypeOK {
+		jsonReceipt.Status = eth.EncInt(int64(StatusTxSuccess))
+	} else {
+		jsonReceipt.Status = eth.EncInt(int64(StatusTxFail))
 	}
-	return completeReceipt(txResults, blockResult, &txReceipt), nil
+	if txResults.TxResult.Info == utils.CallEVM || txResults.TxResult.Info == utils.CallPlugin {
+		if jsonReceipt.To == nil || len(*jsonReceipt.To) == 0 {
+			jsonReceipt.To = jsonReceipt.ContractAddress
+		}
+		jsonReceipt.ContractAddress = nil
+	}
+
+	return &jsonReceipt, nil
+
 }
 
 func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) *eth.JsonTxReceipt {
