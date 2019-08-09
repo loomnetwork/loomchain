@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -20,11 +19,10 @@ import (
 )
 
 const (
-	loomExeEv       = "LOOMEXE_PATH"
-	loomExe2Ev      = "LOOMEXE_ALTPATH"
-	validatorsEv    = "VALIDATORS"
-	altValidatorsEv = "ALT_VALIDATORS"
-	checkAppHash    = "CHECK_APP_HASH"
+	loomExeEv               = "LOOMEXE_PATH"
+	loomExe2Ev              = "LOOMEXE_ALTPATH"
+	checkAppHash            = "CHECK_APP_HASH"
+	minRatioForAppHashCheck = float32(3)
 )
 
 var (
@@ -60,35 +58,17 @@ func NewConfig(
 		loomPath2 = defatulLoomPath2
 	}
 
-	var err error
-	evValidators := uint64(0)
-	validatorsEv := os.Getenv(validatorsEv)
-	if len(validatorsEv) > 0 {
-		evValidators, err = strconv.ParseUint(validatorsEv, 0, 64)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	evAltValidators := uint64(0)
-	altValidatorsEv := os.Getenv(altValidatorsEv)
-	if len(altValidatorsEv) > 0 {
-		evAltValidators, err = strconv.ParseUint(altValidatorsEv, 0, 32)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	v, altV := splitValidators(uint64(validators), evValidators, evAltValidators)
+	v, altV := splitValidators(uint64(validators))
 
 	return GenerateConfig(
 		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, loomPath2,
-		int(v), int(altV), account, numEthAccounts,
+		v, altV,
+		account, numEthAccounts,
 		useFnConsensus, *Force, checkAppHash,
 	)
 }
 
-func splitValidators(validators, evValidators, evAltValidators uint64) (uint64, uint64) {
+func splitValidators(validators uint64) (uint64, uint64) {
 	if validators == 0 {
 		return 0, 0
 	}
@@ -97,20 +77,21 @@ func splitValidators(validators, evValidators, evAltValidators uint64) (uint64, 
 		return 1, 0
 	}
 
-	if validators >= evValidators+evAltValidators {
-		return validators - evAltValidators, evAltValidators
-	}
+	return validators - 1, 1
+}
 
-	if validators <= evValidators+1 {
-		return validators - 1, 1
+func doCheckAppHash(checkAppHash bool, validators, altValidators uint64) bool {
+	if !checkAppHash || validators == 0 || altValidators == 0 {
+		return false
 	}
-
-	return evValidators, validators - evValidators
+	return float32(validators)/float32(altValidators) >= minRatioForAppHashCheck ||
+		float32(altValidators)/float32(validators) >= minRatioForAppHashCheck
 }
 
 func GenerateConfig(
 	name, testFile, genesisTmpl, yamlFile, basedir, contractdir, loompath, loompath2 string,
-	validators, altValidators, account, numEthAccounts int,
+	validators, altValidators uint64,
+	account, numEthAccounts int,
 	useFnConsensus, force, checkAppHash bool,
 ) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(basedir, name))
@@ -190,7 +171,7 @@ func GenerateConfig(
 	}
 
 	var nodes []*node.Node
-	for i := 0; i < validators; i++ {
+	for i := uint64(0); i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisTmpl, yamlFile)
 		n.LogLevel = *logLevel
 		n.LogDestination = *logDest
@@ -217,6 +198,8 @@ func GenerateConfig(
 		nodes = append(nodes, n)
 		fmt.Printf("Node %v running %s\n", i, loompath2)
 	}
+
+	conf.CheckAppHash = doCheckAppHash(checkAppHash, uint64(validators), uint64(altValidators))
 
 	for _, n := range nodes {
 		if err := n.Init(accounts); err != nil {

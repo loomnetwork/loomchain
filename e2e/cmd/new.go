@@ -7,7 +7,8 @@ import (
 )
 
 func newNewCommand() *cobra.Command {
-	var validators, altValidators, k, numEthAccounts int
+	var validators, altValidators uint64
+	var k, numEthAccounts int
 	var basedir, contractdir, loompath, loompath2, name string
 	var logLevel, logDest string
 	var genesisFile, configFile string
@@ -22,7 +23,8 @@ func newNewCommand() *cobra.Command {
 		RunE: func(ccmd *cobra.Command, args []string) error {
 			_, err := common.GenerateConfig(
 				name, "", genesisFile, configFile, basedir, contractdir, loompath, loompath2,
-				validators, altValidators, k, numEthAccounts,
+				validators, altValidators,
+				k, numEthAccounts,
 				useFnConsensus, force, checkAppHash,
 			)
 			return err
@@ -30,8 +32,8 @@ func newNewCommand() *cobra.Command {
 	}
 
 	flags := command.Flags()
-	flags.IntVarP(&validators, "validators", "n", 4, "The number of validators")
-	flags.IntVarP(&altValidators, "alt-validators", "m", 0, "The number of validators on alternate build")
+	flags.Uint64VarP(&validators, "validators", "n", 4, "The number of validators")
+	flags.Uint64VarP(&altValidators, "alt-validators", "m", 0, "The number of validators on alternate build")
 	flags.StringVar(&name, "name", "default", "Cluster name")
 	flags.StringVar(&basedir, "base-dir", "", "Base directory")
 	flags.StringVar(&contractdir, "contract-dir", "contracts", "Contract directory")
