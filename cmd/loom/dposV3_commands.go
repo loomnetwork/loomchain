@@ -273,58 +273,56 @@ func ListCandidatesCmdV3() *cobra.Command {
 
 			candidateStats := make([]CandidateStatistic, len(resp.Candidates))
 			for i, c := range resp.Candidates {
-				if c.Statistic == nil {
-					continue
+				if c.Statistic != nil {
+					if c.Statistic.Address == nil {
+						candidateStats[i].ValidatorAddress = "nil"
+					} else {
+						candidateStats[i].ValidatorAddress = c.Statistic.Address.Local.String()
+					}
+					if c.Statistic.WhitelistAmount == nil {
+						candidateStats[i].WhitelistAmount = "nil"
+					} else {
+						candidateStats[i].WhitelistAmount, err = stringWithDecimal(c.Statistic.WhitelistAmount.Value.String(), decimal)
+					}
+					candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
+					if c.Statistic.DelegationTotal == nil {
+						candidateStats[i].DelegationTotal = "nil"
+					} else {
+						candidateStats[i].DelegationTotal, err = stringWithDecimal(c.Statistic.DelegationTotal.Value.String(), decimal)
+					}
+					if c.Statistic.SlashPercentage == nil {
+						candidateStats[i].SlashPercentage = "nil"
+					} else {
+						candidateStats[i].SlashPercentage = c.Statistic.SlashPercentage.Value.String()
+					}
+					candidateStats[i].RecentlyMissedBlock = formatMissedBlockToPeriod(c.Statistic.RecentlyMissedBlocks)
+					if c.Statistic.UpdateWhitelistAmount == nil {
+						candidateStats[i].UpdateWhitelistAmount = "nil"
+					} else {
+						candidateStats[i].UpdateWhitelistAmount, err = stringWithDecimal(c.Statistic.UpdateLocktimeTier.String(), decimal)
+					}
+					candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
+					candidateStats[i].Jailed = c.Statistic.Jailed
 				}
-				if c.Candidate == nil {
-					continue
+				if c.Candidate != nil {
+					if c.Candidate.Address == nil {
+						candidateStats[i].CandidateAddress = "nil"
+					} else {
+						candidateStats[i].CandidateAddress = c.Candidate.Address.Local.String()
+					}
+					if c.Candidate.PubKey == nil {
+						candidateStats[i].PubKey = []byte{0}
+					} else {
+						candidateStats[i].PubKey = c.Candidate.PubKey
+					}
+					candidateStats[i].Fee = strconv.FormatUint(c.Candidate.Fee, 10)
+					candidateStats[i].NewFee = strconv.FormatUint(c.Candidate.NewFee, 10)
+					candidateStats[i].State = c.Candidate.State.String()
+					candidateStats[i].Name = c.Candidate.Name
+					candidateStats[i].Description = c.Candidate.Description
+					candidateStats[i].Website = c.Candidate.Website
+					candidateStats[i].MaxReferralPercentage = c.Candidate.MaxReferralPercentage
 				}
-				if c.Statistic.Address == nil {
-					candidateStats[i].ValidatorAddress = "nil"
-				} else {
-					candidateStats[i].ValidatorAddress = c.Statistic.Address.Local.String()
-				}
-				if c.Statistic.WhitelistAmount == nil {
-					candidateStats[i].WhitelistAmount = "nil"
-				} else {
-					candidateStats[i].WhitelistAmount, err = stringWithDecimal(c.Statistic.WhitelistAmount.Value.String(), decimal)
-				}
-				candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
-				if c.Statistic.DelegationTotal == nil {
-					candidateStats[i].DelegationTotal = "nil"
-				} else {
-					candidateStats[i].DelegationTotal, err = stringWithDecimal(c.Statistic.DelegationTotal.Value.String(), decimal)
-				}
-				if c.Statistic.SlashPercentage == nil {
-					candidateStats[i].SlashPercentage = "nil"
-				} else {
-					candidateStats[i].SlashPercentage = c.Statistic.SlashPercentage.Value.String()
-				}
-				candidateStats[i].RecentlyMissedBlock = formatMissedBlockToPeriod(c.Statistic.RecentlyMissedBlocks)
-				if c.Statistic.UpdateWhitelistAmount == nil {
-					candidateStats[i].UpdateWhitelistAmount = "nil"
-				} else {
-					candidateStats[i].UpdateWhitelistAmount, err = stringWithDecimal(c.Statistic.UpdateLocktimeTier.String(), decimal)
-				}
-				candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
-				candidateStats[i].Jailed = c.Statistic.Jailed
-				if c.Candidate.Address == nil {
-					candidateStats[i].CandidateAddress = "nil"
-				} else {
-					candidateStats[i].CandidateAddress = c.Candidate.Address.Local.String()
-				}
-				if c.Candidate.PubKey == nil {
-					candidateStats[i].PubKey = []byte{0}
-				} else {
-					candidateStats[i].PubKey = c.Candidate.PubKey
-				}
-				candidateStats[i].Fee = strconv.FormatUint(c.Candidate.Fee, 10)
-				candidateStats[i].NewFee = strconv.FormatUint(c.Candidate.NewFee, 10)
-				candidateStats[i].State = c.Candidate.State.String()
-				candidateStats[i].Name = c.Candidate.Name
-				candidateStats[i].Description = c.Candidate.Description
-				candidateStats[i].Website = c.Candidate.Website
-				candidateStats[i].MaxReferralPercentage = c.Candidate.MaxReferralPercentage
 			}
 			if err != nil {
 				return err
