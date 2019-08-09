@@ -88,7 +88,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "excludes"
-  Excluded = ["{{index $.NodePubKeyList 1}}"]
+  Excludeds = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
