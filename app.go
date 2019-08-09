@@ -618,11 +618,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
-		if !isCheckTx && state.FeatureEnabled(EvmTxReceiptsVersion2_1Feature, false) {
-			receiptHandler.CommitCurrentReceipt()
-		} else {
-			receiptHandler.DiscardCurrentReceipt()
-		}
+		receiptHandler.CommitCurrentReceipt()
 		storeTx.Rollback()
 		return r, err
 	}
