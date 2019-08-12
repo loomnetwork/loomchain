@@ -62,6 +62,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 			logger.Error("Error closing WebSocket read pump", "err", err)
 		}
 	}()
+
 	c.conn.SetReadLimit(maxMessageSize)
 	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { _ = c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
@@ -115,6 +116,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 		}
 
 	}()
+
 	for {
 		select {
 		case message, ok := <-c.send:
