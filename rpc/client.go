@@ -55,11 +55,11 @@ type Client struct {
 func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("Websocket write panicked", "err", r)
+			logger.Error("WebSocket read panicked", "err", r)
 		}
 		c.hub.unregister <- c
 		if err := c.conn.Close(); err != nil {
-			logger.Error("Error closing WebSocket read pump", "err", err)
+			logger.Error("Failed to close WebSocket (read pump)", "err", err)
 		}
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -73,9 +73,9 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 				websocket.CloseGoingAway,
 				websocket.CloseAbnormalClosure,
 			) {
-				logger.Error("WebSocket unexpected close error", "err", err)
+				logger.Error("Failed to read from closed WebSocket", "err", err)
 			} else {
-				logger.Debug("WebSocket close request", "err", err)
+				logger.Debug("Failed to read WebSocket", "err", err)
 			}
 			return
 		}
@@ -83,7 +83,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 		outBytes, ethError := handleMessage(message, funcMap, c.conn)
 
 		if ethError != nil {
-			logger.Error("error handling message", "err", ethError.Error())
+			logger.Error("Failed to handle WebSocket message (read pump)", "err", ethError.Error())
 			resp := eth.JsonRpcErrorResponse{
 				Version: "2.0",
 				Error:   *ethError,
@@ -111,7 +111,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 		}
 		ticker.Stop()
 		if err := c.conn.Close(); err != nil {
-			logger.Error("Error closing WebSocket write pump", "err", err)
+			logger.Error("Failed to close WebSocket (write pump)", "err", err)
 		}
 
 	}()
@@ -120,19 +120,19 @@ func (c *Client) writePump(logger log.TMLogger) {
 		case message, ok := <-c.send:
 			if !ok {
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					logger.Error("error writing close message to WebSocket", "err", err)
+					logger.Error("Failed to write close message to WebSocket", "err", err)
 				}
 				return
 			}
 			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				logger.Error("error setting write deadline", "err", err)
+				logger.Error("Failed to set write deadline on WebSocket", "err", err)
 			}
 
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				if err != io.ErrClosedPipe {
-					logger.Error("error writing message to WebSocket", "err", err)
+					logger.Error("Failed to write message to WebSocket", "err", err)
 				} else {
-					logger.Debug("WebSocket connection closed", "err", err)
+					logger.Debug("Failed to write message to closed WebSocket", "err", err)
 				}
 				return
 			}
@@ -142,9 +142,9 @@ func (c *Client) writePump(logger log.TMLogger) {
 				msg := <-c.send
 				if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 					if err != io.ErrClosedPipe {
-						logger.Error("error writing message to WebSocket", "err", err)
+						logger.Error("Failed to write message to WebSocket", "err", err)
 					} else {
-						logger.Debug("WebSocket connection closed", "err", err)
+						logger.Debug("Failed to write message to closed WebSocket", "err", err)
 					}
 					return
 				}
@@ -152,7 +152,7 @@ func (c *Client) writePump(logger log.TMLogger) {
 		case <-ticker.C:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				logger.Error("error writing ping message to WebSocket", "err", err)
+				logger.Error("Failed to write ping message to WebSocket", "err", err)
 				return
 			}
 		}
