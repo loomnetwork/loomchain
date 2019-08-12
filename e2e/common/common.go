@@ -64,7 +64,7 @@ func NewConfig(
 		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, loomPath2,
 		v, altV,
 		account, numEthAccounts,
-		useFnConsensus, *Force, checkAppHash,
+		useFnConsensus, *Force, doCheckAppHash(checkAppHash, uint64(v), uint64(altV)),
 	)
 }
 
@@ -199,8 +199,6 @@ func GenerateConfig(
 		fmt.Printf("Node %v running %s\n", i, loompath2)
 	}
 
-	conf.CheckAppHash = doCheckAppHash(checkAppHash, uint64(validators), uint64(altValidators))
-
 	for _, n := range nodes {
 		if err := n.Init(accounts); err != nil {
 			return nil, err
@@ -324,7 +322,9 @@ func runTests(ctx context.Context, config lib.Config, tc lib.Tests, eventC chan 
 	e := engine.NewCmd(config, tc)
 
 	nctx, cancel := context.WithCancel(ctx)
-	go func() { errC <- e.Run(nctx, eventC) }()
+	go func() {
+		errC <- e.Run(nctx, eventC)
+	}()
 
 	for {
 		select {
