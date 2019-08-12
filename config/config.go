@@ -78,6 +78,7 @@ type Config struct {
 	LogStateDB         bool
 	LogEthDbBatch      bool
 	Metrics            *Metrics
+	Testing            bool
 
 	//ChainConfig
 	ChainConfig *ChainConfigConfig
@@ -380,6 +381,7 @@ func DefaultConfig() *Config {
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
+		Testing:                    false,
 
 		Oracle:                 "",
 		DeployEnabled:          true,
@@ -595,6 +597,10 @@ DeployerWhitelist:
 #
 UserDeployerWhitelist:
   ContractEnabled: {{ .UserDeployerWhitelist.ContractEnabled }}
+#
+# Testing
+#
+Testing: {{ .Testing }}
 
 #
 # Plasma Cash

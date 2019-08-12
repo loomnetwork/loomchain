@@ -9,7 +9,12 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	glplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/db"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/log"
@@ -18,30 +23,48 @@ import (
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/db"
 )
 
 // TODO: This duplicates a lot of the contract loading & deployment code, it should just use the
 //       mock context, or if that's not sufficient the contract loading code may need to be
 //       refactored to make it possible to eliminate these helpers.
 
+type MockContractDetails struct {
+	Name     string
+	Version  string
+	Init     interface{}
+	Contract glplugin.Contract
+}
+
 func MockStateWithKarmaAndCoinT(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest) (loomchain.State, registry.Registry, vm.VM) {
 	appDb := db.NewMemDB()
-	state, reg, pluginVm, err := MockStateWithKarmaAndCoin(karmaInit, coinInit, appDb)
+	state, reg, manager, err := MockStateWithContracts(
+		appDb,
+		MockContractDetails{"karma", "1.0.0", karmaInit, Contract},
+		MockContractDetails{"coin", "1.0.0", coinInit, coin.Contract},
+	)
+
+	require.NoError(t, err)
+	pluginVm, err := manager.InitVM(vm.VMType_PLUGIN, state)
 	require.NoError(t, err)
 	return state, reg, pluginVm
 }
 
 func MockStateWithKarmaAndCoinB(b *testing.B, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDbName string) (loomchain.State, registry.Registry, vm.VM) {
-	appDb, err := db.NewGoLevelDB(appDbName, ".")
-	state, reg, pluginVm, err := MockStateWithKarmaAndCoin(karmaInit, coinInit, appDb)
+	appDb := db.NewMemDB()
+	state, reg, manager, err := MockStateWithContracts(
+		appDb,
+		MockContractDetails{"karma", "1.0.0", karmaInit, Contract},
+		MockContractDetails{"coin", "1.0.0", coinInit, coin.Contract},
+	)
+
+	require.NoError(b, err)
+	pluginVm, err := manager.InitVM(vm.VMType_PLUGIN, state)
 	require.NoError(b, err)
 	return state, reg, pluginVm
 }
 
-func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDb db.DB) (loomchain.State, registry.Registry, vm.VM, error) {
+func MockStateWithContracts(appDb db.DB, contracts ...MockContractDetails) (loomchain.State, registry.Registry, *vm.Manager, error) {
 	appStore, err := store.NewIAVLStore(appDb, 0, 0, 0)
 	if err != nil {
 		return nil, nil, nil, err
@@ -56,7 +79,13 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	loader := plugin.NewStaticLoader(Contract, coin.Contract)
+
+	loadList := []glplugin.Contract{}
+	for _, contract := range contracts {
+		loadList = append(loadList, contract.Contract)
+	}
+	loader := &plugin.StaticLoader{Contracts: loadList}
+
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
 		return plugin.NewPluginVM(loader, state, reg, &FakeEventHandler{}, log.Default, nil, nil, nil), nil
 	})
@@ -65,46 +94,26 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 		return nil, nil, nil, err
 	}
 
-	if karmaInit != nil {
-		karmaCode, err := json.Marshal(karmaInit)
+	for i, contract := range contracts {
+		code, err := json.Marshal(contract.Init)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		karmaInitCode, err := LoadContractCode("karma:1.0.0", karmaCode)
+		initCode, err := LoadContractCode(contract.Name+":"+contract.Version, code)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		callerAddr := plugin.CreateAddress(loom.RootAddress("chain"), uint64(0))
-		_, karmaAddr, err := pluginVm.Create(callerAddr, karmaInitCode, loom.NewBigUIntFromInt(0))
+		callerAddr := plugin.CreateAddress(loom.RootAddress("chain"), uint64(i))
+		_, addr, err := pluginVm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		err = reg.Register("karma", karmaAddr, karmaAddr)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-	}
-
-	if coinInit != nil {
-		coinCode, err := json.Marshal(coinInit)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		coinInitCode, err := LoadContractCode("coin:1.0.0", coinCode)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		callerAddr := plugin.CreateAddress(loom.RootAddress("chain"), uint64(1))
-		_, coinAddr, err := pluginVm.Create(callerAddr, coinInitCode, loom.NewBigUIntFromInt(0))
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		err = reg.Register("coin", coinAddr, coinAddr)
+		err = reg.Register(contract.Name, addr, addr)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 	}
-	return state, reg, pluginVm, nil
+	return state, reg, vmManager, nil
 }
 
 // copied from PluginCodeLoader.LoadContractCode maybe move PluginCodeLoader to separate package
