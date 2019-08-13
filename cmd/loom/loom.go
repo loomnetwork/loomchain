@@ -642,7 +642,8 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		logger.Info("Loading Multi-Writer App Store")
 		appStore, err = store.LoadMultiWriterAppStore(
 			cfg.AppStore, cfg.EvmStore, db, targetVersion,
-			cfg.Metrics.Database, cfg.RootPath())
+			cfg.Metrics.Database, cfg.RootPath(),
+		)
 		if err != nil {
 			return nil, err
 		}
