@@ -39,6 +39,7 @@ const (
 
 	ElectionEventTopic               = "dposv3:election"
 	SlashEventTopic                  = "dposv3:slash"
+	SlashDelegationEventTopic        = "dposv3:slashdelegation"
 	JailEventTopic                   = "dposv3:jail"
 	UnjailEventTopic                 = "dposv3:unjail"
 	CandidateRegistersEventTopic     = "dposv3:candidateregisters"
@@ -141,6 +142,7 @@ type (
 
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
+	DposSlashDelegationEvent        = dtypes.DposSlashDelegationEvent
 	DposJailEvent                   = dtypes.DposJailEvent
 	DposUnjailEvent                 = dtypes.DposUnjailEvent
 	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
@@ -1837,6 +1839,11 @@ func slashValidatorDelegations(
 			if err := cachedDelegations.SetDelegation(ctx, delegation); err != nil {
 				return err
 			}
+			if err := emitSlashDelegationEvent(
+				ctx, delegation.Validator, delegation.Amount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage, false,
+			); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1848,6 +1855,11 @@ func slashValidatorDelegations(
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
+		if err := emitSlashDelegationEvent(
+			ctx, validatorAddress.MarshalPB(), statistic.WhitelistAmount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage, true,
+		); err != nil {
+			return err
+		}
 	}
 
 	// reset slash total
@@ -2433,6 +2445,24 @@ func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercent
 	}
 
 	ctx.EmitTopics(marshalled, SlashEventTopic)
+	return nil
+}
+
+func emitSlashDelegationEvent(
+	ctx contract.Context, address *types.Address, delegationAmount *types.BigUInt, slashAmount *types.BigUInt, slashPercentage *types.BigUInt, whitelistDelegation bool,
+) error {
+	marshalled, err := proto.Marshal(&DposSlashDelegationEvent{
+		Validator:           address,
+		DelegationAmount:    delegationAmount,
+		SlashAmount:         slashAmount,
+		SlashPercentage:     slashPercentage,
+		WhitelistDelegation: whitelistDelegation,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, SlashDelegationEventTopic)
 	return nil
 }
 
