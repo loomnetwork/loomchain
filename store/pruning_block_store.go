@@ -81,7 +81,7 @@ func (bs *PruningBlockStore) Prune() error {
 		bs.prunedBlockStoreDB.Close()
 		return nil
 	}
-	// Minimum height is greater than Target Height so there are no blocks to prune, so there is no need to copy blocks to new blockstore database
+	// If minimum height is greater than target height, there are no blocks to prune, skip pruning
 	if oldestHeight >= targetHeight {
 		bs.blockStoreDB.Close()
 		bs.prunedBlockStoreDB.Close()

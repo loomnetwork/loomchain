@@ -193,7 +193,7 @@ type BlockStoreConfig struct {
 	PruneOnStartup    bool
 	NumBlocksToRetain int64
 	PruneGraceFactor  int64
-	BatchSize         int64 // Number of blocks to write in each batch.
+	BatchSize         int64
 }
 
 func DefaultBlockStoreConfig() *BlockStoreConfig {
