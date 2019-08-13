@@ -27,10 +27,9 @@ const (
 
 var (
 	// assume that this test runs in e2e directory
-	defaultLoomPath  = "../loom"
-	defatulLoomPath2 = "../loom2"
-	ContractDir      = "../contracts"
-	BaseDir          = "test-data"
+	defaultLoomPath = "../loom"
+	ContractDir     = "../contracts"
+	BaseDir         = "test-data"
 )
 
 var (
@@ -54,11 +53,11 @@ func NewConfig(
 	}
 
 	loomPath2 := os.Getenv(loomExe2Ev)
-	if len(loomPath2) == 0 {
-		loomPath2 = defatulLoomPath2
+	v := uint64(validators)
+	altV := uint64(0)
+	if len(loomPath2) > 0 {
+		v, altV = splitValidators(uint64(validators))
 	}
-
-	v, altV := splitValidators(uint64(validators))
 
 	return GenerateConfig(
 		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, loomPath2,
