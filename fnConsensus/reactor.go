@@ -401,21 +401,12 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
+	f.state.Message[fnID] = message
+
 	hash, err := calculateMessageHash(message)
 	if err != nil {
 		f.Logger.Error(
 			"FnConsensusReactor: unable to calculate message hash",
-			"fnID", fnID, "err", err, "method", voteMethodID,
-		)
-		return
-	}
-
-	// TODO: The hash & message are copied here because we don't trust the fn object not to modify
-	//       them, but we don't need to store the message from this point on so there doesn't seem
-	//       to be much point in copying it.
-	if err := f.safeMapMessage(fn, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-		f.Logger.Error(
-			"FnConsensusReactor: received error while executing fn.MapMessage",
 			"fnID", fnID, "err", err, "method", voteMethodID,
 		)
 		return
