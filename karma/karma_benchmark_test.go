@@ -14,12 +14,13 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/db"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/db"
 )
 
 const (
@@ -163,7 +164,10 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 					dbName := "dbs/mockDB" + "-s" + strconv.Itoa(logDbSize) + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
 					appDb, err := db.NewGoLevelDB(dbName, ".")
 					require.NoError(t, err)
-					state, reg, _, err := karma.MockStateWithKarmaAndCoin(&karmaInit, nil, appDb)
+					state, reg, _, err := karma.MockStateWithContracts(
+						appDb,
+						karma.MockContractDetails{"karma", "1.0.0", karmaInit, karma.Contract},
+					)
 					require.NoError(t, err)
 					karmaAddr, err := reg.Resolve("karma")
 					require.NoError(t, err)
