@@ -35,14 +35,15 @@ func startGatewayReactors(
 	return nil
 }
 
-// checkQueryService is a helper function to check if corresponding QueryService has started
-// timeout is configurable with variable QueryServicePollTimeout
+// Checks if the query server at the given URL is responding.
 func checkQueryService(url string) {
-	ticker := time.NewTicker(5000 * time.Millisecond)
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
 	var netClient = &http.Client{
 		Timeout: time.Second * 1,
 	}
-	// to have the first tick immediately
+	// the first query will be sent immediately
 	for ; true; <-ticker.C {
 		resp, err := netClient.Head(url)
 		if err != nil {
@@ -53,7 +54,6 @@ func checkQueryService(url string) {
 			return
 		}
 	}
-
 }
 
 func startGatewayFn(
@@ -69,6 +69,7 @@ func startGatewayFn(
 	if fnRegistry == nil {
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
+
 	checkQueryService(cfg.DAppChainReadURI)
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, cfg, nodeSigner)
 	if err != nil {
@@ -91,6 +92,7 @@ func startLoomCoinGatewayFn(
 	if fnRegistry == nil {
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
+
 	checkQueryService(cfg.DAppChainReadURI)
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
 	if err != nil {
@@ -112,6 +114,7 @@ func startTronGatewayFn(chainID string,
 	if fnRegistry == nil {
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
+
 	checkQueryService(cfg.DAppChainReadURI)
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
 	if err != nil {
