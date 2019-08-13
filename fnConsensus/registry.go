@@ -20,8 +20,6 @@ type Fn interface {
 	// Once consensus is reached the signature, along with those obtained from the other validators,
 	// may be passed to SubmitMultiSignedMessage.
 	GetMessageAndSignature(ctx []byte) ([]byte, []byte, error)
-	// Associates the given key with a message so it can be looked up in SubmitMultiSignedMessage.
-	MapMessage(ctx []byte, key []byte, message []byte) error
 	// Once the reactor reaches the vote threshold for the message identified by the given key
 	// it invokes this method with the signatures submitted by the validators that pariticipated in the vote.
 	SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte)

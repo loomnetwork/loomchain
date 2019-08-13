@@ -871,14 +871,6 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 			return
 		}
 
-		if err = f.safeMapMessage(fn, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-			f.Logger.Error(
-				"FnConsensusReactor: received error while executing fn.MapMessage",
-				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
-			)
-			return
-		}
-
 		err = currentVoteSet.AddVote(currentNonce, &FnIndividualExecutionResponse{
 			Hash:            hash,
 			OracleSignature: signature,
