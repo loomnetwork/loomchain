@@ -10,8 +10,3 @@ AppStore:
   SaveEVMStateToIAVL: false
 CachingStoreConfig:
   CachingEnabled: true
-CreateEmptyBlocks: false
-Auth:
-  Chains:
-    default:
-      TxType: "loom"

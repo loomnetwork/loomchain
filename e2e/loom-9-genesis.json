@@ -6,12 +6,6 @@
       "name": "coin",
       "location": "coin:1.0.0",
       "init": null
-    },        {
-      "vm": "plugin",
-      "format": "plugin",
-      "name": "addressmapper",
-      "location": "addressmapper:0.1.0",
-      "init": null
     },
     {
       "vm": "plugin",
@@ -37,17 +31,6 @@
         "features": [
           {
             "name": "evm:constantinople",
-            "status": "WAITING"
-          },                    {
-            "name": "chaincfg:v1.1",
-            "status": "WAITING"
-          },
-          {
-            "name": "receipts:v2",
-            "status": "WAITING"
-          },
-          {
-            "name": "coin:v1.1",
             "status": "WAITING"
           }
         ]
