@@ -16,9 +16,10 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
+const separator = "|"
+
+// Prometheus metrics
 var (
-	separator = "|"
-	//Prometheus metrics
 	getDuration    metrics.Histogram
 	hasDuration    metrics.Histogram
 	deleteDuration metrics.Histogram
@@ -39,14 +40,14 @@ func (c CachingStoreLogger) Printf(format string, v ...interface{}) {
 
 func init() {
 	const namespace = "loomchain"
-	const subsystem = "versioned_caching_store"
+	const subsystem = "caching_store"
 
 	getDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
 			Namespace:  namespace,
 			Subsystem:  subsystem,
 			Name:       "get",
-			Help:       "How long Versioned CachingStore.Get() took to execute (in miliseconds)",
+			Help:       "How long VersionedCachingStore.Get() took to execute",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error", "isCacheHit"})
 
@@ -55,7 +56,7 @@ func init() {
 			Namespace:  namespace,
 			Subsystem:  subsystem,
 			Name:       "has",
-			Help:       "How long Versioned CachingStore.Has() took to execute (in miliseconds)",
+			Help:       "How long VersionedCachingStore.Has() took to execute",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error", "isCacheHit"})
 
@@ -64,7 +65,7 @@ func init() {
 			Namespace:  namespace,
 			Subsystem:  subsystem,
 			Name:       "delete",
-			Help:       "How long Versioned CachingStore.Delete() took to execute (in miliseconds)",
+			Help:       "How long VersionedCachingStore.Delete() took to execute",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error"})
 
@@ -73,7 +74,7 @@ func init() {
 			Namespace:  namespace,
 			Subsystem:  subsystem,
 			Name:       "set",
-			Help:       "How long Versioned CachingStore.Set() took to execute (in miliseconds)",
+			Help:       "How long VersionedCachingStore.Set() took to execute",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{"error"})
 
@@ -82,7 +83,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "cache_hit",
-			Help:      "Number of cache hit for get/has",
+			Help:      "Number of cache hits for VersionCachingStore.Get/Has",
 		}, []string{"store_operation"})
 
 	cacheMisses = kitprometheus.NewCounterFrom(
@@ -90,7 +91,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "cache_miss",
-			Help:      "Number of cache miss for get/has",
+			Help:      "Number of cache miss for VersionCachingStore.Get/Has",
 		}, []string{"store_operation"})
 
 	cacheErrors = kitprometheus.NewCounterFrom(
@@ -98,7 +99,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "cache_error",
-			Help:      "number of errors encountered while doing any operation on cache",
+			Help:      "Number of errors encountered while doing any operation on cache",
 		}, []string{"cache_operation"})
 
 }
@@ -126,14 +127,13 @@ func DefaultCachingStoreConfig() *CachingStoreConfig {
 	return &CachingStoreConfig{
 		CachingEnabled:            true,
 		Shards:                    1024,
-		EvictionTimeInSeconds:     60 * 60, // 1 hour
-		CleaningIntervalInSeconds: 10,      // Cleaning per 10 second
-		// Approximately 110 MB
-		MaxKeys:               50 * 10 * 100,
-		MaxSizeOfValueInBytes: 2048,
-		Verbose:               true,
-		LogDestination:        "file://-",
-		LogLevel:              "info",
+		EvictionTimeInSeconds:     60 * 60,       // 1 hour
+		CleaningIntervalInSeconds: 10,            // Cleaning per 10 second
+		MaxKeys:                   50 * 10 * 100, // Approximately 110 MB
+		MaxSizeOfValueInBytes:     2048,
+		Verbose:                   true,
+		LogDestination:            "file://-",
+		LogLevel:                  "info",
 	}
 }
 
