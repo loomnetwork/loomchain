@@ -29,7 +29,7 @@ type ReceiptHandler struct {
 	leveldbReceipts *leveldb.LevelDbReceipts
 	mutex           *sync.RWMutex
 	receiptsCache   []*types.EvmTxReceipt
-	tmTxHashIndex   []common.HashPair
+	childTxRefs     []common.ChildTxRef
 	txHashList      [][]byte
 	currentReceipt  *types.EvmTxReceipt
 }
@@ -42,7 +42,7 @@ func NewReceiptHandler(
 		eventHandler:    eventHandler,
 		receiptsCache:   []*types.EvmTxReceipt{},
 		txHashList:      [][]byte{},
-		tmTxHashIndex:   []common.HashPair{},
+		childTxRefs:     []common.ChildTxRef{},
 		currentReceipt:  nil,
 		mutex:           &sync.RWMutex{},
 		leveldbReceipts: leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts),
@@ -113,7 +113,7 @@ func (r *ReceiptHandler) CommitCurrentReceipt(tmHash []byte) {
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
 		if len(tmHash) > 0 {
-			r.tmTxHashIndex = append(r.tmTxHashIndex, common.HashPair{
+			r.childTxRefs = append(r.childTxRefs, common.ChildTxRef{
 				tmHash,
 				r.currentReceipt.TxHash},
 			)
@@ -131,10 +131,10 @@ func (r *ReceiptHandler) DiscardCurrentReceipt() {
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height), r.tmTxHashIndex)
+	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height), r.childTxRefs)
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
-	r.tmTxHashIndex = []common.HashPair{}
+	r.childTxRefs = []common.ChildTxRef{}
 	return err
 }
 

@@ -608,7 +608,8 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
-	receiptHandler.DiscardCurrentReceipt()
+	defer receiptHandler.DiscardCurrentReceipt()
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()

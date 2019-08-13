@@ -120,10 +120,10 @@ func (lr *LevelDbReceipts) GetHashFromTmHash(tmHash []byte) ([]byte, error) {
 	return db.Get(util.PrefixKey(tmHashPrefix, tmHash), nil)
 }
 
-func (lr *LevelDbReceipts) saveTmHashIndex(tmHashIndex []common.HashPair) error {
+func (lr *LevelDbReceipts) saveTmHashIndex(tmHashIndex []common.ChildTxRef) error {
 	for _, pair := range tmHashIndex {
-		key := util.PrefixKey(tmHashPrefix, pair.TmTxHash)
-		if err := lr.tran.Put(key, pair.LoomTxHash, nil); err != nil {
+		key := util.PrefixKey(tmHashPrefix, pair.ParentTxHash)
+		if err := lr.tran.Put(key, pair.ChildTxHash, nil); err != nil {
 			return err
 		}
 	}
@@ -134,7 +134,7 @@ func (lr *LevelDbReceipts) CommitBlock(
 	state loomchain.State,
 	receipts []*types.EvmTxReceipt,
 	height uint64,
-	tmHashIndex []common.HashPair,
+	tmHashIndex []common.ChildTxRef,
 ) error {
 	if len(receipts) == 0 {
 		return nil
