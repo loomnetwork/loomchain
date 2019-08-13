@@ -190,22 +190,21 @@ type BlockStoreConfig struct {
 	CacheAlgorithm    string
 	CacheSize         int64
 	ChainDataPath     string
-	PruneOnStartup    bool  //should default to false for now
-	NumBlocksToRetain int64 // number of most recent blocks to retain when pruning
-	PruneGraceFactor  int64 // skip pruning if less than 10% of NumBlocksToRetain will be pruned
-	BatchSize         int64
-	LogLevel          int64
+	PruneOnStartup    bool
+	NumBlocksToRetain int64
+	PruneGraceFactor  int64
+	BatchSize         int64 // Number of blocks to write in each batch.
 }
 
 func DefaultBlockStoreConfig() *BlockStoreConfig {
 	return &BlockStoreConfig{
 		CacheAlgorithm:    "None",
-		CacheSize:         10000, //Size should be more because of blockrangebyheight API
-		PruneOnStartup:    false, // should default to false for now
-		NumBlocksToRetain: 10000, // number of most recent blocks to retain when pruning
-		PruneGraceFactor:  10,    // skip pruning if less than 10% of NumBlocksToRetain will be pruned
-		BatchSize:         10000,
-		ChainDataPath:     "./chaindata",
+		CacheSize:         10000,         // Size should be more because of blockrangebyheight API
+		PruneOnStartup:    false,         // Prune blockstore.db at the beginning of process
+		NumBlocksToRetain: 10000,         // Number of most recent blocks to retain when pruning
+		PruneGraceFactor:  10,            // Skip pruning if less than 10% of NumBlocksToRetain will be pruned
+		BatchSize:         10000,         // Number of blocks to write in each batch.
+		ChainDataPath:     "./chaindata", // Path to chaindata
 	}
 }
 

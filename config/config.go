@@ -610,14 +610,14 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
+  # Prune blockstore.db at the beginning of process
   PruneOnStartup:   {{ .BlockStore.PruneOnStartup }}
+  # Number of most recent blocks to retain when pruning
   NumBlocksToRetain: {{ .BlockStore.NumBlocksToRetain }}
+  # Skip pruning if less than PruneGraceFactor percentage of NumBlocksToRetain will be pruned
   PruneGraceFactor: {{ .BlockStore.PruneGraceFactor }}
-  PruningAlgorithm: {{ .BlockStore.PruningAlgorithm }}
-  SkipMissing: {{ .BlockStore.SkipMissing }}
-  SkipCompaction: {{ .BlockStore.SkipCompaction }}
+  # Number of blocks to write in each batch.
   BatchSize: {{ .BlockStore.BatchSize }}
-  LogLevel: {{ .BlockStore.LogLevel }}
 
 BlockIndexStore:  
   Enabled: {{ .BlockIndexStore.Enabled }}
