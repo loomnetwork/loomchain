@@ -11,7 +11,6 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/tendermint/tendermint/blockchain"
 	dbm "github.com/tendermint/tendermint/libs/db"
-	"github.com/tendermint/tendermint/types"
 )
 
 var (
@@ -59,30 +58,8 @@ func (bs *PruningBlockStore) Close() {
 	bs.prunedBlockStoreDB.Close()
 }
 
-func (bs *PruningBlockStore) Has(key []byte) bool {
-	return bs.blockStoreDB.Has(key)
-}
-
 func (bs *PruningBlockStore) Height() int64 {
 	return blockchain.LoadBlockStoreStateJSON(bs.blockStoreDB).Height
-}
-
-func (bs *PruningBlockStore) LoadBlock(height int64) *types.Block {
-	return bs.BlockStore.LoadBlock(height)
-}
-
-func (bs *PruningBlockStore) LoadSeenCommit(height int64) *types.Commit {
-	return bs.BlockStore.LoadSeenCommit(height)
-}
-
-func (bs *PruningBlockStore) SaveSeenCommit(blockHeight int64, newSeenCommit *types.Commit) error {
-	binary, err := cdc.MarshalBinaryBare(newSeenCommit)
-	if err != nil {
-		return err
-	}
-
-	bs.blockStoreDB.Set(calcSeenCommitKey(blockHeight), binary)
-	return nil
 }
 
 func (bs *PruningBlockStore) Prune() error {
@@ -113,9 +90,9 @@ func (bs *PruningBlockStore) Prune() error {
 	batch := bs.prunedBlockStoreDB.NewBatch()
 	numHeight := int64(0)
 	for height := targetHeight; height <= latestHeight; height++ {
-		log.Info("Copying Block at height", "height", height)
+		log.Info("Copying block at height", "height", height)
 		// skip if block metadata is not found
-		if !bs.Has(calcBlockMetaKey(height)) {
+		if !bs.blockStoreDB.Has(calcBlockMetaKey(height)) {
 			log.Info("block is missing at height", "height", height)
 			continue
 		}
