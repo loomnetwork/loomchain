@@ -77,6 +77,7 @@ func (p *ReactorState) Marshal() ([]byte, error) {
 		PreviousTimedOutVoteSets: make([]*FnVoteSet, len(p.PreviousTimedOutVoteSets)),
 		PreviousMajVoteSets:      make([]*FnVoteSet, len(p.PreviousMajVoteSets)),
 		PreviousValidatorSet:     p.PreviousValidatorSet,
+		Message:                  make([]*fnIDToMessage, len(p.Message)),
 	}
 
 	i := 0
