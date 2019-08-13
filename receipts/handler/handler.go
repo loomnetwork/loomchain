@@ -144,9 +144,15 @@ func (r *ReceiptHandler) CacheReceipt(
 ) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
+	// If there's an existing receipt that means we're trying to store a receipt for an internal
+	// contract call, instead of creating a separate receipt for the internal call we merge the logs
+	// from the internal call into the existing receipt.
 	if r.currentReceipt != nil {
-		receipt := leveldb.AppendEvents(*r.currentReceipt, state.Block(), events, r.eventHandler)
-		r.currentReceipt = &receipt
+		r.currentReceipt.Logs = append(
+			r.currentReceipt.Logs,
+			leveldb.CreateEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
+		)
 		return r.currentReceipt.TxHash, nil
 	}
 

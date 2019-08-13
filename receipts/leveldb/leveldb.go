@@ -58,17 +58,18 @@ func WriteReceipt(
 	txHash := h.Sum(nil)
 
 	txReceipt.TxHash = txHash
-	txReceipt = AppendEvents(txReceipt, block, events, eventHandler)
+	txReceipt.Logs = append(txReceipt.Logs, CreateEventLogs(&txReceipt, block, events, eventHandler)...)
 	txReceipt.TransactionIndex = block.NumTxs - 1
 	return txReceipt, nil
 }
 
-func AppendEvents(
-	txReceipt types.EvmTxReceipt,
+func CreateEventLogs(
+	txReceipt *types.EvmTxReceipt,
 	block loom_types.BlockHeader,
 	events []*types.EventData,
 	eventHandler loomchain.EventHandler,
-) types.EvmTxReceipt {
+) []*types.EventData {
+	logs := make([]*types.EventData, 0, len(events))
 	for _, event := range events {
 		event.TxHash = txReceipt.TxHash
 		if eventHandler != nil {
@@ -78,9 +79,9 @@ func AppendEvents(
 		pEvent := types.EventData(*event)
 		pEvent.BlockHash = block.CurrentHash
 		pEvent.TransactionIndex = uint64(block.NumTxs - 1)
-		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
+		logs = append(logs, &pEvent)
 	}
-	return txReceipt
+	return logs
 }
 
 func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
