@@ -122,17 +122,6 @@ func (f *FnConsensusReactor) safeGetMessageAndSignature(fn Fn) ([]byte, []byte, 
 	return fn.GetMessageAndSignature(nil)
 }
 
-// Associates the given hash with a message.
-func (f *FnConsensusReactor) safeMapMessage(fn Fn, hash, message []byte) error {
-	defer func() {
-		err := recover()
-		if err != nil {
-			f.Logger.Error("panicked while invoking MapMessage", "error", err)
-		}
-	}()
-	return fn.MapMessage(nil, hash, message)
-}
-
 func (f *FnConsensusReactor) String() string {
 	return "FnConsensusReactor"
 }
