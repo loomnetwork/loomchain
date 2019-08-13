@@ -353,15 +353,11 @@ func newRunCommand() *cobra.Command {
 			}
 			if cfg.BlockStore.PruneOnStartup {
 				log.Info("Blockstore Pruning Initiated")
-				bs := store.NewPruningBlockStore("./chaindata", false, cfg.BlockStore.PruningAlgorithm)
-				if strings.EqualFold(cfg.BlockStore.PruningAlgorithm, "Copy") {
-					err = bs.PruneviaCopying("./chaindata", cfg.BlockStore.NumBlocksToRetain, cfg.BlockStore.PruneGraceFactor, cfg.BlockStore.SkipMissing)
-				} else {
-					err = bs.PruneviaDeletion("./chaindata", cfg.BlockStore.NumBlocksToRetain, cfg.BlockStore.PruneGraceFactor, cfg.BlockStore.BatchSize, cfg.BlockStore.LogLevel, cfg.BlockStore.SkipMissing, cfg.BlockStore.SkipCompaction)
-				}
-				if err != nil {
+				bs := store.NewPruningBlockStore(cfg.BlockStore)
+				if err = bs.Prune(); err != nil {
 					return err
 				}
+				bs.Close()
 			}
 			var loaders []plugin.Loader
 			for _, loader := range cfg.ContractLoaders {

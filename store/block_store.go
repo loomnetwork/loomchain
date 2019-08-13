@@ -189,12 +189,10 @@ type BlockStoreConfig struct {
 	// Valid values: None | LRU | 2Q
 	CacheAlgorithm    string
 	CacheSize         int64
+	ChainDataPath     string
 	PruneOnStartup    bool  //should default to false for now
 	NumBlocksToRetain int64 // number of most recent blocks to retain when pruning
 	PruneGraceFactor  int64 // skip pruning if less than 10% of NumBlocksToRetain will be pruned
-	PruningAlgorithm  string //Prune via copying recent blocks or via deletion of blocks below target height
-	SkipMissing       bool
-	SkipCompaction    bool
 	BatchSize         int64
 	LogLevel          int64
 }
@@ -206,11 +204,8 @@ func DefaultBlockStoreConfig() *BlockStoreConfig {
 		PruneOnStartup:    false, // should default to false for now
 		NumBlocksToRetain: 10000, // number of most recent blocks to retain when pruning
 		PruneGraceFactor:  10,    // skip pruning if less than 10% of NumBlocksToRetain will be pruned
-		PruningAlgorithm:  "Delete",
-		SkipMissing:       false,
-		SkipCompaction:    false,
-		BatchSize:         1000,
-		LogLevel:          0,
+		BatchSize:         10000,
+		ChainDataPath:     "./chaindata",
 	}
 }
 
