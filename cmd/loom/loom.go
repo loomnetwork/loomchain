@@ -1308,6 +1308,7 @@ func main() {
 		NewDPOSV2Command(),
 		NewDPOSV3Command(),
 		NewKarmaCommand(),
+		NewTestingCommand(),
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
