@@ -464,7 +464,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	if aggregateExecutionResponse != nil {
 		f.safeSubmitMultiSignedMessage(
 			fn,
-			safeCopyBytes(aggregateExecutionResponse.Hash),
+			safeCopyBytes(f.state.Message[fnID]),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
 		)
 		return
@@ -590,7 +590,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
 						fn,
-						safeCopyBytes(majExecutionResponse.Hash),
+						safeCopyBytes(f.state.Message[fnID]),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
 					)
 				}
