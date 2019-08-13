@@ -1,9 +1,7 @@
 package chainconfig
 
 import (
-	"errors"
 	"fmt"
-	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/config"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/spf13/cobra"
@@ -463,13 +462,12 @@ func ChainConfigCmd() *cobra.Command {
 }
 
 const setSettingCmdExample = `
-loom chain-cfg set-setting AppStoreConfig.NumEvmKeysToPrune --value 100 --type uint64 --build 1200 -k private_key
+loom chain-cfg set-setting AppStore.NumEvmKeysToPrune --value 100 --build 1200 -k private_key
 `
 
 func SetSettingCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	var value string
-	var valueType string
 	var buildNumber uint64
 	cmd := &cobra.Command{
 		Use:     "set-setting <config name>",
@@ -481,30 +479,10 @@ func SetSettingCmd() *cobra.Command {
 				return fmt.Errorf("invalid config key")
 			}
 
-			// validate value
-			invalidValueTypeError := errors.New("invalid value type")
-			invalidSettingName := errors.New("invalid setting name")
-			switch valueType {
-			case "string":
-				if len(value) == 0 {
-					return invalidValueTypeError
-				}
-			case "uint64", "int64":
-				_, err := strconv.ParseUint(value, 10, 64)
-				if err != nil {
-					return invalidValueTypeError
-				}
-			case "biguint":
-				bigIntAmount := big.NewInt(0)
-				if _, ok := bigIntAmount.SetString(value, 0); !ok {
-					return invalidValueTypeError
-				}
-			default:
-				return invalidValueTypeError
-			}
-
-			if args[0] != "AppStore.NumEvmKeysToPrune" {
-				return invalidSettingName
+			// validate config setting
+			defautlConfig := config.DefaultConfig()
+			if err := config.SetConfigSetting(defautlConfig, args[0], value); err != nil {
+				return err
 			}
 
 			req := &cctype.SetSettingRequest{
@@ -522,10 +500,8 @@ func SetSettingCmd() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&value, "value", "", "Value of config setting")
-	cmdFlags.StringVar(&valueType, "type", "", "Value type of config setting")
 	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number required for this change to apply")
 	cmd.MarkFlagRequired("value")
-	cmd.MarkFlagRequired("type")
 	cmd.MarkFlagRequired("build")
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
