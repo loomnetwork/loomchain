@@ -23,6 +23,11 @@ var (
 	ErrPetitionVoteMergeDiffPayload      = errors.New("merging is not allowed, as petition votes have different payload")
 )
 
+type fnIDToMessage struct {
+	Message []byte
+	FnID    string
+}
+
 type fnIDToNonce struct {
 	Nonce int64
 	FnID  string
@@ -43,6 +48,7 @@ type reactorStateMarshallable struct {
 	PreviousTimedOutVoteSets []*FnVoteSet
 	PreviousMajVoteSets      []*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
+	Message                  []*fnIDToMessage
 }
 
 type ReactorState struct {
@@ -51,6 +57,7 @@ type ReactorState struct {
 	PreviousTimedOutVoteSets map[string]*FnVoteSet // TODO: unused, consider removing
 	PreviousMajVoteSets      map[string]*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
+	Message                  map[string][]byte
 }
 
 func NewReactorState() *ReactorState {
@@ -59,6 +66,7 @@ func NewReactorState() *ReactorState {
 		CurrentNonces:            make(map[string]int64),
 		PreviousTimedOutVoteSets: make(map[string]*FnVoteSet),
 		PreviousMajVoteSets:      make(map[string]*FnVoteSet),
+		Message:                  make(map[string][]byte),
 	}
 }
 
@@ -95,6 +103,15 @@ func (p *ReactorState) Marshal() ([]byte, error) {
 	i = 0
 	for _, maj23VoteSet := range p.PreviousMajVoteSets {
 		reactorStateMarshallable.PreviousMajVoteSets[i] = maj23VoteSet
+		i++
+	}
+
+	i = 0
+	for fnID, message := range p.Message {
+		reactorStateMarshallable.Message[i] = &fnIDToMessage{
+			FnID:    fnID,
+			Message: message,
+		}
 		i++
 	}
 

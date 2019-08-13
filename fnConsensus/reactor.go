@@ -101,14 +101,14 @@ func NewFnConsensusReactor(
 	return reactor, nil
 }
 
-func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, hash []byte, signatures [][]byte) {
+func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte, signatures [][]byte) {
 	defer func() {
 		err := recover()
 		if err != nil {
 			f.Logger.Error("panicked while invoking SubmitMultiSignedMessage", "error", err)
 		}
 	}()
-	fn.SubmitMultiSignedMessage(nil, hash, signatures)
+	fn.SubmitMultiSignedMessage(nil, message, signatures)
 }
 
 // Returns a message and associated signature (which can be anything really).
