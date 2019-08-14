@@ -8,10 +8,20 @@ import (
 	"time"
 
 	glAuth "github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/fnConsensus"
 	"github.com/loomnetwork/loomchain/log"
 	tgateway "github.com/loomnetwork/transfer-gateway/gateway"
+)
+
+type ServiceName string
+
+const (
+	GatewayName        ServiceName = "gateway"
+	LoomGatewayName    ServiceName = "loomcoin-gateway"
+	BinanceGatewayName ServiceName = "binance-gateway"
+	TronGatewayName    ServiceName = "tron-gateway"
 )
 
 func startGatewayReactors(
@@ -35,23 +45,30 @@ func startGatewayReactors(
 	return nil
 }
 
-// Checks if the query server at the given URL is responding.
-func checkQueryService(url string) {
+// Checks if the query server at the given DAppChainReadURI is responding.
+func checkQueryService(name ServiceName, chainID string, DAppChainReadURI string, DAppChainWriteURI string) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	var netClient = &http.Client{
 		Timeout: time.Second * 1,
 	}
-	// the first query will be sent immediately
+
 	for ; true; <-ticker.C {
-		resp, err := netClient.Head(url)
+		resp, err := netClient.Head(DAppChainReadURI)
 		if err != nil {
-			log.Error("Error in connecting to queryserver:", url, err)
+			log.Error("Error in connecting to queryserver:", DAppChainReadURI, err)
 			continue
 		}
 		if resp != nil && resp.StatusCode == 200 {
-			return
+			rpcClient := client.NewDAppChainRPCClient(chainID, DAppChainWriteURI, DAppChainReadURI)
+			gatewayAddr, err := rpcClient.Resolve(fmt.Sprintf("%s", name))
+			if err != nil {
+				log.Error("Error while resolving service", DAppChainReadURI, err)
+			} else {
+				log.Info(fmt.Sprintf("Resolved %s : %#v", name, gatewayAddr))
+				return
+			}
 		}
 	}
 }
@@ -70,7 +87,7 @@ func startGatewayFn(
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
 
-	checkQueryService(cfg.DAppChainReadURI)
+	checkQueryService(GatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, cfg, nodeSigner)
 	if err != nil {
 		return err
@@ -93,7 +110,7 @@ func startLoomCoinGatewayFn(
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
 
-	checkQueryService(cfg.DAppChainReadURI)
+	checkQueryService(LoomGatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
 	if err != nil {
 		return err
@@ -115,7 +132,7 @@ func startTronGatewayFn(chainID string,
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
 
-	checkQueryService(cfg.DAppChainReadURI)
+	checkQueryService(TronGatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
 	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
 	if err != nil {
 		return err
