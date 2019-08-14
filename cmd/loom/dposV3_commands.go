@@ -111,7 +111,7 @@ func stringWithDecimal(s string, decimal int) (string, error) {
 	if decimal <= 0 {
 		return s, fmt.Errorf("invalid decimal %d", decimal)
 	}
-	if len(s) < 18 {
+	if len(s) < decimal {
 		return s, nil
 	}
 	return s[:len(s)-decimal] + "." + s[len(s)-decimal:], nil
@@ -315,8 +315,16 @@ func ListCandidatesCmdV3() *cobra.Command {
 					} else {
 						candidateStats[i].PubKey = c.Candidate.PubKey
 					}
-					candidateStats[i].Fee = strconv.FormatUint(c.Candidate.Fee, 10)
-					candidateStats[i].NewFee = strconv.FormatUint(c.Candidate.NewFee, 10)
+					fee, err := stringWithDecimal(strconv.FormatUint(c.Candidate.Fee, 10), 2)
+					if err != nil {
+						return err
+					}
+					newFee, err := stringWithDecimal(strconv.FormatUint(c.Candidate.NewFee, 10), 2)
+					if err != nil {
+						return err
+					}
+					candidateStats[i].Fee = fee + "%"
+					candidateStats[i].NewFee = newFee + "%"
 					candidateStats[i].State = c.Candidate.State.String()
 					candidateStats[i].Name = c.Candidate.Name
 					candidateStats[i].Description = c.Candidate.Description
