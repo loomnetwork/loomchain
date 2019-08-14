@@ -40,6 +40,7 @@ const (
 	ElectionEventTopic               = "dposv3:election"
 	SlashEventTopic                  = "dposv3:slash"
 	SlashDelegationEventTopic        = "dposv3:slashdelegation"
+	SlashWhitelistAmountEventTopic   = "dposv3:slashwhitelistamount"
 	JailEventTopic                   = "dposv3:jail"
 	UnjailEventTopic                 = "dposv3:unjail"
 	CandidateRegistersEventTopic     = "dposv3:candidateregisters"
@@ -143,6 +144,7 @@ type (
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
 	DposSlashDelegationEvent        = dtypes.DposSlashDelegationEvent
+	DposSlasWhitelistAmountEvent    = dtypes.DposSlashWhitelistAmountEvent
 	DposJailEvent                   = dtypes.DposJailEvent
 	DposUnjailEvent                 = dtypes.DposUnjailEvent
 	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
@@ -1840,7 +1842,7 @@ func slashValidatorDelegations(
 				return err
 			}
 			if err := emitSlashDelegationEvent(
-				ctx, delegation.Validator, delegation.Amount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage, false,
+				ctx, delegation, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
 			); err != nil {
 				return err
 			}
@@ -1855,8 +1857,8 @@ func slashValidatorDelegations(
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
-		if err := emitSlashDelegationEvent(
-			ctx, validatorAddress.MarshalPB(), statistic.WhitelistAmount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage, true,
+		if err := emitSlashWhitelistAmountEvent(
+			ctx, validatorAddress.MarshalPB(), statistic.WhitelistAmount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
 		); err != nil {
 			return err
 		}
@@ -2449,20 +2451,35 @@ func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercent
 }
 
 func emitSlashDelegationEvent(
-	ctx contract.Context, address *types.Address, delegationAmount *types.BigUInt, slashAmount *types.BigUInt, slashPercentage *types.BigUInt, whitelistDelegation bool,
+	ctx contract.Context, delegation *Delegation, slashAmount *types.BigUInt, slashPercentage *types.BigUInt,
 ) error {
 	marshalled, err := proto.Marshal(&DposSlashDelegationEvent{
-		Validator:           address,
-		DelegationAmount:    delegationAmount,
-		SlashAmount:         slashAmount,
-		SlashPercentage:     slashPercentage,
-		WhitelistDelegation: whitelistDelegation,
+		Delegation:      delegation,
+		SlashAmount:     slashAmount,
+		SlashPercentage: slashPercentage,
 	})
 	if err != nil {
 		return err
 	}
 
 	ctx.EmitTopics(marshalled, SlashDelegationEventTopic)
+	return nil
+}
+
+func emitSlashWhitelistAmountEvent(
+	ctx contract.Context, validator *types.Address, whitelistAmount *types.BigUInt, slashAmount *types.BigUInt, slashPercentage *types.BigUInt,
+) error {
+	marshalled, err := proto.Marshal(&DposSlasWhitelistAmountEvent{
+		Validator:       validator,
+		WhitelistAmount: whitelistAmount,
+		SlashAmount:     slashAmount,
+		SlashPercentage: slashPercentage,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, SlashWhitelistAmountEventTopic)
 	return nil
 }
 
