@@ -36,7 +36,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "\"Fee\": \"177\""]
+  Expected = ["{{index $.NodePubKeyList 0}}", "\"Fee\": \"1.77%\""]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 change-fee 2598 -k {{index $.NodePrivKeyPathList 0}}"
@@ -44,7 +44,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "\"Fee\": \"177\"", "\"NewFee\": \"2598\""]
+  Expected = ["{{index $.NodePubKeyList 0}}", "\"Fee\": \"1.77%\"", "\"NewFee\": \"25.98%\""]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 1}}"
@@ -106,7 +106,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "\"Fee\": \"2598\"", "\"NewFee\": \"2598\""]
+  Expected = ["{{index $.NodePubKeyList 0}}", "\"Fee\": \"25.98%\"", "\"NewFee\": \"25.98%\""]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegator-rewards {{index $.NodeAddressList 0}}"
