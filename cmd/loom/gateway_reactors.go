@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
 	glAuth "github.com/loomnetwork/go-loom/auth"
@@ -50,25 +49,14 @@ func checkQueryService(name ServiceName, chainID string, DAppChainReadURI string
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	var netClient = &http.Client{
-		Timeout: time.Second * 1,
-	}
-
 	for ; true; <-ticker.C {
-		resp, err := netClient.Head(DAppChainReadURI)
+		rpcClient := client.NewDAppChainRPCClient(chainID, DAppChainWriteURI, DAppChainReadURI)
+		gatewayAddr, err := rpcClient.Resolve(fmt.Sprintf("%s", name))
 		if err != nil {
-			log.Error("Error in connecting to queryserver:", DAppChainReadURI, err)
-			continue
-		}
-		if resp != nil && resp.StatusCode == 200 {
-			rpcClient := client.NewDAppChainRPCClient(chainID, DAppChainWriteURI, DAppChainReadURI)
-			gatewayAddr, err := rpcClient.Resolve(fmt.Sprintf("%s", name))
-			if err != nil {
-				log.Error("Error while resolving service", DAppChainReadURI, err)
-			} else {
-				log.Info(fmt.Sprintf("Resolved %s : %#v", name, gatewayAddr))
-				return
-			}
+			log.Error("Error while resolving service", DAppChainReadURI, err)
+		} else {
+			log.Info(fmt.Sprintf("Resolved %s : %#v", name, gatewayAddr))
+			return
 		}
 	}
 }
