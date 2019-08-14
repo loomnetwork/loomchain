@@ -52,15 +52,15 @@ func NewConfig(
 		loomPath = defaultLoomPath
 	}
 
-	loomPath2 := os.Getenv(loomExe2Ev)
+	altLoomPath := os.Getenv(loomExe2Ev)
 	v := uint64(validators)
 	altV := uint64(0)
-	if len(loomPath2) > 0 {
+	if len(altLoomPath) > 0 {
 		v, altV = splitValidators(uint64(validators))
 	}
 
 	return GenerateConfig(
-		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, loomPath2,
+		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, altLoomPath,
 		v, altV,
 		account, numEthAccounts,
 		useFnConsensus, *Force, doCheckAppHash(checkAppHash, uint64(v), uint64(altV)),
@@ -88,12 +88,12 @@ func doCheckAppHash(checkAppHash bool, validators, altValidators uint64) bool {
 }
 
 func GenerateConfig(
-	name, testFile, genesisTmpl, yamlFile, basedir, contractdir, loompath, loompath2 string,
+	name, testFile, genesisTmpl, yamlFile, baseDir, contractDir, loomPath, altLoomPath string,
 	validators, altValidators uint64,
 	account, numEthAccounts int,
 	useFnConsensus, force, checkAppHash bool,
 ) (*lib.Config, error) {
-	basedirAbs, err := filepath.Abs(path.Join(basedir, name))
+	basedirAbs, err := filepath.Abs(path.Join(baseDir, name))
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func GenerateConfig(
 		}
 	}
 
-	contractdirAbs, err := filepath.Abs(contractdir)
+	contractdirAbs, err := filepath.Abs(contractDir)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func GenerateConfig(
 		return nil, err
 	}
 
-	loompathAbs, err := filepath.Abs(loompath)
+	loompathAbs, err := filepath.Abs(loomPath)
 	if err != nil {
 		return nil, err
 	}
@@ -176,10 +176,10 @@ func GenerateConfig(
 		n.LogDestination = *logDest
 		n.LogAppDb = *logAppDb
 		nodes = append(nodes, n)
-		fmt.Printf("Node %v running %s\n", i, loompath)
+		fmt.Printf("Node %v running %s\n", i, loomPath)
 	}
 
-	loompathAbs2, err := filepath.Abs(loompath2)
+	loompathAbs2, err := filepath.Abs(altLoomPath)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func GenerateConfig(
 		n.LogDestination = *logDest
 		n.LogAppDb = *logAppDb
 		nodes = append(nodes, n)
-		fmt.Printf("Node %v running %s\n", i, loompath2)
+		fmt.Printf("Node %v running %s\n", i, altLoomPath)
 	}
 
 	for _, n := range nodes {
