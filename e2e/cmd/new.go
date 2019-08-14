@@ -9,7 +9,7 @@ import (
 func newNewCommand() *cobra.Command {
 	var validators, altValidators uint64
 	var k, numEthAccounts int
-	var basedir, contractdir, loompath, loompath2, name string
+	var baseDir, contractDir, loomPath, altLoomPath, name string
 	var logLevel, logDest string
 	var genesisFile, configFile string
 	var logAppDb bool
@@ -22,7 +22,7 @@ func newNewCommand() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(ccmd *cobra.Command, args []string) error {
 			_, err := common.GenerateConfig(
-				name, "", genesisFile, configFile, basedir, contractdir, loompath, loompath2,
+				name, "", genesisFile, configFile, baseDir, contractDir, loomPath, altLoomPath,
 				validators, altValidators,
 				k, numEthAccounts,
 				useFnConsensus, force, checkAppHash,
@@ -35,10 +35,10 @@ func newNewCommand() *cobra.Command {
 	flags.Uint64VarP(&validators, "validators", "n", 4, "The number of validators")
 	flags.Uint64VarP(&altValidators, "alt-validators", "m", 0, "The number of validators on alternate build")
 	flags.StringVar(&name, "name", "default", "Cluster name")
-	flags.StringVar(&basedir, "base-dir", "", "Base directory")
-	flags.StringVar(&contractdir, "contract-dir", "contracts", "Contract directory")
-	flags.StringVar(&loompath, "loom-path", "loom", "Loom binary path")
-	flags.StringVar(&loompath2, "loom-path2", "loom", "Alternate loom binary path")
+	flags.StringVar(&baseDir, "base-dir", "", "Base directory")
+	flags.StringVar(&contractDir, "contract-dir", "contracts", "Contract directory")
+	flags.StringVar(&loomPath, "loom-path", "loom", "Loom binary path")
+	flags.StringVar(&altLoomPath, "alt-loom-path", "loom", "Alternate loom binary path")
 	flags.IntVarP(&k, "account", "k", 1, "Number of accounts to be created")
 	flags.IntVarP(&numEthAccounts, "num-eth-accounts", "e", 1, "Number of ethereum accounts to be created")
 	flags.BoolVarP(&logAppDb, "log-app-db", "a", false, "Log the app state database usage")
