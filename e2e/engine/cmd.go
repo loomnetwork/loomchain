@@ -9,11 +9,14 @@ import (
 	"net/http"
 	"os/exec"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"text/template"
 	"time"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
@@ -336,16 +339,44 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			if !strings.Contains(string(out), expected) {
 				return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
 			}
+		}
 
-			var v interface{}
-			json.Unmarshal(out, &v)
-			if v != nil {
-				data := v.(map[string]interface{})
-				for k, v := range data {
-					iter(k, v)
+		if n.Json {
+			var jsonKeys []string
+			var results []string
+			for i, expectedJson := range n.ExpectedJson {
+				t, err := template.New("expectedjson").Parse(expectedJson)
+				if err != nil {
+					return err
+				}
+				buf := new(bytes.Buffer)
+				err = t.Execute(buf, e.conf)
+				if err != nil {
+					return err
+				}
+				if i%2 == 0 {
+					jsonKeys = append(jsonKeys, buf.String())
+				} else if i%2 == 1 {
+					results = append(results, buf.String())
+				}
+			}
+			for i := range jsonKeys {
+				actual := gjson.Get(string(out), jsonKeys[i])
+				fmt.Printf("\nkey '%s' \nactual : '%s'\n", jsonKeys[i], actual)
+				fmt.Println("expected : ", results[i])
+				contain := false
+				for _, value := range actual.Array() {
+					if results[i] == value.String() {
+						contain = true
+						break
+					}
+				}
+				if !contain {
+					return fmt.Errorf("\nexpected '%s' \nbut got '%s'\n", results[i], actual)
 				}
 			}
 		}
+
 	case "excludes":
 		var excludeds []string
 		for _, excluded := range n.Excluded {
@@ -373,24 +404,61 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 	return nil
 }
 
-func iter(k string, v interface{}) {
+type testGroup struct {
+	Key        []string
+	Value      []string
+	BrakePoint string
+}
+
+func iter(isArray bool, i int, keys []string, v interface{}) (interface{}, error) {
+	if (!isArray && i == len(keys)) || len(keys) == 0 {
+		return v, nil
+	}
+	if v == nil {
+		fmt.Println("nil")
+	}
+	var err error
+	fmt.Println("Round : ", i)
 	switch v := v.(type) {
 	case int:
-		fmt.Println("index : ", k, " value : ", v, "(integer)")
+		fmt.Println("key : ", keys[i], " value : ", v, "(integer)")
 	case string:
-		fmt.Println("index : ", k, " value : ", v, "(string)")
+		fmt.Println("key : ", keys[i], " value : ", v, "(string)")
 	case float64:
-		fmt.Println("index : ", k, " value : ", v, "(float64)")
-	case []interface{}:
-		fmt.Println("index : ", k, " value : ", v, "(array):")
-		for i, u := range v {
-			iter(string(i), u)
-		}
+		fmt.Println("key : ", keys[i], " value : ", v, "(float64)")
 	case interface{}:
-		fmt.Println("index : ", k, " value : ", v, "(Interface)")
+		if reflect.ValueOf(v).Kind() == reflect.Map {
+			data := v.(map[string]interface{})
+			fmt.Println("This Type : ", reflect.TypeOf(v))
+			fmt.Println("This key", keys[i])
+			fmt.Println("This value", data[keys[i]])
+			if data[keys[i]] == nil {
+				err = fmt.Errorf("Invalid Key %s, ", keys[i])
+				return nil, err
+			}
+			if isArray {
+				return iter(false, i, keys, data[keys[i]])
+			}
+			return iter(false, i+1, keys, data[keys[i]])
+		} else if reflect.ValueOf(v).Kind() == reflect.Slice {
+			data := v.([]interface{})
+			fmt.Println("array type : ", reflect.TypeOf(v))
+			fmt.Println("array", keys[i])
+			for j, value := range data {
+				fmt.Printf("array size %d \n", len(data))
+				fmt.Printf("array value %d , %v\n", j, data[j])
+				fmt.Printf("array value %d , %v\n", j, value)
+				return iter(true, i, keys, value)
+			}
+		}
 	default:
-		fmt.Println("index : ", k, " value : ", v, "(unknown)")
+		fmt.Println("key : ", keys[i], " value : ", v, "(unknown)")
 	}
+	return v, err
+}
+
+func (tg *testGroup) compare(v interface{}) {
+
 }
 
 func checkNodeReady(n *node.Node) error {

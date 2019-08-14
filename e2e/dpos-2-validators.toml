@@ -4,6 +4,13 @@
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
+  Json = true
+  ExpectedJson = [
+  "statistics.#.address.chainId", "default",
+  "statistics.#.address.local", "{{index $.NodeBase64AddressList 0}}",
+  "statistics.#.address.chainId", "default",
+  "statistics.#.address.local", "{{index $.NodeBase64AddressList 1}}"
+]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 0}}"
@@ -33,6 +40,11 @@
   RunCmd = "check_validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
+  Json = true
+  ExpectedJson = [
+  "jsonrpc", "2.0",
+  "result.validators.#.pub_key.value","{{index $.NodePubKeyList 0}}"
+]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 1}} 21 -k {{index $.NodePrivKeyPathList 1}}"
@@ -42,6 +54,11 @@
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
+  Json = true
+  ExpectedJson = [
+    "statistics.#.address.chainId","default",
+    "statistics.#.jailed","false"
+  ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 6 -k {{index $.NodePrivKeyPathList 0}}"
@@ -53,3 +70,9 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["0270"]
+  Json = true
+  ExpectedJson = [
+  "delegations.#.delegator.chainId", "default",
+  "delegations.#.delegator.local", "{{index $.NodeBase64AddressList 0}}",
+  "delegations.#.locktimeTier", "TIER_ZERO"
+]
