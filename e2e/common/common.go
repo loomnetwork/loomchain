@@ -22,7 +22,7 @@ const (
 	loomExeEv               = "LOOMEXE_PATH"
 	loomExe2Ev              = "LOOMEXE_ALTPATH"
 	checkAppHash            = "CHECK_APP_HASH"
-	minRatioForAppHashCheck = float32(3)
+	minRatioForAppHashCheck = 3
 )
 
 var (
@@ -83,8 +83,8 @@ func doCheckAppHash(checkAppHash bool, validators, altValidators uint64) bool {
 	if !checkAppHash || validators == 0 || altValidators == 0 {
 		return false
 	}
-	return float32(validators)/float32(altValidators) >= minRatioForAppHashCheck ||
-		float32(altValidators)/float32(validators) >= minRatioForAppHashCheck
+	return validators/altValidators >= minRatioForAppHashCheck ||
+		altValidators/validators >= minRatioForAppHashCheck
 }
 
 func GenerateConfig(
