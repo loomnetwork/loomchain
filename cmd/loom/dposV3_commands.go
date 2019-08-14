@@ -25,6 +25,25 @@ var (
 	candidateWebsite     string
 )
 
+type Delegation struct {
+	Delegator          string
+	Validator          string
+	UpdateValidator    string
+	Index              string
+	Amount             string
+	UpdateAmount       string
+	LockTimeTier       string
+	UpdateLockTimeTier string
+	LockTime           string
+	State              string
+	Referrer           string
+}
+type CheckDelegation struct {
+	Amount         string
+	WeightedAmount string
+	Delegations    []Delegation
+}
+
 const unregisterCandidateCmdExample = ` 
 loom dpos3 unregister-candidate --key path/to/private_key
 `
@@ -109,9 +128,14 @@ func GetStateCmdV3() *cobra.Command {
 }
 
 func stringWithDecimal(s string, decimal int) string {
-	if len(s) < decimal || decimal <= 0 {
+	if decimal <= 0 {
 		return s
 	}
+
+	if len(s) < decimal {
+		return "0." + strings.Repeat("0", decimal-len(s)) + s
+	}
+
 	return s[:len(s)-decimal] + "." + s[len(s)-decimal:]
 }
 
@@ -782,11 +806,16 @@ func CheckDelegationCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+			out, err := reformatDelegation(&resp)
 			if err != nil {
 				return err
 			}
 			fmt.Println(out)
+			out2, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out2)
 			return nil
 		},
 	}
@@ -1060,103 +1089,17 @@ func CheckAllDelegationsCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			type Delegation struct {
-				Delegator          string
-				Validator          string
-				UpdateValidator    string
-				Index              string
-				Amount             string
-				UpdateAmount       string
-				LockTimeTier       string
-				UpdateLockTimeTier string
-				LockTime           string
-				State              string
-				Referrer           string
-			}
-			type CheckAllDelegation struct {
-				Amount         string
-				WeightedAmount string
-				Delegations    []Delegation
-			}
-
-			delegations := make([]Delegation, len(resp.Delegations))
-			for i, d := range resp.Delegations {
-				if d.Delegator == nil {
-					delegations[i].Delegator = "nil"
-				} else {
-					delegations[i].Delegator = d.Delegator.Local.String()
-				}
-				if d.Validator == nil {
-					delegations[i].Validator = "nil"
-				} else {
-					delegations[i].Validator = d.Validator.Local.String()
-				}
-				if d.UpdateValidator == nil {
-					delegations[i].UpdateValidator = "nil"
-				} else {
-					delegations[i].UpdateValidator = d.UpdateValidator.Local.String()
-				}
-				if d.Index == 0 {
-					delegations[i].Index = "Rewards"
-				} else {
-					delegations[i].Index = strconv.FormatUint(d.Index, 10)
-				}
-				if d.Amount == nil {
-					delegations[i].Amount = "nil"
-				} else {
-					delegations[i].Amount = stringWithDecimal(d.Amount.Value.String(), 18)
-				}
-				if d.UpdateAmount == nil {
-					delegations[i].UpdateAmount = "nil"
-				} else {
-					delegations[i].UpdateAmount = stringWithDecimal(d.UpdateAmount.Value.String(), 18)
-				}
-				delegations[i].LockTimeTier = formatTimeTier(d.LocktimeTier.String())
-				delegations[i].UpdateLockTimeTier = formatTimeTier(d.UpdateLocktimeTier.String())
-				if d.LockTime != 0 {
-					delegations[i].LockTime = time.Unix(int64(d.LockTime), 0).String()
-				} else {
-					delegations[i].LockTime = "0"
-				}
-				delegations[i].State = d.State.String()
-				delegations[i].Referrer = d.Referrer
-			}
-			var amount, weightedAmount string
-			if resp.Amount == nil {
-				amount = "nil"
-			} else {
-				amount = stringWithDecimal(resp.Amount.Value.String(), 18)
-			}
-			if resp.WeightedAmount == nil {
-				weightedAmount = "nil"
-			} else {
-				weightedAmount = stringWithDecimal(resp.WeightedAmount.Value.String(), 18)
-			}
-			formatResp := &CheckAllDelegation{
-				Amount:         amount,
-				WeightedAmount: weightedAmount,
-				Delegations:    delegations,
-			}
-			out, err := json.MarshalIndent(formatResp, "", "  ")
+			out, err := reformatDelegations(&resp)
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(out))
+			fmt.Print(out)
 			return nil
 		},
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
-
-// func formatDelegationState(string) string {
-// 	var Delegation_DelegationState_name = map[int32]string{
-// 		0: "BONDING",
-// 		1: "BONDED",
-// 		2: "UNBONDING",
-// 		3: "REDELEGATING",
-// 	}
-// }
 
 const timeUntilElectionCmdExample = `
 loom dpos3 time-until-election -u http://localhost:12345
@@ -1660,4 +1603,136 @@ func NewDPOSV3Command() *cobra.Command {
 		EnableValidatorJailingCmd(),
 	)
 	return cmd
+}
+
+func reformatDelegations(resp *dposv3.CheckAllDelegationsResponse) (string, error) {
+	delegations := make([]Delegation, len(resp.Delegations))
+	for i, d := range resp.Delegations {
+		if d.Delegator == nil {
+			delegations[i].Delegator = "nil"
+		} else {
+			delegations[i].Delegator = d.Delegator.Local.String()
+		}
+		if d.Validator == nil {
+			delegations[i].Validator = "nil"
+		} else {
+			delegations[i].Validator = d.Validator.Local.String()
+		}
+		if d.UpdateValidator == nil {
+			delegations[i].UpdateValidator = "nil"
+		} else {
+			delegations[i].UpdateValidator = d.UpdateValidator.Local.String()
+		}
+		if d.Index == 0 {
+			delegations[i].Index = "Rewards"
+		} else {
+			delegations[i].Index = strconv.FormatUint(d.Index, 10)
+		}
+		if d.Amount == nil {
+			delegations[i].Amount = "nil"
+		} else {
+			delegations[i].Amount = stringWithDecimal(d.Amount.Value.String(), 18)
+		}
+		if d.UpdateAmount == nil {
+			delegations[i].UpdateAmount = "nil"
+		} else {
+			delegations[i].UpdateAmount = stringWithDecimal(d.UpdateAmount.Value.String(), 18)
+		}
+		delegations[i].LockTimeTier = formatTimeTier(d.LocktimeTier.String())
+		delegations[i].UpdateLockTimeTier = formatTimeTier(d.UpdateLocktimeTier.String())
+		if d.LockTime != 0 {
+			delegations[i].LockTime = time.Unix(int64(d.LockTime), 0).String()
+		} else {
+			delegations[i].LockTime = "0"
+		}
+		delegations[i].State = d.State.String()
+		delegations[i].Referrer = d.Referrer
+	}
+	var amount, weightedAmount string
+	if resp.Amount == nil {
+		amount = "nil"
+	} else {
+		amount = stringWithDecimal(resp.Amount.Value.String(), 18)
+	}
+	if resp.WeightedAmount == nil {
+		weightedAmount = "nil"
+	} else {
+		weightedAmount = stringWithDecimal(resp.WeightedAmount.Value.String(), 18)
+	}
+	formatResp := &CheckDelegation{
+		Amount:         amount,
+		WeightedAmount: weightedAmount,
+		Delegations:    delegations,
+	}
+	out, err := json.MarshalIndent(formatResp, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+func reformatDelegation(resp *dposv3.CheckDelegationResponse) (string, error) {
+	delegations := make([]Delegation, len(resp.Delegations))
+	for i, d := range resp.Delegations {
+		if d.Delegator == nil {
+			delegations[i].Delegator = "nil"
+		} else {
+			delegations[i].Delegator = d.Delegator.Local.String()
+		}
+		if d.Validator == nil {
+			delegations[i].Validator = "nil"
+		} else {
+			delegations[i].Validator = d.Validator.Local.String()
+		}
+		if d.UpdateValidator == nil {
+			delegations[i].UpdateValidator = "nil"
+		} else {
+			delegations[i].UpdateValidator = d.UpdateValidator.Local.String()
+		}
+		if d.Index == 0 {
+			delegations[i].Index = "Rewards"
+		} else {
+			delegations[i].Index = strconv.FormatUint(d.Index, 10)
+		}
+		if d.Amount == nil {
+			delegations[i].Amount = "nil"
+		} else {
+			delegations[i].Amount = stringWithDecimal(d.Amount.Value.String(), 18)
+		}
+		if d.UpdateAmount == nil {
+			delegations[i].UpdateAmount = "nil"
+		} else {
+			delegations[i].UpdateAmount = stringWithDecimal(d.UpdateAmount.Value.String(), 18)
+		}
+		delegations[i].LockTimeTier = formatTimeTier(d.LocktimeTier.String())
+		delegations[i].UpdateLockTimeTier = formatTimeTier(d.UpdateLocktimeTier.String())
+		if d.LockTime != 0 {
+			delegations[i].LockTime = time.Unix(int64(d.LockTime), 0).String()
+		} else {
+			delegations[i].LockTime = "0"
+		}
+		delegations[i].State = d.State.String()
+		delegations[i].Referrer = d.Referrer
+	}
+	var amount, weightedAmount string
+	if resp.Amount == nil {
+		amount = "nil"
+	} else {
+		amount = stringWithDecimal(resp.Amount.Value.String(), 18)
+	}
+	if resp.WeightedAmount == nil {
+		weightedAmount = "nil"
+	} else {
+		weightedAmount = stringWithDecimal(resp.WeightedAmount.Value.String(), 18)
+	}
+	formatResp := &CheckDelegation{
+		Amount:         amount,
+		WeightedAmount: weightedAmount,
+		Delegations:    delegations,
+	}
+	out, err := json.MarshalIndent(formatResp, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }

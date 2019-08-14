@@ -138,7 +138,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 2}} {{index $.AccountAddressList 0}}"
   Condition = "contains"
-  Expected = ["2000000000000000000"]
+  Expected = ["2.000000000000000000"]
 
 # Node 1 staked 1.25M in order to become a validator, if the node was properly
 # slashed, the node's self-delegation should now be a bit less than 1.25M so the
@@ -147,4 +147,4 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
   Condition = "excludes"
-  Excluded = ["1250000000000000000000000"]
+  Excluded = ["1250000.000000000000000000"]
