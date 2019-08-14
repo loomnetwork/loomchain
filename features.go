@@ -93,6 +93,9 @@ const (
 	// Restrict the value of call & deploy txs to non-negative amounts
 	CheckTxValueFeature = "tx:check-value"
 
+	// Increment nonce value of accounts for failed txs
+	IncrementNonceFailedTxFeature = "tx:increment-nonce"
+
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"
 )

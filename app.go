@@ -607,6 +607,9 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
+		if !isCheckTx && state.FeatureEnabled(IncrementNonceFailedTxFeature, false) {
+			storeTx.CommitNonce()
+		}
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
 		receiptHandler.DiscardCurrentReceipt()
