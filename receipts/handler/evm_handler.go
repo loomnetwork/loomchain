@@ -25,10 +25,9 @@ func (r *ReceiptHandler) GetEventsFromLogs(
 				ChainID: caller.ChainID,
 				Local:   log.Address.Bytes(),
 			}.MarshalPB(),
-			BlockHeight:     uint64(blockHeight),
-			PluginName:      contract.Local.String(),
-			EncodedBody:     log.Data,
-			OriginalRequest: input,
+			BlockHeight: uint64(blockHeight),
+			PluginName:  contract.Local.String(),
+			EncodedBody: log.Data,
 		}
 		events = append(events, eventData)
 	}
