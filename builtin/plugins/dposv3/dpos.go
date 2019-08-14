@@ -1842,7 +1842,8 @@ func slashValidatorDelegations(
 				return err
 			}
 			if err := emitSlashDelegationEvent(
-				ctx, delegation, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
+				ctx, delegation.Delegator, delegation.Validator, delegation.Index, delegation.Amount,
+				&types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
 			); err != nil {
 				return err
 			}
@@ -1854,11 +1855,12 @@ func slashValidatorDelegations(
 	// validator's delegation total & thus his ability to earn rewards
 	if !common.IsZero(statistic.WhitelistAmount.Value) {
 		toSlash := CalculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		beforeSlashedWhitelistAmount := statistic.WhitelistAmount
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
 		if err := emitSlashWhitelistAmountEvent(
-			ctx, validatorAddress.MarshalPB(), statistic.WhitelistAmount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
+			ctx, validatorAddress.MarshalPB(), beforeSlashedWhitelistAmount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
 		); err != nil {
 			return err
 		}
@@ -2451,12 +2453,16 @@ func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercent
 }
 
 func emitSlashDelegationEvent(
-	ctx contract.Context, delegation *Delegation, slashAmount *types.BigUInt, slashPercentage *types.BigUInt,
+	ctx contract.Context, delegator, validator *types.Address,
+	delegationIndex uint64, delegationAmount, slashAmount, slashPercentage *types.BigUInt,
 ) error {
 	marshalled, err := proto.Marshal(&DposSlashDelegationEvent{
-		Delegation:      delegation,
-		SlashAmount:     slashAmount,
-		SlashPercentage: slashPercentage,
+		Validator:        validator,
+		Delegator:        delegator,
+		DelegationAmount: delegationAmount,
+		DelegationIndex:  delegationIndex,
+		SlashAmount:      slashAmount,
+		SlashPercentage:  slashPercentage,
 	})
 	if err != nil {
 		return err
