@@ -94,9 +94,19 @@ func newMapContractsCommand() *cobra.Command {
 				foreignContractAddr,
 				localContractAddr.Local.String(),
 			)
-			sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_EIP712)
-			if err != nil {
-				return errors.Wrap(err, "failed to generate creator signature")
+
+			var sig []byte
+			if gatewayType == "tron-gateway" {
+				hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
+				sig, err = evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_TRON)
+				if err != nil {
+					return errors.Wrap(err, "failed to generate creator signature")
+				}
+			} else {
+				sig, err = evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_EIP712)
+				if err != nil {
+					return errors.Wrap(err, "failed to generate creator signature")
+				}
 			}
 
 			req := &tgtypes.TransferGatewayAddContractMappingRequest{

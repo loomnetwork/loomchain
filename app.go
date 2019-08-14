@@ -203,8 +203,9 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
-	getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(
+	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet,
+) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
@@ -302,6 +303,8 @@ var (
 	deliverTxLatency     metrics.Histogram
 	checkTxLatency       metrics.Histogram
 	commitBlockLatency   metrics.Histogram
+	beginBlockLatency    metrics.Histogram
+	endBlockLatency      metrics.Histogram
 	requestCount         metrics.Counter
 	committedBlockCount  metrics.Counter
 	validatorFuncLatency metrics.Histogram
@@ -337,6 +340,20 @@ func init() {
 		Help:       "Total duration of commit block in microseconds.",
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
+	beginBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "begin_block_latency",
+		Help:       "Total duration of begin block in seconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	}, []string{"method"})
+	endBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace:  "loomchain",
+		Subsystem:  "application",
+		Name:       "end_block_latency",
+		Help:       "Total duration of end block in seconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	}, []string{"method"})
 
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
@@ -390,6 +407,11 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 }
 
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "BeginBlock"}
+		beginBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	block := req.Header
 	if block.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
@@ -457,6 +479,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 }
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EndBlock"}
+		endBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	if req.Height != a.height() {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
@@ -469,11 +496,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		nil,
 		a.GetValidatorSet,
 	)
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(),
-		state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		panic(err)
-	}
+	receiptHandler := a.ReceiptHandlerProvider.Store()
 	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
@@ -583,12 +606,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.GetValidatorSet,
 	)
 
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(),
-		state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		panic(err)
-	}
-
+	receiptHandler := a.ReceiptHandlerProvider.Store()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
@@ -603,16 +621,10 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			if err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}
-			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height,
-				state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
-			} else {
-				if reader.GetCurrentReceipt() != nil {
-					if err = a.EventHandler.EthSubscriptionSet().
-						EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-						log.Error("failed to load receipt", "err", err)
-					}
+			reader := a.ReceiptHandlerProvider.Reader()
+			if reader.GetCurrentReceipt() != nil {
+				if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+					log.Error("failed to load receipt", "err", err)
 				}
 			}
 			receiptHandler.CommitCurrentReceipt()
