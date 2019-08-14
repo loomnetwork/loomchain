@@ -246,7 +246,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-all-delegations {{index $.NodeAddressList 1}}"
   Condition = "contains"
-  Expected = ["weightedAmount"]
+  Expected = ["WeightedAmount"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 register-referrer acct1 {{index $.AccountAddressList 1}} -k {{index $.NodePrivKeyPathList 0}}"
@@ -285,10 +285,10 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-all-delegations {{index $.AccountAddressList 1}}"
   Condition = "contains"
-  Expected = ["chainId\": \"default"]
+  Expected = ["Delegator\": \"{{index $.AccountAddressList 1}}"]
 
 # referrer "acct2" should have a non-negative reward distribution
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-all-delegations {{index $.AccountAddressList 2}}"
   Condition = "contains"
-  Expected = ["chainId\": \"default"]
+  Expected = ["Delegator\": \"{{index $.AccountAddressList 2}}"]
