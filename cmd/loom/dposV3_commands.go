@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -107,14 +108,11 @@ func GetStateCmdV3() *cobra.Command {
 	return cmd
 }
 
-func stringWithDecimal(s string, decimal int) (string, error) {
-	if decimal <= 0 {
-		return s, fmt.Errorf("invalid decimal %d", decimal)
+func stringWithDecimal(s string, decimal int) string {
+	if len(s) < decimal || decimal <= 0 {
+		return s
 	}
-	if len(s) < decimal {
-		return s, nil
-	}
-	return s[:len(s)-decimal] + "." + s[len(s)-decimal:], nil
+	return s[:len(s)-decimal] + "." + s[len(s)-decimal:]
 }
 
 func formatTimeTier(tier string) string {
@@ -188,17 +186,17 @@ func ListValidatorsCmdV3() *cobra.Command {
 				if s.WhitelistAmount == nil {
 					validatorStats[i].WhitelistAmount = "nil"
 				} else {
-					validatorStats[i].WhitelistAmount, err = stringWithDecimal(s.WhitelistAmount.Value.String(), decimal)
+					validatorStats[i].WhitelistAmount = stringWithDecimal(s.WhitelistAmount.Value.String(), decimal)
 				}
 				if s.UpdateWhitelistAmount == nil {
 					validatorStats[i].UpdateWhitelistAmount = "nil"
 				} else {
-					validatorStats[i].UpdateWhitelistAmount, err = stringWithDecimal(s.UpdateWhitelistAmount.Value.String(), decimal)
+					validatorStats[i].UpdateWhitelistAmount = stringWithDecimal(s.UpdateWhitelistAmount.Value.String(), decimal)
 				}
 				if s.DelegationTotal == nil {
 					validatorStats[i].DelegationTotal = "nil"
 				} else {
-					validatorStats[i].DelegationTotal, err = stringWithDecimal(s.DelegationTotal.Value.String(), decimal)
+					validatorStats[i].DelegationTotal = stringWithDecimal(s.DelegationTotal.Value.String(), decimal)
 				}
 				validatorStats[i].Jailed = s.Jailed
 				validatorStats[i].LocktimeTier = formatTimeTier(s.LocktimeTier.String())
@@ -206,7 +204,7 @@ func ListValidatorsCmdV3() *cobra.Command {
 				if s.SlashPercentage == nil {
 					validatorStats[i].SlashPercentage = "nil"
 				} else {
-					validatorStats[i].SlashPercentage, err = stringWithDecimal(s.SlashPercentage.Value.String(), decimal)
+					validatorStats[i].SlashPercentage = stringWithDecimal(s.SlashPercentage.Value.String(), decimal)
 				}
 				validatorStats[i].UpdateLocktimeTier = formatTimeTier(s.UpdateLocktimeTier.String())
 				if err != nil {
@@ -282,13 +280,13 @@ func ListCandidatesCmdV3() *cobra.Command {
 					if c.Statistic.WhitelistAmount == nil {
 						candidateStats[i].WhitelistAmount = "nil"
 					} else {
-						candidateStats[i].WhitelistAmount, err = stringWithDecimal(c.Statistic.WhitelistAmount.Value.String(), decimal)
+						candidateStats[i].WhitelistAmount = stringWithDecimal(c.Statistic.WhitelistAmount.Value.String(), decimal)
 					}
 					candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
 					if c.Statistic.DelegationTotal == nil {
 						candidateStats[i].DelegationTotal = "nil"
 					} else {
-						candidateStats[i].DelegationTotal, err = stringWithDecimal(c.Statistic.DelegationTotal.Value.String(), decimal)
+						candidateStats[i].DelegationTotal = stringWithDecimal(c.Statistic.DelegationTotal.Value.String(), decimal)
 					}
 					if c.Statistic.SlashPercentage == nil {
 						candidateStats[i].SlashPercentage = "nil"
@@ -299,7 +297,7 @@ func ListCandidatesCmdV3() *cobra.Command {
 					if c.Statistic.UpdateWhitelistAmount == nil {
 						candidateStats[i].UpdateWhitelistAmount = "nil"
 					} else {
-						candidateStats[i].UpdateWhitelistAmount, err = stringWithDecimal(c.Statistic.UpdateLocktimeTier.String(), decimal)
+						candidateStats[i].UpdateWhitelistAmount = stringWithDecimal(c.Statistic.UpdateLocktimeTier.String(), decimal)
 					}
 					candidateStats[i].LockTimeTier = formatTimeTier(c.Statistic.LocktimeTier.String())
 					candidateStats[i].Jailed = c.Statistic.Jailed
@@ -315,16 +313,8 @@ func ListCandidatesCmdV3() *cobra.Command {
 					} else {
 						candidateStats[i].PubKey = c.Candidate.PubKey
 					}
-					fee, err := stringWithDecimal(strconv.FormatUint(c.Candidate.Fee, 10), 2)
-					if err != nil {
-						return err
-					}
-					newFee, err := stringWithDecimal(strconv.FormatUint(c.Candidate.NewFee, 10), 2)
-					if err != nil {
-						return err
-					}
-					candidateStats[i].Fee = fee + "%"
-					candidateStats[i].NewFee = newFee + "%"
+					candidateStats[i].Fee = stringWithDecimal(strconv.FormatUint(c.Candidate.Fee, 10), 2) + "%"
+					candidateStats[i].NewFee = stringWithDecimal(strconv.FormatUint(c.Candidate.NewFee, 10), 2) + "%"
 					candidateStats[i].State = c.Candidate.State.String()
 					candidateStats[i].Name = c.Candidate.Name
 					candidateStats[i].Description = c.Candidate.Description
@@ -1075,12 +1065,103 @@ func CheckAllDelegationsCmdV3() *cobra.Command {
 				return err
 			}
 			fmt.Println(out)
+			type Delegation struct {
+				Delegator          string
+				Validator          string
+				UpdateValidator    string
+				Index              string
+				Amount             string
+				UpdateAmount       string
+				LockTimeTier       string
+				UpdateLockTimeTier string
+				LockTime           string
+				State              string
+				Referrer           string
+			}
+			type CheckAllDelegation struct {
+				Amount         string
+				WeightedAmount string
+				Delegations    []Delegation
+			}
+
+			delegations := make([]Delegation, len(resp.Delegations))
+			for i, d := range resp.Delegations {
+				if d.Delegator == nil {
+					delegations[i].Delegator = "nil"
+				} else {
+					delegations[i].Delegator = d.Delegator.Local.String()
+				}
+				if d.Validator == nil {
+					delegations[i].Validator = "nil"
+				} else {
+					delegations[i].Validator = d.Validator.Local.String()
+				}
+				if d.UpdateValidator == nil {
+					delegations[i].UpdateValidator = "nil"
+				} else {
+					delegations[i].UpdateValidator = d.UpdateValidator.Local.String()
+				}
+				if d.Index == 0 {
+					delegations[i].Index = "Rewards"
+				} else {
+					delegations[i].Index = strconv.FormatUint(d.Index, 10)
+				}
+				if d.Amount == nil {
+					delegations[i].Amount = "nil"
+				} else {
+					delegations[i].Amount = stringWithDecimal(d.Amount.Value.String(), 18)
+				}
+				if d.UpdateAmount == nil {
+					delegations[i].UpdateAmount = "nil"
+				} else {
+					delegations[i].UpdateAmount = stringWithDecimal(d.UpdateAmount.Value.String(), 18)
+				}
+				delegations[i].LockTimeTier = formatTimeTier(d.LocktimeTier.String())
+				delegations[i].UpdateLockTimeTier = formatTimeTier(d.UpdateLocktimeTier.String())
+				if d.LockTime != 0 {
+					delegations[i].LockTime = time.Unix(int64(d.LockTime), 0).String()
+				} else {
+					delegations[i].LockTime = "0"
+				}
+				delegations[i].State = d.State.String()
+				delegations[i].Referrer = d.Referrer
+			}
+			var amount, weightedAmount string
+			if resp.Amount == nil {
+				amount = "nil"
+			} else {
+				amount = stringWithDecimal(resp.Amount.Value.String(), 18)
+			}
+			if resp.WeightedAmount == nil {
+				weightedAmount = "nil"
+			} else {
+				weightedAmount = stringWithDecimal(resp.WeightedAmount.Value.String(), 18)
+			}
+			formatResp := &CheckAllDelegation{
+				Amount:         amount,
+				WeightedAmount: weightedAmount,
+				Delegations:    delegations,
+			}
+			out2, err := json.MarshalIndent(formatResp, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(out2))
 			return nil
 		},
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
+
+// func formatDelegationState(string) string {
+// 	var Delegation_DelegationState_name = map[int32]string{
+// 		0: "BONDING",
+// 		1: "BONDED",
+// 		2: "UNBONDING",
+// 		3: "REDELEGATING",
+// 	}
+// }
 
 const timeUntilElectionCmdExample = `
 loom dpos3 time-until-election -u http://localhost:12345
