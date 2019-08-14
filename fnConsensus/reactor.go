@@ -401,8 +401,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	f.state.Message[fnID] = message
-
 	hash, err := calculateMessageHash(message)
 	if err != nil {
 		f.Logger.Error(
@@ -429,6 +427,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
 
+	f.state.Message[fnID] = message
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
 		currentNonce = 1
