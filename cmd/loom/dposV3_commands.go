@@ -1060,11 +1060,6 @@ func CheckAllDelegationsCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
 			type Delegation struct {
 				Delegator          string
 				Validator          string
@@ -1142,11 +1137,11 @@ func CheckAllDelegationsCmdV3() *cobra.Command {
 				WeightedAmount: weightedAmount,
 				Delegations:    delegations,
 			}
-			out2, err := json.MarshalIndent(formatResp, "", "  ")
+			out, err := json.MarshalIndent(formatResp, "", "  ")
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(out2))
+			fmt.Println(string(out))
 			return nil
 		},
 	}
