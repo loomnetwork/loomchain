@@ -37,7 +37,9 @@ func newRunCommand() *cobra.Command {
 			e := engine.New(conf)
 
 			ctx, cancel := context.WithCancel(context.Background())
-			go func() { errC <- e.Run(ctx, eventC) }()
+			go func() {
+				errC <- e.Run(ctx, eventC)
+			}()
 
 			func() {
 				for {

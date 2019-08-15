@@ -23,7 +23,6 @@ func TestEthJSONRPC2(t *testing.T) {
 		{"getLogs", "eth-5-test.toml", 1, 4, "empty-genesis.json", "eth-test-2-loom.yaml"},
 		{"go-getBlockByNumber", "eth-6-test.toml", 1, 3, "coin.genesis.json", "eth-test-1-loom.yaml"},
 	}
-	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
