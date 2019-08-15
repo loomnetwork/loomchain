@@ -106,18 +106,18 @@ func LoadMultiWriterAppStore(appStoreCfg *AppStoreConfig, evmStoreCfg *EvmStoreC
 	}
 	appStoreEvmRoot := iavlStore.Get(rootKey)
 	evmDB, err := db.LoadDB(
-		evmstoreCfg.DBBackend,
-		evmstoreCfg.DBName,
+		evmStoreCfg.DBBackend,
+		evmStoreCfg.DBName,
 		rootPath,
-		evmstoreCfg.CacheSizeMegs,
-		evmstoreCfg.WriteBufferMegs,
+		evmStoreCfg.CacheSizeMegs,
+		evmStoreCfg.WriteBufferMegs,
 		metricsDatabase,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	evmStore, err := loadEvmStore(evmDB, iavlStore.Version(), evmstoreCfg.NumCachedRoots)
+	evmStore, err := loadEvmStore(evmDB, iavlStore.Version(), evmStoreCfg.NumCachedRoots)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func LoadMultiWriterAppStore(appStoreCfg *AppStoreConfig, evmStoreCfg *EvmStoreC
 		if err != nil {
 			return nil, err
 		}
-		evmStore, err = loadEvmStore(evmDB, iavlStore.Version(), evmstoreCfg.NumCachedRoots)
+		evmStore, err = loadEvmStore(evmDB, iavlStore.Version(), evmStoreCfg.NumCachedRoots)
 		if err != nil {
 			return nil, err
 		}
