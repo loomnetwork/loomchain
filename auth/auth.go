@@ -14,6 +14,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 var (
@@ -101,6 +102,7 @@ type NonceHandler struct {
 
 func (n *NonceHandler) Nonce(
 	state loomchain.State,
+	kvStore store.KVStore,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 	isCheckTx bool,
@@ -115,7 +117,7 @@ func (n *NonceHandler) Nonce(
 		n.nonceCache = make(map[string]uint64)
 		//clear the cache for each block
 	}
-	seq := loomchain.NewSequence(nonceKey(origin)).Next(state)
+	seq := loomchain.NewSequence(nonceKey(origin)).Next(state, kvStore, isCheckTx)
 
 	var tx NonceTx
 	err := proto.Unmarshal(txBytes, &tx)
@@ -159,4 +161,3 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 var NonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
 
 var NonceTxPostNonceMiddleware = loomchain.PostCommitMiddlewareFunc(NonceTxHandler.IncNonce)
-var NonceTxMiddleware = loomchain.TxMiddlewareFunc(NonceTxHandler.Nonce)

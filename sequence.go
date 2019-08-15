@@ -3,6 +3,8 @@ package loomchain
 import (
 	"bytes"
 	"encoding/binary"
+
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type Sequence struct {
@@ -26,7 +28,7 @@ func (s *Sequence) Value(state ReadOnlyState) uint64 {
 	return seq
 }
 
-func (s *Sequence) Next(state State) uint64 {
+func (s *Sequence) Next(state State, kvStore store.KVStore, isCheckTx bool) uint64 {
 	seq := s.Value(state) + 1
 
 	var buf bytes.Buffer
@@ -36,6 +38,10 @@ func (s *Sequence) Next(state State) uint64 {
 	}
 
 	state.Set(s.Key, buf.Bytes())
+
+	if state.FeatureEnabled(IncrementNonceFailedTxFeature, false) && !isCheckTx {
+		kvStore.Set(s.Key, buf.Bytes())
+	}
 
 	return seq
 }

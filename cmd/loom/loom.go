@@ -1007,7 +1007,16 @@ func loadApp(
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
+	nonceMiddleware := func(
+		state loomchain.State,
+		txBytes []byte,
+		next loomchain.TxHandlerFunc,
+		isCheckTx bool,
+	) (loomchain.TxHandlerResult, error) {
+		return auth.NonceTxHandler.Nonce(state, appStore, txBytes, next, isCheckTx)
+	}
+
+	txMiddleWare = append(txMiddleWare, loomchain.TxMiddlewareFunc(nonceMiddleware))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
