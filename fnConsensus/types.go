@@ -52,7 +52,7 @@ type ReactorState struct {
 	PreviousMajVoteSets      map[string]*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
 	Messages                 map[string][]byte
-	Hash                     map[string]string
+	Hashes                   map[string][]byte
 }
 
 func NewReactorState() *ReactorState {
@@ -62,6 +62,7 @@ func NewReactorState() *ReactorState {
 		PreviousTimedOutVoteSets: make(map[string]*FnVoteSet),
 		PreviousMajVoteSets:      make(map[string]*FnVoteSet),
 		Messages:                 make(map[string][]byte),
+		Hashes:                   make(map[string][]byte),
 	}
 }
 
