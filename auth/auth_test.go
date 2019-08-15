@@ -58,10 +58,10 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	ctx = context.WithValue(ctx, ContextKeyCheckTx, true)
+	kvStore := store.NewMemStore()
+	state := loomchain.NewStoreState(ctx, kvStore, abci.Header{Height: 27}, nil, nil)
 
-	state := loomchain.NewStoreState(ctx, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
-
-	_, err = NonceTxMiddleware(state, nonceTxBytes,
+	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
 		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
@@ -71,11 +71,12 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//State is reset on every run
 	ctx2 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
-	state2 := loomchain.NewStoreState(ctx2, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
+	kvStore2 := store.NewMemStore()
+	state2 := loomchain.NewStoreState(ctx2, kvStore2, abci.Header{Height: 27}, nil, nil)
 	ctx2 = context.WithValue(ctx2, ContextKeyCheckTx, true)
 
 	//If we get the same sequence number in same block we should get an error
-	_, err = NonceTxMiddleware(state2, nonceTxBytes,
+	_, err = NonceTxHandler.Nonce(state2, kvStore2, nonceTxBytes,
 		func(state2 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, true,
@@ -85,11 +86,12 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//State is reset on every run
 	ctx3 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
-	state3 := loomchain.NewStoreState(ctx3, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
+	kvStore3 := store.NewMemStore()
+	state3 := loomchain.NewStoreState(ctx3, kvStore3, abci.Header{Height: 27}, nil, nil)
 	ctx3 = context.WithValue(ctx3, ContextKeyCheckTx, true)
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
-	_, err = NonceTxMiddleware(state3, nonceTxBytes2,
+	_, err = NonceTxHandler.Nonce(state3, kvStore3, nonceTxBytes2,
 		func(state3 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, true,
@@ -99,10 +101,11 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//Try a deliverTx at same height it should be fine
 	ctx3Dx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
-	state3Dx := loomchain.NewStoreState(ctx3Dx, store.NewMemStore(), abci.Header{Height: 27}, nil, nil)
+	kvStore3Dx := store.NewMemStore()
+	state3Dx := loomchain.NewStoreState(ctx3Dx, kvStore3Dx, abci.Header{Height: 27}, nil, nil)
 	ctx3Dx = context.WithValue(ctx3Dx, ContextKeyCheckTx, true)
 
-	_, err = NonceTxMiddleware(state3Dx, nonceTxBytes,
+	_, err = NonceTxHandler.Nonce(state3Dx, kvStore3Dx, nonceTxBytes,
 		func(state3 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
@@ -113,10 +116,11 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	///--------------increase block height should kill cache
 	//State is reset on every run
 	ctx4 := context.WithValue(nil, ContextKeyOrigin, origin)
-	state4 := loomchain.NewStoreState(ctx4, store.NewMemStore(), abci.Header{Height: 28}, nil, nil)
+	kvStore4 := store.NewMemStore()
+	state4 := loomchain.NewStoreState(ctx4, kvStore4, abci.Header{Height: 28}, nil, nil)
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
-	_, err = NonceTxMiddleware(state4, nonceTxBytes,
+	_, err = NonceTxHandler.Nonce(state4, kvStore4, nonceTxBytes,
 		func(state4 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, true,
