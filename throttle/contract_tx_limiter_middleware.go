@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -149,12 +150,13 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 	}
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
+		kvstore store.KVStore,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 		if !isCheckTx {
-			return next(state, txBytes, isCheckTx)
+			return next(state, kvstore, txBytes, isCheckTx)
 		}
 		var nonceTx auth.NonceTx
 		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
@@ -165,7 +167,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.New("throttle: unmarshal tx")
 		}
 		if tx.Id != callId {
-			return next(state, txBytes, isCheckTx)
+			return next(state, kvstore, txBytes, isCheckTx)
 		}
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
@@ -176,7 +178,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 		}
 		if msgTx.VmType != vm.VMType_EVM {
-			return next(state, txBytes, isCheckTx)
+			return next(state, kvstore, txBytes, isCheckTx)
 		}
 		if txl.inactiveDeployerContracts == nil ||
 			txl.contractToTierMap == nil ||
@@ -203,7 +205,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		// contracts the limiter doesn't know about shouldn't be throttled
 		contractTierID, ok := txl.contractToTierMap[contractAddr.String()]
 		if !ok {
-			return next(state, txBytes, isCheckTx)
+			return next(state, kvstore, txBytes, isCheckTx)
 		}
 		if txl.tierMap == nil ||
 			(txl.tierDataLastUpdated+cfg.TierDataRefreshInterval) < time.Now().Unix() {
@@ -235,6 +237,6 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		}
 		txl.updateState(contractAddr, state.Block().Height)
 
-		return next(state, txBytes, isCheckTx)
+		return next(state, kvstore, txBytes, isCheckTx)
 	})
 }

@@ -863,7 +863,9 @@ func loadApp(
 
 	router := loomchain.NewTxRouter()
 
-	isEvmTx := func(txID uint32, state loomchain.State, txBytes []byte, isCheckTx bool) bool {
+	isEvmTx := func(
+		txID uint32, state loomchain.State, kvstore store.KVStore, txBytes []byte, isCheckTx bool,
+	) bool {
 		var msg vm.MessageTx
 		err := proto.Unmarshal(txBytes, &msg)
 		if err != nil {

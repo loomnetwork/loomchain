@@ -9,6 +9,7 @@ import (
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -28,22 +29,23 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 ) (loomchain.PostCommitMiddleware, error) {
 	return loomchain.PostCommitMiddlewareFunc(func(
 		state loomchain.State,
+		kvstore store.KVStore,
 		txBytes []byte,
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
 	) error {
 		if !state.FeatureEnabled(loomchain.UserDeployerWhitelistFeature, false) {
-			return next(state, txBytes, res)
+			return next(state, kvstore, txBytes, res)
 		}
 
 		// If it isn't EVM deployment, no need to proceed further
 		if res.Info != utils.DeployEvm {
-			return next(state, txBytes, res)
+			return next(state, kvstore, txBytes, res)
 		}
 
 		// This is checkTx, so bail out early.
 		if len(res.Data) == 0 {
-			return next(state, txBytes, res)
+			return next(state, kvstore, txBytes, res)
 		}
 
 		var deployResponse vm.DeployResponse
@@ -61,7 +63,7 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 			return errors.Wrapf(err, "error while recording deployment")
 		}
 
-		return next(state, txBytes, res)
+		return next(state, kvstore, txBytes, res)
 	}), nil
 }
 
@@ -70,13 +72,14 @@ func NewDeployerWhitelistMiddleware(
 ) (loomchain.TxMiddlewareFunc, error) {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
+		kvstore store.KVStore,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 
 		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
-			return next(state, txBytes, isCheckTx)
+			return next(state, kvstore, txBytes, isCheckTx)
 		}
 
 		var nonceTx auth.NonceTx
@@ -90,7 +93,7 @@ func NewDeployerWhitelistMiddleware(
 		}
 
 		if tx.Id != deployId && tx.Id != migrationId {
-			return next(state, txBytes, isCheckTx)
+			return next(state, kvstore, txBytes, isCheckTx)
 		}
 
 		var msg vm.MessageTx
@@ -137,7 +140,7 @@ func NewDeployerWhitelistMiddleware(
 			}
 		}
 
-		return next(state, txBytes, isCheckTx)
+		return next(state, kvstore, txBytes, isCheckTx)
 	}), nil
 }
 

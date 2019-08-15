@@ -33,7 +33,6 @@ type KVStore interface {
 type KVStoreTx interface {
 	KVStore
 	Commit()
-	CommitNonce()
 	Rollback()
 }
 
@@ -144,14 +143,6 @@ func (c *cacheTx) Commit() {
 			c.store.Delete(tx.Key)
 		} else {
 			panic("invalid cacheTx action type")
-		}
-	}
-}
-
-func (c *cacheTx) CommitNonce() {
-	for _, tx := range c.tmpTxs {
-		if tx.Action == txSet && util.HasPrefix(tx.Key, []byte("nonce")) {
-			c.store.Set(tx.Key, tx.Value)
 		}
 	}
 }

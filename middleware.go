@@ -10,35 +10,36 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/store"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 type TxMiddleware interface {
-	ProcessTx(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
+	ProcessTx(state State, kvstore store.KVStore, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
 }
 
-type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
+type TxMiddlewareFunc func(state State, kvstore store.KVStore, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
 
 func (f TxMiddlewareFunc) ProcessTx(
-	state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
+	state State, kvstore store.KVStore, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
 ) (TxHandlerResult, error) {
-	return f(state, txBytes, next, isCheckTx)
+	return f(state, kvstore, txBytes, next, isCheckTx)
 }
 
-type PostCommitHandler func(state State, txBytes []byte, res TxHandlerResult) error
+type PostCommitHandler func(state State, kvstore store.KVStore, txBytes []byte, res TxHandlerResult) error
 
 type PostCommitMiddleware interface {
-	ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
+	ProcessTx(state State, kvstore store.KVStore, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
 }
 
 type PostCommitMiddlewareFunc func(
-	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
+	state State, kvstore store.KVStore, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
 ) error
 
 func (f PostCommitMiddlewareFunc) ProcessTx(
-	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
+	state State, kvstore store.KVStore, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
 ) error {
-	return f(state, txBytes, res, next)
+	return f(state, kvstore, txBytes, res, next)
 }
 
 func MiddlewareTxHandler(
@@ -46,21 +47,21 @@ func MiddlewareTxHandler(
 	handler TxHandler,
 	postMiddlewares []PostCommitMiddleware,
 ) TxHandler {
-	postChain := func(state State, txBytes []byte, res TxHandlerResult) error { return nil }
+	postChain := func(state State, kvstore store.KVStore, txBytes []byte, res TxHandlerResult) error { return nil }
 	for i := len(postMiddlewares) - 1; i >= 0; i-- {
 		m := postMiddlewares[i]
 		localNext := postChain
-		postChain = func(state State, txBytes []byte, res TxHandlerResult) error {
-			return m.ProcessTx(state, txBytes, res, localNext)
+		postChain = func(state State, kvstore store.KVStore, txBytes []byte, res TxHandlerResult) error {
+			return m.ProcessTx(state, kvstore, txBytes, res, localNext)
 		}
 	}
 
-	next := TxHandlerFunc(func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-		result, err := handler.ProcessTx(state, txBytes, isCheckTx)
+	next := TxHandlerFunc(func(state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+		result, err := handler.ProcessTx(state, kvstore, txBytes, isCheckTx)
 		if err != nil {
 			return result, err
 		}
-		err = postChain(state, txBytes, result)
+		err = postChain(state, kvstore, txBytes, result)
 		return result, err
 	})
 
@@ -68,15 +69,15 @@ func MiddlewareTxHandler(
 		m := middlewares[i]
 		// Need local var otherwise infinite loop occurs
 		nextLocal := next
-		next = func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-			return m.ProcessTx(state, txBytes, nextLocal, isCheckTx)
+		next = func(state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+			return m.ProcessTx(state, kvstore, txBytes, nextLocal, isCheckTx)
 		}
 	}
 
 	return next
 }
 
-var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+var NoopTxHandler = TxHandlerFunc(func(state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	return TxHandlerResult{}, nil
 })
 
@@ -95,6 +96,7 @@ func rvalError(r interface{}) error {
 
 var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 	state State,
+	kvstore store.KVStore,
 	txBytes []byte,
 	next TxHandlerFunc,
 	isCheckTx bool,
@@ -108,27 +110,29 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 		}
 	}()
 
-	return next(state, txBytes, isCheckTx)
+	return next(state, kvstore, txBytes, isCheckTx)
 })
 
 var LogTxMiddleware = TxMiddlewareFunc(func(
 	state State,
+	kvstore store.KVStore,
 	txBytes []byte,
 	next TxHandlerFunc,
 	isCheckTx bool,
 ) (TxHandlerResult, error) {
 	// TODO: set some tx specific logging info
-	return next(state, txBytes, isCheckTx)
+	return next(state, kvstore, txBytes, isCheckTx)
 })
 
 var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
 	state State,
+	kvstore store.KVStore,
 	txBytes []byte,
 	res TxHandlerResult,
 	next PostCommitHandler,
 ) error {
 	log.Default.Info("Tx processed", "result", res, "payload", base64.StdEncoding.EncodeToString(txBytes))
-	return next(state, txBytes, res)
+	return next(state, kvstore, txBytes, res)
 })
 
 // InstrumentingTxMiddleware maintains the state of metrics values internally
@@ -165,7 +169,7 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 
 // ProcessTx capture metrics and implements TxMiddleware
 func (m InstrumentingTxMiddleware) ProcessTx(
-	state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
+	state State, kvstore store.KVStore, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
 ) (r TxHandlerResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Tx", "error", fmt.Sprint(err != nil)}
@@ -173,6 +177,6 @@ func (m InstrumentingTxMiddleware) ProcessTx(
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	r, err = next(state, txBytes, isCheckTx)
+	r, err = next(state, kvstore, txBytes, isCheckTx)
 	return
 }

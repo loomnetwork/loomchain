@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/migrations"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -44,6 +45,7 @@ type MigrationTxHandler struct {
 
 func (h *MigrationTxHandler) ProcessTx(
 	state loomchain.State,
+	kvstore store.KVStore,
 	txBytes []byte,
 	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {

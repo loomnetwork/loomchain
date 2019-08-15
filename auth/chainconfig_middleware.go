@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 // NewChainConfigMiddleware returns middleware that verifies signed txs using either
@@ -17,6 +18,7 @@ func NewChainConfigMiddleware(
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
+		kvstore store.KVStore,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
@@ -24,10 +26,10 @@ func NewChainConfigMiddleware(
 		chains := getEnabledChains(authConfig.Chains, state)
 		if len(chains) > 0 {
 			mw := NewMultiChainSignatureTxMiddleware(chains, createAddressMapperCtx)
-			return mw(state, txBytes, next, isCheckTx)
+			return mw(state, kvstore, txBytes, next, isCheckTx)
 		}
 
-		return SignatureTxMiddleware(state, txBytes, next, isCheckTx)
+		return SignatureTxMiddleware(state, kvstore, txBytes, next, isCheckTx)
 	})
 }
 

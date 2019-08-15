@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -28,12 +29,13 @@ func GetKarmaMiddleWare(
 	th := NewThrottle(sessionDuration, maxCallCount)
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
+		kvstore store.KVStore,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 		if !karmaEnabled {
-			return next(state, txBytes, isCheckTx)
+			return next(state, kvstore, txBytes, isCheckTx)
 		}
 
 		origin := auth.Origin(state.Context())
@@ -82,7 +84,7 @@ func GetKarmaMiddleWare(
 			return res, errors.Wrap(err, "failed to obtain Karma Oracle address")
 		}
 		if oracleAddr != nil && origin.Compare(*oracleAddr) == 0 {
-			r, err := next(state, txBytes, isCheckTx)
+			r, err := next(state, kvstore, txBytes, isCheckTx)
 			if err != nil {
 				return r, err
 			}
@@ -141,7 +143,7 @@ func GetKarmaMiddleWare(
 			return res, errors.Errorf("unknown transaction id %d", tx.Id)
 		}
 
-		r, err := next(state, txBytes, isCheckTx)
+		r, err := next(state, kvstore, txBytes, isCheckTx)
 		if err != nil {
 			return r, err
 		}

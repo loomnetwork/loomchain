@@ -232,10 +232,10 @@ func (s *readOnlyKVStoreAdapter) Delete(key []byte) {
 }
 
 type TxHandler interface {
-	ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+	ProcessTx(state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 }
 
-type TxHandlerFunc func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+type TxHandlerFunc func(state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 
 type TxHandlerResult struct {
 	Data             []byte
@@ -246,8 +246,8 @@ type TxHandlerResult struct {
 	Tags []common.KVPair
 }
 
-func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	return f(state, txBytes, isCheckTx)
+func (f TxHandlerFunc) ProcessTx(state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	return f(state, kvstore, txBytes, isCheckTx)
 }
 
 type QueryHandler interface {
@@ -605,11 +605,8 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
-	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
+	r, err := a.TxHandler.ProcessTx(state, a.Store, txBytes, isCheckTx)
 	if err != nil {
-		if !isCheckTx && state.FeatureEnabled(IncrementNonceFailedTxFeature, false) {
-			storeTx.CommitNonce()
-		}
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
 		receiptHandler.DiscardCurrentReceipt()
