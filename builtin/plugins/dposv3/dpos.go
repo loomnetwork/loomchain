@@ -144,7 +144,7 @@ type (
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
 	DposSlashDelegationEvent        = dtypes.DposSlashDelegationEvent
-	DposSlasWhitelistAmountEvent    = dtypes.DposSlashWhitelistAmountEvent
+	DposSlashWhitelistAmountEvent   = dtypes.DposSlashWhitelistAmountEvent
 	DposJailEvent                   = dtypes.DposJailEvent
 	DposUnjailEvent                 = dtypes.DposUnjailEvent
 	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
@@ -1860,7 +1860,8 @@ func slashValidatorDelegations(
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
 		if err := emitSlashWhitelistAmountEvent(
-			ctx, validatorAddress.MarshalPB(), beforeSlashedWhitelistAmount, &types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
+			ctx, validatorAddress.MarshalPB(), beforeSlashedWhitelistAmount,
+			&types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
 		); err != nil {
 			return err
 		}
@@ -2473,9 +2474,9 @@ func emitSlashDelegationEvent(
 }
 
 func emitSlashWhitelistAmountEvent(
-	ctx contract.Context, validator *types.Address, whitelistAmount *types.BigUInt, slashAmount *types.BigUInt, slashPercentage *types.BigUInt,
+	ctx contract.Context, validator *types.Address, whitelistAmount, slashAmount, slashPercentage *types.BigUInt,
 ) error {
-	marshalled, err := proto.Marshal(&DposSlasWhitelistAmountEvent{
+	marshalled, err := proto.Marshal(&DposSlashWhitelistAmountEvent{
 		Validator:       validator,
 		WhitelistAmount: whitelistAmount,
 		SlashAmount:     slashAmount,
