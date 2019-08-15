@@ -1,8 +1,8 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
-import "openzeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
-contract MyCoin is StandardToken {
+contract MyCoin is ERC20 {
     string public name = "MyCoin";
     string public symbol = "MCC";
     uint8 public decimals = 18;
@@ -13,7 +13,6 @@ contract MyCoin is StandardToken {
     bytes4 constant ERC20_RECEIVED = 0xbc04f0af;
     
     constructor() public {
-        totalSupply_ = INITIAL_SUPPLY * (10 ** uint256(decimals));
-        balances[msg.sender] = totalSupply_;
+        _mint(msg.sender, INITIAL_SUPPLY * (10 ** uint256(decimals)));
     }
 }

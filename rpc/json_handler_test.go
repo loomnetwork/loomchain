@@ -146,17 +146,19 @@ func testMultipleWebsocketConnections(t *testing.T) {
 	go hub.run()
 	qs := &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
-
+	conns := []*websocket.Conn{}
 	for _, test := range tests {
 		dialer := wstest.NewDialer(handler)
 		conn, _, err := dialer.Dial("ws://localhost/eth", nil)
+		conns = append(conns, conn)
 		require.NoError(t, err)
 
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
-		require.NoError(t, conn.Close())
 	}
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Second)
+
+	qs.mutex.RLock()
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -167,6 +169,11 @@ func testMultipleWebsocketConnections(t *testing.T) {
 			}
 		}
 		require.True(t, found)
+	}
+	qs.mutex.RUnlock()
+
+	for _, conn := range conns {
+		require.NoError(t, conn.Close())
 	}
 }
 
@@ -194,6 +201,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 	wg.Wait()
 	time.Sleep(time.Second)
 
+	qs.mutex.RLock()
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -205,5 +213,6 @@ func testSingleWebsocketConnections(t *testing.T) {
 		}
 		require.True(t, found)
 	}
+	qs.mutex.RUnlock()
 	require.NoError(t, conn.Close())
 }

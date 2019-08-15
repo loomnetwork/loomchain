@@ -40,11 +40,23 @@ func NewCmd(conf lib.Config, tc lib.Tests) Engine {
 	}
 }
 
-type abciResponseInfo2 struct {
-	Data             string `json:"data,omitempty"`
-	Version          string `json:"version,omitempty"`
-	LastBlockHeight  string `json:"last_block_height,omitempty"`
-	LastBlockAppHash []byte `json:"last_block_app_hash,omitempty"`
+func getCommand(conf lib.Config, node node.Node, test lib.TestCase) (exec.Cmd, error) {
+	t, err := template.New("cmd").Parse(test.RunCmd)
+	if err != nil {
+		return exec.Cmd{}, err
+	}
+	buf := new(bytes.Buffer)
+	conf.LoomPath = node.LoomPath
+	err = t.Execute(buf, conf)
+	if err != nil {
+		return exec.Cmd{}, err
+	}
+
+	dir := conf.BaseDir
+	if test.Dir != "" {
+		dir = test.Dir
+	}
+	return makeCmd(buf.String(), dir, node)
 }
 
 func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
@@ -54,89 +66,35 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 	fmt.Printf("cluster is ready\n")
 
 	for _, n := range e.tests.TestCases {
-		// evaluate template
-		t, err := template.New("cmd").Parse(n.RunCmd)
-		if err != nil {
+		dir := e.conf.BaseDir
+		if n.Dir != "" {
+			dir = n.Dir
+		}
+		if err := makeTestFiles(n.Datafiles, dir); err != nil {
 			return err
 		}
-		buf := new(bytes.Buffer)
-		err = t.Execute(buf, e.conf)
-		if err != nil {
-			return err
+
+		// special command to check app hash
+		if n.RunCmd == "checkapphash" {
+			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
+			if err := checkAppHash(e.conf.Nodes); err != nil {
+				return errors.Wrap(err, "checking apphash")
+			}
+			continue
 		}
 
 		iter := n.Iterations
 		if iter == 0 {
 			iter = 1
 		}
-
-		dir := e.conf.BaseDir
-		if n.Dir != "" {
-			dir = n.Dir
-		}
-		base := buf.String()
-		makeTestFiles(n.Datafiles, dir)
-
-		// special command to check app hash
-		if base == "checkapphash" {
-			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
-			time.Sleep(time.Second * 1)
-			fmt.Printf("--> run all: %v \n", "checkapphash")
-			var apphash = make(map[string]struct{})
-			var lastBlockHeight int64
-			for _, v := range e.conf.Nodes {
-				u := fmt.Sprintf("%s/abci_info", v.RPCAddress)
-				resp, err := http.Get(u)
-				if err != nil {
-					return err
-				}
-				defer resp.Body.Close()
-				if resp.StatusCode != 200 {
-					respBytes, _ := ioutil.ReadAll(resp.Body)
-					return fmt.Errorf("post status not OK: %s, response body: %s", resp.Status, string(respBytes))
-				}
-				var info = struct {
-					JSONRPC string `json:"jsonrpc"`
-					ID      string `json:"id"`
-					Result  struct {
-						Response abciResponseInfo2 `json:"response"`
-					} `json:"result"`
-				}{}
-
-				err = json.NewDecoder(resp.Body).Decode(&info)
-				if err != nil {
-					return err
-				}
-				newLastBlockHeight, err := strconv.ParseInt(info.Result.Response.LastBlockHeight, 10, 64)
-				if err != nil {
-					return err
-				}
-				if lastBlockHeight == 0 {
-					lastBlockHeight = newLastBlockHeight
-				}
-				if lastBlockHeight == newLastBlockHeight {
-					apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
-					fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
-				}
-			}
-
-			// apphash should has only 1 entry
-			// this might not be true if network latency is hight
-			if len(apphash) != 1 {
-				return fmt.Errorf("Wrong Block.Header.AppHash")
-			}
-			continue
-		}
-
 		for i := 0; i < iter; i++ {
 			// check all  the nodes
 			if n.All {
 				for j, v := range e.conf.Nodes {
-					cmd, err := makeCmd(base, dir, *v)
+					cmd, err := getCommand(e.conf, *v, n)
 					if err != nil {
 						return err
 					}
-
 					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(cmd.Args, " "))
 					if n.Delay > 0 {
 						time.Sleep(time.Duration(n.Delay) * time.Millisecond)
@@ -161,7 +119,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				if !ok {
 					return fmt.Errorf("node 0 not found")
 				}
-				cmd, err := makeCmd(buf.String(), dir, *queryNode)
+				cmd, err := getCommand(e.conf, *queryNode, n)
 				if err != nil {
 					return err
 				}
@@ -286,8 +244,131 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 
 			}
 		}
+		if e.conf.CheckAppHash {
+			if err := checkAppHash(e.conf.Nodes); err != nil {
+				return errors.Wrapf(err, "check apphash failed after test command, %s", n.RunCmd)
+			}
+		}
 	}
 
+	return nil
+}
+
+type AppHash struct {
+	apphash string
+	node    *node.Node
+	index   string
+}
+
+func sprintAppHashes(block []AppHash) string {
+	var hashInfo string
+	for _, apphash := range block {
+		hashInfo += fmt.Sprintf(
+			"node %s apphash 0x%s executable %s\n",
+			apphash.index,
+			apphash.apphash,
+			apphash.node.LoomPath,
+		)
+	}
+	return hashInfo
+}
+
+func getBlockHeight(node *node.Node) (string, error) {
+	req := fmt.Sprintf("%s/status", node.RPCAddress)
+	resp, err := http.Get(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		respBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf(
+			"post status not OK: %s, response body: %s", resp.Status, string(respBytes),
+		)
+	}
+	var info = struct {
+		JSONRPC string `json:"jsonrpc"`
+		ID      string `json:"id"`
+		Result  struct {
+			SyncInfo struct {
+				LastBlockAppHash  []byte `json:"last_block_app_hash,omitempty"`
+				LatestBlockHeight string `json:"latest_block_height,omitempty"`
+			} `json:"sync_info,omitempty"`
+		} `json:"result"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		fmt.Println("err", err)
+		return "", err
+	}
+	return info.Result.SyncInfo.LatestBlockHeight, nil
+}
+
+func getAppHash(node *node.Node, height string) (string, error) {
+	req := fmt.Sprintf("%s/commit?height=%s", node.RPCAddress, height)
+	resp, err := http.Get(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		respBytes, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf(
+			"post status not OK: %s, response body: %s", resp.Status, string(respBytes),
+		)
+	}
+	var info = struct {
+		JSONRPC string `json:"jsonrpc"`
+		ID      string `json:"id"`
+		Result  struct {
+			SignedHeader struct {
+				Header struct {
+					AppHash string `json:"app_hash,omitempty"`
+				} `json:"header,omitempty"`
+			} `json:"signed_header,omitempty"`
+		} `json:"result"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		fmt.Println("err", err)
+		return "", err
+	}
+	return info.Result.SignedHeader.Header.AppHash, nil
+}
+
+func checkAppHash(nodes map[string]*node.Node) error {
+	time.Sleep(time.Second * 1)
+	fmt.Printf("--> run all: %v \n", "checkapphash")
+
+	blockInfo := []AppHash{}
+	var blockHeight string
+	if node0, ok := nodes["0"]; ok {
+		var err error
+		blockHeight, err = getBlockHeight(node0)
+		if err != nil {
+			return err
+		}
+	} else {
+		return errors.New("no node 0")
+	}
+	for index, v := range nodes {
+		currentAppHash, err := getAppHash(v, blockHeight)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("--> Node: %s, AppHash: 0x%s, height %v\n", index, currentAppHash, blockHeight)
+		blockInfo = append(blockInfo, AppHash{
+			apphash: currentAppHash,
+			node:    v,
+			index:   index,
+		})
+	}
+
+	for i := 1; i < len(blockInfo); i++ {
+		if blockInfo[i-1].apphash != blockInfo[i].apphash {
+			return errors.Errorf("app hash mismatch\n%s", sprintAppHashes(blockInfo))
+		}
+	}
 	return nil
 }
 
@@ -502,6 +583,7 @@ func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
 	}
 
 	if isLoomCmd(args[0]) {
+		args[0] = node.LoomPath
 		// Make sure we have uri/u endpoint as a default.
 		if !strings.Contains(cmdString, "-u ") {
 			args = append(args, "-u")
