@@ -19,7 +19,6 @@ func TestDeployGoE2E(t *testing.T) {
 		{"deployGo", "deploygo-1-test.toml", 4, 2, "empty-genesis.json", "deploygo-1-loom.yaml"},
 		{"whitelist", "deploygo-2-test.toml", 1, 3, "empty-genesis.json", "deploygo-2-loom.yaml"},
 	}
-	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
