@@ -214,6 +214,7 @@ func GenerateConfig(
 		}
 		ethAccounts = append(ethAccounts, acct)
 	}
+
 	for _, ethAccount := range ethAccounts {
 		conf.EthAccountAddressList = append(conf.EthAccountAddressList, ethAccount.Address)
 		conf.EthAccountPrivKeyPathList = append(conf.EthAccountPrivKeyPathList, ethAccount.PrivKeyPath)
@@ -229,6 +230,7 @@ func GenerateConfig(
 		}
 		tronAccounts = append(tronAccounts, acct)
 	}
+
 	for _, tronAccount := range tronAccounts {
 		conf.TronAccountAddressList = append(conf.TronAccountAddressList, tronAccount.Address)
 		conf.TronAccountPrivKeyPathList = append(conf.TronAccountPrivKeyPathList, tronAccount.PrivKeyPath)
