@@ -41,6 +41,8 @@ type Config struct {
 	NodePrivKeyPathList     []string
 	NodeRPCAddressList      []string
 	NodeProxyAppAddressList []string
+
+	CheckAppHash bool
 }
 
 func WriteConfig(conf Config, filename string) error {
