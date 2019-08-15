@@ -50,7 +50,7 @@ func newNewCommand() *cobra.Command {
 	flags.StringVar(&loomPath, "loom-path", "loom", "Loom binary path")
 	flags.StringVar(&altLoomPath, "alt-loom-path", "loom", "Alternate loom binary path")
 	flags.IntVarP(&k, "account", "k", 1, "Number of accounts to be created")
-	flags.IntVarP(&numEthAccounts, "num-eth-accounts", "e", 1, "Number of ethereum accounts to be created")
+	flags.IntVarP(&numEthAccounts, "num-eth-accounts", "e", 0, "Number of ethereum accounts to be created")
 	flags.BoolVarP(&logAppDb, "log-app-db", "a", false, "Log the app state database usage")
 	flags.BoolVarP(&useFnConsensus, "fnconsensus", "", false, "Enable fnconsensus via the reactor")
 	flags.BoolVarP(&force, "force", "f", false, "Force to create new cluster")

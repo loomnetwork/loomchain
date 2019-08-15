@@ -152,24 +152,6 @@ func GenerateConfig(
 		accounts = append(accounts, acct)
 	}
 
-	var ethAccounts []*node.EthAccount
-	for i := 0; i < numEthAccounts; i++ {
-		acct, err := node.CreateEthAccount(i, conf.BaseDir)
-		if err != nil {
-			return nil, err
-		}
-		ethAccounts = append(ethAccounts, acct)
-	}
-
-	var tronAccounts []*node.TronAccount
-	for i := 0; i < numEthAccounts; i++ {
-		acct, err := node.CreateTronAccount(i, conf.BaseDir)
-		if err != nil {
-			return nil, err
-		}
-		tronAccounts = append(tronAccounts, acct)
-	}
-
 	var nodes []*node.Node
 	for i := uint64(0); i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, loompathAbs, conf.ContractDir, genesisTmpl, yamlFile)
@@ -224,6 +206,14 @@ func GenerateConfig(
 	}
 	conf.Accounts = accounts
 
+	var ethAccounts []*node.EthAccount
+	for i := 0; i < numEthAccounts; i++ {
+		acct, err := node.CreateEthAccount(i, conf.BaseDir)
+		if err != nil {
+			return nil, err
+		}
+		ethAccounts = append(ethAccounts, acct)
+	}
 	for _, ethAccount := range ethAccounts {
 		conf.EthAccountAddressList = append(conf.EthAccountAddressList, ethAccount.Address)
 		conf.EthAccountPrivKeyPathList = append(conf.EthAccountPrivKeyPathList, ethAccount.PrivKeyPath)
@@ -231,6 +221,14 @@ func GenerateConfig(
 	}
 	conf.EthAccounts = ethAccounts
 
+	var tronAccounts []*node.TronAccount
+	for i := 0; i < numEthAccounts; i++ {
+		acct, err := node.CreateTronAccount(i, conf.BaseDir)
+		if err != nil {
+			return nil, err
+		}
+		tronAccounts = append(tronAccounts, acct)
+	}
 	for _, tronAccount := range tronAccounts {
 		conf.TronAccountAddressList = append(conf.TronAccountAddressList, tronAccount.Address)
 		conf.TronAccountPrivKeyPathList = append(conf.TronAccountPrivKeyPathList, tronAccount.PrivKeyPath)
