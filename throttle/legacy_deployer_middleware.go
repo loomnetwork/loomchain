@@ -7,7 +7,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -18,7 +17,6 @@ import (
 func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
-		kvstore store.KVStore,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
@@ -29,7 +27,7 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 		}
 
 		if tx.Id != deployId {
-			return next(state, kvstore, txBytes, isCheckTx)
+			return next(state, txBytes, isCheckTx)
 		}
 
 		var msg vm.MessageTx
@@ -46,12 +44,12 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 			origin := auth.Origin(state.Context())
 			for _, allowed := range allowedDeployers {
 				if 0 == origin.Compare(allowed) {
-					return next(state, kvstore, txBytes, isCheckTx)
+					return next(state, txBytes, isCheckTx)
 				}
 			}
 			return res, fmt.Errorf(`%s not authorized to deploy Go contract`, origin.String())
 		}
-		return next(state, kvstore, txBytes, isCheckTx)
+		return next(state, txBytes, isCheckTx)
 	})
 }
 

@@ -14,7 +14,6 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
 )
 
 var (
@@ -47,7 +46,6 @@ func Origin(ctx context.Context) loom.Address {
 
 var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	state loomchain.State,
-	kvstore store.KVStore,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 	isCheckTx bool,
@@ -66,7 +64,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-	return next(state.WithContext(ctx), kvstore, tx.Inner, isCheckTx)
+	return next(state.WithContext(ctx), tx.Inner, isCheckTx)
 })
 
 func GetOrigin(tx SignedTx, chainId string) (loom.Address, error) {
@@ -103,7 +101,6 @@ type NonceHandler struct {
 
 func (n *NonceHandler) Nonce(
 	state loomchain.State,
-	kvstore store.KVStore,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 	isCheckTx bool,
@@ -118,8 +115,7 @@ func (n *NonceHandler) Nonce(
 		n.nonceCache = make(map[string]uint64)
 		//clear the cache for each block
 	}
-
-	seq := loomchain.NewSequence(nonceKey(origin)).Next(state, kvstore, isCheckTx)
+	seq := loomchain.NewSequence(nonceKey(origin)).Next(state)
 
 	var tx NonceTx
 	err := proto.Unmarshal(txBytes, &tx)
@@ -141,11 +137,10 @@ func (n *NonceHandler) Nonce(
 		return r, fmt.Errorf("sequence number does not match expected %d got %d", seq, tx.Sequence)
 	}
 
-	return next(state, kvstore, tx.Inner, isCheckTx)
+	return next(state, tx.Inner, isCheckTx)
 }
 
 func (n *NonceHandler) IncNonce(state loomchain.State,
-	kvstore store.KVStore,
 	txBytes []byte,
 	result loomchain.TxHandlerResult,
 	postcommit loomchain.PostCommitHandler,

@@ -14,7 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 )
@@ -57,7 +56,6 @@ func NewMultiChainSignatureTxMiddleware(
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
-		kvstore store.KVStore,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
@@ -116,7 +114,7 @@ func NewMultiChainSignatureTxMiddleware(
 		switch chain.AccountType {
 		case NativeAccountType: // pass through origin & message sender as is
 			ctx := context.WithValue(state.Context(), ContextKeyOrigin, msgSender)
-			return next(state.WithContext(ctx), kvstore, signedTx.Inner, isCheckTx)
+			return next(state.WithContext(ctx), signedTx.Inner, isCheckTx)
 
 		case MappedAccountType: // map origin & message sender to an address on this chain
 			origin, err := getMappedAccountAddress(state, msgSender, createAddressMapperCtx)
@@ -143,7 +141,7 @@ func NewMultiChainSignatureTxMiddleware(
 			}
 
 			ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-			return next(state.WithContext(ctx), kvstore, nonceTxBytes, isCheckTx)
+			return next(state.WithContext(ctx), nonceTxBytes, isCheckTx)
 
 		default:
 			return r, fmt.Errorf("Invalid account type %v for chain ID %s", chain.AccountType, msgSender.ChainID)

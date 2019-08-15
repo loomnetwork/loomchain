@@ -9,7 +9,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -18,14 +17,11 @@ var (
 	contract = loom.MustParseAddress("chain:0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
 )
 
-func throttleMiddlewareHandler(
-	ttm loomchain.TxMiddlewareFunc, state loomchain.State, kvstore store.KVStore, tx auth.SignedTx, ctx context.Context,
-) (loomchain.TxHandlerResult, error) {
+func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	return ttm.ProcessTx(
 		state.WithContext(ctx),
-		kvstore,
 		tx.Inner,
-		func(state loomchain.State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+		func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
 
 			var nonceTx loomAuth.NonceTx
 			if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {

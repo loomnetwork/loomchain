@@ -4,7 +4,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/store"
 )
 
 type Transaction = types.Transaction
@@ -14,22 +13,22 @@ type TxRouter struct {
 	checkTxRoutes   map[uint32]RouteHandler
 }
 
-type RouteHandler func(txID uint32, state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+type RouteHandler func(txID uint32, state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 
-type RouteConditionFunc func(txID uint32, state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) bool
+type RouteConditionFunc func(txID uint32, state State, txBytes []byte, isCheckTx bool) bool
 
 var GeneratePassthroughRouteHandler = func(txHandler TxHandler) RouteHandler {
-	return func(txID uint32, state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-		return txHandler.ProcessTx(state, kvstore, txBytes, isCheckTx)
+	return func(txID uint32, state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+		return txHandler.ProcessTx(state, txBytes, isCheckTx)
 	}
 }
 
 var GenerateConditionalRouteHandler = func(conditionFn RouteConditionFunc, onTrue TxHandler, onFalse TxHandler) RouteHandler {
-	return RouteHandler(func(txId uint32, state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-		if conditionFn(txId, state, kvstore, txBytes, isCheckTx) {
-			return onTrue.ProcessTx(state, kvstore, txBytes, isCheckTx)
+	return RouteHandler(func(txId uint32, state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+		if conditionFn(txId, state, txBytes, isCheckTx) {
+			return onTrue.ProcessTx(state, txBytes, isCheckTx)
 		}
-		return onFalse.ProcessTx(state, kvstore, txBytes, isCheckTx)
+		return onFalse.ProcessTx(state, txBytes, isCheckTx)
 	})
 }
 
@@ -56,9 +55,7 @@ func (r *TxRouter) HandleCheckTx(txID uint32, handler RouteHandler) {
 	r.checkTxRoutes[txID] = handler
 }
 
-func (r *TxRouter) ProcessTx(
-	state State, kvstore store.KVStore, txBytes []byte, isCheckTx bool,
-) (TxHandlerResult, error) {
+func (r *TxRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	var res TxHandlerResult
 
 	var tx Transaction
@@ -74,5 +71,5 @@ func (r *TxRouter) ProcessTx(
 		routeHandler = r.deliverTxRoutes[tx.Id]
 	}
 
-	return routeHandler(tx.Id, state, kvstore, tx.Data, isCheckTx)
+	return routeHandler(tx.Id, state, tx.Data, isCheckTx)
 }
