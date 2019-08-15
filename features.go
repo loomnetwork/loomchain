@@ -12,6 +12,8 @@ const (
 	TGFixERC721Feature = "tg:fix-erc721"
 	// Enables support for Binance contract mappings in the Binance Gateway contract
 	TGBinanceContractMappingFeature = "tg:binance-cm"
+	// Store Mainnet Gateway address in Gateway Go contract
+	TGGatewayVersion1_1 = "tg:v1.1"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
