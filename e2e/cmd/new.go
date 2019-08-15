@@ -1,6 +1,8 @@
 package main
 
 import (
+	"path/filepath"
+
 	"github.com/spf13/cobra"
 
 	"github.com/loomnetwork/loomchain/e2e/common"
@@ -21,8 +23,16 @@ func newNewCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(ccmd *cobra.Command, args []string) error {
-			_, err := common.GenerateConfig(
-				name, "", genesisFile, configFile, baseDir, contractDir, loomPath, altLoomPath,
+			var err error
+			contractdirAbs := ""
+			if contractDir != "" {
+				contractdirAbs, err = filepath.Abs(contractDir)
+				if err != nil {
+					return err
+				}
+			}
+			_, err = common.GenerateConfig(
+				name, "", genesisFile, configFile, baseDir, contractdirAbs, loomPath, altLoomPath,
 				validators, altValidators,
 				k, numEthAccounts,
 				useFnConsensus, force, checkAppHash,

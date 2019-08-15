@@ -27,9 +27,9 @@ const (
 
 var (
 	// assume that this test runs in e2e directory
-	defaultLoomPath = "../loom"
-	ContractDir     = "../contracts"
-	BaseDir         = "test-data"
+	defaultLoomPath    = "../loom"
+	defaultContractDir = "../contracts"
+	BaseDir            = "test-data"
 )
 
 var (
@@ -59,8 +59,13 @@ func NewConfig(
 		v, altV = splitValidators(uint64(validators))
 	}
 
+	contractdirAbs, err := filepath.Abs(defaultContractDir)
+	if err != nil {
+		return nil, err
+	}
+
 	return GenerateConfig(
-		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, altLoomPath,
+		name, testFile, genesisTmpl, yamlFile, BaseDir, contractdirAbs, loomPath, altLoomPath,
 		v, altV,
 		account, numEthAccounts,
 		useFnConsensus, *Force, doCheckAppHash(checkAppHash, uint64(v), uint64(altV)),
@@ -110,10 +115,6 @@ func GenerateConfig(
 		}
 	}
 
-	contractdirAbs, err := filepath.Abs(contractDir)
-	if err != nil {
-		return nil, err
-	}
 	testFileAbs, err := filepath.Abs(testFile)
 	if err != nil {
 		return nil, err
@@ -122,7 +123,7 @@ func GenerateConfig(
 	conf := lib.Config{
 		Name:         name,
 		BaseDir:      basedirAbs,
-		ContractDir:  contractdirAbs,
+		ContractDir:  contractDir,
 		TestFile:     testFileAbs,
 		Nodes:        make(map[string]*node.Node),
 		CheckAppHash: checkAppHash,
