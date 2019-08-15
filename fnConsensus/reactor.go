@@ -428,8 +428,8 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
 
-	f.state.Messages[fnID] = message
-	f.state.Hashes[fnID] = hash
+	f.state.Messages[fnID].Payload = message
+	f.state.Messages[fnID].Hash = hash
 
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
@@ -455,12 +455,16 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	// Have we achieved Maj23 already?
 	aggregateExecutionResponse := voteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 	if aggregateExecutionResponse != nil {
-		if !f.isMessageHashEqual(fnID, voteMethodID) {
+		if !bytes.Equal(f.state.Messages[fnID].Hash, aggregateExecutionResponse.Hash) {
+			f.Logger.Error(
+				"FnConsensusReactor: message hash and response hash value are not the same",
+				"fnID", fnID, "method", voteMethodID,
+			)
 			return
 		}
 		f.safeSubmitMultiSignedMessage(
 			fn,
-			safeCopyBytes(f.state.Messages[fnID]),
+			safeCopyBytes(f.state.Messages[fnID].Payload),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
 		)
 		return
@@ -583,13 +587,17 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				// The consensus result only needs to be sent to the cluster by a single validator,
 				// that validator is chosen in a round-robin fashion every voting round.
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
-					if !f.isMessageHashEqual(fnID, commitMethodID) {
+					if !bytes.Equal(f.state.Messages[fnID].Hash, majExecutionResponse.Hash) {
+						f.Logger.Error(
+							"FnConsensusReactor: message hash and hash value are not the same",
+							"fnID", fnID, "method", commitMethodID,
+						)
 						return
 					}
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
 						fn,
-						safeCopyBytes(f.state.Messages[fnID]),
+						safeCopyBytes(f.state.Messages[fnID].Payload),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
 					)
 				}
@@ -935,23 +943,4 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
-}
-
-func (f *FnConsensusReactor) isMessageHashEqual(fnID, methodID string) bool {
-	msgHash, err := calculateMessageHash(f.state.Messages[fnID])
-	if err != nil {
-		f.Logger.Error(
-			"FnConsensusReactor: unable to calculate message hash",
-			"fnID", fnID, "err", err, "method", methodID,
-		)
-		return false
-	}
-	if !bytes.Equal(msgHash, f.state.Hashes[fnID]) {
-		f.Logger.Error(
-			"FnConsensusReactor: message hash and hash value are not the same",
-			"fnID", fnID, "err", err, "method", methodID,
-		)
-		return false
-	}
-	return true
 }
