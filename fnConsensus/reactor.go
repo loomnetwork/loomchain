@@ -427,7 +427,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
 
-	f.state.Message[fnID] = message
+	f.state.Messages[fnID] = message
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
 		currentNonce = 1
@@ -454,7 +454,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	if aggregateExecutionResponse != nil {
 		f.safeSubmitMultiSignedMessage(
 			fn,
-			safeCopyBytes(f.state.Message[fnID]),
+			safeCopyBytes(f.state.Messages[fnID]),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
 		)
 		return
@@ -580,7 +580,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
 						fn,
-						safeCopyBytes(f.state.Message[fnID]),
+						safeCopyBytes(f.state.Messages[fnID]),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
 					)
 				}
