@@ -14,13 +14,11 @@ import (
 	tgateway "github.com/loomnetwork/transfer-gateway/gateway"
 )
 
-type ServiceName string
-
 const (
-	GatewayName        ServiceName = "gateway"
-	LoomGatewayName    ServiceName = "loomcoin-gateway"
-	BinanceGatewayName ServiceName = "binance-gateway"
-	TronGatewayName    ServiceName = "tron-gateway"
+	GatewayName        = "gateway"
+	LoomGatewayName    = "loomcoin-gateway"
+	BinanceGatewayName = "binance-gateway"
+	TronGatewayName    = "tron-gateway"
 )
 
 func startGatewayReactors(
@@ -45,17 +43,17 @@ func startGatewayReactors(
 }
 
 // Checks if the query server at the given DAppChainReadURI is responding.
-func checkQueryService(name ServiceName, chainID string, DAppChainReadURI string, DAppChainWriteURI string) {
+func checkQueryService(name string, chainID string, DAppChainReadURI string, DAppChainWriteURI string) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for ; true; <-ticker.C {
 		rpcClient := client.NewDAppChainRPCClient(chainID, DAppChainWriteURI, DAppChainReadURI)
-		gatewayAddr, err := rpcClient.Resolve(fmt.Sprintf("%s", name))
+		gatewayAddr, err := rpcClient.Resolve(name)
 		if err != nil {
-			log.Error("Error while resolving service", DAppChainReadURI, err)
+			log.Error("Failed to resolve gateway contract", "gateway", name, "err", err)
 		} else {
-			log.Info(fmt.Sprintf("Resolved %s : %#v", name, gatewayAddr))
+			log.Debug("Resolved gateway contract", "gateway", name, "addr", gatewayAddr)
 			return
 		}
 	}
