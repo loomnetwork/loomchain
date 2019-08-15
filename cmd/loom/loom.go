@@ -76,7 +76,6 @@ import (
 
 var (
 	appHeightKey = []byte("appheight")
-	rootKey      = []byte("vmroot")
 )
 
 var RootCmd = &cobra.Command{
