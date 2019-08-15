@@ -480,8 +480,8 @@ func SetSettingCmd() *cobra.Command {
 			}
 
 			// validate config setting
-			defautlConfig := config.DefaultConfig()
-			if err := config.SetConfigSetting(defautlConfig, args[0], value); err != nil {
+			defaultConfig := config.DefaultConfig()
+			if err := config.SetConfigSetting(defaultConfig, args[0], value); err != nil {
 				return err
 			}
 

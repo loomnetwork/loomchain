@@ -448,14 +448,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	// load config if it is nil
 	if a.config == nil {
-		configBytes := a.Store.Get([]byte(configKey))
-		a.config = config.DefaultConfig()
-		if len(configBytes) > 0 {
-			err := proto.Unmarshal(configBytes, a.config)
-			if err != nil {
-				panic(err)
-			}
-		}
+		a.config = loadConfig(a.Store)
 	}
 
 	a.curBlockHeader = block
@@ -743,16 +736,28 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
-
 func (a *Application) ReadOnlyState() State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
+	snapshot := a.Store.GetSnapshot()
 	return NewStoreStateSnapshot(
 		nil,
-		a.Store.GetSnapshot(),
+		snapshot,
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-		a.config,
+		loadConfig(snapshot),
 	)
+}
+
+func loadConfig(kvStore store.KVReader) *cctypes.Config {
+	configBytes := kvStore.Get([]byte(configKey))
+	cfg := config.DefaultConfig()
+	if len(configBytes) > 0 {
+		err := proto.Unmarshal(configBytes, cfg)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return cfg
 }
