@@ -182,7 +182,7 @@ func TestKarmaCoin(t *testing.T) {
 	err = coinContract.Approve(coinCtx, approveRequest)
 	fmt.Println(err)
 	require.NoError(t, err)
-	fmt.Println("Karma coin address ", karmaAddr.String())
+	fmt.Println("Karma coin address", karmaAddr.String())
 	allowanceRequest := &coin.AllowanceRequest{
 		Owner:   user,
 		Spender: karmaAddr.MarshalPB(),
