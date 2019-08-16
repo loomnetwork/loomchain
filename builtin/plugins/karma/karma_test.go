@@ -192,7 +192,7 @@ func TestKarmaCoin(t *testing.T) {
 	fmt.Println("User balance", initalBal.Balance.String())
 	require.NoError(t, err)
 
-	userState, err := karmaContract.GetUserState(coinCtx, user)
+	userState, err := karmaContract.GetUserState(karmaCtx, user)
 	require.NoError(t, err)
 
 	fmt.Printf("Allowance Request: %+v\n", allowanceRequest)
