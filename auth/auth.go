@@ -117,7 +117,18 @@ func (n *NonceHandler) Nonce(
 		n.nonceCache = make(map[string]uint64)
 		//clear the cache for each block
 	}
-	seq := loomchain.NewSequence(nonceKey(origin)).Next(state, kvStore, isCheckTx)
+	var seq uint64
+	if state.FeatureEnabled(loomchain.IncrementNonceFailedTxFeature, false) {
+		if !isCheckTx {
+			// Only persist nonce for DeliverTx
+			seq = loomchain.NewSequence(nonceKey(origin)).Next2(kvStore)
+		} else {
+			seq = loomchain.NewSequence(nonceKey(origin)).Value2(kvStore) + 1
+		}
+
+	} else {
+		seq = loomchain.NewSequence(nonceKey(origin)).Next(state)
+	}
 
 	var tx NonceTx
 	err := proto.Unmarshal(txBytes, &tx)
@@ -161,3 +172,15 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 var NonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
 
 var NonceTxPostNonceMiddleware = loomchain.PostCommitMiddlewareFunc(NonceTxHandler.IncNonce)
+
+var NonceTxMiddleware = func(kvStore store.KVStore) loomchain.TxMiddlewareFunc {
+	nonceTxMiddleware := func(
+		state loomchain.State,
+		txBytes []byte,
+		next loomchain.TxHandlerFunc,
+		isCheckTx bool,
+	) (loomchain.TxHandlerResult, error) {
+		return NonceTxHandler.Nonce(state, kvStore, txBytes, next, isCheckTx)
+	}
+	return loomchain.TxMiddlewareFunc(nonceTxMiddleware)
+}
