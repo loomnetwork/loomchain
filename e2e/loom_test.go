@@ -26,8 +26,7 @@ func TestE2eEvm(t *testing.T) {
 		{"evm-name-option-allow", "loom-8-test.toml", 2, 2, 0, "loom-7-genesis.json", "loom-8-loom.yaml"},
 		{"nested-evm-logs", "loom-9-test.toml", 4, 1, 0, "loom-9-genesis.json", "loom-9-loom.yaml"},
 	}
-	common.LoomPath = "../loom"
-	common.ContractDir = "../contracts"
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, test.ethAccounts, false)

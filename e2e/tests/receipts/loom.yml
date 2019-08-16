@@ -1,5 +1,5 @@
 RegistryVersion: 2
 ReceiptsVersion: 2
-CreateEmptyBlocks: false
-DPOSVersion: 2
-EVMPersistentTxReceiptsMax: 10
+CreateEmptyBlocks: true
+DPOSVersion: 3
+EVMPersistentTxReceiptsMax: 5000

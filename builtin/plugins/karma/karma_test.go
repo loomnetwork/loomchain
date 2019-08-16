@@ -174,25 +174,34 @@ func TestKarmaCoin(t *testing.T) {
 	coinCtx := contractpb.WrapPluginContext(
 		CreateFakeStateContext(state, reg, user_addr, coinAddr, pluginVm),
 	)
-
-	require.NoError(t, coinContract.Approve(coinCtx, &coin.ApproveRequest{
+	approveRequest := &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
-	}))
+	}
+	fmt.Printf("Approve Request: %+v\n", approveRequest)
+	err = coinContract.Approve(coinCtx, approveRequest)
+	fmt.Println(err)
+	require.NoError(t, err)
+	fmt.Println("Karma coin address", karmaAddr.String())
+	allowanceRequest := &coin.AllowanceRequest{
+		Owner:   user,
+		Spender: karmaAddr.MarshalPB(),
+	}
+	res, err := coinContract.Allowance(coinCtx, allowanceRequest)
+	require.NoError(t, err)
+	fmt.Println("Karma contract allowance", res.Amount.Value.String())
 
 	initalBal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
-	fmt.Println("user balance", initalBal.Balance.String())
+	fmt.Println("User balance", initalBal.Balance.String())
 	require.NoError(t, err)
 
 	userState, err := karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
 
-	res, err := coinContract.Allowance(coinCtx, &coin.AllowanceRequest{
-		Owner:   user,
-		Spender: karmaAddr.MarshalPB(),
-	})
+	fmt.Printf("Allowance Request: %+v\n", allowanceRequest)
+	res, err = coinContract.Allowance(coinCtx, allowanceRequest)
 	require.NoError(t, err)
-	fmt.Println("kama contract allowance", res.Amount.Value.String())
+	fmt.Println("Karma contract allowance", res.Amount.Value.String())
 
 	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)

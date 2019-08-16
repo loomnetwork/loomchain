@@ -9,26 +9,29 @@ import (
 
 type RPCFunc interface {
 	UnmarshalParamsAndCall(JsonRpcRequest, *websocket.Conn) (json.RawMessage, *Error)
-	GetResponse(json.RawMessage, int64) (*JsonRpcResponse, *Error)
+	GetResponse(result json.RawMessage, ID *json.RawMessage) (*JsonRpcResponse, *Error)
 }
 
 type JsonRpcRequest struct {
 	Version string          `json:"jsonrpc"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params"`
-	ID      int64           `json:"id"`
+	// The request ID can be a string, number, or may be missing entirely.
+	// We just pass it through as is in the response/error without unmarshalling.
+	// Related: https://github.com/ethereum/go-ethereum/issues/295
+	ID *json.RawMessage `json:"id"`
 }
 
 type JsonRpcResponse struct {
-	Result  json.RawMessage `json:"result"`
-	Version string          `json:"jsonrpc"`
-	ID      int64           `json:"id"`
+	Result  json.RawMessage  `json:"result"`
+	Version string           `json:"jsonrpc"`
+	ID      *json.RawMessage `json:"id"`
 }
 
 type JsonRpcErrorResponse struct {
-	Version string `json:"jsonrpc"`
-	ID      int64  `json:"id"`
-	Error   Error  `json:"error"`
+	Version string           `json:"jsonrpc"`
+	ID      *json.RawMessage `json:"id"`
+	Error   Error            `json:"error"`
 }
 
 // Json2 compliant error object
