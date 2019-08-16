@@ -46,6 +46,7 @@ func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigMa
 	}, nil
 }
 
+// EnableFeatures activates feature flags.
 func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	features, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight), c.build)
 	if err != nil {
@@ -63,6 +64,7 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	return nil
 }
 
+// UpdateConfig applies pending config changes to the on-chain config.
 func (c *ChainConfigManager) UpdateConfig() error {
 	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
 	if err != nil {
@@ -70,7 +72,7 @@ func (c *ChainConfigManager) UpdateConfig() error {
 	}
 
 	for _, setting := range settings {
-		if err := c.state.ChangeConfigSetting(setting); err != nil {
+		if err := c.state.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
 			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
 		}
 	}

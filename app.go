@@ -45,7 +45,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	ChangeConfigSetting(*cctypes.Action) error
+	ChangeConfigSetting(name, value string) error
 }
 
 type StoreState struct {
@@ -172,8 +172,8 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) ChangeConfigSetting(action *cctypes.Action) error {
-	if err := config.SetConfigSetting(s.config, action.Name, action.Value); err != nil {
+func (s *StoreState) ChangeConfigSetting(name, value string) error {
+	if err := config.SetConfigSetting(s.config, name, value); err != nil {
 		return err
 	}
 	configBytes, err := proto.Marshal(s.config)

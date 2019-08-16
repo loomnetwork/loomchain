@@ -657,7 +657,7 @@ func (c *ChainConfigTestSuite) TestCfgSettingFourValidators() {
 	require.Equal(1, len(listCfgResp.Actions))
 
 	// Set setting to store state config
-	pctx.SetConfigSetting(listCfgResp.Actions[0])
+	pctx.SetConfigSetting(listCfgResp.Actions[0].Name, listCfgResp.Actions[0].Value)
 
 	// ChainConfig return the config which is derived from cfg settings
 	configResp, err := chainconfigContract.ChainConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &ChainConfigRequest{})
