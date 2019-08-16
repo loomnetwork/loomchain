@@ -125,7 +125,6 @@ func (n *NonceHandler) Nonce(
 		} else {
 			seq = loomchain.NewSequence(nonceKey(origin)).Value2(kvStore) + 1
 		}
-
 	} else {
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(state)
 	}

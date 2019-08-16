@@ -37,18 +37,9 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	kvStore := store.NewMemStore()
 	state := loomchain.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
 
-	nonceMiddleware := func(
-		state loomchain.State,
-		txBytes []byte,
-		next loomchain.TxHandlerFunc,
-		isCheckTx bool,
-	) (loomchain.TxHandlerResult, error) {
-		return auth.NonceTxHandler.Nonce(state, kvStore, txBytes, next, isCheckTx)
-	}
-
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,
-		loomchain.TxMiddlewareFunc(nonceMiddleware),
+		auth.NonceTxMiddleware(kvStore),
 	}
 
 	rootHandler := loomchain.MiddlewareTxHandler(txMiddleWare, router, nil)
