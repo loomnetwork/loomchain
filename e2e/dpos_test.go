@@ -26,8 +26,6 @@ func TestContractDPOS(t *testing.T) {
 		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "dposv3-test-loom.yaml"},
 	}
 
-	common.ContractDir = "../contracts"
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0, false)
