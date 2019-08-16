@@ -194,7 +194,7 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
-// the last version that was saved will be loaded.
+// the last version that was saved will be loaded, if set to -1 an empty IAVLStore will be created.
 func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*IAVLStore, error) {
 	tree := iavl.NewMutableTree(db, 10000)
 	if targetVersion != -1 {

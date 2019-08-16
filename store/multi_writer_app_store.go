@@ -98,8 +98,11 @@ func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStat
 	return store, nil
 }
 
-func LoadMultiWriterAppStore(appStoreCfg *AppStoreConfig, evmStoreCfg *EvmStoreConfig, appStoreDB db.DBWrapper,
-	targetVersion int64, metricsDatabase bool, rootPath string) (*MultiWriterAppStore, error) {
+// LoadMultiWriterAppStore loads the app state at the target version from app.db & evm.db.
+func LoadMultiWriterAppStore(
+	appStoreCfg *AppStoreConfig, evmStoreCfg *EvmStoreConfig, appStoreDB db.DBWrapper,
+	targetVersion int64, collectMetrics bool, rootPath string,
+) (*MultiWriterAppStore, error) {
 	iavlStore, err := NewIAVLStore(appStoreDB, appStoreCfg.MaxVersions, targetVersion, appStoreCfg.IAVLFlushInterval)
 	if err != nil {
 		return nil, err
@@ -111,7 +114,7 @@ func LoadMultiWriterAppStore(appStoreCfg *AppStoreConfig, evmStoreCfg *EvmStoreC
 		rootPath,
 		evmStoreCfg.CacheSizeMegs,
 		evmStoreCfg.WriteBufferMegs,
-		metricsDatabase,
+		collectMetrics,
 	)
 	if err != nil {
 		return nil, err
