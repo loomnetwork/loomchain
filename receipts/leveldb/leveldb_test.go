@@ -178,7 +178,7 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	require.Error(t, err)
 }
 
-//nolint:deadcode
+//nolint: unused, deadcode
 func dumpDbEntries(evmAuxStore *evmaux.EvmAuxStore) error {
 	fmt.Println("\nDumping leveldb")
 	db := evmAuxStore.DB()

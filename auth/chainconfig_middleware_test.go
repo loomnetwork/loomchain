@@ -37,7 +37,10 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 		Chains: map[string]ChainConfig{},
 	}
 
-	chainConfigMiddleware := NewChainConfigMiddleware(&authConfig, func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil })
+	chainConfigMiddleware := NewChainConfigMiddleware(&authConfig, func(state loomchain.State) (
+		contractpb.StaticContext, error) {
+		return amCtx, nil
+	})
 	_, err = chainConfigMiddleware.ProcessTx(state, signedTxBytes,
 		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)

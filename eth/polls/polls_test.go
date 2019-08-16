@@ -46,6 +46,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	}
 	state := makeMockState(t, receiptHandler)
 	ethFilter, err := eth.DecLogFilter(allFilter)
+	require.NoError(t, err)
 	id, err := sub.AddLogPoll(ethFilter, 1)
 	require.NoError(t, err)
 
@@ -79,7 +80,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 	evmAuxStore.ClearData()
@@ -124,7 +125,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -239,11 +240,9 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 0, len(txHashes.EthTxHash), "wrong number of logs returned")
-
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
-
-	result, err = sub.LegacyPoll(state40, id, receiptHandler)
+	_, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -334,6 +333,7 @@ func TestAddRemove(t *testing.T) {
 		Topics:    nil,
 	}
 	myFilter, err := eth.DecLogFilter(jsonFilter)
+	require.NoError(t, err)
 	id, err := s.AddLogPoll(myFilter, 1)
 	require.NoError(t, err)
 	_, ok := s.polls[id]

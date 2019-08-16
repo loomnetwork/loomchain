@@ -203,7 +203,9 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(
+	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet,
+) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
@@ -639,7 +641,8 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
+		log.Info(fmt.Sprintf("commit took %f seconds-----\n",
+			time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {

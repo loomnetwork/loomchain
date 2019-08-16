@@ -30,7 +30,7 @@ func (f *FileNameInfo) String() string {
 	return f.Base + f.Ext + f.Version
 }
 
-var fileInfoRE = regexp.MustCompile("(.+?)(\\.[a-zA-Z]+?)?\\.([0-9\\.]+)")
+var fileInfoRE = regexp.MustCompile(`(.+?)(\.[a-zA-Z]+?)?\.([0-9\.]+)`)
 
 func parseFileName(name string) (*FileNameInfo, error) {
 	groups := fileInfoRE.FindSubmatch([]byte(name))

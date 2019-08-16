@@ -48,7 +48,7 @@ type YubiHsmPV struct {
 
 // TODO: type ?
 const (
-	//nolint:unused
+	//nolint: unused, varcheck, deadcode
 	stepNone      int8 = 0 // Used to distinguish the initial state
 	stepPropose   int8 = 1
 	stepPrevote   int8 = 2

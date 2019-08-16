@@ -440,7 +440,6 @@ func newRunCommand() *cobra.Command {
 const contractInfoCommandExample = `
 loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
 `
-
 type contractInfo struct {
 	Name    string
 	Address string
@@ -482,7 +481,7 @@ func contractInfoCommand() *cobra.Command {
 	return cmd
 }
 
-//nolint:deadcode
+//nolint: unused, deadcode
 func recovery() {
 	if r := recover(); r != nil {
 		log.Error("caught RPC proxy exception, exiting", r)

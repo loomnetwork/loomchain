@@ -27,17 +27,20 @@ func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (et
 	iHeight := int64(height)
 
 	blockResult, err := blockStore.GetBlockByHeight(&iHeight)
-	if blockResult == nil || blockResult.Block == nil {
+
+	if err != nil || blockResult == nil || blockResult.Block == nil {
 		return eth.GetEmptyTxObject(), errors.Errorf("no block results found at height %v", height)
 	}
 
 	if len(blockResult.Block.Data.Txs) <= int(index) {
-		return eth.GetEmptyTxObject(), errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
+		return eth.GetEmptyTxObject(), errors.Errorf("tx index out of bounds (%v >= %v)", index,
+			len(blockResult.Block.Data.Txs))
 	}
 
 	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
 	if err != nil {
-		return eth.GetEmptyTxObject(), errors.Wrapf(err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
+		return eth.GetEmptyTxObject(), errors.Wrapf(err, "failed to find result of tx %X",
+			blockResult.Block.Data.Txs[index].Hash())
 	}
 
 	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))

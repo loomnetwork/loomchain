@@ -369,7 +369,9 @@ func newMapAccountsCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
 	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
-	cmdFlags.BoolVar(&interactive, "interactive", false, "Make the mapping of an account interactive by requiring the signature to be provided by the user instead of signing inside the client.")
+	cmdFlags.BoolVar(&interactive, "interactive", false,
+		"Make the mapping of an account interactive by requiring the signature"+
+			" to be provided by the user instead of signing inside the client.")
 	return cmd
 }
 
@@ -421,10 +423,12 @@ func newListContractMappingsCommand() *cobra.Command {
 			}
 			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
 			for _, value := range resp.PendingMappings {
-				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(),
+					ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
 			}
 			for _, value := range resp.ConfimedMappings {
-				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To, loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To,
+					loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
 			}
 			return nil
 		},
@@ -509,7 +513,8 @@ func newGetContractMappingCommand() *cobra.Command {
 
 func getSignatureInteractive(hash []byte, sigType evmcompat.SignatureType) ([prefixedSigLength]byte, error) {
 	// get it from the signature
-	fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x)\n")
+	fmt.Printf("Please paste the following hash to your signing software. " +
+		"After signing it, paste the signature below (prefixed with 0x)\n")
 	fmt.Printf("0x%v\n", hex.EncodeToString(hash))
 
 	var sig string

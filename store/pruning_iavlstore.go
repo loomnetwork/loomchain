@@ -236,6 +236,7 @@ func (s *PruningIAVLStore) deleteVersion(ver int64) error {
 // runWithRecovery should run in a goroutine, it will ensure the given function keeps on running in
 // a goroutine as long as it doesn't panic due to a runtime error.
 //[MGC] I believe this function shouldn't be used as we should just fail fast if this breaks
+//nolint: unused, deadcode
 func (s *PruningIAVLStore) runWithRecovery(run func()) {
 	defer func() {
 		if r := recover(); r != nil {
