@@ -25,7 +25,6 @@ func TestE2eEvm(t *testing.T) {
 		{"evm-name-option-not-allow", "loom-7-test.toml", 2, 2, 0, "loom-7-genesis.json", "loom-7-loom.yaml"},
 		{"evm-name-option-allow", "loom-8-test.toml", 2, 2, 0, "loom-7-genesis.json", "loom-8-loom.yaml"},
 	}
-	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -675,7 +675,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	r := s.ReceiptHandlerProvider.Reader()
 	switch number {
 	case "latest":
-		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height-1, full, r, s.EvmAuxStore)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r, s.EvmAuxStore)
 	case "pending":
 		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r, s.EvmAuxStore)
 	default:

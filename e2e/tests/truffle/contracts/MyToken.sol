@@ -1,11 +1,8 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
-import "openzeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
+import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 
-contract MyToken is ERC721Token {
-    constructor() ERC721Token("MyToken", "MTC") public {
-    }
-
+contract MyToken is ERC721Full("MyToken", "MTC") {
     function mintToken(uint256 _uid) public {
         _mint(msg.sender, _uid);
     }
