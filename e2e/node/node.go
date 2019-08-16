@@ -67,7 +67,7 @@ func (n *Node) Init(accounts []*Account) error {
 	if n.ContractDir != "" {
 		cp := exec.Command("cp", "-r", n.ContractDir, n.Dir)
 		if err := cp.Run(); err != nil {
-			return errors.Wrapf(err, "copy contract error")
+			return errors.Wrapf(err, "copy contract error ContractDir %s, Dir %s", n.ContractDir, n.Dir)
 		}
 	}
 
