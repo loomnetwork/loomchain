@@ -5,7 +5,7 @@
 
 ```bash
 # in repo root...
-make loom
+make loom-gateway
 make validators-tool
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool

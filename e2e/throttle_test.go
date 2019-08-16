@@ -18,7 +18,6 @@ func TestE2eKarmaThrottle(t *testing.T) {
 	}{
 		{"throttle", "throttle-1-test.toml", 1, 2, "throttle-1-test.json", "throttle-1-loom.yaml"},
 	}
-	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
