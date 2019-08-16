@@ -428,8 +428,10 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
 
-	f.state.Messages[fnID].Payload = message
-	f.state.Messages[fnID].Hash = hash
+	f.state.Messages[fnID] = Message{
+		Payload: message,
+		Hash:    hash,
+	}
 
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
