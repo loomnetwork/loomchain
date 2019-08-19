@@ -118,13 +118,9 @@ func (n *NonceHandler) Nonce(
 		//clear the cache for each block
 	}
 	var seq uint64
-	if state.FeatureEnabled(loomchain.IncrementNonceFailedTxFeature, false) {
-		if !isCheckTx {
-			// Only persist nonce for DeliverTx
-			seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
-		} else {
-			seq = loomchain.NewSequence(nonceKey(origin)).Value(kvStore) + 1
-		}
+	if state.FeatureEnabled(loomchain.IncrementNonceFailedTxFeature, false) && !isCheckTx {
+		// Only persist nonce for DeliverTx
+		seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
 	} else {
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(state)
 	}
