@@ -148,38 +148,35 @@ func TestKarmaValidateOracle(t *testing.T) {
 }
 
 func TestKarmaCoin(t *testing.T) {
-	karmaInit := ktypes.KarmaInitRequest{
+	karmaInit := &ktypes.KarmaInitRequest{
 		Sources: deploySource,
 		Oracle:  oracle,
 		Users:   usersTestCoin,
 	}
 
-	coinInit := coin.InitRequest{
+	coinInit := &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			{Owner: user, Balance: uint64(100)},
 		},
 	}
 
-	state, reg, pluginVm := MockStateWithKarmaAndCoinT(t, &karmaInit, &coinInit)
-	karmaAddr, err := reg.Resolve("karma")
-	require.NoError(t, err)
-	ctx := contractpb.WrapPluginContext(
-		CreateFakeStateContext(state, reg, addr3, karmaAddr, pluginVm),
-	)
-	karmaContract := &Karma{}
+	pctx := plugin.CreateFakeContext(user_addr, addr2)
 
-	coinAddr, err := reg.Resolve("coin")
-	require.NoError(t, err)
 	coinContract := &coin.Coin{}
-	coinCtx := contractpb.WrapPluginContext(
-		CreateFakeStateContext(state, reg, user_addr, coinAddr, pluginVm),
-	)
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
+	coinContract.Init(coinCtx, coinInit)
+	karmaContract := &Karma{}
+	karmaAddr := pctx.CreateContract(Contract)
+	karmaCtx := contractpb.WrapPluginContext(pctx.WithAddress(karmaAddr))
+	karmaContract.Init(karmaCtx, karmaInit)
+
 	approveRequest := &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 	}
 	fmt.Printf("Approve Request: %+v\n", approveRequest)
-	err = coinContract.Approve(coinCtx, approveRequest)
+	err := coinContract.Approve(coinCtx, approveRequest)
 	fmt.Println(err)
 	require.NoError(t, err)
 	fmt.Println("Karma coin address", karmaAddr.String())
@@ -195,7 +192,7 @@ func TestKarmaCoin(t *testing.T) {
 	fmt.Println("User balance", initalBal.Balance.String())
 	require.NoError(t, err)
 
-	userState, err := karmaContract.GetUserState(ctx, user)
+	userState, err := karmaContract.GetUserState(karmaCtx, user)
 	require.NoError(t, err)
 
 	fmt.Printf("Allowance Request: %+v\n", allowanceRequest)
@@ -203,7 +200,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println("Karma contract allowance", res.Amount.Value.String())
 
-	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
+	err = karmaContract.DepositCoin(karmaCtx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
 	balAfterDeposit, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
@@ -211,33 +208,33 @@ func TestKarmaCoin(t *testing.T) {
 	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17))
 	require.Equal(t, 0, expected.Cmp(&balAfterDeposit.Balance.Value))
 
-	userState, err = karmaContract.GetUserState(ctx, user)
+	userState, err = karmaContract.GetUserState(karmaCtx, user)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(userState.SourceStates))
 	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(17), userState.SourceStates[0].Count.Value.Int64())
 
-	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
+	err = karmaContract.WithdrawCoin(karmaCtx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
 	balAfterWithdrawal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
 	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17-5))
 	require.Equal(t, 0, expected.Cmp(&balAfterWithdrawal.Balance.Value))
 
-	userState, err = karmaContract.GetUserState(ctx, user)
+	userState, err = karmaContract.GetUserState(karmaCtx, user)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(userState.SourceStates))
 	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(12), userState.SourceStates[0].Count.Value.Int64())
 
-	total, err := karmaContract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
+	total, err := karmaContract.GetUserKarma(karmaCtx, &ktypes.KarmaUserTarget{
 		User:   user,
 		Target: ktypes.KarmaSourceTarget_DEPLOY,
 	})
 	require.NoError(t, err)
 	total = total
 
-	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(500)}})
+	err = karmaContract.WithdrawCoin(karmaCtx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(500)}})
 	require.Error(t, err)
 }
 
