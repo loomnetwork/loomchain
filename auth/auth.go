@@ -121,9 +121,9 @@ func (n *NonceHandler) Nonce(
 	if state.FeatureEnabled(loomchain.IncrementNonceFailedTxFeature, false) {
 		if !isCheckTx {
 			// Only persist nonce for DeliverTx
-			seq = loomchain.NewSequence(nonceKey(origin)).Next2(kvStore)
+			seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
 		} else {
-			seq = loomchain.NewSequence(nonceKey(origin)).Value2(kvStore) + 1
+			seq = loomchain.NewSequence(nonceKey(origin)).Value(kvStore) + 1
 		}
 	} else {
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(state)
