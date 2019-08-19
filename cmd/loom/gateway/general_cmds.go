@@ -69,6 +69,10 @@ const setWithdrawFeeCmdExample = `
 ./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
 `
 
+const updateMainnetAddressCmdExample = `
+./loom gateway update-mainnet-address <mainnet-hex-address> gateway --key path/to/loom_priv.key
+`
+
 func newReplaceOwnerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replace-owner <new-owner> <gateway-name>",
@@ -642,6 +646,55 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 				return err
 			}
 			return nil
+		},
+	}
+	return cmd
+}
+
+func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update-mainnet-address <mainnet-address> <gateway-name>",
+		Short:   "Update mainet gateway address. Only callable by current gateway owner",
+		Example: updateMainnetAddressCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			mainnetAddress, err := hexToLoomAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "invalid gateway address")
+			}
+
+			var name string
+			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
+				name = GatewayName
+			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
+				name = LoomGatewayName
+			} else if strings.Compare(args[1], BinanceGatewayName) == 0 {
+				name = BinanceGatewayName
+			} else {
+				return errors.New("invalid gateway name")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayUpdateMainnetGatewayRequest{
+				MainnetGatewayAddress: mainnetAddress.MarshalPB(),
+			}
+
+			_, err = gateway.Call("UpdateMainnetGateway", req, signer, nil)
+			return err
 		},
 	}
 	return cmd
