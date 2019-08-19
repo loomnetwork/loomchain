@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/loomnetwork/go-loom/builtin/types/testing"
+	sample "github.com/loomnetwork/go-loom/builtin/types/sample_go_contract"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -24,7 +24,7 @@ func TestingNestedEvm() *cobra.Command {
 				&flags,
 				SampleGoContractName,
 				"TestNestedEvmCalls",
-				&testing.TestingNestedEvmRequest{},
+				&sample.SampleGoContractNestedEvmRequest{},
 				nil,
 			); err != nil {
 				return errors.Wrap(err, "call TestingNestedEvm")

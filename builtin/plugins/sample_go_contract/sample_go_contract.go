@@ -1,7 +1,7 @@
 package sample_go_contract
 
 import (
-	types "github.com/loomnetwork/go-loom/builtin/types/testing"
+	types "github.com/loomnetwork/go-loom/builtin/types/sample_go_contract"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 )
@@ -16,7 +16,7 @@ func (k *SampleGoContract) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (k *SampleGoContract) Init(ctx contractpb.Context, req *types.TestingInitRequest) error {
+func (k *SampleGoContract) Init(ctx contractpb.Context, req *types.SampleGoContractInitRequest) error {
 	return nil
 }
 

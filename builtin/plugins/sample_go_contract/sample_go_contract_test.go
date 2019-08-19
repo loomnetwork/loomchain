@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
-	types "github.com/loomnetwork/go-loom/builtin/types/testing"
+	types "github.com/loomnetwork/go-loom/builtin/types/sample_go_contract"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/stretchr/testify/require"
 
@@ -24,7 +24,7 @@ var (
 )
 
 func TestSampleGoContract(t *testing.T) {
-	testingInit := types.TestingInitRequest{}
+	testingInit := types.SampleGoContractInitRequest{}
 
 	state, reg, manager, err := karma.MockStateWithContracts(
 		db.NewMemDB(),
@@ -52,6 +52,6 @@ func TestSampleGoContract(t *testing.T) {
 	require.NoError(t, err, "decoding bytecode")
 	_, addr, err = pluginVm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
 
-	require.NoError(t, testingContract.TestNestedEvmCalls(ctx, &types.TestingNestedEvmRequest{}))
+	require.NoError(t, testingContract.TestNestedEvmCalls(ctx, &types.SampleGoContractNestedEvmRequest{}))
 
 }
