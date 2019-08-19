@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	TestingContractName = "testing"
+	SampleGoContractName = "sample-go-contract"
 )
 
 func TestingNestedEvm() *cobra.Command {
@@ -22,12 +22,12 @@ func TestingNestedEvm() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cli.CallContractWithFlags(
 				&flags,
-				TestingContractName,
+				SampleGoContractName,
 				"TestNestedEvmCalls",
 				&testing.TestingNestedEvmRequest{},
 				nil,
 			); err != nil {
-				return errors.Wrap(err, "call testing contract")
+				return errors.Wrap(err, "call TestingNestedEvm")
 			}
 			fmt.Println("Successful test nested evm call")
 			return nil
@@ -37,9 +37,9 @@ func TestingNestedEvm() *cobra.Command {
 	return cmd
 }
 
-func NewTestingCommand() *cobra.Command {
+func NewSampleGoContractCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "testing <command>",
+		Use:   "sample-go-contract <command>",
 		Short: "Methods available in testing contract",
 	}
 	cmd.AddCommand(

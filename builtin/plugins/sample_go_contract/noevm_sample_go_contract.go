@@ -1,6 +1,6 @@
 // +build !evm
 
-package testing
+package sample_go_contract
 
 import (
 	types "github.com/loomnetwork/go-loom/builtin/types/testing"
@@ -8,6 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (k *Testing) TestNestedEvmCalls(ctx contractpb.Context, req *types.TestingNestedEvmRequest) error {
+func (k *SampleGoContract) TestNestedEvmCalls(ctx contractpb.Context, req *types.TestingNestedEvmRequest) error {
 	return errors.New("testing evm in non evm build")
 }

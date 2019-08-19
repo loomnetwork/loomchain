@@ -10,7 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
-	"github.com/loomnetwork/loomchain/builtin/plugins/testing"
+	"github.com/loomnetwork/loomchain/builtin/plugins/sample_go_contract"
 	"github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/config"
@@ -38,8 +38,8 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, ethcoin.Contract)
 	}
-	if cfg.Testing {
-		contracts = append(contracts, testing.Contract)
+	if cfg.SampleGoContract {
+		contracts = append(contracts, sample_go_contract.Contract)
 	}
 	if cfg.ChainConfig.ContractEnabled {
 		contracts = append(contracts, chainconfig.Contract)

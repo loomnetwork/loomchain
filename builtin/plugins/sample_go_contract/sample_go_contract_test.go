@@ -1,6 +1,6 @@
 // +build evm
 
-package testing
+package sample_go_contract
 
 import (
 	"encoding/hex"
@@ -23,7 +23,7 @@ var (
 	caller = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-func TestTesting(t *testing.T) {
+func TestSampleGoContract(t *testing.T) {
 	testingInit := types.TestingInitRequest{}
 
 	state, reg, manager, err := karma.MockStateWithContracts(
@@ -38,7 +38,7 @@ func TestTesting(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr1, addr, pluginVm),
 	)
-	testingContract := &Testing{}
+	testingContract := &SampleGoContract{}
 
 	bytetext, err := ioutil.ReadFile("testdata/TestEvent.bin")
 	require.NoError(t, err)

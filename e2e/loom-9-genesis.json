@@ -10,8 +10,8 @@
     {
       "vm": "plugin",
       "format": "plugin",
-      "name": "testing",
-      "location": "testing:1.0.0",
+      "name": "sample-go-contract",
+      "location": "sample-go-contract:1.0.0",
       "init": null
     },
     {

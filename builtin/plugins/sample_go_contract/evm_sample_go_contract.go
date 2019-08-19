@@ -1,6 +1,6 @@
 // +build evm
 
-package testing
+package sample_go_contract
 
 import (
 	"math/big"
@@ -16,7 +16,7 @@ const (
 	chainTestEventAbi = `[{"constant":false,"inputs":[{"name":"i","type":"uint256"}],"name":"chainEvent","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
 )
 
-func (k *Testing) TestNestedEvmCalls(ctx contractpb.Context, req *types.TestingNestedEvmRequest) error {
+func (k *SampleGoContract) TestNestedEvmCalls(ctx contractpb.Context, req *types.TestingNestedEvmRequest) error {
 	if err := testEventCall(ctx); err != nil {
 		return err
 	}

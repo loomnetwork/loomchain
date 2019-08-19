@@ -15,7 +15,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} testing test-nested-evm -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} sample-go-contract test-nested-evm -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ 'Successful test nested evm call' ]
 
