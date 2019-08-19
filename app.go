@@ -173,11 +173,19 @@ func (s *StoreState) SetFeature(name string, val bool) {
 }
 
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
+	backupConfigBytes, err := proto.Marshal(s.config)
+	if err != nil {
+		return err
+	}
 	if err := config.SetConfigSetting(s.config, name, value); err != nil {
 		return err
 	}
 	configBytes, err := proto.Marshal(s.config)
 	if err != nil {
+		// restore config from backup
+		if restoreError := proto.Unmarshal(backupConfigBytes, s.config); restoreError != nil {
+			panic(err)
+		}
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)

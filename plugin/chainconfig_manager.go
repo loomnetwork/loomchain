@@ -66,17 +66,20 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 
 // UpdateConfig applies pending config changes to the on-chain config.
 func (c *ChainConfigManager) UpdateConfig() error {
-	if c.state.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
-		settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
-		if err != nil {
-			return err
-		}
+	if !c.state.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+		return nil
+	}
 
-		for _, setting := range settings {
-			if err := c.state.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
-				c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
-			}
+	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
+	if err != nil {
+		return err
+	}
+
+	for _, setting := range settings {
+		if err := c.state.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
+			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
 		}
 	}
+
 	return nil
 }
