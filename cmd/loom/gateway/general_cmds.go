@@ -22,7 +22,6 @@ import (
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/types"
 
-	bnbtypes "github.com/binance-chain/go-sdk/common/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -709,18 +708,9 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 				MainnetGatewayAddress: mainnetAddress.MarshalPB(),
 			}
 
-			_, err = gateway.Call("UpdateMainnetGateway", req, signer, nil)
+			_, err = gateway.Call("UpdateMainnetGatewayAddress", req, signer, nil)
 			return err
 		},
 	}
 	return cmd
-}
-
-func bech32ToHex(bech32Addr string) (string, error) {
-	addressBytes, err := bnbtypes.AccAddressFromBech32(bech32Addr)
-	if err != nil {
-		return "", err
-	}
-	hexAddr := hex.EncodeToString(addressBytes)
-	return hexAddr, nil
 }
