@@ -22,6 +22,7 @@ import (
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/types"
 
+	bnbtypes "github.com/binance-chain/go-sdk/common/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -666,20 +667,35 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 				return err
 			}
 
-			mainnetAddress, err := hexToLoomAddress(args[0])
-			if err != nil {
-				return errors.Wrap(err, "invalid gateway address")
-			}
-
 			var name string
+			var hexAddr string
+			var foreignChainId string
+
 			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
 				name = GatewayName
+				foreignChainId = "eth"
 			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
 				name = LoomGatewayName
+				foreignChainId = "eth"
 			} else if strings.Compare(args[1], BinanceGatewayName) == 0 {
 				name = BinanceGatewayName
+				foreignChainId = "binance"
 			} else {
 				return errors.New("invalid gateway name")
+			}
+
+			if !common.IsHexAddress(args[0]) {
+				hexAddr, err = bech32ToHex(args[0])
+				if err != nil {
+					return errors.Wrap(err, "invalid bech32 address")
+				}
+			} else {
+				hexAddr = args[0]
+			}
+
+			mainnetAddress, err := loom.ParseAddress(foreignChainId + ":" + hexAddr)
+			if err != nil {
+				return errors.Wrap(err, "invalid gateway address")
 			}
 
 			rpcClient := getDAppChainClient()
@@ -698,4 +714,13 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+func bech32ToHex(bech32Addr string) (string, error) {
+	addressBytes, err := bnbtypes.AccAddressFromBech32(bech32Addr)
+	if err != nil {
+		return "", err
+	}
+	hexAddr := hex.EncodeToString(addressBytes)
+	return hexAddr, nil
 }

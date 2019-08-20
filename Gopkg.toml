@@ -97,6 +97,11 @@ ignored = [
 [[constraint]]
   name = "github.com/btcsuite/btcutil"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
+
+[[override]]
+  name = "github.com/binance-chain/go-sdk"
+  revision = "a208ba1bfa74798aa6b12c5acc437ee585e29982"
+
   
 [prune]
   go-tests = true
