@@ -4,20 +4,20 @@ const rp = require('request-promise')
 const fs = require('fs')
 const path = require('path')
 
-const {
+ const {
     SpeculativeNonceTxMiddleware, SignedTxMiddleware, Client,
     LocalAddress, CryptoUtils, LoomProvider
 } = require('loom-js')
 
-const SimpleError = artifacts.require('SimpleError')
+ const SimpleError = artifacts.require('SimpleError')
 
-contract('SimpleError', async (accounts) => {
+ contract('SimpleError', async (accounts) => {
     it('SimpleError has been deployed', async () => {
         const simpleStoreContract = await SimpleError.deployed()
         assert(simpleStoreContract.address)
     })
 
-    it('Increment nonce for failed txs', async () => {
+     it('Increment nonce for failed txs', async () => {
         const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
         const chainID = 'default'
         const writeUrl = `ws://${nodeAddr}/websocket`
@@ -44,13 +44,13 @@ contract('SimpleError', async (accounts) => {
         try {await contract.methods.err().send()} catch(err) {}
         try {await contract.methods.err().send()} catch(err) {}
         try {await contract.methods.err().send()} catch(err) {}
-        
+
         await waitForXBlocks(nodeAddr, 1)
         let nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
         assert.equal("0x3",nonce)
 
-        // send three more reverted txs without await
+         // send three more reverted txs without await
         contract.methods.err().send().then().catch(function(e) {})
         contract.methods.err().send().then().catch(function(e) {})
         contract.methods.err().send().then().catch(function(e) {})
@@ -61,6 +61,4 @@ contract('SimpleError', async (accounts) => {
         assert.equal("0x6",nonce)
     })
 
-})
-
-
+ })

@@ -36,7 +36,6 @@ async function waitForXBlocks(nodeAddr, block) {
     var latestBlock = Number(res.result.sync_info.latest_block_height);
     console.log("Latest block", latestBlock)
     if (latestBlock >= currentBlock + block) {
-      console.log("break")
       break;
     }
   }
@@ -56,7 +55,7 @@ async function getNonce(nodeAddr, account) {
       },
       json: true 
   };
- 
+  
   const res = await rp(options)
   return res.result
 }
