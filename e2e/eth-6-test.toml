@@ -19,9 +19,15 @@
   ]
 
 [[TestCases]]
+  RunCmd = "wait_for_block_height_to_reach 0 2"
+
+[[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x2",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "excludes"
   Expected = [ '"transactions": [],' ]
+
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_reach 0 3"
 
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["0x3"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
