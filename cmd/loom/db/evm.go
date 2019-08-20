@@ -75,7 +75,6 @@ func newDumpEVMStateCommand() *cobra.Command {
 				// need it for just dumping the EVM state
 				nil,
 				nil,
-				nil,
 			)
 
 			var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
@@ -187,7 +186,6 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				},
 				// it is possible to load the block hash from the TM block store, but probably don't
 				// need it for just dumping the EVM state
-				nil,
 				nil,
 				nil,
 			)

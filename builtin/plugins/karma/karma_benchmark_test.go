@@ -185,7 +185,7 @@ func userKarmaKey(user uint64) []byte {
 
 func mockState(logSize int) loomchain.State {
 	header := abci.Header{}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil, nil)
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 	entries := uint64(math.Pow(10, float64(logSize)))
 	for i := uint64(0); i < entries; i++ {
 		strI := strconv.FormatUint(i, 10)

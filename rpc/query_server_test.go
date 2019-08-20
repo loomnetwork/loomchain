@@ -98,7 +98,6 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 		},
 		nil,
 		nil,
-		nil,
 	)
 }
 

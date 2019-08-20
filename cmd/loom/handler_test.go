@@ -39,7 +39,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 		auth.NonceTxMiddleware,
 	}
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil)
 	rootHandler := loomchain.MiddlewareTxHandler(txMiddleWare, router, nil)
 	signer := lauth.NewEd25519Signer(alicePrivKey)
 	caller := loom.Address{

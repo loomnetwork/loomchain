@@ -29,7 +29,7 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -48,7 +48,7 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 }
 
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"default", true)
 	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"eth", true)
 	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)

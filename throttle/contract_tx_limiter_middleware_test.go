@@ -99,7 +99,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	require.Nil(t, err)
 
 	// create middleware
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
 	txSignedEVM1 := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contractAddr)
 	cfg := DefaultContractTxLimiterConfig()
@@ -140,7 +140,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		for j := 0; j < 3; j++ {
 			allowed = false
-			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 1 + int64(i)}, nil, nil, nil)
+			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 1 + int64(i)}, nil, nil)
 			processMiddleware(state, txSignedEVM1.Inner)
 			require.Equal(t, allowed, true)
 		}
@@ -154,7 +154,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	for i := 10; i < 20; i++ {
 		for j := 0; j < 3; j++ {
 			allowed = false
-			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 1 + int64(i)}, nil, nil, nil)
+			state = loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 1 + int64(i)}, nil, nil)
 			processMiddleware(state, txSignedEVM1.Inner)
 			require.Equal(t, allowed, true)
 		}

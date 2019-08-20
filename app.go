@@ -79,7 +79,6 @@ func NewStoreState(
 	block abci.Header,
 	curBlockHash []byte,
 	getValidatorSet GetValidatorSet,
-	config *cctypes.Config,
 ) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
@@ -89,8 +88,12 @@ func NewStoreState(
 		block:           blockHeader,
 		validators:      loom.NewValidatorSet(),
 		getValidatorSet: getValidatorSet,
-		config:          config,
 	}
+}
+
+func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
+	s.config = config
+	return s
 }
 
 func (s *StoreState) Range(prefix []byte) plugin.RangeData {
@@ -176,17 +179,18 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // If an error occurs while trying to update the config the change is rolled back, if the rollback
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
-	backupConfigBytes, err := proto.Marshal(s.config)
+	cfg := s.Config()
+	backupConfigBytes, err := proto.Marshal(cfg)
 	if err != nil {
 		return err
 	}
-	if err := config.SetConfigSetting(s.config, name, value); err != nil {
+	if err := config.SetConfigSetting(cfg, name, value); err != nil {
 		return err
 	}
-	configBytes, err := proto.Marshal(s.config)
+	configBytes, err := proto.Marshal(cfg)
 	if err != nil {
 		// restore config from backup
-		if restoreError := proto.Unmarshal(backupConfigBytes, s.config); restoreError != nil {
+		if restoreError := proto.Unmarshal(backupConfigBytes, cfg); restoreError != nil {
 			panic(err)
 		}
 		return err
@@ -197,6 +201,9 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 
 // Config returns the current on-chain config.
 func (s *StoreState) Config() *cctypes.Config {
+	if s.config == nil {
+		s.config = loadOnChainConfig(s.store)
+	}
 	return s.config
 }
 
@@ -245,9 +252,7 @@ func NewStoreStateSnapshot(
 	getValidatorSet GetValidatorSet,
 ) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
-		StoreState: NewStoreState(
-			ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet, loadOnChainConfig(snap),
-		),
+		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
 }
@@ -437,7 +442,6 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		},
 		nil,
 		a.GetValidatorSet,
-		loadOnChainConfig(a.Store),
 	)
 
 	if a.Init != nil {
@@ -476,8 +480,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
-			a.config,
-		)
+		).WithOnChainConfig(a.config)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
 			panic(err)
@@ -497,8 +500,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-		a.config,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -550,8 +552,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-		a.config,
-	)
+	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
@@ -568,8 +569,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-		a.config,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -661,8 +661,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-		a.config,
-	)
+	).WithOnChainConfig(a.config)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
