@@ -63,7 +63,7 @@ contract('SimpleStore', async (accounts) => {
         
         await waitForXBlocks(nodeAddr, 1)
         let nonce = await getNonce(nodeAddr, from)
-        // expect nonce to increment even if the txs reverted
+        // expect nonce to increment 
         assert.equal("0x3",nonce)
 
         // send three more successful txs without await
@@ -73,7 +73,7 @@ contract('SimpleStore', async (accounts) => {
 
         await waitForXBlocks(nodeAddr, 1)
         nonce = await getNonce(nodeAddr, from)
-        // expect nonce to increment even if the txs reverted
+        // expect nonce to increment
         assert.equal("0x6",nonce)
     })
 
