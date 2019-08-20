@@ -18,22 +18,30 @@ import (
 )
 
 type (
-	InitRequest                = cctypes.InitRequest
-	ListFeaturesRequest        = cctypes.ListFeaturesRequest
-	ListFeaturesResponse       = cctypes.ListFeaturesResponse
-	GetFeatureRequest          = cctypes.GetFeatureRequest
-	GetFeatureResponse         = cctypes.GetFeatureResponse
-	AddFeatureRequest          = cctypes.AddFeatureRequest
-	AddFeatureResponse         = cctypes.AddFeatureResponse
-	RemoveFeatureRequest       = cctypes.RemoveFeatureRequest
-	SetParamsRequest           = cctypes.SetParamsRequest
-	GetParamsRequest           = cctypes.GetParamsRequest
-	GetParamsResponse          = cctypes.GetParamsResponse
-	Params                     = cctypes.Params
-	Feature                    = cctypes.Feature
+	InitRequest           = cctypes.InitRequest
+	ListFeaturesRequest   = cctypes.ListFeaturesRequest
+	ListFeaturesResponse  = cctypes.ListFeaturesResponse
+	GetFeatureRequest     = cctypes.GetFeatureRequest
+	GetFeatureResponse    = cctypes.GetFeatureResponse
+	AddFeatureRequest     = cctypes.AddFeatureRequest
+	AddFeatureResponse    = cctypes.AddFeatureResponse
+	RemoveFeatureRequest  = cctypes.RemoveFeatureRequest
+	SetParamsRequest      = cctypes.SetParamsRequest
+	GetParamsRequest      = cctypes.GetParamsRequest
+	GetParamsResponse     = cctypes.GetParamsResponse
+	Params                = cctypes.Params
+	Feature               = cctypes.Feature
+	EnableFeatureRequest  = cctypes.EnableFeatureRequest
+	EnableFeatureResponse = cctypes.EnableFeatureResponse
+
+	Action                     = cctypes.Action
+	SetSettingRequest          = cctypes.SetSettingRequest
+	ListPendingActionsRequest  = cctypes.ListPendingActionsRequest
+	ListPendingActionsResponse = cctypes.ListPendingActionsResponse
+	ChainConfigRequest         = cctypes.ChainConfigRequest
+	ChainConfigResponse        = cctypes.ChainConfigResponse
+
 	ValidatorInfo              = cctypes.ValidatorInfo
-	EnableFeatureRequest       = cctypes.EnableFeatureRequest
-	EnableFeatureResponse      = cctypes.EnableFeatureResponse
 	GetValidatorInfoRequest    = cctypes.GetValidatorInfoRequest
 	GetValidatorInfoResponse   = cctypes.GetValidatorInfoResponse
 	SetValidatorInfoRequest    = cctypes.SetValidatorInfoRequest
@@ -78,10 +86,14 @@ var (
 	// ErrFeatureNotEnabled indacates that a feature has not been enabled
 	// by majority of validators, and has not been activated on the chain.
 	ErrFeatureNotEnabled = errors.New("[ChainConfig] feature not enabled")
+
+	// ErrConfigChangeNotSupported indicates that config change is not supported in the current build
+	ErrConfigChangeNotSupported = errors.New("[ChainConfig] config change is not supported in the current build")
 )
 
 const (
 	featurePrefix       = "ft"
+	actionPrefix        = "act"
 	ownerRole           = "owner"
 	validatorInfoPrefix = "vi"
 )
@@ -95,6 +107,10 @@ var (
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+func actionKey(actionName string) []byte {
+	return util.PrefixKey([]byte(actionPrefix), []byte(actionName))
 }
 
 func validatorInfoKey(addr loom.Address) []byte {
@@ -350,6 +366,94 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
+// HarvestPendingActions returns a list of actions that are supported by majority of validators
+func HarvestPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, error) {
+	params, err := getParams(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	actionsRange := ctx.Range([]byte(actionPrefix))
+	actions := make([]*Action, 0)
+
+	validatorsInfo, err := listValidatorsInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range actionsRange {
+		var action Action
+		if err := proto.Unmarshal(m.Value, &action); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal Action %s", string(m.Key))
+		}
+
+		supportedValidator := 0
+		for _, validatorInfo := range validatorsInfo {
+			if validatorInfo.BuildNumber >= action.BuildNumber {
+				supportedValidator++
+			}
+		}
+		// Return this action, if the number of validators that supports this action
+		// has reached the vote threshold
+		if len(validatorsInfo) > 0 && uint64((supportedValidator*100)/len(validatorsInfo)) >= params.VoteThreshold {
+			if buildNumber < action.BuildNumber {
+				return nil, ErrConfigChangeNotSupported
+			}
+			actions = append(actions, &action)
+			ctx.Delete(actionKey(action.Name))
+		}
+	}
+
+	return actions, nil
+}
+
+// ListPendingActions returns a list of pending actions in the ChainConfig contract
+func (c *ChainConfig) ListPendingActions(ctx contract.StaticContext, req *ListPendingActionsRequest) (*ListPendingActionsResponse, error) {
+	actionsRange := ctx.Range([]byte(actionPrefix))
+	actions := make([]*Action, 0)
+	for _, m := range actionsRange {
+		var action Action
+		if err := proto.Unmarshal(m.Value, &action); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal Action %s", string(m.Key))
+		}
+		actions = append(actions, &action)
+	}
+
+	return &ListPendingActionsResponse{
+		Actions: actions,
+	}, nil
+}
+
+// SetSetting should be called by a contract owner to set a new action to change config setting
+func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) error {
+	if req.Name == "" || req.Value == "" {
+		return ErrInvalidRequest
+	}
+
+	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+		return ErrFeatureNotEnabled
+	}
+
+	contractOwner, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole})
+	if !contractOwner {
+		return ErrNotAuthorized
+	}
+
+	action := &Action{
+		Name:        req.Name,
+		Value:       req.Value,
+		BuildNumber: req.BuildNumber,
+	}
+
+	return ctx.Set(actionKey(req.Name), action)
+}
+
+func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRequest) (*ChainConfigResponse, error) {
+	return &ChainConfigResponse{
+		Config: ctx.Config(),
+	}, nil
+}
+
 func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
 	// TODO: Replace all this with ctx.Validators() when it's hooked up to DPOSv3 (and ideally DPOSv2)
 	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
@@ -573,8 +677,6 @@ func removeFeature(ctx contract.Context, name string) error {
 	return nil
 }
 
-var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})
-
 func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorInfoRequest) error {
 	if req.BuildNumber == 0 {
 		return ErrInvalidRequest
@@ -626,6 +728,17 @@ func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValid
 
 // ListValidatorsInfo returns the build number for each validators
 func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListValidatorsInfoRequest) (*ListValidatorsInfoResponse, error) {
+	validators, err := listValidatorsInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListValidatorsInfoResponse{
+		Validators: validators,
+	}, nil
+}
+
+func listValidatorsInfo(ctx contract.StaticContext) ([]*ValidatorInfo, error) {
 	validatorRange := ctx.Range([]byte(validatorInfoPrefix))
 	validators := []*ValidatorInfo{}
 	for _, m := range validatorRange {
@@ -635,8 +748,7 @@ func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListVa
 		}
 		validators = append(validators, &v)
 	}
-
-	return &ListValidatorsInfoResponse{
-		Validators: validators,
-	}, nil
+	return validators, nil
 }
+
+var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})

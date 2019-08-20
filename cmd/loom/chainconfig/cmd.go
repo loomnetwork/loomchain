@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/config"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/spf13/cobra"
@@ -35,6 +36,9 @@ func NewChainCfgCommand() *cobra.Command {
 		ListFeaturesCmd(),
 		FeatureEnabledCmd(),
 		RemoveFeatureCmd(),
+		SetSettingCmd(),
+		ListPendingActionsCmd(),
+		ChainConfigCmd(),
 		SetValidatorInfoCmd(),
 		GetValidatorInfoCmd(),
 		ListValidatorsInfoCmd(),
@@ -391,7 +395,115 @@ func GetValidatorInfoCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const listPendingActionsCmdExample = `
+loom chain-cfg list-pending-actions
+`
+
+func ListPendingActionsCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "list-pending-actions",
+		Short:   "show all pending actions to change setting",
+		Example: listPendingActionsCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.ListPendingActionsResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, chainConfigContractName,
+				"ListPendingActions", &cctype.ListPendingActionsRequest{}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const chainConfigCmdExample = `
+loom chain-cfg config
+`
+
+func ChainConfigCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "config",
+		Short:   "Get on-chain config",
+		Example: chainConfigCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp cctype.ChainConfigResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, chainConfigContractName,
+				"ChainConfig", &cctype.ChainConfigRequest{}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const setSettingCmdExample = `
+loom chain-cfg set-setting AppStore.NumEvmKeysToPrune --value 100 --build 1200 -k private_key
+`
+
+func SetSettingCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	var value string
+	var buildNumber uint64
+	cmd := &cobra.Command{
+		Use:     "set-setting <config name>",
+		Short:   "Set setting",
+		Example: setSettingCmdExample,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] == "" || value == "" {
+				return fmt.Errorf("invalid config key")
+			}
+
+			// validate config setting
+			defaultConfig := config.DefaultConfig()
+			if err := config.SetConfigSetting(defaultConfig, args[0], value); err != nil {
+				return err
+			}
+
+			req := &cctype.SetSettingRequest{
+				Name:        args[0],
+				Value:       value,
+				BuildNumber: buildNumber,
+			}
+
+			err := cli.CallContractWithFlags(&flags, chainConfigContractName, "SetSetting", req, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&value, "value", "", "Value of config setting")
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number required for this change to apply")
+	cmd.MarkFlagRequired("value")
+	cmd.MarkFlagRequired("build")
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
 
