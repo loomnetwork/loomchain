@@ -93,8 +93,8 @@ func NewStoreState(
 	}
 }
 
-func (c *StoreState) Range(prefix []byte) plugin.RangeData {
-	return c.store.Range(prefix)
+func (s *StoreState) Range(prefix []byte) plugin.RangeData {
+	return s.store.Range(prefix)
 }
 
 func (s *StoreState) Get(key []byte) []byte {
@@ -133,7 +133,7 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-var (
+const (
 	featurePrefix = "feature"
 	configKey     = "config"
 )
@@ -172,6 +172,9 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
+// ChangeConfigSetting updates the value of the given on-chain config setting.
+// If an error occurs while trying to update the config the change is rolled back, if the rollback
+// itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
 	backupConfigBytes, err := proto.Marshal(s.config)
 	if err != nil {
@@ -192,6 +195,7 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 	return nil
 }
 
+// Config returns the current on-chain config.
 func (s *StoreState) Config() *cctypes.Config {
 	return s.config
 }
@@ -238,10 +242,12 @@ var _ = State(&StoreStateSnapshot{})
 // NewStoreStateSnapshot creates a new snapshot of the app state.
 func NewStoreStateSnapshot(
 	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
-	getValidatorSet GetValidatorSet, config *cctypes.Config,
+	getValidatorSet GetValidatorSet,
 ) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
-		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet, config),
+		StoreState: NewStoreState(
+			ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet, loadOnChainConfig(snap),
+		),
 		storeSnapshot: snap,
 	}
 }
@@ -431,7 +437,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		},
 		nil,
 		a.GetValidatorSet,
-		a.config,
+		loadOnChainConfig(a.Store),
 	)
 
 	if a.Init != nil {
@@ -454,9 +460,9 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
-	// load config if it is nil
+	// Load the config once, when the node starts up.
 	if a.config == nil {
-		a.config = loadConfig(a.Store)
+		a.config = loadOnChainConfig(a.Store)
 	}
 
 	a.curBlockHeader = block
@@ -746,23 +752,20 @@ func (a *Application) height() int64 {
 func (a *Application) ReadOnlyState() State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
-	snapshot := a.Store.GetSnapshot()
 	return NewStoreStateSnapshot(
 		nil,
-		snapshot,
+		a.Store.GetSnapshot(),
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-		loadConfig(snapshot),
 	)
 }
 
-func loadConfig(kvStore store.KVReader) *cctypes.Config {
+func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
 	configBytes := kvStore.Get([]byte(configKey))
 	cfg := config.DefaultConfig()
 	if len(configBytes) > 0 {
-		err := proto.Unmarshal(configBytes, cfg)
-		if err != nil {
+		if err := proto.Unmarshal(configBytes, cfg); err != nil {
 			panic(err)
 		}
 	}
