@@ -53,6 +53,7 @@ type ReactorState struct {
 	PreviousValidatorSet     *types.ValidatorSet
 	Messages                 map[string]Message
 }
+
 type Message struct {
 	Payload []byte
 	Hash    []byte

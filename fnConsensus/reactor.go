@@ -459,8 +459,8 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	if aggregateExecutionResponse != nil {
 		if !bytes.Equal(f.state.Messages[fnID].Hash, aggregateExecutionResponse.Hash) {
 			f.Logger.Error(
-				"FnConsensusReactor: message hash and response hash value are not the same",
-				"fnID", fnID, "method", voteMethodID, "current nonce", currentNonce, "validator index", validatorIndex,
+				"FnConsensusReactor: message hash mismatch",
+				"fnID", fnID, "method", voteMethodID, "nonce", currentNonce, "validator", validatorIndex,
 			)
 			return
 		}
@@ -591,8 +591,9 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
 					if !bytes.Equal(f.state.Messages[fnID].Hash, majExecutionResponse.Hash) {
 						f.Logger.Error(
-							"FnConsensusReactor: message hash and hash value are not the same",
-							"fnID", fnID, "method", commitMethodID, "current nonce", currentNonce, "validator index", ownValidatorIndex,
+							"FnConsensusReactor: message hash mismatch",
+							"fnID", fnID, "method", commitMethodID, "nonce", currentNonce,
+							"validator", ownValidatorIndex,
 						)
 						return
 					}
