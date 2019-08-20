@@ -12,12 +12,11 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/tendermint/libs/db"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/evm"
-	"github.com/loomnetwork/loomchain/vm"
+	"github.com/loomnetwork/loomchain/plugin"
 )
 
 var (
@@ -26,54 +25,47 @@ var (
 )
 
 func TestSampleGoContract(t *testing.T) {
-	testingInit := types.SampleGoContractInitRequest{}
+	pctx := plugin.CreateFakeContextWithEVM(caller, addr1)
 
-	state, reg, manager, err := karma.MockStateWithContracts(
-		db.NewMemDB(),
-		karma.MockContractDetails{SampleGoCongress, "1.0.0", testingInit, Contract},
-	)
-	require.NoError(t, err)
-	//var eventDispatcher loomchain.EventDispatcher
-	//var eventHandler loomchain.EventHandler = loomchain.NewDefaultEventHandler(eventDispatcher)
+	sampleGoContract := &SampleGoContract{}
+	sampleAddr := pctx.CreateContract(Contract)
+	ctx := contractpb.WrapPluginContext(pctx.WithAddress(sampleAddr))
+	sampleInit := types.SampleGoContractInitRequest{}
+	require.NoError(t, sampleGoContract.Init(ctx, &sampleInit))
 
-	require.NoError(t, err)
-	pluginVm, err := manager.InitVM(vm.VMType_PLUGIN, state)
-	require.NoError(t, err)
+	pctx.State.SetFeature(loomchain.EvmConstantinopleFeature, true)
 
-	addr, err := reg.Resolve(SampleGoCongress)
-	require.NoError(t, err)
-	ctx := contractpb.WrapPluginContext(
-		karma.CreateFakeStateContext(state, reg, addr1, addr, pluginVm),
-	)
-	testingContract := &SampleGoContract{}
-
-	manager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
-		return evm.NewLoomVm(state, nil, nil, nil, false), nil
-	})
-	pluginEvm, err := manager.InitVM(vm.VMType_EVM, state)
+	testEventaddr, err := deployContractToEVM(pctx, "TestEvent", caller)
 	require.NoError(t, err)
 
-	bytetext, err := ioutil.ReadFile("testdata/TestEvent.bin")
-	require.NoError(t, err)
-	bytecode, err := hex.DecodeString(string(bytetext))
-	require.NoError(t, err, "decoding bytecode")
-
-	_, testEventAddr, err := pluginEvm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
+	testChainEventAddr, err := deployContractToEVM(pctx, "ChainTestEvent", caller)
 	require.NoError(t, err)
 
-	bytetext, err = ioutil.ReadFile("testdata/ChainTestEvent.bin")
-	require.NoError(t, err)
-	bytecode, err = hex.DecodeString(string(bytetext))
-	require.NoError(t, err, "decoding bytecode")
-	_, testChainEventAddr, err := pluginEvm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
-	require.NoError(t, err)
-
-	require.NoError(t, testingContract.TestNestedEvmCalls(ctx, &types.SampleGoContractNestedEvmRequest{}))
+	require.NoError(t, sampleGoContract.TestNestedEvmCalls(ctx, &types.SampleGoContractNestedEvmRequest{}))
 	require.NoError(t, err)
 
 	req := types.SampleGoContractNestedEvm2Request{
-		TestEvent:      testEventAddr.MarshalPB(),
+		TestEvent:      testEventaddr.MarshalPB(),
 		ChainTestEvent: testChainEventAddr.MarshalPB(),
 	}
-	require.NoError(t, testingContract.TestNestedEvmCalls2(ctx, &req))
+	require.NoError(t, sampleGoContract.TestNestedEvmCalls2(ctx, &req))
+}
+
+func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller loom.Address) (loom.Address, error) {
+	contractAddr := loom.Address{}
+	hexByteCode, err := ioutil.ReadFile("testdata/" + filename + ".bin")
+	if err != nil {
+		return contractAddr, err
+	}
+	byteCode := common.FromHex(string(hexByteCode))
+	byteCode, err = hex.DecodeString(string(hexByteCode))
+
+	vm := evm.NewLoomVm(ctx.State, nil, nil, nil, false)
+	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
+	if err != nil {
+		return contractAddr, err
+	}
+
+	ctx.RegisterContract("", contractAddr, caller)
+	return contractAddr, nil
 }
