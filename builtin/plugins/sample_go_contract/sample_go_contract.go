@@ -6,12 +6,16 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 )
 
+const (
+	SampleGoCongress = "sample-go-contract"
+)
+
 type SampleGoContract struct {
 }
 
 func (k *SampleGoContract) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
-		Name:    "sample-go-contract",
+		Name:    SampleGoCongress,
 		Version: "1.0.0",
 	}, nil
 }

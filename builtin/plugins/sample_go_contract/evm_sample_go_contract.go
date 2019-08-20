@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/loomnetwork/go-loom"
 	types "github.com/loomnetwork/go-loom/builtin/types/sample_go_contract"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 )
@@ -17,17 +18,34 @@ const (
 )
 
 func (k *SampleGoContract) TestNestedEvmCalls(ctx contractpb.Context, req *types.SampleGoContractNestedEvmRequest) error {
-	if err := testEventCall(ctx); err != nil {
+	testEventAddr, err := ctx.Resolve("TestEvent")
+	if err != nil {
+		return nil
+	}
+	if err := testEventCall(ctx, testEventAddr); err != nil {
 		return err
 	}
-	if err := testChainEventCall(ctx); err != nil {
+	testChainEventAddr, err := ctx.Resolve("ChainTestEvent")
+	if err != nil {
+		return nil
+	}
+	if err := testChainEventCall(ctx, testChainEventAddr); err != nil {
 		return err
 	}
 	return nil
 }
 
-func testEventCall(ctx contractpb.Context) error {
-	testEventAddr, err := ctx.Resolve("TestEvent")
+func (k *SampleGoContract) TestNestedEvmCalls2(ctx contractpb.Context, req *types.SampleGoContractNestedEvm2Request) error {
+	if err := testEventCall(ctx, loom.UnmarshalAddressPB(req.TestEvent)); err != nil {
+		return err
+	}
+	if err := testChainEventCall(ctx, loom.UnmarshalAddressPB(req.ChainTestEvent)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func testEventCall(ctx contractpb.Context, testEventAddr loom.Address) error {
 	abiEventData, err := abi.JSON(strings.NewReader(testEventAbi))
 	if err != nil {
 		return err
@@ -44,8 +62,7 @@ func testEventCall(ctx contractpb.Context) error {
 	return nil
 }
 
-func testChainEventCall(ctx contractpb.Context) error {
-	testEventAddr, err := ctx.Resolve("ChainTestEvent")
+func testChainEventCall(ctx contractpb.Context, testChainEventAddr loom.Address) error {
 	abiEventData, err := abi.JSON(strings.NewReader(chainTestEventAbi))
 	if err != nil {
 		return err
@@ -55,7 +72,7 @@ func testChainEventCall(ctx contractpb.Context) error {
 		return err
 	}
 	evmOut := []byte{}
-	err = contractpb.CallEVM(ctx, testEventAddr, input, &evmOut)
+	err = contractpb.CallEVM(ctx, testChainEventAddr, input, &evmOut)
 	if err != nil {
 		return err
 	}

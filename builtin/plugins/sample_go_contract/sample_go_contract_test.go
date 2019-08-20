@@ -14,7 +14,9 @@ import (
 
 	"github.com/tendermint/tendermint/libs/db"
 
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -28,30 +30,50 @@ func TestSampleGoContract(t *testing.T) {
 
 	state, reg, manager, err := karma.MockStateWithContracts(
 		db.NewMemDB(),
-		karma.MockContractDetails{"testing", "1.0.0", testingInit, Contract},
+		karma.MockContractDetails{SampleGoCongress, "1.0.0", testingInit, Contract},
 	)
 	require.NoError(t, err)
-	pluginVm, err := manager.InitVM(vm.VMType_PLUGIN, state)
+	//var eventDispatcher loomchain.EventDispatcher
+	//var eventHandler loomchain.EventHandler = loomchain.NewDefaultEventHandler(eventDispatcher)
 
-	addr, err := reg.Resolve("testing")
+	require.NoError(t, err)
+	pluginVm, err := manager.InitVM(vm.VMType_PLUGIN, state)
+	require.NoError(t, err)
+
+	addr, err := reg.Resolve(SampleGoCongress)
 	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr1, addr, pluginVm),
 	)
 	testingContract := &SampleGoContract{}
 
+	manager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
+		return evm.NewLoomVm(state, nil, nil, nil, false), nil
+	})
+	pluginEvm, err := manager.InitVM(vm.VMType_EVM, state)
+	require.NoError(t, err)
+
 	bytetext, err := ioutil.ReadFile("testdata/TestEvent.bin")
 	require.NoError(t, err)
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
-	_, _, err = pluginVm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
+
+	_, testEventAddr, err := pluginEvm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
+	require.NoError(t, err)
 
 	bytetext, err = ioutil.ReadFile("testdata/ChainTestEvent.bin")
 	require.NoError(t, err)
 	bytecode, err = hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
-	_, addr, err = pluginVm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
+	_, testChainEventAddr, err := pluginEvm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
+	require.NoError(t, err)
 
 	require.NoError(t, testingContract.TestNestedEvmCalls(ctx, &types.SampleGoContractNestedEvmRequest{}))
+	require.NoError(t, err)
 
+	req := types.SampleGoContractNestedEvm2Request{
+		TestEvent:      testEventAddr.MarshalPB(),
+		ChainTestEvent: testChainEventAddr.MarshalPB(),
+	}
+	require.NoError(t, testingContract.TestNestedEvmCalls2(ctx, &req))
 }
