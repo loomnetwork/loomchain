@@ -87,7 +87,7 @@ func MockStateWithContracts(appDb db.DB, contracts ...MockContractDetails) (loom
 	loader := &plugin.StaticLoader{Contracts: loadList}
 
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		return plugin.NewPluginVM(loader, state, reg, &FakeEventHandler{}, log.Default, nil, nil, nil), nil
+		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 	if err != nil {

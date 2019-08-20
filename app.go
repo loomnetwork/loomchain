@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -14,17 +16,18 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
-	ttypes "github.com/tendermint/tendermint/types"
 
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -34,6 +37,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
+	Config() *cctypes.Config
 	EnabledFeatures() []string
 }
 
@@ -44,6 +48,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
+	ChangeConfigSetting(name, value string) error
 }
 
 type StoreState struct {
@@ -52,6 +57,7 @@ type StoreState struct {
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
+	config          *cctypes.Config
 }
 
 var _ = State(&StoreState{})
@@ -88,8 +94,13 @@ func NewStoreState(
 	}
 }
 
-func (c *StoreState) Range(prefix []byte) plugin.RangeData {
-	return c.store.Range(prefix)
+func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
+	s.config = config
+	return s
+}
+
+func (s *StoreState) Range(prefix []byte) plugin.RangeData {
+	return s.store.Range(prefix)
 }
 
 func (s *StoreState) Get(key []byte) []byte {
@@ -128,8 +139,9 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-var (
+const (
 	featurePrefix = "feature"
+	configKey     = "config"
 )
 
 func featureKey(featureName string) []byte {
@@ -164,6 +176,38 @@ func (s *StoreState) SetFeature(name string, val bool) {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
+}
+
+// ChangeConfigSetting updates the value of the given on-chain config setting.
+// If an error occurs while trying to update the config the change is rolled back, if the rollback
+// itself fails this function will panic.
+func (s *StoreState) ChangeConfigSetting(name, value string) error {
+	cfg := s.Config()
+	backupConfigBytes, err := proto.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	if err := config.SetConfigSetting(cfg, name, value); err != nil {
+		return err
+	}
+	configBytes, err := proto.Marshal(cfg)
+	if err != nil {
+		// restore config from backup
+		if restoreError := proto.Unmarshal(backupConfigBytes, cfg); restoreError != nil {
+			panic(err)
+		}
+		return err
+	}
+	s.store.Set([]byte(configKey), configBytes)
+	return nil
+}
+
+// Config returns the current on-chain config.
+func (s *StoreState) Config() *cctypes.Config {
+	if s.config == nil {
+		s.config = loadOnChainConfig(s.store)
+	}
+	return s.config
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -206,7 +250,10 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(
+	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
+	getValidatorSet GetValidatorSet,
+) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
@@ -268,6 +315,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
+	UpdateConfig() error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -295,6 +343,7 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
+	config                      *cctypes.Config
 }
 
 var _ abci.Application = &Application{}
@@ -418,6 +467,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
+	// Load the config once, when the node starts up.
+	if a.config == nil {
+		a.config = loadOnChainConfig(a.Store)
+	}
+
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
@@ -429,7 +483,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
-		)
+		).WithOnChainConfig(a.config)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
 			panic(err)
@@ -449,7 +503,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -472,6 +526,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
 		}
+
+		if err := chainConfigManager.UpdateConfig(); err != nil {
+			panic(err)
+		}
+
 	}
 
 	storeTx.Commit()
@@ -496,7 +555,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
@@ -513,7 +572,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -605,7 +664,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
@@ -692,7 +751,6 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
-
 func (a *Application) ReadOnlyState() State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
@@ -703,4 +761,15 @@ func (a *Application) ReadOnlyState() State {
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
 	)
+}
+
+func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
+	configBytes := kvStore.Get([]byte(configKey))
+	cfg := config.DefaultConfig()
+	if len(configBytes) > 0 {
+		if err := proto.Unmarshal(configBytes, cfg); err != nil {
+			panic(err)
+		}
+	}
+	return cfg
 }
