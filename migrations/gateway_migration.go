@@ -1,4 +1,4 @@
-// +build evm
+// +build gateway
 
 package migrations
 
