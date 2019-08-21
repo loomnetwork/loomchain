@@ -666,8 +666,8 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 				return err
 			}
 
-			var name string
 			var hexAddr string
+			var name string
 			var foreignChainId string
 
 			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
@@ -684,11 +684,7 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 			}
 
 			if !common.IsHexAddress(args[0]) {
-				addressBytes, err := accAddressFromBech32(args[0])
-				if err != nil {
-					return err
-				}
-				hexAddr = "0x" + hex.EncodeToString(addressBytes)
+				hexAddr, err = bech32ToHex(args[0])
 				if err != nil {
 					return errors.Wrap(err, "invalid gateway address")
 				}
