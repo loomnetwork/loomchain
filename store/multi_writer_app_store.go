@@ -215,7 +215,6 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			if !s.evmStateDeleted {
 				begin := time.Now()
 				s.loadOnChainConfig()
-				fmt.Println("NumEvmKeysToPrune", s.numEvmKeysToPrune)
 				rangeData := s.appStore.RangeWithLimit(vmPrefix, s.numEvmKeysToPrune)
 				for _, data := range rangeData {
 					s.appStore.Delete(util.PrefixKey(vmPrefix, data.Key))
