@@ -39,6 +39,7 @@ import (
 const GatewayName = "gateway"
 const LoomGatewayName = "loomcoin-gateway"
 const BinanceGatewayName = "binance-gateway"
+const TronGatewayName = "tron-gateway"
 
 const getOraclesCmdExample = `
 ./loom gateway get-oracles gateway --key path/to/loom_priv.key
@@ -302,6 +303,8 @@ func newGetStateCommand() *cobra.Command {
 				name = LoomGatewayName
 			} else if strings.Compare(args[0], BinanceGatewayName) == 0 {
 				name = BinanceGatewayName
+			} else if strings.Compare(args[0], TronGatewayName) == 0 {
+				name = TronGatewayName
 			} else {
 				return errors.New("Invalid gateway name")
 			}
