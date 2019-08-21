@@ -688,8 +688,6 @@ AppStore:
   # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
   SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
-  # Number of VM keys deleted per block
-  DeletedVMKeysPerBlock: {{ .AppStore.DeletedVMKeysPerBlock }}
 {{if .EventStore -}}
 #
 # EventStore
