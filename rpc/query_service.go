@@ -33,7 +33,7 @@ type QueryService interface {
 	EthBlockNumber() (eth.Quantity, error)
 	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
 	EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error)
-	EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error)
+	EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceipt, error)
 	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
 	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
 	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
@@ -61,6 +61,8 @@ type QueryService interface {
 	EthAccounts() ([]eth.Data, error)
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
+
+	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -127,6 +129,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["getevmtransactionbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmTransactionByHash, "txHash")
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
+	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)

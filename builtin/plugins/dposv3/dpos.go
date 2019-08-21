@@ -1,7 +1,6 @@
 package dposv3
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -22,6 +22,7 @@ const (
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
 	billionthsBasisPointRatio      = 100000
+	hundredPercentInBasisPoints    = 10000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.Delegation_BONDING
 	BONDED                         = dtypes.Delegation_BONDED
@@ -38,6 +39,10 @@ const (
 
 	ElectionEventTopic               = "dposv3:election"
 	SlashEventTopic                  = "dposv3:slash"
+	SlashDelegationEventTopic        = "dposv3:slashdelegation"
+	SlashWhitelistAmountEventTopic   = "dposv3:slashwhitelistamount"
+	JailEventTopic                   = "dposv3:jail"
+	UnjailEventTopic                 = "dposv3:unjail"
 	CandidateRegistersEventTopic     = "dposv3:candidateregisters"
 	CandidateUnregistersEventTopic   = "dposv3:candidateunregisters"
 	CandidateFeeChangeEventTopic     = "dposv3:candidatefeechange"
@@ -51,19 +56,22 @@ const (
 )
 
 var (
-	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
-	billionth                     = loom.BigUInt{big.NewInt(1000000000)}
-	defaultReferrerFee            = loom.BigUInt{big.NewInt(300)}
-	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
-	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
-	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
-	powerCorrection               = big.NewInt(1000000000000)
-	errCandidateNotFound          = errors.New("Candidate record not found.")
-	errCandidateAlreadyRegistered = errors.New("Candidate already registered.")
-	errCandidateUnregistering     = errors.New("Candidate is currently unregistering.")
-	errValidatorNotFound          = errors.New("Validator record not found.")
-	errDistributionNotFound       = errors.New("Distribution record not found.")
-	errOnlyOracle                 = errors.New("Function can only be called with oracle address.")
+	secondsInYear                    = loom.BigUInt{big.NewInt(yearSeconds)}
+	billionth                        = loom.BigUInt{big.NewInt(1000000000)}
+	defaultFee                       = uint64(2500) // 25%
+	defaultReferrerFee               = loom.BigUInt{big.NewInt(300)}
+	blockRewardPercentage            = loom.BigUInt{big.NewInt(500)}
+	doubleSignSlashPercentage        = loom.BigUInt{big.NewInt(500)}
+	defaultInactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
+	defaultMaxDowntimePercentage     = loom.BigUInt{big.NewInt(5000)}
+	powerCorrection                  = big.NewInt(1000000000000)
+	errCandidateNotFound             = errors.New("Candidate record not found.")
+	errStatisticNotFound             = errors.New("Candidate statistic not found.")
+	errCandidateAlreadyRegistered    = errors.New("Candidate already registered.")
+	errCandidateUnregistering        = errors.New("Candidate is currently unregistering.")
+	errValidatorNotFound             = errors.New("Validator record not found.")
+	errDistributionNotFound          = errors.New("Distribution record not found.")
+	errOnlyOracle                    = errors.New("Function can only be called with oracle address.")
 )
 
 type (
@@ -87,6 +95,7 @@ type (
 	CheckRewardDelegationResponse     = dtypes.CheckRewardDelegationResponse
 	DowntimeRecordRequest             = dtypes.DowntimeRecordRequest
 	DowntimeRecordResponse            = dtypes.DowntimeRecordResponse
+	DowntimeRecord                    = dtypes.DowntimeRecord
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
@@ -102,6 +111,9 @@ type (
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
+	Referrer                          = dtypes.Referrer
+	ListReferrersRequest              = dtypes.ListReferrersRequest
+	ListReferrersResponse             = dtypes.ListReferrersResponse
 	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
 	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
@@ -110,6 +122,9 @@ type (
 	SetValidatorCountRequest          = dtypes.SetValidatorCountRequest
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
+	UnjailRequest                     = dtypes.UnjailRequest
+	SetMaxDowntimePercentageRequest   = dtypes.SetMaxDowntimePercentageRequest
+	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -128,6 +143,10 @@ type (
 
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
+	DposSlashDelegationEvent        = dtypes.DposSlashDelegationEvent
+	DposSlashWhitelistAmountEvent   = dtypes.DposSlashWhitelistAmountEvent
+	DposJailEvent                   = dtypes.DposJailEvent
+	DposUnjailEvent                 = dtypes.DposUnjailEvent
 	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
 	DposCandidateUnregistersEvent   = dtypes.DposCandidateUnregistersEvent
 	DposCandidateFeeChangeEvent     = dtypes.DposCandidateFeeChangeEvent
@@ -168,7 +187,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 	if params.CrashSlashingPercentage == nil {
-		params.CrashSlashingPercentage = &types.BigUInt{Value: inactivitySlashPercentage}
+		params.CrashSlashingPercentage = &types.BigUInt{Value: defaultInactivitySlashPercentage}
 	}
 	if params.ByzantineSlashingPercentage == nil {
 		params.ByzantineSlashingPercentage = &types.BigUInt{Value: doubleSignSlashPercentage}
@@ -176,11 +195,43 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	if params.RegistrationRequirement == nil {
 		params.RegistrationRequirement = &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	}
+	if params.MaxDowntimePercentage == nil {
+		params.MaxDowntimePercentage = &types.BigUInt{Value: defaultMaxDowntimePercentage}
+	}
 	if params.MaxYearlyReward == nil {
 		params.MaxYearlyReward = &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)}
 	}
 	if params.DowntimePeriod == 0 {
 		params.DowntimePeriod = defaultDowntimePeriod
+	}
+
+	candidates := &CandidateList{}
+	// if InitCandidates is true, whitelist validators and register them for candidates
+	if req.InitCandidates {
+		for i, validator := range req.Validators {
+			candidateAddr := loom.Address{ChainID: ctx.Block().ChainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+			newCandidate := &Candidate{
+				PubKey:                validator.PubKey,
+				Address:               candidateAddr.MarshalPB(),
+				Fee:                   defaultFee,
+				NewFee:                defaultFee,
+				Name:                  fmt.Sprintf("candidate-%d", i),
+				State:                 REGISTERED,
+				MaxReferralPercentage: defaultReferrerFee.Uint64(),
+			}
+			candidates.Set(newCandidate)
+			if err := c.addCandidateToStatisticList(ctx, &WhitelistCandidateRequest{
+				CandidateAddress: candidateAddr.MarshalPB(),
+				Amount:           params.RegistrationRequirement,
+				LocktimeTier:     TIER_ZERO,
+			}); err != nil {
+				return err
+			}
+		}
+
+		if err := saveCandidateList(ctx, *candidates); err != nil {
+			return err
+		}
 	}
 
 	state := &State{
@@ -192,7 +243,6 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		TotalValidatorDelegations: loom.BigZeroPB(),
 		TotalRewardDistribution:   loom.BigZeroPB(),
 	}
-
 	return saveState(ctx, state)
 }
 
@@ -221,7 +271,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	// Ensure that referrer value is meaningful
-	referrerAddress := GetReferrer(ctx, req.Referrer)
+	referrerAddress := getReferrer(ctx, req.Referrer)
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -276,8 +326,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 		Index:        index,
-		Referrer:     req.Referrer,
+		Referrer:     req.Referrer, // TODO: This should be a simple index/ID, not a string.
 	}
+
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
 	}
@@ -315,7 +366,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 
 		// Ensure that referrer value is meaningful
-		referrerAddress := GetReferrer(ctx, req.Referrer)
+		referrerAddress := getReferrer(ctx, req.Referrer)
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
@@ -337,7 +388,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	newLocktime := priorDelegation.LockTime
 
 	if req.NewLocktimeTier > uint64(newLocktimeTier) {
-		state, err := loadState(ctx)
+		state, err := LoadState(ctx)
 		if err != nil {
 			return err
 		}
@@ -585,7 +636,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return err
 	}
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -651,6 +702,7 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 		}
 
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -674,7 +726,7 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 WhitelistCandidate", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -720,7 +772,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 RemoveWhitelistCandidate", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -746,7 +798,7 @@ func (c *DPOS) ChangeWhitelistInfo(ctx contract.Context, req *ChangeWhitelistInf
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3", "ChangeWhitelistInfo", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -810,7 +862,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	// a candidate registers for the first time
 	statistic, _ := GetStatistic(ctx, candidateAddress)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -857,14 +909,14 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:      req.PubKey,
-		Address:     candidateAddress.MarshalPB(),
-		Fee:         req.Fee,
-		NewFee:      req.Fee,
-		Name:        req.Name,
-		Description: req.Description,
-		Website:     req.Website,
-		State:       REGISTERED,
+		PubKey:                req.PubKey,
+		Address:               candidateAddress.MarshalPB(),
+		Fee:                   req.Fee,
+		NewFee:                req.Fee,
+		Name:                  req.Name,
+		Description:           req.Description,
+		Website:               req.Website,
+		State:                 REGISTERED,
 		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
@@ -874,6 +926,44 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	return c.emitCandidateRegistersEvent(ctx, candidateAddress.MarshalPB(), req.Fee)
+}
+
+func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		return errors.New("DPOS v3.3 is not enabled")
+	}
+
+	candidateAddress := ctx.Message().Sender
+
+	// if req.Validator is not nil, make sure that the caller is the oracle
+	// only the oracle can unjail other validators, a validator can only unjail itself
+	if req.Validator != nil {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.Params.OracleAddress == nil || ctx.Message().Sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return errors.New("Only the oracle can unjail other validators")
+		}
+		candidateAddress = loom.UnmarshalAddressPB(req.Validator)
+	}
+
+	statistic, err := GetStatistic(ctx, candidateAddress)
+	if err != nil || statistic == nil {
+		return errStatisticNotFound
+	}
+
+	if !statistic.Jailed {
+		return fmt.Errorf("%s is not jailed", candidateAddress.String())
+	}
+
+	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
+	statistic.Jailed = false
+	if err = SetStatistic(ctx, statistic); err != nil {
+		return err
+	}
+
+	return emitUnjailEvent(ctx, candidateAddress.MarshalPB())
 }
 
 func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) error {
@@ -998,11 +1088,20 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		if err = saveCandidateList(ctx, candidates); err != nil {
+		if err := saveCandidateList(ctx, candidates); err != nil {
 			return err
 		}
 
-		slashValidatorDelegations(ctx, DefaultNoCache, statistic, candidateAddress)
+		err = slashValidatorDelegations(ctx, DefaultNoCache, statistic, candidateAddress)
+		// NOTE: we ignore the error if DPOSVersion3_4 is not enabled to retain backwards compatibility
+		if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+			if err != nil {
+				return err
+			}
+			if err := SetStatistic(ctx, statistic); err != nil {
+				return err
+			}
+		}
 	}
 
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
@@ -1042,7 +1141,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesReq
 func Elect(ctx contract.Context) error {
 	cachedDelegations := &CachedDposStorage{EnableCaching: true}
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1180,15 +1279,22 @@ func applyPowerCap(validators []*Validator) []*Validator {
 	return validators
 }
 
-func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
+func (c *DPOS) TimeUntilElection(
+	ctx contract.StaticContext, req *TimeUntilElectionRequest,
+) (*TimeUntilElectionResponse, error) {
 	ctx.Logger().Debug("DPOSv3 TimeUntilEleciton", "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	remainingTime := state.Params.ElectionCycleLength - (ctx.Now().Unix() - state.LastElectionTime)
+	var remainingTime int64
+	if state.Params.ElectionCycleLength > 0 {
+		remainingTime = state.Params.ElectionCycleLength -
+			((ctx.Now().Unix() - state.LastElectionTime) % state.Params.ElectionCycleLength)
+	}
+
 	return &TimeUntilElectionResponse{
 		TimeUntilElection: remainingTime,
 	}, nil
@@ -1224,7 +1330,7 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 }
 
 func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1290,12 +1396,51 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	}, nil
 }
 
+func (c *DPOS) ListReferrers(ctx contract.StaticContext, req *ListReferrersRequest) (*ListReferrersResponse, error) {
+	referrerRange := ctx.Range([]byte(referrerPrefix))
+	referrers := make([]*Referrer, 0, len(referrerRange))
+	for _, referrer := range referrerRange {
+		var addr types.Address
+		if err := proto.Unmarshal(referrer.Value, &addr); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal referrer %s", string(referrer.Key))
+		}
+		referrers = append(referrers, &Referrer{
+			ReferrerAddress: &addr,
+			Name:            string(referrer.Key),
+		})
+	}
+	return &ListReferrersResponse{
+		Referrers: referrers,
+	}, nil
+}
+
+func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidatorJailingRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		return errors.New("DPOS v3.4 is not enabled")
+	}
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+	if state.Params.JailOfflineValidators == req.JailOfflineValidators {
+		return nil
+	}
+
+	state.Params.JailOfflineValidators = req.JailOfflineValidators
+	return saveState(ctx, state)
+}
+
 // ***************************
 // REWARDS & SLASHING
 // ***************************
 
 func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates []*Candidate) error {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1303,13 +1448,46 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	if state.Params.DowntimePeriod != 0 && (uint64(currentHeight)%state.Params.DowntimePeriod) == 0 {
 		ctx.Logger().Info("DPOS ShiftDowntimeWindow", "block", currentHeight)
 
+		downtimeSlashingEnabled := ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false)
+
+		maxDowntimePercentage := defaultMaxDowntimePercentage
+		if state.Params.MaxDowntimePercentage != nil {
+			maxDowntimePercentage = state.Params.MaxDowntimePercentage.Value
+		}
+
+		maximumMissedBlocksBig := CalculateFraction(maxDowntimePercentage, loom.BigUInt{big.NewInt(int64(state.Params.DowntimePeriod))})
+		maximumMissedBlocks := maximumMissedBlocksBig.Uint64()
+
+		inactivitySlashPercentage := defaultInactivitySlashPercentage
+		if state.Params.CrashSlashingPercentage != nil {
+			inactivitySlashPercentage = state.Params.CrashSlashingPercentage.Value
+		}
+
 		for _, candidate := range candidates {
-			statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
+			statistic, err := GetStatistic(ctx, candidateAddress)
 			if err != nil {
 				if err == contract.ErrNotFound {
 					continue
 				}
 				return err
+			}
+
+			if downtimeSlashingEnabled {
+				shouldSlash := true
+				downtime := getDowntimeRecord(ctx, statistic)
+				for i := uint64(0); i < 4; i++ {
+					if maximumMissedBlocks >= downtime.Periods[i] {
+						shouldSlash = false
+						break
+					}
+				}
+
+				if shouldSlash {
+					if err := slash(ctx, statistic, inactivitySlashPercentage); err != nil {
+						return err
+					}
+				}
 			}
 
 			statistic.RecentlyMissedBlocks = statistic.RecentlyMissedBlocks << 16
@@ -1322,7 +1500,7 @@ func ShiftDowntimeWindow(ctx contract.Context, currentHeight int64, candidates [
 	return nil
 }
 
-func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) error {
+func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, jailingEnabled bool, validatorAddr loom.Address) error {
 	statistic, err := GetStatistic(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "UpdateDowntimeRecord attempted to process invalid validator address")
@@ -1335,74 +1513,97 @@ func UpdateDowntimeRecord(ctx contract.Context, validatorAddr loom.Address) erro
 		"down-blocks", statistic.RecentlyMissedBlocks&0xFFFF,
 	)
 
+	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
+	jailOfflineValidator := false
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+		jailOfflineValidator = true
+	}
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		jailOfflineValidator = jailingEnabled
+	}
+	if jailOfflineValidator {
+		downtime := getDowntimeRecord(ctx, statistic)
+		if downtime.Periods[0] == downtimePeriod &&
+			downtime.Periods[1] == downtimePeriod &&
+			downtime.Periods[2] == downtimePeriod &&
+			downtime.Periods[3] == downtimePeriod {
+			statistic.Jailed = true
+			if err := emitJailEvent(ctx, validatorAddr.MarshalPB()); err != nil {
+				return err
+			}
+		}
+	}
 	return SetStatistic(ctx, statistic)
 }
 
 func (c *DPOS) DowntimeRecord(ctx contract.StaticContext, req *DowntimeRecordRequest) (*DowntimeRecordResponse, error) {
 	ctx.Logger().Debug("DPOSv3 DowntimeRecord", "request", req)
-	if req.Validator == nil {
-		return nil, errors.New("request made with req.Validator == nil")
+
+	downtimeRecords := make([]*DowntimeRecord, 0)
+	if req.Validator != nil {
+		validator := loom.UnmarshalAddressPB(req.Validator)
+		statistic, err := GetStatistic(ctx, validator)
+		if err != nil {
+			return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
+		}
+		downtimeRecords = append(downtimeRecords, getDowntimeRecord(ctx, statistic))
+	} else {
+		validators, err := ValidatorList(ctx)
+		if err != nil {
+			return nil, logStaticDposError(ctx, err, req.String())
+		}
+
+		chainID := ctx.Block().ChainID
+		for _, v := range validators {
+			validator := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+			statistic, err := GetStatistic(ctx, validator)
+			if err != nil {
+				return nil, logStaticDposError(ctx, contract.ErrNotFound, validator.String())
+			}
+			downtimeRecords = append(downtimeRecords, getDowntimeRecord(ctx, statistic))
+		}
 	}
 
-	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.Validator))
-	if err != nil {
-		return nil, logStaticDposError(ctx, contract.ErrNotFound, req.String())
-	}
-
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DowntimeRecordResponse{
+		DowntimeRecords: downtimeRecords,
+		PeriodLength:    state.Params.DowntimePeriod,
+	}, nil
+}
+
+func getDowntimeRecord(ctx contract.StaticContext, statistic *ValidatorStatistic) *DowntimeRecord {
+	return &DowntimeRecord{
+		Validator: statistic.Address,
 		Periods: []uint64{
 			statistic.RecentlyMissedBlocks & 0xFFFF,
 			(statistic.RecentlyMissedBlocks >> 16) & 0xFFFF,
 			(statistic.RecentlyMissedBlocks >> 32) & 0xFFFF,
 			(statistic.RecentlyMissedBlocks >> 48) & 0xFFFF,
 		},
-		PeriodLength: state.Params.DowntimePeriod,
-	}, nil
+	}
 }
 
-// only called for validators, never delegators
-func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
-	state, err := loadState(ctx)
+func SlashDoubleSign(ctx contract.Context, statistic *ValidatorStatistic) error {
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
 
-	return slash(ctx, validatorAddr, state.Params.CrashSlashingPercentage.Value)
+	return slash(ctx, statistic, state.Params.ByzantineSlashingPercentage.Value)
 }
 
-func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	return slash(ctx, validatorAddr, state.Params.ByzantineSlashingPercentage.Value)
-}
-
-func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
-	statistic, err := GetStatisticByAddressBytes(ctx, validatorAddr)
-	if err != nil {
-		return logDposError(ctx, err, "")
-	}
-
-	// If slashing percentage is less than current total slash percentage, do
-	// not further increase total slash percentage during this election period
-	if slashPercentage.Cmp(&statistic.SlashPercentage.Value) < 0 {
-		return nil
-	}
-
+func slash(ctx contract.Context, statistic *ValidatorStatistic, slashPercentage loom.BigUInt) error {
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&statistic.SlashPercentage.Value, &slashPercentage)
-	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
-
-	if err = SetStatistic(ctx, statistic); err != nil {
-		return err
+	// this check ensures that the slash percentage never exceeds 100%
+	if updatedAmount.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 {
+		return nil
 	}
+	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
 	return emitSlashEvent(ctx, statistic.Address, slashPercentage)
 }
@@ -1412,7 +1613,7 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 CheckRewards", "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
@@ -1425,7 +1626,7 @@ var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
 // UTILITIES
 
 func loadCoin(ctx contract.Context) (*ERC20, error) {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1466,6 +1667,14 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 			delegatorRewards[validatorKey] = common.BigZero()
 			formerValidatorTotals[validatorKey] = *common.BigZero()
 		} else {
+			// If a validator is jailed, don't calculate and distribute rewards
+			if ctx.FeatureEnabled(loomchain.DPOSVersion3_3, false) {
+				if statistic.Jailed {
+					delegatorRewards[validatorKey] = common.BigZero()
+					formerValidatorTotals[validatorKey] = *common.BigZero()
+					continue
+				}
+			}
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
@@ -1495,7 +1704,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						}
 
 						// if referrer is not found, do not distribute the reward
-						referrerAddress := GetReferrer(ctx, delegation.Referrer)
+						referrerAddress := getReferrer(ctx, delegation.Referrer)
 						if referrerAddress == nil {
 							continue
 						}
@@ -1542,7 +1751,12 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 					state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
 				}
 			} else {
-				slashValidatorDelegations(ctx, cachedDelegations, statistic, candidateAddress)
+				if err := slashValidatorDelegations(ctx, cachedDelegations, statistic, candidateAddress); err != nil {
+					return nil, err
+				}
+				if err := SetStatistic(ctx, statistic); err != nil {
+					return nil, err
+				}
 			}
 
 			formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
@@ -1596,7 +1810,16 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 	return reward
 }
 
-func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
+func slashValidatorDelegations(
+	ctx contract.Context, cachedDelegations *CachedDposStorage, statistic *ValidatorStatistic,
+	validatorAddress loom.Address,
+) error {
+	if common.IsZero(statistic.SlashPercentage.Value) {
+		return nil
+	}
+
+	ctx.Logger().Info("DPOSv3 slashValidatorDelegations", "validator", statistic.Address)
+
 	delegations, err := cachedDelegations.loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -1610,12 +1833,18 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 			return err
 		}
 
-		if loom.UnmarshalAddressPB(delegation.Validator).Compare(validatorAddress) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
+		if loom.UnmarshalAddressPB(delegation.Validator).Compare(validatorAddress) == 0 {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 			if err := cachedDelegations.SetDelegation(ctx, delegation); err != nil {
+				return err
+			}
+			if err := emitSlashDelegationEvent(
+				ctx, delegation.Delegator, delegation.Validator, delegation.Index, delegation.Amount,
+				&types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
+			); err != nil {
 				return err
 			}
 		}
@@ -1626,9 +1855,16 @@ func slashValidatorDelegations(ctx contract.Context, cachedDelegations *CachedDp
 	// validator's delegation total & thus his ability to earn rewards
 	if !common.IsZero(statistic.WhitelistAmount.Value) {
 		toSlash := CalculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		beforeSlashedWhitelistAmount := statistic.WhitelistAmount
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
+		if err := emitSlashWhitelistAmountEvent(
+			ctx, validatorAddress.MarshalPB(), beforeSlashedWhitelistAmount,
+			&types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
+		); err != nil {
+			return err
+		}
 	}
 
 	// reset slash total
@@ -1855,7 +2091,7 @@ func (c *DPOS) CheckRewardDelegation(ctx contract.StaticContext, req *CheckRewar
 func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetStateResponse, error) {
 	ctx.Logger().Debug("DPOSv3 GetState", "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
@@ -1871,7 +2107,7 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 RegisterReferrer", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1881,8 +2117,9 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	SetReferrer(ctx, req.Name, req.Address)
-
+	if err := setReferrer(ctx, req.Name, req.Address); err != nil {
+		return err
+	}
 	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
 }
 
@@ -1908,7 +2145,7 @@ func isRequestAlreadySeen(meta *BatchRequestMeta, currentTally *RequestBatchTall
 
 func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) error {
 	// ensure that function is only executed when called by oracle
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1967,7 +2204,7 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetElectionCycle", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -1988,7 +2225,7 @@ func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodReq
 	}
 
 	sender := ctx.Message().Sender
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2007,7 +2244,7 @@ func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardR
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetMaxYearlyReward", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2026,7 +2263,7 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetRegistrationRequirement", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2045,7 +2282,7 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetValidatorCount", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2064,7 +2301,7 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetOracleAddress", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2080,10 +2317,16 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 }
 
 func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
+	if ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		if req.CrashSlashingPercentage == nil || req.ByzantineSlashingPercentage == nil {
+			return errors.New("slashing percentages must be specified")
+		}
+	}
+
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetSlashingPercentage", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2093,8 +2336,42 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
+	if req.CrashSlashingPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 ||
+		req.ByzantineSlashingPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(hundredPercentInBasisPoints)}) > 0 {
+		return errors.New("Invalid slashing percentage")
+	}
+
 	state.Params.CrashSlashingPercentage = req.CrashSlashingPercentage
 	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetMaxDowntimePercentage(ctx contract.Context, req *SetMaxDowntimePercentageRequest) error {
+	if !ctx.FeatureEnabled(loomchain.DPOSVersion3_4, false) {
+		return errors.New("DPOS v3.4 is not enabled")
+	}
+	if req.MaxDowntimePercentage == nil {
+		return logDposError(ctx, errors.New("Must supply value for MaxDowntimePercentage."), req.String())
+	}
+
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 SetMaxDowntimePercentage", "sender", sender, "request", req)
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	if err := validatePercentage(req.MaxDowntimePercentage.Value); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
+	state.Params.MaxDowntimePercentage = req.MaxDowntimePercentage
 
 	return saveState(ctx, state)
 }
@@ -2103,7 +2380,7 @@ func (c *DPOS) SetMinCandidateFee(ctx contract.Context, req *SetMinCandidateFeeR
 	sender := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 SetMinCandidateFee", "sender", sender, "request", req)
 
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -2139,6 +2416,30 @@ func emitElectionEvent(ctx contract.Context) error {
 	return nil
 }
 
+func emitJailEvent(ctx contract.Context, validator *types.Address) error {
+	marshalled, err := proto.Marshal(&DposJailEvent{
+		Validator: validator,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, JailEventTopic)
+	return nil
+}
+
+func emitUnjailEvent(ctx contract.Context, validator *types.Address) error {
+	marshalled, err := proto.Marshal(&DposJailEvent{
+		Validator: validator,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, UnjailEventTopic)
+	return nil
+}
+
 func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercentage loom.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposSlashEvent{
 		Validator:       validator,
@@ -2149,6 +2450,43 @@ func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercent
 	}
 
 	ctx.EmitTopics(marshalled, SlashEventTopic)
+	return nil
+}
+
+func emitSlashDelegationEvent(
+	ctx contract.Context, delegator, validator *types.Address,
+	delegationIndex uint64, delegationAmount, slashAmount, slashPercentage *types.BigUInt,
+) error {
+	marshalled, err := proto.Marshal(&DposSlashDelegationEvent{
+		Validator:        validator,
+		Delegator:        delegator,
+		DelegationAmount: delegationAmount,
+		DelegationIndex:  delegationIndex,
+		SlashAmount:      slashAmount,
+		SlashPercentage:  slashPercentage,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, SlashDelegationEventTopic)
+	return nil
+}
+
+func emitSlashWhitelistAmountEvent(
+	ctx contract.Context, validator *types.Address, whitelistAmount, slashAmount, slashPercentage *types.BigUInt,
+) error {
+	marshalled, err := proto.Marshal(&DposSlashWhitelistAmountEvent{
+		Validator:       validator,
+		WhitelistAmount: whitelistAmount,
+		SlashAmount:     slashAmount,
+		SlashPercentage: slashPercentage,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, SlashWhitelistAmountEventTopic)
 	return nil
 }
 

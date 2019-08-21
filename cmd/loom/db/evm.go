@@ -12,17 +12,14 @@ import (
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
-	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -44,7 +41,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			appStore, err := store.NewIAVLStore(db, 0, appHeight)
+			appStore, err := store.NewIAVLStore(db, 0, appHeight, 0)
 			if err != nil {
 				return err
 			}
@@ -60,19 +57,11 @@ func newDumpEVMStateCommand() *cobra.Command {
 				return err
 			}
 
-			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-				var receiptVer handler.ReceiptHandlerVersion
-				if v2Feature {
-					receiptVer = handler.ReceiptHandlerLevelDb
-				} else {
-					var err error
-					receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-					if err != nil {
-						return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-					}
-				}
-				return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-			}, nil)
+			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
+				eventHandler,
+				cfg.EVMPersistentTxReceiptsMax,
+				nil,
+			)
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
@@ -88,15 +77,6 @@ func newDumpEVMStateCommand() *cobra.Command {
 				nil,
 			)
 
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				return err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				return err
-			}
-
 			var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 			if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 				newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -111,8 +91,8 @@ func newDumpEVMStateCommand() *cobra.Command {
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err := newABMFactory(pvm)
 				if err != nil {
@@ -166,7 +146,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			iavlStore, err := store.NewIAVLStore(db, 0, appHeight)
+			iavlStore, err := store.NewIAVLStore(db, 0, appHeight, 0)
 			if err != nil {
 				return err
 			}
@@ -175,7 +155,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				return err
 			}
 
-			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false, 1000)
+			appStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false)
 			if err != nil {
 				return err
 			}
@@ -190,19 +170,11 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				return err
 			}
 
-			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-				var receiptVer handler.ReceiptHandlerVersion
-				if v2Feature {
-					receiptVer = handler.ReceiptHandlerLevelDb
-				} else {
-					var err error
-					receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-					if err != nil {
-						return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-					}
-				}
-				return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-			}, nil)
+			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
+				eventHandler,
+				cfg.EVMPersistentTxReceiptsMax,
+				nil,
+			)
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
@@ -218,15 +190,6 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				nil,
 			)
 
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				return err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				return err
-			}
-
 			var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 			if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 				newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -241,8 +204,8 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err := newABMFactory(pvm)
 				if err != nil {

@@ -112,10 +112,14 @@ func (dpos *testDPOSContract) CheckDelegation(ctx *plugin.FakeContext, validator
 }
 
 func (dpos *testDPOSContract) DowntimeRecord(ctx *plugin.FakeContext, validator *loom.Address) (*DowntimeRecordResponse, error) {
+	var validatorAddr *types.Address
+	if validator != nil {
+		validatorAddr = validator.MarshalPB()
+	}
 	resp, err := dpos.Contract.DowntimeRecord(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&DowntimeRecordRequest{
-			Validator: validator.MarshalPB(),
+			Validator: validatorAddr,
 		},
 	)
 	if err != nil {
@@ -146,6 +150,17 @@ func (dpos *testDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer
 		},
 	)
 	return err
+}
+
+func (dpos *testDPOSContract) ListReferrers(ctx *plugin.FakeContext) ([]*Referrer, error) {
+	resp, err := dpos.Contract.ListReferrers(
+		contract.WrapPluginStaticContext(ctx.WithAddress(dpos.Address)),
+		&ListReferrersRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Referrers, err
 }
 
 func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candidate loom.Address, amount *big.Int, tier LocktimeTier) error {
@@ -242,6 +257,36 @@ func (dpos *testDPOSContract) RemoveWhitelistedCandidate(ctx *plugin.FakeContext
 	err := dpos.Contract.RemoveWhitelistedCandidate(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
 		&RemoveWhitelistedCandidateRequest{CandidateAddress: candidate.MarshalPB()},
+	)
+	return err
+}
+
+func (dpos *testDPOSContract) Unjail(ctx *plugin.FakeContext, candidate *loom.Address) error {
+	var validator *types.Address
+	if candidate != nil {
+		validator = candidate.MarshalPB()
+	}
+	err := dpos.Contract.Unjail(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&UnjailRequest{Validator: validator},
+	)
+	return err
+}
+
+func (dpos *testDPOSContract) SetSlashingPercentage(ctx *plugin.FakeContext, crashSlashingPercentage, byzantizeFaultSlashingPercentage int64) error {
+	err := dpos.Contract.SetSlashingPercentages(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&SetSlashingPercentagesRequest{
+			CrashSlashingPercentage:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(crashSlashingPercentage)},
+			ByzantineSlashingPercentage: &types.BigUInt{Value: *loom.NewBigUIntFromInt(byzantizeFaultSlashingPercentage)},
+		},
+	)
+	return err
+}
+
+func (dpos *testDPOSContract) EnableValidatorJailing(ctx *plugin.FakeContext, status bool) error {
+	err := dpos.Contract.EnableValidatorJailing(contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&EnableValidatorJailingRequest{JailOfflineValidators: status},
 	)
 	return err
 }

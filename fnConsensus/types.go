@@ -12,15 +12,16 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-var ErrFnVoteInvalidValidatorAddress = errors.New("invalid validator address for FnVote")
-var ErrFnVoteInvalidSignature = errors.New("invalid validator signature")
-var ErrFnVoteInvalidProposerSignature = errors.New("invalid proposer signature")
-var ErrFnVoteNotPresent = errors.New("Fn vote is not present for validator")
-var ErrFnVoteAlreadyCast = errors.New("Fn vote is already cast")
-var ErrFnResponseSignatureAlreadyPresent = errors.New("Fn Response signature is already present")
-
-var ErrFnVoteMergeDiffPayload = errors.New("merging is not allowed, as fn votes have different payload")
-var ErrPetitionVoteMergeDiffPayload = errors.New("merging is not allowed, as petition votes have different payload")
+var (
+	ErrFnVoteInvalidValidatorAddress     = errors.New("invalid validator address for FnVote")
+	ErrFnVoteInvalidSignature            = errors.New("invalid validator signature")
+	ErrFnVoteInvalidProposerSignature    = errors.New("invalid proposer signature")
+	ErrFnVoteNotPresent                  = errors.New("Fn vote is not present for validator")
+	ErrFnVoteAlreadyCast                 = errors.New("Fn vote is already cast")
+	ErrFnResponseSignatureAlreadyPresent = errors.New("Fn Response signature is already present")
+	ErrFnVoteMergeDiffPayload            = errors.New("merging is not allowed, as fn votes have different payload")
+	ErrPetitionVoteMergeDiffPayload      = errors.New("merging is not allowed, as petition votes have different payload")
+)
 
 type fnIDToNonce struct {
 	Nonce int64
@@ -47,9 +48,25 @@ type reactorStateMarshallable struct {
 type ReactorState struct {
 	CurrentVoteSets          map[string]*FnVoteSet
 	CurrentNonces            map[string]int64
-	PreviousTimedOutVoteSets map[string]*FnVoteSet
+	PreviousTimedOutVoteSets map[string]*FnVoteSet // TODO: unused, consider removing
 	PreviousMajVoteSets      map[string]*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
+	Messages                 map[string]Message
+}
+
+type Message struct {
+	Payload []byte
+	Hash    []byte
+}
+
+func NewReactorState() *ReactorState {
+	return &ReactorState{
+		CurrentVoteSets:          make(map[string]*FnVoteSet),
+		CurrentNonces:            make(map[string]int64),
+		PreviousTimedOutVoteSets: make(map[string]*FnVoteSet),
+		PreviousMajVoteSets:      make(map[string]*FnVoteSet),
+		Messages:                 make(map[string]Message),
+	}
 }
 
 func (p *ReactorState) Marshal() ([]byte, error) {
@@ -122,15 +139,6 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 	return nil
 }
 
-func NewReactorState() *ReactorState {
-	return &ReactorState{
-		CurrentVoteSets:          make(map[string]*FnVoteSet),
-		CurrentNonces:            make(map[string]int64),
-		PreviousTimedOutVoteSets: make(map[string]*FnVoteSet),
-		PreviousMajVoteSets:      make(map[string]*FnVoteSet),
-	}
-}
-
 type FnExecutionRequest struct {
 	FnID string
 }
@@ -157,7 +165,7 @@ func (f *FnExecutionRequest) SignBytes() ([]byte, error) {
 
 func NewFnExecutionRequest(fnID string, registry FnRegistry) (*FnExecutionRequest, error) {
 	if registry.Get(fnID) == nil {
-		return nil, fmt.Errorf("fnConsensusReactor: unable to create FnExecutionRequest as id is invalid")
+		return nil, fmt.Errorf("invalid fnID: %s", fnID)
 	}
 
 	return &FnExecutionRequest{
@@ -165,6 +173,7 @@ func NewFnExecutionRequest(fnID string, registry FnRegistry) (*FnExecutionReques
 	}, nil
 }
 
+// FnAggregateExecutionResponse contains the result reached by consensus within the custom reactor.
 type FnAggregateExecutionResponse struct {
 	Hash              []byte
 	SignatureBitArray *cmn.BitArray
@@ -198,9 +207,31 @@ func (f *FnAggregateExecutionResponse) NumberOfAgreeVotes() int {
 }
 
 type FnExecutionResponse struct {
-	Hashes            [][]byte
+	// Hash of the message voted on by each validator.
+	// The message itself is obtained from GetMessageAndSignature.
+	Hashes [][]byte
+	// Tracks which elements in OracleSignatures have valid signatures.
 	SignatureBitArray *cmn.BitArray
-	OracleSignatures  [][]byte
+	// Signature associated with each message by each validator.
+	// NOTE: The signature is not obtained by signing the the hash of the message, rather it's obtained
+	//       from GetMessageAndSignature.
+	OracleSignatures [][]byte
+}
+
+func NewFnExecutionResponse(
+	individualResponse *FnIndividualExecutionResponse, validatorIndex int, valSet *types.ValidatorSet,
+) *FnExecutionResponse {
+	execResp := &FnExecutionResponse{
+		Hashes:            make([][]byte, valSet.Size()),
+		OracleSignatures:  make([][]byte, valSet.Size()),
+		SignatureBitArray: cmn.NewBitArray(valSet.Size()),
+	}
+
+	execResp.SignatureBitArray.SetIndex(validatorIndex, true)
+	execResp.Hashes[validatorIndex] = individualResponse.Hash
+	execResp.OracleSignatures[validatorIndex] = individualResponse.OracleSignature
+
+	return execResp
 }
 
 func (f *FnExecutionResponse) Marshal() ([]byte, error) {
@@ -211,6 +242,8 @@ func (f *FnExecutionResponse) Unmarshal(bz []byte) error {
 	return cdc.UnmarshalBinaryLengthPrefixed(bz, f)
 }
 
+// Merge attempts to merge the data from another response into this one.
+// Returns true if the response was merged in, and false otherwise.
 func (f *FnExecutionResponse) Merge(anotherExecutionResponse *FnExecutionResponse) (bool, error) {
 	if anotherExecutionResponse == nil {
 		return false, fmt.Errorf("cant merge as another execution response is nil")
@@ -223,6 +256,7 @@ func (f *FnExecutionResponse) Merge(anotherExecutionResponse *FnExecutionRespons
 	hasResponseChanged := false
 
 	for i := 0; i < len(f.OracleSignatures); i++ {
+		// TODO: Hmmm, need to think about this one...
 		if f.SignatureBitArray.GetIndex(i) || !anotherExecutionResponse.SignatureBitArray.GetIndex(i) {
 			continue
 		}
@@ -329,8 +363,8 @@ func (f *FnExecutionResponse) Compare(remoteResponse *FnExecutionResponse) bool 
 }
 
 func (f *FnExecutionResponse) AddSignature(
-	individualResponse *FnIndividualExecutionResponse,
-	validatorIndex int) error {
+	individualResponse *FnIndividualExecutionResponse, validatorIndex int,
+) error {
 	if f.SignatureBitArray.GetIndex(validatorIndex) {
 		return ErrFnResponseSignatureAlreadyPresent
 	}
@@ -342,15 +376,14 @@ func (f *FnExecutionResponse) AddSignature(
 	return nil
 }
 
+// ToMajResponse returns the message hash that received most votes and reached the given threshold,
+// or nil if no hash received enough votes to reach the threshold yet.
 func (f *FnExecutionResponse) ToMajResponse(
-	signingThreshold SigningThreshold,
-	currentValidatorSet *types.ValidatorSet) *FnAggregateExecutionResponse {
+	signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet,
+) *FnAggregateExecutionResponse {
 	hashMap := make(map[string]int64)
 	var highestVotedHash []byte
 	var highestVotingPowerObserved int64 = -1
-
-	agreeVotesBitArray := cmn.NewBitArray(currentValidatorSet.Size())
-	agreeOracleSignatures := make([][]byte, currentValidatorSet.Size())
 
 	for i := 0; i < len(f.Hashes); i++ {
 		if f.Hashes[i] == nil {
@@ -368,6 +401,9 @@ func (f *FnExecutionResponse) ToMajResponse(
 			highestVotedHash = f.Hashes[i]
 		}
 	}
+
+	agreeVotesBitArray := cmn.NewBitArray(currentValidatorSet.Size())
+	agreeOracleSignatures := make([][]byte, currentValidatorSet.Size())
 
 	for i := 0; i < len(f.Hashes); i++ {
 		if bytes.Equal(highestVotedHash, f.Hashes[i]) {
@@ -398,24 +434,16 @@ func (f *FnExecutionResponse) ToMajResponse(
 	}
 }
 
-func NewFnExecutionResponse(individualResponse *FnIndividualExecutionResponse, validatorIndex int, valSet *types.ValidatorSet) *FnExecutionResponse {
-	newFnExecutionResponse := &FnExecutionResponse{
-		Hashes: make([][]byte, valSet.Size()),
-	}
-
-	newFnExecutionResponse.OracleSignatures = make([][]byte, valSet.Size())
-	newFnExecutionResponse.SignatureBitArray = cmn.NewBitArray(valSet.Size())
-
-	newFnExecutionResponse.SignatureBitArray.SetIndex(validatorIndex, true)
-	newFnExecutionResponse.Hashes[validatorIndex] = individualResponse.Hash
-	newFnExecutionResponse.OracleSignatures[validatorIndex] = individualResponse.OracleSignature
-
-	return newFnExecutionResponse
-}
-
 type FnVotePayload struct {
 	Request  *FnExecutionRequest  `json:"fn_execution_request"`
 	Response *FnExecutionResponse `json:"fn_execution_response"`
+}
+
+func NewFnVotePayload(fnRequest *FnExecutionRequest, fnResponse *FnExecutionResponse) *FnVotePayload {
+	return &FnVotePayload{
+		Request:  fnRequest,
+		Response: fnResponse,
+	}
 }
 
 func (f *FnVotePayload) Marshal() ([]byte, error) {
@@ -497,24 +525,18 @@ func (f *FnVotePayload) SignBytes(validatorIndex int) ([]byte, error) {
 		return nil, err
 	}
 
-	sepearator := []byte{0x50}
+	separator := []byte{0x50}
 
-	signBytes := make([]byte, len(requestSignBytes)+len(responseSignBytes)+len(sepearator))
+	signBytes := make([]byte, len(requestSignBytes)+len(responseSignBytes)+len(separator))
 
 	copy(signBytes, requestSignBytes)
-	copy(signBytes[len(requestSignBytes):], sepearator)
-	copy(signBytes[len(requestSignBytes)+len(sepearator):], responseSignBytes)
+	copy(signBytes[len(requestSignBytes):], separator)
+	copy(signBytes[len(requestSignBytes)+len(separator):], responseSignBytes)
 
 	return signBytes, nil
 }
 
-func NewFnVotePayload(fnRequest *FnExecutionRequest, fnResponse *FnExecutionResponse) *FnVotePayload {
-	return &FnVotePayload{
-		Request:  fnRequest,
-		Response: fnResponse,
-	}
-}
-
+// FnVoteSet contains the consensus state for the current voting round of a custom reactor (for a single fnID)
 type FnVoteSet struct {
 	Nonce               int64          `json:"nonce"`
 	ValidatorsHash      []byte         `json:"validator_hash"`
@@ -526,17 +548,21 @@ type FnVoteSet struct {
 	ValidatorAddresses  [][]byte       `json:"validator_address"`
 }
 
-func NewVoteSet(nonce int64, chainID string, validatorIndex int, initialPayload *FnVotePayload, privValidator types.PrivValidator, valSet *types.ValidatorSet) (*FnVoteSet, error) {
-	voteBitArray := cmn.NewBitArray(valSet.Size())
-	signatures := make([][]byte, valSet.Size())
-	validatorAddresses := make([][]byte, valSet.Size())
-
-	var totalVotingPower int64
-
+// NewVoteSet creates a voteset with signed vote of a single validator.
+func NewVoteSet(
+	nonce int64,
+	chainID string,
+	validatorIndex int,
+	initialPayload *FnVotePayload,
+	privValidator types.PrivValidator,
+	valSet *types.ValidatorSet,
+) (*FnVoteSet, error) {
 	if err := initialPayload.IsValid(valSet); err != nil {
-		return nil, errors.Wrap(err, "fnConsensusReactor: unable to create new voteSet as initialPayload passed is invalid")
+		return nil, errors.Wrap(err, "initial payload is invalid")
 	}
 
+	validatorAddresses := make([][]byte, valSet.Size())
+	var totalVotingPower int64
 	valSet.Iterate(func(index int, validator *types.Validator) bool {
 		if index == validatorIndex {
 			totalVotingPower = validator.VotingPower
@@ -545,11 +571,12 @@ func NewVoteSet(nonce int64, chainID string, validatorIndex int, initialPayload 
 		return false
 	})
 
-	voteBitArray.SetIndex(validatorIndex, true)
-
 	if totalVotingPower == 0 {
-		return nil, errors.New("fnConsensusReactor: unable to create new voteset as validatorIndex is invalid")
+		return nil, errors.New("validator index is invalid")
 	}
+
+	voteBitArray := cmn.NewBitArray(valSet.Size())
+	voteBitArray.SetIndex(validatorIndex, true)
 
 	newVoteSet := &FnVoteSet{
 		Nonce:               nonce,
@@ -558,18 +585,18 @@ func NewVoteSet(nonce int64, chainID string, validatorIndex int, initialPayload 
 		TotalVotingPower:    totalVotingPower,
 		Payload:             initialPayload,
 		VoteBitArray:        voteBitArray,
-		ValidatorSignatures: signatures,
+		ValidatorSignatures: make([][]byte, valSet.Size()),
 		ValidatorAddresses:  validatorAddresses,
 	}
 
 	signBytes, err := newVoteSet.SignBytes(validatorIndex)
 	if err != nil {
-		return nil, errors.New("fnConsesnusReactor: unable to create new voteset as not able to get signbytes")
+		return nil, errors.New("unable to get sign bytes")
 	}
 
 	signature, err := privValidator.Sign(signBytes)
 	if err != nil {
-		return nil, errors.New("fnConsensusReactor: unable to create new voteset as not able to sign initial payload")
+		return nil, errors.New("unable to sign initial payload")
 	}
 
 	newVoteSet.ValidatorSignatures[validatorIndex] = signature
@@ -645,9 +672,13 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int) ([]byte, error) {
 		return nil, err
 	}
 
+	// TODO: Replace this with amino serialization.
 	var seperator = []byte{17, 19, 23, 29}
 
-	prefix := []byte(fmt.Sprintf("NONCE:%d|CD:%s|VA:%s|PL:", voteSet.Nonce, voteSet.ChainID, voteSet.ValidatorAddresses[validatorIndex]))
+	prefix := []byte(fmt.Sprintf(
+		"NONCE:%d|CD:%s|VA:%s|PL:",
+		voteSet.Nonce, voteSet.ChainID, voteSet.ValidatorAddresses[validatorIndex],
+	))
 
 	signBytes := make([]byte, len(prefix)+len(seperator)+len(voteSet.ValidatorsHash)+len(seperator)+len(payloadBytes))
 
@@ -666,7 +697,6 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int) ([]byte, error) {
 	numCopied += len(seperator)
 
 	copy(signBytes[numCopied:], payloadBytes)
-	numCopied += len(payloadBytes)
 
 	return signBytes, nil
 }
@@ -680,7 +710,9 @@ func (voteSet *FnVoteSet) VerifyValidatorSign(validatorIndex int, pubKey crypto.
 		voteSet.ValidatorAddresses[validatorIndex], pubKey)
 }
 
-func (voteSet *FnVoteSet) verifyInternal(signature []byte, validatorIndex int, validatorAddress []byte, pubKey crypto.PubKey) error {
+func (voteSet *FnVoteSet) verifyInternal(
+	signature []byte, validatorIndex int, validatorAddress []byte, pubKey crypto.PubKey,
+) error {
 	if !bytes.Equal(pubKey.Address(), validatorAddress) {
 		return ErrFnVoteInvalidValidatorAddress
 	}
@@ -710,7 +742,11 @@ func (voteSet *FnVoteSet) NumberOfVotes() int {
 	return numberOfVotes
 }
 
-func (voteSet *FnVoteSet) HasConverged(signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet) bool {
+// HasConverged checks if the given signing threshold has been reached, returns true if it has been,
+// and false otherwise.
+func (voteSet *FnVoteSet) HasConverged(
+	signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet,
+) bool {
 	switch signingThreshold {
 	case Maj23SigningThreshold:
 		return voteSet.TotalVotingPower >= currentValidatorSet.TotalVotingPower()*2/3+1
@@ -725,7 +761,7 @@ func (voteSet *FnVoteSet) HaveWeAlreadySigned(ownValidatorIndex int) bool {
 	return voteSet.VoteBitArray.GetIndex(ownValidatorIndex)
 }
 
-// Should be the first function to be invoked on vote set received from Peer
+// IsValid should be the first function to be invoked when a voteset is received from a peer.
 func (voteSet *FnVoteSet) IsValid(chainID string, currentValidatorSet *types.ValidatorSet, registry FnRegistry) error {
 	var calculatedVotingPower int64
 
@@ -776,7 +812,9 @@ func (voteSet *FnVoteSet) IsValid(chainID string, currentValidatorSet *types.Val
 	}
 
 	if numValidators != voteSet.Payload.Response.SignatureBitArray.Size() {
-		return errors.New("voteSet.Payload.Response.SignatureBitArray size is different than current node's validator list")
+		return errors.New(
+			"voteSet.Payload.Response.SignatureBitArray size is different than current node's validator list",
+		)
 	}
 
 	var iteratingError error
@@ -858,13 +896,21 @@ func (voteSet *FnVoteSet) Merge(valSet *types.ValidatorSet, anotherSet *FnVoteSe
 	return hasChanged, nil
 }
 
-func (voteSet *FnVoteSet) MajResponse(signingThreshold SigningThreshold, validatorSet *types.ValidatorSet) *FnAggregateExecutionResponse {
+func (voteSet *FnVoteSet) MajResponse(
+	signingThreshold SigningThreshold, validatorSet *types.ValidatorSet,
+) *FnAggregateExecutionResponse {
 	return voteSet.Payload.Response.ToMajResponse(signingThreshold, validatorSet)
 }
 
-func (voteSet *FnVoteSet) AddVote(nonce int64, individualExecutionResponse *FnIndividualExecutionResponse, currentValidatorSet *types.ValidatorSet, validatorIndex int, privValidator types.PrivValidator) error {
+func (voteSet *FnVoteSet) AddVote(
+	nonce int64,
+	individualExecutionResponse *FnIndividualExecutionResponse,
+	currentValidatorSet *types.ValidatorSet,
+	validatorIndex int,
+	privValidator types.PrivValidator,
+) error {
 	if voteSet.Nonce != nonce {
-		return fmt.Errorf("FnConsensusReactor: unable to add vote as nonce is different from voteset")
+		return errors.New("FnConsensusReactor: unable to add vote as nonce is different from voteset")
 	}
 
 	if voteSet.VoteBitArray.GetIndex(validatorIndex) {
@@ -872,17 +918,17 @@ func (voteSet *FnVoteSet) AddVote(nonce int64, individualExecutionResponse *FnIn
 	}
 
 	if err := voteSet.Payload.Response.AddSignature(individualExecutionResponse, validatorIndex); err != nil {
-		return fmt.Errorf("fnConsesnusReactor: unable to add vote as can't add signature, Error: %s", err.Error())
+		return errors.Wrap(err, "fnConsesnusReactor: unable to add vote as can't add signature")
 	}
 
 	signBytes, err := voteSet.SignBytes(validatorIndex)
 	if err != nil {
-		return fmt.Errorf("fnConsensusReactor: unable to add vote as unable to get sign bytes. Error: %s", err.Error())
+		return errors.Wrap(err, "fnConsensusReactor: unable to add vote as unable to get sign bytes.")
 	}
 
 	signature, err := privValidator.Sign(signBytes)
 	if err != nil {
-		return fmt.Errorf("fnConsensusReactor: unable to add vote as unable to sign signing bytes. Error: %s", err.Error())
+		return errors.Wrap(err, "fnConsensusReactor: unable to add vote as unable to sign signing bytes.")
 	}
 
 	voteSet.VoteBitArray.SetIndex(validatorIndex, true)
@@ -891,11 +937,13 @@ func (voteSet *FnVoteSet) AddVote(nonce int64, individualExecutionResponse *FnIn
 
 	_, validator := currentValidatorSet.GetByIndex(validatorIndex)
 	if validator == nil {
-		return fmt.Errorf("fnConsensusReactor: unable to add vote as validatorIndex is not valid")
+		return errors.New("fnConsensusReactor: unable to add vote as validatorIndex is not valid")
 	}
 
 	if !bytes.Equal(validator.Address, voteSet.ValidatorAddresses[validatorIndex]) {
-		return fmt.Errorf("fnConsensusReactor: unable to add vote as validatorAddress does not match with one in the vote set")
+		return errors.New(
+			"fnConsensusReactor: unable to add vote as validatorAddress does not match with one in the vote set",
+		)
 	}
 
 	voteSet.TotalVotingPower += validator.VotingPower
@@ -903,6 +951,7 @@ func (voteSet *FnVoteSet) AddVote(nonce int64, individualExecutionResponse *FnIn
 	return nil
 }
 
+//nolint:lll
 func RegisterFnConsensusTypes() {
 	cdc.RegisterConcrete(&FnExecutionRequest{}, "tendermint/fnConsensusReactor/FnExecutionRequest", nil)
 	cdc.RegisterConcrete(&FnExecutionResponse{}, "tendermint/fnConsensusReactor/FnExecutionResponse", nil)

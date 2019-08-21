@@ -17,6 +17,7 @@ import (
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -44,9 +45,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 			return err
 		}
 
-		for _, val := range genDoc.Validators {
-			genValidators = append(genValidators, val)
-		}
+		genValidators = append(genValidators, genDoc.Validators...)
 	}
 
 	var genesisTime time.Time
@@ -72,7 +71,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 	}
 
 	// Initialize the override validators
-	var overrideValidators []*fnConsensus.OverrideValidatorParsable
+	overrideValidators := make([]*fnConsensus.OverrideValidatorParsable, 0, len(genValidators))
 	for _, val := range genValidators {
 		address := val.Address
 		overrideValidators = append(overrideValidators, &fnConsensus.OverrideValidatorParsable{
@@ -250,6 +249,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 					ChainId: "default",
 					Local:   oracleAddr,
 				}
+				init.InitCandidates = false
 				jsonInit, err := marshalInit(&init)
 				if err != nil {
 					return err
@@ -355,6 +355,27 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 				contract.Init = jsonInit
 			case "deployerwhitelist":
 				var init dwtypes.InitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set contract owner
+				ownerAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Owner = &types.Address{
+					ChainId: "default",
+					Local:   ownerAddr,
+				}
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
+			case "binance-gateway":
+				var init tgtypes.TransferGatewayInitRequest
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
 					return err

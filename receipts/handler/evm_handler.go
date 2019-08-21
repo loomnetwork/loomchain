@@ -9,7 +9,9 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 )
 
-func (r *ReceiptHandler) GetEventsFromLogs(logs []*eth_types.Log, blockHeight int64, caller, contract loom.Address, input []byte) []*types.EventData {
+func (r *ReceiptHandler) GetEventsFromLogs(
+	logs []*eth_types.Log, blockHeight int64, caller, contract loom.Address, input []byte,
+) []*types.EventData {
 	var events []*types.EventData
 	for _, log := range logs {
 		var topics []string

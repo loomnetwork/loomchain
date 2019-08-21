@@ -17,14 +17,12 @@ func TestEthJSONRPC2(t *testing.T) {
 		yamlFile   string
 	}{
 		{"blockNumber", "eth-1-test.toml", 1, 1, "empty-genesis.json", "eth-test-1-loom.yaml"},
-		{"ethPolls", "eth-2-test.toml", 1, 0, "empty-genesis.json", "eth-test-2-loom.yaml"},
+		{"ethPolls", "eth-2-test.toml", 1, 1, "empty-genesis.json", "eth-test-2-loom.yaml"},
 		{"getBlockByNumber", "eth-3-test.toml", 1, 1, "empty-genesis.json", "eth-test-1-loom.yaml"},
 		{"getBlockTransactionCountByNumber", "eth-4-test.toml", 1, 1, "empty-genesis.json", "eth-test-1-loom.yaml"},
 		{"getLogs", "eth-5-test.toml", 1, 4, "empty-genesis.json", "eth-test-2-loom.yaml"},
 		{"go-getBlockByNumber", "eth-6-test.toml", 1, 3, "coin.genesis.json", "eth-test-1-loom.yaml"},
 	}
-	common.LoomPath = "../loom"
-	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

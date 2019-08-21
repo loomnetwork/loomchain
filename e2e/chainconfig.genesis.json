@@ -25,6 +25,10 @@
                     {
                         "name":"dposv3",
                         "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.3",
+                        "status":"WAITING"
                     }
                 ]
             }
@@ -57,6 +61,18 @@
                         "power": "10"
                     }
                 ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dposV3",
+            "location": "dposV3:3.0.0",
+            "init": {
+                "params": {
+                    "validatorCount": "21",
+                    "electionCycleLength": "0"
+                }
             }
         }
     ]

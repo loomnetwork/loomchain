@@ -87,7 +87,7 @@ func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
 // VALIDATION
 
 func validateCandidateFee(ctx contract.Context, fee uint64) error {
-	state, err := loadState(ctx)
+	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -100,8 +100,17 @@ func validateCandidateFee(ctx contract.Context, fee uint64) error {
 }
 
 func validateFee(fee uint64) error {
-	if fee > 10000 {
+	if fee > hundredPercentInBasisPoints {
 		return errors.New("Fee percentage cannot be greater than 100%.")
+	}
+
+	return nil
+}
+
+func validatePercentage(percentageBig loom.BigUInt) error {
+	percentage := percentageBig.Int.Int64()
+	if percentage < 0 || percentage > hundredPercentInBasisPoints {
+		return errors.New(fmt.Sprintf("percentages must be from 0 - 10000 basis points"))
 	}
 
 	return nil

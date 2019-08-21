@@ -24,6 +24,7 @@ import (
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
@@ -44,8 +45,6 @@ import (
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
 	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
-	"github.com/loomnetwork/loomchain/cmd/loom/replay"
-	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
@@ -53,6 +52,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/migrations"
@@ -72,8 +72,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ed25519"
-
-	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var (
@@ -439,6 +437,51 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
+const contractInfoCommandExample = `
+loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
+`
+
+type contractInfo struct {
+	Name    string
+	Address string
+	Owner   string
+}
+
+func contractInfoCommand() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "contract [ChainID:Address]",
+		Short:   "Get contract information by address",
+		Args:    cobra.MinimumNArgs(1),
+		Example: contractInfoCommandExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
+			if err != nil {
+				return err
+			}
+			rpcclient := client.NewDAppChainRPCClient(flags.ChainID, flags.URI+"/rpc", flags.URI+"/query")
+			resp, err := rpcclient.GetContractRecord(addr)
+			if err != nil {
+				return err
+			}
+			contractInfoResp := &contractInfo{
+				Name:    resp.GetContractName(),
+				Address: loom.UnmarshalAddressPB(resp.GetContractAddress()).String(),
+				Owner:   loom.UnmarshalAddressPB(resp.GetCreatorAddress()).String(),
+			}
+
+			out, err := json.MarshalIndent(contractInfoResp, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Print(string(out))
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 //nolint:deadcode
 func recovery() {
 	if r := recover(); r != nil {
@@ -578,37 +621,25 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if cfg.AppStore.PruneInterval > int64(0) {
 			logger.Info("Loading Pruning IAVL Store")
 			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
-				MaxVersions: cfg.AppStore.MaxVersions,
-				BatchSize:   cfg.AppStore.PruneBatchSize,
-				Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
-				Logger:      logger,
+				MaxVersions:   cfg.AppStore.MaxVersions,
+				BatchSize:     cfg.AppStore.PruneBatchSize,
+				Interval:      time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+				Logger:        logger,
+				FlushInterval: cfg.AppStore.IAVLFlushInterval,
 			})
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			logger.Info("Loading IAVL Store")
-			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 			if err != nil {
 				return nil, err
 			}
 		}
-	} else if cfg.AppStore.Version == 2 {
-		logger.Info("Loading MultiReaderIAVL Store")
-		valueDB, err := cdb.LoadDB(
-			cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(),
-			cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
-		)
-		if err != nil {
-			return nil, err
-		}
-		appStore, err = store.NewMultiReaderIAVLStore(db, valueDB, cfg.AppStore)
-		if err != nil {
-			return nil, err
-		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -616,7 +647,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL, cfg.AppStore.DeletedVMKeysPerBlock)
+		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
 			return nil, err
 		}
@@ -631,14 +662,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled &&
-		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
-		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
-		if err != nil {
-			return nil, err
-		}
-		logger.Info("CachingStore enabled")
-	} else if cfg.CachingStoreConfig.CachingEnabled && cfg.AppStore.Version == 3 {
+	if cfg.CachingStoreConfig.CachingEnabled {
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err
@@ -747,19 +771,7 @@ func loadApp(
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-		var receiptVer handler.ReceiptHandlerVersion
-		if v2Feature {
-			receiptVer = handler.ReceiptHandlerLevelDb
-		} else {
-			var err error
-			receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-			if err != nil {
-				return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-			}
-		}
-		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-	}, evmAuxStore)
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, cfg.EVMPersistentTxReceiptsMax, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -768,15 +780,6 @@ func loadApp(
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
-		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
 		return plugin.NewPluginVM(
 			loader,
 			state,
@@ -784,8 +787,8 @@ func loadApp(
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			receiptWriter,
-			receiptReader,
+			receiptHandlerProvider.Writer(),
+			receiptHandlerProvider.Reader(),
 		), nil
 	})
 
@@ -793,16 +796,6 @@ func loadApp(
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
-			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					loader,
@@ -811,22 +804,23 @@ func loadApp(
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager:        vmManager,
-		CreateRegistry: createRegistry,
+		Manager:                vmManager,
+		CreateRegistry:         createRegistry,
+		AllowNamedEVMContracts: cfg.AllowNamedEvmContracts,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
@@ -922,7 +916,7 @@ func loadApp(
 
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
 		cfg.Auth,
-		getContractCtx("addressmapper", vmManager),
+		getContractStaticCtx("addressmapper", vmManager),
 	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
@@ -934,6 +928,17 @@ func loadApp(
 			cfg.Karma.SessionDuration,
 			createKarmaContractCtx,
 		))
+	}
+
+	if cfg.TxLimiter.Enabled {
+		txMiddleWare = append(txMiddleWare, throttle.NewTxLimiterMiddleware(cfg.TxLimiter))
+	}
+
+	if cfg.ContractTxLimiter.Enabled {
+		contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
+		txMiddleWare = append(
+			txMiddleWare, throttle.NewContractTxLimiterMiddleware(cfg.ContractTxLimiter, contextFactory),
+		)
 	}
 
 	if cfg.DeployerWhitelist.ContractEnabled {
@@ -1003,37 +1008,6 @@ func loadApp(
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
-
-	oracle, err := loom.ParseAddress(cfg.Oracle)
-	if err != nil {
-		oracle = loom.Address{}
-	}
-	deployerAddressList, err := cfg.TxLimiter.DeployerAddresses()
-	if err != nil {
-		return nil, err
-	}
-	deployerAddressList = append(deployerAddressList, oracle)
-
-	originHandler := throttle.NewOriginValidator(
-		uint64(cfg.TxLimiter.CallSessionDuration),
-		deployerAddressList,
-		cfg.TxLimiter.LimitDeploys,
-		cfg.TxLimiter.LimitCalls,
-	)
-
-	// Technically ThrottleTxMiddleWare has been replaced by OriginHandler but to replay a couple
-	// of old PlasmaChain production blocks correctly we have to keep this middleware around.
-	// TODO: Implement height-based middleware overrides so this middleware is only activated for
-	//       two blocks in PlasmaChain builds.
-	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
-		},
-		func(blockHeight int64) bool {
-			return replay.OverrideConfig(cfg, blockHeight).CallEnabled
-		},
-		oracle,
-	))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -1117,7 +1091,6 @@ func loadApp(
 		CreateValidatorManager:      createValidatorsManager,
 		CreateChainConfigManager:    createChainConfigManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
-		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
@@ -1170,13 +1143,25 @@ func deployContract(
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
+type staticContextFactory func(state loomchain.State) (contractpb.StaticContext, error)
+
 func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), false)
+	}
+}
+
+func getContractStaticCtx(pluginName string, vmManager *vm.Manager) staticContextFactory {
+	return func(state loomchain.State) (contractpb.StaticContext, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), true)
 	}
 }
 
@@ -1213,10 +1198,11 @@ func initQueryService(
 		Help:      "Number of requests received.",
 	}, fieldKeys)
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "query_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "query_service",
+		Name:       "request_latency_microseconds",
+		Help:       "Total duration of requests in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
@@ -1320,11 +1306,11 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		resolveCmd,
 		unsafeCmd,
-		staking.NewStakingCommand(),
 		chaincfgcmd.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		userdeployer.NewUserDeployCommand(),
 		dbg.NewDebugCommand(),
+		contractInfoCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {

@@ -40,6 +40,26 @@
             {
               "name":"auth:sigtx:default",
               "status":"WAITING"
+            },
+            {
+              "name":"auth:sigtx:binance",
+              "status":"WAITING"
+            },
+            {
+              "name":"tx:migration",
+              "status":"WAITING"
+            },
+            {
+              "name":"migration:1",
+              "status":"WAITING"
+            },
+            {
+              "name":"mw:mulcsigtx:v1.1",
+              "status":"WAITING"
+            },
+            {
+              "name":"addrmapper:v1.1",
+              "status":"WAITING"
             }
           ]
       }

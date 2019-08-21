@@ -48,6 +48,7 @@ type (
 
 var (
 	ErrSenderBalanceTooLow = errors.New("sender balance is too low")
+	ErrInvalidRequest      = errors.New("[Coin Contract] invalid request")
 )
 
 var (
@@ -107,6 +108,9 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 
 // MintToGateway adds loom coins to the loom coin Gateway contract balance, and updates the total supply.
 func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && req.Amount == nil {
+		return ErrInvalidRequest
+	}
 	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
 	if err != nil {
 		return errUtil.Wrap(err, "failed to mint Loom coin")
@@ -233,6 +237,9 @@ func (c *Coin) BalanceOf(
 	ctx contract.StaticContext,
 	req *BalanceOfRequest,
 ) (*BalanceOfResponse, error) {
+	if req.Owner == nil {
+		return nil, ErrInvalidRequest
+	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	acct, err := loadAccount(ctx, owner)
 	if err != nil {
@@ -244,16 +251,17 @@ func (c *Coin) BalanceOf(
 }
 
 func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.To == nil || req.Amount == nil) {
+		return ErrInvalidRequest
+	}
 	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
 		return c.transfer(ctx, req)
 	}
-
 	return c.legacyTransfer(ctx, req)
 }
 
 func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 	from := ctx.Message().Sender
-	to := loom.UnmarshalAddressPB(req.To)
 
 	fromAccount, err := loadAccount(ctx, from)
 	if err != nil {
@@ -274,6 +282,7 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 		return err
 	}
 
+	to := loom.UnmarshalAddressPB(req.To)
 	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
@@ -292,6 +301,10 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 }
 
 func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Amount == nil) {
+		return ErrInvalidRequest
+	}
+
 	owner := ctx.Message().Sender
 	spender := loom.UnmarshalAddressPB(req.Spender)
 
@@ -318,6 +331,9 @@ func (c *Coin) Allowance(
 	ctx contract.StaticContext,
 	req *AllowanceRequest,
 ) (*AllowanceResponse, error) {
+	if req.Spender == nil || req.Owner == nil {
+		return nil, ErrInvalidRequest
+	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	spender := loom.UnmarshalAddressPB(req.Spender)
 
@@ -332,6 +348,11 @@ func (c *Coin) Allowance(
 }
 
 func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) {
+		if req.Amount == nil || req.From == nil || req.To == nil {
+			return ErrInvalidRequest
+		}
+	}
 	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
 		return c.transferFrom(ctx, req)
 	}
@@ -340,15 +361,12 @@ func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) erro
 }
 
 func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	spender := ctx.Message().Sender
 	from := loom.UnmarshalAddressPB(req.From)
-	to := loom.UnmarshalAddressPB(req.To)
-
 	fromAccount, err := loadAccount(ctx, from)
 	if err != nil {
 		return err
 	}
-
+	spender := ctx.Message().Sender
 	allow, err := loadAllowance(ctx, from, spender)
 	if err != nil {
 		return err
@@ -373,7 +391,7 @@ func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) erro
 	if err != nil {
 		return err
 	}
-
+	to := loom.UnmarshalAddressPB(req.To)
 	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
@@ -490,20 +508,17 @@ func (c *Coin) legacyTransfer(ctx contract.Context, req *TransferRequest) error 
 }
 
 func (c *Coin) legacyTransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	spender := ctx.Message().Sender
 	from := loom.UnmarshalAddressPB(req.From)
-	to := loom.UnmarshalAddressPB(req.To)
-
 	fromAccount, err := loadAccount(ctx, from)
 	if err != nil {
 		return err
 	}
-
+	to := loom.UnmarshalAddressPB(req.To)
 	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
 	}
-
+	spender := ctx.Message().Sender
 	allow, err := loadAllowance(ctx, from, spender)
 	if err != nil {
 		return err

@@ -42,7 +42,7 @@ func MockStateWithKarmaAndCoinB(b *testing.B, karmaInit *ktypes.KarmaInitRequest
 }
 
 func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDb db.DB) (loomchain.State, registry.Registry, vm.VM, error) {
-	appStore, err := store.NewIAVLStore(appDb, 0, 0)
+	appStore, err := store.NewIAVLStore(appDb, 0, 0, 0)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -58,7 +58,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	}
 	loader := plugin.NewStaticLoader(Contract, coin.Contract)
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		return plugin.NewPluginVM(loader, state, reg, &FakeEventHandler{}, log.Default, nil, nil, nil), nil
+		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 	if err != nil {

@@ -3,9 +3,81 @@ package store
 import (
 	"testing"
 
+	"github.com/loomnetwork/go-loom/plugin"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type MockStore struct {
+	storage map[string][]byte
+	version int64
+}
+
+func NewMockStore() *MockStore {
+	return &MockStore{
+		storage: make(map[string][]byte),
+		version: 0,
+	}
+}
+
+func (m *MockStore) Get(key []byte) []byte {
+	return m.storage[string(key)]
+}
+
+func (m *MockStore) Has(key []byte) bool {
+	return m.storage[string(key)] != nil
+}
+
+func (m *MockStore) Set(key []byte, value []byte) {
+	m.storage[string(key)] = value
+}
+
+func (m *MockStore) Delete(key []byte) {
+	delete(m.storage, string(key))
+}
+
+func (m *MockStore) Range(prefix []byte) plugin.RangeData {
+	return nil
+}
+
+func (m *MockStore) Hash() []byte {
+	return nil
+}
+
+func (m *MockStore) Version() int64 {
+	return m.version
+}
+
+func (m *MockStore) SaveVersion() ([]byte, int64, error) {
+	m.version = m.version + 1
+	return nil, m.version, nil
+}
+
+func (m *MockStore) Prune() error {
+	return nil
+}
+
+func (m *MockStore) GetSnapshot() Snapshot {
+	snapshotStore := make(map[string][]byte)
+	for k, v := range m.storage {
+		snapshotStore[k] = v
+	}
+	mstore := &MockStore{
+		storage: snapshotStore,
+	}
+	return &mockStoreSnapshot{
+		MockStore: mstore,
+	}
+}
+
+type mockStoreSnapshot struct {
+	*MockStore
+}
+
+func (s *mockStoreSnapshot) Release() {
+	// noop
+}
 
 func TestCachingStoreVersion(t *testing.T) {
 	defaultConfig := DefaultCachingStoreConfig()

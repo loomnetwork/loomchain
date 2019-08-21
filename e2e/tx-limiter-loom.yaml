@@ -1,0 +1,4 @@
+TxLimiter:
+  Enabled: true
+  SessionDuration: 10
+  MaxTxsPerSession: 2

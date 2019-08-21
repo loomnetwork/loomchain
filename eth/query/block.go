@@ -44,7 +44,7 @@ func GetBlockByNumber(
 	var blockResult *ctypes.ResultBlock
 	blockResult, err = blockStore.GetBlockByHeight(&height)
 	if err != nil {
-		return resp, err
+		return resp, errors.Wrapf(err, "GetBlockByNumber failed to get block %d", height)
 	}
 
 	var proposalAddress eth.Data
@@ -86,7 +86,7 @@ func GetBlockByNumber(
 				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
 			}
 
-			txObj, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
@@ -105,81 +105,95 @@ func GetBlockByNumber(
 
 func GetTxObjectFromBlockResult(
 	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
-) (eth.JsonTxObject, error) {
+) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[index]
+	var contractAddress *eth.Data
+	txObj := eth.JsonTxObject{
+		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
+		TransactionIndex: eth.EncInt(int64(index)),
+		Value:            eth.EncInt(0),
+		GasPrice:         eth.EncInt(0),
+		Gas:              eth.EncInt(0),
+		Hash:             eth.EncBytes(tx.Hash()),
+	}
+
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
 
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
+	txObj.Nonce = eth.EncInt(int64(nonceTx.Sequence))
 
 	var txTx loomchain.Transaction
 	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
 
 	var msg vm.MessageTx
 	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
-		return eth.JsonTxObject{}, err
+		return eth.GetEmptyTxObject(), nil, err
 	}
+	txObj.From = eth.EncAddress(msg.From)
 
 	var input []byte
-	txHash := tx.Hash()
 	switch txTx.Id {
 	case deployId:
 		{
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return eth.JsonTxObject{}, err
+				return eth.GetEmptyTxObject(), nil, err
 			}
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
 				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
-					return eth.JsonTxObject{}, err
+					return eth.GetEmptyTxObject(), nil, err
 				}
 
 				var respData vm.DeployResponseData
 				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
-					return eth.JsonTxObject{}, err
+					return eth.GetEmptyTxObject(), nil, err
 				}
-				txHash = respData.TxHash
+				contractAddress = eth.EncPtrAddress(resp.Contract)
+				if len(respData.TxHash) > 0 {
+					txObj.Hash = eth.EncBytes(respData.TxHash)
+				}
+			}
+			if deployTx.Value != nil {
+				txObj.Value = eth.EncBigInt(*deployTx.Value.Value.Int)
 			}
 		}
 	case callId:
 		{
 			var callTx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
-				return eth.JsonTxObject{}, err
+				return eth.GetEmptyTxObject(), nil, err
 			}
 			input = callTx.Input
-			if callTx.VmType == vm.VMType_EVM {
-				txHash = txResult.TxResult.Data
+			to := eth.EncAddress(msg.To)
+			txObj.To = &to
+			if callTx.VmType == vm.VMType_EVM && len(txResult.TxResult.Data) > 0 {
+				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
+			}
+			if callTx.Value != nil {
+				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
 			}
 		}
 	case migrationTx:
+		to := eth.EncAddress(msg.To)
+		txObj.To = &to
 		input = msg.Data
 	default:
-		return eth.JsonTxObject{}, fmt.Errorf("unrecognised tx type %v", txTx.Id)
+		return eth.GetEmptyTxObject(), nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
+	txObj.Input = eth.EncBytes(input)
 
-	return eth.JsonTxObject{
-		Nonce:            eth.EncInt(int64(nonceTx.Sequence)),
-		Hash:             eth.EncBytes(txHash),
-		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
-		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
-		TransactionIndex: eth.EncInt(int64(index)),
-		From:             eth.EncAddress(msg.From),
-		To:               eth.EncAddress(msg.To),
-		Value:            eth.EncInt(0),
-		GasPrice:         eth.EncInt(0),
-		Gas:              eth.EncInt(0),
-		Input:            eth.EncBytes(input),
-	}, nil
+	return txObj, contractAddress, nil
 }
 
 func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
@@ -244,7 +258,7 @@ func DeprecatedGetBlockByNumber(
 	iHeight := height
 	blockresult, err := blockStore.GetBlockByHeight(&iHeight)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "DeprecatedGetBlockByNumber failed to get block %d", iHeight)
 	}
 	blockinfo := types.EthBlockInfo{
 		Hash:       blockresult.BlockMeta.BlockID.Hash,

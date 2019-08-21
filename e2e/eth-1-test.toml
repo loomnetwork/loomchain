@@ -18,7 +18,7 @@
 
 # Test batch requests. Two genuine requests and one which fails.
 [[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data [{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83},{"jsonrpc":"2.0","method":"eth_blockNumber","params":["invalid"],"id":83},{"jsonrpc":"2.0","method":"eth_getBalance","params":[],"id":83}] {{index $.NodeProxyAppAddressList 0}}/eth'
+  RunCmd = '/usr/bin/curl -X POST --data [{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83},{"jsonrpc":"2.0","method":"eth_blockNumber","params":["invalid"],"id":83},{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}] {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
         '"result": "0x3"',
@@ -26,5 +26,10 @@
         '"code": -32602',
         '"message": "Parse params"',
         '"data": "excess input arguments, expected 0 got 1"',
-        '"result": "0x0"'
   ]
+
+# Confirm that an invalid transaction reciept for an invalid hash returns a null result.
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["0x1111111111111111111111111111111111111111111111111111111111111111"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  Condition = "contains"
+  Expected = [ '"result": null,' ]

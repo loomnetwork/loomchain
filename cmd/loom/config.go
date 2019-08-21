@@ -9,6 +9,7 @@ import (
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
@@ -34,6 +35,11 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 }
 
 func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Genesis, error) {
+	chainID := cfg.ChainID
+	if len(chainID) == 0 {
+		chainID = "default"
+	}
+
 	contracts := []config.ContractConfig{
 		{
 			VMTypeName: "plugin",
@@ -65,13 +71,20 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Init:       dposV2Init,
 		})
 	} else if cfg.DPOSVersion == 3 {
+		oracleAddr := &types.Address{
+			ChainId: chainID,
+			Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+		}
 		dposV3Init, err := marshalInit(&dposv3.InitRequest{
 			Params: &dposv3.Params{
-				ValidatorCount: 21,
+				ValidatorCount:      21,
+				ElectionCycleLength: 0,
+				OracleAddress:       oracleAddr,
 			},
 			Validators: []*loom.Validator{
 				validator,
 			},
+			InitCandidates: true,
 		})
 		if err != nil {
 			return nil, err
@@ -84,6 +97,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Location:   "dposV3:3.0.0",
 			Init:       dposV3Init,
 		})
+
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
@@ -147,12 +161,30 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			})
 	}
 
-	if cfg.ChainConfig.ContractEnabled {
-		ownerAddr := loom.LocalAddressFromPublicKey(validator.PubKey)
-		contractOwner := &types.Address{
-			ChainId: "default",
-			Local:   ownerAddr,
+	contractOwner := &types.Address{
+		ChainId: chainID,
+		Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+	}
+
+	if cfg.BinanceTransferGateway.ContractEnabled {
+		initBytes, err := marshalInit(&tgtypes.TransferGatewayInitRequest{
+			Owner: contractOwner,
+		})
+		if err != nil {
+			return nil, err
 		}
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "binance-gateway",
+				Location:   "binance-gateway:0.1.0",
+				Init:       initBytes,
+			},
+		)
+	}
+
+	if cfg.ChainConfig.ContractEnabled {
 		chainConfigInitRequest := cctypes.InitRequest{
 			Owner: contractOwner,
 			Features: []*cctypes.Feature{
@@ -165,6 +197,18 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
+					Name:   loomchain.ChainCfgVersion1_2,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.ChainCfgVersion1_3,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.EvmTxReceiptsVersion2Feature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
 					Name:   loomchain.CoinVersion1_1Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
@@ -174,6 +218,14 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 				},
 				&cctypes.Feature{
 					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.CheckTxValueFeature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.EvmConstantinopleFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 			},
@@ -194,11 +246,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 	}
 
 	if cfg.DeployerWhitelist.ContractEnabled {
-		ownerAddr := loom.LocalAddressFromPublicKey(validator.PubKey)
-		contractOwner := &types.Address{
-			ChainId: "default",
-			Local:   ownerAddr,
-		}
 		dwInitRequest := dwtypes.InitRequest{
 			Owner: contractOwner,
 		}

@@ -46,9 +46,11 @@ builders['linux'] = {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
 
         stage ('Build - Linux') {
-          sh '''
-            ./jenkins.sh
-          '''
+          nodejs('v10.16.3 (LTS)') {
+            sh '''
+              ./jenkins.sh
+            '''
+            }
         }
       } catch (e) {
         thisBuild = 'FAILURE'
@@ -160,9 +162,11 @@ builders['osx'] = {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX");
 
         stage ('Build - OSX') {
-          sh '''
-            ./jenkins.sh
-          '''
+          nodejs('v10.16.3 (LTS)') {
+            sh '''
+              ./jenkins.sh
+            '''
+          }
         }
       } catch (e) {
         thisBuild = 'FAILURE'

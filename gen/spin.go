@@ -73,7 +73,7 @@ func getOutDir(argOutDir string) string {
 	if len(argOutDir) == 0 {
 		outdir, err := os.Getwd()
 		if err != nil {
-			fmt.Errorf("Error finding working directory %v", err)
+			fmt.Printf("Error finding working directory %v", err)
 		}
 		return outdir
 	} else {

@@ -19,7 +19,9 @@ type TxMiddleware interface {
 
 type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
 
-func (f TxMiddlewareFunc) ProcessTx(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error) {
+func (f TxMiddlewareFunc) ProcessTx(
+	state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
+) (TxHandlerResult, error) {
 	return f(state, txBytes, next, isCheckTx)
 }
 
@@ -29,9 +31,13 @@ type PostCommitMiddleware interface {
 	ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
 }
 
-type PostCommitMiddlewareFunc func(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
+type PostCommitMiddlewareFunc func(
+	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
+) error
 
-func (f PostCommitMiddlewareFunc) ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error {
+func (f PostCommitMiddlewareFunc) ProcessTx(
+	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
+) error {
 	return f(state, txBytes, res, next)
 }
 
@@ -144,10 +150,11 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 		Help:      "Number of requests received.",
 	}, fieldKeys)
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "tx_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "tx_service",
+		Name:       "request_latency_microseconds",
+		Help:       "Total duration of requests in microseconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	return &InstrumentingTxMiddleware{
@@ -157,7 +164,9 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 }
 
 // ProcessTx capture metrics and implements TxMiddleware
-func (m InstrumentingTxMiddleware) ProcessTx(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (r TxHandlerResult, err error) {
+func (m InstrumentingTxMiddleware) ProcessTx(
+	state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
+) (r TxHandlerResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Tx", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

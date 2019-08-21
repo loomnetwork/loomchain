@@ -1,3 +1,5 @@
+// +build evm
+
 package main
 
 import (
@@ -7,8 +9,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/pkg/errors"
@@ -36,6 +40,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 
 			var privkey *ecdsa.PrivateKey
 			var foreignLocalAddr loom.LocalAddress
+			var sigType = evmcompat.SignatureType_EIP712
 
 			switch strings.TrimSpace(chainId) {
 			case "eth":
@@ -56,11 +61,23 @@ func AddIdentityMappingCmd() *cobra.Command {
 				if err != nil {
 					return errors.Wrapf(err, "bad tron private key from file% v", args[1])
 				}
+				sigType = evmcompat.SignatureType_TRON
+			case "binance":
+				privkey, err = crypto.LoadECDSA(args[1])
+				if err != nil {
+					return errors.Wrapf(err, "read binance private key from file %v", args[1])
+				}
+				signer := auth.NewBinanceSigner(crypto.FromECDSA(privkey))
+				foreignLocalAddr, err = loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(signer.PublicKey()).Hex())
+				if err != nil {
+					return errors.Wrapf(err, "bad binance private key from file %v", args[1])
+				}
+				sigType = evmcompat.SignatureType_BINANCE
 			}
 
 			foreignAddr := loom.Address{ChainID: chainId, Local: foreignLocalAddr}
 			mapping.To = foreignAddr.MarshalPB()
-			mapping.Signature, err = address_mapper.SignIdentityMapping(user, foreignAddr, privkey)
+			mapping.Signature, err = address_mapper.SignIdentityMapping(user, foreignAddr, privkey, sigType)
 			if err != nil {
 				return errors.Wrapf(err, "sigining mapping with %s key", chainId)
 			}
@@ -89,6 +106,7 @@ func GetMapping() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-mapping",
 		Short: "Get mapping address",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp amtypes.AddressMapperGetMappingResponse
 			from, err := cli.ParseAddress(args[0], flags.ChainID)
@@ -102,15 +120,13 @@ func GetMapping() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
+
+			fmt.Printf("%-*s -> %-*s \n",
+				50, loom.UnmarshalAddressPB(resp.From).String(),
+				50, loom.UnmarshalAddressPB(resp.To).String())
 			return nil
 		},
 	}
-
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
@@ -128,18 +144,23 @@ func ListMappingCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return errors.Wrap(err, "format JSON response")
+			type maxLength struct {
+				From int
+				To   int
 			}
-			fmt.Println(out)
+			ml := maxLength{From: 50, To: 50}
+
+			fmt.Printf("%-*s | %-*s \n", ml.From, "From", ml.To, "To")
+			for _, value := range resp.Mappings {
+				fmt.Printf("%-*s | %-*s\n",
+					ml.From, loom.UnmarshalAddressPB(value.From).String(),
+					ml.To, loom.UnmarshalAddressPB(value.To).String())
+			}
 			return nil
 		},
 	}
-
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
-
 }
 
 func NewAddressMapperCommand() *cobra.Command {

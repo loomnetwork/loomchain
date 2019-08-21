@@ -133,10 +133,11 @@ func NewInstrumentingEventHandler(handler EventHandler) EventHandler {
 	// initialize metrics
 	fieldKeys := []string{"method", "error"}
 	methodDuration := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "event_handler",
-		Name:      "method_duration",
-		Help:      "Total duration of requests in seconds.",
+		Namespace:  "loomchain",
+		Subsystem:  "event_handler",
+		Name:       "method_duration",
+		Help:       "Total duration of requests in seconds.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, fieldKeys)
 
 	return &InstrumentingEventHandler{
@@ -200,20 +201,6 @@ func (s *eventSet) Values() []*EventData {
 }
 
 // Set of subscription channels
-
-type Subscription struct {
-	ch        chan *EventData
-	contracts []string
-}
-
-//nolint:deadcode
-func newSubscription() *Subscription {
-	return &Subscription{
-		ch:        make(chan *EventData),
-		contracts: make([]string, 1),
-	}
-}
-
 type SubscriptionSet struct {
 	pubsub.Hub
 	// maps ID (remote socket address) to subscriber
@@ -262,7 +249,7 @@ func (s *SubscriptionSet) AddSubscription(id string, topics []string) error {
 
 func (s *SubscriptionSet) Purge(id string) {
 	s.Lock()
-	c, _ := s.clients[id]
+	c := s.clients[id]
 	s.CloseSubscriber(c)
 	delete(s.clients, id)
 	s.Unlock()
@@ -286,52 +273,6 @@ func (s *SubscriptionSet) Remove(id string, topic string) (err error) {
 
 	return err
 }
-
-// func (s *SubscriptionSet) Add(id string, contract string) (<-chan *EventData, bool) {
-// 	s.Lock()
-// 	defer s.Unlock()
-// 	_, ok := s.m[id]
-// 	exists := true
-// 	if !ok {
-// 		exists = false
-// 		s.m[id] = newSubscription()
-// 	}
-// 	s.m[id].contracts = append(s.m[id].contracts, contract)
-// 	return s.m[id].ch, exists
-// }
-//
-// func (s *SubscriptionSet) Remove(id, contract string) {
-// 	s.Lock()
-// 	defer s.Unlock()
-// 	sub, ok := s.m[id]
-// 	if !ok {
-// 		return
-// 	}
-// 	index := -1
-// 	for i, c := range sub.contracts {
-// 		if c == contract {
-// 			index = i
-// 			break
-// 		}
-// 	}
-// 	if index < 0 {
-// 		return
-// 	}
-// 	sub.contracts = append(sub.contracts[:index], sub.contracts[index+1:]...)
-// 	if len(sub.contracts) == 0 {
-// 		delete(s.m, id)
-// 	}
-// }
-//
-// func (s *SubscriptionSet) Values() []*Subscription {
-// 	s.Lock()
-// 	defer s.Unlock()
-// 	vals := []*Subscription{}
-// 	for _, v := range s.m {
-// 		vals = append(vals, v)
-// 	}
-// 	return vals
-// }
 
 // stash is a map of height -> byteStringSet
 type stash struct {

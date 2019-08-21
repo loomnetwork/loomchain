@@ -25,6 +25,8 @@
 #   unused-packages = true
 
 required = [
+  # used by transfer-gateway
+  "github.com/btcsuite/btcutil/base58",
   # required for MacOS builds it seems, but not Linux
   "golang.org/x/sys/cpu"
 ]
@@ -43,7 +45,7 @@ ignored = [
   "github.com/go-kit/kit*",
   "github.com/grpc-ecosystem/go-grpc-prometheus*",
   "github.com/prometheus/client_golang/prometheus*",
-  "github.com/loomnetwork/yubihsm-go*",
+  "github.com/loomnetwork/transfer-gateway*",
   "github.com/certusone/yubihsm-go*",
   "github.com/jmhodges/levigo*", # can only build it with the right c packages
   "github.com/btcsuite/btcd*"
@@ -60,8 +62,8 @@ ignored = [
 [[override]]
   name = "github.com/tendermint/tendermint"
   source = "https://github.com/loomnetwork/tendermint.git"
-  revision = "29bb7b1ad483bec3c797ce24a5135465fccfa5f6"
-
+  branch = "loomchain"
+  
 [[constraint]]
   name = "github.com/gomodule/redigo"
   version = "2.0.0"
@@ -77,8 +79,8 @@ ignored = [
 
 [[override]]
   name = "github.com/tendermint/iavl"
-  source = "https://github.com/enlight/iavl.git"
-  branch = "multi-mutex-nodedb"
+  source = "https://github.com/loomnetwork/iavl.git"
+  branch = "tmreal2"
 
 [[override]]
   name = "github.com/tendermint/go-amino"
@@ -95,7 +97,7 @@ ignored = [
 [[constraint]]
   name = "github.com/btcsuite/btcutil"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
-
+  
 [prune]
   go-tests = true
   unused-packages = true

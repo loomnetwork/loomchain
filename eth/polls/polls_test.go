@@ -4,6 +4,7 @@ package polls
 
 import (
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -35,8 +36,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
-	require.NoError(t, err)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	allFilter := eth.JsonFilter{
 		FromBlock: "earliest",
@@ -96,8 +96,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
-	require.NoError(t, err)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler)
@@ -136,8 +135,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
-	require.NoError(t, err)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler)
@@ -184,7 +182,19 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 5, len(data), "wrong number of logs returned")
 
 	state220 := common.MockStateAt(state, uint64(220))
-	sub.Remove(id)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func(s *EthSubscriptions) {
+		defer wg.Done()
+		result, err = s.Poll(state220, id, receiptHandler)
+	}(sub)
+	go func(s *EthSubscriptions) {
+		defer wg.Done()
+		s.Remove(id)
+	}(sub)
+	wg.Wait()
+
 	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
@@ -200,9 +210,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
-
-	require.NoError(t, err)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
 	BlockTimeout = 10
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)

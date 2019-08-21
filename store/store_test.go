@@ -3,15 +3,12 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -337,6 +334,7 @@ func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
 		_, _, err := ts.store.SaveVersion()
 		require.NoError(err)
 	}()
+	wg.Wait()
 
 	// readers
 	for i := 0; i < 10; i++ {
@@ -385,7 +383,7 @@ func (ts *IAVLStoreTestSuite) SetupTest() {
 	require := ts.Require()
 	var err error
 	db := dbm.NewMemDB()
-	ts.store, err = NewIAVLStore(db, 0, 0)
+	ts.store, err = NewIAVLStore(db, 0, 0, 0)
 	require.NoError(err)
 }
 
@@ -415,140 +413,6 @@ func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
 }
 
 func (ts *IAVLStoreTestSuite) TestConcurrentSnapshots() {
-	ts.VerifyConcurrentSnapshots()
-}
-
-//
-// MultiReaderIAVLStore - with real snapshots.
-//
-
-func TestMultiReaderIAVLStoreWithDBSnapTestSuite(t *testing.T) {
-	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
-		snapshotVersion: MultiReaderIAVLStoreSnapshotV1,
-		nodeDBVersion:   NodeDBV1,
-	})
-}
-
-func TestMultiReaderIAVLStoreWithDBSnapTestSuite2(t *testing.T) {
-	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
-		snapshotVersion: MultiReaderIAVLStoreSnapshotV1,
-		nodeDBVersion:   NodeDBV2,
-	})
-}
-
-func TestMultiReaderIAVLStoreWithHybridSnapTestSuite(t *testing.T) {
-	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
-		snapshotVersion: MultiReaderIAVLStoreSnapshotV2,
-		nodeDBVersion:   NodeDBV1,
-	})
-}
-
-func TestMultiReaderIAVLStoreWithHybridSnapTestSuite2(t *testing.T) {
-	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
-		snapshotVersion: MultiReaderIAVLStoreSnapshotV2,
-		nodeDBVersion:   NodeDBV2,
-	})
-}
-
-func TestMultiReaderIAVLStoreWithTreeSnapTestSuite(t *testing.T) {
-	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
-		snapshotVersion: MultiReaderIAVLStoreSnapshotV3,
-		nodeDBVersion:   NodeDBV1,
-	})
-}
-
-func TestMultiReaderIAVLStoreWithTreeSnapTestSuite2(t *testing.T) {
-	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
-		snapshotVersion: MultiReaderIAVLStoreSnapshotV3,
-		nodeDBVersion:   NodeDBV2,
-	})
-}
-
-type MultiReaderIAVLStoreTestSuite struct {
-	StoreTestSuite
-	valueDB         db.DBWrapper
-	testDataDir     string
-	snapshotVersion MultiReaderIAVLStoreSnapshotVersion
-	nodeDBVersion   NodeDBVersion
-	testID          int
-}
-
-func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
-	ts.StoreName = "MultiReaderIAVLStore"
-	ts.supportsSnapshots = true
-	require := ts.Require()
-	cwd, err := os.Getwd()
-	require.NoError(err)
-	ts.testDataDir = path.Join(cwd, "test_data")
-	require.NoError(os.MkdirAll(ts.testDataDir, os.ModePerm))
-}
-
-func (ts *MultiReaderIAVLStoreTestSuite) TearDownSuite() {
-	if info, err := os.Stat(ts.testDataDir); err != nil || !info.IsDir() {
-		return
-	}
-	os.RemoveAll(ts.testDataDir)
-}
-
-// runs before each test in this suite
-func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
-	require := ts.Require()
-	var err error
-	treeDB := dbm.NewMemDB()
-	// MemDB doesn't support snapshots yet, so have to use a real DB
-	valueDBName := fmt.Sprintf("teststorerange_app_state_%d_%v", ts.testID, time.Now().Unix())
-	ts.testID++
-	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir, 2, 2, false)
-	require.NoError(err)
-	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, &AppStoreConfig{
-		MaxVersions:     1,
-		SnapshotVersion: ts.snapshotVersion,
-		NodeDBVersion:   ts.nodeDBVersion,
-		NodeCacheSize:   1000,
-	})
-	require.NoError(err)
-}
-
-// runs after each test in this suite
-func (ts *MultiReaderIAVLStoreTestSuite) TearDownTest() {
-	if ts.valueDB != nil {
-		ts.valueDB.Close()
-		ts.valueDB = nil
-	}
-}
-
-func (ts *MultiReaderIAVLStoreTestSuite) TestSnapshotRange() {
-	require := ts.Require()
-
-	prefixes, entries := populateStore(ts.store)
-	ts.VerifyRange(ts.store, prefixes, entries)
-
-	// snapshot shouldn't see data that hasn't been saved to disk
-	func() {
-		snap := ts.store.GetSnapshot()
-		defer snap.Release()
-
-		for i := range prefixes {
-			require.Len(snap.Range(prefixes[i]), 0)
-		}
-	}()
-
-	ts.store.SaveVersion()
-
-	// snapshot should see all the data that was saved to disk
-	func() {
-		snap := ts.store.GetSnapshot()
-		defer snap.Release()
-
-		ts.VerifyRange(snap, prefixes, entries)
-	}()
-}
-
-func (ts *MultiReaderIAVLStoreTestSuite) TestSnapshotGetHasSetDelete() {
-	// TODO
-}
-
-func (ts *MultiReaderIAVLStoreTestSuite) TestConcurrentSnapshots() {
 	ts.VerifyConcurrentSnapshots()
 }
 
@@ -709,7 +573,7 @@ func TestPruningIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 }
 
 func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
-	store, err := NewIAVLStore(dbm.NewMemDB(), 0, 0)
+	store, err := NewIAVLStore(dbm.NewMemDB(), 0, 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), store.Version())
 	require.Equal(t, int64(0), store.maxVersions)
@@ -743,7 +607,7 @@ func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 
 func TestSwitchFromIAVLStoreToPruningIAVLStore(t *testing.T) {
 	memDB := dbm.NewMemDB()
-	store1, err := NewIAVLStore(memDB, 0, 0)
+	store1, err := NewIAVLStore(memDB, 0, 0, 0)
 	require.NoError(t, err)
 
 	values := []struct {
@@ -772,7 +636,7 @@ func TestSwitchFromIAVLStoreToPruningIAVLStore(t *testing.T) {
 
 	require.Equal(t, int64(12), store1.Version())
 
-	store2, err := NewIAVLStore(memDB, 11, 0)
+	store2, err := NewIAVLStore(memDB, 11, 0, 0)
 	require.NoError(t, err)
 	// force the store to prune an old version
 	store2.Set(key1, val1)

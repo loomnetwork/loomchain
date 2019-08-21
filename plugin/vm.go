@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
@@ -262,13 +263,21 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
+func (c *contractContext) Config() *cctypes.Config {
+	return c.VM.State.Config()
+}
+
+func (c *contractContext) EnabledFeatures() []string {
+	return c.VM.State.EnabledFeatures()
+}
+
 func (c *contractContext) Validators() []*ltypes.Validator {
 	return c.VM.State.Validators()
 }
 
 //TODO don't like how we have to check 3 places, need to clean this up
 func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, error) {
-	r, err := c.VM.receiptReader.GetReceipt(c.VM.State, hash)
+	r, err := c.VM.receiptReader.GetReceipt(hash)
 	if err != nil || len(r.TxHash) == 0 {
 		r, err = c.VM.receiptReader.GetPendingReceipt(hash)
 		if err != nil || len(r.TxHash) == 0 {
@@ -324,12 +333,11 @@ func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.Contrac
 }
 
 // NewInternalContractContext creates an internal Go contract context.
-func NewInternalContractContext(contractName string, pluginVM *PluginVM) (contractpb.Context, error) {
+func NewInternalContractContext(contractName string, pluginVM *PluginVM, readOnly bool) (contractpb.Context, error) {
 	caller := loom.RootAddress(pluginVM.State.Block().ChainID)
 	contractAddr, err := pluginVM.Registry.Resolve(contractName)
 	if err != nil {
 		return nil, err
 	}
-	readOnly := false
 	return contractpb.WrapPluginContext(pluginVM.CreateContractContext(caller, contractAddr, readOnly)), nil
 }
