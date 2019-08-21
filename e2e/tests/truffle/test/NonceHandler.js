@@ -47,7 +47,7 @@ const path = require('path')
         try {await contract.methods.err().send()} catch(err) {}
         try {await contract.methods.err().send()} catch(err) {}
 
-        await waitForXBlocks(nodeAddr, 1)
+        await waitForXBlocks(nodeAddr, 2)
         let nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
         assert.equal("0x3",nonce)
@@ -57,7 +57,7 @@ const path = require('path')
         contract.methods.err().send().then().catch(function(e) {})
         contract.methods.err().send().then().catch(function(e) {})
 
-        await waitForXBlocks(nodeAddr, 1)
+        await waitForXBlocks(nodeAddr, 2)
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
         assert.equal("0x6",nonce)
@@ -73,7 +73,7 @@ const path = require('path')
             assert.fail("transactions reverted");
         }
         
-        await waitForXBlocks(nodeAddr, 1)
+        await waitForXBlocks(nodeAddr, 2)
         let nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment 
         assert.equal("0x3",nonce)
@@ -83,7 +83,7 @@ const path = require('path')
         contract.methods.set(5555).send().then().catch(function(e) {})
         contract.methods.set(6666).send().then().catch(function(e) {})
 
-        await waitForXBlocks(nodeAddr, 1)
+        await waitForXBlocks(nodeAddr, 2)
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment
         assert.equal("0x6",nonce)
