@@ -27,9 +27,9 @@ const (
 
 var (
 	// assume that this test runs in e2e directory
-	defaultLoomPath = "../loom"
-	ContractDir     = "../contracts"
-	BaseDir         = "test-data"
+	defaultLoomPath    = "../loom"
+	defaultContractDir = "../contracts"
+	BaseDir            = "test-data"
 )
 
 var (
@@ -59,8 +59,13 @@ func NewConfig(
 		v, altV = splitValidators(uint64(validators))
 	}
 
+	contractdirAbs, err := filepath.Abs(defaultContractDir)
+	if err != nil {
+		return nil, err
+	}
+
 	return GenerateConfig(
-		name, testFile, genesisTmpl, yamlFile, BaseDir, ContractDir, loomPath, altLoomPath,
+		name, testFile, genesisTmpl, yamlFile, BaseDir, contractdirAbs, loomPath, altLoomPath,
 		v, altV,
 		account, numEthAccounts,
 		useFnConsensus, *Force, doCheckAppHash(checkAppHash, uint64(v), uint64(altV)),
@@ -110,10 +115,6 @@ func GenerateConfig(
 		}
 	}
 
-	contractdirAbs, err := filepath.Abs(contractDir)
-	if err != nil {
-		return nil, err
-	}
 	testFileAbs, err := filepath.Abs(testFile)
 	if err != nil {
 		return nil, err
@@ -122,7 +123,7 @@ func GenerateConfig(
 	conf := lib.Config{
 		Name:         name,
 		BaseDir:      basedirAbs,
-		ContractDir:  contractdirAbs,
+		ContractDir:  contractDir,
 		TestFile:     testFileAbs,
 		Nodes:        make(map[string]*node.Node),
 		CheckAppHash: checkAppHash,
@@ -149,24 +150,6 @@ func GenerateConfig(
 			return nil, err
 		}
 		accounts = append(accounts, acct)
-	}
-
-	var ethAccounts []*node.EthAccount
-	for i := 0; i < numEthAccounts; i++ {
-		acct, err := node.CreateEthAccount(i, conf.BaseDir)
-		if err != nil {
-			return nil, err
-		}
-		ethAccounts = append(ethAccounts, acct)
-	}
-
-	var tronAccounts []*node.TronAccount
-	for i := 0; i < numEthAccounts; i++ {
-		acct, err := node.CreateTronAccount(i, conf.BaseDir)
-		if err != nil {
-			return nil, err
-		}
-		tronAccounts = append(tronAccounts, acct)
 	}
 
 	var nodes []*node.Node
@@ -223,12 +206,30 @@ func GenerateConfig(
 	}
 	conf.Accounts = accounts
 
+	var ethAccounts []*node.EthAccount
+	for i := 0; i < numEthAccounts; i++ {
+		acct, err := node.CreateEthAccount(i, conf.BaseDir)
+		if err != nil {
+			return nil, err
+		}
+		ethAccounts = append(ethAccounts, acct)
+	}
+
 	for _, ethAccount := range ethAccounts {
 		conf.EthAccountAddressList = append(conf.EthAccountAddressList, ethAccount.Address)
 		conf.EthAccountPrivKeyPathList = append(conf.EthAccountPrivKeyPathList, ethAccount.PrivKeyPath)
 		conf.EthAccountPubKeyList = append(conf.EthAccountPubKeyList, ethAccount.PubKey)
 	}
 	conf.EthAccounts = ethAccounts
+
+	var tronAccounts []*node.TronAccount
+	for i := 0; i < numEthAccounts; i++ {
+		acct, err := node.CreateTronAccount(i, conf.BaseDir)
+		if err != nil {
+			return nil, err
+		}
+		tronAccounts = append(tronAccounts, acct)
+	}
 
 	for _, tronAccount := range tronAccounts {
 		conf.TronAccountAddressList = append(conf.TronAccountAddressList, tronAccount.Address)

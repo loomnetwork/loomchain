@@ -61,8 +61,8 @@ make test
 ##make test-app-store-race
 
 #setup & run truffle tests
-#cd e2e/tests/truffle
-#yarn
+cd e2e/tests/truffle
+yarn
 
-#cd ../receipts
-#bash ./run_truffle_tests.sh
+cd ../receipts
+bash ./run_truffle_tests.sh

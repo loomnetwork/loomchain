@@ -228,6 +228,22 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 							time.Sleep(time.Duration(time.Second))
 						}
 					}
+				} else if cmd.Args[0] == "wait_for_block_height_to_reach" {
+					if len(cmd.Args) > 2 {
+						maxWaitingTime := 60 // 60s
+						targetBlock, err := strconv.Atoi(cmd.Args[2])
+						if err != nil {
+							return fmt.Errorf("target block number is not defined, err: %s", err)
+						}
+						for i := maxWaitingTime; i > 0; i-- {
+							currentBlockHeight, _ := getLastBlockHeight(e.conf.Nodes[cmd.Args[1]])
+							fmt.Printf("current block height %d\n", currentBlockHeight)
+							if currentBlockHeight >= int64(targetBlock) {
+								break
+							}
+							time.Sleep(time.Duration(time.Second))
+						}
+					}
 				} else {
 					out, err = cmd.CombinedOutput()
 				}
