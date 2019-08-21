@@ -1,4 +1,4 @@
-const { assertRevert, delay, waitForXBlocks, getNonce } = require('./helpers')
+const { waitForXBlocks, getNonce } = require('./helpers')
 const Web3 = require('web3')
 const rp = require('request-promise')
 const fs = require('fs')
@@ -9,23 +9,22 @@ const path = require('path')
     LocalAddress, CryptoUtils, LoomProvider
 } = require('loom-js')
 
- const SimpleError = artifacts.require('SimpleError')
+ const NonceTest = artifacts.require('NonceTest')
 
- contract('SimpleError', async (accounts) => {
-    it('SimpleError has been deployed', async () => {
-        const simpleStoreContract = await SimpleError.deployed()
-        assert(simpleStoreContract.address)
-    })
+ contract('NonceTest', async (accounts) => {
+    let contract, from, nodeAddr
 
-     it('Increment nonce for failed txs', async () => {
-        const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
+    beforeEach(async () => {
+        nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
         const chainID = 'default'
         const writeUrl = `ws://${nodeAddr}/websocket`
         const readUrl = `ws://${nodeAddr}/queryws`
 
         const privateKey = CryptoUtils.generatePrivateKey()
         const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey)
-        const from = LocalAddress.fromPublicKey(publicKey).toString()
+
+        from = LocalAddress.fromPublicKey(publicKey).toString()
+
         var client = new Client(chainID, writeUrl, readUrl)
         client.on('error', msg => {
             console.error('Error on connect to client', msg)
@@ -36,10 +35,13 @@ const path = require('path')
           return [new SpeculativeNonceTxMiddleware(publicKey, client), new SignedTxMiddleware(privateKey)]
         }
         var loomProvider = new LoomProvider(client, privateKey, setupMiddlewareFn)
-        const web3 = new Web3(loomProvider)
 
-        const simpleErrorContract = await SimpleError.deployed()
-        const contract = new web3.eth.Contract(SimpleError._json.abi, simpleErrorContract.address, {from});
+        let web3 = new Web3(loomProvider)
+        let nonceTestContract = await NonceTest.deployed()
+        contract = new web3.eth.Contract(NonceTest._json.abi, nonceTestContract.address, {from});
+    })
+
+     it('Test nonce handler with failed txs', async () => {
         // send three reverted txs
         try {await contract.methods.err().send()} catch(err) {}
         try {await contract.methods.err().send()} catch(err) {}
@@ -58,6 +60,32 @@ const path = require('path')
         await waitForXBlocks(nodeAddr, 1)
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
+        assert.equal("0x6",nonce)
+    })
+
+    it('Test nonce handler with successful txs', async () => {
+        // send three successful txs
+        try {
+            await contract.methods.set(1111).send()
+            await contract.methods.set(2222).send()
+            await contract.methods.set(3333).send()
+        } catch(err) {
+            assert.fail("transactions reverted");
+        }
+        
+        await waitForXBlocks(nodeAddr, 1)
+        let nonce = await getNonce(nodeAddr, from)
+        // expect nonce to increment 
+        assert.equal("0x3",nonce)
+
+        // send three more successful txs without await
+        contract.methods.set(4444).send().then().catch(function(e) {})
+        contract.methods.set(5555).send().then().catch(function(e) {})
+        contract.methods.set(6666).send().then().catch(function(e) {})
+
+        await waitForXBlocks(nodeAddr, 1)
+        nonce = await getNonce(nodeAddr, from)
+        // expect nonce to increment
         assert.equal("0x6",nonce)
     })
 

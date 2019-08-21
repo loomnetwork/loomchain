@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-contract SimpleStore {
+contract NonceTest {
   uint value;
 
   event NewValueSet(uint _value);
@@ -12,5 +12,9 @@ contract SimpleStore {
 
   function get() public view returns (uint) {
     return value;
+  }
+
+  function err() public {
+    revert("Revert");
   }
 }
