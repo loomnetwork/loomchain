@@ -30,6 +30,8 @@ var (
 	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte("db:evm"))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
 	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
+	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_2 name as in features.go
+	appStoreVersion3_2 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.2"))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 	// If this flag is set, it means that all vm keys are deleted from app.db
@@ -212,7 +214,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			}
 
 			// vm keys deletion process
-			if !s.evmStateDeleted {
+			if bytes.Equal(s.appStore.Get(appStoreVersion3_2), []byte{1}) && !s.evmStateDeleted {
 				begin := time.Now()
 				s.loadOnChainConfig()
 				rangeData := s.appStore.RangeWithLimit(vmPrefix, s.numEvmKeysToPrune)
