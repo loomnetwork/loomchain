@@ -36,9 +36,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const GatewayName = "gateway"
-const LoomGatewayName = "loomcoin-gateway"
-const BinanceGatewayName = "binance-gateway"
+const (
+	GatewayName        = "gateway"
+	LoomGatewayName    = "loomcoin-gateway"
+	BinanceGatewayName = "binance-gateway"
+	TronGatewayName    = "tron-gateway"
+)
 
 const getOraclesCmdExample = `
 ./loom gateway get-oracles gateway --key path/to/loom_priv.key
@@ -670,21 +673,24 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 			var name string
 			var foreignChainId string
 
-			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
+			if len(args) <= 1 || strings.EqualFold(args[1], GatewayName) {
 				name = GatewayName
 				foreignChainId = "eth"
-			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
+			} else if strings.EqualFold(args[1], LoomGatewayName) {
 				name = LoomGatewayName
 				foreignChainId = "eth"
-			} else if strings.Compare(args[1], BinanceGatewayName) == 0 {
+			} else if strings.EqualFold(args[1], BinanceGatewayName) {
 				name = BinanceGatewayName
 				foreignChainId = "binance"
+			} else if strings.EqualFold(args[1], TronGatewayName) {
+				name = TronGatewayName
+				foreignChainId = "tron"
 			} else {
 				return errors.New("invalid gateway name")
 			}
 
 			if !common.IsHexAddress(args[0]) {
-				hexAddr, err = bech32ToHex(args[0])
+				hexAddr, err = binanceAddressToHexAddress(args[0])
 				if err != nil {
 					return errors.Wrap(err, "invalid gateway address")
 				}

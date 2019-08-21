@@ -9,7 +9,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-func bech32ToHex(bech32str string) (string, error) {
+// Converts a bech32 encoded Binance address string to a hex address string.
+func binanceAddressToHexAddress(bech32str string) (string, error) {
+	if len(bech32str) == 0 {
+		return "", errors.New("bech32str address can't be empty")
+	}
+
 	var prefix string
 	if strings.HasPrefix(bech32str, "bnb") {
 		prefix = "bnb"
@@ -17,22 +22,19 @@ func bech32ToHex(bech32str string) (string, error) {
 		prefix = "tbnb"
 	}
 
-	if len(bech32str) == 0 {
-		return "", errors.New("decoding bech32 address failed: must provide an address")
-	}
 	hrp, data, err := bech32.Decode(bech32str)
 	if err != nil {
 		return "", err
 	}
+
 	addressBytes, err := bech32.ConvertBits(data, 5, 8, false)
 	if err != nil {
 		return "", err
 	}
 
 	if hrp != prefix {
-		return "", fmt.Errorf("invalid bech32 prefix. Expected %s, Got %s", prefix, hrp)
+		return "", fmt.Errorf("invalid bech32 prefix (%s != %s)", prefix, hrp)
 	}
 
-	hexAddr := "0x" + hex.EncodeToString(addressBytes)
-	return hexAddr, nil
+	return "0x" + hex.EncodeToString(addressBytes), nil
 }
