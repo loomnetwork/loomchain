@@ -123,14 +123,14 @@ func NewMultiWriterAppStore(
 func (s *MultiWriterAppStore) loadOnChainConfig() {
 	configBytes := s.Get([]byte(configKey))
 	cfg := config.DefaultConfig()
+	s.numEvmKeysToPrune = int(cfg.AppStore.NumEvmKeysToPrune)
 	if len(configBytes) > 0 {
 		if err := proto.Unmarshal(configBytes, cfg); err != nil {
 			panic(err)
 		}
 	}
-	numEvmKeysToPrune := int(cfg.AppStore.NumEvmKeysToPrune)
-	if numEvmKeysToPrune > 0 {
-		s.numEvmKeysToPrune = numEvmKeysToPrune
+	if int(cfg.AppStore.NumEvmKeysToPrune) > 0 {
+		s.numEvmKeysToPrune = int(cfg.AppStore.NumEvmKeysToPrune)
 	}
 }
 
