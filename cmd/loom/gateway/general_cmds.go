@@ -654,7 +654,7 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update-mainnet-address <mainnet-address> <gateway-name>",
-		Short:   "Update mainet gateway address. Only callable by current gateway owner",
+		Short:   "Update mainnet gateway address. Only callable by current gateway owner",
 		Example: updateMainnetAddressCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -684,9 +684,13 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 			}
 
 			if !common.IsHexAddress(args[0]) {
-				hexAddr, err = bech32ToHex(args[0])
+				addressBytes, err := accAddressFromBech32(args[0])
 				if err != nil {
-					return errors.Wrap(err, "invalid bech32 address")
+					return err
+				}
+				hexAddr = "0x" + hex.EncodeToString(addressBytes)
+				if err != nil {
+					return errors.Wrap(err, "invalid gateway address")
 				}
 			} else {
 				hexAddr = args[0]

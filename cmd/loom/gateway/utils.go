@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -9,23 +8,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-type AccAddress []byte
-
-const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-
-var gen = []int{0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3}
-
-func bech32ToHex(bech32Addr string) (string, error) {
-	addressBytes, err := accAddressFromBech32(bech32Addr)
-	if err != nil {
-		return "", err
-	}
-	hexAddr := "0x" + hex.EncodeToString(addressBytes)
-	return hexAddr, nil
-}
-
 // AccAddressFromBech32 to create an AccAddress from a bech32 string
-func accAddressFromBech32(address string) (addr AccAddress, err error) {
+func accAddressFromBech32(address string) (addr []byte, err error) {
 	var prefix string
 	if strings.HasPrefix(address, "bnb") {
 		prefix = "bnb"
@@ -37,7 +21,7 @@ func accAddressFromBech32(address string) (addr AccAddress, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return AccAddress(bz), nil
+	return bz, nil
 }
 
 // GetFromBech32 to decode a bytestring from a bech32-encoded string
