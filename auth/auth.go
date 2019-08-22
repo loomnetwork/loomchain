@@ -118,8 +118,8 @@ func (n *NonceHandler) Nonce(
 		//clear the cache for each block
 	}
 	var seq uint64
-	if state.FeatureEnabled(loomchain.IncrementNonceFailedTxFeature, false) && !isCheckTx {
-		// Only persist nonce for DeliverTx
+	if state.FeatureEnabled(loomchain.IncrementNonceOnFailedTxFeature, false) && !isCheckTx {
+		// Unconditionally increment the nonce in DeliverTx, regardless of whether the tx succeeds
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
 	} else {
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(state)
@@ -153,6 +153,7 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 	result loomchain.TxHandlerResult,
 	postcommit loomchain.PostCommitHandler,
 ) error {
+
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
 		return errors.New("transaction has no origin [IncNonce]")
@@ -161,6 +162,7 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 	//We only increment the nonce if the transaction is successful
 	//There are situations in checktx where we may not have committed the transaction to the statestore yet
 	n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
+
 	return nil
 }
 

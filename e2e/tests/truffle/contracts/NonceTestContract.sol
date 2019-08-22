@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-contract NonceTest {
+contract NonceTestContract {
   uint value;
 
   event NewValueSet(uint _value);

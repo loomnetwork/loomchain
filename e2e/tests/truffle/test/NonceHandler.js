@@ -1,6 +1,5 @@
 const { waitForXBlocks, getNonce } = require('./helpers')
 const Web3 = require('web3')
-const rp = require('request-promise')
 const fs = require('fs')
 const path = require('path')
 
@@ -9,9 +8,9 @@ const path = require('path')
     LocalAddress, CryptoUtils, LoomProvider
 } = require('loom-js')
 
- const NonceTest = artifacts.require('NonceTest')
+ const NonceTestContract = artifacts.require('NonceTestContract')
 
- contract('NonceTest', async (accounts) => {
+ contract('NonceTestContract', async (accounts) => {
     let contract, from, nodeAddr
 
     beforeEach(async () => {
@@ -37,15 +36,30 @@ const path = require('path')
         var loomProvider = new LoomProvider(client, privateKey, setupMiddlewareFn)
 
         let web3 = new Web3(loomProvider)
-        let nonceTestContract = await NonceTest.deployed()
-        contract = new web3.eth.Contract(NonceTest._json.abi, nonceTestContract.address, {from});
+        let nonceTestContract = await NonceTestContract.deployed()
+        contract = new web3.eth.Contract(NonceTestContract._json.abi, nonceTestContract.address, {from});
     })
 
      it('Test nonce handler with failed txs', async () => {
         // send three reverted txs
-        try {await contract.methods.err().send()} catch(err) {}
-        try {await contract.methods.err().send()} catch(err) {}
-        try {await contract.methods.err().send()} catch(err) {}
+        try {
+            await contract.methods.err().send()
+            assert.fail("transaction is supposed to revert")
+        } catch(err) {
+            assert(err)
+        }
+        try {
+            await contract.methods.err().send()
+            assert.fail("transaction is supposed to revert")
+        } catch(err) {
+            assert(err)
+        }
+        try {
+            await contract.methods.err().send()
+            assert.fail("transaction is supposed to revert")
+        } catch(err) {
+            assert(err)
+        }
 
         await waitForXBlocks(nodeAddr, 2)
         let nonce = await getNonce(nodeAddr, from)
@@ -70,7 +84,7 @@ const path = require('path')
             await contract.methods.set(2222).send()
             await contract.methods.set(3333).send()
         } catch(err) {
-            assert.fail("transactions reverted");
+            assert.fail("transaction reverted");
         }
         
         await waitForXBlocks(nodeAddr, 2)
@@ -87,6 +101,58 @@ const path = require('path')
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment
         assert.equal("0x6",nonce)
+    })
+
+    it('Test nonce handler with mixed txs', async () => {
+        // send three successful txs
+        try {
+            await contract.methods.set(1111).send()
+        } catch(err) {
+            assert.fail("transaction reverted" + err);
+        }
+        try {
+            await contract.methods.err().send()
+            assert.fail("transaction is supposed to revert")
+        } catch(err) {
+            assert(err)
+        }
+        try {
+            await contract.methods.set(2222).send()
+        }catch(err) {
+            assert.fail("transaction reverted" + err);
+        }
+        
+        
+        await waitForXBlocks(nodeAddr, 2)
+        let nonce = await getNonce(nodeAddr, from)
+        // expect nonce to increment 
+        assert.equal("0x3",nonce)
+
+        // send three more mixed txs without await
+        contract.methods.set(4444).send().then().catch(function(e) {
+            assert.fail("transaction reverted" + err);
+        })
+        contract.methods.err().send().then().catch(function(e) {})
+        contract.methods.set(6666).send().then().catch(function(e) {
+            assert.fail("transaction reverted" + err);
+        })
+
+        await waitForXBlocks(nodeAddr, 2)
+        nonce = await getNonce(nodeAddr, from)
+        // expect nonce to increment
+        assert.equal("0x6",nonce)
+
+        // send three more mixed txs without await
+        contract.methods.err().send().then().catch(function(e) {})
+        contract.methods.set(8888).send().then().catch(function(e) {
+            assert.fail("transaction reverted" + err);
+        })
+        contract.methods.err().send().then().catch(function(e) {})
+
+        await waitForXBlocks(nodeAddr, 2)
+        nonce = await getNonce(nodeAddr, from)
+        // expect nonce to increment
+        assert.equal("0x9",nonce)
     })
 
  })
