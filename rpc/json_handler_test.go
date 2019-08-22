@@ -114,11 +114,11 @@ func testEthSubscribeEthUnSubscribe(t *testing.T) {
 	require.NoError(t, err)
 	var qs QueryService = &QueryServer{
 		LoomServer: LoomServer{
-			StateProvider: &stateProvider{},
-			Loader:        loader,
-			AuthCfg:       auth.DefaultConfig(),
+			StateProvider:  &stateProvider{},
+			Loader:         loader,
+			AuthCfg:        auth.DefaultConfig(),
+			CreateRegistry: createRegistry,
 		},
-		CreateRegistry:   createRegistry,
 		BlockStore:       store.NewMockBlockStore(),
 		EthSubscriptions: eventHandler.EthSubscriptionSet(),
 	}

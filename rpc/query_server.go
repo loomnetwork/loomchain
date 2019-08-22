@@ -177,7 +177,6 @@ type QueryServer struct {
 	EthSubscriptions       *subs.EthSubscriptionSet
 	EthLegacySubscriptions *subs.LegacyEthSubscriptionSet
 	EthPolls               polls.EthSubscriptions
-	CreateRegistry         registryFac.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
