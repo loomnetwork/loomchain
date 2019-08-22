@@ -116,7 +116,7 @@ func NewMultiWriterAppStore(
 		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
 	}
 
-	store.evmStateDeleted = bytes.Equal(store.appStore.Get(evmStateDeletedKey), []byte{1})
+	store.evmStateDeleted = len(store.appStore.RangeWithLimit(vmPrefix, 1)) == 0
 
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
@@ -212,26 +212,27 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			if !bytes.Equal(oldRoot, currentRoot) {
 				s.appStore.Set(rootKey, currentRoot)
 			}
+		} else {
+			s.appStore.Set(rootKey, currentRoot)
+		}
 
-			// vm keys deletion process
-			if bytes.Equal(s.appStore.Get(appStoreVersion3_2), []byte{1}) && !s.evmStateDeleted {
-				begin := time.Now()
-				s.loadOnChainConfig()
+		// prune vm keys
+		if bytes.Equal(s.appStore.Get(appStoreVersion3_2), []byte{1}) && !s.evmStateDeleted {
+			begin := time.Now()
+			s.loadOnChainConfig()
+			if s.numEvmKeysToPrune > 0 {
 				rangeData := s.appStore.RangeWithLimit(vmPrefix, s.numEvmKeysToPrune)
 				for _, data := range rangeData {
 					s.appStore.Delete(util.PrefixKey(vmPrefix, data.Key))
 				}
 				// If rangeData is empty, it means all vm keys are deleted.
-				// So set the flag to stop the deletion
+				// Set the flag to stop pruning
 				if len(rangeData) == 0 {
-					s.appStore.Set(evmStateDeletedKey, []byte{1})
 					s.evmStateDeleted = true
 				}
-
-				pruneEVMKeysDuration.Observe(time.Since(begin).Seconds())
 			}
-		} else {
-			s.appStore.Set(rootKey, currentRoot)
+
+			pruneEVMKeysDuration.Observe(time.Since(begin).Seconds())
 		}
 
 	}
