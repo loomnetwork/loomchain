@@ -91,7 +91,7 @@ func (h *MigrationTxHandler) ProcessTx(
 		return r, errors.Wrapf(err, "migration %d failed", int32(tx.ID))
 	}
 
-	state.Set(migrationKey(tx.ID), msg.Data)
+	state.Set(migrationKey(tx.ID), []byte{1})
 
 	return r, nil
 }
