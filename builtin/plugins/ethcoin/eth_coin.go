@@ -9,7 +9,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain"
 	"github.com/pkg/errors"
 )
 
@@ -79,7 +79,7 @@ func (c *ETHCoin) Init(ctx contract.Context, req *InitRequest) error {
 
 // MintToGateway adds ETH to the Gateway contract balance, and updates the total supply.
 func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
-	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) && req.Amount == nil {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && req.Amount == nil {
 		return ErrInvalidRequest
 	}
 	gatewayAddr, err := ctx.Resolve("gateway")
@@ -212,7 +212,7 @@ func SetBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) e
 }
 
 func (c *ETHCoin) Transfer(ctx contract.Context, req *TransferRequest) error {
-	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) && (req.Amount == nil || req.To == nil) {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Amount == nil || req.To == nil) {
 		return ErrInvalidRequest
 	}
 	from := ctx.Message().Sender
@@ -224,7 +224,7 @@ func (c *ETHCoin) Transfer(ctx contract.Context, req *TransferRequest) error {
 
 // Transfer is used by the AccountBalanceManager to allow transfer of ETH within the EVM.
 func Transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
-	if ctx.FeatureEnabled(features.CoinVersion1_1Feature, false) {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
 		return transfer(ctx, from, to, amount)
 	}
 
@@ -269,7 +269,7 @@ func transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt)
 }
 
 func (c *ETHCoin) Approve(ctx contract.Context, req *ApproveRequest) error {
-	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Amount == nil) {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Amount == nil) {
 		return ErrInvalidRequest
 	}
 	owner := ctx.Message().Sender
@@ -312,11 +312,11 @@ func (c *ETHCoin) Allowance(ctx contract.StaticContext, req *AllowanceRequest) (
 }
 
 func (c *ETHCoin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) &&
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_2Feature, false) &&
 		(req.Amount == nil || req.From == nil || req.To == nil) {
 		return ErrInvalidRequest
 	}
-	if ctx.FeatureEnabled(features.CoinVersion1_1Feature, false) {
+	if ctx.FeatureEnabled(loomchain.CoinVersion1_1Feature, false) {
 		return c.transferFrom(ctx, req)
 	}
 

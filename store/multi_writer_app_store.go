@@ -7,8 +7,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/loomnetwork/loomchain/features"
-
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
@@ -28,12 +26,12 @@ var (
 	vmPrefix = []byte("vm")
 	// This is the same key as rootKey in evm/loomevm.go.
 	rootKey = []byte("vmroot")
-	// Using the same featurePrefix as in app.go, and the same features.EvmDBFeature name as in features.go
-	EvmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte(features.EvmDBFeature))
+	// Using the same featurePrefix as in app.go, and the same EvmDBFeature name as in features.go
+	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte("db:evm"))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
-	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte(features.AppStoreVersion3_1))
+	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_2 name as in features.go
-	appStoreVersion3_2 = util.PrefixKey([]byte("feature"), []byte(features.AppStoreVersion3_2))
+	appStoreVersion3_2 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.2"))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 	// If this flag is set, it means that all vm keys are deleted from app.db
@@ -115,7 +113,7 @@ func NewMultiWriterAppStore(
 
 	// feature flag overrides SaveEVMStateToIAVL
 	if !store.onlySaveEvmStateToEvmStore {
-		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(EvmDBFeatureKey), []byte{1})
+		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
 	}
 
 	store.evmStateDeleted = len(store.appStore.RangeWithLimit(vmPrefix, 1)) == 0
@@ -150,7 +148,7 @@ func (s *MultiWriterAppStore) Delete(key []byte) {
 }
 
 func (s *MultiWriterAppStore) Set(key, val []byte) {
-	if !s.onlySaveEvmStateToEvmStore && bytes.Equal(key, EvmDBFeatureKey) {
+	if !s.onlySaveEvmStateToEvmStore && bytes.Equal(key, evmDBFeatureKey) {
 		s.onlySaveEvmStateToEvmStore = bytes.Equal(val, []byte{1})
 	}
 	if util.HasPrefix(key, vmPrefix) {

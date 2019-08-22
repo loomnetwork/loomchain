@@ -15,7 +15,7 @@ import (
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
 )
@@ -208,7 +208,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewIdentityMapping() {
 
 	// Binance
 	fakeCtx := plugin.CreateFakeContext(s.validDAppAddr3 /*caller*/, loom.RootAddress("chain") /*contract*/)
-	fakeCtx.SetFeature(features.AddressMapperVersion1_1, true)
+	fakeCtx.SetFeature(loomchain.AddressMapperVersion1_1, true)
 	ctx = contract.WrapPluginContext(fakeCtx)
 	sig, err = SignIdentityMapping(s.validBinanceAddr, s.validDAppAddr3, s.validBinanceKey, evmcompat.SignatureType_BINANCE)
 	r.NoError(err)

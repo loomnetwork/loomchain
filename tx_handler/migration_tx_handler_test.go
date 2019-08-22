@@ -9,7 +9,6 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/migrations"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
@@ -22,7 +21,7 @@ var (
 
 func TestMigrationTxHandler(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
-	state.SetFeature(features.MigrationTxFeature, true)
+	state.SetFeature(loomchain.MigrationTxFeature, true)
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
 	s := state.WithContext(ctx)
@@ -41,8 +40,8 @@ func TestMigrationTxHandler(t *testing.T) {
 		Migrations:     migrationFuncs,
 	}
 
-	state.SetFeature(features.MigrationTxFeature, true)
-	state.SetFeature(features.MigrationFeaturePrefix+"1", true)
+	state.SetFeature(loomchain.MigrationTxFeature, true)
+	state.SetFeature(loomchain.MigrationFeaturePrefix+"1", true)
 	_, err := migrationTxHandler.ProcessTx(s, migrationTx1, false)
 	require.NoError(t, err)
 
@@ -53,12 +52,12 @@ func TestMigrationTxHandler(t *testing.T) {
 	migrationTx4 := mockMessageTx(t, uint32(4), origin, origin)
 
 	//Expect an error if migrationtx feature is not enabled
-	state.SetFeature(features.MigrationTxFeature, false)
+	state.SetFeature(loomchain.MigrationTxFeature, false)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.Error(t, err)
 
 	//Expect an error if migration id is not found
-	state.SetFeature(features.MigrationTxFeature, true)
+	state.SetFeature(loomchain.MigrationTxFeature, true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx4, false)
 	require.Error(t, err)
 
@@ -66,8 +65,8 @@ func TestMigrationTxHandler(t *testing.T) {
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.Error(t, err)
 
-	state.SetFeature(features.MigrationTxFeature, true)
-	state.SetFeature(features.MigrationFeaturePrefix+"2", true)
+	state.SetFeature(loomchain.MigrationTxFeature, true)
+	state.SetFeature(loomchain.MigrationFeaturePrefix+"2", true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.NoError(t, err)
 

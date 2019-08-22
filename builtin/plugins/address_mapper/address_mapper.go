@@ -15,7 +15,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -89,7 +89,7 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 		evmcompat.SignatureType_TREZOR,
 		evmcompat.SignatureType_TRON,
 	}
-	if ctx.FeatureEnabled(features.AddressMapperVersion1_1, false) {
+	if ctx.FeatureEnabled(loomchain.AddressMapperVersion1_1, false) {
 		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_BINANCE)
 	}
 

@@ -12,12 +12,12 @@ import (
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
-	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/plugin"
 )
 
@@ -189,47 +189,47 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Owner: contractOwner,
 			Features: []*cctypes.Feature{
 				&cctypes.Feature{
-					Name:   features.DPOSVersion3_1,
+					Name:   loomchain.DPOSVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.ChainCfgVersion1_1,
+					Name:   loomchain.ChainCfgVersion1_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.ChainCfgVersion1_2,
+					Name:   loomchain.ChainCfgVersion1_2,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.ChainCfgVersion1_3,
+					Name:   loomchain.ChainCfgVersion1_3,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.EvmTxReceiptsVersion2Feature,
+					Name:   loomchain.EvmTxReceiptsVersion2Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.CoinVersion1_1Feature,
+					Name:   loomchain.CoinVersion1_1Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.AppStoreVersion3_1,
+					Name:   loomchain.AppStoreVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.AppStoreVersion3_2,
+					Name:   loomchain.AppStoreVersion3_2,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.AuthSigTxFeaturePrefix + "eth",
+					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.CheckTxValueFeature,
+					Name:   loomchain.CheckTxValueFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.EvmConstantinopleFeature,
+					Name:   loomchain.EvmConstantinopleFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 			},

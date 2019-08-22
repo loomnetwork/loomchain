@@ -10,7 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain"
 )
 
 var (
@@ -58,7 +58,7 @@ func TestTransfer(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
 
-	pctx.SetFeature(features.CoinVersion1_2Feature, true)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	resp, err = contract.BalanceOf(contractpb.WrapPluginStaticContext(pctx), &BalanceOfRequest{
 		Owner: nil,
 	})
@@ -78,7 +78,7 @@ func sciNot(m, n int64) *loom.BigUInt {
 func TestTransferToSelf(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	// Test using the v1.1 contract, this test will fail if this feature is not enabled
-	pctx.SetFeature(features.CoinVersion1_1Feature, true)
+	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
 
 	contract := &ETHCoin{}
 	amount := sciNot(100, 18)
@@ -112,7 +112,7 @@ func TestTransferToSelf(t *testing.T) {
 	// the transfer was from addr2 to addr2 so the balance of addr2 should remain unchanged
 	assert.Equal(t, *amount, resp.Balance.Value)
 
-	pctx.SetFeature(features.CoinVersion1_2Feature, true)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	err = contract.Transfer(contractpb.WrapPluginContext(pctx), &TransferRequest{
 		To:     nil,
 		Amount: &types.BigUInt{Value: *amount},
@@ -152,7 +152,7 @@ func TestApprove(t *testing.T) {
 	assert.Equal(t, 40, int(allowResp.Amount.Value.Int64()))
 
 	pctx := plugin.CreateFakeContext(addr1, addr2)
-	pctx.SetFeature(features.CoinVersion1_2Feature, true)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
 
 	err = contract.Approve(contractpb.WrapPluginContext(pctx), &ApproveRequest{
 		Spender: nil,
@@ -231,7 +231,7 @@ func TestTransferFrom(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
 
-	pctx.SetFeature(features.CoinVersion1_2Feature, true)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
 	amount := sciNot(100, 18)
 	err = contract.TransferFrom(contractpb.WrapPluginContext(pctx), &TransferFromRequest{
 		To:     nil,
@@ -246,7 +246,7 @@ func TestTransferFrom(t *testing.T) {
 func TestTransferFromSelf(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	// Test using the v1.1 contract, this test will fail if this feature is not enabled
-	pctx.SetFeature(features.CoinVersion1_1Feature, true)
+	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
 
 	contract := &ETHCoin{}
 	amount := sciNot(100, 18)

@@ -14,8 +14,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	"github.com/loomnetwork/loomchain/features"
 
 	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 )
@@ -1076,8 +1076,8 @@ func TestElectWhitelists(t *testing.T) {
 	require.Nil(t, err)
 
 	// Enable the feature flag and check that the whitelist rules get applied corectly
-	dposCtx.SetFeature(features.DPOSVersion2_1, true)
-	require.True(t, dposCtx.FeatureEnabled(features.DPOSVersion2_1, false))
+	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
 
 	cycleLengthSeconds := int64(100)
 	// Init the dpos contract
@@ -1993,8 +1993,8 @@ func TestRewardTiers(t *testing.T) {
 	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
 
 	// Enable the feature flag and check that the delegator receives rewards!
-	dposCtx.SetFeature(features.DPOSVersion2_1, true)
-	require.True(t, dposCtx.FeatureEnabled(features.DPOSVersion2_1, false))
+	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
 
 	for i := 0; i < 10000; i = i + 1 {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))

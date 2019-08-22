@@ -20,7 +20,6 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/log"
 )
 
@@ -151,10 +150,10 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	p := new(Evm)
 	p.sdb = sdb
 
-	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(features.EvmConstantinopleFeature, false))
+	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(loomchain.EvmConstantinopleFeature, false))
 
 	p.vmConfig = defaultVmConfig(debug)
-	p.validateTxValue = lstate.FeatureEnabled(features.CheckTxValueFeature, false)
+	p.validateTxValue = lstate.FeatureEnabled(loomchain.CheckTxValueFeature, false)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,

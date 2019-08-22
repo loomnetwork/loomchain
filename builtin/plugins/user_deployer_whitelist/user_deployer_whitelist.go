@@ -12,8 +12,8 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	"github.com/loomnetwork/loomchain/features"
 	"github.com/pkg/errors"
 )
 
@@ -127,7 +127,7 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 			Name: ti.Name,
 		}
 
-		if ctx.FeatureEnabled(features.UserDeployerWhitelistVersion1_1Feature, false) {
+		if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
 			if ti.BlockRange == 0 {
 				return ErrInvalidBlockRange
 			}
@@ -260,7 +260,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	if err := contract.CallMethod(ctx, dwAddr, "RemoveUserDeployer", removeUserDeployerRequest, nil); err != nil {
 		return errors.Wrap(err, "failed to remove deployer")
 	}
-	if ctx.FeatureEnabled(features.UserDeployerWhitelistVersion1_2Feature, false) {
+	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
 		var userDeployer UserDeployerState
 		if err := ctx.Get(deployerStateKey(deployerAddr), &userDeployer); err != nil {
 			return errors.Wrap(err, "Failed to Get Deployer State")
@@ -343,7 +343,7 @@ func (uw *UserDeployerWhitelist) SwapUserDeployer(
 	if req.OldDeployerAddr == nil || req.NewDeployerAddr == nil {
 		return ErrInvalidRequest
 	}
-	if !ctx.FeatureEnabled(features.UserDeployerWhitelistVersion1_2Feature, false) {
+	if !ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_2Feature, false) {
 		return errors.New("feature not enabled")
 	}
 	dwAddr, err := ctx.Resolve("deployerwhitelist")
@@ -440,7 +440,7 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 		Fee:    req.Fee,
 		Name:   req.Name,
 	}
-	if ctx.FeatureEnabled(features.UserDeployerWhitelistVersion1_1Feature, false) {
+	if ctx.FeatureEnabled(loomchain.UserDeployerWhitelistVersion1_1Feature, false) {
 		if req.BlockRange == 0 {
 			return ErrInvalidBlockRange
 		}
