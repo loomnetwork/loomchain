@@ -64,7 +64,7 @@ const path = require('path')
         await waitForXBlocks(nodeAddr, 2)
         let nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
-        assert.equal("0x3",nonce)
+        assert.equal("0x3", nonce)
 
          // send three more reverted txs without await
         contract.methods.err().send().then().catch(function(e) {})
@@ -74,7 +74,7 @@ const path = require('path')
         await waitForXBlocks(nodeAddr, 2)
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
-        assert.equal("0x6",nonce)
+        assert.equal("0x6", nonce)
     })
 
     it('Test nonce handler with successful txs', async () => {
@@ -90,7 +90,7 @@ const path = require('path')
         await waitForXBlocks(nodeAddr, 2)
         let nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment 
-        assert.equal("0x3",nonce)
+        assert.equal("0x3", nonce)
 
         // send three more successful txs without await
         contract.methods.set(4444).send().then().catch(function(e) {})
@@ -100,15 +100,15 @@ const path = require('path')
         await waitForXBlocks(nodeAddr, 2)
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment
-        assert.equal("0x6",nonce)
+        assert.equal("0x6", nonce)
     })
 
     it('Test nonce handler with mixed txs', async () => {
-        // send three successful txs
+        // send a mix of successful & failed txs
         try {
             await contract.methods.set(1111).send()
         } catch(err) {
-            assert.fail("transaction reverted" + err);
+            assert.fail("transaction reverted: " + err);
         }
         try {
             await contract.methods.err().send()
@@ -119,40 +119,40 @@ const path = require('path')
         try {
             await contract.methods.set(2222).send()
         }catch(err) {
-            assert.fail("transaction reverted" + err);
+            assert.fail("transaction reverted: " + err);
         }
         
         
         await waitForXBlocks(nodeAddr, 2)
         let nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment 
-        assert.equal("0x3",nonce)
+        assert.equal("0x3", nonce)
 
         // send three more mixed txs without await
         contract.methods.set(4444).send().then().catch(function(e) {
-            assert.fail("transaction reverted" + err);
+            assert.fail("transaction reverted: " + err);
         })
         contract.methods.err().send().then().catch(function(e) {})
         contract.methods.set(6666).send().then().catch(function(e) {
-            assert.fail("transaction reverted" + err);
+            assert.fail("transaction reverted: " + err);
         })
 
         await waitForXBlocks(nodeAddr, 2)
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment
-        assert.equal("0x6",nonce)
+        assert.equal("0x6", nonce)
 
         // send three more mixed txs without await
         contract.methods.err().send().then().catch(function(e) {})
         contract.methods.set(8888).send().then().catch(function(e) {
-            assert.fail("transaction reverted" + err);
+            assert.fail("transaction reverted: " + err);
         })
         contract.methods.err().send().then().catch(function(e) {})
 
         await waitForXBlocks(nodeAddr, 2)
         nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment
-        assert.equal("0x9",nonce)
+        assert.equal("0x9", nonce)
     })
 
  })

@@ -187,7 +187,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 		}, false,
 	)
 	require.Error(t, err)
-	// NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
 	storeTx.Rollback()
 
 	currentNonce = Nonce(state, origin)
