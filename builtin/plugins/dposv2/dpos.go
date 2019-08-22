@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/feature"
@@ -201,7 +200,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate", "delegator", delegator, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -381,7 +380,7 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate2", "delegator", delegator, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	// Ensure validator address is set properly in v2.1
 	if v2_1 {
@@ -548,7 +547,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 
 func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationRequest) (*TotalDelegationResponse, error) {
 	ctx.Logger().Debug("DPOS TotalDelegation", "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("TotalDelegation called with req.DelegatorAddress == nil"), req.String())
@@ -575,7 +574,7 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDelegationsRequest) (*CheckAllDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOS CheckAllDelegations", "request", req)
 
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckAllDelegations called with req.DelegatorAddress == nil"), req.String())
 	}
@@ -756,7 +755,7 @@ func (c *DPOS) RegisterCandidate2(ctx contract.Context, req *RegisterCandidateRe
 
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RegisterCandidate", "candidate", candidateAddress, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -860,7 +859,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RegisterCandidate", "candidate", candidateAddress, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -1023,7 +1022,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -1098,7 +1097,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 
 // electing and settling rewards settlement
 func Elect(ctx contract.Context) error {
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1569,13 +1568,13 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(feature.DPOSVersion2_1, false)
 
 	// initialize delegation totals with whitelist amounts
 	for _, statistic := range *statistics {
 		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			amount := statistic.WhitelistAmount.Value
-			if ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false) {
+			if ctx.FeatureEnabled(feature.DPOSVersion2_1, false) {
 				amount = calculateWeightedWhitelistAmount(*statistic)
 			}
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()

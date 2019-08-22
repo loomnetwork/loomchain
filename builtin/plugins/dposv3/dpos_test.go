@@ -14,7 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/feature"
 )
@@ -856,8 +855,8 @@ func TestElectWhitelists(t *testing.T) {
 	})
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
-	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
-	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
+	dposCtx.SetFeature(feature.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(feature.DPOSVersion2_1, false))
 
 	// transfer coins to reward fund
 	amount := big.NewInt(10000000)
