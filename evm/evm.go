@@ -151,7 +151,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	p := new(Evm)
 	p.sdb = sdb
 
-	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(loomchain.EvmConstantinopleFeature, false))
+	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(feature.EvmConstantinopleFeature, false))
 
 	p.vmConfig = defaultVmConfig(debug)
 	p.validateTxValue = lstate.FeatureEnabled(feature.CheckTxValueFeature, false)
