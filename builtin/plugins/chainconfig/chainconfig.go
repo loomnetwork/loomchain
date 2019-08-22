@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
+	"github.com/loomnetwork/loomchain/feature"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
@@ -456,7 +457,7 @@ func (c *ChainConfig) ChainConfig(ctx contract.StaticContext, req *ChainConfigRe
 
 func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, error) {
 	// TODO: Replace all this with ctx.Validators() when it's hooked up to DPOSv3 (and ideally DPOSv2)
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(feature.DPOSVersion3Feature, false) {
 		contractAddr, err := ctx.Resolve("dposV3")
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to resolve address of DPOSv3 contract")
