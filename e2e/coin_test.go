@@ -20,8 +20,6 @@ func TestContractCoin(t *testing.T) {
 		{"coin-2", "coin.toml", 2, 10, "coin.genesis.json", ""},
 		{"coin-4", "coin.toml", 4, 10, "coin.genesis.json", ""},
 	}
-	common.LoomPath = "../loom"
-	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

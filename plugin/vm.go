@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
@@ -262,6 +263,10 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
 }
 
+func (c *contractContext) Config() *cctypes.Config {
+	return c.VM.State.Config()
+}
+
 func (c *contractContext) EnabledFeatures() []string {
 	return c.VM.State.EnabledFeatures()
 }
@@ -272,7 +277,7 @@ func (c *contractContext) Validators() []*ltypes.Validator {
 
 //TODO don't like how we have to check 3 places, need to clean this up
 func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, error) {
-	r, err := c.VM.receiptReader.GetReceipt(c.VM.State, hash)
+	r, err := c.VM.receiptReader.GetReceipt(hash)
 	if err != nil || len(r.TxHash) == 0 {
 		r, err = c.VM.receiptReader.GetPendingReceipt(hash)
 		if err != nil || len(r.TxHash) == 0 {

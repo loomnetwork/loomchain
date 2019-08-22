@@ -51,6 +51,9 @@ export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
 
+# export LOOMEXE_PATH="../loom"
+# export LOOMEXE_ALTPATH="../loom2"
+# export CHECK_APP_HASH="true"
 make test
 
 ##make test-no-evm
@@ -58,8 +61,8 @@ make test
 ##make test-app-store-race
 
 #setup & run truffle tests
-#cd e2e/tests/truffle
-#yarn
+cd e2e/tests/truffle
+yarn
 
-#cd ../receipts
-#bash ./run_truffle_tests.sh
+cd ../receipts
+bash ./run_truffle_tests.sh

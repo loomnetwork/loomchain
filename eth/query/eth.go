@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/loomnetwork/loomchain/eth/bloom"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
@@ -101,8 +102,10 @@ func GetBlockLogs(
 			}
 			var logsBlock []*ptypes.EthFilterLog
 			for _, txHash := range txHashList {
-				txReceipt, err := readReceipts.GetReceipt(state, txHash)
-				if err != nil {
+				txReceipt, err := readReceipts.GetReceipt(txHash)
+				if errors.Cause(err) == common.ErrTxReceiptNotFound {
+					continue
+				} else if err != nil {
 					return nil, errors.Wrap(err, "getting receipt")
 				}
 				logsTx, err := getTxHashLogs(blockStore, txReceipt, ethFilter, txHash)

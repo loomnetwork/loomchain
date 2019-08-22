@@ -111,6 +111,7 @@ func TestQueryServer(t *testing.T) {
 	t.Run("Query Metric", testQueryMetric)
 	t.Run("Query Contract Events", testQueryServerContractEvents)
 	t.Run("Query Contract Events Without Event", testQueryServerContractEventsNoEventStore)
+	t.Run("Query Contract Information", testQueryServerGetContractRecord)
 }
 
 func testQueryServerContractQuery(t *testing.T) {
@@ -124,7 +125,7 @@ func testQueryServerContractQuery(t *testing.T) {
 			CreateRegistry: createRegistry,
 			AuthCfg:        auth.DefaultConfig(),
 		},
-		BlockStore:     store.NewMockBlockStore(),
+		BlockStore: store.NewMockBlockStore(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -179,7 +180,7 @@ func testQueryServerNonce(t *testing.T) {
 			StateProvider: &stateProvider{
 				ChainID: "default",
 			},
-			AuthCfg:    auth.DefaultConfig(),
+			AuthCfg: auth.DefaultConfig(),
 		},
 		BlockStore: store.NewMockBlockStore(),
 	}
@@ -252,7 +253,7 @@ func testQueryMetric(t *testing.T) {
 			CreateRegistry: createRegistry,
 			AuthCfg:        auth.DefaultConfig(),
 		},
-		BlockStore:     store.NewMockBlockStore(),
+		BlockStore: store.NewMockBlockStore(),
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{
@@ -333,8 +334,8 @@ func testQueryServerContractEvents(t *testing.T) {
 		LoomServer: LoomServer{
 			StateProvider: &stateProvider{},
 		},
-		BlockStore:    store.NewMockBlockStore(),
-		EventStore:    eventStore,
+		BlockStore: store.NewMockBlockStore(),
+		EventStore: eventStore,
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -422,8 +423,8 @@ func testQueryServerContractEventsNoEventStore(t *testing.T) {
 		LoomServer: LoomServer{
 			StateProvider: &stateProvider{},
 		},
-		BlockStore:    store.NewMockBlockStore(),
-		EventStore:    nil,
+		BlockStore: store.NewMockBlockStore(),
+		EventStore: nil,
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -448,6 +449,33 @@ func testQueryServerContractEventsNoEventStore(t *testing.T) {
 		// JSON-RPC 2.0
 		result := &types.ContractEventsResult{}
 		_, err := rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+	})
+}
+
+func testQueryServerGetContractRecord(t *testing.T) {
+	var qs QueryService = &QueryServer{
+		LoomServer: LoomServer{
+			StateProvider: &stateProvider{},
+		},
+		BlockStore: store.NewMockBlockStore(),
+	}
+
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewLegacyEthSubscriptionSet(),
+	}
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+	t.Run("Contract query should return error", func(t *testing.T) {
+		params := map[string]interface{}{}
+		params["contract"] = ""
+		resp := &types.ContractRecordResponse{}
+		_, err := rpcClient.Call("contractrecord", params, resp)
 		require.NotNil(t, err)
 	})
 }

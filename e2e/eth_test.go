@@ -24,8 +24,6 @@ func TestEthJSONRPC2(t *testing.T) {
 		{"go-getBlockByNumber", "eth-6-test.toml", 1, 3, "coin.genesis.json", "eth-test-1-loom.yaml"},
 		{"ethSendRawTransaction", "eth-7-test.toml", 4, 10, "ethtx.genesis.json", "ethtx-loom.yaml"},
 	}
-	common.LoomPath = "../loom"
-	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -21,8 +21,7 @@ func TestE2eKarma(t *testing.T) {
 		{"upkeep", "karma-3-test.toml", 1, 4, "karma-3-test.json", "karma-3-loom.yaml"},
 		{"config", "karma-4-test.toml", 1, 2, "karma-4-test.json", "karma-3-loom.yaml"},
 	}
-	common.LoomPath = "../loom"
-	common.ContractDir = "../contracts"
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0, false)

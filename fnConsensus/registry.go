@@ -10,10 +10,19 @@ var ErrFnObjCantNil = errors.New("FnObj cant be nil")
 
 // Fn object once registered, will be invoked by Reactor at various point in state cycle
 // It should contain pluggable business logic to construct/submit message and signature
+// TODO: Eliminate the unused ctx parameter from all these methods.
 type Fn interface {
-	SubmitMultiSignedMessage(ctx []byte, message []byte, signatures [][]byte)
+	// Generates a message and associated signature.
+	// The reactor will attempt to reach a consensus on the message, which means that a sufficient
+	// number of validators must generate exactly the same message, ergo the message must be obtained
+	// somewhat deterministically, otherwise consensus will never be reached.
+	// The signature will be broadcast to other validators, but doesn't have to match across validators.
+	// Once consensus is reached the signature, along with those obtained from the other validators,
+	// may be passed to SubmitMultiSignedMessage.
 	GetMessageAndSignature(ctx []byte) ([]byte, []byte, error)
-	MapMessage(ctx []byte, key []byte, message []byte) error
+	// Once the reactor reaches the vote threshold for the message identified by the given key
+	// it invokes this method with the signatures submitted by the validators that pariticipated in the vote.
+	SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte)
 }
 
 // FnRegistry acts as a registry which stores multiple Fn objects by their IDs
@@ -24,7 +33,7 @@ type FnRegistry interface {
 	GetAll() []string
 }
 
-// Transient registry, need to be rebuilt upon restart
+// InMemoryFnRegistry is a transient registry that needs to be rebuilt upon restart.
 type InMemoryFnRegistry struct {
 	mtx   sync.RWMutex
 	fnMap map[string]Fn
@@ -39,6 +48,9 @@ func NewInMemoryFnRegistry() *InMemoryFnRegistry {
 func (f *InMemoryFnRegistry) GetAll() []string {
 	fnIDs := make([]string, len(f.fnMap))
 
+	f.mtx.RLock()
+	defer f.mtx.RUnlock()
+
 	i := 0
 	for fnID := range f.fnMap {
 		fnIDs[i] = fnID
@@ -51,6 +63,7 @@ func (f *InMemoryFnRegistry) GetAll() []string {
 func (f *InMemoryFnRegistry) Get(fnID string) Fn {
 	f.mtx.RLock()
 	defer f.mtx.RUnlock()
+
 	return f.fnMap[fnID]
 }
 

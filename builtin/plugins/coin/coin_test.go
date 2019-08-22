@@ -1,6 +1,7 @@
 package coin
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
@@ -35,9 +36,8 @@ func (m *mockLoomCoinGateway) DummyMethod(ctx contractpb.Context, req *MintToGat
 }
 
 func TestTransfer(t *testing.T) {
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
+	pctx := plugin.CreateFakeContext(addr1, addr2)
+	ctx := contractpb.WrapPluginContext(pctx)
 
 	amount := loom.NewBigUIntFromInt(100)
 	contract := &Coin{}
@@ -73,6 +73,14 @@ func TestTransfer(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	err = contract.Transfer(contractpb.WrapPluginContext(pctx), &TransferRequest{
+		To:     nil,
+		Amount: nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
+
 }
 
 func sciNot(m, n int64) *loom.BigUInt {
@@ -134,10 +142,9 @@ func TestTransferToSelf(t *testing.T) {
 
 func TestApprove(t *testing.T) {
 	contract := &Coin{}
+	pctx := plugin.CreateFakeContext(addr1, addr2)
+	ctx := contractpb.WrapPluginContext(pctx)
 
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
 	acct := &Account{
 		Owner: addr1.MarshalPB(),
 		Balance: &types.BigUInt{
@@ -161,6 +168,13 @@ func TestApprove(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 40, int(allowResp.Amount.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	err = contract.Approve(contractpb.WrapPluginContext(pctx), &ApproveRequest{
+		Spender: nil,
+		Amount:  nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
 }
 
 func TestTransferFrom(t *testing.T) {
@@ -222,6 +236,14 @@ func TestTransferFrom(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	nilResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: nil,
+	})
+	require.Error(t, err)
+	require.Nil(t, nilResp)
+
 }
 
 // Verify Coin.TransferFrom works correctly when the to & from addresses are the same.
@@ -243,7 +265,6 @@ func TestTransferFromSelf(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-
 	amount := sciNot(100, 18)
 	resp, err := contract.BalanceOf(
 		contractpb.WrapPluginContext(pctx),
@@ -349,6 +370,12 @@ func TestMintToGateway(t *testing.T) {
 	})
 	require.Nil(t, err)
 	require.Equal(t, newLoomCoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
+
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	err = contract.MintToGateway(contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)), &MintToGatewayRequest{
+		Amount: nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
 }
 
 func TestBurn(t *testing.T) {
@@ -496,4 +523,81 @@ func TestMintToGatewayAccess(t *testing.T) {
 		},
 	), "loomcoin gateway should be allowed to call MintToGateway")
 
+}
+
+func TestNilRequest(t *testing.T) {
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	ctx := contractpb.WrapPluginContext(pctx)
+	contract := &Coin{}
+
+	contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			{
+				Owner:   addr1.MarshalPB(),
+				Balance: 100,
+			},
+		},
+	})
+	err := contract.Burn(ctx, &BurnRequest{
+		Owner:  nil,
+		Amount: nil,
+	})
+	require.Equal(t, err, errors.New("owner or amount is nil"))
+
+	balResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+	require.Nil(t, balResp)
+
+	err = contract.Transfer(ctx, &TransferRequest{
+		To:     nil,
+		Amount: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+
+	err = contract.Approve(ctx, &ApproveRequest{
+		Spender: nil,
+		Amount:  nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+
+	amount := sciNot(0, 18)
+	err = contract.Approve(ctx, &ApproveRequest{
+		Spender: addr2.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	})
+	require.NoError(t, err)
+
+	alwResp, err := contract.Allowance(ctx, &AllowanceRequest{
+		Owner:   nil,
+		Spender: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+	require.Nil(t, alwResp)
+
+	err = contract.TransferFrom(ctx, &TransferFromRequest{
+		From:   addr2.MarshalPB(),
+		To:     addr1.MarshalPB(),
+		Amount: nil,
+	})
+	require.Equal(t, err, ErrInvalidRequest)
+
+	err = contract.Transfer(ctx, &TransferRequest{
+		To:     nil,
+		Amount: nil,
+	})
+	assert.Equal(t, ErrInvalidRequest, err)
+
+	err = contract.TransferFrom(ctx, &TransferFromRequest{
+		From: addr2.MarshalPB(),
+		To:   addr1.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	})
+	require.NoError(t, err)
 }

@@ -24,6 +24,7 @@ import (
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
@@ -44,7 +45,6 @@ import (
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
 	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
-	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
@@ -437,6 +437,51 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
+const contractInfoCommandExample = `
+loom contract default:0x81ee596ba88eF371a51d4B535E07cB243A8C692d
+`
+
+type contractInfo struct {
+	Name    string
+	Address string
+	Owner   string
+}
+
+func contractInfoCommand() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "contract [ChainID:Address]",
+		Short:   "Get contract information by address",
+		Args:    cobra.MinimumNArgs(1),
+		Example: contractInfoCommandExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
+			if err != nil {
+				return err
+			}
+			rpcclient := client.NewDAppChainRPCClient(flags.ChainID, flags.URI+"/rpc", flags.URI+"/query")
+			resp, err := rpcclient.GetContractRecord(addr)
+			if err != nil {
+				return err
+			}
+			contractInfoResp := &contractInfo{
+				Name:    resp.GetContractName(),
+				Address: loom.UnmarshalAddressPB(resp.GetContractAddress()).String(),
+				Owner:   loom.UnmarshalAddressPB(resp.GetCreatorAddress()).String(),
+			}
+
+			out, err := json.MarshalIndent(contractInfoResp, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Print(string(out))
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 //nolint:deadcode
 func recovery() {
 	if r := recover(); r != nil {
@@ -617,14 +662,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled &&
-		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
-		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
-		if err != nil {
-			return nil, err
-		}
-		logger.Info("CachingStore enabled")
-	} else if cfg.CachingStoreConfig.CachingEnabled && cfg.AppStore.Version == 3 {
+	if cfg.CachingStoreConfig.CachingEnabled {
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err
@@ -733,19 +771,7 @@ func loadApp(
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-		var receiptVer handler.ReceiptHandlerVersion
-		if v2Feature {
-			receiptVer = handler.ReceiptHandlerLevelDb
-		} else {
-			var err error
-			receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-			if err != nil {
-				return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-			}
-		}
-		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-	}, evmAuxStore)
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, cfg.EVMPersistentTxReceiptsMax, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -754,15 +780,6 @@ func loadApp(
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
-		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
 		return plugin.NewPluginVM(
 			loader,
 			state,
@@ -770,8 +787,8 @@ func loadApp(
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			receiptWriter,
-			receiptReader,
+			receiptHandlerProvider.Writer(),
+			receiptHandlerProvider.Reader(),
 		), nil
 	})
 
@@ -779,16 +796,6 @@ func loadApp(
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
-			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					loader,
@@ -797,15 +804,15 @@ func loadApp(
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -1315,6 +1322,7 @@ func main() {
 		deployer.NewDeployCommand(),
 		userdeployer.NewUserDeployCommand(),
 		dbg.NewDebugCommand(),
+		contractInfoCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {

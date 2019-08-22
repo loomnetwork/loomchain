@@ -71,13 +71,20 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Init:       dposV2Init,
 		})
 	} else if cfg.DPOSVersion == 3 {
+		oracleAddr := &types.Address{
+			ChainId: chainID,
+			Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+		}
 		dposV3Init, err := marshalInit(&dposv3.InitRequest{
 			Params: &dposv3.Params{
-				ValidatorCount: 21,
+				ValidatorCount:      21,
+				ElectionCycleLength: 0,
+				OracleAddress:       oracleAddr,
 			},
 			Validators: []*loom.Validator{
 				validator,
 			},
+			InitCandidates: true,
 		})
 		if err != nil {
 			return nil, err
@@ -90,6 +97,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Location:   "dposV3:3.0.0",
 			Init:       dposV3Init,
 		})
+
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
@@ -180,27 +188,39 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		chainConfigInitRequest := cctypes.InitRequest{
 			Owner: contractOwner,
 			Features: []*cctypes.Feature{
-				{
+				&cctypes.Feature{
 					Name:   loomchain.DPOSVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
-				{
+				&cctypes.Feature{
 					Name:   loomchain.ChainCfgVersion1_1,
 					Status: chainconfig.FeatureWaiting,
 				},
-				{
+				&cctypes.Feature{
+					Name:   loomchain.ChainCfgVersion1_2,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.ChainCfgVersion1_3,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   loomchain.EvmTxReceiptsVersion2Feature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
 					Name:   loomchain.CoinVersion1_1Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
-				{
+				&cctypes.Feature{
 					Name:   loomchain.AppStoreVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
-				{
+				&cctypes.Feature{
 					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
-				{
+				&cctypes.Feature{
 					Name:   loomchain.EthTxFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
@@ -208,7 +228,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Name:   loomchain.CheckTxValueFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
-				{
+				&cctypes.Feature{
 					Name:   loomchain.EvmConstantinopleFeature,
 					Status: chainconfig.FeatureWaiting,
 				},

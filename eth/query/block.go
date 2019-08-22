@@ -47,7 +47,7 @@ func GetBlockByNumber(
 	var blockResult *ctypes.ResultBlock
 	blockResult, err = blockStore.GetBlockByHeight(&height)
 	if err != nil {
-		return resp, err
+		return resp, errors.Wrapf(err, "GetBlockByNumber failed to get block %d", height)
 	}
 
 	var proposalAddress eth.Data
@@ -290,7 +290,7 @@ func DeprecatedGetBlockByNumber(
 	iHeight := height
 	blockresult, err := blockStore.GetBlockByHeight(&iHeight)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "DeprecatedGetBlockByNumber failed to get block %d", iHeight)
 	}
 	blockinfo := types.EthBlockInfo{
 		Hash:       blockresult.BlockMeta.BlockID.Hash,

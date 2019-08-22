@@ -11,7 +11,13 @@ import (
 	"github.com/posener/wstest"
 	"github.com/stretchr/testify/require"
 
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 var (
@@ -56,6 +62,7 @@ func TestJsonRpcHandler(t *testing.T) {
 	t.Run("Http JSON-RPC batch", testBatchHttpJsonHandler)
 	t.Run("Multi Websocket JSON-RPC", testMultipleWebsocketConnections)
 	t.Run("Single Websocket JSON-RPC", testSingleWebsocketConnections)
+	t.Run("test eth_subscribe and eth_unsubscribe", testEthSubscribeEthUnSubscribe)
 }
 
 func testHttpJsonHandler(t *testing.T) {
@@ -97,6 +104,48 @@ func testBatchHttpJsonHandler(t *testing.T) {
 	}
 }
 
+func testEthSubscribeEthUnSubscribe(t *testing.T) {
+	hub := newHub()
+	go hub.run()
+	loader := &queryableContractLoader{TMLogger: log.Root.With("module", "contract")}
+	eventDispatcher := events.NewLogEventDispatcher()
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	require.NoError(t, err)
+	var qs QueryService = &QueryServer{
+		LoomServer: LoomServer{
+			StateProvider: &stateProvider{},
+			Loader:        loader,
+			AuthCfg:       auth.DefaultConfig(),
+		},
+		CreateRegistry:   createRegistry,
+		BlockStore:       store.NewMockBlockStore(),
+		EthSubscriptions: eventHandler.EthSubscriptionSet(),
+	}
+	ts := &RuntimeTendermintRpc{}
+	handler := MakeEthQueryServiceHandler(qs, testlog, hub, ts)
+
+	dialer := wstest.NewDialer(handler)
+	conn, _, err := dialer.Dial("ws://localhost/eth", nil)
+	require.NoError(t, err)
+
+	payloadSubscribe := `{"jsonrpc":"2.0","method":"eth_subscribe","params":["logs", {"address": "0x8320fe7702b96808f7bbc0d4a888ed1468216cfd", "topics": ["0xd78a0cb8bb633d06981248b816e7bd33c2a35a6089241d099fa519e361cab902"]}],"id":99}`
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payloadSubscribe)))
+	var resp eth.JsonRpcResponse
+	require.NoError(t, conn.ReadJSON(&resp))
+
+	payloadUnsubscribe := `{"id": 1, "method": "eth_unsubscribe", "params": [` + string(resp.Result) + `]}`
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payloadUnsubscribe)))
+
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payloadSubscribe)))
+	require.NoError(t, conn.ReadJSON(&resp))
+	require.True(t, len(resp.Result) > 0)
+
+	require.NoError(t, conn.Close())
+
+	require.Error(t, conn.WriteMessage(websocket.TextMessage, []byte(payloadSubscribe)))
+}
+
 func testMultipleWebsocketConnections(t *testing.T) {
 	hub := newHub()
 	go hub.run()
@@ -104,17 +153,19 @@ func testMultipleWebsocketConnections(t *testing.T) {
 	ts := &RuntimeTendermintRpc{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, hub, ts)
 
+	conns := []*websocket.Conn{}
 	for _, test := range tests {
 		dialer := wstest.NewDialer(handler)
 		conn, _, err := dialer.Dial("ws://localhost/eth", nil)
+		conns = append(conns, conn)
 		require.NoError(t, err)
 
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
-
-		require.NoError(t, conn.Close())
 	}
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second)
+
+	qs.mutex.RLock()
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -125,6 +176,11 @@ func testMultipleWebsocketConnections(t *testing.T) {
 			}
 		}
 		require.True(t, found)
+	}
+	qs.mutex.RUnlock()
+
+	for _, conn := range conns {
+		require.NoError(t, conn.Close())
 	}
 }
 
@@ -141,6 +197,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 	for _, test := range tests {
 		require.NoError(t, err)
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -152,6 +209,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 	wg.Wait()
 	time.Sleep(time.Second)
 
+	qs.mutex.RLock()
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -163,5 +221,6 @@ func testSingleWebsocketConnections(t *testing.T) {
 		}
 		require.True(t, found)
 	}
+	qs.mutex.RUnlock()
 	require.NoError(t, conn.Close())
 }

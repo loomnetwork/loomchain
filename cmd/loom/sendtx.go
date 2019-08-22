@@ -155,7 +155,7 @@ func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
 			continue
 		}
 		addr := loom.UnmarshalAddressPB(response.Contract)
-		fmt.Printf("Contract %s deplyed to address %s\n", contract.Name, addr.String())
+		fmt.Printf("Contract %s deployed to address %s\n", contract.Name, addr.String())
 	}
 	fmt.Printf("%v contract(s) successfully deployed\n", numDeployed)
 	return nil

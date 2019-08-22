@@ -45,7 +45,7 @@ GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 # Specifies the loomnetwork/binance-tgoracle branch/revision to use.
 BINANCE_TG_GIT_REV = HEAD
 # Lock down certusone/yubihsm-go revision
-YUBIHSM_REV = 0299fd5d703d2a576125b414abbe172eaec9f65e
+YUBIHSM_REV = 892fb9b370f3cbb486fc1f53d4a1d89e9f552af0
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -75,7 +75,7 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
-E2E_TESTS_TIMEOUT = 35m
+E2E_TESTS_TIMEOUT = 37m
 
 .PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
