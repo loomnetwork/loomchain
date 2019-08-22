@@ -46,6 +46,9 @@ contract('SampleGoContract', async () => {
     });
 
     it('nested call from go contract', async () => {
+        const testEventValue = 31;
+        const chainTestEventValue = 63;
+
         const sampleGoContract = await new Contracts.SampleGoContract.createAsync(
             client,
             new Address(client.chainId, LocalAddress.fromPublicKey(publicKey))
@@ -53,7 +56,9 @@ contract('SampleGoContract', async () => {
 
         const goResult = await sampleGoContract.testNestedEvmCalls2Async(
             new Address(client.chainId, LocalAddress.fromHexString(testEventContract.address)),
-            new Address(client.chainId, LocalAddress.fromHexString(chainTestEventContract.address))
+            new Address(client.chainId, LocalAddress.fromHexString(chainTestEventContract.address)),
+            testEventValue,
+            chainTestEventValue,
         );
         const goContractLogs = await web3js.eth.getPastLogs({
             address: testEventContract.address,
@@ -61,21 +66,25 @@ contract('SampleGoContract', async () => {
 
         const receipt = await web3js.eth.getTransactionReceipt(goContractLogs[0].transactionHash);
         const logsFromGoContract = receipt.logs;
+
         assert.equal(2, logsFromGoContract.length, "number of logs from go contract");
 
-        const testEventResult = await testEventContract.sendEvent(65);
+        const testEventResult = await testEventContract.sendEvent(testEventValue);
         const testEventReceipt = await web3js.eth.getTransactionReceipt(testEventResult.receipt.transactionHash);
 
         const logsFromTestEvent = testEventReceipt.logs;
+
         assert.equal(1, logsFromTestEvent.length, "number of logs from TestEvent contract");
         assert.equal(2, logsFromTestEvent[0].topics.length, "number of topics" );
         assert.equal(logsFromGoContract[0].topics[0], logsFromTestEvent[0].topics[0], "function name topic");
+
         assert.equal(logsFromGoContract[0].topics[1], logsFromTestEvent[0].topics[1], "value topic");
 
-        const chainTestEventResult = await chainTestEventContract.chainEvent(33);
+        const chainTestEventResult = await chainTestEventContract.chainEvent(chainTestEventValue);
         const chainTestEventReceipt = await web3js.eth.getTransactionReceipt(chainTestEventResult.receipt.transactionHash);
 
         const logsFromChainTestEvent = chainTestEventReceipt.logs;
+
         assert.equal(1, logsFromChainTestEvent.length, "number of logs from ChainTestEvent contract");
         assert.equal(2, logsFromChainTestEvent[0].topics.length, "number of topics" );
         assert.equal(logsFromGoContract[1].topics[0], logsFromChainTestEvent[0].topics[0], "function name topic");

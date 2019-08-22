@@ -22,30 +22,30 @@ func (k *SampleGoContract) TestNestedEvmCalls(ctx contractpb.Context, req *types
 	if err != nil {
 		return nil
 	}
-	if err := testEventCall(ctx, testEventAddr); err != nil {
+	if err := testEventCall(ctx, testEventAddr, 65); err != nil {
 		return err
 	}
 	testChainEventAddr, err := ctx.Resolve("ChainTestEvent")
 	if err != nil {
 		return nil
 	}
-	if err := testChainEventCall(ctx, testChainEventAddr); err != nil {
+	if err := testChainEventCall(ctx, testChainEventAddr, 33); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (k *SampleGoContract) TestNestedEvmCalls2(ctx contractpb.Context, req *types.SampleGoContractNestedEvm2Request) error {
-	if err := testEventCall(ctx, loom.UnmarshalAddressPB(req.TestEvent)); err != nil {
+	if err := testEventCall(ctx, loom.UnmarshalAddressPB(req.TestEvent), req.TestEventValue); err != nil {
 		return err
 	}
-	if err := testChainEventCall(ctx, loom.UnmarshalAddressPB(req.ChainTestEvent)); err != nil {
+	if err := testChainEventCall(ctx, loom.UnmarshalAddressPB(req.ChainTestEvent), req.ChainTestEventValue); err != nil {
 		return err
 	}
 	return nil
 }
 
-func testEventCall(ctx contractpb.Context, testEventAddr loom.Address) error {
+func testEventCall(ctx contractpb.Context, testEventAddr loom.Address, value uint64) error {
 	abiEventData, err := abi.JSON(strings.NewReader(testEventAbi))
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func testEventCall(ctx contractpb.Context, testEventAddr loom.Address) error {
 	return nil
 }
 
-func testChainEventCall(ctx contractpb.Context, testChainEventAddr loom.Address) error {
+func testChainEventCall(ctx contractpb.Context, testChainEventAddr loom.Address, value uint64) error {
 	abiEventData, err := abi.JSON(strings.NewReader(chainTestEventAbi))
 	if err != nil {
 		return err
