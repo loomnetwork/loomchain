@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/feature"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 )
 
@@ -46,7 +47,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	version1_1 := state.FeatureEnabled(loomchain.DeployTxVersion1_1Feature, false)
+	version1_1 := state.FeatureEnabled(feature.DeployTxVersion1_1Feature, false)
 	if version1_1 && (tx.VmType == VMType_EVM) && (len(tx.Name) > 0) && !h.AllowNamedEVMContracts {
 		return r, errors.New("named evm contracts are not allowed")
 	}
