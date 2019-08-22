@@ -194,7 +194,7 @@ func verifyEd25519(tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 }
 
 func getAllowedSignatureTypes(state loomchain.State, chainID string) []evmcompat.SignatureType {
-	if !state.FeatureEnabled(loomchain.MultiChainSigTxMiddlewareVersion1_1, false) {
+	if !state.FeatureEnabled(feature.MultiChainSigTxMiddlewareVersion1_1, false) {
 		return []evmcompat.SignatureType{
 			evmcompat.SignatureType_EIP712,
 			evmcompat.SignatureType_GETH,

@@ -234,13 +234,13 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 func TestBinanceAddressMappingVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(feature.AddressMapperVersion1_1, true)
+	state.SetFeature(feature.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(feature.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	// FIXME: Having to set feature flags twice is pretty stupid... need to fix this state/ctx mess.
-	fakeCtx.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	fakeCtx.SetFeature(feature.AddressMapperVersion1_1, true)
+	state.SetFeature(feature.MultiChainSigTxMiddlewareVersion1_1, true)
 	fakeCtx.SetFeature(feature.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -303,13 +303,13 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 
 func TestChainIdVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(feature.AddressMapperVersion1_1, true)
+	state.SetFeature(feature.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(feature.AuthSigTxFeaturePrefix+"tron", true)
 	state.SetFeature(feature.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(feature.AddressMapperVersion1_1, true)
+	state.SetFeature(feature.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(feature.AuthSigTxFeaturePrefix+"tron", true)
 	state.SetFeature(feature.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
