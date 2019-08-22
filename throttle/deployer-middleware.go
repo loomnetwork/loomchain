@@ -9,6 +9,7 @@ import (
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/feature"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -32,7 +33,7 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
 	) error {
-		if !state.FeatureEnabled(loomchain.UserDeployerWhitelistFeature, false) {
+		if !state.FeatureEnabled(feature.UserDeployerWhitelistFeature, false) {
 			return next(state, txBytes, res)
 		}
 
@@ -75,7 +76,7 @@ func NewDeployerWhitelistMiddleware(
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 
-		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
+		if !state.FeatureEnabled(feature.DeployerWhitelistFeature, false) {
 			return next(state, txBytes, isCheckTx)
 		}
 
