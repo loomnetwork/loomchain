@@ -16,6 +16,7 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/feature"
 )
 
 var (
@@ -181,7 +182,7 @@ func TestChangeParams(t *testing.T) {
 	assert.Equal(t, stateResponse.State.Params.ElectionCycleLength, resp.TimeUntilElection)
 	assert.Equal(t, false, stateResponse.State.Params.JailOfflineValidators)
 
-	dposCtx.SetFeature(loomchain.DPOSVersion3_4, true)
+	dposCtx.SetFeature(feature.DPOSVersion3_4, true)
 	err = dposContract.EnableValidatorJailing(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &EnableValidatorJailingRequest{JailOfflineValidators: true})
 	require.NoError(t, err)
 
@@ -1504,7 +1505,7 @@ func TestReferrerRewards(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(validators), 1)
 
-	pctx.SetFeature(loomchain.DPOSVersion3_5, true)
+	pctx.SetFeature(feature.DPOSVersion3_5, true)
 	del1Name := "del1"
 	// Register two referrers
 	err = dpos.RegisterReferrer(pctx.WithSender(addr1), delegatorAddress1, "del1")
@@ -1587,7 +1588,7 @@ func TestRewardRoundingFix(t *testing.T) {
 
 	// Enable the feature flag which enables the reward rounding fix
 	dposCtx := pctx.WithAddress(dpos.Address)
-	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion3_1, false))
+	require.True(t, dposCtx.FeatureEnabled(feature.DPOSVersion3_1, false))
 
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 
@@ -2408,10 +2409,10 @@ func TestDowntimeFunctions(t *testing.T) {
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
 	var feats = []string{
-		loomchain.DPOSVersion3_1,
-		loomchain.DPOSVersion3_2,
-		loomchain.DPOSVersion3_3,
-		loomchain.DPOSVersion3_4,
+		feature.DPOSVersion3_1,
+		feature.DPOSVersion3_2,
+		feature.DPOSVersion3_3,
+		feature.DPOSVersion3_4,
 	}
 	for _, feat := range feats {
 		dposCtx.SetFeature(feat, true)
@@ -2516,9 +2517,9 @@ func TestDowntimeSlashing(t *testing.T) {
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
 	var feats = []string{
-		loomchain.DPOSVersion3_1,
-		loomchain.DPOSVersion3_2,
-		loomchain.DPOSVersion3_4,
+		feature.DPOSVersion3_1,
+		feature.DPOSVersion3_2,
+		feature.DPOSVersion3_4,
 	}
 	for _, feat := range feats {
 		dposCtx.SetFeature(feat, true)
@@ -2631,10 +2632,10 @@ func TestDowntimeSlashingWithZeroSlashingPercentage(t *testing.T) {
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
 	var feats = []string{
-		loomchain.DPOSVersion3_1,
-		loomchain.DPOSVersion3_2,
-		loomchain.DPOSVersion3_3,
-		loomchain.DPOSVersion3_4,
+		feature.DPOSVersion3_1,
+		feature.DPOSVersion3_2,
+		feature.DPOSVersion3_3,
+		feature.DPOSVersion3_4,
 	}
 	for _, feat := range feats {
 		dposCtx.SetFeature(feat, true)
@@ -2741,9 +2742,9 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dpos.Address)
 	var feats = []string{
-		loomchain.DPOSVersion3_1,
-		loomchain.DPOSVersion3_2,
-		loomchain.DPOSVersion3_4,
+		feature.DPOSVersion3_1,
+		feature.DPOSVersion3_2,
+		feature.DPOSVersion3_4,
 	}
 	for _, feat := range feats {
 		dposCtx.SetFeature(feat, true)
@@ -2869,7 +2870,7 @@ func TestComplexDowntimeSlashing(t *testing.T) {
 
 func TestJailOfflineValidators(t *testing.T) {
 	pctx := createCtx()
-	pctx.SetFeature(loomchain.DPOSVersion3_3, true)
+	pctx.SetFeature(feature.DPOSVersion3_3, true)
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
 	oracleAddr := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
@@ -3087,8 +3088,8 @@ func TestEnableValidatorJailing(t *testing.T) {
 	require.Nil(t, err)
 	require.False(t, statistic.Jailed)
 
-	pctx.SetFeature(loomchain.DPOSVersion3_3, true)
-	pctx.SetFeature(loomchain.DPOSVersion3_4, true)
+	pctx.SetFeature(feature.DPOSVersion3_3, true)
+	pctx.SetFeature(feature.DPOSVersion3_4, true)
 
 	err = dpos.Unjail(dposCtx.WithSender(addr1), nil)
 	require.Error(t, err)

@@ -190,7 +190,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Owner: contractOwner,
 			Features: []*cctypes.Feature{
 				&cctypes.Feature{
-					Name:   loomchain.DPOSVersion3_1,
+					Name:   feature.DPOSVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{

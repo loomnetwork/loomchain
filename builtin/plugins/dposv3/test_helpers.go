@@ -8,7 +8,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/feature"
 )
 
 type testDPOSContract struct {
@@ -31,7 +31,7 @@ func deployDPOSContract(
 	})
 
 	// Enable the feature flag which enables the reward rounding fix
-	dposCtx.SetFeature(loomchain.DPOSVersion3_1, true)
+	dposCtx.SetFeature(feature.DPOSVersion3_1, true)
 
 	return &testDPOSContract{
 		Contract: dposContract,

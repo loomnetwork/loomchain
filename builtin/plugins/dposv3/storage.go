@@ -13,7 +13,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/feature"
 )
 
 const (
@@ -411,7 +411,7 @@ func updateCandidateList(ctx contract.Context) error {
 	}
 
 	// Only save CandidateList when it gets updated
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
+	if ctx.FeatureEnabled(feature.DPOSVersion3_2, false) {
 		if !candidateUpdated {
 			return nil
 		}
@@ -455,7 +455,7 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func getReferrer(ctx contract.StaticContext, name string) *types.Address {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+	if ctx.FeatureEnabled(feature.DPOSVersion3_5, false) {
 		if len(strings.TrimSpace(name)) == 0 {
 			return nil
 		}
@@ -479,7 +479,7 @@ func deprecatedGetReferrer(ctx contract.StaticContext, name string) *types.Addre
 }
 
 func setReferrer(ctx contract.Context, name string, address *types.Address) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_5, false) {
+	if ctx.FeatureEnabled(feature.DPOSVersion3_5, false) {
 		if len(strings.TrimSpace(name)) == 0 {
 			return errors.New("invalid referrer name")
 		}
