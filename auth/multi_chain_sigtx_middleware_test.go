@@ -19,13 +19,14 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/vm"
+	"github.com/loomnetwork/loomchain"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -233,14 +234,14 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 func TestBinanceAddressMappingVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
+	state.SetFeature(features.AddressMapperVersion1_1, true)
+	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	// FIXME: Having to set feature flags twice is pretty stupid... need to fix this state/ctx mess.
-	fakeCtx.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
-	fakeCtx.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
+	fakeCtx.SetFeature(features.AddressMapperVersion1_1, true)
+	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	fakeCtx.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
@@ -302,15 +303,15 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 
 func TestChainIdVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
+	state.SetFeature(features.AddressMapperVersion1_1, true)
+	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	state.SetFeature(loomchain.AddressMapperVersion1_1, true)
-	state.SetFeature(loomchain.MultiChainSigTxMiddlewareVersion1_1, true)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"binance", true)
+	state.SetFeature(features.AddressMapperVersion1_1, true)
+	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 

@@ -13,7 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/features"
 
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
@@ -149,7 +149,7 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 
 // TODO is there a risk of this being called multiple times?
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -194,13 +194,13 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 // *********************
 
 func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate", "delegator", delegator, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -302,7 +302,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -374,13 +374,13 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 }
 
 func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate2", "delegator", delegator, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	// Ensure validator address is set properly in v2.1
 	if v2_1 {
@@ -481,7 +481,7 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -547,7 +547,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 
 func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationRequest) (*TotalDelegationResponse, error) {
 	ctx.Logger().Debug("DPOS TotalDelegation", "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("TotalDelegation called with req.DelegatorAddress == nil"), req.String())
@@ -574,7 +574,7 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDelegationsRequest) (*CheckAllDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOS CheckAllDelegations", "request", req)
 
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckAllDelegations called with req.DelegatorAddress == nil"), req.String())
 	}
@@ -604,7 +604,7 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 // **************************
 
 func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -652,7 +652,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 }
 
 func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -686,7 +686,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 }
 
 func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistAmountRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -717,7 +717,7 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 }
 
 func (c *DPOS) ChangeWhitelistLockTimeTier(ctx contract.Context, req *ChangeWhitelistLockTimeTierRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -749,13 +749,13 @@ func (c *DPOS) ChangeWhitelistLockTimeTier(ctx contract.Context, req *ChangeWhit
 }
 
 func (c *DPOS) RegisterCandidate2(ctx contract.Context, req *RegisterCandidateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RegisterCandidate", "candidate", candidateAddress, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -853,13 +853,13 @@ func (c *DPOS) RegisterCandidate2(ctx contract.Context, req *RegisterCandidateRe
 }
 
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RegisterCandidate", "candidate", candidateAddress, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -956,7 +956,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 }
 
 func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -983,7 +983,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 }
 
 func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInfoRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1016,13 +1016,13 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 // Leaving the validator set mid-election period results in a loss of rewards
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -1097,7 +1097,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 
 // electing and settling rewards settlement
 func Elect(ctx contract.Context) error {
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1568,13 +1568,13 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
-	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+	v2_1 := ctx.FeatureEnabled(features.DPOSVersion2_1, false)
 
 	// initialize delegation totals with whitelist amounts
 	for _, statistic := range *statistics {
 		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			amount := statistic.WhitelistAmount.Value
-			if ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false) {
+			if ctx.FeatureEnabled(features.DPOSVersion2_1, false) {
 				amount = calculateWeightedWhitelistAmount(*statistic)
 			}
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
@@ -1636,7 +1636,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return nil, logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1760,7 +1760,7 @@ func isRequestAlreadySeen(meta *BatchRequestMeta, currentTally *RequestBatchTall
 }
 
 func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1821,7 +1821,7 @@ loop:
 }
 
 func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1844,7 +1844,7 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 }
 
 func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1867,7 +1867,7 @@ func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardR
 }
 
 func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistrationRequirementRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1890,7 +1890,7 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 }
 
 func (c *DPOS) SetValidatorCount2(ctx contract.Context, req *SetValidatorCountRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1913,7 +1913,7 @@ func (c *DPOS) SetValidatorCount2(ctx contract.Context, req *SetValidatorCountRe
 }
 
 func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1934,7 +1934,7 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 }
 
 func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -1957,7 +1957,7 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 }
 
 func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return logDposError(ctx, errContractDisabled, req.String())
 	}
 
@@ -2120,7 +2120,7 @@ func (c *DPOS) emitDelegatorClaimsRewardsEvent(ctx contract.Context, delegator *
 // ***************************
 
 func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.InitializationState, error) {
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3Feature, false) {
 		return nil, logDposError(ctx, errContractDisabled, "DPOSv2 Dump called")
 	}
 

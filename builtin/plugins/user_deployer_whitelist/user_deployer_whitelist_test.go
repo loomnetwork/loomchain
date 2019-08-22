@@ -9,9 +9,9 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,16 +35,16 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	whitelistingfees := loom.NewBigUIntFromInt(int64(fee))
 	whitelistingfees = whitelistingfees.Mul(whitelistingfees, div)
 	tier := &udwtypes.TierInfo{
-		TierID: udwtypes.TierID_DEFAULT,
-		Fee:    fee,
-		Name:   "Tier1",
+		TierID:     udwtypes.TierID_DEFAULT,
+		Fee:        fee,
+		Name:       "Tier1",
 		BlockRange: 10,
 		MaxTxs:     20,
 	}
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)
 	pctx := createCtx()
-	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	pctx.SetFeature(features.CoinVersion1_1Feature, true)
 	deployContract := &deployer_whitelist.DeployerWhitelist{}
 	deployerAddr := pctx.CreateContract(deployer_whitelist.Contract)
 	dctx := pctx.WithAddress(deployerAddr)
