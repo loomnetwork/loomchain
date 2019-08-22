@@ -29,7 +29,7 @@ var (
 	// This is the same key as rootKey in evm/loomevm.go.
 	rootKey = []byte("vmroot")
 	// Using the same featurePrefix as in app.go, and the same features.EvmDBFeature name as in features.go
-	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte(features.EvmDBFeature))
+	EvmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte(features.EvmDBFeature))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
 	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte(features.AppStoreVersion3_1))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_2 name as in features.go
@@ -115,7 +115,7 @@ func NewMultiWriterAppStore(
 
 	// feature flag overrides SaveEVMStateToIAVL
 	if !store.onlySaveEvmStateToEvmStore {
-		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
+		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(EvmDBFeatureKey), []byte{1})
 	}
 
 	store.evmStateDeleted = len(store.appStore.RangeWithLimit(vmPrefix, 1)) == 0
@@ -150,7 +150,7 @@ func (s *MultiWriterAppStore) Delete(key []byte) {
 }
 
 func (s *MultiWriterAppStore) Set(key, val []byte) {
-	if !s.onlySaveEvmStateToEvmStore && bytes.Equal(key, evmDBFeatureKey) {
+	if !s.onlySaveEvmStateToEvmStore && bytes.Equal(key, EvmDBFeatureKey) {
 		s.onlySaveEvmStateToEvmStore = bytes.Equal(val, []byte{1})
 	}
 	if util.HasPrefix(key, vmPrefix) {
