@@ -7,6 +7,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
+	"github.com/loomnetwork/loomchain/feature"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
@@ -66,7 +67,7 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 
 // UpdateConfig applies pending config changes to the on-chain config.
 func (c *ChainConfigManager) UpdateConfig() error {
-	if !c.state.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+	if !c.state.FeatureEnabled(feature.ChainCfgVersion1_3, false) {
 		return nil
 	}
 

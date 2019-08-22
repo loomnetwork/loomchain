@@ -11,7 +11,6 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/feature"
 	"github.com/loomnetwork/loomchain/registry"
@@ -431,7 +430,7 @@ func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) e
 		return ErrInvalidRequest
 	}
 
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
+	if !ctx.FeatureEnabled(feature.ChainCfgVersion1_3, false) {
 		return ErrFeatureNotEnabled
 	}
 
@@ -511,7 +510,7 @@ func getCurrentValidatorsFromDPOS(ctx contract.StaticContext) ([]loom.Address, e
 }
 
 func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_1, false) {
+	if !ctx.FeatureEnabled(feature.ChainCfgVersion1_1, false) {
 		return getCurrentValidatorsFromDPOS(ctx)
 	}
 
@@ -682,7 +681,7 @@ func (c *ChainConfig) SetValidatorInfo(ctx contract.Context, req *SetValidatorIn
 	if req.BuildNumber == 0 {
 		return ErrInvalidRequest
 	}
-	if !ctx.FeatureEnabled(loomchain.ChainCfgVersion1_2, false) {
+	if !ctx.FeatureEnabled(feature.ChainCfgVersion1_2, false) {
 		return ErrFeatureNotEnabled
 	}
 	senderAddr := ctx.Message().Sender

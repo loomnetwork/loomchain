@@ -194,15 +194,15 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.ChainCfgVersion1_1,
+					Name:   feature.ChainCfgVersion1_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.ChainCfgVersion1_2,
+					Name:   feature.ChainCfgVersion1_2,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.ChainCfgVersion1_3,
+					Name:   feature.ChainCfgVersion1_3,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
