@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/feature"
 )
 
 // NewChainConfigMiddleware returns middleware that verifies signed txs using either
@@ -35,7 +36,7 @@ func NewChainConfigMiddleware(
 func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[string]ChainConfig {
 	enabledChains := map[string]ChainConfig{}
 	for chainID, config := range chains {
-		if state.FeatureEnabled(loomchain.AuthSigTxFeaturePrefix+chainID, false) {
+		if state.FeatureEnabled(feature.AuthSigTxFeaturePrefix+chainID, false) {
 			enabledChains[chainID] = config
 		}
 	}

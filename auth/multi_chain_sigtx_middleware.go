@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/feature"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 )
@@ -205,11 +206,11 @@ func getAllowedSignatureTypes(state loomchain.State, chainID string) []evmcompat
 	// TODO: chain <-> sig type associations should be in the loom.yml, not hard-coded here
 	switch chainID {
 	case "tron":
-		if state.FeatureEnabled(loomchain.AuthSigTxFeaturePrefix+"tron", false) {
+		if state.FeatureEnabled(feature.AuthSigTxFeaturePrefix+"tron", false) {
 			return []evmcompat.SignatureType{evmcompat.SignatureType_TRON}
 		}
 	case "binance":
-		if state.FeatureEnabled(loomchain.AuthSigTxFeaturePrefix+"binance", false) {
+		if state.FeatureEnabled(feature.AuthSigTxFeaturePrefix+"binance", false) {
 			return []evmcompat.SignatureType{evmcompat.SignatureType_BINANCE}
 		}
 	default:

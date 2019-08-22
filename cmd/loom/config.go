@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/feature"
 	"github.com/loomnetwork/loomchain/plugin"
 )
 
@@ -217,7 +218,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
+					Name:   feature.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
