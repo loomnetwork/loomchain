@@ -832,6 +832,7 @@ func loadApp(
 		CreateRegistry: createRegistry,
 		Migrations: map[int32]tx_handler.MigrationFunc{
 			1: migrations.DPOSv3Migration,
+			2: migrations.GatewayMigration,
 		},
 	}
 
