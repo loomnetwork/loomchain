@@ -50,7 +50,7 @@ func testEventCall(ctx contractpb.Context, testEventAddr loom.Address, value uin
 	if err != nil {
 		return err
 	}
-	input, err := abiEventData.Pack("sendEvent", big.NewInt(65))
+	input, err := abiEventData.Pack("sendEvent", big.NewInt(int64(value)))
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func testChainEventCall(ctx contractpb.Context, testChainEventAddr loom.Address,
 	if err != nil {
 		return err
 	}
-	input, err := abiEventData.Pack("chainEvent", big.NewInt(33))
+	input, err := abiEventData.Pack("chainEvent", big.NewInt(int64(value)))
 	if err != nil {
 		return err
 	}
