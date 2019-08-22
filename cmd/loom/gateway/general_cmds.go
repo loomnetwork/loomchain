@@ -36,9 +36,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const GatewayName = "gateway"
-const LoomGatewayName = "loomcoin-gateway"
-const BinanceGatewayName = "binance-gateway"
+const (
+	GatewayName        = "gateway"
+	LoomGatewayName    = "loomcoin-gateway"
+	BinanceGatewayName = "binance-gateway"
+	TronGatewayName    = "tron-gateway"
+)
 
 const getOraclesCmdExample = `
 ./loom gateway get-oracles gateway --key path/to/loom_priv.key
@@ -67,6 +70,10 @@ const withdrawFundsCmdExample = `
 
 const setWithdrawFeeCmdExample = `
 ./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
+`
+
+const updateMainnetAddressCmdExample = `
+./loom gateway update-mainnet-address <mainnet-hex-address> gateway --key path/to/loom_priv.key
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
@@ -642,6 +649,73 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 				return err
 			}
 			return nil
+		},
+	}
+	return cmd
+}
+
+func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update-mainnet-address <mainnet-address> <gateway-name>",
+		Short:   "Update mainnet gateway address. Only callable by current gateway owner",
+		Example: updateMainnetAddressCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var hexAddr string
+			var name string
+			var foreignChainId string
+
+			if len(args) <= 1 || strings.EqualFold(args[1], GatewayName) {
+				name = GatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], LoomGatewayName) {
+				name = LoomGatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], BinanceGatewayName) {
+				name = BinanceGatewayName
+				foreignChainId = "binance"
+			} else if strings.EqualFold(args[1], TronGatewayName) {
+				name = TronGatewayName
+				foreignChainId = "tron"
+			} else {
+				return errors.New("invalid gateway name")
+			}
+
+			if !common.IsHexAddress(args[0]) {
+				hexAddr, err = binanceAddressToHexAddress(args[0])
+				if err != nil {
+					return errors.Wrap(err, "invalid gateway address")
+				}
+			} else {
+				hexAddr = args[0]
+			}
+
+			mainnetAddress, err := loom.ParseAddress(foreignChainId + ":" + hexAddr)
+			if err != nil {
+				return errors.Wrap(err, "invalid gateway address")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayUpdateMainnetGatewayRequest{
+				MainnetGatewayAddress: mainnetAddress.MarshalPB(),
+			}
+
+			_, err = gateway.Call("UpdateMainnetGatewayAddress", req, signer, nil)
+			return err
 		},
 	}
 	return cmd
