@@ -34,7 +34,7 @@ var (
 func TestContractTxLimiterMiddleware(t *testing.T) {
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	fakeCtx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	fakeCtx.SetFeature(feature.CoinVersion1_1Feature, true)
 	fakeCtx.SetFeature(feature.UserDeployerWhitelistVersion1_1Feature, true)
 	udwAddr := fakeCtx.CreateContract(udw.Contract)
 	udwContext := fakeCtx.WithAddress(udwAddr)
