@@ -202,9 +202,6 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)
-	if chainCfgVersion1_4 {
-		s.config = cfg
-	}
 	return nil
 }
 
