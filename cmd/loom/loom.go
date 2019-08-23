@@ -273,7 +273,7 @@ func newInitCommand() *cobra.Command {
 func newResetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset",
-		Short: "Reset the app evm and blockchain state only",
+		Short: "Reset the app, evm and blockchain state only",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := common.ParseConfig()
 			if err != nil {
