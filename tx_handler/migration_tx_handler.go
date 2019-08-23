@@ -1,4 +1,3 @@
-
 package tx_handler
 
 import (
@@ -92,7 +91,11 @@ func (h *MigrationTxHandler) ProcessTx(
 		return r, errors.Wrapf(err, "migration %d failed", int32(tx.ID))
 	}
 
-	state.Set(migrationKey(tx.ID), []byte{1})
+	if state.FeatureEnabled(loomchain.MigrationTxVersion1_1Feature, false) {
+		state.Set(migrationKey(tx.ID), []byte{1})
+	} else {
+		state.Set(migrationKey(tx.ID), msg.Data)
+	}
 
 	return r, nil
 }
