@@ -21,11 +21,6 @@ var (
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-type Param struct {
-	name string
-	age  int
-}
-
 func TestMigrationTxHandler(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(loomchain.MigrationTxFeature, true)
