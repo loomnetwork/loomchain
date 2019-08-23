@@ -228,6 +228,10 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Name:   feature.EvmConstantinopleFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
+				&cctypes.Feature{
+					Name:   loomchain.IncrementNonceOnFailedTxFeature,
+					Status: chainconfig.FeatureWaiting,
+				},
 			},
 		}
 
