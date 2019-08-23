@@ -8,7 +8,6 @@ import (
 )
 
 func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
-
 	gatewayCtx, err := ctx.ContractContext("gateway")
 	if err != nil {
 		return err
@@ -19,6 +18,7 @@ func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
 	if err != nil {
 		return err
 	}
+
 	gateway.SwitchMainnetGateway(gatewayCtx, gwMigrationRequest)
 	return nil
 }
