@@ -24,7 +24,10 @@ import (
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
-const EVMEnabled = true
+const (
+	EVMEnabled      = true
+	defaultGasLimit = math.MaxUint64
+)
 
 //Metrics
 var (
@@ -146,7 +149,12 @@ type Evm struct {
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
-	p.gasLimit = lstate.Config().GetEvm().GasLimit
+	if lstate.Config().GetEvm() != nil {
+		p.gasLimit = lstate.Config().GetEvm().GasLimit
+	} else {
+		p.gasLimit = defaultGasLimit
+	}
+
 	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(loomchain.EvmConstantinopleFeature, false))
 
 	p.vmConfig = defaultVmConfig(debug)
