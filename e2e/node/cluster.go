@@ -178,6 +178,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 		if err != nil {
 			return err
 		}
+
 		for _, contract := range genesis.Contracts {
 			if contract.Name == "dposV2" {
 				var init dtypes.DPOSInitRequestV2
@@ -405,6 +406,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 
 		newGenesis := &genesis{
 			Contracts: newContracts,
+			Config:    gens.Config,
 		}
 
 		err = writeGenesis(newGenesis, path.Join(node.Dir, "genesis.json"))
@@ -466,6 +468,7 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 
 	newGenesis := &genesis{
 		Contracts: newContracts,
+		Config:    gens.Config,
 	}
 
 	err = writeGenesis(newGenesis, outfile)

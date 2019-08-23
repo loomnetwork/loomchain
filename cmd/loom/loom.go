@@ -76,6 +76,7 @@ import (
 
 var (
 	appHeightKey = []byte("appheight")
+	configKey    = []byte("config")
 )
 
 var RootCmd = &cobra.Command{
@@ -842,6 +843,13 @@ func loadApp(
 
 	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
+		// init config
+		configBytes, err := proto.Marshal(&gen.Config)
+		if err != nil {
+			return err
+		}
+		state.Set(configKey, configBytes)
+
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {

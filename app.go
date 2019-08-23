@@ -179,7 +179,13 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // If an error occurs while trying to update the config the change is rolled back, if the rollback
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
-	cfg := s.Config()
+	chainCfgVersion1_4 := s.FeatureEnabled(ChainCfgVersion1_4, false)
+	var cfg *cctypes.Config
+	if chainCfgVersion1_4 {
+		cfg = loadOnChainConfig(s.store, chainCfgVersion1_4)
+	} else {
+		cfg = s.Config()
+	}
 	backupConfigBytes, err := proto.Marshal(cfg)
 	if err != nil {
 		return err
@@ -196,13 +202,16 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)
+	if chainCfgVersion1_4 {
+		s.config = cfg
+	}
 	return nil
 }
 
 // Config returns the current on-chain config.
 func (s *StoreState) Config() *cctypes.Config {
 	if s.config == nil {
-		s.config = loadOnChainConfig(s.store)
+		s.config = loadOnChainConfig(s.store, s.FeatureEnabled(ChainCfgVersion1_4, false))
 	}
 	return s.config
 }
@@ -450,6 +459,9 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 			panic(err)
 		}
 	}
+	// load on-chain config
+	a.config = loadOnChainConfig(state, state.FeatureEnabled(ChainCfgVersion1_4, false))
+
 	return abci.ResponseInitChain{}
 }
 
@@ -464,9 +476,17 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
+	state := NewStoreState(
+		context.Background(),
+		a.Store,
+		a.curBlockHeader,
+		nil,
+		a.GetValidatorSet,
+	)
+
 	// Load the config once, when the node starts up.
 	if a.config == nil {
-		a.config = loadOnChainConfig(a.Store)
+		a.config = loadOnChainConfig(a.Store, state.FeatureEnabled(ChainCfgVersion1_4, false))
 	}
 
 	a.curBlockHeader = block
@@ -494,7 +514,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
+	state = NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -760,11 +780,17 @@ func (a *Application) ReadOnlyState() State {
 	)
 }
 
-func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
+func loadOnChainConfig(kvStore store.KVReader, chainCfgVersion1_4 bool) *cctypes.Config {
 	configBytes := kvStore.Get([]byte(configKey))
 	cfg := config.DefaultConfig()
 	if len(configBytes) > 0 {
-		if err := proto.Unmarshal(configBytes, cfg); err != nil {
+		var err error
+		if chainCfgVersion1_4 {
+			err = proto.Unmarshal(configBytes, cfg)
+		} else {
+			err = proto.UnmarshalMerge(configBytes, cfg)
+		}
+		if err != nil {
 			panic(err)
 		}
 	}
