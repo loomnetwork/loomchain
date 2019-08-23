@@ -3,15 +3,15 @@ package features
 // List of feature flags
 const (
 	// Enables deduping of Mainnet events in the Gateway contract by tx hash.
-	TGCheckTxHashFeature = "tg:check-txhash"
+	TGCheckTxHashFeature = "tg:check-txhash" //done
 	// Enables hot wallet (users can submit Ethereum deposit tx hashes).
-	TGHotWalletFeature = "tg:hot-wallet"
+	TGHotWalletFeature = "tg:hot-wallet" //done
 	// Enables prevention of zero amount token withdrawals in the Gateway contract
-	TGCheckZeroAmount = "tg:check-zamt"
+	TGCheckZeroAmount = "tg:check-zamt" //done
 	// Enables workaround for handling of ERC721 deposits in the Gateway contract
-	TGFixERC721Feature = "tg:fix-erc721"
+	TGFixERC721Feature = "tg:fix-erc721" //done
 	// Enables support for Binance contract mappings in the Binance Gateway contract
-	TGBinanceContractMappingFeature = "tg:binance-cm"
+	TGBinanceContractMappingFeature = "tg:binance-cm" //done
 	// Store Mainnet Gateway address in Gateway Go contract
 	TGVersion1_1 = "tg:v1.1"
 

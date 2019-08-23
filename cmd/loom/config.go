@@ -17,7 +17,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
-	"github.com/loomnetwork/loomchain/feature"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/plugin"
 )
@@ -222,7 +221,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.CheckTxValueFeature,
+					Name:   features.CheckTxValueFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
