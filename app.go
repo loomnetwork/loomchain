@@ -783,9 +783,9 @@ func loadOnChainConfig(kvStore store.KVReader, chainCfgVersion1_4 bool) *cctypes
 	if len(configBytes) > 0 {
 		var err error
 		if chainCfgVersion1_4 {
-			err = proto.Unmarshal(configBytes, cfg)
-		} else {
 			err = proto.UnmarshalMerge(configBytes, cfg)
+		} else {
+			err = proto.Unmarshal(configBytes, cfg)
 		}
 		if err != nil {
 			panic(err)
