@@ -11,7 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +44,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	tierList := []*udwtypes.TierInfo{}
 	tierList = append(tierList, tier)
 	pctx := createCtx()
-	pctx.SetFeature(feature.CoinVersion1_1Feature, true)
+	pctx.SetFeature(features.CoinVersion1_1Feature, true)
 	deployContract := &deployer_whitelist.DeployerWhitelist{}
 	deployerAddr := pctx.CreateContract(deployer_whitelist.Contract)
 	dctx := pctx.WithAddress(deployerAddr)

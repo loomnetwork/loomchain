@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/plugin"
 )
 
@@ -189,35 +190,35 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Owner: contractOwner,
 			Features: []*cctypes.Feature{
 				&cctypes.Feature{
-					Name:   feature.DPOSVersion3_1,
+					Name:   features.DPOSVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.ChainCfgVersion1_1,
+					Name:   features.ChainCfgVersion1_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.ChainCfgVersion1_2,
+					Name:   features.ChainCfgVersion1_2,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.ChainCfgVersion1_3,
+					Name:   features.ChainCfgVersion1_3,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.EvmTxReceiptsVersion2Feature,
+					Name:   features.EvmTxReceiptsVersion2Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.CoinVersion1_1Feature,
+					Name:   features.CoinVersion1_1Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.AppStoreVersion3_1,
+					Name:   features.AppStoreVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.AuthSigTxFeaturePrefix + "eth",
+					Name:   features.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
@@ -225,11 +226,11 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.EvmConstantinopleFeature,
+					Name:   features.EvmConstantinopleFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   feature.IncrementNonceOnFailedTxFeature,
+					Name:   features.IncrementNonceOnFailedTxFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 			},

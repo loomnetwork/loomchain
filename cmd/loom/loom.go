@@ -35,7 +35,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -980,7 +980,7 @@ func loadApp(
 	}
 
 	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
-		if cfg.DPOSVersion == 3 || state.FeatureEnabled(feature.DPOSVersion3Feature, false) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
 			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
 			dposV3Ctx, err := createDPOSV3Ctx(state)
 			if err != nil {
@@ -1026,7 +1026,7 @@ func loadApp(
 			return nil, err
 		}
 		// DPOSv3 can only be enabled via feature flag or if it's enabled via the loom.yml
-		if cfg.DPOSVersion == 3 || state.FeatureEnabled(feature.DPOSVersion3Feature, false) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {
 			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))

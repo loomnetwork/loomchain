@@ -1,4 +1,4 @@
-package feature
+package features
 
 // List of feature flags
 const (
@@ -16,84 +16,84 @@ const (
 	TGVersion1_1 = "tg:v1.1"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
-	AddressMapperVersion1_1 = "addrmapper:v1.1"
+	AddressMapperVersion1_1 = "addrmapper:v1.1" //done
 
 	// Enables processing of txs via MultiChainSignatureTxMiddleware, there's a feature flag per
 	// allowed chain ID, e.g. auth:sigtx:default, auth:sigtx:eth
-	AuthSigTxFeaturePrefix = "auth:sigtx:"
+	AuthSigTxFeaturePrefix = "auth:sigtx:" //done
 
 	// Enables stricter chain-specific signature verification in MultiChainSignatureTxMiddleware
-	MultiChainSigTxMiddlewareVersion1_1 = "mw:mulcsigtx:v1.1"
+	MultiChainSigTxMiddlewareVersion1_1 = "mw:mulcsigtx:v1.1" //done
 
 	// Enables DPOS v3
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
-	DPOSVersion3Feature = "dpos:v3"
+	DPOSVersion3Feature = "dpos:v3" //done
 	// Enables precise rewards calculations in DPOSv3
-	DPOSVersion3_1 = "dpos:v3.1"
+	DPOSVersion3_1 = "dpos:v3.1" //done
 	// Enables slashing metrics
-	DPOSVersion3_2 = "dpos:v3.2"
+	DPOSVersion3_2 = "dpos:v3.2" //done
 	// Enables jailing offline validators
-	DPOSVersion3_3 = "dpos:v3.3"
+	DPOSVersion3_3 = "dpos:v3.3" //done
 	// Enables both downtime slashing and a parameter flag to toggle jailing offline validators on/off
-	DPOSVersion3_4 = "dpos:v3.4"
+	DPOSVersion3_4 = "dpos:v3.4" //done
 	// Fixes prefixing of referrer keys so that ListReferrers method works
-	DPOSVersion3_5 = "dpos:v3.5"
+	DPOSVersion3_5 = "dpos:v3.5" //done
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
-	DPOSVersion2_1 = "dpos:v2.1"
+	DPOSVersion2_1 = "dpos:v2.1" //done
 
 	// Enables EVM tx receipts storage in separate DB.
-	EvmTxReceiptsVersion2Feature = "receipts:v2"
+	EvmTxReceiptsVersion2Feature = "receipts:v2" //done
 
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
-	DeployerWhitelistFeature = "mw:deploy-wl"
+	DeployerWhitelistFeature = "mw:deploy-wl" //done
 
 	// Enables post commit middleware for user-deployer-whitelist
-	UserDeployerWhitelistFeature = "mw:userdeploy-wl"
+	UserDeployerWhitelistFeature = "mw:userdeploy-wl" //done
 
 	// Enables block range & max txs fields in tier info stored in User Deployer Whitelist contract
-	UserDeployerWhitelistVersion1_1Feature = "userdeploy-wl:v1.1"
+	UserDeployerWhitelistVersion1_1Feature = "userdeploy-wl:v1.1" //done
 
 	// Makes UserDeployerWhitelist.RemoveUserDeployer mark deployer accounts as inactive instead of
 	// deleting them.
-	UserDeployerWhitelistVersion1_2Feature = "userdeploy-wl:v1.2"
+	UserDeployerWhitelistVersion1_2Feature = "userdeploy-wl:v1.2" //done
 
 	// Enables processing of MigrationTx.
-	MigrationTxFeature = "tx:migration"
+	MigrationTxFeature = "tx:migration" //done
 
 	// Enables specific migrations, each migration has an ID that's prefixed by this string.
-	MigrationFeaturePrefix = "migration:"
+	MigrationFeaturePrefix = "migration:" //done
 
 	// Enables usage of ctx.Validators() in ChainConfig contract.
-	ChainCfgVersion1_1 = "chaincfg:v1.1"
+	ChainCfgVersion1_1 = "chaincfg:v1.1" //done
 
 	// Enables validator build number tracking via the ChainConfig contract.
-	ChainCfgVersion1_2 = "chaincfg:v1.2"
+	ChainCfgVersion1_2 = "chaincfg:v1.2" //done
 
 	// Enables config setting in the ChainConfig contract.
-	ChainCfgVersion1_3 = "chaincfg:v1.3"
+	ChainCfgVersion1_3 = "chaincfg:v1.3" //done
 
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
-	EvmDBFeature = "db:evm"
+	EvmDBFeature = "db:evm" //done -1
 
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
-	CoinVersion1_1Feature = "coin:v1.1"
+	CoinVersion1_1Feature = "coin:v1.1" //done
 
 	// Enables Coin v1.2 to validate fields in request of Coin and ETH Coin contract
-	CoinVersion1_2Feature = "coin:v1.2"
+	CoinVersion1_2Feature = "coin:v1.2" //done
 
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
 	// This feature has been deprecated along with legacy code.
 	AuxEvmDBFeature = "db:auxevm"
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
-	AppStoreVersion3_1 = "appstore:v3.1"
+	AppStoreVersion3_1 = "appstore:v3.1" //done
 
 	// Enable option to allow checking the registry error
-	DeployTxVersion1_1Feature = "deploytx:v1.1"
+	DeployTxVersion1_1Feature = "deploytx:v1.1" //done
 
 	// Restrict the value of call & deploy txs to non-negative amounts
 	CheckTxValueFeature = "tx:check-value"

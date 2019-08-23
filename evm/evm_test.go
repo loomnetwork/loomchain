@@ -18,7 +18,7 @@ import (
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -186,7 +186,7 @@ func testValue(t *testing.T, state loomchain.State, vm lvm.VM, caller loom.Addre
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
 
-	state.SetFeature(feature.CheckTxValueFeature, checkTxValueFeature)
+	state.SetFeature(features.CheckTxValueFeature, checkTxValueFeature)
 	_, _, err = vm.Create(caller, bytecode, loom.NewBigUIntFromInt(value))
 	if checkTxValueFeature && value < 0 {
 		require.Error(t, err)

@@ -13,7 +13,7 @@ import (
 	goloomvm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/migrations"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
@@ -50,7 +50,7 @@ func (h *MigrationTxHandler) ProcessTx(
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
-	if !state.FeatureEnabled(feature.MigrationTxFeature, false) {
+	if !state.FeatureEnabled(features.MigrationTxFeature, false) {
 		return r, fmt.Errorf("MigrationTx feature hasn't been enabled")
 	}
 
@@ -79,8 +79,8 @@ func (h *MigrationTxHandler) ProcessTx(
 	}
 
 	id := fmt.Sprint(tx.ID)
-	if !state.FeatureEnabled(feature.MigrationFeaturePrefix+id, false) {
-		return r, fmt.Errorf("feature %s is not enabled", feature.MigrationFeaturePrefix+id)
+	if !state.FeatureEnabled(features.MigrationFeaturePrefix+id, false) {
+		return r, fmt.Errorf("feature %s is not enabled", features.MigrationFeaturePrefix+id)
 	}
 
 	migrationFn := h.Migrations[int32(tx.ID)]

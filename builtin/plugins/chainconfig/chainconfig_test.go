@@ -15,7 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -187,7 +187,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		BuildNumber: 101,
 	})
 	require.Equal(ErrFeatureNotEnabled, err)
-	pctx.SetFeature(feature.ChainCfgVersion1_2, true)
+	pctx.SetFeature(features.ChainCfgVersion1_2, true)
 	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
 		BuildNumber: 0,
 	})
@@ -290,7 +290,7 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	})
 	require.Equal(ErrNotAuthorized, err)
 
-	pctx.SetFeature(feature.ChainCfgVersion1_2, true)
+	pctx.SetFeature(features.ChainCfgVersion1_2, true)
 	err = chainconfigContract.SetValidatorInfo(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetValidatorInfoRequest{
 		BuildNumber: 1000,
 	})
@@ -438,7 +438,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		BuildNumber: buildNumber,
 	})
 	require.Error(ErrFeatureNotEnabled, err)
-	pctx.SetFeature(feature.ChainCfgVersion1_2, true)
+	pctx.SetFeature(features.ChainCfgVersion1_2, true)
 	err = chainconfigContract.SetValidatorInfo(ctx, &SetValidatorInfoRequest{
 		BuildNumber: 0,
 	})
@@ -586,7 +586,7 @@ func (c *ChainConfigTestSuite) TestCfgSettingFourValidators() {
 	addr3 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_3)}
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
-	pctx.SetFeature(feature.ChainCfgVersion1_3, true)
+	pctx.SetFeature(features.ChainCfgVersion1_3, true)
 	validators := []*loom.Validator{
 		&loom.Validator{
 			PubKey: pubKeyB64_1,

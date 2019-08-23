@@ -16,7 +16,7 @@ import (
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -50,10 +50,10 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(feature.AuthSigTxFeaturePrefix+"default", true)
-	state.SetFeature(feature.AuthSigTxFeaturePrefix+"eth", true)
-	state.SetFeature(feature.AuthSigTxFeaturePrefix+"tron", true)
-	state.SetFeature(feature.AuthSigTxFeaturePrefix+"binance", true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"default", true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"eth", true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))

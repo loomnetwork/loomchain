@@ -14,7 +14,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -119,7 +119,7 @@ func (n *NonceHandler) Nonce(
 		//clear the cache for each block
 	}
 	var seq uint64
-	if state.FeatureEnabled(feature.IncrementNonceOnFailedTxFeature, false) && !isCheckTx {
+	if state.FeatureEnabled(features.IncrementNonceOnFailedTxFeature, false) && !isCheckTx {
 		// Unconditionally increment the nonce in DeliverTx, regardless of whether the tx succeeds
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
 	} else {

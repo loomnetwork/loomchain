@@ -11,7 +11,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 
 	errUtil "github.com/pkg/errors"
 )
@@ -108,7 +108,7 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 
 // MintToGateway adds loom coins to the loom coin Gateway contract balance, and updates the total supply.
 func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
-	if ctx.FeatureEnabled(feature.CoinVersion1_2Feature, false) && req.Amount == nil {
+	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) && req.Amount == nil {
 		return ErrInvalidRequest
 	}
 	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
@@ -251,10 +251,10 @@ func (c *Coin) BalanceOf(
 }
 
 func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
-	if ctx.FeatureEnabled(feature.CoinVersion1_2Feature, false) && (req.To == nil || req.Amount == nil) {
+	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) && (req.To == nil || req.Amount == nil) {
 		return ErrInvalidRequest
 	}
-	if ctx.FeatureEnabled(feature.CoinVersion1_1Feature, false) {
+	if ctx.FeatureEnabled(features.CoinVersion1_1Feature, false) {
 		return c.transfer(ctx, req)
 	}
 	return c.legacyTransfer(ctx, req)
@@ -301,7 +301,7 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 }
 
 func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
-	if ctx.FeatureEnabled(feature.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Amount == nil) {
+	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) && (req.Spender == nil || req.Amount == nil) {
 		return ErrInvalidRequest
 	}
 
@@ -348,12 +348,12 @@ func (c *Coin) Allowance(
 }
 
 func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
-	if ctx.FeatureEnabled(feature.CoinVersion1_2Feature, false) {
+	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) {
 		if req.Amount == nil || req.From == nil || req.To == nil {
 			return ErrInvalidRequest
 		}
 	}
-	if ctx.FeatureEnabled(feature.CoinVersion1_1Feature, false) {
+	if ctx.FeatureEnabled(features.CoinVersion1_1Feature, false) {
 		return c.transferFrom(ctx, req)
 	}
 

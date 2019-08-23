@@ -7,7 +7,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
-	"github.com/loomnetwork/loomchain/feature"
+	"github.com/loomnetwork/loomchain/features"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
@@ -45,7 +45,7 @@ func (m *ValidatorsManagerV3) BeginBlock(req abci.RequestBeginBlock, currentHeig
 		return err
 	}
 
-	downtimeTrackingEnabled := m.ctx.FeatureEnabled(feature.DPOSVersion3_2, false)
+	downtimeTrackingEnabled := m.ctx.FeatureEnabled(features.DPOSVersion3_2, false)
 
 	if downtimeTrackingEnabled {
 		if err := dposv3.ShiftDowntimeWindow(m.ctx, currentHeight, candidates); err != nil {
