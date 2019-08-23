@@ -77,7 +77,7 @@ const (
 
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
-	EvmDBFeature = "db:evm" - 1
+	EvmDBFeature = "db:evm"
 
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
