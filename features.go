@@ -14,6 +14,9 @@ const (
 	TGBinanceContractMappingFeature = "tg:binance-cm"
 	// Store Mainnet Gateway address in Gateway Go contract
 	TGVersion1_1 = "tg:v1.1"
+	// Enable prevention of invalid token owner chain id in withdrawal receipt
+	TGFixWithdrawerChainId = "tg:check-chain-id"
+
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
