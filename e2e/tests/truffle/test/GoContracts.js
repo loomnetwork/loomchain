@@ -15,7 +15,6 @@ contract('SampleGoContract', async () => {
     const privateKey = CryptoUtils.generatePrivateKey();
     const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey);
     let client, web3js;
-    let testEventContract, chainTestEventContract;
 
     beforeEach(async () => {
         const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim();
@@ -36,16 +35,13 @@ contract('SampleGoContract', async () => {
         let loomProvider = new LoomProvider(client, privateKey, setupMiddlewareFn);
         client.txMiddleware = setupMiddlewareFn(client, privateKey);
 
-
         web3js = new Web3(new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`));
-
-        let web3 = new Web3(loomProvider);
-        testEventContract = await TestEvent.deployed();
-        chainTestEventContract = await ChainTestEvent.deployed();
-
     });
 
     it('nested call from go contract', async () => {
+        let testEventContract = await TestEvent.deployed();
+        let chainTestEventContract = await ChainTestEvent.deployed();
+
         const testEventValue = 31;
         const chainTestEventValue = 63;
 
@@ -68,10 +64,11 @@ contract('SampleGoContract', async () => {
         const logsFromGoContract = receipt.logs;
 
         assert.equal(2, logsFromGoContract.length, "number of logs from go contract");
+        assert.equal(logsFromGoContract[0].topics[1], web3.utils.padLeft(testEventValue, 64), "check event value");
+        assert.equal(logsFromGoContract[1].topics[1], web3.utils.padLeft(chainTestEventValue, 64), "check event value");
 
         const testEventResult = await testEventContract.sendEvent(testEventValue);
         const testEventReceipt = await web3js.eth.getTransactionReceipt(testEventResult.receipt.transactionHash);
-
         const logsFromTestEvent = testEventReceipt.logs;
 
         assert.equal(1, logsFromTestEvent.length, "number of logs from TestEvent contract");
@@ -82,7 +79,6 @@ contract('SampleGoContract', async () => {
 
         const chainTestEventResult = await chainTestEventContract.chainEvent(chainTestEventValue);
         const chainTestEventReceipt = await web3js.eth.getTransactionReceipt(chainTestEventResult.receipt.transactionHash);
-
         const logsFromChainTestEvent = chainTestEventReceipt.logs;
 
         assert.equal(1, logsFromChainTestEvent.length, "number of logs from ChainTestEvent contract");
