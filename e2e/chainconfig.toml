@@ -296,6 +296,10 @@
   Condition = "excludes"
   Expected = ['Error','RPC error']
 
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg config"
   Condition = "contains"
