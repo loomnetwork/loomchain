@@ -17,11 +17,8 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-var (
-	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-)
-
 func TestMigrationTxHandler(t *testing.T) {
+	origin := loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(loomchain.MigrationTxFeature, true)
 
@@ -33,7 +30,16 @@ func TestMigrationTxHandler(t *testing.T) {
 	migrationFuncs := map[int32]MigrationFunc{
 		1: func(ctx *migrations.MigrationContext, parameters []byte) error { return nil },
 		2: func(ctx *migrations.MigrationContext, parameters []byte) error { return nil },
-		3: mockFunction,
+		3: func(ctx *migrations.MigrationContext, parameters []byte) error {
+			var addr types.Address
+			if err := proto.Unmarshal(parameters, &addr); err != nil {
+				return err
+			}
+			if origin.Compare(loom.UnmarshalAddressPB(&addr)) != 0 {
+				return errors.New("Invalid input message")
+			}
+			return nil
+		},
 	}
 
 	migrationTxHandler := &MigrationTxHandler{
@@ -100,15 +106,4 @@ func mockMessageTx(t *testing.T, id uint32, to loom.Address, from loom.Address, 
 	require.NoError(t, err)
 
 	return messageTx
-}
-
-func mockFunction(ctx *migrations.MigrationContext, parameters []byte) error {
-	var addr types.Address
-	if err := proto.Unmarshal(parameters, &addr); err != nil {
-		return err
-	}
-	if origin.Local.Hex() != addr.Local.Hex() {
-		return errors.New("Invalid input message")
-	}
-	return nil
 }
