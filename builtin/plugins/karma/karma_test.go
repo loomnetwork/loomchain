@@ -144,7 +144,7 @@ func TestKarmaValidateOracle(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// This KarmaCoin test is flaky on Linux but the root cause is still unidentified.
+// This KarmaCoinTest is flaky on Linux but the root cause is still unidentified.
 
 // func TestKarmaCoin(t *testing.T) {
 // 	karmaInit := &ktypes.KarmaInitRequest{
