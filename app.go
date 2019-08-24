@@ -179,13 +179,7 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // If an error occurs while trying to update the config the change is rolled back, if the rollback
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
-	chainCfgVersion1_4 := s.FeatureEnabled(ChainCfgVersion1_4, false)
-	var cfg *cctypes.Config
-	if chainCfgVersion1_4 {
-		cfg = loadOnChainConfig(s.store, chainCfgVersion1_4)
-	} else {
-		cfg = s.Config()
-	}
+	cfg := loadOnChainConfig(s.store)
 	backupConfigBytes, err := proto.Marshal(cfg)
 	if err != nil {
 		return err
@@ -208,7 +202,7 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 // Config returns the current on-chain config.
 func (s *StoreState) Config() *cctypes.Config {
 	if s.config == nil {
-		s.config = loadOnChainConfig(s.store, s.FeatureEnabled(ChainCfgVersion1_4, false))
+		s.config = loadOnChainConfig(s.store)
 	}
 	return s.config
 }
@@ -457,7 +451,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		}
 	}
 	// load on-chain config
-	a.config = loadOnChainConfig(state, state.FeatureEnabled(ChainCfgVersion1_4, false))
+	a.config = loadOnChainConfig(state)
 
 	return abci.ResponseInitChain{}
 }
@@ -483,7 +477,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	// Load the config once, when the node starts up.
 	if a.config == nil {
-		a.config = loadOnChainConfig(a.Store, state.FeatureEnabled(ChainCfgVersion1_4, false))
+		a.config = loadOnChainConfig(a.Store)
 	}
 
 	a.curBlockHeader = block
@@ -777,17 +771,11 @@ func (a *Application) ReadOnlyState() State {
 	)
 }
 
-func loadOnChainConfig(kvStore store.KVReader, chainCfgVersion1_4 bool) *cctypes.Config {
+func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
 	configBytes := kvStore.Get([]byte(configKey))
 	cfg := config.DefaultConfig()
 	if len(configBytes) > 0 {
-		var err error
-		if chainCfgVersion1_4 {
-			err = proto.UnmarshalMerge(configBytes, cfg)
-		} else {
-			err = proto.Unmarshal(configBytes, cfg)
-		}
-		if err != nil {
+		if err := proto.UnmarshalMerge(configBytes, cfg); err != nil {
 			panic(err)
 		}
 	}

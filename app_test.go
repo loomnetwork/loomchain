@@ -36,16 +36,10 @@ func TestOnChainConfig(t *testing.T) {
 	header.Time = blockTime
 	state := NewStoreState(
 		context.Background(), kvStore, header, nil, nil,
-	).WithOnChainConfig(loadOnChainConfig(kvStore, false))
+	).WithOnChainConfig(loadOnChainConfig(kvStore))
 	require.Equal(t, uint64(777), state.Config().AppStore.NumEvmKeysToPrune)
-	// have not enabled chainconfig v1.4 so Evm is nil
-	require.Nil(t, state.Config().Evm)
-
-	// enable chainconfig v1.4
-	state = state.WithOnChainConfig(loadOnChainConfig(kvStore, true))
-	require.Equal(t, uint64(777), state.Config().AppStore.NumEvmKeysToPrune)
-	require.NotNil(t, state.Config().Evm)
-	require.Equal(t, uint64(0), state.Config().Evm.GasLimit)
+	require.NotNil(t, state.Config().GetEvm())
+	require.Equal(t, uint64(0), state.Config().GetEvm().GasLimit)
 	state.ChangeConfigSetting("Evm.GasLimit", "5000")
 	require.Equal(t, uint64(5000), state.Config().Evm.GasLimit)
 }
