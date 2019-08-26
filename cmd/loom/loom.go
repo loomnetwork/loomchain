@@ -662,14 +662,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled &&
-		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
-		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
-		if err != nil {
-			return nil, err
-		}
-		logger.Info("CachingStore enabled")
-	} else if cfg.CachingStoreConfig.CachingEnabled && cfg.AppStore.Version == 3 {
+	if cfg.CachingStoreConfig.CachingEnabled {
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err
@@ -1014,7 +1007,7 @@ func loadApp(
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
+	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware(appStore))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)

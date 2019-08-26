@@ -19,7 +19,8 @@ module.exports = {
         provider.createExtraAccountsFromMnemonic("gravity top burden flip student usage spell purchase hundred improve check genre", 10)
         return provider
       },
-      network_id: '*'
+      network_id: '*',
+      skipDryRun: true,
     }
   }
 }

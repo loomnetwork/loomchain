@@ -13,4 +13,6 @@ func configureGateways(cfg *config.Config, proxyAppPort int) {
 	cfg.LoomCoinTransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
 	cfg.TransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
 	cfg.TransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
+	cfg.TronTransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
+	cfg.TronTransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
 }

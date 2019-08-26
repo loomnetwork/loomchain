@@ -39,6 +39,8 @@ const (
 
 	ElectionEventTopic               = "dposv3:election"
 	SlashEventTopic                  = "dposv3:slash"
+	SlashDelegationEventTopic        = "dposv3:slashdelegation"
+	SlashWhitelistAmountEventTopic   = "dposv3:slashwhitelistamount"
 	JailEventTopic                   = "dposv3:jail"
 	UnjailEventTopic                 = "dposv3:unjail"
 	CandidateRegistersEventTopic     = "dposv3:candidateregisters"
@@ -141,6 +143,8 @@ type (
 
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
+	DposSlashDelegationEvent        = dtypes.DposSlashDelegationEvent
+	DposSlashWhitelistAmountEvent   = dtypes.DposSlashWhitelistAmountEvent
 	DposJailEvent                   = dtypes.DposJailEvent
 	DposUnjailEvent                 = dtypes.DposUnjailEvent
 	DposCandidateRegistersEvent     = dtypes.DposCandidateRegistersEvent
@@ -1837,6 +1841,12 @@ func slashValidatorDelegations(
 			if err := cachedDelegations.SetDelegation(ctx, delegation); err != nil {
 				return err
 			}
+			if err := emitSlashDelegationEvent(
+				ctx, delegation.Delegator, delegation.Validator, delegation.Index, delegation.Amount,
+				&types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
+			); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1845,9 +1855,16 @@ func slashValidatorDelegations(
 	// validator's delegation total & thus his ability to earn rewards
 	if !common.IsZero(statistic.WhitelistAmount.Value) {
 		toSlash := CalculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		beforeSlashedWhitelistAmount := statistic.WhitelistAmount
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
+		if err := emitSlashWhitelistAmountEvent(
+			ctx, validatorAddress.MarshalPB(), beforeSlashedWhitelistAmount,
+			&types.BigUInt{Value: toSlash}, statistic.SlashPercentage,
+		); err != nil {
+			return err
+		}
 	}
 
 	// reset slash total
@@ -2433,6 +2450,43 @@ func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercent
 	}
 
 	ctx.EmitTopics(marshalled, SlashEventTopic)
+	return nil
+}
+
+func emitSlashDelegationEvent(
+	ctx contract.Context, delegator, validator *types.Address,
+	delegationIndex uint64, delegationAmount, slashAmount, slashPercentage *types.BigUInt,
+) error {
+	marshalled, err := proto.Marshal(&DposSlashDelegationEvent{
+		Validator:        validator,
+		Delegator:        delegator,
+		DelegationAmount: delegationAmount,
+		DelegationIndex:  delegationIndex,
+		SlashAmount:      slashAmount,
+		SlashPercentage:  slashPercentage,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, SlashDelegationEventTopic)
+	return nil
+}
+
+func emitSlashWhitelistAmountEvent(
+	ctx contract.Context, validator *types.Address, whitelistAmount, slashAmount, slashPercentage *types.BigUInt,
+) error {
+	marshalled, err := proto.Marshal(&DposSlashWhitelistAmountEvent{
+		Validator:       validator,
+		WhitelistAmount: whitelistAmount,
+		SlashAmount:     slashAmount,
+		SlashPercentage: slashPercentage,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, SlashWhitelistAmountEventTopic)
 	return nil
 }
 

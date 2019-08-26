@@ -8,12 +8,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type WsJsonRpcResponse struct {
-	Result  json.RawMessage `json:"result"`
-	Version string          `json:"jsonrpc"`
-	Id      int64           `json:"id"`
-}
-
 type WSPRCFunc struct {
 	HttpRPCFunc
 }
@@ -51,5 +45,5 @@ func (w *WSPRCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, conn *websocket
 		return resp, jsonErr
 	}
 	inValues = append([]reflect.Value{reflect.ValueOf(conn)}, inValues...)
-	return w.call(inValues, input.ID)
+	return w.call(inValues)
 }
