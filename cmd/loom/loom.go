@@ -273,7 +273,7 @@ func newInitCommand() *cobra.Command {
 func newResetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset",
-		Short: "Reset the app, evm and blockchain state only",
+		Short: "Reset the app and blockchain state, while keeping genesis & config unchanged",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := common.ParseConfig()
 			if err != nil {
@@ -286,19 +286,17 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			err = resetApp(cfg)
-			if err != nil {
-				return err
+			if err := resetApp(cfg); err != nil {
+				return errors.Wrap(err, "failed to reset app state")
 			}
 
-			err = destroyDB(cfg.EvmStore.DBName, cfg.RootPath())
-			if err != nil {
-				return err
+			if err := destroyDB(cfg.EvmStore.DBName, cfg.RootPath()); err != nil {
+				return errors.Wrap(err, "failed to reset evm state")
 			}
 
 			destroyReceiptsDB(cfg)
 			if err := destroyBlockIndexDB(cfg); err != nil {
-				return err
+				return errors.Wrap(err, "failed to reset block index")
 			}
 
 			return nil
