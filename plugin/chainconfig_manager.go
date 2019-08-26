@@ -65,14 +65,14 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 }
 
 // UpdateConfig applies pending config changes to the on-chain config.
-func (c *ChainConfigManager) UpdateConfig() error {
+func (c *ChainConfigManager) UpdateConfig() (int, error) {
 	if !c.state.FeatureEnabled(loomchain.ChainCfgVersion1_3, false) {
-		return nil
+		return 0, nil
 	}
 
 	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	for _, setting := range settings {
@@ -81,5 +81,5 @@ func (c *ChainConfigManager) UpdateConfig() error {
 		}
 	}
 
-	return nil
+	return len(settings), nil
 }

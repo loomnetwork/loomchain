@@ -312,7 +312,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
-	UpdateConfig() error
+	UpdateConfig() (int, error)
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -467,16 +467,9 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
-	state := NewStoreState(
-		context.Background(),
-		a.Store,
-		a.curBlockHeader,
-		nil,
-		a.GetValidatorSet,
-	)
-
-	// We need to load config in BeginBlock
-	a.config = loadOnChainConfig(a.Store)
+	if a.config == nil {
+		a.config = loadOnChainConfig(a.Store)
+	}
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
@@ -503,7 +496,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state = NewStoreState(
+	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -533,10 +526,14 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		if err := chainConfigManager.UpdateConfig(); err != nil {
+		updatedConfig, err := chainConfigManager.UpdateConfig()
+		if err != nil {
 			panic(err)
 		}
 
+		if updatedConfig > 0 {
+			a.config = loadOnChainConfig(state)
+		}
 	}
 
 	storeTx.Commit()
