@@ -1,4 +1,4 @@
-// +build !gateway
+// +build gateway
 
 package migrations
 
