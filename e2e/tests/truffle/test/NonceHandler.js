@@ -42,34 +42,67 @@ const path = require('path')
 
      it('Test nonce handler with failed txs', async () => {
         // send three reverted txs
+        var deliveredTxCount = 0;
         try {
             await contract.methods.err().send()
             assert.fail("transaction is supposed to revert")
         } catch(err) {
+            // Expect evm reverted error
+            if (err.toString().includes("reverted")) {
+                deliveredTxCount++
+            } else {
+                console.log(err)
+            }
             assert(err)
         }
+        await waitForXBlocks(nodeAddr, 1)
         try {
             await contract.methods.err().send()
             assert.fail("transaction is supposed to revert")
         } catch(err) {
+            // Expect evm reverted error
+            if (err.toString().includes("reverted")) {
+                deliveredTxCount++
+            } else {
+                console.log(err)
+            }
             assert(err)
         }
+        await waitForXBlocks(nodeAddr, 1)
         try {
             await contract.methods.err().send()
             assert.fail("transaction is supposed to revert")
         } catch(err) {
+            // Expect evm reverted error
+            if (err.toString().includes("reverted")) {
+                deliveredTxCount++
+            } else {
+                console.log(err)
+            }
             assert(err)
         }
 
         await waitForXBlocks(nodeAddr, 2)
         let nonce = await getNonce(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
-        assert.equal("0x3", nonce)
+        assert.equal("0x" + deliveredTxCount, nonce)
 
          // send three more reverted txs without await
-        contract.methods.err().send().then().catch(function(e) {})
-        contract.methods.err().send().then().catch(function(e) {})
-        contract.methods.err().send().then().catch(function(e) {})
+        contract.methods.err().send().then().catch(function(err) {
+            if (!err.toString().includes("reverted")) {
+                console.log("unexpected err:", err)
+            }
+        })
+        contract.methods.err().send().then().catch(function(err) {
+            if (!err.toString().includes("reverted")) {
+                console.log("unexpected err:", err)
+            }
+        })
+        contract.methods.err().send().then().catch(function(err) {
+            if (!err.toString().includes("reverted")) {
+                console.log("unexpected err:", err)
+            }
+        })
 
         await waitForXBlocks(nodeAddr, 2)
         nonce = await getNonce(nodeAddr, from)
@@ -84,7 +117,7 @@ const path = require('path')
             await contract.methods.set(2222).send()
             await contract.methods.set(3333).send()
         } catch(err) {
-            assert.fail("transaction reverted");
+            assert.fail("transaction reverted:", err);
         }
         
         await waitForXBlocks(nodeAddr, 2)
@@ -110,12 +143,17 @@ const path = require('path')
         } catch(err) {
             assert.fail("transaction reverted: " + err);
         }
+        await waitForXBlocks(nodeAddr, 1)
         try {
             await contract.methods.err().send()
             assert.fail("transaction is supposed to revert")
         } catch(err) {
+            if (!err.toString().includes("reverted")) {
+                assert.fail("transaction reverted with unexpected error: " + err);
+            }
             assert(err)
         }
+        await waitForXBlocks(nodeAddr, 1)
         try {
             await contract.methods.set(2222).send()
         }catch(err) {
