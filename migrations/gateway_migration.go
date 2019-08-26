@@ -1,4 +1,3 @@
-// +build gateway
 package migrations
 
 import (
