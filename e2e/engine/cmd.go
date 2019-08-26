@@ -441,8 +441,8 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 		if n.ExpectedJSON != nil {
 			var expectedKeys []string
 			var expectedValues []string
-			for i, expectedJson := range n.ExpectedJSON {
-				t, err := template.New("expectedjson").Parse(expectedJson)
+			for i, expectedJSON := range n.ExpectedJSON {
+				t, err := template.New("expectedjson").Parse(expectedJSON)
 				if err != nil {
 					return err
 				}
@@ -469,7 +469,7 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 					}
 				}
 				if !contain {
-					return fmt.Errorf("\nexpected '%s' \nbut got '%s'\n", expectedValues[i], actual)
+					return fmt.Errorf("expected '%s' \nbut got '%s'", expectedValues[i], actual)
 				}
 			}
 		}
@@ -498,8 +498,8 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 		if n.ExcludedJSON != nil {
 			var excludedKeys []string
 			var excludedValues []string
-			for i, excludedJson := range n.ExcludedJSON {
-				t, err := template.New("excludedjson").Parse(excludedJson)
+			for i, excludedJSON := range n.ExcludedJSON {
+				t, err := template.New("excludedjson").Parse(excludedJSON)
 				if err != nil {
 					return err
 				}
@@ -520,7 +520,7 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				fmt.Println("excluded : ", excludedValues[i])
 				for _, value := range actual.Array() {
 					if excludedValues[i] == value.String() {
-						return fmt.Errorf("\nexpected to excluded '%s' \nbut got '%s'\n", excludedValues[i], actual)
+						return fmt.Errorf("expected to excluded '%s' \nbut got '%s'", excludedValues[i], actual)
 					}
 				}
 			}
@@ -560,7 +560,7 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 						"want": numbers[i],
 					})
 					if err != nil || boolResult == nil {
-						return fmt.Errorf("cannot evaluate got %s, sign %s, want %s", value, signs[i], numbers[i], err)
+						return fmt.Errorf("cannot evaluate got %s, sign %s, want %s", value, signs[i], numbers[i])
 					}
 					if boolResult.(bool) == true {
 						correct = boolResult.(bool)
@@ -568,13 +568,13 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 					}
 				}
 				if !correct {
-					return fmt.Errorf("\nexpected '%s%s' \nbut got '%s'\n", signs[i], numbers[i], actual)
+					return fmt.Errorf("\nexpected '%s%s' \nbut got '%s'", signs[i], numbers[i], actual)
 				}
 			}
 		}
 	case "":
 	default:
-		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+		return fmt.Errorf("Unrecognized test condition %s", n.Condition)
 	}
 	return nil
 }
