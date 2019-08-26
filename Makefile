@@ -238,6 +238,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR) $(TRANSFER_GATEWAY_DIR)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
+	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
 
