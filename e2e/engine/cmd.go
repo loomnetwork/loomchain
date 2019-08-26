@@ -452,7 +452,7 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				}
 				if i%2 == 0 {
 					expectedKeys = append(expectedKeys, buf.String())
-				} else if i%2 == 1 {
+				} else {
 					expectedValues = append(expectedValues, buf.String())
 				}
 			}
@@ -515,6 +515,8 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			}
 			for i := range excludedKeys {
 				actual := gjson.Get(string(out), excludedKeys[i])
+				fmt.Printf("\nkey '%s' \nactual : '%s'\n", excludedKeys[i], actual)
+				fmt.Println("excluded : ", excludedValues[i])
 				for _, value := range actual.Array() {
 					if excludedValues[i] == value.String() {
 						return fmt.Errorf("\nexpected to excluded '%s' \nbut got '%s'\n", excludedValues[i], actual)
