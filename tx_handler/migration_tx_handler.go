@@ -92,7 +92,7 @@ func (h *MigrationTxHandler) ProcessTx(
 		return r, errors.Wrapf(err, "migration %d failed", int32(tx.ID))
 	}
 
-	if state.FeatureEnabled(loomchain.MigrationTxVersion1_1Feature, false) {
+	if state.FeatureEnabled(features.MigrationTxVersion1_1Feature, false) {
 		state.Set(migrationKey(tx.ID), []byte{1})
 	} else {
 		state.Set(migrationKey(tx.ID), msg.Data)
