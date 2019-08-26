@@ -66,6 +66,9 @@ const (
 	// Enables processing of MigrationTx.
 	MigrationTxFeature = "tx:migration"
 
+	// Disable storage of MigrationTx payload in app state
+	MigrationTxVersion1_1Feature = "tx:migration:v1.1"
+
 	// Enables specific migrations, each migration has an ID that's prefixed by this string.
 	MigrationFeaturePrefix = "migration:"
 
