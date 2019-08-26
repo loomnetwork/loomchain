@@ -15,6 +15,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/PaesslerAG/gval"
 	"github.com/tidwall/gjson"
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
@@ -524,6 +525,53 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				}
 			}
 		}
+	case "arithmetic":
+		if n.KeysValues != nil {
+			var keys []string
+			var numbers []string
+			var signs []string
+			for i, keyvalue := range n.KeysValues {
+				t, err := template.New("keyvalue").Parse(keyvalue)
+				if err != nil {
+					return err
+				}
+				buf := new(bytes.Buffer)
+				err = t.Execute(buf, e.conf)
+				if err != nil {
+					return err
+				}
+				if i%2 == 0 {
+					keys = append(keys, buf.String())
+				} else {
+					s, n := splitSign(buf.String())
+					signs = append(signs, s)
+					numbers = append(numbers, n)
+				}
+			}
+
+			for i := range keys {
+				actual := gjson.Get(string(out), keys[i])
+				fmt.Printf("\nkey '%s' \nactual : '%s'\n", keys[i], actual)
+				fmt.Println("expected : ", signs[i], numbers[i])
+				correct := false
+				for _, value := range actual.Array() {
+					boolResult, err := gval.Evaluate("got"+signs[i]+" want", map[string]interface{}{
+						"got":  value,
+						"want": numbers[i],
+					})
+					if err != nil || boolResult == nil {
+						return fmt.Errorf("cannot evaluate got %s, sign %s, want %s", value, signs[i], numbers[i], err)
+					}
+					if boolResult.(bool) == true {
+						correct = boolResult.(bool)
+						break
+					}
+				}
+				if !correct {
+					return fmt.Errorf("\nexpected '%s%s' \nbut got '%s'\n", signs[i], numbers[i], actual)
+				}
+			}
+		}
 	case "":
 	default:
 		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
@@ -691,4 +739,16 @@ func isLoomCmd(cmd string) bool {
 		}
 	}
 	return false
+}
+
+func splitSign(value string) (string, string) {
+	for i, v := range value {
+		if string(v) == "<" || string(v) == ">" || string(v) == "=" {
+			if value[i+1:i+2] == "=" {
+				return value[i : i+2], value[i+2:]
+			}
+			return value[i : i+1], value[i+1:]
+		}
+	}
+	return "", ""
 }

@@ -4,12 +4,24 @@
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
-  Json = true
-  ExpectedJson = [
+  ExpectedJSON = [
   "statistics.#.address.chainId", "default",
   "statistics.#.address.local", "{{index $.NodeBase64AddressList 0}}",
   "statistics.#.address.chainId", "default",
   "statistics.#.address.local", "{{index $.NodeBase64AddressList 1}}"
+]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  Delay = 1000
+  All = true
+  Condition = "excludes"
+  Excluded = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}"]
+  ExcludedJSON = [
+  "statistics.#.address.chainId", "default-1",
+  "statistics.#.address.local", "{{index $.NodeAddressList 0}}",
+  "statistics.#.address.chainId", "default-2",
+  "statistics.#.address.local", "{{index $.NodeAddressList 1}}"
 ]
 
 [[TestCases]]
@@ -35,15 +47,23 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 0}} 11 -k {{index $.NodePrivKeyPathList 0}}"
+  
 
 [[TestCases]]
   RunCmd = "check_validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
-  Json = true
   ExpectedJson = [
   "jsonrpc", "2.0",
   "result.validators.#.pub_key.value","{{index $.NodePubKeyList 0}}"
+]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "arithmetic"
+  KeysValues = [
+    "result.validators.#.voting_power",">1250000000000",
+    "result.validators.#.voting_power","<=1260000000000"
 ]
 
 [[TestCases]]
@@ -54,7 +74,6 @@
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
-  Json = true
   ExpectedJson = [
     "statistics.#.address.chainId","default",
     "statistics.#.jailed","false"
@@ -70,7 +89,6 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["0270"]
-  Json = true
   ExpectedJson = [
   "delegations.#.delegator.chainId", "default",
   "delegations.#.delegator.local", "{{index $.NodeBase64AddressList 0}}",
