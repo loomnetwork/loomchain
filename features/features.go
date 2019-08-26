@@ -1,4 +1,4 @@
-package loomchain
+package features
 
 // List of feature flags
 const (

@@ -98,6 +98,12 @@ contract('MyToken', async (accounts) => {
     assert.equal(txObject.hash.toLowerCase(), receipt.transactionHash.toLowerCase(), "receipt tx hash and block transaction hash, full = false");
   });
 
+  it('eth_getBlockByNumber', async () => {
+    await MyToken.deployed();
+    const blockInfo = await web3js.eth.getBlock("latest");
+    assert(blockInfo.number > 0, "block number must be greater than zero");
+  });
+
   it('eth_getBlockTransactionCountByHash', async () => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(105, { from: alice });
