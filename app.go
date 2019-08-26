@@ -475,10 +475,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.GetValidatorSet,
 	)
 
-	// Load the config once, when the node starts up.
-	if a.config == nil {
-		a.config = loadOnChainConfig(a.Store)
-	}
+	// We need to load config in BeginBlock
+	a.config = loadOnChainConfig(a.Store)
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
