@@ -64,8 +64,8 @@ func TestMigrationTxHandler(t *testing.T) {
 	migrationTx3 := mockMessageTx(t, uint32(3), origin, origin, addressBytes)
 	migrationTx4 := mockMessageTx(t, uint32(4), origin, origin, []byte{})
 
-	state.SetFeature(loomchain.MigrationTxFeature, true)
-	state.SetFeature(loomchain.MigrationFeaturePrefix+"3", true)
+	state.SetFeature(features.MigrationTxFeature, true)
+	state.SetFeature(features.MigrationFeaturePrefix+"3", true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx3, false)
 	require.NoError(t, err)
 
