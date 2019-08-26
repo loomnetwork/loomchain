@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os/exec"
 	"path"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -438,10 +437,10 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			}
 		}
 
-		if n.Json {
-			var jsonKeys []string
-			var results []string
-			for i, expectedJson := range n.ExpectedJson {
+		if n.ExpectedJSON != nil {
+			var expectedKeys []string
+			var expectedValues []string
+			for i, expectedJson := range n.ExpectedJSON {
 				t, err := template.New("expectedjson").Parse(expectedJson)
 				if err != nil {
 					return err
@@ -452,24 +451,24 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 					return err
 				}
 				if i%2 == 0 {
-					jsonKeys = append(jsonKeys, buf.String())
+					expectedKeys = append(expectedKeys, buf.String())
 				} else if i%2 == 1 {
-					results = append(results, buf.String())
+					expectedValues = append(expectedValues, buf.String())
 				}
 			}
-			for i := range jsonKeys {
-				actual := gjson.Get(string(out), jsonKeys[i])
-				fmt.Printf("\nkey '%s' \nactual : '%s'\n", jsonKeys[i], actual)
-				fmt.Println("expected : ", results[i])
+			for i := range expectedKeys {
+				actual := gjson.Get(string(out), expectedKeys[i])
+				fmt.Printf("\nkey '%s' \nactual : '%s'\n", expectedKeys[i], actual)
+				fmt.Println("expected : ", expectedValues[i])
 				contain := false
 				for _, value := range actual.Array() {
-					if results[i] == value.String() {
+					if expectedValues[i] == value.String() {
 						contain = true
 						break
 					}
 				}
 				if !contain {
-					return fmt.Errorf("\nexpected '%s' \nbut got '%s'\n", results[i], actual)
+					return fmt.Errorf("\nexpected '%s' \nbut got '%s'\n", expectedValues[i], actual)
 				}
 			}
 		}
@@ -494,68 +493,40 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				return fmt.Errorf("❌ expect output to exclude '%s' got '%s'", excluded, string(out))
 			}
 		}
+
+		if n.ExcludedJSON != nil {
+			var excludedKeys []string
+			var excludedValues []string
+			for i, excludedJson := range n.ExcludedJSON {
+				t, err := template.New("excludedjson").Parse(excludedJson)
+				if err != nil {
+					return err
+				}
+				buf := new(bytes.Buffer)
+				err = t.Execute(buf, e.conf)
+				if err != nil {
+					return err
+				}
+				if i%2 == 0 {
+					excludedKeys = append(excludedKeys, buf.String())
+				} else {
+					excludedValues = append(excludedValues, buf.String())
+				}
+			}
+			for i := range excludedKeys {
+				actual := gjson.Get(string(out), excludedKeys[i])
+				for _, value := range actual.Array() {
+					if excludedValues[i] == value.String() {
+						return fmt.Errorf("\nexpected to excluded '%s' \nbut got '%s'\n", excludedValues[i], actual)
+					}
+				}
+			}
+		}
 	case "":
 	default:
 		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
 	}
 	return nil
-}
-
-type testGroup struct {
-	Key        []string
-	Value      []string
-	BrakePoint string
-}
-
-func iter(isArray bool, i int, keys []string, v interface{}) (interface{}, error) {
-	if (!isArray && i == len(keys)) || len(keys) == 0 {
-		return v, nil
-	}
-	if v == nil {
-		fmt.Println("nil")
-	}
-	var err error
-	fmt.Println("Round : ", i)
-	switch v := v.(type) {
-	case int:
-		fmt.Println("key : ", keys[i], " value : ", v, "(integer)")
-	case string:
-		fmt.Println("key : ", keys[i], " value : ", v, "(string)")
-	case float64:
-		fmt.Println("key : ", keys[i], " value : ", v, "(float64)")
-	case interface{}:
-		if reflect.ValueOf(v).Kind() == reflect.Map {
-			data := v.(map[string]interface{})
-			fmt.Println("This Type : ", reflect.TypeOf(v))
-			fmt.Println("This key", keys[i])
-			fmt.Println("This value", data[keys[i]])
-			if data[keys[i]] == nil {
-				err = fmt.Errorf("Invalid Key %s, ", keys[i])
-				return nil, err
-			}
-			if isArray {
-				return iter(false, i, keys, data[keys[i]])
-			}
-			return iter(false, i+1, keys, data[keys[i]])
-		} else if reflect.ValueOf(v).Kind() == reflect.Slice {
-			data := v.([]interface{})
-			fmt.Println("array type : ", reflect.TypeOf(v))
-			fmt.Println("array", keys[i])
-			for j, value := range data {
-				fmt.Printf("array size %d \n", len(data))
-				fmt.Printf("array value %d , %v\n", j, data[j])
-				fmt.Printf("array value %d , %v\n", j, value)
-				return iter(true, i, keys, value)
-			}
-		}
-	default:
-		fmt.Println("key : ", keys[i], " value : ", v, "(unknown)")
-	}
-	return v, err
-}
-
-func (tg *testGroup) compare(v interface{}) {
-
 }
 
 func checkNodeReady(n *node.Node) error {

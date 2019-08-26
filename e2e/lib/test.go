@@ -24,8 +24,8 @@ type TestCase struct {
 	All          bool       `toml:"All"`
 	Node         int        `toml:"Node"`
 	Datafiles    []Datafile `toml:"Datafiles"`
-	Json         bool       `toml:"Json"`
-	ExpectedJson []string   `toml:"ExpectedJson"`
+	ExpectedJSON []string   `toml:"ExpectedJson"`
+	ExcludedJSON []string   `toml:"ExcludedJson"`
 }
 
 type Tests struct {
