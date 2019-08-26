@@ -178,7 +178,6 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 		if err != nil {
 			return err
 		}
-
 		for _, contract := range genesis.Contracts {
 			if contract.Name == "dposV2" {
 				var init dtypes.DPOSInitRequestV2
