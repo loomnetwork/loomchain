@@ -63,7 +63,7 @@ GOFLAGS_BASE = \
 	-X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) \
 	-X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA) \
 	-X $(PKG).BtcdGitSHA=$(BTCD_GIT_SHA)
-GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS = -tags "evm gateway" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_BASE = -X $(PKG_BATTLEGROUND).BuildDate=$(BUILD_DATE) -X $(PKG_BATTLEGROUND).BuildGitSha=$(GAMECHAIN_GIT_SHA) -X $(PKG_BATTLEGROUND).BuildNumber=$(BUILD_NUMBER)
 GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_GATEWAY = -tags "evm gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=gateway"
