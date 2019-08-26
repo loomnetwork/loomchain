@@ -218,7 +218,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/prometheus/client_golang/prometheus \
 		github.com/go-kit/kit/log \
 		github.com/BurntSushi/toml \
-		github.com/tidwall/gjson \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
 		golang.org/x/sys/cpu \
