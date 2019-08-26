@@ -30,6 +30,14 @@
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
 [[projects]]
+  digest = "1:e3983013d82da8c49fb6776c6317d0da4b9cb926f1bb11af37f8c975889db042"
+  name = "github.com/PaesslerAG/gval"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0ce847fc5e6163ee05ae770a441ba497fc77dcaa"
+  version = "v1.0.1"
+
+[[projects]]
   branch = "master"
   digest = "1:78097abc20f73ec968b3f67bf74deda55009caa4b801d0d04f36145c869ab3c3"
   name = "github.com/cevaris/ordered_map"

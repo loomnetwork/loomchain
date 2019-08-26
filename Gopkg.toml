@@ -101,6 +101,10 @@ ignored = [
 [[constraint]]
   name = "github.com/tidwall/gjson"
   version = "1.3.2"
+
+[[constraint]]
+  name = "github.com/PaesslerAG/gval"
+  version = "1.0.1"
   
 [prune]
   go-tests = true
