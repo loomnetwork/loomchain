@@ -34,7 +34,7 @@ func migrationKey(migrationTxID uint32) []byte {
 	return util.PrefixKey([]byte(migrationPrefix), buf.Bytes())
 }
 
-type MigrationFunc func(ctx *migrations.MigrationContext) error
+type MigrationFunc func(ctx *migrations.MigrationContext, parameters []byte) error
 
 // MigrationTxHandler handles MigrationTx(s).
 type MigrationTxHandler struct {
@@ -87,13 +87,16 @@ func (h *MigrationTxHandler) ProcessTx(
 	if migrationFn == nil {
 		return r, fmt.Errorf("invalid migration ID %d", tx.ID)
 	}
-
 	migrationCtx := migrations.NewMigrationContext(h.Manager, h.CreateRegistry, state, origin)
-	if err := migrationFn(migrationCtx); err != nil {
+	if err := migrationFn(migrationCtx, tx.Input); err != nil {
 		return r, errors.Wrapf(err, "migration %d failed", int32(tx.ID))
 	}
 
-	state.Set(migrationKey(tx.ID), msg.Data)
+	if state.FeatureEnabled(loomchain.MigrationTxVersion1_1Feature, false) {
+		state.Set(migrationKey(tx.ID), []byte{1})
+	} else {
+		state.Set(migrationKey(tx.ID), msg.Data)
+	}
 
 	return r, nil
 }

@@ -263,15 +263,10 @@ func DeprecatedGetBlockByNumber(
 	blockinfo := types.EthBlockInfo{
 		Hash:       blockresult.BlockMeta.BlockID.Hash,
 		ParentHash: blockresult.Block.Header.LastBlockID.Hash,
-
-		Timestamp: int64(blockresult.Block.Header.Time.Unix()),
+		Timestamp:  int64(blockresult.Block.Header.Time.Unix()),
+		Number:     height,
+		LogsBloom:  evmAuxStore.GetBloomFilter(uint64(height)),
 	}
-	if state.Block().Height == height {
-		blockinfo.Number = 0
-	} else {
-		blockinfo.Number = height
-	}
-	blockinfo.LogsBloom = evmAuxStore.GetBloomFilter(uint64(height))
 
 	txHashList, err := evmAuxStore.GetTxHashList(uint64(height))
 	if err != nil {
