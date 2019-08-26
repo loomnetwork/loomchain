@@ -291,7 +291,7 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			err = resetEvm(cfg)
+			err = destroyDB(cfg.EvmStore.DBName, cfg.RootPath())
 			if err != nil {
 				return err
 			}
@@ -550,10 +550,6 @@ func destroyDB(name, dir string) error {
 
 func resetApp(cfg *config.Config) error {
 	return destroyDB(cfg.DBName, cfg.RootPath())
-}
-
-func resetEvm(cfg *config.Config) error {
-	return destroyDB(cfg.EvmStore.DBName, cfg.RootPath())
 }
 
 func initApp(validator *loom.Validator, cfg *config.Config) error {
