@@ -65,7 +65,7 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	return nil
 }
 
-// UpdateConfig applies pending config changes to the on-chain config.
+// UpdateConfig applies pending config changes to the on-chain config and returns the number of config changes
 func (c *ChainConfigManager) UpdateConfig() (int, error) {
 	if !c.state.FeatureEnabled(features.ChainCfgVersion1_3, false) {
 		return 0, nil

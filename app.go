@@ -450,8 +450,6 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 			panic(err)
 		}
 	}
-	// load on-chain config
-	a.config = loadOnChainConfig(state)
 
 	return abci.ResponseInitChain{}
 }
@@ -526,13 +524,14 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		updatedConfig, err := chainConfigManager.UpdateConfig()
+		numConfigChanges, err := chainConfigManager.UpdateConfig()
 		if err != nil {
 			panic(err)
 		}
 
-		if updatedConfig > 0 {
-			a.config = loadOnChainConfig(state)
+		if numConfigChanges > 0 {
+			// invalidate cached config so it's reloaded next time it's accessed
+			a.config = nil
 		}
 	}
 
