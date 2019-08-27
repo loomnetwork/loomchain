@@ -330,10 +330,9 @@ func (m *MultiWriterAppStoreTestSuite) TestIAVLRangeWithlimit() {
 	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
-	// *Note: this is an unpredictable behavior due to our prefix system
-	// the number of returned keys might not match the number of limit even though the limit is less than
-	// the total number of target-prefixed keys in the store because iavl store exclude non-prefixed keys
-	// using util.HasPrefix before returning the target prefixed keys
+	// Note: this is an unpredictable behavior due to our prefix system
+	// the number of returned keys might be less than the limit even though the limit is less than
+	// the total number of target-prefixed keys in the store because iavl store excludes non-prefixed keys
 	// In this case, vmroot is excluded from list so the expect number is 4
 	rangeData := iavlStore.RangeWithLimit([]byte("vm"), 5)
 	require.Equal(4, len(rangeData))
