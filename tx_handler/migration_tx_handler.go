@@ -13,6 +13,7 @@ import (
 	goloomvm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/migrations"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
@@ -33,7 +34,7 @@ func migrationKey(migrationTxID uint32) []byte {
 	return util.PrefixKey([]byte(migrationPrefix), buf.Bytes())
 }
 
-type MigrationFunc func(ctx *migrations.MigrationContext) error
+type MigrationFunc func(ctx *migrations.MigrationContext, parameters []byte) error
 
 // MigrationTxHandler handles MigrationTx(s).
 type MigrationTxHandler struct {
@@ -49,7 +50,7 @@ func (h *MigrationTxHandler) ProcessTx(
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
-	if !state.FeatureEnabled(loomchain.MigrationTxFeature, false) {
+	if !state.FeatureEnabled(features.MigrationTxFeature, false) {
 		return r, fmt.Errorf("MigrationTx feature hasn't been enabled")
 	}
 
@@ -78,21 +79,24 @@ func (h *MigrationTxHandler) ProcessTx(
 	}
 
 	id := fmt.Sprint(tx.ID)
-	if !state.FeatureEnabled(loomchain.MigrationFeaturePrefix+id, false) {
-		return r, fmt.Errorf("feature %s is not enabled", loomchain.MigrationFeaturePrefix+id)
+	if !state.FeatureEnabled(features.MigrationFeaturePrefix+id, false) {
+		return r, fmt.Errorf("feature %s is not enabled", features.MigrationFeaturePrefix+id)
 	}
 
 	migrationFn := h.Migrations[int32(tx.ID)]
 	if migrationFn == nil {
 		return r, fmt.Errorf("invalid migration ID %d", tx.ID)
 	}
-
 	migrationCtx := migrations.NewMigrationContext(h.Manager, h.CreateRegistry, state, origin)
-	if err := migrationFn(migrationCtx); err != nil {
+	if err := migrationFn(migrationCtx, tx.Input); err != nil {
 		return r, errors.Wrapf(err, "migration %d failed", int32(tx.ID))
 	}
 
-	state.Set(migrationKey(tx.ID), msg.Data)
+	if state.FeatureEnabled(features.MigrationTxVersion1_1Feature, false) {
+		state.Set(migrationKey(tx.ID), []byte{1})
+	} else {
+		state.Set(migrationKey(tx.ID), msg.Data)
+	}
 
 	return r, nil
 }
