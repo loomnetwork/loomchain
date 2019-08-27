@@ -38,7 +38,7 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, ethcoin.Contract)
 	}
-	if cfg.SampleGoContract {
+	if cfg.SampleGoContractEnabled {
 		contracts = append(contracts, sample_go_contract.Contract)
 	}
 	if cfg.ChainConfig.ContractEnabled {

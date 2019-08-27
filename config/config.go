@@ -71,14 +71,14 @@ type Config struct {
 	TxLimiter                   *throttle.TxLimiterConfig
 	ContractTxLimiter           *throttle.ContractTxLimiterConfig
 	// Logging
-	LogDestination     string
-	ContractLogLevel   string
-	LoomLogLevel       string
-	BlockchainLogLevel string
-	LogStateDB         bool
-	LogEthDbBatch      bool
-	Metrics            *Metrics
-	SampleGoContract   bool
+	LogDestination          string
+	ContractLogLevel        string
+	LoomLogLevel            string
+	BlockchainLogLevel      string
+	LogStateDB              bool
+	LogEthDbBatch           bool
+	Metrics                 *Metrics
+	SampleGoContractEnabled bool
 
 	//ChainConfig
 	ChainConfig *ChainConfigConfig
@@ -381,7 +381,7 @@ func DefaultConfig() *Config {
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
-		SampleGoContract:           false,
+		SampleGoContractEnabled:    false,
 
 		Oracle:                 "",
 		DeployEnabled:          true,
@@ -598,9 +598,9 @@ DeployerWhitelist:
 UserDeployerWhitelist:
   ContractEnabled: {{ .UserDeployerWhitelist.ContractEnabled }}
 #
-# SampleGoContract
+# SampleGoContractEnabled
 #
-SampleGoContract: {{ .SampleGoContract }}
+SampleGoContractEnabled: {{ .SampleGoContractEnabled }}
 
 #
 # Plasma Cash

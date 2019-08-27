@@ -131,7 +131,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			})
 	}
 
-	if cfg.SampleGoContract {
+	if cfg.SampleGoContractEnabled {
 		contracts = append(contracts,
 			config.ContractConfig{
 				VMTypeName: "plugin",
