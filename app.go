@@ -180,19 +180,11 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
 	cfg := loadOnChainConfig(s.store)
-	backupConfigBytes, err := proto.Marshal(cfg)
-	if err != nil {
-		return err
-	}
 	if err := config.SetConfigSetting(cfg, name, value); err != nil {
 		return err
 	}
 	configBytes, err := proto.Marshal(cfg)
 	if err != nil {
-		// restore config from backup
-		if restoreError := proto.Unmarshal(backupConfigBytes, cfg); restoreError != nil {
-			panic(err)
-		}
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)
