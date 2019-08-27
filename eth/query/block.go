@@ -86,10 +86,20 @@ func GetBlockByNumber(
 				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
 			}
 
-			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
+
+			newtxResult, err := blockStore.GetBlockResults(&height)
+			if err != nil {
+				return resp, errors.Wrapf(err, "TENDERMINT, height %d", height)
+			}
+			newtxObj, _, err := GetTxObjectFromBlockResult(blockResult, newtxResult.Results.DeliverTx[index].Data, int64(index))
+			if err != nil {
+				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
+			}
+
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
 			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
@@ -104,7 +114,7 @@ func GetBlockByNumber(
 }
 
 func GetTxObjectFromBlockResult(
-	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
+	blockResult *ctypes.ResultBlock, txResultData []byte, index int64,
 ) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[index]
 	var contractAddress *eth.Data
@@ -151,7 +161,7 @@ func GetTxObjectFromBlockResult(
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
-				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
+				if err := proto.Unmarshal(txResultData, &resp); err != nil {
 					return eth.GetEmptyTxObject(), nil, err
 				}
 
@@ -177,8 +187,8 @@ func GetTxObjectFromBlockResult(
 			input = callTx.Input
 			to := eth.EncAddress(msg.To)
 			txObj.To = &to
-			if callTx.VmType == vm.VMType_EVM && len(txResult.TxResult.Data) > 0 {
-				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
+			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
+				txObj.Hash = eth.EncBytes(txResultData)
 			}
 			if callTx.Value != nil {
 				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
