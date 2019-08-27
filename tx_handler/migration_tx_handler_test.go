@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/migrations"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ import (
 func TestMigrationTxHandler(t *testing.T) {
 	origin := loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
-	state.SetFeature(loomchain.MigrationTxFeature, true)
+	state.SetFeature(features.MigrationTxFeature, true)
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
 	s := state.WithContext(ctx)
@@ -48,8 +49,8 @@ func TestMigrationTxHandler(t *testing.T) {
 		Migrations:     migrationFuncs,
 	}
 
-	state.SetFeature(loomchain.MigrationTxFeature, true)
-	state.SetFeature(loomchain.MigrationFeaturePrefix+"1", true)
+	state.SetFeature(features.MigrationTxFeature, true)
+	state.SetFeature(features.MigrationFeaturePrefix+"1", true)
 	_, err := migrationTxHandler.ProcessTx(s, migrationTx1, false)
 	require.NoError(t, err)
 
@@ -63,18 +64,18 @@ func TestMigrationTxHandler(t *testing.T) {
 	migrationTx3 := mockMessageTx(t, uint32(3), origin, origin, addressBytes)
 	migrationTx4 := mockMessageTx(t, uint32(4), origin, origin, []byte{})
 
-	state.SetFeature(loomchain.MigrationTxFeature, true)
-	state.SetFeature(loomchain.MigrationFeaturePrefix+"3", true)
+	state.SetFeature(features.MigrationTxFeature, true)
+	state.SetFeature(features.MigrationFeaturePrefix+"3", true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx3, false)
 	require.NoError(t, err)
 
 	//Expect an error if migrationtx feature is not enabled
-	state.SetFeature(loomchain.MigrationTxFeature, false)
+	state.SetFeature(features.MigrationTxFeature, false)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.Error(t, err)
 
 	//Expect an error if migration id is not found
-	state.SetFeature(loomchain.MigrationTxFeature, true)
+	state.SetFeature(features.MigrationTxFeature, true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx4, false)
 	require.Error(t, err)
 
@@ -82,8 +83,8 @@ func TestMigrationTxHandler(t *testing.T) {
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.Error(t, err)
 
-	state.SetFeature(loomchain.MigrationTxFeature, true)
-	state.SetFeature(loomchain.MigrationFeaturePrefix+"2", true)
+	state.SetFeature(features.MigrationTxFeature, true)
+	state.SetFeature(features.MigrationFeaturePrefix+"2", true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.NoError(t, err)
 
