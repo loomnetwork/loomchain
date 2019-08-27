@@ -151,7 +151,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	p := new(Evm)
 	p.sdb = sdb
 	if lstate.FeatureEnabled(features.EvmGasLimit, false) {
-		p.gasLimit = lstate.Config().GetEvm().GasLimit()
+		p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
 	} else {
 		p.gasLimit = defaultGasLimit
 	}
