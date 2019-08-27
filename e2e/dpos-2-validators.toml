@@ -58,8 +58,8 @@
   RunCmd = "check_validators"
   Condition = "arithmetic"
   KeysValues = [
-    "result.validators.#.voting_power",">1250000000000",
-    "result.validators.#(pub_key.value=={{index $.NodePubKeyList 0}}).voting_power","<=1260000000000"
+    "result.validators.#.voting_power",">","1250000000000",
+    "result.validators.#(pub_key.value=={{index $.NodePubKeyList 0}}).voting_power","<=","1260000000000"
 ]
 
 [[TestCases]]
@@ -89,5 +89,4 @@
   "delegations.#.delegator.chainId", "default",
   "delegations.#(validator.local=={{index $.NodeBase64AddressList 1}})#.delegator.local", "{{index $.NodeBase64AddressList 0}}",
   "delegations.#(delegator.local=={{index $.NodeBase64AddressList 0}})#.locktimeTier", "TIER_ZERO"
-
 ]

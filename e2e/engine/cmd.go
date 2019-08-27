@@ -545,12 +545,13 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				if err != nil {
 					return err
 				}
-				if i%2 == 0 {
+				switch i % 3 {
+				case 0:
 					keys = append(keys, buf.String())
-				} else {
-					s, n := splitSign(buf.String())
-					signs = append(signs, s)
-					numbers = append(numbers, n)
+				case 1:
+					signs = append(signs, buf.String())
+				case 2:
+					numbers = append(numbers, buf.String())
 				}
 			}
 
@@ -740,16 +741,4 @@ func isLoomCmd(cmd string) bool {
 		}
 	}
 	return false
-}
-
-func splitSign(value string) (string, string) {
-	for i, v := range value {
-		if string(v) == "<" || string(v) == ">" || string(v) == "=" {
-			if value[i+1:i+2] == "=" {
-				return value[i : i+2], value[i+2:]
-			}
-			return value[i : i+1], value[i+1:]
-		}
-	}
-	return "", ""
 }
