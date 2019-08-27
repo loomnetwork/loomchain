@@ -188,6 +188,8 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)
+	// invalidate cached config so it's reloaded next time it's accessed
+	s.config = nil
 	return nil
 }
 
@@ -304,7 +306,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
-	UpdateConfig() (int, error)
+	UpdateConfig() error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -516,14 +518,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		numConfigChanges, err := chainConfigManager.UpdateConfig()
-		if err != nil {
+		if err := chainConfigManager.UpdateConfig(); err != nil {
 			panic(err)
-		}
-
-		if numConfigChanges > 0 {
-			// invalidate cached config so it's reloaded next time it's accessed
-			a.config = nil
 		}
 	}
 
