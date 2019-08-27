@@ -462,12 +462,6 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 }
 
 func checkNodeReady(n *node.Node) error {
-	// With empty blocks disabled there's no point waiting for the node to process the first two
-	// blocks since they'll only be created when the first tx is sent through.
-	if !n.Config.CreateEmptyBlocks {
-		return nil
-	}
-
 	type ResponseInfo struct {
 		LastBlockHeight string `json:"last_block_height"`
 	}
@@ -496,6 +490,12 @@ func checkNodeReady(n *node.Node) error {
 	lastBlockHeight, err := strconv.ParseInt(resp.Result.Response.LastBlockHeight, 10, 64)
 	if err != nil {
 		return err
+	}
+
+	// With empty blocks disabled there's no point waiting for the node to process the first two
+	// blocks since they'll only be created when the first tx is sent through.
+	if !n.Config.CreateEmptyBlocks && lastBlockHeight == 1 {
+		return nil
 	}
 	// We want to wait for both the genesis block and the following confirmation block to be
 	// processed by the app before we start interacting with the node.

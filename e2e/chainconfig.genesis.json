@@ -75,5 +75,13 @@
                 }
             }
         }
-    ]
+    ],
+    "config": {
+        "evm": {
+            "gas_limit": 8000000
+        },
+        "app_store": {
+            "num_evm_keys_to_prune": 50
+        }
+    }
 }

@@ -179,23 +179,17 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // If an error occurs while trying to update the config the change is rolled back, if the rollback
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
-	cfg := s.Config()
-	backupConfigBytes, err := proto.Marshal(cfg)
-	if err != nil {
-		return err
-	}
+	cfg := loadOnChainConfig(s.store)
 	if err := config.SetConfigSetting(cfg, name, value); err != nil {
 		return err
 	}
 	configBytes, err := proto.Marshal(cfg)
 	if err != nil {
-		// restore config from backup
-		if restoreError := proto.Unmarshal(backupConfigBytes, cfg); restoreError != nil {
-			panic(err)
-		}
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)
+	// invalidate cached config so it's reloaded next time it's accessed
+	s.config = nil
 	return nil
 }
 
@@ -312,7 +306,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
-	UpdateConfig() error
+	UpdateConfig() (int, error)
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -450,6 +444,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 			panic(err)
 		}
 	}
+
 	return abci.ResponseInitChain{}
 }
 
@@ -464,7 +459,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
-	// Load the config once, when the node starts up.
 	if a.config == nil {
 		a.config = loadOnChainConfig(a.Store)
 	}
@@ -524,10 +518,15 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		if err := chainConfigManager.UpdateConfig(); err != nil {
+		numConfigChanges, err := chainConfigManager.UpdateConfig()
+		if err != nil {
 			panic(err)
 		}
 
+		if numConfigChanges > 0 {
+			// invalidate cached config so it's reloaded next time it's accessed
+			a.config = nil
+		}
 	}
 
 	storeTx.Commit()
@@ -764,7 +763,7 @@ func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
 	configBytes := kvStore.Get([]byte(configKey))
 	cfg := config.DefaultConfig()
 	if len(configBytes) > 0 {
-		if err := proto.Unmarshal(configBytes, cfg); err != nil {
+		if err := proto.UnmarshalMerge(configBytes, cfg); err != nil {
 			panic(err)
 		}
 	}

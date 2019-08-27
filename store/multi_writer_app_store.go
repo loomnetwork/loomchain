@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -27,15 +28,13 @@ var (
 	// This is the same key as rootKey in evm/loomevm.go.
 	rootKey = []byte("vmroot")
 	// Using the same featurePrefix as in app.go, and the same EvmDBFeature name as in features.go
-	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte("db:evm"))
+	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte(features.EvmDBFeature))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
-	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
+	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte(features.AppStoreVersion3_1))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_2 name as in features.go
-	appStoreVersion3_2 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.2"))
+	appStoreVersion3_2 = util.PrefixKey([]byte("feature"), []byte(features.AppStoreVersion3_2))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
-	// If this flag is set, it means that all vm keys are deleted from app.db
-	evmStateDeletedKey = []byte("evmstate:deleted")
 	// This is the same key as configKey in app.go
 	configKey = "config"
 

@@ -12,7 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/features"
 )
 
 var (
@@ -74,7 +74,7 @@ func TestTransfer(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	err = contract.Transfer(contractpb.WrapPluginContext(pctx), &TransferRequest{
 		To:     nil,
 		Amount: nil,
@@ -94,7 +94,7 @@ func sciNot(m, n int64) *loom.BigUInt {
 func TestTransferToSelf(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	// Test using the v1.1 contract, this test will fail if this feature is not enabled
-	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	pctx.SetFeature(features.CoinVersion1_1Feature, true)
 
 	contract := &Coin{}
 	err := contract.Init(
@@ -169,7 +169,7 @@ func TestApprove(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 40, int(allowResp.Amount.Value.Int64()))
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	err = contract.Approve(contractpb.WrapPluginContext(pctx), &ApproveRequest{
 		Spender: nil,
 		Amount:  nil,
@@ -237,7 +237,7 @@ func TestTransferFrom(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	nilResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
 		Owner: nil,
 	})
@@ -250,7 +250,7 @@ func TestTransferFrom(t *testing.T) {
 func TestTransferFromSelf(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	// Test using the v1.1 contract, this test will fail if this feature is not enabled
-	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	pctx.SetFeature(features.CoinVersion1_1Feature, true)
 
 	contract := &Coin{}
 	err := contract.Init(
@@ -371,7 +371,7 @@ func TestMintToGateway(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, newLoomCoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	err = contract.MintToGateway(contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)), &MintToGatewayRequest{
 		Amount: nil,
 	})
@@ -527,7 +527,7 @@ func TestMintToGatewayAccess(t *testing.T) {
 
 func TestNilRequest(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	ctx := contractpb.WrapPluginContext(pctx)
 	contract := &Coin{}
 
