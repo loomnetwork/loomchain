@@ -79,21 +79,24 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
+	blockResults, err := blockStore.GetBlockResults(&height)
+	if err != nil {
+		return resp, err
+	}
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			var txResultBytes []byte
-			txResult, err := blockStore.GetBlockResults(&height)
-			if txResult == nil {
-				txResult, err := blockStore.GetTxResult(tx.Hash())
+			var blockResultBytes []byte
+			if blockResults == nil {
+				blockResults, err := blockStore.GetTxResult(tx.Hash())
 				if err != nil {
 					return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
 				}
-				txResultBytes = txResult.TxResult.Data
+				blockResultBytes = blockResults.TxResult.Data
 			} else {
-				txResultBytes = txResult.Results.DeliverTx[index].Data
+				blockResultBytes = blockResults.Results.DeliverTx[index].Data
 			}
 
-			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultBytes, int64(index))
+			txObj, _, err := GetTxObjectFromBlockResult(blockResult, blockResultBytes, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
