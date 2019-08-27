@@ -25,18 +25,20 @@ var (
 	// This is the same prefix as vmPrefix in evm/loomevm.go
 	// We have to do this to avoid cyclic dependency
 	vmPrefix = []byte("vm")
-	// This is the same key as rootKey in evm/loomevm.go.
+	// This is the same key as rootKey in evm/loomevm.go
 	rootKey = []byte("vmroot")
+	// This is the same key as featurePrefix in app.go
+	featurePrefix = []byte("feature")
 	// Using the same featurePrefix as in app.go, and the same EvmDBFeature name as in features.go
-	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte(features.EvmDBFeature))
+	evmDBFeatureKey = util.PrefixKey(featurePrefix, []byte(features.EvmDBFeature))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
-	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte(features.AppStoreVersion3_1))
+	appStoreVersion3_1 = util.PrefixKey(featurePrefix, []byte(features.AppStoreVersion3_1))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_2 name as in features.go
-	appStoreVersion3_2 = util.PrefixKey([]byte("feature"), []byte(features.AppStoreVersion3_2))
+	appStoreVersion3_2 = util.PrefixKey(featurePrefix, []byte(features.AppStoreVersion3_2))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 	// This is the same key as configKey in app.go
-	configKey = "config"
+	configKey = []byte("config")
 
 	saveVersionDuration  metrics.Histogram
 	getSnapshotDuration  metrics.Histogram
@@ -122,7 +124,7 @@ func NewMultiWriterAppStore(
 }
 
 func (s *MultiWriterAppStore) loadOnChainConfig() {
-	configBytes := s.Get([]byte(configKey))
+	configBytes := s.Get(configKey)
 	cfg := config.DefaultConfig()
 	s.numEvmKeysToPrune = int(cfg.AppStore.NumEvmKeysToPrune)
 	if len(configBytes) > 0 {
