@@ -37,10 +37,16 @@ func TestOnChainConfig(t *testing.T) {
 	state := NewStoreState(
 		context.Background(), kvStore, header, nil, nil,
 	).WithOnChainConfig(loadOnChainConfig(kvStore))
+	// check default config
 	require.Equal(t, uint64(777), state.Config().AppStore.NumEvmKeysToPrune)
-	require.Nil(t, state.Config().Evm)
-
-	// state.ChangeConfigSetting("Evm.GasLimit", "5000")
+	require.NotNil(t, state.Config().GetEvm())
+	require.Equal(t, uint64(0), state.Config().GetEvm().GasLimit)
+	// change config setting
+	err = state.ChangeConfigSetting("Evm.GasLimit", "5000")
+	require.NoError(t, err)
+	// realod config
+	state = state.WithOnChainConfig(loadOnChainConfig(kvStore))
+	require.Equal(t, uint64(5000), state.Config().Evm.GasLimit)
 }
 
 func mockMultiWriterStore(flushInterval int64) (*store.MultiWriterAppStore, *store.IAVLStore, *store.EvmStore, error) {

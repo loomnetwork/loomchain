@@ -186,6 +186,7 @@ func (n *Node) Init(accounts []*Account) error {
 
 		newGenesis := &genesis{
 			Contracts: newContracts,
+			Config:    baseGen.Config,
 		}
 
 		err = writeGenesis(newGenesis, path.Join(n.Dir, "genesis.json"))
