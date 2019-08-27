@@ -331,26 +331,3 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 		//JumpTable: [256]operation,
 	}
 }
-
-func defaultContext() vm.Context {
-	return vm.Context{
-		CanTransfer: core.CanTransfer,
-		Transfer:    core.Transfer,
-		GetHash: func(n uint64) common.Hash {
-			return common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(n).String())))
-		},
-		Coinbase:    common.BytesToAddress([]byte("myCoinBase")),
-		BlockNumber: new(big.Int),
-		Time:        big.NewInt(time.Now().Unix()),
-		Difficulty:  new(big.Int),
-		GasLimit:    math.MaxUint64,
-		GasPrice:    big.NewInt(0),
-	}
-}
-
-func NewMockEnv(db vm.StateDB, origin common.Address) *vm.EVM {
-	chainContext := defaultChainConfig(false)
-	context := defaultContext()
-	context.Origin = origin
-	return vm.NewEVM(context, db, &chainContext, defaultVmConfig(false))
-}
