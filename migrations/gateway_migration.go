@@ -9,13 +9,14 @@ import (
 )
 
 func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
-	gatewayCtx, err := ctx.ContractContext("gateway")
+
+	gwMigrationRequest := tgtypes.TransferGatewaySwitchMainnetGatewayRequest{}
+	err := proto.Unmarshal(parameters, &gwMigrationRequest)
 	if err != nil {
 		return err
 	}
 
-	gwMigrationRequest := tgtypes.TransferGatewaySwitchMainnetGatewayRequest{}
-	err = proto.Unmarshal(parameters, &gwMigrationRequest)
+	gatewayCtx, err := ctx.ContractContext(gwMigrationRequest.GatewayName)
 	if err != nil {
 		return err
 	}
