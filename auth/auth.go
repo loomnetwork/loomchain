@@ -143,7 +143,11 @@ func (n *NonceHandler) Nonce(
 		// In DeliverTx we update the cache unconditionally, because even if the tx fails the
 		// nonce change will be persisted. We do this here because post commit middleware doesn't
 		// run for failed txs, so IncNonce can't be relied upon.
-		n.nonceCache[origin.String()] = seq + 1
+		if state.FeatureEnabled(features.IncrementNonceOnFailedTxFeature, false) {
+			n.nonceCache[origin.String()] = seq + 1
+		} else {
+			n.nonceCache[origin.String()] = seq
+		}
 	}
 
 	if tx.Sequence != seq {
@@ -167,7 +171,7 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 
 	// We only increment the nonce if the transaction is successful
 	// There are situations in checktx where we may not have committed the transaction to the statestore yet
-	if isCheckTx {
+	if !state.FeatureEnabled(features.IncrementNonceOnFailedTxFeature, false) || isCheckTx {
 		n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
 	}
 	return nil
