@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
-const TestEvent = artifacts.require('TestEvent');
-const ChainTestEvent = artifacts.require('ChainTestEvent');
+const InnerEmitter = artifacts.require('InnerEmitter');
+const OuterEmitter = artifacts.require('OuterEmitter');
 const {
     SpeculativeNonceTxMiddleware, SignedTxMiddleware, Client,
     LocalAddress, CryptoUtils, LoomProvider, Contracts, Address
@@ -32,59 +32,57 @@ contract('SampleGoContract', async () => {
             const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey);
             return [new SpeculativeNonceTxMiddleware(publicKey, client), new SignedTxMiddleware(privateKey)]
         };
-        let loomProvider = new LoomProvider(client, privateKey, setupMiddlewareFn);
         client.txMiddleware = setupMiddlewareFn(client, privateKey);
 
         web3js = new Web3(new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`));
     });
 
-    it('nested call from go contract', async () => {
-        let testEventContract = await TestEvent.deployed();
-        let chainTestEventContract = await ChainTestEvent.deployed();
+    it('nested event emitted from go contract', async () => {
+        let innerEmitter = await InnerEmitter.deployed();
+        let outerEmitter = await OuterEmitter.deployed();
 
-        const testEventValue = 31;
-        const chainTestEventValue = 63;
+        const innerEmitterValue = 31;
+        const outerEmitterValue = 63;
 
         const sampleGoContract = await new Contracts.SampleGoContract.createAsync(
             client,
             new Address(client.chainId, LocalAddress.fromPublicKey(publicKey))
         );
 
-        const goResult = await sampleGoContract.testNestedEvmCalls2Async(
-            new Address(client.chainId, LocalAddress.fromHexString(testEventContract.address)),
-            new Address(client.chainId, LocalAddress.fromHexString(chainTestEventContract.address)),
-            testEventValue,
-            chainTestEventValue,
+        const goResult = await sampleGoContract.testNestedEvmCallsAsync(
+            new Address(client.chainId, LocalAddress.fromHexString(innerEmitter.address)),
+            new Address(client.chainId, LocalAddress.fromHexString(outerEmitter.address)),
+            innerEmitterValue,
+            outerEmitterValue,
         );
         const goContractLogs = await web3js.eth.getPastLogs({
-            address: testEventContract.address,
+            address: innerEmitter.address,
         });
 
         const receipt = await web3js.eth.getTransactionReceipt(goContractLogs[0].transactionHash);
         const logsFromGoContract = receipt.logs;
 
         assert.equal(2, logsFromGoContract.length, "number of logs from go contract");
-        assert.equal(logsFromGoContract[0].topics[1], web3.utils.padLeft(testEventValue, 64), "check event value");
-        assert.equal(logsFromGoContract[1].topics[1], web3.utils.padLeft(chainTestEventValue, 64), "check event value");
+        assert.equal(logsFromGoContract[0].topics[1], web3.utils.padLeft(innerEmitterValue, 64), "check inner emitter value");
+        assert.equal(logsFromGoContract[1].topics[1], web3.utils.padLeft(outerEmitterValue, 64), "check outer emitter value");
 
-        const testEventResult = await testEventContract.sendEvent(testEventValue);
-        const testEventReceipt = await web3js.eth.getTransactionReceipt(testEventResult.receipt.transactionHash);
-        const logsFromTestEvent = testEventReceipt.logs;
+        const innerEmitterResult = await innerEmitter.sendEvent(innerEmitterValue);
+        const innerEmitterReceipt = await web3js.eth.getTransactionReceipt(innerEmitterResult.receipt.transactionHash);
+        const logsFromInnerEmitter = innerEmitterReceipt.logs;
 
-        assert.equal(1, logsFromTestEvent.length, "number of logs from TestEvent contract");
-        assert.equal(2, logsFromTestEvent[0].topics.length, "number of topics" );
-        assert.equal(logsFromGoContract[0].topics[0], logsFromTestEvent[0].topics[0], "function name topic");
+        assert.equal(1, logsFromInnerEmitter.length, "number of logs from InnerEmitter contract");
+        assert.equal(2, logsFromInnerEmitter[0].topics.length, "number of topics" );
+        assert.equal(logsFromGoContract[0].topics[0], logsFromInnerEmitter[0].topics[0], "function name topic");
+        assert.equal(logsFromGoContract[0].topics[1], logsFromInnerEmitter[0].topics[1], "value topic");
 
-        assert.equal(logsFromGoContract[0].topics[1], logsFromTestEvent[0].topics[1], "value topic");
+        const outerEmitterResult = await outerEmitter.sendEvent(outerEmitterValue);
+        const outerEmitterReceipt = await web3js.eth.getTransactionReceipt(outerEmitterResult.receipt.transactionHash);
+        const logsFromOuterEmitter = outerEmitterReceipt.logs;
 
-        const chainTestEventResult = await chainTestEventContract.chainEvent(chainTestEventValue);
-        const chainTestEventReceipt = await web3js.eth.getTransactionReceipt(chainTestEventResult.receipt.transactionHash);
-        const logsFromChainTestEvent = chainTestEventReceipt.logs;
-
-        assert.equal(1, logsFromChainTestEvent.length, "number of logs from ChainTestEvent contract");
-        assert.equal(2, logsFromChainTestEvent[0].topics.length, "number of topics" );
-        assert.equal(logsFromGoContract[1].topics[0], logsFromChainTestEvent[0].topics[0], "function name topic");
-        assert.equal(logsFromGoContract[1].topics[1], logsFromChainTestEvent[0].topics[1], "value topic");
+        assert.equal(1, logsFromOuterEmitter.length, "number of logs from OuterEmitter contract");
+        assert.equal(2, logsFromOuterEmitter[0].topics.length, "number of topics" );
+        assert.equal(logsFromGoContract[1].topics[0], logsFromOuterEmitter[0].topics[0], "function name topic");
+        assert.equal(logsFromGoContract[1].topics[1], logsFromOuterEmitter[0].topics[1], "value topic");
     });
 
 });

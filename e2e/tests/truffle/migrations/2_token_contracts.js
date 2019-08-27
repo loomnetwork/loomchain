@@ -1,13 +1,13 @@
 const MyToken = artifacts.require('./MyToken.sol')
 const MyCoin = artifacts.require('./MyCoin.sol')
-const TestEvent = artifacts.require('./TestEvent.sol')
-const ChainTestEvent = artifacts.require('./ChainTestEvent.sol')
+const InnerEmitter = artifacts.require('./InnerEmitter.sol')
+const OuterEmitter = artifacts.require('./OuterEmitter.sol')
 
 module.exports = function (deployer, network, accounts) {
   deployer.then(async () => {
     await deployer.deploy(MyToken)
     await deployer.deploy(MyCoin)
-    await deployer.deploy(TestEvent)
-    await deployer.deploy(ChainTestEvent)
+    await deployer.deploy(InnerEmitter)
+    await deployer.deploy(OuterEmitter)
   })
 }

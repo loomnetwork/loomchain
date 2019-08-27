@@ -13,7 +13,7 @@ UseCheckTx: true
 RPCBindAddress: "tcp://0.0.0.0:46658"
 # PlasmaCashEnabled: false
 Oracle: "default:0xAfaA41C81A316111fB0A4644B7a276c26bEA2C9F"
-Testing: true
+SampleGoContract: true
 
 TxLimiter:
   LimitDeploys: true

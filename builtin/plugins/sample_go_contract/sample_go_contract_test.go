@@ -35,20 +35,19 @@ func TestSampleGoContract(t *testing.T) {
 
 	pctx.State.SetFeature(loomchain.EvmConstantinopleFeature, true)
 
-	testEventaddr, err := deployContractToEVM(pctx, "TestEvent", caller)
+	testInnerEmitterAddr, err := deployContractToEVM(pctx, "InnerEmitter", caller)
 	require.NoError(t, err)
 
-	testChainEventAddr, err := deployContractToEVM(pctx, "ChainTestEvent", caller)
+	testChainEventAddr, err := deployContractToEVM(pctx, "OuterEmitter", caller)
 	require.NoError(t, err)
 
-	require.NoError(t, sampleGoContract.TestNestedEvmCalls(ctx, &types.SampleGoContractNestedEvmRequest{}))
-	require.NoError(t, err)
-
-	req := types.SampleGoContractNestedEvm2Request{
-		TestEvent:      testEventaddr.MarshalPB(),
-		ChainTestEvent: testChainEventAddr.MarshalPB(),
+	req := types.SampleGoContractNestedEvmRequest{
+		InnerEmitter:      testInnerEmitterAddr.MarshalPB(),
+		OuterEmitter:      testChainEventAddr.MarshalPB(),
+		InnerEmitterValue: 7,
+		OuterEmitterValue: 77,
 	}
-	require.NoError(t, sampleGoContract.TestNestedEvmCalls2(ctx, &req))
+	require.NoError(t, sampleGoContract.TestNestedEvmCalls(ctx, &req))
 }
 
 func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller loom.Address) (loom.Address, error) {

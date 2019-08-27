@@ -24,7 +24,6 @@ func TestE2eEvm(t *testing.T) {
 		{"evm-state-migration", "loom-6-test.toml", 4, 4, 4, "loom-6-genesis.json", "loom-6-loom.yaml"},
 		{"evm-name-option-not-allow", "loom-7-test.toml", 2, 2, 0, "loom-7-genesis.json", "loom-7-loom.yaml"},
 		{"evm-name-option-allow", "loom-8-test.toml", 2, 2, 0, "loom-7-genesis.json", "loom-8-loom.yaml"},
-		{"nested-evm-logs", "loom-9-test.toml", 4, 1, 0, "loom-9-genesis.json", "loom-9-loom.yaml"},
 	}
 
 	for _, test := range tests {

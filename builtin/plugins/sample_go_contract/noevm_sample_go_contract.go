@@ -11,7 +11,3 @@ import (
 func (k *SampleGoContract) TestNestedEvmCalls(_ contractpb.Context, _ *types.SampleGoContractNestedEvmRequest) error {
 	return errors.New("testing evm in non evm build")
 }
-
-func (k *SampleGoContract) TestNestedEvmCalls2(_ contractpb.Context, _ *types.SampleGoContractNestedEvm2Request) error {
-	return errors.New("testing evm in non evm build")
-}
