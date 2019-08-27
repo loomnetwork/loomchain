@@ -5,23 +5,19 @@
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
   ExpectedJSON = [
-  "statistics.#.address.chainId", "default",
-  "statistics.#.address.local", "{{index $.NodeBase64AddressList 0}}",
+  "statistics.#(address.local=={{index $.NodeBase64AddressList 0}})#.address.chainId", "default",
+  "statistics.#(address.chainId==default)#.address.local", "{{index $.NodeBase64AddressList 0}}",
   "statistics.#.address.chainId", "default",
   "statistics.#.address.local", "{{index $.NodeBase64AddressList 1}}"
 ]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
-  Delay = 1000
-  All = true
   Condition = "excludes"
   Excluded = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}"]
   ExcludedJSON = [
-  "statistics.#.address.chainId", "default-1",
+  "statistics.#.address.chainId", "excluded_result",
   "statistics.#.address.local", "{{index $.NodeAddressList 0}}",
-  "statistics.#.address.chainId", "default-2",
-  "statistics.#.address.local", "{{index $.NodeAddressList 1}}"
 ]
 
 [[TestCases]]
@@ -63,7 +59,7 @@
   Condition = "arithmetic"
   KeysValues = [
     "result.validators.#.voting_power",">1250000000000",
-    "result.validators.#.voting_power","<=1260000000000"
+    "result.validators.#(pub_key.value=={{index $.NodePubKeyList 0}}).voting_power","<=1260000000000"
 ]
 
 [[TestCases]]
@@ -91,6 +87,7 @@
   Expected = ["0270"]
   ExpectedJson = [
   "delegations.#.delegator.chainId", "default",
-  "delegations.#.delegator.local", "{{index $.NodeBase64AddressList 0}}",
-  "delegations.#.locktimeTier", "TIER_ZERO"
+  "delegations.#(validator.local=={{index $.NodeBase64AddressList 1}})#.delegator.local", "{{index $.NodeBase64AddressList 0}}",
+  "delegations.#(delegator.local=={{index $.NodeBase64AddressList 0}})#.locktimeTier", "TIER_ZERO"
+
 ]

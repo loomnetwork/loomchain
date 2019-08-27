@@ -459,6 +459,9 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			}
 			for i := range expectedKeys {
 				actual := gjson.Get(string(out), expectedKeys[i])
+				if !actual.Exists() {
+					return fmt.Errorf("Results are empty while searching with key '%s'", expectedKeys[i])
+				}
 				fmt.Printf("\nkey '%s' \nactual : '%s'\n", expectedKeys[i], actual)
 				fmt.Println("expected : ", expectedValues[i])
 				contain := false
@@ -516,6 +519,9 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			}
 			for i := range excludedKeys {
 				actual := gjson.Get(string(out), excludedKeys[i])
+				if !actual.Exists() {
+					return fmt.Errorf("Results are empty while searching with key '%s'", excludedKeys[i])
+				}
 				fmt.Printf("\nkey '%s' \nactual : '%s'\n", excludedKeys[i], actual)
 				fmt.Println("excluded : ", excludedValues[i])
 				for _, value := range actual.Array() {
@@ -525,11 +531,10 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				}
 			}
 		}
+
 	case "arithmetic":
 		if n.KeysValues != nil {
-			var keys []string
-			var numbers []string
-			var signs []string
+			var keys, numbers, signs []string
 			for i, keyvalue := range n.KeysValues {
 				t, err := template.New("keyvalue").Parse(keyvalue)
 				if err != nil {
@@ -551,24 +556,20 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 
 			for i := range keys {
 				actual := gjson.Get(string(out), keys[i])
-				fmt.Printf("\nkey '%s' \nactual : '%s'\n", keys[i], actual)
-				fmt.Println("expected : ", signs[i], numbers[i])
-				correct := false
+				if !actual.Exists() {
+					return fmt.Errorf("Results are empty while searching with key '%s'", keys[i])
+				}
 				for _, value := range actual.Array() {
 					boolResult, err := gval.Evaluate("got"+signs[i]+" want", map[string]interface{}{
 						"got":  value,
 						"want": numbers[i],
 					})
 					if err != nil || boolResult == nil {
-						return fmt.Errorf("cannot evaluate got %s, sign %s, want %s", value, signs[i], numbers[i])
+						return fmt.Errorf("Unable evaluate got %s, sign %s, want %s", value, signs[i], numbers[i])
 					}
-					if boolResult.(bool) == true {
-						correct = boolResult.(bool)
-						break
+					if boolResult.(bool) == false {
+						return fmt.Errorf("\nexpected '%s%s' \nbut got '%s'", signs[i], numbers[i], actual)
 					}
-				}
-				if !correct {
-					return fmt.Errorf("\nexpected '%s%s' \nbut got '%s'", signs[i], numbers[i], actual)
 				}
 			}
 		}
