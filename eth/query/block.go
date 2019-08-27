@@ -81,25 +81,22 @@ func GetBlockByNumber(
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txResult, err := blockStore.GetTxResult(tx.Hash())
-			if err != nil {
-				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+			var txResultBytes []byte
+			txResult, err := blockStore.GetBlockResults(&height)
+			if txResult == nil {
+				txResult, err := blockStore.GetTxResult(tx.Hash())
+				if err != nil {
+					return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+				}
+				txResultBytes = txResult.TxResult.Data
+			} else {
+				txResultBytes = txResult.Results.DeliverTx[index].Data
 			}
 
-			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index))
+			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultBytes, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
-
-			newtxResult, err := blockStore.GetBlockResults(&height)
-			if err != nil {
-				return resp, errors.Wrapf(err, "TENDERMINT, height %d", height)
-			}
-			newtxObj, _, err := GetTxObjectFromBlockResult(blockResult, newtxResult.Results.DeliverTx[index].Data, int64(index))
-			if err != nil {
-				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
-			}
-
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
 			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
