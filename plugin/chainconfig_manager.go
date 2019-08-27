@@ -65,15 +65,15 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	return nil
 }
 
-// UpdateConfig applies pending config changes to the on-chain config.
-func (c *ChainConfigManager) UpdateConfig() error {
+// UpdateConfig applies pending config changes to the on-chain config and returns the number of config changes
+func (c *ChainConfigManager) UpdateConfig() (int, error) {
 	if !c.state.FeatureEnabled(features.ChainCfgVersion1_3, false) {
-		return nil
+		return 0, nil
 	}
 
 	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	for _, setting := range settings {
@@ -82,5 +82,5 @@ func (c *ChainConfigManager) UpdateConfig() error {
 		}
 	}
 
-	return nil
+	return len(settings), nil
 }

@@ -306,7 +306,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
-	UpdateConfig() error
+	UpdateConfig() (int, error)
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -518,8 +518,14 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		if err := chainConfigManager.UpdateConfig(); err != nil {
+		numConfigChanges, err := chainConfigManager.UpdateConfig()
+		if err != nil {
 			panic(err)
+		}
+
+		if numConfigChanges > 0 {
+			// invalidate cached config so it's reloaded next time it's accessed
+			a.config = nil
 		}
 	}
 
