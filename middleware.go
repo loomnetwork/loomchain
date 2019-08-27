@@ -7,6 +7,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/loomnetwork/loomchain/features"
+
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/loomchain/log"
@@ -47,6 +49,10 @@ func MiddlewareTxHandler(
 	postMiddlewares []PostCommitMiddleware,
 ) TxHandler {
 	postChain := func(state State, txBytes []byte, res TxHandlerResult) error { return nil }
+	// IncNonceMiddleware is always the last middleware
+	incNonce := func(state State, txBytes []byte, res TxHandlerResult) error {
+		return postMiddlewares[len(postMiddlewares)-1].ProcessTx(state, txBytes, res, nil)
+	}
 	for i := len(postMiddlewares) - 1; i >= 0; i-- {
 		m := postMiddlewares[i]
 		localNext := postChain
@@ -58,6 +64,9 @@ func MiddlewareTxHandler(
 	next := TxHandlerFunc(func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 		result, err := handler.ProcessTx(state, txBytes, isCheckTx)
 		if err != nil {
+			if state.FeatureEnabled(features.IncrementNonceOnFailedTxFeature, false) {
+				incNonce(state, txBytes, result)
+			}
 			return result, err
 		}
 		err = postChain(state, txBytes, result)
