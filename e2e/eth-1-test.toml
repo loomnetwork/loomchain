@@ -21,7 +21,7 @@
   RunCmd = '/usr/bin/curl -X POST --data [{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83},{"jsonrpc":"2.0","method":"eth_blockNumber","params":["invalid"],"id":83},{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}] {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
-        '"result": "0x3"',
+        '"result": "0x',
         '"error":',
         '"code": -32602',
         '"message": "Parse params"',
