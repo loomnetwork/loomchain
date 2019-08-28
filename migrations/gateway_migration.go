@@ -8,8 +8,8 @@ import (
 	"github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway"
 )
 
+// GatewayMigration upgrades the Gateway contracts to consensus-reactor based multi-sig.
 func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
-
 	gwMigrationRequest := tgtypes.TransferGatewaySwitchMainnetGatewayRequest{}
 	err := proto.Unmarshal(parameters, &gwMigrationRequest)
 	if err != nil {
