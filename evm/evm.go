@@ -25,10 +25,9 @@ import (
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
-const EVMEnabled = true
-
-var (
-	gasLimit = uint64(math.MaxUint64)
+const (
+	EVMEnabled      = true
+	defaultGasLimit = math.MaxUint64
 )
 
 //Metrics
@@ -145,11 +144,16 @@ type Evm struct {
 	chainConfig     params.ChainConfig
 	vmConfig        vm.Config
 	validateTxValue bool
+	gasLimit        uint64
 }
 
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
+	p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
+	if p.gasLimit == 0 {
+		p.gasLimit = defaultGasLimit
+	}
 
 	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(features.EvmConstantinopleFeature, false))
 
@@ -165,7 +169,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 		BlockNumber: big.NewInt(lstate.Block().Height),
 		Time:        big.NewInt(lstate.Block().Time),
 		Difficulty:  new(big.Int),
-		GasLimit:    gasLimit,
+		GasLimit:    p.gasLimit,
 		GasPrice:    big.NewInt(0),
 	}
 	if abm != nil {
@@ -201,8 +205,9 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 			return nil, loom.Address{}, errors.Errorf("value %v must be non negative", value)
 		}
 	}
-	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, val)
-	usedGas = gasLimit - leftOverGas
+
+	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, e.gasLimit, val)
+	usedGas = e.gasLimit - leftOverGas
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,
 		Local:   address.Bytes(),
@@ -237,8 +242,8 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 			return nil, errors.Errorf("value %v must be non negative", value)
 		}
 	}
-	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, val)
-	usedGas = gasLimit - leftOverGas
+	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
+	usedGas = e.gasLimit - leftOverGas
 	return ret, err
 }
 
@@ -246,7 +251,7 @@ func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
-	ret, _, err := vmenv.StaticCall(vm.AccountRef(origin), contract, input, gasLimit)
+	ret, _, err := vmenv.StaticCall(vm.AccountRef(origin), contract, input, e.gasLimit)
 	return ret, err
 }
 
@@ -324,27 +329,4 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 		// table.
 		//JumpTable: [256]operation,
 	}
-}
-
-func defaultContext() vm.Context {
-	return vm.Context{
-		CanTransfer: core.CanTransfer,
-		Transfer:    core.Transfer,
-		GetHash: func(n uint64) common.Hash {
-			return common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(n).String())))
-		},
-		Coinbase:    common.BytesToAddress([]byte("myCoinBase")),
-		BlockNumber: new(big.Int),
-		Time:        big.NewInt(time.Now().Unix()),
-		Difficulty:  new(big.Int),
-		GasLimit:    gasLimit,
-		GasPrice:    big.NewInt(0),
-	}
-}
-
-func NewMockEnv(db vm.StateDB, origin common.Address) *vm.EVM {
-	chainContext := defaultChainConfig(false)
-	context := defaultContext()
-	context.Origin = origin
-	return vm.NewEVM(context, db, &chainContext, defaultVmConfig(false))
 }

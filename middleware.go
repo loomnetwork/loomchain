@@ -25,20 +25,20 @@ func (f TxMiddlewareFunc) ProcessTx(
 	return f(state, txBytes, next, isCheckTx)
 }
 
-type PostCommitHandler func(state State, txBytes []byte, res TxHandlerResult) error
+type PostCommitHandler func(state State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error
 
 type PostCommitMiddleware interface {
-	ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
+	ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool) error
 }
 
 type PostCommitMiddlewareFunc func(
-	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
+	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool,
 ) error
 
 func (f PostCommitMiddlewareFunc) ProcessTx(
-	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler,
+	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool,
 ) error {
-	return f(state, txBytes, res, next)
+	return f(state, txBytes, res, next, isCheckTx)
 }
 
 func MiddlewareTxHandler(
@@ -46,12 +46,12 @@ func MiddlewareTxHandler(
 	handler TxHandler,
 	postMiddlewares []PostCommitMiddleware,
 ) TxHandler {
-	postChain := func(state State, txBytes []byte, res TxHandlerResult) error { return nil }
+	postChain := func(state State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error { return nil }
 	for i := len(postMiddlewares) - 1; i >= 0; i-- {
 		m := postMiddlewares[i]
 		localNext := postChain
-		postChain = func(state State, txBytes []byte, res TxHandlerResult) error {
-			return m.ProcessTx(state, txBytes, res, localNext)
+		postChain = func(state State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error {
+			return m.ProcessTx(state, txBytes, res, localNext, isCheckTx)
 		}
 	}
 
@@ -60,7 +60,7 @@ func MiddlewareTxHandler(
 		if err != nil {
 			return result, err
 		}
-		err = postChain(state, txBytes, result)
+		err = postChain(state, txBytes, result, isCheckTx)
 		return result, err
 	})
 
@@ -126,9 +126,10 @@ var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
 	txBytes []byte,
 	res TxHandlerResult,
 	next PostCommitHandler,
+	isCheckTx bool,
 ) error {
 	log.Default.Info("Tx processed", "result", res, "payload", base64.StdEncoding.EncodeToString(txBytes))
-	return next(state, txBytes, res)
+	return next(state, txBytes, res, isCheckTx)
 })
 
 // InstrumentingTxMiddleware maintains the state of metrics values internally
