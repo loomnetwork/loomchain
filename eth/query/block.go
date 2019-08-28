@@ -79,19 +79,21 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
-	blockResults, err := blockStore.GetBlockResults(&height)
-	if err != nil {
-		return resp, err
+	if full {
+		blockResults, err := blockStore.GetBlockResults(&height)
+		if err != nil {
+			return resp, errors.Wrapf(err, "results for block %v", height)
+		}
 	}
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			var blockResultBytes []byte
 			if blockResults == nil {
-				blockResults, err := blockStore.GetTxResult(tx.Hash())
+				txResult, err := blockStore.GetTxResult(tx.Hash())
 				if err != nil {
 					return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
 				}
-				blockResultBytes = blockResults.TxResult.Data
+				blockResultBytes = txResult.TxResult.Data
 			} else {
 				blockResultBytes = blockResults.Results.DeliverTx[index].Data
 			}
