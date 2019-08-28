@@ -14,8 +14,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/plugin"
 )
 
@@ -33,7 +33,7 @@ func TestSampleGoContract(t *testing.T) {
 	sampleInit := types.SampleGoContractInitRequest{}
 	require.NoError(t, sampleGoContract.Init(ctx, &sampleInit))
 
-	pctx.State.SetFeature(loomchain.EvmConstantinopleFeature, true)
+	pctx.State.SetFeature(features.EvmConstantinopleFeature, true)
 
 	testInnerEmitterAddr, err := deployContractToEVM(pctx, "InnerEmitter", caller)
 	require.NoError(t, err)
