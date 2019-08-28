@@ -1050,6 +1050,28 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 	return eth.EncBigInt(*amount.Int), nil
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getStorageAt
+func (s *QueryServer) EthGetStorageAt(local eth.Data, position eth.Data, block eth.BlockHeight) (eth.Data, error) {
+	address, err := eth.DecDataToAddress(s.ChainID, local)
+	if err != nil {
+		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	hexstring, err := eth.DecDataToBytes(position)
+	if err != nil {
+		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	storage, err := evm.GetStorageAt(address, hexstring)
+	if err != nil {
+		return "", errors.Wrapf(err, "getting evm storage for %v", address)
+	}
+	return eth.EncBytes(storage), nil
+}
+
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
 	return eth.Quantity("0x0"), nil
 }

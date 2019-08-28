@@ -502,6 +502,17 @@ func (m InstrumentingMiddleware) EthGetBalance(address eth.Data, block eth.Block
 	return
 }
 
+func (m InstrumentingMiddleware) EthGetStorageAt(address eth.Data, position eth.Data, block eth.BlockHeight) (resp eth.Data, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetStorageAt", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetCode(address, block)
+	return
+}
+
 func (m InstrumentingMiddleware) EthEstimateGas(query eth.JsonTxCallObject) (resp eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthEstimateGas", "error", fmt.Sprint(err != nil)}
