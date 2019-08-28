@@ -117,7 +117,7 @@ func NewMultiWriterAppStore(
 		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
 	}
 
-	store.evmStateDeleted = len(store.appStore.RangeWithLimit(vmPrefix, 1)) == 0
+	store.evmStateDeleted = len(store.appStore.RangeWithLimit(vmPrefix, 5)) == 0
 
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
