@@ -106,7 +106,4 @@ const (
 
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"
-
-	// Enables configurable gas limit
-	EvmGasLimit = "evm:gas-limit"
 )

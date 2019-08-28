@@ -150,9 +150,8 @@ type Evm struct {
 func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
-	if lstate.FeatureEnabled(features.EvmGasLimit, false) {
-		p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
-	} else {
+	p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
+	if p.gasLimit == 0 {
 		p.gasLimit = defaultGasLimit
 	}
 
