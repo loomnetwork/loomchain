@@ -43,6 +43,7 @@ var (
 	saveVersionDuration  metrics.Histogram
 	getSnapshotDuration  metrics.Histogram
 	pruneEVMKeysDuration metrics.Histogram
+	pruneEVMKeysCount    metrics.Counter
 )
 
 func init() {
@@ -73,6 +74,15 @@ func init() {
 			Name:       "prune_evm_keys",
 			Help:       "How long purning EVM keys took to execute (in seconds)",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, []string{},
+	)
+
+	pruneEVMKeysCount = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
+			Name:      "prune_evm_keys_count",
+			Help:      "Number of requests received.",
 		}, []string{},
 	)
 }
@@ -223,6 +233,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			}
 
 			pruneEVMKeysDuration.Observe(time.Since(begin).Seconds())
+			pruneEVMKeysCount.Add(float64(len(rangeData)))
 		}
 
 	}
@@ -236,7 +247,7 @@ func (s *MultiWriterAppStore) pruneEvmState() bool {
 	if s.numEvmKeysToPrune == 0 {
 		return false
 	}
-	return len(s.appStore.RangeWithLimit(vmPrefix, 50)) > 0
+	return len(s.appStore.RangeWithLimit(vmPrefix, s.numEvmKeysToPrune)) > 0
 }
 
 func (s *MultiWriterAppStore) setLastSavedTreeToVersion(version int64) error {
