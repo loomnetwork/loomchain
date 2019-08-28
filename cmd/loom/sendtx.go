@@ -53,16 +53,17 @@ func newMigrationCommand() *cobra.Command {
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
-			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
+			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID, cli.TxFlags.CfgFilePath)
 		},
 	}
 	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	migrationCmd.Flags().StringVarP(&cli.TxFlags.CfgFilePath, "config", "p", "", "config file")
 	setChainFlags(migrationCmd.Flags())
 	return migrationCmd
 }
 
-func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error {
+func migrationTx(migrationId uint32, privFile, algo, callerChainID string, cfgFilePath string) error {
 	clientAddr, signer, err := caller(privFile, "", algo, callerChainID)
 	if err != nil {
 		return errors.Wrapf(err, "initialization failed")
@@ -70,9 +71,17 @@ func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error
 	if signer == nil {
 		return fmt.Errorf("invalid private key")
 	}
+
+	var configParamsByte []byte
+	if cfgFilePath != "" {
+		configParamsByte, err = ioutil.ReadFile(cfgFilePath)
+		if err != nil {
+			return err
+		}
+	}
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 
-	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId)
+	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId, configParamsByte)
 	if err != nil {
 		return err
 	}
