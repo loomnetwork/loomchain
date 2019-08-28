@@ -103,6 +103,13 @@ func (m *MockQueryService) EthGetCode(address eth.Data, block eth.BlockHeight) (
 	return "", nil
 }
 
+func (m *MockQueryService) EthGetStorageAt(address eth.Data, position eth.Data, block eth.BlockHeight) (eth.Data, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"EthGetStorageAt"}, m.MethodsCalled...)
+	return "", nil
+}
+
 func (m *MockQueryService) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
