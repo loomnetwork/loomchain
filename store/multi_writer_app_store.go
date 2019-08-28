@@ -84,7 +84,6 @@ type MultiWriterAppStore struct {
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
-	evmStateDeleted            bool
 	numEvmKeysToPrune          int
 }
 
