@@ -261,7 +261,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	state4 := common.MockStateAt(state, 4)
 	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
 	require.NoError(t, err)
-	receiptHandler.CommitCurrentReceipt(nil)
+	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
 
 	mockEvent20 := []*types.EventData{
@@ -274,7 +274,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	state20 := common.MockStateAt(state, 20)
 	_, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil)
 	require.NoError(t, err)
-	receiptHandler.CommitCurrentReceipt(nil)
+	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 
 	mockEvent25 := []*types.EventData{
@@ -287,7 +287,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	state25 := common.MockStateAt(state, 25)
 	_, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil)
 	require.NoError(t, err)
-	receiptHandler.CommitCurrentReceipt(nil)
+	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state25, 25))
 
 	mockEvent30 := []*types.EventData{
@@ -300,7 +300,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	state30 := common.MockStateAt(state, 30)
 	_, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil)
 	require.NoError(t, err)
-	receiptHandler.CommitCurrentReceipt(nil)
+	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state30, 30))
 
 	for height := 100; height < 120; height++ {
@@ -314,7 +314,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		state := common.MockStateAt(state, uint64(height))
 		_, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil)
 		require.NoError(t, err)
-		receiptHandler.CommitCurrentReceipt(nil)
+		receiptHandler.CommitCurrentReceipt()
 		require.NoError(t, receiptHandler.CommitBlock(state30, int64(height)))
 	}
 

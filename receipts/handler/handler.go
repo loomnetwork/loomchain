@@ -29,9 +29,9 @@ type ReceiptHandler struct {
 	leveldbReceipts *leveldb.LevelDbReceipts
 	mutex           *sync.RWMutex
 	receiptsCache   []*types.EvmTxReceipt
-	childTxRefs     []common.ChildTxRef
 	txHashList      [][]byte
 	currentReceipt  *types.EvmTxReceipt
+	evmAuxStore     *evmaux.EvmAuxStore
 }
 
 func NewReceiptHandler(
@@ -42,20 +42,16 @@ func NewReceiptHandler(
 		eventHandler:    eventHandler,
 		receiptsCache:   []*types.EvmTxReceipt{},
 		txHashList:      [][]byte{},
-		childTxRefs:     []common.ChildTxRef{},
 		currentReceipt:  nil,
 		mutex:           &sync.RWMutex{},
 		leveldbReceipts: leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts),
+		evmAuxStore:     evmAuxStore,
 	}
-}
-
-func (r *ReceiptHandler) GetHashFromTmHash(tmHash []byte) ([]byte, error) {
-	return r.leveldbReceipts.GetHashFromTmHash(tmHash)
 }
 
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	// Convert if using tendermint txHash
-	loomTxHash, err := r.GetHashFromTmHash(txHash)
+	loomTxHash, err := r.evmAuxStore.GetChildTxHash(txHash)
 	if len(loomTxHash) > 0 && err == nil {
 		txHash = loomTxHash
 	}
@@ -106,18 +102,12 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) CommitCurrentReceipt(tmHash []byte) {
+func (r *ReceiptHandler) CommitCurrentReceipt() {
 	if r.currentReceipt != nil {
 		r.mutex.Lock()
 		defer r.mutex.Unlock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
-		if len(tmHash) > 0 {
-			r.childTxRefs = append(r.childTxRefs, common.ChildTxRef{
-				tmHash,
-				r.currentReceipt.TxHash},
-			)
-		}
 		r.currentReceipt = nil
 	}
 }
@@ -131,10 +121,9 @@ func (r *ReceiptHandler) DiscardCurrentReceipt() {
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height), r.childTxRefs)
+	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
-	r.childTxRefs = []common.ChildTxRef{}
 	return err
 }
 

@@ -69,7 +69,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 			receiptHandler.DiscardCurrentReceipt()
 		} else {
 			if resp.Info == utils.CallEVM || resp.Info == utils.DeployEvm {
-				receiptHandler.CommitCurrentReceipt(nil)
+				receiptHandler.CommitCurrentReceipt()
 				txHashList = append(txHashList, txHash)
 			}
 		}

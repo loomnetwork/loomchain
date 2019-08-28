@@ -344,6 +344,7 @@ type Application struct {
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
+	childTxRefs                 []store.ChildTxRef // links Go txs to internal EVM txs
 }
 
 var _ abci.Application = &Application{}
@@ -682,13 +683,24 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		if err != nil {
 			log.Error("Emit Tx Event error", "err", err)
 		}
+
 		reader := a.ReceiptHandlerProvider.Reader()
 		if reader.GetCurrentReceipt() != nil {
-			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-				log.Error("failed to load receipt", "err", err)
+			receiptTxHash := reader.GetCurrentReceipt().TxHash
+			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+				log.Error("failed to emit tx event to subscribers", "err", err)
+			}
+			txHash := ttypes.Tx(txBytes).Hash()
+			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+			// so that we can use it to lookup relevant events using the TM tx hash.
+			if !bytes.Equal(txHash, receiptTxHash) {
+				a.childTxRefs = append(a.childTxRefs, ChildTxRef{
+					txHash,
+					receiptTxHash,
+				})
 			}
 		}
-		receiptHandler.CommitCurrentReceipt(ttypes.Tx(txBytes).Hash())
+		receiptHandler.CommitCurrentReceipt()
 		storeTx.Commit()
 	}
 	return r, nil
@@ -707,6 +719,9 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
+
+	a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs)
+	a.childTxRefs = nil
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
