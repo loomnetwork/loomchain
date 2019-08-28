@@ -338,7 +338,7 @@ type Application struct {
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
-	childTxRefs                 []store.ChildTxRef // links Go txs to internal EVM txs
+	childTxRefs                 []evmaux.ChildTxRef // links Go txs to internal EVM txs
 }
 
 var _ abci.Application = &Application{}
@@ -693,7 +693,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
 			// so that we can use it to lookup relevant events using the TM tx hash.
 			if !bytes.Equal(txHash, receiptTxHash) {
-				a.childTxRefs = append(a.childTxRefs, ChildTxRef{
+				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
 					txHash,
 					receiptTxHash,
 				})
