@@ -21,6 +21,6 @@ func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
 		return err
 	}
 
-	gateway.SwitchMainnetGateway(gatewayCtx, gwMigrationRequest)
+	gateway.SwitchMainnetGateway(gatewayCtx, &gwMigrationRequest)
 	return nil
 }

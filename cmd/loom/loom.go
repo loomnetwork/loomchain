@@ -838,6 +838,7 @@ func loadApp(
 		Migrations: map[int32]tx_handler.MigrationFunc{
 			1: migrations.DPOSv3Migration,
 			2: migrations.GatewayMigration,
+			3: migrations.GatewayMigration,
 		},
 	}
 
