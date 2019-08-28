@@ -50,6 +50,7 @@ func testInnerEmitter(ctx contractpb.Context, addr loom.Address, value uint64) e
 		return err
 	}
 	evmOut := []byte{}
+
 	err = contractpb.CallEVM(ctx, addr, input, &evmOut)
 	if err != nil {
 		return err
@@ -76,6 +77,7 @@ func testOuterEmitter(ctx contractpb.Context, addr loom.Address, value uint64) e
 		return err
 	}
 	evmOut := []byte{}
+
 	err = contractpb.CallEVM(ctx, addr, input, &evmOut)
 	if err != nil {
 		return err
