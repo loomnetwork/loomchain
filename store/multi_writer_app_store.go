@@ -81,8 +81,8 @@ func init() {
 		stdprometheus.CounterOpts{
 			Namespace: "loomchain",
 			Subsystem: "multi_writer_appstore",
-			Name:      "prune_evm_keys_count",
-			Help:      "Number of requests received.",
+			Name:      "num_pruned_vm_keys",
+			Help:      "Number of deleted vm keys",
 		}, []string{},
 	)
 }
