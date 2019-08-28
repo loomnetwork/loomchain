@@ -405,6 +405,7 @@ func CreateCluster(nodes []*Node, account []*Account, fnconsensus bool) error {
 
 		newGenesis := &genesis{
 			Contracts: newContracts,
+			Config:    gens.Config,
 		}
 
 		err = writeGenesis(newGenesis, path.Join(node.Dir, "genesis.json"))
@@ -466,6 +467,7 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 
 	newGenesis := &genesis{
 		Contracts: newContracts,
+		Config:    gens.Config,
 	}
 
 	err = writeGenesis(newGenesis, outfile)

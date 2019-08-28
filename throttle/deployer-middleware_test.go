@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,7 @@ var (
 
 func TestDeployerWhitelistMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
-	state.SetFeature(loomchain.DeployerWhitelistFeature, true)
+	state.SetFeature(features.DeployerWhitelistFeature, true)
 
 	txSignedPlugin := mockSignedTx(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
 	txSignedEVM := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)

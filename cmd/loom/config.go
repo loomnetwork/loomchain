@@ -10,14 +10,15 @@ import (
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	cconfig "github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/plugin"
 )
 
@@ -200,43 +201,47 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Owner: contractOwner,
 			Features: []*cctypes.Feature{
 				&cctypes.Feature{
-					Name:   loomchain.DPOSVersion3_1,
+					Name:   features.DPOSVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.ChainCfgVersion1_1,
+					Name:   features.ChainCfgVersion1_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.ChainCfgVersion1_2,
+					Name:   features.ChainCfgVersion1_2,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.ChainCfgVersion1_3,
+					Name:   features.ChainCfgVersion1_3,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.EvmTxReceiptsVersion2Feature,
+					Name:   features.EvmTxReceiptsVersion2Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.CoinVersion1_1Feature,
+					Name:   features.CoinVersion1_1Feature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.AppStoreVersion3_1,
+					Name:   features.AppStoreVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.AuthSigTxFeaturePrefix + "eth",
+					Name:   features.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.CheckTxValueFeature,
+					Name:   features.CheckTxValueFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   loomchain.EvmConstantinopleFeature,
+					Name:   features.EvmConstantinopleFeature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   features.IncrementNonceOnFailedTxFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
 			},
@@ -305,6 +310,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 	}
 
 	return &config.Genesis{
+		Config:    *cconfig.DefaultConfig(),
 		Contracts: contracts,
 	}, nil
 }

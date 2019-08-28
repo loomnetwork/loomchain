@@ -182,23 +182,17 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // If an error occurs while trying to update the config the change is rolled back, if the rollback
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
-	cfg := s.Config()
-	backupConfigBytes, err := proto.Marshal(cfg)
-	if err != nil {
-		return err
-	}
+	cfg := loadOnChainConfig(s.store)
 	if err := config.SetConfigSetting(cfg, name, value); err != nil {
 		return err
 	}
 	configBytes, err := proto.Marshal(cfg)
 	if err != nil {
-		// restore config from backup
-		if restoreError := proto.Unmarshal(backupConfigBytes, cfg); restoreError != nil {
-			panic(err)
-		}
 		return err
 	}
 	s.store.Set([]byte(configKey), configBytes)
+	// invalidate cached config so it's reloaded next time it's accessed
+	s.config = nil
 	return nil
 }
 
@@ -315,7 +309,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
-	UpdateConfig() error
+	UpdateConfig() (int, error)
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -344,6 +338,7 @@ type Application struct {
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
+	childTxRefs                 []evmaux.ChildTxRef // links Go txs to internal EVM txs
 }
 
 var _ abci.Application = &Application{}
@@ -453,6 +448,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 			panic(err)
 		}
 	}
+
 	return abci.ResponseInitChain{}
 }
 
@@ -467,7 +463,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
-	// Load the config once, when the node starts up.
 	if a.config == nil {
 		a.config = loadOnChainConfig(a.Store)
 	}
@@ -527,10 +522,15 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			panic(err)
 		}
 
-		if err := chainConfigManager.UpdateConfig(); err != nil {
+		numConfigChanges, err := chainConfigManager.UpdateConfig()
+		if err != nil {
 			panic(err)
 		}
 
+		if numConfigChanges > 0 {
+			// invalidate cached config so it's reloaded next time it's accessed
+			a.config = nil
+		}
 	}
 
 	storeTx.Commit()
@@ -682,13 +682,24 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		if err != nil {
 			log.Error("Emit Tx Event error", "err", err)
 		}
+
 		reader := a.ReceiptHandlerProvider.Reader()
 		if reader.GetCurrentReceipt() != nil {
-			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-				log.Error("failed to load receipt", "err", err)
+			receiptTxHash := reader.GetCurrentReceipt().TxHash
+			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+				log.Error("failed to emit tx event to subscribers", "err", err)
+			}
+			txHash := ttypes.Tx(txBytes).Hash()
+			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+			// so that we can use it to lookup relevant events using the TM tx hash.
+			if !bytes.Equal(txHash, receiptTxHash) {
+				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+					txHash,
+					receiptTxHash,
+				})
 			}
 		}
-		receiptHandler.CommitCurrentReceipt(ttypes.Tx(txBytes).Hash())
+		receiptHandler.CommitCurrentReceipt()
 		storeTx.Commit()
 	}
 	return r, nil
@@ -707,6 +718,9 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
+
+	a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs)
+	a.childTxRefs = nil
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
@@ -767,7 +781,7 @@ func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
 	configBytes := kvStore.Get([]byte(configKey))
 	cfg := config.DefaultConfig()
 	if len(configBytes) > 0 {
-		if err := proto.Unmarshal(configBytes, cfg); err != nil {
+		if err := proto.UnmarshalMerge(configBytes, cfg); err != nil {
 			panic(err)
 		}
 	}
