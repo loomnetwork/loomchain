@@ -14,7 +14,6 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -119,7 +118,11 @@ func (n *NonceHandler) Nonce(
 		n.nonceCache = make(map[string]uint64)
 	}
 	var seq uint64
-	if state.FeatureEnabled(features.IncrementNonceOnFailedTxFeature, false) && !isCheckTx {
+
+	cfg := state.Config()
+	IncrementNonceOnFailedTx := cfg.GetNonceHandler().GetIncNonceOnFailedTx() > 0
+
+	if IncrementNonceOnFailedTx && !isCheckTx {
 		// Unconditionally increment the nonce in DeliverTx, regardless of whether the tx succeeds
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
 	} else {
@@ -140,7 +143,7 @@ func (n *NonceHandler) Nonce(
 		// In CheckTx we only update the cache if the tx is successful (see IncNonce)
 		seq = cacheSeq
 	} else {
-		if state.FeatureEnabled(features.IncrementNonceOnFailedTxFeature, false) {
+		if IncrementNonceOnFailedTx {
 			if isCheckTx {
 				n.nonceCache[origin.String()] = seq
 			} else {
@@ -173,9 +176,12 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 		return errors.New("transaction has no origin [IncNonce]")
 	}
 
+	cfg := state.Config()
+	IncrementNonceOnFailedTx := cfg.GetNonceHandler().GetIncNonceOnFailedTx() > 0
+
 	// We only increment the nonce if the transaction is successful
 	// There are situations in checktx where we may not have committed the transaction to the statestore yet
-	if state.FeatureEnabled(features.IncrementNonceOnFailedTxFeature, false) {
+	if IncrementNonceOnFailedTx {
 		if isCheckTx {
 			n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
 		}
