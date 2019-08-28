@@ -509,7 +509,7 @@ func (m InstrumentingMiddleware) EthGetStorageAt(address eth.Data, position eth.
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.EthGetCode(address, block)
+	resp, err = m.next.EthGetStorageAt(address, position, block)
 	return
 }
 
