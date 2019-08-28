@@ -64,7 +64,6 @@ func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller
 	if err != nil {
 		return contractAddr, err
 	}
-
 	ctx.RegisterContract("", contractAddr, caller)
 	return contractAddr, nil
 }
