@@ -1054,18 +1054,18 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 func (s *QueryServer) EthGetStorageAt(local eth.Data, position eth.Data, block eth.BlockHeight) (eth.Data, error) {
 	address, err := eth.DecDataToAddress(s.ChainID, local)
 	if err != nil {
-		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+		return "", errors.Wrapf(err, "decoding input address parameter %v", local)
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	hexstring, err := eth.DecDataToBytes(position)
+	positionByte, err := eth.DecDataToBytes(position)
 	if err != nil {
-		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+		return "", errors.Wrapf(err, "decoding input position parameter %v", position)
 	}
 	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
-	storage, err := evm.GetStorageAt(address, hexstring)
+	storage, err := evm.GetStorageAt(address, positionByte)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting evm storage for %v", address)
 	}
