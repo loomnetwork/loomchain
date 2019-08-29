@@ -81,13 +81,16 @@ func GetBlockByNumber(
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	var blockResults *ctypes.ResultBlockResults
 	if full {
+		// We ignore the error here becuase if the block results can't be loaded for any reason
+		// we'll try to load the data we need from tx_index.db instead.
+		// TODO: Log the error returned by GetBlockResults.
 		blockResults, _ = blockStore.GetBlockResults(&height)
 	}
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			var blockResultBytes []byte
 			if blockResults == nil {
-				//Retrieve Tx Result by Tx hash instead.
+				// Retrieve tx result from tx_index.db
 				txResult, err := blockStore.GetTxResult(tx.Hash())
 				if err != nil {
 					return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
