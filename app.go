@@ -694,8 +694,8 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			// so that we can use it to lookup relevant events using the TM tx hash.
 			if !bytes.Equal(txHash, receiptTxHash) {
 				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
-					txHash,
-					receiptTxHash,
+					ParentTxHash: txHash,
+					ChildTxHash:  receiptTxHash,
 				})
 			}
 		}

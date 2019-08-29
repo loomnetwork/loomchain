@@ -16,14 +16,22 @@ func TestContractDPOS(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"dpos-jail-validator", "dpos-jail-validator.toml", 4, 10, "dposv3-jail.genesis.json", "dposv3-test-loom.yaml"},
-		{"dpos-downtime", "dpos-downtime.toml", 4, 10, "dposv3-downtime.genesis.json", "dposv3-test-loom.yaml"},
-		{"dpos-v3", "dposv3-delegation.toml", 4, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},
-		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},
-		{"dpos-2-r2", "dpos-2-validators.toml", 2, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},
-		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dposv3-2.genesis.json", "dposv3-test-loom.yaml"},
-		{"dpos-4-r2", "dpos-4-validators.toml", 4, 10, "dposv3-2.genesis.json", "dposv3-test-loom.yaml"},
-		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-jail-validator", "dpos-jail-validator.toml",
+			4, 10, "dposv3-jail.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-downtime", "dpos-downtime.toml",
+			4, 10, "dposv3-downtime.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-v3", "dposv3-delegation.toml",
+			4, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-2", "dpos-2-validators.toml",
+			2, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-2-r2", "dpos-2-validators.toml",
+			2, 10, "dposv3.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-4", "dpos-4-validators.toml",
+			4, 10, "dposv3-2.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-4-r2", "dpos-4-validators.toml",
+			4, 10, "dposv3-2.genesis.json", "dposv3-test-loom.yaml"},
+		{"dpos-elect-time", "dpos-elect-time-2-validators.toml",
+			2, 10, "dpos-elect-time.genesis.json", "dposv3-test-loom.yaml"},
 	}
 
 	for _, test := range tests {

@@ -16,7 +16,14 @@ func TestE2eKarmaThrottle(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"throttle", "throttle-1-test.toml", 1, 2, "throttle-1-test.json", "throttle-1-loom.yaml"},
+		{
+			"throttle",
+			"throttle-1-test.toml",
+			1,
+			2,
+			"throttle-1-test.json",
+			"throttle-1-loom.yaml",
+		},
 	}
 
 	for _, test := range tests {

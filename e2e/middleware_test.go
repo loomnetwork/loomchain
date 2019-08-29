@@ -26,7 +26,12 @@ func TestMiddleware(t *testing.T) {
 			"userdeployerwhitelist.genesis.json", "userdeployerwhitelist-loom.yaml",
 		},
 		{
-			"tx-limiter", "tx-limiter-test.toml", 1, 4, "", "tx-limiter-loom.yaml",
+			"tx-limiter",
+			"tx-limiter-test.toml",
+			1,
+			4,
+			"",
+			"tx-limiter-loom.yaml",
 		},
 	}
 
