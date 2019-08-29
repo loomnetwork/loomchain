@@ -2,11 +2,10 @@
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
-const { waitForXBlocks, getStorageAt } = require('./helpers')
+const { getStorageAt } = require('./helpers')
 const StoreTestContract = artifacts.require('StoreTestContract');
 
-// web3 functions called using truffle objects use the loomProvider
-// web3 functions called uisng we3js access the loom QueryInterface directly
+
 contract('StoreTestContract', async (accounts) => {
 
   beforeEach(async () => {
@@ -37,24 +36,6 @@ contract('StoreTestContract', async (accounts) => {
     result = web3js.utils.hexToUtf8(result)
     assert.equal(result, "test1236", "invalid value get storage")
 
-    //position = web3js.utils.padLeft("0x04",32)
-   // console.log(position)
-   // key = web3js.utils.padLeft("0xbCcc714d56bc0da0fd33d96d2a87b680dD6D0DF6",32)
-    //console.log(key)
-   // newkey = web3js.utils.soliditySha3(position,key)
-   // console.log(newkey)
-    index = '0000000000000000000000000000000000000000000000000000000000000005'
-    key = '000000000000000000000000bCcc714d56bc0da0fd33d96d2a87b680dD6D0DF6'
-    let newKey = web3js.utils.soliditySha3(key + index)
-    result = await getStorageAt(ethUrl, storeContract.address, newKey)
-    console.log(result)
-    result = web3js.utils.hexToNumber(result)
-    console.log(result)
-    assert.equal(result, 88, "invalid value get storage")
   });
 
 });
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
