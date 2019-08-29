@@ -99,7 +99,7 @@
             "num_evm_keys_to_prune": 0
         },
         "nonce_handler": {
-            "inc_nonce_on_failed_tx": 1
+            "inc_nonce_on_failed_tx": true
         }
     }
 }
