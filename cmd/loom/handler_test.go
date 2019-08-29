@@ -31,11 +31,19 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 
 	vmManager := vm.NewManager()
 	router := loomchain.NewTxRouter()
-	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(&vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry}))
+	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(
+		&vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry},
+	))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(&vm.CallTxHandler{Manager: vmManager}))
 
 	kvStore := store.NewMemStore()
-	state := loomchain.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
+	state := loomchain.NewStoreState(
+		nil,
+		kvStore,
+		abci.Header{ChainID: "default"},
+		nil,
+		nil,
+	)
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,

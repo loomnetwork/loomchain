@@ -712,7 +712,8 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
+		// todo we can remove these once performance comes back to normal state
+		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds()))
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
