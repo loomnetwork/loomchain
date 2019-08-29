@@ -218,10 +218,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.AppStoreVersion3_2,
-					Status: chainconfig.FeatureWaiting,
-				},
-				&cctypes.Feature{
 					Name:   features.AuthSigTxFeaturePrefix + "eth",
 					Status: chainconfig.FeatureWaiting,
 				},
