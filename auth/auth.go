@@ -119,10 +119,8 @@ func (n *NonceHandler) Nonce(
 	}
 	var seq uint64
 
-	cfg := state.Config()
-	IncrementNonceOnFailedTx := cfg.GetNonceHandler().GetIncNonceOnFailedTx() > 0
-
-	if IncrementNonceOnFailedTx && !isCheckTx {
+	incrementNonceOnFailedTx := state.Config().GetNonceHandler().GetIncNonceOnFailedTx()
+	if incrementNonceOnFailedTx && !isCheckTx {
 		// Unconditionally increment the nonce in DeliverTx, regardless of whether the tx succeeds
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
 	} else {
@@ -143,7 +141,7 @@ func (n *NonceHandler) Nonce(
 		// In CheckTx we only update the cache if the tx is successful (see IncNonce)
 		seq = cacheSeq
 	} else {
-		if IncrementNonceOnFailedTx {
+		if incrementNonceOnFailedTx {
 			if isCheckTx {
 				n.nonceCache[origin.String()] = seq
 			} else {
@@ -176,12 +174,9 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 		return errors.New("transaction has no origin [IncNonce]")
 	}
 
-	cfg := state.Config()
-	IncrementNonceOnFailedTx := cfg.GetNonceHandler().GetIncNonceOnFailedTx() > 0
-
 	// We only increment the nonce if the transaction is successful
 	// There are situations in checktx where we may not have committed the transaction to the statestore yet
-	if IncrementNonceOnFailedTx {
+	if state.Config().GetNonceHandler().GetIncNonceOnFailedTx() {
 		if isCheckTx {
 			n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
 		}
