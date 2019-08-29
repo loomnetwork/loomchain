@@ -9,8 +9,6 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
@@ -35,8 +33,6 @@ var (
 	appStoreVersion3_1 = util.PrefixKey(featurePrefix, []byte(features.AppStoreVersion3_1))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
-	// This is the same key as configKey in app.go
-	configKey = []byte("config")
 
 	saveVersionDuration  metrics.Histogram
 	getSnapshotDuration  metrics.Histogram
@@ -95,7 +91,7 @@ type MultiWriterAppStore struct {
 	numEvmKeysToPrune          int
 }
 
-// NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
+// NewMultiWriterAppStore creates a new MultiWriterAppStore.
 func NewMultiWriterAppStore(
 	appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool,
 ) (*MultiWriterAppStore, error) {
@@ -126,20 +122,6 @@ func NewMultiWriterAppStore(
 
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
-}
-
-func (s *MultiWriterAppStore) loadOnChainConfig() {
-	configBytes := s.Get(configKey)
-	cfg := config.DefaultConfig()
-	s.numEvmKeysToPrune = int(cfg.AppStore.NumEvmKeysToPrune)
-	if len(configBytes) > 0 {
-		if err := proto.Unmarshal(configBytes, cfg); err != nil {
-			panic(err)
-		}
-	}
-	if int(cfg.AppStore.NumEvmKeysToPrune) > 0 {
-		s.numEvmKeysToPrune = int(cfg.AppStore.NumEvmKeysToPrune)
-	}
 }
 
 func (s *MultiWriterAppStore) Delete(key []byte) {
@@ -222,30 +204,34 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			s.appStore.Set(rootKey, currentRoot)
 		}
 
-		// prune vm keys
-		if s.pruneEvmState() {
-			begin := time.Now()
-			rangeData := s.appStore.RangeWithLimit(vmPrefix, s.numEvmKeysToPrune)
-			for _, data := range rangeData {
-				s.appStore.Delete(util.PrefixKey(vmPrefix, data.Key))
-			}
-
-			pruneEVMKeysDuration.Observe(time.Since(begin).Seconds())
-			pruneEVMKeysCount.Add(float64(len(rangeData)))
+		if err := s.pruneOldEVMKeys(); err != nil {
+			return nil, 0, err
 		}
-
 	}
 	hash, version, err := s.appStore.SaveVersion()
 	s.setLastSavedTreeToVersion(version)
 	return hash, version, err
 }
 
-func (s *MultiWriterAppStore) pruneEvmState() bool {
-	s.loadOnChainConfig()
-	if s.numEvmKeysToPrune == 0 {
-		return false
+func (s *MultiWriterAppStore) pruneOldEVMKeys() error {
+	defer func(begin time.Time) {
+		pruneEVMKeysDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	cfg, err := LoadOnChainConfig(s.appStore)
+	if err != nil {
+		return err
 	}
-	return len(s.appStore.RangeWithLimit(vmPrefix, s.numEvmKeysToPrune)) > 0
+
+	maxKeysToPrune := cfg.GetAppStore().GetNumEvmKeysToPrune()
+	if maxKeysToPrune > 0 {
+		entriesToPrune := s.appStore.RangeWithLimit(vmPrefix, int(maxKeysToPrune))
+		for _, entry := range entriesToPrune {
+			s.appStore.Delete(util.PrefixKey(vmPrefix, entry.Key))
+		}
+		pruneEVMKeysCount.Add(float64(len(entriesToPrune)))
+	}
+	return nil
 }
 
 func (s *MultiWriterAppStore) setLastSavedTreeToVersion(version int64) error {
