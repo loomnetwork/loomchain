@@ -60,4 +60,21 @@ async function getNonce(nodeAddr, account) {
   return res.result
 }
 
-module.exports = { assertRevert, delay, waitForXBlocks, getNonce}
+async function getStorageAt(ethUrl,account,position){
+  var options = {
+    method: 'POST',
+    uri: ethUrl,
+    body: {
+      jsonrpc: '2.0',
+      method: 'eth_getStorageAt',
+      params: [account, position, "latest"],
+      id: 83,
+    },
+    json: true
+  };
+
+  const res = await rp(options)
+  return res.result
+}
+
+module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt}
