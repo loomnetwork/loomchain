@@ -282,8 +282,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	configBytes, err := proto.Marshal(cfg)
 	require.NoError(err)
 	newStore.Set([]byte(configKey), configBytes)
-	// enable pruning with appstore v3.2
-	newStore.Set(appStoreVersion3_2, []byte{1})
+
 	// prune VM keys
 	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(2), version)

@@ -94,8 +94,6 @@ const (
 	AuxEvmDBFeature = "db:auxevm"
 	// Force MultiWriterAppStore to write EVM root to app.db only if the root changes
 	AppStoreVersion3_1 = "appstore:v3.1"
-	// Enable pruning EVM keys out of app.db
-	AppStoreVersion3_2 = "appstore:v3.2"
 
 	// Enable option to allow checking the registry error
 	DeployTxVersion1_1Feature = "deploytx:v1.1"

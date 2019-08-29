@@ -33,8 +33,6 @@ var (
 	evmDBFeatureKey = util.PrefixKey(featurePrefix, []byte(features.EvmDBFeature))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
 	appStoreVersion3_1 = util.PrefixKey(featurePrefix, []byte(features.AppStoreVersion3_1))
-	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_2 name as in features.go
-	appStoreVersion3_2 = util.PrefixKey(featurePrefix, []byte(features.AppStoreVersion3_2))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 	// This is the same key as configKey in app.go
@@ -225,7 +223,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 		}
 
 		// prune vm keys
-		if bytes.Equal(s.appStore.Get(appStoreVersion3_2), []byte{1}) && s.pruneEvmState() {
+		if s.pruneEvmState() {
 			begin := time.Now()
 			rangeData := s.appStore.RangeWithLimit(vmPrefix, s.numEvmKeysToPrune)
 			for _, data := range rangeData {
