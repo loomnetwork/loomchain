@@ -203,7 +203,15 @@ func newDeployCommand() *cobra.Command {
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID, valueString string) (loom.Address, []byte, []byte, error) {
+func deployTx(
+	bcFile,
+	privFile,
+	pubFile,
+	name,
+	algo,
+	callerChainID,
+	valueString string,
+) (loom.Address, []byte, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile, algo, callerChainID)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")

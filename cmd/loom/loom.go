@@ -605,7 +605,12 @@ func destroyBlockIndexDB(cfg *config.Config) error {
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
 	db, err := cdb.LoadDB(
-		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+		cfg.DBBackend,
+		cfg.DBName,
+		cfg.RootPath(),
+		cfg.DBBackendConfig.CacheSizeMegs,
+		cfg.DBBackendConfig.WriteBufferMegs,
+		cfg.Metrics.Database,
 	)
 	if err != nil {
 		return nil, err
@@ -915,9 +920,18 @@ func loadApp(
 	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
 
 	// TODO: Write this in more elegant way
-	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
-	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
-	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
+	router.HandleCheckTx(
+		1,
+		loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler),
+	)
+	router.HandleCheckTx(
+		2,
+		loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler),
+	)
+	router.HandleCheckTx(
+		3,
+		loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler),
+	)
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
@@ -1278,7 +1292,9 @@ func initQueryService(
 func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
 	for {
 		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
-		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
+		err := push.New(
+			cfg.PushGateWayUrl,
+			cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
 		if err != nil {
 			log.Error("Error in pushing to Prometheus Push Gateway ", "Error", err)
 		}
