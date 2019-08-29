@@ -239,5 +239,5 @@ func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return levm.GetStorageAt(addr, string(key))
+	return levm.GetStorageAt(addr, key)
 }

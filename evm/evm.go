@@ -254,8 +254,8 @@ func (e Evm) GetCode(addr loom.Address) []byte {
 	return e.sdb.GetCode(common.BytesToAddress(addr.Local))
 }
 
-func (e Evm) GetStorageAt(addr loom.Address, key string) ([]byte, error) {
-	result := e.sdb.GetState(common.BytesToAddress(addr.Local), common.HexToHash(key))
+func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
+	result := e.sdb.GetState(common.BytesToAddress(addr.Local), common.BytesToHash(key))
 	return result.Bytes(), nil
 }
 
