@@ -70,7 +70,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, false,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil, false)
 
 	//State is reset on every run
 	ctx2 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
@@ -102,7 +102,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, true,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes2, loomchain.TxHandlerResult{}, nil)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes2, loomchain.TxHandlerResult{}, nil, false)
 
 	//Try a deliverTx at same height it should be fine
 	ctx3Dx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
@@ -117,7 +117,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, false,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil, false)
 
 	///--------------increase block height should kill cache
 	//State is reset on every run
@@ -132,8 +132,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, true,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
-
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil, false)
 }
 
 func TestRevertedTxNonceMiddleware(t *testing.T) {
@@ -177,7 +176,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 		}, false,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil, false)
 	storeTx.Commit()
 	storeTx.Rollback()
 
@@ -188,7 +187,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 		}, false,
 	)
 	require.Error(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil, false)
 	storeTx.Rollback()
 
 	currentNonce = Nonce(state, origin)

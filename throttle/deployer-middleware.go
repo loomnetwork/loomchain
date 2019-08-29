@@ -32,19 +32,20 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 		txBytes []byte,
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
+		isCheckTx bool,
 	) error {
 		if !state.FeatureEnabled(features.UserDeployerWhitelistFeature, false) {
-			return next(state, txBytes, res)
+			return next(state, txBytes, res, isCheckTx)
 		}
 
 		// If it isn't EVM deployment, no need to proceed further
 		if res.Info != utils.DeployEvm {
-			return next(state, txBytes, res)
+			return next(state, txBytes, res, isCheckTx)
 		}
 
 		// This is checkTx, so bail out early.
 		if len(res.Data) == 0 {
-			return next(state, txBytes, res)
+			return next(state, txBytes, res, isCheckTx)
 		}
 
 		var deployResponse vm.DeployResponse
@@ -62,7 +63,7 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 			return errors.Wrapf(err, "error while recording deployment")
 		}
 
-		return next(state, txBytes, res)
+		return next(state, txBytes, res, isCheckTx)
 	}), nil
 }
 
