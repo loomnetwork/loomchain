@@ -81,10 +81,7 @@ func GetBlockByNumber(
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	var blockResults *ctypes.ResultBlockResults
 	if full {
-		blockResults, err = blockStore.GetBlockResults(&height)
-		if err != nil {
-			return resp, errors.Wrapf(err, "results for block %v", height)
-		}
+		blockResults, _ = blockStore.GetBlockResults(&height)
 	}
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
