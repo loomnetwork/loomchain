@@ -29,7 +29,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
 	commit := 1 // number of commits
 	// store 5 receipts
-	require.NoError(t, handler.CommitBlock(state, receipts1, height, nil))
+	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1, commit)
 	confirmStateConsistency(t, evmAuxStore, receipts1, height)
 	// db reaching max
@@ -38,7 +38,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	receipts2 := common.MakeDummyReceipts(t, 7, height)
 	commit = 2
 	// store another 7 receipts
-	require.NoError(t, handler.CommitBlock(state2, receipts2, height, nil))
+	require.NoError(t, handler.CommitBlock(state2, receipts2, height))
 	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...), commit)
 	confirmStateConsistency(t, evmAuxStore, receipts2, height)
 
@@ -48,7 +48,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	receipts3 := common.MakeDummyReceipts(t, 5, height)
 	commit = 3
 	// store another 5 receipts
-	require.NoError(t, handler.CommitBlock(state3, receipts3, height, nil))
+	require.NoError(t, handler.CommitBlock(state3, receipts3, height))
 	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...), commit)
 	confirmStateConsistency(t, evmAuxStore, receipts3, height)
 
@@ -73,7 +73,7 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	receipts1 := common.MakeDummyReceipts(t, maxSize+1, height)
 	commit := 1
 	// store 11 receipts, which is more than max that can be stored
-	require.NoError(t, handler.CommitBlock(state, receipts1, height, nil))
+	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 
 	confirmDbConsistency(t, handler, maxSize, receipts1[1].TxHash, receipts1[10].TxHash, receipts1[1:], commit)
 	confirmStateConsistency(t, evmAuxStore, receipts1, height)
@@ -151,7 +151,7 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	state := common.MockState(height)
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
 	// store 5 receipts
-	require.NoError(t, handler.CommitBlock(state, receipts1, height, nil))
+	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 	txHashes, err := evmAuxStore.GetTxHashList(height)
 	require.NoError(t, err)
 	a := []byte("0xf0675dc27bC62b584Ab2E8E1D483a55CFac9E960")

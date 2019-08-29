@@ -115,7 +115,7 @@ func (lr LevelDbReceipts) Close() error {
 }
 
 func (lr *LevelDbReceipts) CommitBlock(
-	state loomchain.State, receipts []*types.EvmTxReceipt, height uint64,
+	_ loomchain.State, receipts []*types.EvmTxReceipt, height uint64,
 ) error {
 	if len(receipts) == 0 {
 		return nil
