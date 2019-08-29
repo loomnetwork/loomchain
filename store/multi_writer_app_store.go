@@ -88,7 +88,6 @@ type MultiWriterAppStore struct {
 	evmStore                   *EvmStore
 	lastSavedTree              unsafe.Pointer // *iavl.ImmutableTree
 	onlySaveEvmStateToEvmStore bool
-	numEvmKeysToPrune          int
 }
 
 // NewMultiWriterAppStore creates a new MultiWriterAppStore.
