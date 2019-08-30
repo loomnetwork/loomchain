@@ -82,14 +82,28 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
+	var blockResults *ctypes.ResultBlockResults
+	if full {
+		// We ignore the error here becuase if the block results can't be loaded for any reason
+		// we'll try to load the data we need from tx_index.db instead.
+		// TODO: Log the error returned by GetBlockResults.
+		blockResults, _ = blockStore.GetBlockResults(&height)
+	}
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
-			txResult, err := blockStore.GetTxResult(tx.Hash())
-			if err != nil {
-				return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+			var blockResultBytes []byte
+			if blockResults == nil {
+				// Retrieve tx result from tx_index.db
+				txResult, err := blockStore.GetTxResult(tx.Hash())
+				if err != nil {
+					return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+				}
+				blockResultBytes = txResult.TxResult.Data
+			} else {
+				blockResultBytes = blockResults.Results.DeliverTx[index].Data
 			}
 
-			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+			txObj, _, err := GetTxObjectFromBlockResult(blockResult, blockResultBytes, int64(index))
 			if err != nil {
 				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
 			}
@@ -107,7 +121,7 @@ func GetBlockByNumber(
 }
 
 func GetTxObjectFromBlockResult(
-	blockResult *ctypes.ResultBlock, txResult *ctypes.ResultTx, index int64,
+	blockResult *ctypes.ResultBlock, txResultData []byte, index int64,
 ) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[index]
 	var contractAddress *eth.Data
@@ -154,7 +168,7 @@ func GetTxObjectFromBlockResult(
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
-				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
+				if err := proto.Unmarshal(txResultData, &resp); err != nil {
 					return eth.GetEmptyTxObject(), nil, err
 				}
 
@@ -180,8 +194,8 @@ func GetTxObjectFromBlockResult(
 			input = callTx.Input
 			to := eth.EncAddress(msg.To)
 			txObj.To = &to
-			if callTx.VmType == vm.VMType_EVM && len(txResult.TxResult.Data) > 0 {
-				txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
+			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
+				txObj.Hash = eth.EncBytes(txResultData)
 			}
 			if callTx.Value != nil {
 				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
@@ -295,15 +309,10 @@ func DeprecatedGetBlockByNumber(
 	blockinfo := types.EthBlockInfo{
 		Hash:       blockresult.BlockMeta.BlockID.Hash,
 		ParentHash: blockresult.Block.Header.LastBlockID.Hash,
-
-		Timestamp: int64(blockresult.Block.Header.Time.Unix()),
+		Timestamp:  int64(blockresult.Block.Header.Time.Unix()),
+		Number:     height,
+		LogsBloom:  evmAuxStore.GetBloomFilter(uint64(height)),
 	}
-	if state.Block().Height == height {
-		blockinfo.Number = 0
-	} else {
-		blockinfo.Number = height
-	}
-	blockinfo.LogsBloom = evmAuxStore.GetBloomFilter(uint64(height))
 
 	txHashList, err := evmAuxStore.GetTxHashList(uint64(height))
 	if err != nil {

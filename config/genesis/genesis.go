@@ -3,6 +3,7 @@ package genesis
 import (
 	"encoding/json"
 
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	lvm "github.com/loomnetwork/go-loom/vm"
 )
 
@@ -23,4 +24,5 @@ func (c ContractConfig) VMType() lvm.VMType {
 
 type Genesis struct {
 	Contracts []ContractConfig `json:"contracts"`
+	Config    cctypes.Config   `json:"config"`
 }

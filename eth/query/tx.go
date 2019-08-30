@@ -46,7 +46,7 @@ func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (et
 			err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
 	}
 
-	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult, int64(index))
+	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index))
 	if err != nil {
 		return eth.GetEmptyTxObject(), err
 	}

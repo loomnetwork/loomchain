@@ -35,6 +35,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -76,6 +77,7 @@ import (
 
 var (
 	appHeightKey = []byte("appheight")
+	configKey    = []byte("config")
 )
 
 var RootCmd = &cobra.Command{
@@ -273,7 +275,7 @@ func newInitCommand() *cobra.Command {
 func newResetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset",
-		Short: "Reset the app and blockchain state only",
+		Short: "Reset the app and blockchain state, while keeping genesis & config unchanged",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := common.ParseConfig()
 			if err != nil {
@@ -286,14 +288,17 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			err = resetApp(cfg)
-			if err != nil {
-				return err
+			if err := resetApp(cfg); err != nil {
+				return errors.Wrap(err, "failed to reset app state")
+			}
+
+			if err := destroyDB(cfg.EvmStore.DBName, cfg.RootPath()); err != nil {
+				return errors.Wrap(err, "failed to reset evm state")
 			}
 
 			destroyReceiptsDB(cfg)
 			if err := destroyBlockIndexDB(cfg); err != nil {
-				return err
+				return errors.Wrap(err, "failed to reset block index")
 			}
 
 			return nil
@@ -837,6 +842,8 @@ func loadApp(
 		CreateRegistry: createRegistry,
 		Migrations: map[int32]tx_handler.MigrationFunc{
 			1: migrations.DPOSv3Migration,
+			2: migrations.GatewayMigration,
+			3: migrations.GatewayMigration,
 		},
 	}
 
@@ -847,6 +854,13 @@ func loadApp(
 
 	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
+		// init config
+		configBytes, err := proto.Marshal(&gen.Config)
+		if err != nil {
+			return err
+		}
+		state.Set(configKey, configBytes)
+
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
@@ -988,7 +1002,7 @@ func loadApp(
 	}
 
 	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
-		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
 			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
 			dposV3Ctx, err := createDPOSV3Ctx(state)
 			if err != nil {
@@ -1034,7 +1048,7 @@ func loadApp(
 			return nil, err
 		}
 		// DPOSv3 can only be enabled via feature flag or if it's enabled via the loom.yml
-		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {
 			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))

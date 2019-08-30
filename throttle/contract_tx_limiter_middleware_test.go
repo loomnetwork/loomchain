@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -35,8 +36,8 @@ var (
 func TestContractTxLimiterMiddleware(t *testing.T) {
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	fakeCtx.SetFeature(loomchain.CoinVersion1_1Feature, true)
-	fakeCtx.SetFeature(loomchain.UserDeployerWhitelistVersion1_1Feature, true)
+	fakeCtx.SetFeature(features.CoinVersion1_1Feature, true)
+	fakeCtx.SetFeature(features.UserDeployerWhitelistVersion1_1Feature, true)
 	udwAddr := fakeCtx.CreateContract(udw.Contract)
 	udwContext := fakeCtx.WithAddress(udwAddr)
 	udwContract := &udw.UserDeployerWhitelist{}

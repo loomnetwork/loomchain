@@ -5,13 +5,13 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/features"
 )
 
-func DPOSv3Migration(ctx *MigrationContext) error {
+func DPOSv3Migration(ctx *MigrationContext, parameters []byte) error {
 	// Pull data from DPOSv2
 	_, dposv2Ctx, err := resolveDPOSv2(ctx)
 	if err != nil {
@@ -54,7 +54,7 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	dposv3.Initialize(dposv3Ctx, initializationState)
 
 	// Switch over to DPOSv3
-	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
+	ctx.State().SetFeature(features.DPOSVersion3Feature, true)
 
 	return nil
 }
