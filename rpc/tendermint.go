@@ -55,7 +55,6 @@ func (t *RuntimeTendermintRpc) ethereumToTendermintTx(txBytes []byte) (types.Tx,
 func ethereumToTendermintTx(trpc TendermintRpc, txBytes []byte) (types.Tx, error) {
 	msg := &vm.MessageTx{}
 	msg.Data = txBytes
-
 	var tx etypes.Transaction
 	if err := rlp.DecodeBytes(txBytes, &tx); err != nil {
 		return nil, err
