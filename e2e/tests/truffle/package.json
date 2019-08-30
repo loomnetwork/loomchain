@@ -15,7 +15,7 @@
     "openzeppelin-solidity": "2.3.0",
     "request-promise": "^4.2.4",
     "truffle": "5.0.31",
-    "web3": "1.2.7"
+    "web3": "1.0.0-beta.36"
   },
   "devDependencies": {}
 }
