@@ -22,31 +22,49 @@ contract('StoreTestContract', async (accounts) => {
     const storeContract = await StoreTestContract.deployed();
 
   // Parameters in contract storage are indexd from the beginning. 
-  // One index takes 256 bytes.  
+  // One index takes 256 bits.  
   // On this assertion 0x00 represent the first value that stored in StoreTestContract.
   // Which is storedUint1 and the value is '15'
-    result = await getStorageAt(ethUrl, storeContract.address, "0x00")
-    assert.equal(result, '0x000000000000000000000000000000000000000000000000000000000000000f')
+    index = "0x00"
+    result = await getStorageAt(ethUrl, storeContract.address, index)
+    result = web3js.utils.hexToNumber(result)
+    assert.equal(result, 15 ,"Invalid value at index "+index)
 
-  //Because the type of storeUint2 and storedUint3 only take 128 + 32 bytes to store.
+  //Because the type of storeUint2 and storedUint3 only take 128 + 32 bits to store.
   //It will be stored on the same index for storage optimization.
-    result = await getStorageAt(ethUrl, storeContract.address, "0x01")
-    assert.equal(result, '0x000000000000000000000000000004d20000000000000000000000000000429f')
+    index = "0x01"
+    result = await getStorageAt(ethUrl, storeContract.address, index)
+    assert.equal(result, '0x000000000000000000000000000004d20000000000000000000000000000429f', "Invalid value at index " + index)
 
   //Assertion of 'string1' in StoreTestContract
-    result = await getStorageAt(ethUrl, storeContract.address,"0x02")
-    result = web3js.utils.hexToUtf8(result)
-    assert.equal(result, 'test1')
+    index = "0x02"
+    result = await getStorageAt(ethUrl, storeContract.address,index)
+    result = await web3js.utils.hexToUtf8(result)
+    assert.equal(result, 'test1', "Invalid value at index " + index)
 
   //Assertion of 'string2' in StoreTestContract
-    result = await getStorageAt(ethUrl, storeContract.address, "0x03")
-    result = web3js.utils.hexToUtf8(result)
-    assert.equal(result, "test1236", "invalid value get storage")
+    index = "0x03"
+    result = await getStorageAt(ethUrl, storeContract.address, index)
+    result = await web3js.utils.hexToUtf8(result)
+    assert.equal(result, "test1236", "Invalid value at index " + index)
 
   //Assertion of 'string3' in StoreTestContract
-    result = await getStorageAt(ethUrl, storeContract.address, "0x04")
-    result = web3js.utils.hexToUtf8(result)
-    assert.equal(result, "lets string something", "invalid value get storage")
+    index = "0x04"
+    result = await getStorageAt(ethUrl, storeContract.address, index)
+    result = await web3js.utils.hexToUtf8(result)
+    assert.equal(result, "lets string something", "Invalid value at index " + index)
+
+  //Assertion of 'uintarray' in StoreTestContract
+  //This will have a result as 2 because at index 0x05 the contract store 2 value of uint as array.
+    index = "0x05"
+    result = await getStorageAt(ethUrl, storeContract.address, index)
+    result = await web3js.utils.hexToNumber(result)
+    assert.equal(result, 2, "Invalid value at index " + index)
+
+    // index = await web3js.utils.sha3(index)
+    // result = await getStorageAt(ethUrl, storeContract.address, index)
+    // result = await web3js.utils.hexToNumber(result)
+    // assert.equal(result, 8001, "Invalid value at index " + index)
 
   });
 
