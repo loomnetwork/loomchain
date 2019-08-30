@@ -5,10 +5,10 @@
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
   ExpectedJSON = [
-  "statistics.#(address.local=={{index $.NodeBase64AddressList 0}})#.address.chainId", "default",
-  "statistics.#(address.chainId==default)#.address.local", "{{index $.NodeBase64AddressList 0}}",
-  "statistics.#.address.chainId", "default",
-  "statistics.#.address.local", "{{index $.NodeBase64AddressList 1}}"
+  "statistics.#(address.local=={{index $.NodeBase64AddressList 0}})#.address.chainId","==", "default",
+  "statistics.#(address.chainId==default)#.address.local","==", "{{index $.NodeBase64AddressList 0}}",
+  "statistics.#.address.chainId","==", "default",
+  "statistics.#.address.local", "==", "{{index $.NodeBase64AddressList 1}}"
 ]
 
 [[TestCases]]
@@ -50,14 +50,14 @@
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
   ExpectedJson = [
-  "jsonrpc", "2.0",
-  "result.validators.#.pub_key.value","{{index $.NodePubKeyList 0}}"
+  "jsonrpc","==", "2.0",
+  "result.validators.#.pub_key.value","==","{{index $.NodePubKeyList 0}}"
 ]
 
 [[TestCases]]
   RunCmd = "check_validators"
-  Condition = "arithmetic"
-  KeysValues = [
+  Condition = "contains"
+  ExpectedJSON = [
     "result.validators.#.voting_power",">","1250000000000",
     "result.validators.#(pub_key.value=={{index $.NodePubKeyList 0}}).voting_power","<=","1260000000000"
 ]
@@ -71,8 +71,8 @@
   Condition = "contains"
   Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}"]
   ExpectedJson = [
-    "statistics.#.address.chainId","default",
-    "statistics.#.jailed","false"
+    "statistics.#.address.chainId","==","default",
+    "statistics.#.jailed","==","false"
   ]
 
 [[TestCases]]
@@ -86,7 +86,7 @@
   Condition = "contains"
   Expected = ["0270"]
   ExpectedJson = [
-  "delegations.#.delegator.chainId", "default",
-  "delegations.#(validator.local=={{index $.NodeBase64AddressList 1}})#.delegator.local", "{{index $.NodeBase64AddressList 0}}",
-  "delegations.#(delegator.local=={{index $.NodeBase64AddressList 0}})#.locktimeTier", "TIER_ZERO"
+  "delegations.#.delegator.chainId","==", "default",
+  "delegations.#(validator.local=={{index $.NodeBase64AddressList 1}})#.delegator.local", "==" ,"{{index $.NodeBase64AddressList 0}}",
+  "delegations.#(delegator.local=={{index $.NodeBase64AddressList 0}})#.locktimeTier","==", "TIER_ZERO"
 ]

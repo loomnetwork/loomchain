@@ -26,7 +26,6 @@ type TestCase struct {
 	Datafiles    []Datafile `toml:"Datafiles"`
 	ExpectedJSON []string   `toml:"ExpectedJson"`
 	ExcludedJSON []string   `toml:"ExcludedJson"`
-	KeysValues   []string   `toml:"KeysValues"`
 }
 
 type Tests struct {

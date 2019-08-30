@@ -438,9 +438,9 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			}
 		}
 
+		//check by evaluation
 		if n.ExpectedJSON != nil {
-			var expectedKeys []string
-			var expectedValues []string
+			var keys, signs, values []string
 			for i, expectedJSON := range n.ExpectedJSON {
 				t, err := template.New("expectedjson").Parse(expectedJSON)
 				if err != nil {
@@ -451,32 +451,60 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				if err != nil {
 					return err
 				}
-				if i%2 == 0 {
-					expectedKeys = append(expectedKeys, buf.String())
-				} else {
-					expectedValues = append(expectedValues, buf.String())
+				switch i % 3 {
+				case 0:
+					keys = append(keys, buf.String())
+				case 1:
+					signs = append(signs, buf.String())
+				case 2:
+					values = append(values, buf.String())
 				}
 			}
-			for i := range expectedKeys {
-				actual := gjson.Get(string(out), expectedKeys[i])
+
+			for i := range keys {
+				var contain bool
+				actual := gjson.Get(string(out), keys[i])
 				if !actual.Exists() {
-					return fmt.Errorf("Results are empty while searching with key '%s'", expectedKeys[i])
+					return fmt.Errorf("Results are empty while searching with key %s", keys[i])
 				}
-				fmt.Printf("\nkey '%s' \nactual : '%s'\n", expectedKeys[i], actual)
-				fmt.Println("expected : ", expectedValues[i])
-				contain := false
 				for _, value := range actual.Array() {
-					if expectedValues[i] == value.String() {
+					var result interface{}
+					var err error
+					if signs[i] == "==" || signs[i] == "!=" {
+						result, err = gval.Evaluate(`left`+signs[i]+`right`, map[string]interface{}{
+							"left":  value.String(),
+							"right": values[i],
+						})
+					} else {
+						left, err := strconv.ParseInt(value.String(), 10, 64)
+						if err != nil {
+							return err
+						}
+						right, err := strconv.ParseInt(values[i], 10, 64)
+						if err != nil {
+							return err
+						}
+						result, err = gval.Evaluate(`left`+signs[i]+`right`, map[string]interface{}{
+							"left":  left,
+							"right": right,
+						})
+					}
+					if err != nil || result == nil {
+						return fmt.Errorf("Unable evaluate  %s %s %s", value, signs[i], values[i])
+					} else {
+						fmt.Printf("Evaluate  %s %s %s \n ", value, signs[i], values[i])
+						fmt.Printf("Which is : %+v \n", result)
+						fmt.Printf("Which type is : %+v \n", value.Type)
+					}
+					if result.(bool) == true {
 						contain = true
-						break
 					}
 				}
 				if !contain {
-					return fmt.Errorf("expected '%s' \nbut got '%s'", expectedValues[i], actual)
+					return fmt.Errorf("\nexpected to '%s' '%s' \nbut got '%s'", signs[i], values[i], actual)
 				}
 			}
 		}
-
 	case "excludes":
 		var excludeds []string
 		for _, excluded := range n.Excluded {
@@ -522,54 +550,9 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				if !actual.Exists() {
 					return fmt.Errorf("Results are empty while searching with key '%s'", excludedKeys[i])
 				}
-				fmt.Printf("\nkey '%s' \nactual : '%s'\n", excludedKeys[i], actual)
-				fmt.Println("excluded : ", excludedValues[i])
 				for _, value := range actual.Array() {
 					if excludedValues[i] == value.String() {
-						return fmt.Errorf("expected to excluded '%s' \nbut got '%s'", excludedValues[i], actual)
-					}
-				}
-			}
-		}
-
-	case "arithmetic":
-		if n.KeysValues != nil {
-			var keys, numbers, signs []string
-			for i, keyvalue := range n.KeysValues {
-				t, err := template.New("keyvalue").Parse(keyvalue)
-				if err != nil {
-					return err
-				}
-				buf := new(bytes.Buffer)
-				err = t.Execute(buf, e.conf)
-				if err != nil {
-					return err
-				}
-				switch i % 3 {
-				case 0:
-					keys = append(keys, buf.String())
-				case 1:
-					signs = append(signs, buf.String())
-				case 2:
-					numbers = append(numbers, buf.String())
-				}
-			}
-
-			for i := range keys {
-				actual := gjson.Get(string(out), keys[i])
-				if !actual.Exists() {
-					return fmt.Errorf("Results are empty while searching with key '%s'", keys[i])
-				}
-				for _, value := range actual.Array() {
-					boolResult, err := gval.Evaluate("got"+signs[i]+" want", map[string]interface{}{
-						"got":  value,
-						"want": numbers[i],
-					})
-					if err != nil || boolResult == nil {
-						return fmt.Errorf("Unable evaluate got %s, sign %s, want %s", value, signs[i], numbers[i])
-					}
-					if boolResult.(bool) == false {
-						return fmt.Errorf("\nexpected '%s%s' \nbut got '%s'", signs[i], numbers[i], actual)
+						return fmt.Errorf("expected to exclude '%s' \nbut got '%s'", excludedValues[i], actual)
 					}
 				}
 			}
