@@ -23,7 +23,6 @@ var (
 	headKey          = []byte("leveldb:head")
 	tailKey          = []byte("leveldb:tail")
 	currentDbSizeKey = []byte("leveldb:size")
-	tmHashPrefix     = []byte("leveldb:tmHashprefix")
 )
 
 func WriteReceipt(

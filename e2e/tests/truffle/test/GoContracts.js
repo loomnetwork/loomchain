@@ -5,11 +5,8 @@ const InnerEmitter = artifacts.require('InnerEmitter');
 const OuterEmitter = artifacts.require('OuterEmitter');
 const {
     SpeculativeNonceTxMiddleware, SignedTxMiddleware, Client,
-    LocalAddress, CryptoUtils, LoomProvider, Contracts, Address
+    LocalAddress, CryptoUtils, Contracts, Address
 } = require('loom-js');
-
-
-
 
 contract('SampleGoContract', async () => {
     const privateKey = CryptoUtils.generatePrivateKey();
@@ -44,12 +41,12 @@ contract('SampleGoContract', async () => {
         const innerEmitterValue = 31;
         const outerEmitterValue = 63;
 
-        const sampleGoContract = await new Contracts.SampleGoContract.createAsync(
+        const sampleGoContract = await Contracts.SampleGoContract.createAsync(
             client,
             new Address(client.chainId, LocalAddress.fromPublicKey(publicKey))
         );
 
-        const goResult = await sampleGoContract.testNestedEvmCallsAsync(
+        await sampleGoContract.testNestedEvmCallsAsync(
             new Address(client.chainId, LocalAddress.fromHexString(innerEmitter.address)),
             new Address(client.chainId, LocalAddress.fromHexString(outerEmitter.address)),
             innerEmitterValue,

@@ -32,8 +32,3 @@ func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
 	}
 	return typesEvents
 }
-
-type ChildTxRef struct {
-	ParentTxHash []byte
-	ChildTxHash  []byte
-}
