@@ -93,6 +93,13 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	return s.RangeWithLimit(prefix, 0)
 }
 
+// RangeWithLimit will return a list of keys & values that are prefixed by the given bytes (with a
+// zero byte separator between the prefix and the key).
+//
+// If the limit is zero all matching keys will be returned, if the limit is greater than zero at most
+// that many keys will be returned. Unfortunately, specifying a non-zero limit can result in somewhat
+// unpredictable results, if there are N matching keys, and the limit is N, the number of keys
+// returned may be less than N.
 func (s *IAVLStore) RangeWithLimit(prefix []byte, limit int) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 

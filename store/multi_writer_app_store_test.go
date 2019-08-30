@@ -277,7 +277,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	rangeData := iavlStore.Range([]byte("vm"))
 	require.Equal(7, len(rangeData))
 
-	// prune 2 vm keys per block
+	// prune max 5 vm keys per block
 	cfg := config.DefaultConfig()
 	cfg.AppStore.NumEvmKeysToPrune = 5
 	configBytes, err := proto.Marshal(cfg)
@@ -285,17 +285,17 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	newStore.Set([]byte(configKey), configBytes)
 
 	// prune VM keys
+	// NOTE: only 3 vm keys will actually get pruned due to the quirkiness of RangeWithLimit
 	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(2), version)
 	require.NoError(err)
 
 	// expect number of vm keys to be 7-3 = 4
-	// the number of deleted keys per will not match the number of NumEvmKeysToPrune
-	// due to iavlstore.RangeWithLimit please read the explanation from TestIAVLRangeWithlimit
 	rangeData = iavlStore.Range([]byte("vm"))
 	require.Equal(4, len(rangeData))
 
 	// prune VM keys
+	// NOTE: once again only 3 vm keys will get pruned
 	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(3), version)
 	require.NoError(err)
@@ -309,7 +309,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	require.Equal(int64(4), version)
 	require.NoError(err)
 
-	// expect number of vm keys to be = 0
+	// all the VM keys should be gone now
 	rangeData = iavlStore.Range([]byte("vm"))
 	require.Equal(0, len(rangeData))
 }
@@ -331,10 +331,7 @@ func (m *MultiWriterAppStoreTestSuite) TestIAVLRangeWithlimit() {
 	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
-	// Note: this is an unpredictable behavior due to our prefix system
-	// the number of returned keys might be less than the limit even though the limit is less than
-	// the total number of target-prefixed keys in the store because iavl store excludes non-prefixed keys
-	// In this case, vmroot is excluded from list so the expect number is 4
+	// only 4 VM keys will be returned due to the quirkiness of RangeWithLimit
 	rangeData := iavlStore.RangeWithLimit([]byte("vm"), 5)
 	require.Equal(4, len(rangeData))
 }
