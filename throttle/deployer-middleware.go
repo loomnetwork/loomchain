@@ -127,7 +127,7 @@ func NewDeployerWhitelistMiddleware(
 			}
 		case ethId:
 			{
-				if !state.FeatureEnabled(loomchain.EthTxFeature, false) {
+				if !state.FeatureEnabled(features.EthTxFeature, false) {
 					return next(state, txBytes, isCheckTx)
 				}
 

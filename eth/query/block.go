@@ -210,12 +210,12 @@ func GetTxObjectFromBlockResult(
 			if ethTx.To() != nil {
 				to := eth.EncAddress(msg.To)
 				txObj.To = &to
-				if len(txResult.TxResult.Data) > 0 {
-					txObj.Hash = eth.EncBytes(txResult.TxResult.Data)
+				if len(txResultData) > 0 {
+					txObj.Hash = eth.EncBytes(txResultData)
 				}
 			} else {
 				var resp vm.DeployResponse
-				if err := proto.Unmarshal(txResult.TxResult.Data, &resp); err != nil {
+				if err := proto.Unmarshal(txResultData, &resp); err != nil {
 					return eth.GetEmptyTxObject(), nil, err
 				}
 				var respData vm.DeployResponseData

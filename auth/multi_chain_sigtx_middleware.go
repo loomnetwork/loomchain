@@ -80,7 +80,7 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, errors.Wrap(err, "failed to unmarshal Transaction")
 		}
 		if tx.Id == ethID || signedTx.Signature == nil {
-			if !state.FeatureEnabled(loomchain.EthTxFeature, false) {
+			if !state.FeatureEnabled(features.EthTxFeature, false) {
 				return r, errors.New("ethereum transactions feature not enabled")
 			}
 		}

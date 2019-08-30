@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry/factory"
 )
 
@@ -32,7 +33,7 @@ func (h *EthTxHandler) ProcessTx(
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
-	if !state.FeatureEnabled(loomchain.EthTxFeature, false) {
+	if !state.FeatureEnabled(features.EthTxFeature, false) {
 		return r, errors.New("ethereum transactions feature not enabled")
 	}
 

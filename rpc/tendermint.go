@@ -14,8 +14,8 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/evm/utils"
+	"github.com/loomnetwork/loomchain/features"
 )
 
 const (
@@ -35,7 +35,7 @@ type RuntimeTendermintRpc struct {
 
 func (t *RuntimeTendermintRpc) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	snapshot := t.StateProvider.ReadOnlyState()
-	if !snapshot.FeatureEnabled(loomchain.EthTxFeature, false) {
+	if !snapshot.FeatureEnabled(features.EthTxFeature, false) {
 		snapshot.Release()
 		return nil, errors.New("ethereum transactions feature not enabled")
 	}
