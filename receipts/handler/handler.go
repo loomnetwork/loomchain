@@ -109,7 +109,7 @@ func (r *ReceiptHandler) DiscardCurrentReceipt() {
 	r.currentReceipt = nil
 }
 
-func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
+func (r *ReceiptHandler) CommitBlock(height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	err := r.leveldbReceipts.CommitBlock(r.receiptsCache, uint64(height))
