@@ -28,6 +28,8 @@ func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
 		return err
 	}
 
-	gateway.SwitchMainnetGateway(gatewayCtx, &gwMigrationRequest)
+	if err := gateway.SwitchMainnetGateway(gatewayCtx, &gwMigrationRequest); err != nil {
+		return err
+	}
 	return nil
 }
