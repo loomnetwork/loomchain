@@ -112,7 +112,7 @@ func (r *ReceiptHandler) DiscardCurrentReceipt() {
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
+	err := r.leveldbReceipts.CommitBlock(r.receiptsCache, uint64(height))
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
 	return err
