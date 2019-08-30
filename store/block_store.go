@@ -270,13 +270,11 @@ func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlo
 	if err != nil {
 		return nil, err
 	}
-	ABCIResponses := state.ABCIResponses{
-		DeliverTx: blockResult.Results.DeliverTx,
-	}
-	blockchaininfo := ctypes.ResultBlockResults{
-		Results: &ABCIResponses,
-	}
-	return &blockchaininfo, nil
+	return &ctypes.ResultBlockResults{
+		Results: &state.ABCIResponses{
+			DeliverTx: blockResult.Results.DeliverTx,
+		},
+	}, nil
 }
 
 func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, error) {

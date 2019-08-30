@@ -20,7 +20,7 @@ func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ 
 	return eth.JsonBlockObject{}, nil
 }
 
-func GetTxObjectFromBlockResult(_ *ctypes.ResultBlock, _ *ctypes.ResultTx, _ int64) (eth.JsonTxObject, *eth.Data, error) {
+func GetTxObjectFromBlockResult(_ *ctypes.ResultBlock, _ []byte, _ int64) (eth.JsonTxObject, *eth.Data, error) {
 	return eth.JsonTxObject{}, nil, nil
 }
 

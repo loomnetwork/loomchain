@@ -223,7 +223,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg config"
   Condition = "contains"
-  Expected = ['50']
+  Expected = ['50', '8000000']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.NumEvmKeysToPrune --value 777 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
@@ -290,3 +290,17 @@
   RunCmd = "{{ $.LoomPath }} chain-cfg list-pending-actions"
   Condition = "contains"
   Expected = ['AppStore.NumEvmKeysToPrune']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting Evm.GasLimit --value 0 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg config"
+  Condition = "contains"
+  Expected = ['"gasLimit": "0"']

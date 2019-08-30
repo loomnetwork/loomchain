@@ -10,6 +10,7 @@ import (
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	cconfig "github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
@@ -228,10 +229,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Name:   features.EvmConstantinopleFeature,
 					Status: chainconfig.FeatureWaiting,
 				},
-				&cctypes.Feature{
-					Name:   features.IncrementNonceOnFailedTxFeature,
-					Status: chainconfig.FeatureWaiting,
-				},
 			},
 		}
 
@@ -298,6 +295,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 	}
 
 	return &config.Genesis{
+		Config:    *cconfig.DefaultConfig(),
 		Contracts: contracts,
 	}, nil
 }

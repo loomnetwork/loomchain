@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gogo/protobuf/proto"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
@@ -13,6 +14,7 @@ import (
 
 type genesis struct {
 	Contracts []contractConfig `json:"contracts"`
+	Config    cctypes.Config   `json:"config"`
 }
 
 type contractConfig struct {
