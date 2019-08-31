@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/store"
@@ -19,7 +18,7 @@ var (
 )
 
 func TestOnChainConfig(t *testing.T) {
-	kvStore, _, _, err := mockMultiWriterStore(10)
+	kvStore, err := mockMultiWriterStore(10)
 	require.NoError(t, err)
 	// This is the first version of on chain-config
 	originalConfig := &cctypes.Config{
@@ -28,16 +27,18 @@ func TestOnChainConfig(t *testing.T) {
 			IavlFlushInterval: 50,
 		},
 	}
-	configBytes, err := proto.Marshal(originalConfig)
-	kvStore.Set([]byte(configKey), configBytes)
+	require.NoError(t, store.SaveOnChainConfig(kvStore, originalConfig))
+
+	curCfg, err := store.LoadOnChainConfig(kvStore)
 	require.NoError(t, err)
 
-	header := abci.Header{}
-	header.Height = blockHeight
-	header.Time = blockTime
+	header := abci.Header{
+		Height: blockHeight,
+		Time:   blockTime,
+	}
 	state := NewStoreState(
 		context.Background(), kvStore, header, nil, nil,
-	).WithOnChainConfig(loadOnChainConfig(kvStore))
+	).WithOnChainConfig(curCfg)
 	// check default config
 	require.Equal(t, uint64(777), state.Config().AppStore.NumEvmKeysToPrune)
 	require.Equal(t, uint64(50), state.Config().AppStore.IavlFlushInterval)
@@ -46,22 +47,23 @@ func TestOnChainConfig(t *testing.T) {
 	// change config setting
 	err = state.ChangeConfigSetting("Evm.GasLimit", "5000")
 	require.NoError(t, err)
-	// realod config
-	state = state.WithOnChainConfig(loadOnChainConfig(kvStore))
-	require.Equal(t, uint64(5000), state.Config().Evm.GasLimit)
+	// reload config
+	curCfg, err = store.LoadOnChainConfig(kvStore)
+	require.NoError(t, err)
+	require.Equal(t, uint64(5000), state.WithOnChainConfig(curCfg).Config().Evm.GasLimit)
 }
 
-func mockMultiWriterStore(flushInterval int64) (*store.MultiWriterAppStore, *store.IAVLStore, *store.EvmStore, error) {
+func mockMultiWriterStore(flushInterval int64) (*store.MultiWriterAppStore, error) {
 	memDb, _ := db.LoadMemDB()
 	iavlStore, err := store.NewIAVLStore(memDb, 0, 0, flushInterval)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	memDb, _ = db.LoadMemDB()
 	evmStore := store.NewEvmStore(memDb, 100)
 	multiWriterStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	return multiWriterStore, iavlStore, evmStore, nil
+	return multiWriterStore, nil
 }
