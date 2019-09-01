@@ -700,8 +700,8 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 					ChildTxHash:  receiptTxHash,
 				})
 			}
+			receiptHandler.CommitCurrentReceipt()
 		}
-		receiptHandler.CommitCurrentReceipt()
 		storeTx.Commit()
 	}
 	return r, nil

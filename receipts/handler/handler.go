@@ -54,7 +54,7 @@ func NewReceiptHandler(
 // the hash of the embedded EVM tx itself.
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	// At first assume the input hash is a Tendermint tx hash and try to resolve it to an EVM tx hash,
-	// if that fails it's might be an EVM tx hash.
+	// if that fails it might be an EVM tx hash.
 	evmTxHash, err := r.evmAuxStore.GetChildTxHash(txHash)
 	if len(evmTxHash) > 0 && err == nil {
 		txHash = evmTxHash
