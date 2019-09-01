@@ -658,7 +658,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 }
 
 func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	var err error
 	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
 	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -678,20 +677,18 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
-		receiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 
 	if !isCheckTx {
-		err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-		if err != nil {
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
 			log.Error("Emit Tx Event error", "err", err)
 		}
 
 		reader := a.ReceiptHandlerProvider.Reader()
 		if reader.GetCurrentReceipt() != nil {
 			receiptTxHash := reader.GetCurrentReceipt().TxHash
-			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
 				log.Error("failed to emit tx event to subscribers", "err", err)
 			}
 			txHash := ttypes.Tx(txBytes).Hash()
@@ -717,8 +714,6 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		// todo we can remove these once performance comes back to normal state
-		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds()))
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {

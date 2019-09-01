@@ -42,6 +42,7 @@ func LoadStore() (*EvmAuxStore, error) {
 	return NewEvmAuxStore(evmAuxDB), nil
 }
 
+// ChildTxRef links a Tendermint tx hash to an EVM tx hash.
 type ChildTxRef struct {
 	ParentTxHash []byte
 	ChildTxHash  []byte
@@ -96,6 +97,7 @@ func (s *EvmAuxStore) SetTxHashList(tran *leveldb.Transaction, txHashList [][]by
 	return nil
 }
 
+// SaveChildTxRefs persists references between Tendermint & EVM tx hashes to the underlying DB.
 func (s *EvmAuxStore) SaveChildTxRefs(refs []ChildTxRef) error {
 	if len(refs) == 0 {
 		return nil
@@ -118,6 +120,7 @@ func (s *EvmAuxStore) SaveChildTxRefs(refs []ChildTxRef) error {
 	return nil
 }
 
+// GetChildTxHash looks up the EVM tx hash that corresponds to the given Tendermint tx hash.
 func (s *EvmAuxStore) GetChildTxHash(parentTxHash []byte) ([]byte, error) {
 	return s.db.Get(util.PrefixKey(txRefPrefix, parentTxHash), nil)
 }
