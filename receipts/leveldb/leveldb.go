@@ -9,14 +9,13 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	loom_types "github.com/loomnetwork/go-loom/types"
-	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
+	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var (

@@ -25,16 +25,7 @@ func TestContractBlueprint(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		config, err := common.NewConfig(
-			test.name,
-			test.testFile,
-			test.genFile,
-			"",
-			test.validators,
-			test.accounts,
-			0,
-			false,
-		)
+		config, err := common.NewConfig(test.name, test.testFile, test.genFile, "", test.validators, test.accounts, 0, false)
 		if err != nil {
 			t.Fatal(err)
 		}

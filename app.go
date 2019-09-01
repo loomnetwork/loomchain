@@ -8,7 +8,6 @@ import (
 
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
-
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
@@ -18,7 +17,6 @@ import (
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
-
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
@@ -341,7 +339,7 @@ type Application struct {
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
-	childTxRefs                 []evmaux.ChildTxRef // links Go txs to internal EVM txs
+	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 }
 
 var _ abci.Application = &Application{}
