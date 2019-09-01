@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 
@@ -141,7 +140,6 @@ func (s *StoreState) Context() context.Context {
 
 const (
 	featurePrefix = "feature"
-	configKey     = "config"
 )
 
 func featureKey(featureName string) []byte {
@@ -182,15 +180,16 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // If an error occurs while trying to update the config the change is rolled back, if the rollback
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
-	cfg := loadOnChainConfig(s.store)
+	cfg, err := store.LoadOnChainConfig(s.store)
+	if err != nil {
+		panic(err)
+	}
 	if err := config.SetConfigSetting(cfg, name, value); err != nil {
 		return err
 	}
-	configBytes, err := proto.Marshal(cfg)
-	if err != nil {
+	if err := store.SaveOnChainConfig(s.store, cfg); err != nil {
 		return err
 	}
-	s.store.Set([]byte(configKey), configBytes)
 	// invalidate cached config so it's reloaded next time it's accessed
 	s.config = nil
 	return nil
@@ -199,7 +198,11 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 // Config returns the current on-chain config.
 func (s *StoreState) Config() *cctypes.Config {
 	if s.config == nil {
-		s.config = loadOnChainConfig(s.store)
+		var err error
+		s.config, err = store.LoadOnChainConfig(s.store)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return s.config
 }
@@ -464,7 +467,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	if a.config == nil {
-		a.config = loadOnChainConfig(a.Store)
+		var err error
+		a.config, err = store.LoadOnChainConfig(a.Store)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	a.curBlockHeader = block
@@ -557,7 +564,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
-	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
+	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
@@ -776,15 +783,4 @@ func (a *Application) ReadOnlyState() State {
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
 	)
-}
-
-func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
-	configBytes := kvStore.Get([]byte(configKey))
-	cfg := config.DefaultConfig()
-	if len(configBytes) > 0 {
-		if err := proto.UnmarshalMerge(configBytes, cfg); err != nil {
-			panic(err)
-		}
-	}
-	return cfg
 }
