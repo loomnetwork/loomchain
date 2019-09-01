@@ -560,7 +560,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
-	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
+	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
