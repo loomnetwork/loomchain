@@ -18,7 +18,7 @@ type ReadReceiptHandler interface {
 }
 
 type ReceiptHandlerStore interface {
-	CommitBlock(state State, height int64) error
+	CommitBlock(height int64) error
 	CommitCurrentReceipt()
 	DiscardCurrentReceipt()
 	ClearData() error

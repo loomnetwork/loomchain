@@ -675,7 +675,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	r := s.ReceiptHandlerProvider.Reader()
 	switch number {
 	case "latest":
-		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height-1, full, r, s.EvmAuxStore)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r, s.EvmAuxStore)
 	case "pending":
 		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r, s.EvmAuxStore)
 	default:
@@ -1089,7 +1089,7 @@ func createTransactionReceiptByTxObj(state loomchain.State, blockStore store.Blo
 	if err != nil {
 		return nil, err
 	}
-	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
+	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
 	if err != nil {
 		return nil, err
 	}
@@ -1140,6 +1140,6 @@ func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	if err != nil {
 		return eth.JsonTxObject{}, err
 	}
-	txObj, _, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
+	txObj, _, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
 	return txObj, err
 }

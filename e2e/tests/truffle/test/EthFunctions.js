@@ -1,3 +1,4 @@
+
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
@@ -34,7 +35,7 @@ contract('MyToken', async (accounts) => {
           address: tokenContract.address
       });
       for (let i=0 ; i<myTokenLogs.length ; i++) {
-          assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address, "log address and contract address")
+          assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address.toLowerCase(), "log address and contract address")
       }
 
       const aliceLogs = await web3js.eth.getPastLogs({
@@ -51,12 +52,12 @@ contract('MyToken', async (accounts) => {
     assert.equal(tokenContract.address, result.receipt.contractAddress, "contract address and receipt contract address");
 
     const receipt = await web3js.eth.getTransactionReceipt(result.tx);
-    assert.equal(tokenContract.address, receipt.contractAddress.toLowerCase(), "contract address from deploy tx and receipt");
-    assert.equal(receipt.from, alice,  "receipt to and caller");
+    assert.equal(null, receipt.contractAddress, "contract address from deploy tx and receipt");
+    assert.equal(tokenContract.address.toLowerCase(), receipt.to.toLowerCase(), "contract address from deploy tx and receipt");
+    assert.equal(receipt.from.toLowerCase(), alice.toLowerCase(),  "receipt to and caller");
     assert.equal(1, receipt.logs.length, "number of logs");
     assert.equal(4, receipt.logs[0].topics.length, "number of topics in log");
-    assert.equal(alice, receipt.logs[0].address.toLowerCase(), "log address");
-    //assert.equal(true, receipt.logs[0].blockTime > 0)  todo test failing as blockTime is null.
+    assert.equal(tokenContract.address.toLowerCase(), receipt.logs[0].address.toLowerCase(), "log address");
   });
 
   it('eth_getTransactionByHash', async () => {
@@ -64,8 +65,8 @@ contract('MyToken', async (accounts) => {
     const result = await tokenContract.mintToken(102, { from: alice });
     const txObj = await web3js.eth.getTransaction(result.tx);
 
-    assert.equal(txObj.to.toLowerCase(), result.receipt.contractAddress, "transaction object to address and receipt contract address");
-    assert.equal(txObj.from.toLowerCase(), alice, "transaction object from address and caller");
+    assert.equal(txObj.to.toLowerCase(), result.receipt.contractAddress.toLowerCase(), "transaction object to address and receipt contract address");
+    assert.equal(txObj.from.toLowerCase(), alice.toLowerCase(), "transaction object from address and caller");
   });
 
   it('eth_getCode', async () => {
@@ -86,14 +87,21 @@ contract('MyToken', async (accounts) => {
     assert.equal(txObject.blockNumber, blockByHash.number, "receipt block number and block object number");
 
     assert.equal(1, blockByHash.transactions.length, "block transaction count");
-    assert.equal(alice , blockByHash.transactions[0].from.toLowerCase(), "caller and block transaction from");
-    assert.equal(tokenContract.address ,blockByHash.transactions[0].to.toLowerCase(), "token address and block transaction to");
+    assert.equal(alice.toLowerCase() , blockByHash.transactions[0].from.toLowerCase(), "caller and block transaction from");
+    assert.equal(tokenContract.address.toLowerCase() ,blockByHash.transactions[0].to.toLowerCase(), "token address and block transaction to");
     assert.equal(txObject.blockNumber ,blockByHash.transactions[0].blockNumber, "receipt block number and block transaction block bumber");
-    assert.equal(txObject.hash ,blockByHash.transactions[0].hash, "receipt tx hash and block transaction hash");
-    assert.equal(txObject.blockHash ,blockByHash.transactions[0].blockHash, "tx object block hash and block transaction block hash");
+    assert.equal(txObject.hash.toLowerCase() ,blockByHash.transactions[0].hash.toLowerCase(), "receipt tx hash and block transaction hash");
+    assert.equal(txObject.blockHash.toLowerCase() ,blockByHash.transactions[0].blockHash.toLowerCase(), "tx object block hash and block transaction block hash");
 
     const blockByHashFalse = await web3js.eth.getBlock(txObject.blockHash, false);
-    assert.equal(txObject.hash, blockByHashFalse.transactions[0], "receipt tx hash and block transaction hash, full = false");
+    const receipt = await web3js.eth.getTransactionReceipt(blockByHashFalse.transactions[0]);
+    assert.equal(txObject.hash.toLowerCase(), receipt.transactionHash.toLowerCase(), "receipt tx hash and block transaction hash, full = false");
+  });
+
+  it('eth_getBlockByNumber', async () => {
+    await MyToken.deployed();
+    const blockInfo = await web3js.eth.getBlock("latest");
+    assert(blockInfo.number > 0, "block number must be greater than zero");
   });
 
   it('eth_getBlockTransactionCountByHash', async () => {
@@ -115,15 +123,13 @@ contract('MyToken', async (accounts) => {
     const tx1 = await web3js.eth.getTransaction(result.tx, true);
 
     const tx2 = await web3js.eth.getTransactionFromBlock(tx1.blockHash, 0);
-    assert.equal(alice , tx2.from.toLowerCase(), "caller and transaction object from");
-    assert.equal(tokenContract.address ,tx2.to.toLowerCase(), "contract address and transaction object to");
+    assert.equal(alice.toLowerCase() , tx2.from.toLowerCase(), "caller and transaction object from");
+    assert.equal(tokenContract.address.toLowerCase() ,tx2.to.toLowerCase(), "contract address and transaction object to");
     assert.equal(tx1.blockNumber ,tx2.blockNumber, "receipt block number and transaction object block number");
-    assert.equal(tx1.hash ,tx2.hash, "transaction hash and transaction object hash");
-    assert.equal(tx1.blockHash, tx2.blockHash, "transaction hash using getTransaction and getTransactionFromBlock");
+    assert.equal(tx1.hash.toLowerCase() ,tx2.hash.toLowerCase(), "transaction hash and transaction object hash");
+    assert.equal(tx1.blockHash.toLowerCase(), tx2.blockHash.toLowerCase(), "transaction hash using getTransaction and getTransactionFromBlock");
   });
-/*
-  // todo eth_Call test failing due to a hidden call to QueryServer.GetEvmLogs which is confusing hex and dec for blocknumber parmeter
-  // this leads to a "to block before end block" error.
+
   it('eth_Call', async () => {
     const tokenContract = await MyToken.deployed();
     await tokenContract.mintToken(112, { from: alice });
@@ -135,8 +141,8 @@ contract('MyToken', async (accounts) => {
       data: "0x6352211e0000000000000000000000000000000000000000000000000000000000000070" // abi for ownerOf(12)
     },"latest");
     console.log("piers ethOwner", ethOwner)
-    assert.equal(ethOwner, web3js.utils.padLeft(owner, 64), "result using tokenContract and eth.call");
+    assert.equal(ethOwner.toLowerCase(), web3js.utils.padLeft(owner, 64).toLowerCase(), "result using tokenContract and eth.call");
   });
-*/
+
 });
 

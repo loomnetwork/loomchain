@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -22,6 +24,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -31,6 +34,7 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
+	Config() *cctypes.Config
 	EnabledFeatures() []string
 }
 
@@ -41,6 +45,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
+	ChangeConfigSetting(name, value string) error
 }
 
 type StoreState struct {
@@ -49,6 +54,7 @@ type StoreState struct {
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
+	config          *cctypes.Config
 }
 
 var _ = State(&StoreState{})
@@ -85,8 +91,13 @@ func NewStoreState(
 	}
 }
 
-func (c *StoreState) Range(prefix []byte) plugin.RangeData {
-	return c.store.Range(prefix)
+func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
+	s.config = config
+	return s
+}
+
+func (s *StoreState) Range(prefix []byte) plugin.RangeData {
+	return s.store.Range(prefix)
 }
 
 func (s *StoreState) Get(key []byte) []byte {
@@ -125,7 +136,7 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-var (
+const (
 	featurePrefix = "feature"
 )
 
@@ -161,6 +172,37 @@ func (s *StoreState) SetFeature(name string, val bool) {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
+}
+
+// ChangeConfigSetting updates the value of the given on-chain config setting.
+// If an error occurs while trying to update the config the change is rolled back, if the rollback
+// itself fails this function will panic.
+func (s *StoreState) ChangeConfigSetting(name, value string) error {
+	cfg, err := store.LoadOnChainConfig(s.store)
+	if err != nil {
+		panic(err)
+	}
+	if err := config.SetConfigSetting(cfg, name, value); err != nil {
+		return err
+	}
+	if err := store.SaveOnChainConfig(s.store, cfg); err != nil {
+		return err
+	}
+	// invalidate cached config so it's reloaded next time it's accessed
+	s.config = nil
+	return nil
+}
+
+// Config returns the current on-chain config.
+func (s *StoreState) Config() *cctypes.Config {
+	if s.config == nil {
+		var err error
+		s.config, err = store.LoadOnChainConfig(s.store)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return s.config
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -203,7 +245,10 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(
+	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
+	getValidatorSet GetValidatorSet,
+) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
@@ -265,6 +310,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
+	UpdateConfig() (int, error)
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -292,6 +338,8 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
+	config                      *cctypes.Config
+	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 }
 
 var _ abci.Application = &Application{}
@@ -401,6 +449,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 			panic(err)
 		}
 	}
+
 	return abci.ResponseInitChain{}
 }
 
@@ -415,6 +464,14 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
+	if a.config == nil {
+		var err error
+		a.config, err = store.LoadOnChainConfig(a.Store)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
@@ -426,7 +483,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
-		)
+		).WithOnChainConfig(a.config)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
 			panic(err)
@@ -446,7 +503,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -468,6 +525,16 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if chainConfigManager != nil {
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
+		}
+
+		numConfigChanges, err := chainConfigManager.UpdateConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		if numConfigChanges > 0 {
+			// invalidate cached config so it's reloaded next time it's accessed
+			a.config = nil
 		}
 	}
 
@@ -493,9 +560,9 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
-	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
+	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
@@ -510,7 +577,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -602,7 +669,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 }
 
 func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	var err error
 	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
 	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -613,27 +679,39 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
-		receiptHandler.CommitCurrentReceipt()
+		if !isCheckTx {
+			receiptHandler.CommitCurrentReceipt()
+		}
 		storeTx.Rollback()
 		return r, err
 	}
 
 	if !isCheckTx {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			if err != nil {
-				log.Error("Emit Tx Event error", "err", err)
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+			log.Error("Emit Tx Event error", "err", err)
+		}
+
+		reader := a.ReceiptHandlerProvider.Reader()
+		if reader.GetCurrentReceipt() != nil {
+			receiptTxHash := reader.GetCurrentReceipt().TxHash
+			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+				log.Error("failed to emit tx event to subscribers", "err", err)
 			}
-			reader := a.ReceiptHandlerProvider.Reader()
-			if reader.GetCurrentReceipt() != nil {
-				if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-					log.Error("failed to load receipt", "err", err)
-				}
+			txHash := ttypes.Tx(txBytes).Hash()
+			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+			// so that we can use it to lookup relevant events using the TM tx hash.
+			if !bytes.Equal(txHash, receiptTxHash) {
+				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+					ParentTxHash: txHash,
+					ChildTxHash:  receiptTxHash,
+				})
 			}
 			receiptHandler.CommitCurrentReceipt()
 		}
@@ -649,12 +727,14 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
+
+	a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs)
+	a.childTxRefs = nil
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
@@ -699,7 +779,6 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
-
 func (a *Application) ReadOnlyState() State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already

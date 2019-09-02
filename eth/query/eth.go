@@ -69,7 +69,7 @@ func GetBlockLogRange(
 	evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
-		return nil, fmt.Errorf("to block before end block")
+		return nil, fmt.Errorf("from block (%v) greater than to block (%v)", from, to)
 	}
 	eventLogs := []*ptypes.EthFilterLog{}
 

@@ -14,6 +14,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 var (
@@ -95,12 +96,13 @@ func Nonce(state loomchain.ReadOnlyState, addr loom.Address) uint64 {
 }
 
 type NonceHandler struct {
-	nonceCache map[string]uint64
+	nonceCache map[string]uint64 // stores the next nonce expected to be seen for each account
 	lastHeight int64
 }
 
 func (n *NonceHandler) Nonce(
 	state loomchain.State,
+	kvStore store.KVStore,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 	isCheckTx bool,
@@ -112,10 +114,18 @@ func (n *NonceHandler) Nonce(
 	}
 	if n.lastHeight != state.Block().Height {
 		n.lastHeight = state.Block().Height
+		// Clear the cache for each block
 		n.nonceCache = make(map[string]uint64)
-		//clear the cache for each block
 	}
-	seq := loomchain.NewSequence(nonceKey(origin)).Next(state)
+	var seq uint64
+
+	incrementNonceOnFailedTx := state.Config().GetNonceHandler().GetIncNonceOnFailedTx()
+	if incrementNonceOnFailedTx && !isCheckTx {
+		// Unconditionally increment the nonce in DeliverTx, regardless of whether the tx succeeds
+		seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
+	} else {
+		seq = loomchain.NewSequence(nonceKey(origin)).Next(state)
+	}
 
 	var tx NonceTx
 	err := proto.Unmarshal(txBytes, &tx)
@@ -125,11 +135,24 @@ func (n *NonceHandler) Nonce(
 
 	//TODO nonce cache is temporary until we have a separate atomic state for the entire checktx flow
 	cacheSeq := n.nonceCache[origin.String()]
-	//If we have a client send multiple transactions in a single block we can run into this problem
-	if cacheSeq != 0 && isCheckTx { //only run this code during checktx
+	// The client may speculatively increment nonces without waiting for previous txs to be committed,
+	// so it's possible for a single account to submit multiple transactions in a single block.
+	if cacheSeq != 0 && isCheckTx {
+		// In CheckTx we only update the cache if the tx is successful (see IncNonce)
 		seq = cacheSeq
 	} else {
-		n.nonceCache[origin.String()] = seq
+		if incrementNonceOnFailedTx {
+			if isCheckTx {
+				n.nonceCache[origin.String()] = seq
+			} else {
+				// In DeliverTx we update the cache unconditionally, because even if the tx fails the
+				// nonce change will be persisted. We do this here because post commit middleware doesn't
+				// run for failed txs, so IncNonce can't be relied upon.
+				n.nonceCache[origin.String()] = seq + 1
+			}
+		} else {
+			n.nonceCache[origin.String()] = seq
+		}
 	}
 
 	if tx.Sequence != seq {
@@ -144,19 +167,37 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 	txBytes []byte,
 	result loomchain.TxHandlerResult,
 	postcommit loomchain.PostCommitHandler,
+	isCheckTx bool,
 ) error {
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
 		return errors.New("transaction has no origin [IncNonce]")
 	}
 
-	//We only increment the nonce if the transaction is successful
-	//There are situations in checktx where we may not have committed the transaction to the statestore yet
-	n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
+	// We only increment the nonce if the transaction is successful
+	// There are situations in checktx where we may not have committed the transaction to the statestore yet
+	if state.Config().GetNonceHandler().GetIncNonceOnFailedTx() {
+		if isCheckTx {
+			n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
+		}
+	} else {
+		n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
+	}
 	return nil
 }
 
 var NonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
 
 var NonceTxPostNonceMiddleware = loomchain.PostCommitMiddlewareFunc(NonceTxHandler.IncNonce)
-var NonceTxMiddleware = loomchain.TxMiddlewareFunc(NonceTxHandler.Nonce)
+
+var NonceTxMiddleware = func(kvStore store.KVStore) loomchain.TxMiddlewareFunc {
+	nonceTxMiddleware := func(
+		state loomchain.State,
+		txBytes []byte,
+		next loomchain.TxHandlerFunc,
+		isCheckTx bool,
+	) (loomchain.TxHandlerResult, error) {
+		return NonceTxHandler.Nonce(state, kvStore, txBytes, next, isCheckTx)
+	}
+	return loomchain.TxMiddlewareFunc(nonceTxMiddleware)
+}

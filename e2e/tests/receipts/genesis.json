@@ -1,0 +1,112 @@
+{
+    "contracts": [
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "coin",
+            "location": "coin:1.0.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dposV3",
+            "location": "dposV3:3.0.0",
+            "init": {
+                "params": {
+                    "validatorCount": "21",
+                    "oracleAddress": {
+                        "chainId": "default",
+                        "local": "nBTeLMj413oC2riLQyHEZaG1Ejw="
+                    }
+                },
+                "validators": [
+                    {
+                        "pubKey": "LPl5jAtThqb6GMxLcfcoZdKUu8Mogn3Ro78GTtE3IRY=",
+                        "power": "10"
+                    }
+                ],
+                "initCandidates": true
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "addressmapper",
+            "location": "addressmapper:0.1.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "sample-go-contract",
+            "location": "sample-go-contract:1.0.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "chainconfig",
+            "location": "chainconfig:1.0.0",
+            "init": {
+                "owner": {
+                    "chainId": "default",
+                    "local": "nBTeLMj413oC2riLQyHEZaG1Ejw="
+                },
+                "features": [
+                    {
+                        "name": "dpos:v3.1",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "chaincfg:v1.1",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "chaincfg:v1.2",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "chaincfg:v1.3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v2",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "coin:v1.1",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "appstore:v3.1",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "auth:sigtx:eth",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "tx:check-value",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "evm:constantinople",
+                        "status": "WAITING"
+                    }
+                ]
+            }
+        }
+    ],
+    "config": {
+        "evm": {
+            "gas_limit": 0
+        },
+        "app_store": {
+            "num_evm_keys_to_prune": 0
+        },
+        "nonce_handler": {
+            "inc_nonce_on_failed_tx": true
+        }
+    }
+}

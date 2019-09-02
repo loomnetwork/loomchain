@@ -262,7 +262,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
+	require.NoError(t, receiptHandler.CommitBlock(4))
 
 	mockEvent20 := []*types.EventData{
 		{
@@ -275,7 +275,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	_, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
+	require.NoError(t, receiptHandler.CommitBlock(20))
 
 	mockEvent25 := []*types.EventData{
 		{
@@ -288,7 +288,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	_, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state25, 25))
+	require.NoError(t, receiptHandler.CommitBlock(25))
 
 	mockEvent30 := []*types.EventData{
 		{
@@ -301,7 +301,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	_, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state30, 30))
+	require.NoError(t, receiptHandler.CommitBlock(30))
 
 	for height := 100; height < 120; height++ {
 		mockEvent := []*types.EventData{
@@ -315,7 +315,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		_, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil)
 		require.NoError(t, err)
 		receiptHandler.CommitCurrentReceipt()
-		require.NoError(t, receiptHandler.CommitBlock(state30, int64(height)))
+		require.NoError(t, receiptHandler.CommitBlock(int64(height)))
 	}
 
 	return state

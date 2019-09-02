@@ -7,6 +7,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
+	"github.com/loomnetwork/loomchain/features"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
@@ -46,6 +47,7 @@ func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigMa
 	}, nil
 }
 
+// EnableFeatures activates feature flags.
 func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	features, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight), c.build)
 	if err != nil {
@@ -61,4 +63,24 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 		c.state.SetFeature(feature.Name, true)
 	}
 	return nil
+}
+
+// UpdateConfig applies pending config changes to the on-chain config and returns the number of config changes
+func (c *ChainConfigManager) UpdateConfig() (int, error) {
+	if !c.state.FeatureEnabled(features.ChainCfgVersion1_3, false) {
+		return 0, nil
+	}
+
+	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, setting := range settings {
+		if err := c.state.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
+			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
+		}
+	}
+
+	return len(settings), nil
 }

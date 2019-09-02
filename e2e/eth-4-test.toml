@@ -13,9 +13,12 @@
               '"id": 83'
              ]
 
+# increase block number to 3 since we load on-chain config from genesis and put it in state in InitChain so the block number increases by one 
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_reach 0 3"
 
 [[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["0x2"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["0x3"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
               '"result": "0x1"',
@@ -43,16 +46,16 @@
              ]
 
 [[TestCases]]
-    RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x2","0x0"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+    RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x3","0x0"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
     Condition = "contains"
     Expected = [
-            '"blockNumber": "0x2"',
+            '"blockNumber": "0x3"',
             '"transactionIndex": "0x0',
             '"input": "0x6060604052341561000f57600080fd5b60d3806'
               ]
 
 [[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x2","0x1"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x3","0x1"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
               '"error"',

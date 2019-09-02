@@ -5,16 +5,17 @@
     "truffle": "./node_modules/.bin/truffle",
     "deploy:reset": "./node_modules/.bin/truffle deploy --reset --network local",
     "deploy": "./node_modules/.bin/truffle deploy --network local",
-    "test": "./node_modules/.bin/truffle test --network local"
+    "test": "./node_modules/.bin/truffle test --network local --verbose-rpc"
   },
   "dependencies": {
     "bn.js": "^4.11.8",
     "ethereumjs-wallet": "^0.6.2",
-    "loom-js": "1.26.0",
-    "loom-truffle-provider": "^0.7.0",
-    "openzeppelin-solidity": "^1.12.0",
-    "truffle": "^4.1.14",
-    "web3": "^1.0.0-beta.36"
+    "loom-js": "1.59.1",
+    "loom-truffle-provider": "0.13.0",
+    "openzeppelin-solidity": "2.3.0",
+    "request-promise": "^4.2.4",
+    "truffle": "5.0.31",
+    "web3": "1.0.0-beta.36"
   },
   "devDependencies": {}
 }

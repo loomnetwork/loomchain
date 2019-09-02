@@ -66,7 +66,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.EqualValues(t, int64(4), blockInfo.Number)
 	require.EqualValues(t, 1, len(blockInfo.Transactions))
 
-	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
+	require.NoError(t, receiptHandler.CommitBlock(4))
 
 	mockEvent2 := []*types.EventData{
 		{
@@ -79,7 +79,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	_, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
+	require.NoError(t, receiptHandler.CommitBlock(20))
 
 	blockStore := store.NewMockBlockStore()
 
@@ -211,7 +211,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state32, 32))
+	require.NoError(t, receiptHandler.CommitBlock(32))
 
 	txReceipt, err := receiptHandler.GetReceipt(txHash)
 	require.NoError(t, err)

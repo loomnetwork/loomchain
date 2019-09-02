@@ -1,6 +1,7 @@
 package fnConsensus
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -101,14 +102,14 @@ func NewFnConsensusReactor(
 	return reactor, nil
 }
 
-func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, hash []byte, signatures [][]byte) {
+func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte, signatures [][]byte) {
 	defer func() {
 		err := recover()
 		if err != nil {
 			f.Logger.Error("panicked while invoking SubmitMultiSignedMessage", "error", err)
 		}
 	}()
-	fn.SubmitMultiSignedMessage(nil, hash, signatures)
+	fn.SubmitMultiSignedMessage(nil, message, signatures)
 }
 
 // Returns a message and associated signature (which can be anything really).
@@ -120,17 +121,6 @@ func (f *FnConsensusReactor) safeGetMessageAndSignature(fn Fn) ([]byte, []byte, 
 		}
 	}()
 	return fn.GetMessageAndSignature(nil)
-}
-
-// Associates the given hash with a message.
-func (f *FnConsensusReactor) safeMapMessage(fn Fn, hash, message []byte) error {
-	defer func() {
-		err := recover()
-		if err != nil {
-			f.Logger.Error("panicked while invoking MapMessage", "error", err)
-		}
-	}()
-	return fn.MapMessage(nil, hash, message)
 }
 
 func (f *FnConsensusReactor) String() string {
@@ -421,17 +411,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	// TODO: The hash & message are copied here because we don't trust the fn object not to modify
-	//       them, but we don't need to store the message from this point on so there doesn't seem
-	//       to be much point in copying it.
-	if err := f.safeMapMessage(fn, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-		f.Logger.Error(
-			"FnConsensusReactor: received error while executing fn.MapMessage",
-			"fnID", fnID, "err", err, "method", voteMethodID,
-		)
-		return
-	}
-
 	executionRequest, err := NewFnExecutionRequest(fnID, f.fnRegistry)
 	if err != nil {
 		f.Logger.Error(
@@ -448,6 +427,11 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
+
+	f.state.Messages[fnID] = Message{
+		Payload: message,
+		Hash:    hash,
+	}
 
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
@@ -473,9 +457,16 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	// Have we achieved Maj23 already?
 	aggregateExecutionResponse := voteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 	if aggregateExecutionResponse != nil {
+		if !bytes.Equal(f.state.Messages[fnID].Hash, aggregateExecutionResponse.Hash) {
+			f.Logger.Error(
+				"FnConsensusReactor: message hash mismatch",
+				"fnID", fnID, "method", voteMethodID, "nonce", currentNonce, "validator", validatorIndex,
+			)
+			return
+		}
 		f.safeSubmitMultiSignedMessage(
 			fn,
-			safeCopyBytes(aggregateExecutionResponse.Hash),
+			safeCopyBytes(f.state.Messages[fnID].Payload),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
 		)
 		return
@@ -598,10 +589,18 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				// The consensus result only needs to be sent to the cluster by a single validator,
 				// that validator is chosen in a round-robin fashion every voting round.
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
+					if !bytes.Equal(f.state.Messages[fnID].Hash, majExecutionResponse.Hash) {
+						f.Logger.Error(
+							"FnConsensusReactor: message hash mismatch",
+							"fnID", fnID, "method", commitMethodID, "nonce", currentNonce,
+							"validator", ownValidatorIndex,
+						)
+						return
+					}
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
 						fn,
-						safeCopyBytes(majExecutionResponse.Hash),
+						safeCopyBytes(f.state.Messages[fnID].Payload),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
 					)
 				}
@@ -886,14 +885,6 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		if err != nil {
 			f.Logger.Error(
 				"FnConsensusReactor: unable to calculate message hash",
-				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
-			)
-			return
-		}
-
-		if err = f.safeMapMessage(fn, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-			f.Logger.Error(
-				"FnConsensusReactor: received error while executing fn.MapMessage",
 				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
 			)
 			return
