@@ -306,7 +306,7 @@ func (f *FnConsensusReactor) initRoutine() {
 func (f *FnConsensusReactor) commitRoutine() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered in Reactor.commitRoutine ", r)
+			f.Logger.Error("Recovered in Reactor.commitRoutine")
 		}
 	}()
 	currentValidators := f.getValidatorSet()
@@ -349,7 +349,7 @@ OUTER_LOOP:
 func (f *FnConsensusReactor) voteRoutine() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered in Reactor.voteRoutine ", r)
+			f.Logger.Error("Recovered in Reactor.voteRoutine ", r)
 		}
 	}()
 
