@@ -136,6 +136,7 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 		p.PreviousMajVoteSets[maj23VoteSet.Payload.Request.FnID] = maj23VoteSet
 	}
 
+	p.Messages = make(map[string]Message)
 	return nil
 }
 
