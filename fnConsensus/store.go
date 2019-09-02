@@ -14,6 +14,7 @@ func loadReactorState(db dbm.DB) (*ReactorState, error) {
 	if err := persistedRectorState.Unmarshal(rectorStateBytes); err != nil {
 		return nil, err
 	}
+	persistedRectorState.Messages = make(map[string]Message)
 	return persistedRectorState, nil
 }
 
