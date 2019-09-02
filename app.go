@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
@@ -657,7 +658,10 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-		if state.FeatureEnabled(EvmTxReceiptsVersion2_1Feature, false) {
+		// WriteReceipt creates receipt hash which is used as tx hash for successful tx
+		// Since failed EVM tx receipts are now stored, this receipt hash must be passed to TM via r.Data
+		// so that it is used as tx hash for failed EVM tx
+		if state.FeatureEnabled(features.EvmTxReceiptsVersion2_1Feature, false) {
 			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
 		}
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
