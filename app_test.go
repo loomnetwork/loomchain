@@ -24,7 +24,7 @@ func TestOnChainConfig(t *testing.T) {
 	originalConfig := &cctypes.Config{
 		AppStore: &cctypes.AppStoreConfig{
 			NumEvmKeysToPrune: 777,
-			IavlFlushInterval: 50,
+			IAVLFlushInterval: 50,
 		},
 	}
 	require.NoError(t, store.SaveOnChainConfig(kvStore, originalConfig))
@@ -41,7 +41,7 @@ func TestOnChainConfig(t *testing.T) {
 	).WithOnChainConfig(curCfg)
 	// check default config
 	require.Equal(t, uint64(777), state.Config().AppStore.NumEvmKeysToPrune)
-	require.Equal(t, uint64(50), state.Config().AppStore.IavlFlushInterval)
+	require.Equal(t, uint64(50), state.Config().AppStore.IAVLFlushInterval)
 	require.NotNil(t, state.Config().GetEvm())
 	require.Equal(t, uint64(0), state.Config().GetEvm().GasLimit)
 	// change config setting

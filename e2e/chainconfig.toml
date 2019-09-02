@@ -306,7 +306,7 @@
   Expected = ['"gasLimit": "0"']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.IavlFlushInterval --value 5 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.IAVLFlushInterval --value 5 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
 
@@ -320,6 +320,6 @@
   Expected = ['"iavlFlushInterval": "5"']
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.IAVLFlushInterval --value 777 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.IavlFlushInterval --value 777 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["setting not found"]
