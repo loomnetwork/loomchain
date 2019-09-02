@@ -304,6 +304,11 @@ func (f *FnConsensusReactor) initRoutine() {
 }
 
 func (f *FnConsensusReactor) commitRoutine() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in Reactor.commitRoutine ", r)
+		}
+	}()
 	currentValidators := f.getValidatorSet()
 
 	// Initializing these vars with sane value to calculate initial time
@@ -342,6 +347,12 @@ OUTER_LOOP:
 }
 
 func (f *FnConsensusReactor) voteRoutine() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in Reactor.voteRoutine ", r)
+		}
+	}()
+
 	currentValidators := f.getValidatorSet()
 
 	// Initializing these vars with sane value to calculate initial time
