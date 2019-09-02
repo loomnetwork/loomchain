@@ -119,6 +119,7 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 	p.PreviousTimedOutVoteSets = make(map[string]*FnVoteSet)
 	p.PreviousMajVoteSets = make(map[string]*FnVoteSet)
 	p.PreviousValidatorSet = reactorStateMarshallable.PreviousValidatorSet
+	p.Messages = make(map[string]Message)
 
 	for _, voteSet := range reactorStateMarshallable.CurrentVoteSets {
 		p.CurrentVoteSets[voteSet.Payload.Request.FnID] = voteSet
@@ -136,7 +137,6 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 		p.PreviousMajVoteSets[maj23VoteSet.Payload.Request.FnID] = maj23VoteSet
 	}
 
-	p.Messages = make(map[string]Message)
 	return nil
 }
 
