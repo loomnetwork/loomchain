@@ -12,6 +12,7 @@ func TestUnmarshalReactorState(t *testing.T) {
 	rs := NewReactorState()
 
 	rsByte, err := rs.Marshal()
+	require.NoError(t, err)
 	err = rs.Unmarshal(rsByte)
 	require.NoError(t, err)
 	require.NotNil(t, rs.Messages)
