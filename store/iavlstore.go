@@ -154,7 +154,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	if flushInterval == 0 {
 		cfg, err := LoadOnChainConfig(s)
 		if err != nil {
-			errors.Wrap(err, "failed to load on-chain config")
+			return nil, 0, errors.Wrap(err, "failed to load on-chain config")
 		}
 		if cfg.GetAppStore().GetIAVLFlushInterval() != 0 {
 			flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
