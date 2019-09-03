@@ -4,28 +4,28 @@ package migrations
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/gogo/protobuf/jsonpb"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway"
+	"github.com/pkg/errors"
 )
 
 func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
-	gwMigrationRequest := tgtypes.TransferGatewaySwitchMainnetGatewayRequest{}
+	req := tgtypes.TransferGatewaySwitchMainnetGatewayRequest{}
+	if err := jsonpb.Unmarshal(bytes.NewBuffer(parameters), &req); err != nil {
+		return errors.Wrap(err, "failed to unmarshal migration parameters")
+	}
 
-	buf := bytes.NewBuffer(parameters)
-	err := jsonpb.Unmarshal(buf, &gwMigrationRequest)
+	if len(strings.TrimSpace(req.GatewayName)) == 0 {
+		return errors.New("missing gateway name in migration parameters")
+	}
+
+	gatewayCtx, err := ctx.ContractContext(req.GatewayName)
 	if err != nil {
 		return err
 	}
 
-	gatewayCtx, err := ctx.ContractContext(gwMigrationRequest.GatewayName)
-	if err != nil {
-		return err
-	}
-
-	if err := gateway.SwitchMainnetGateway(gatewayCtx, &gwMigrationRequest); err != nil {
-		return err
-	}
-	return nil
+	return gateway.SwitchMainnetGateway(gatewayCtx, &req)
 }
