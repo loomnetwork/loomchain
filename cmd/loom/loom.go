@@ -47,6 +47,7 @@ import (
 	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
+	utilscmd "github.com/loomnetwork/loomchain/cmd/loom/utils"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -1318,6 +1319,7 @@ func main() {
 		NewDPOSV3Command(),
 		NewKarmaCommand(),
 		gatewaycmd.NewGatewayCommand(),
+		utilscmd.NewUtilsCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
 		resolveCmd,
