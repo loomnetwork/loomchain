@@ -25,19 +25,21 @@ contract('StoreTestContract', async (accounts) => {
   // One index takes 256 bits.  
   // On this assertion 0x00 represent the first value that stored in StoreTestContract.
   // Which is storedUint1 and the value is '15'
-    index = "0x00"
+    index = "0x0"
     result = await getStorageAt(ethUrl, storeContract.address, index)
     result = web3js.utils.hexToNumber(result)
     assert.equal(result, 15 ,"Invalid value at index "+index)
 
+   
+
   //Because the type of storeUint2 and storedUint3 only take 128 + 32 bits to store.
   //It will be stored on the same index for storage optimization.
-    index = "0x01"
+    index = "0x1"
     result = await getStorageAt(ethUrl, storeContract.address, index)
     assert.equal(result, '0x000000000000000000000000000004d20000000000000000000000000000429f', "Invalid value at index " + index)
 
   //Assertion of 'string1' in StoreTestContract
-    index = "0x02"
+    index = "0x2"
     result = await getStorageAt(ethUrl, storeContract.address,index)
     result = await web3js.utils.hexToUtf8(result)
     assert.equal(result, 'test1', "Invalid value at index " + index)
