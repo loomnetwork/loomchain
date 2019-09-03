@@ -17,6 +17,7 @@ var (
 
 	BloomPrefix  = []byte("bf")
 	TxHashPrefix = []byte("th")
+	txRefPrefix  = []byte("txr")
 )
 
 func bloomFilterKey(height uint64) []byte {
@@ -39,6 +40,12 @@ func LoadStore() (*EvmAuxStore, error) {
 		return nil, err
 	}
 	return NewEvmAuxStore(evmAuxDB), nil
+}
+
+// ChildTxRef links a Tendermint tx hash to an EVM tx hash.
+type ChildTxRef struct {
+	ParentTxHash []byte
+	ChildTxHash  []byte
 }
 
 type EvmAuxStore struct {
@@ -88,6 +95,34 @@ func (s *EvmAuxStore) SetTxHashList(tran *leveldb.Transaction, txHashList [][]by
 	}
 	tran.Put(evmTxHashKey(height), postTxHashList, nil)
 	return nil
+}
+
+// SaveChildTxRefs persists references between Tendermint & EVM tx hashes to the underlying DB.
+func (s *EvmAuxStore) SaveChildTxRefs(refs []ChildTxRef) error {
+	if len(refs) == 0 {
+		return nil
+	}
+
+	tran, err := s.db.OpenTransaction()
+	if err != nil {
+		return errors.Wrap(err, "failed to open tx in EvmAuxStore")
+	}
+	defer tran.Discard()
+
+	for _, ref := range refs {
+		tran.Put(util.PrefixKey(txRefPrefix, ref.ParentTxHash), ref.ChildTxHash, nil)
+	}
+
+	if err := tran.Commit(); err != nil {
+		return errors.Wrap(err, "failed to commit tx in EvmAuxStore")
+	}
+
+	return nil
+}
+
+// GetChildTxHash looks up the EVM tx hash that corresponds to the given Tendermint tx hash.
+func (s *EvmAuxStore) GetChildTxHash(parentTxHash []byte) ([]byte, error) {
+	return s.db.Get(util.PrefixKey(txRefPrefix, parentTxHash), nil)
 }
 
 func (s *EvmAuxStore) DB() *leveldb.DB {

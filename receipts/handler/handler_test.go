@@ -90,7 +90,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 		require.EqualValues(t, common.StatusTxSuccess, receipt.Status)
 	}
 
-	err = receiptHandler.CommitBlock(state, int64(height))
+	err = receiptHandler.CommitBlock(int64(height))
 	require.NoError(t, err)
 
 	pendingHashList = reader.GetPendingTxHashList()

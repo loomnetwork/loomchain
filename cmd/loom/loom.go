@@ -456,8 +456,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
-				return err
+			if fnRegistry != nil {
+				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
+					return err
+				}
 			}
 
 			if err := startPlasmaOracle(chainID, cfg.PlasmaCash); err != nil {
