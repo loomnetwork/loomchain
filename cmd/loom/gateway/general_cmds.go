@@ -720,3 +720,70 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 	}
 	return cmd
 }
+
+func newUpdateMainnetHotWalletAddressCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update-hot-wallet-address <hot-wallet-address> <gateway-name>",
+		Short:   "Update mainnet hot wallet address. Only callable by current gateway owner",
+		Example: updateMainnetAddressCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var hexAddr string
+			var name string
+			var foreignChainId string
+
+			if len(args) <= 1 || strings.EqualFold(args[1], GatewayName) {
+				name = GatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], LoomGatewayName) {
+				name = LoomGatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], BinanceGatewayName) {
+				name = BinanceGatewayName
+				foreignChainId = "binance"
+			} else if strings.EqualFold(args[1], TronGatewayName) {
+				name = TronGatewayName
+				foreignChainId = "tron"
+			} else {
+				return errors.New("invalid gateway name")
+			}
+
+			if !common.IsHexAddress(args[0]) {
+				hexAddr, err = binanceAddressToHexAddress(args[0])
+				if err != nil {
+					return errors.Wrap(err, "invalid gateway address")
+				}
+			} else {
+				hexAddr = args[0]
+			}
+
+			walletAddress, err := loom.ParseAddress(foreignChainId + ":" + hexAddr)
+			if err != nil {
+				return errors.Wrap(err, "invalid gateway address")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayUpdateMainnetHotWalletRequest{
+				MainnetHotWalletAddress: walletAddress.MarshalPB(),
+			}
+
+			_, err = gateway.Call("UpdateMainnetHotWalletAddress", req, signer, nil)
+			return err
+		},
+	}
+	return cmd
+}

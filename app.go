@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -14,7 +13,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
@@ -25,6 +24,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -138,7 +138,6 @@ func (s *StoreState) Context() context.Context {
 
 const (
 	featurePrefix = "feature"
-	configKey     = "config"
 )
 
 func featureKey(featureName string) []byte {
@@ -179,15 +178,16 @@ func (s *StoreState) SetFeature(name string, val bool) {
 // If an error occurs while trying to update the config the change is rolled back, if the rollback
 // itself fails this function will panic.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
-	cfg := loadOnChainConfig(s.store)
+	cfg, err := store.LoadOnChainConfig(s.store)
+	if err != nil {
+		panic(err)
+	}
 	if err := config.SetConfigSetting(cfg, name, value); err != nil {
 		return err
 	}
-	configBytes, err := proto.Marshal(cfg)
-	if err != nil {
+	if err := store.SaveOnChainConfig(s.store, cfg); err != nil {
 		return err
 	}
-	s.store.Set([]byte(configKey), configBytes)
 	// invalidate cached config so it's reloaded next time it's accessed
 	s.config = nil
 	return nil
@@ -196,7 +196,11 @@ func (s *StoreState) ChangeConfigSetting(name, value string) error {
 // Config returns the current on-chain config.
 func (s *StoreState) Config() *cctypes.Config {
 	if s.config == nil {
-		s.config = loadOnChainConfig(s.store)
+		var err error
+		s.config, err = store.LoadOnChainConfig(s.store)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return s.config
 }
@@ -335,6 +339,7 @@ type Application struct {
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
+	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 }
 
 var _ abci.Application = &Application{}
@@ -460,7 +465,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	if a.config == nil {
-		a.config = loadOnChainConfig(a.Store)
+		var err error
+		a.config, err = store.LoadOnChainConfig(a.Store)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	a.curBlockHeader = block
@@ -553,7 +562,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
-	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
+	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
@@ -649,7 +658,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 }
 
 func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	var err error
 	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
 	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -663,25 +671,34 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	).WithOnChainConfig(a.config)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
-		receiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 
 	if !isCheckTx {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			if err != nil {
-				log.Error("Emit Tx Event error", "err", err)
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+			log.Error("Emit Tx Event error", "err", err)
+		}
+
+		reader := a.ReceiptHandlerProvider.Reader()
+		if reader.GetCurrentReceipt() != nil {
+			receiptTxHash := reader.GetCurrentReceipt().TxHash
+			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+				log.Error("failed to emit tx event to subscribers", "err", err)
 			}
-			reader := a.ReceiptHandlerProvider.Reader()
-			if reader.GetCurrentReceipt() != nil {
-				if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-					log.Error("failed to load receipt", "err", err)
-				}
+			txHash := ttypes.Tx(txBytes).Hash()
+			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+			// so that we can use it to lookup relevant events using the TM tx hash.
+			if !bytes.Equal(txHash, receiptTxHash) {
+				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+					ParentTxHash: txHash,
+					ChildTxHash:  receiptTxHash,
+				})
 			}
 			receiptHandler.CommitCurrentReceipt()
 		}
@@ -697,12 +714,14 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
 	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
+
+	a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs)
+	a.childTxRefs = nil
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
@@ -757,15 +776,4 @@ func (a *Application) ReadOnlyState() State {
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
 	)
-}
-
-func loadOnChainConfig(kvStore store.KVReader) *cctypes.Config {
-	configBytes := kvStore.Get([]byte(configKey))
-	cfg := config.DefaultConfig()
-	if len(configBytes) > 0 {
-		if err := proto.UnmarshalMerge(configBytes, cfg); err != nil {
-			panic(err)
-		}
-	}
-	return cfg
 }

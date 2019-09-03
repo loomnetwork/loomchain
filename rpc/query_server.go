@@ -1111,7 +1111,7 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	if err != nil {
 		return nil, err
 	}
-	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
+	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
 	if err != nil {
 		return nil, err
 	}
@@ -1168,6 +1168,6 @@ func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	if err != nil {
 		return eth.JsonTxObject{}, err
 	}
-	txObj, _, err := query.GetTxObjectFromBlockResult(blockResult, txResults, int64(txResults.Index))
+	txObj, _, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
 	return txObj, err
 }
