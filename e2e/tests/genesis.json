@@ -86,6 +86,10 @@
                     {
                         "name": "evm:constantinople",
                         "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v2.1",
+                        "status": "WAITING"
                     }
                 ]
             }

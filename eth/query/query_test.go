@@ -4,11 +4,8 @@ package query
 
 import (
 	"bytes"
-	"math"
-	"math/big"
 	"testing"
 
-	gtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -58,7 +55,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, mockTxHash(2))
+	err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, utils.MockTxHash(2))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 
@@ -79,7 +76,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	mockTxHash1 := mockTxHash(1)
+	mockTxHash1 := utils.MockTxHash(1)
 	err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil, mockTxHash1)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
@@ -213,7 +210,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 
 	state := common.MockState(1)
 	state32 := common.MockStateAt(state, 32)
-	mockTxHash1 := mockTxHash(1)
+	mockTxHash1 := utils.MockTxHash(1)
 	err = writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil, mockTxHash1)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
@@ -237,11 +234,4 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
 	require.NoError(t, receiptHandler.Close())
-}
-
-func mockTxHash(nonce uint64) []byte {
-	tx := gtypes.NewContractCreation(
-		nonce, nil, math.MaxUint64, big.NewInt(0), []byte(""),
-	)
-	return tx.Hash().Bytes()
 }

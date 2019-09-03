@@ -165,21 +165,23 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		_, err = levm.Commit()
 	}
 
-	var events []*ptypes.EventData
-	if err == nil {
-		events = lvm.receiptHandler.GetEventsFromLogs(
-			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
-		)
-	}
+	var txHash []byte
+	if lvm.receiptHandler != nil {
+		var events []*ptypes.EventData
+		if err == nil {
+			events = lvm.receiptHandler.GetEventsFromLogs(
+				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
+			)
+		}
 
-	tx := types.NewContractCreation(
-		uint64(auth.Nonce(lvm.state, caller)), nil, lvm.gasLimit, big.NewInt(0), code,
-	)
-	txHash := tx.Hash().Bytes()
+		txHash = types.NewContractCreation(
+			uint64(auth.Nonce(lvm.state, caller)), nil, lvm.gasLimit, big.NewInt(0), code,
+		).Hash().Bytes()
 
-	errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
-	if errSaveReceipt != nil {
-		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+		errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		if errSaveReceipt != nil {
+			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+		}
 	}
 
 	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
@@ -211,19 +213,24 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		_, err = levm.Commit()
 	}
 
-	var events []*ptypes.EventData
-	if err == nil {
-		events = lvm.receiptHandler.GetEventsFromLogs(
-			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
-		)
-	}
+	var txHash []byte
+	if lvm.receiptHandler != nil {
+		var events []*ptypes.EventData
+		if err == nil {
+			events = lvm.receiptHandler.GetEventsFromLogs(
+				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
+			)
+		}
 
-	tx := types.NewTransaction(uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local), nil, lvm.gasLimit, big.NewInt(0), input)
-	txHash := tx.Hash().Bytes()
+		txHash = types.NewTransaction(
+			uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
+			nil, lvm.gasLimit, big.NewInt(0), input,
+		).Hash().Bytes()
 
-	errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
-	if errSaveReceipt != nil {
-		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+		errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		if errSaveReceipt != nil {
+			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+		}
 	}
 
 	return txHash, err

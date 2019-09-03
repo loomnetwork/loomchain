@@ -3,8 +3,6 @@
 package polls
 
 import (
-	"math"
-	"math/big"
 	"strconv"
 	"sync"
 	"testing"
@@ -14,11 +12,11 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/store"
 
-	gtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/stretchr/testify/require"
@@ -262,7 +260,8 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state4 := common.MockStateAt(state, 4)
-	err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil, mockTxHash(1))
+
+	err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil, utils.MockTxHash(1))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(4))
@@ -275,7 +274,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil, mockTxHash(2))
+	err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil, utils.MockTxHash(2))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
@@ -288,7 +287,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state25 := common.MockStateAt(state, 25)
-	err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil, mockTxHash(3))
+	err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil, utils.MockTxHash(3))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(25))
@@ -301,7 +300,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state30 := common.MockStateAt(state, 30)
-	err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, mockTxHash(4))
+	err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, utils.MockTxHash(4))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(30))
@@ -315,7 +314,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 			},
 		}
 		state := common.MockStateAt(state, uint64(height))
-		err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, mockTxHash(5))
+		err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, utils.MockTxHash(5))
 		require.NoError(t, err)
 		receiptHandler.CommitCurrentReceipt()
 		require.NoError(t, receiptHandler.CommitBlock(int64(height)))
@@ -345,11 +344,4 @@ func TestAddRemove(t *testing.T) {
 	s.Remove(id)
 	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
-}
-
-func mockTxHash(nonce uint64) []byte {
-	tx := gtypes.NewContractCreation(
-		nonce, nil, math.MaxUint64, big.NewInt(0), []byte(""),
-	)
-	return tx.Hash().Bytes()
 }

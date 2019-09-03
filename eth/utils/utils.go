@@ -5,8 +5,11 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
 	"strconv"
 
+	gtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
@@ -129,4 +132,11 @@ func MatchEthFilter(filter eth.EthBlockFilter, eventLog ptypes.EventData) bool {
 	}
 
 	return true
+}
+
+func MockTxHash(nonce uint64) []byte {
+	tx := gtypes.NewContractCreation(
+		nonce, nil, math.MaxUint64, big.NewInt(0), []byte(""),
+	)
+	return tx.Hash().Bytes()
 }

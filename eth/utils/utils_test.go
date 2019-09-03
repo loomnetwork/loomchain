@@ -3,8 +3,11 @@
 package utils
 
 import (
+	"math"
+	"math/big"
 	"testing"
 
+	gtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,4 +24,11 @@ func TestEthUnmarshal(t *testing.T) {
 	require.NoError(t, err, "un-marshalling test filter")
 	_, err = UnmarshalEthFilter([]byte(test1))
 	require.NoError(t, err, "un-marshalling test filter")
+}
+
+func MockTxHash(nonce uint64) []byte {
+	tx := gtypes.NewContractCreation(
+		nonce, nil, math.MaxUint64, big.NewInt(0), []byte(""),
+	)
+	return tx.Hash().Bytes()
 }
