@@ -180,44 +180,6 @@ func newGenKeyCommand() *cobra.Command {
 	return keygenCmd
 }
 
-type convertFlags struct {
-	HexAddres string `json:"hex"`
-	ChainID   string `json:chainid`
-}
-
-var convertflags convertFlags
-
-func newConvertHexToB64Command() *cobra.Command {
-	converter := &cobra.Command{
-		Use:   "hextob64",
-		Short: "convert hex to b64",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var addr loom.Address
-			var err error
-
-			if strings.HasPrefix(args[0], "eth:") {
-				addr, err = loom.ParseAddress(args[0])
-			} else {
-				if strings.HasPrefix(args[0], convertflags.ChainID+":") {
-					addr, err = loom.ParseAddress(args[0])
-				} else {
-					addr, err = hexToLoomAddress(args[0])
-				}
-			}
-			if err != nil {
-				return errors.Wrap(err, "invalid account address")
-			}
-			encoder := base64.StdEncoding
-
-			// fmt.Printf("local address: %s\n", addr.MarshalPB())
-			fmt.Printf("local address base64: %s\n", encoder.EncodeToString([]byte(addr.Local)))
-			return nil
-		},
-	}
-	converter.Flags().StringVarP(&convertflags.ChainID, "chain", "c", "default", "DAppChain ID")
-	return converter
-}
-
 type yubiHsmFlags struct {
 	HsmNewKey  bool   `json:"newkey"`
 	HsmLoadKey bool   `json:"loadkey"`
@@ -1346,7 +1308,6 @@ func main() {
 		newMigrationCommand(),
 		callCommand,
 		newGenKeyCommand(),
-		newConvertHexToB64Command(),
 		newYubiHsmCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
@@ -1372,16 +1333,4 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-//nolint:unused
-func hexToLoomAddress(hexStr string) (loom.Address, error) {
-	addr, err := loom.LocalAddressFromHexString(hexStr)
-	if err != nil {
-		return loom.Address{}, err
-	}
-	return loom.Address{
-		ChainID: convertflags.ChainID,
-		Local:   addr,
-	}, nil
 }
