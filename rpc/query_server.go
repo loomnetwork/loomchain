@@ -1060,11 +1060,10 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position eth.Data, block e
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	positionByte, err := decodeHexToBytes(string(position))
+	positionByte, err := eth.DecDataToBytes(position)
 	if err != nil {
 		return "", errors.Wrapf(err, "decoding input position parameter %v", position)
 	}
-
 	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
 	storage, err := evm.GetStorageAt(address, positionByte)
 	if err != nil {
@@ -1171,14 +1170,4 @@ func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	}
 	txObj, _, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
 	return txObj, err
-}
-
-func decodeHexToBytes(value string) ([]byte, error) {
-	if len(value) <= 2 || value[0:2] != "0x" {
-		return []byte{}, errors.Errorf("invalid data format: %v", value)
-	}
-	if len(value)%2 != 0 {
-		value = "0x0" + value[2:]
-	}
-	return hex.DecodeString(string(value[2:]))
 }

@@ -406,6 +406,9 @@ func DecDataToBytes(value Data) ([]byte, error) {
 	if len(value) <= 2 || value[0:2] != "0x" {
 		return []byte{}, errors.Errorf("invalid data format: %v", value)
 	}
+	if len(value)%2 != 0 {
+		value = "0x0" + value[2:]
+	}
 	return hex.DecodeString(string(value[2:]))
 }
 
