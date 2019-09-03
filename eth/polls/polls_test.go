@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/store"
 
+	gtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -287,7 +288,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state25 := common.MockStateAt(state, 25)
-	err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil)
+	err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil, mockTxHash(3))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(25))
@@ -300,7 +301,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state30 := common.MockStateAt(state, 30)
-	err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, mockTxHash(3))
+	err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, mockTxHash(4))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(30))
@@ -314,7 +315,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 			},
 		}
 		state := common.MockStateAt(state, uint64(height))
-		err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, mockTxHash(4))
+		err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, mockTxHash(5))
 		require.NoError(t, err)
 		receiptHandler.CommitCurrentReceipt()
 		require.NoError(t, receiptHandler.CommitBlock(int64(height)))
