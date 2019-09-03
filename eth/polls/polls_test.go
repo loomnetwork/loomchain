@@ -3,6 +3,8 @@
 package polls
 
 import (
+	"math"
+	"math/big"
 	"strconv"
 	"sync"
 	"testing"
@@ -259,7 +261,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state4 := common.MockStateAt(state, 4)
-	err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
+	err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil, mockTxHash(1))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(4))
@@ -272,7 +274,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil)
+	err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil, mockTxHash(2))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
@@ -298,7 +300,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state30 := common.MockStateAt(state, 30)
-	err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil)
+	err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, mockTxHash(3))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(30))
@@ -312,7 +314,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 			},
 		}
 		state := common.MockStateAt(state, uint64(height))
-		err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil)
+		err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, mockTxHash(4))
 		require.NoError(t, err)
 		receiptHandler.CommitCurrentReceipt()
 		require.NoError(t, receiptHandler.CommitBlock(int64(height)))
@@ -342,4 +344,11 @@ func TestAddRemove(t *testing.T) {
 	s.Remove(id)
 	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
+}
+
+func mockTxHash(nonce uint64) []byte {
+	tx := gtypes.NewContractCreation(
+		nonce, nil, math.MaxUint64, big.NewInt(0), []byte(""),
+	)
+	return tx.Hash().Bytes()
 }

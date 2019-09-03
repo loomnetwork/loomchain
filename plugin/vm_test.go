@@ -6,12 +6,15 @@ import (
 	"bytes"
 	"context"
 	"io/ioutil"
+	"math"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	gtypes "github.com/ethereum/go-ethereum/core/types"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	loom_plugin "github.com/loomnetwork/go-loom/plugin"
@@ -208,7 +211,8 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	txHash := mockTxHash(1)
+	err = receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, txHash)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(1))
@@ -237,7 +241,8 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	txHash := mockTxHash(1)
+	err = receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, txHash)
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)
@@ -365,4 +370,11 @@ func staticCallEVMContractMethod(ctx contract.StaticContext, contractAddr loom.A
 		return err
 	}
 	return contractABI.Unpack(result, method, output)
+}
+
+func mockTxHash(nonce uint64) []byte {
+	tx := gtypes.NewContractCreation(
+		nonce, nil, math.MaxUint64, big.NewInt(0), []byte(""),
+	)
+	return tx.Hash().Bytes()
 }

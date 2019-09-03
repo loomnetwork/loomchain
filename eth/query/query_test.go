@@ -4,8 +4,11 @@ package query
 
 import (
 	"bytes"
+	"math"
+	"math/big"
 	"testing"
 
+	gtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -55,7 +58,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil)
+	err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, mockTxHash(2))
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 
@@ -76,7 +79,8 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil)
+	mockTxHash1 := mockTxHash(1)
+	err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil, mockTxHash1)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
@@ -206,19 +210,21 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address: addr1.MarshalPB(),
 		},
 	}
+
 	state := common.MockState(1)
 	state32 := common.MockStateAt(state, 32)
-	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil)
+	mockTxHash1 := mockTxHash(1)
+	err = writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil, mockTxHash1)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(32))
 
-	txReceipt, err := receiptHandler.GetReceipt(txHash)
+	txReceipt, err := receiptHandler.GetReceipt(mockTxHash1)
 	require.NoError(t, err)
 
 	blockStore := store.NewMockBlockStore()
 
-	logs, err := getTxHashLogs(blockStore, txReceipt, ethFilter, txHash)
+	logs, err := getTxHashLogs(blockStore, txReceipt, ethFilter, mockTxHash1)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
 	require.Equal(t, logs[0].TransactionIndex, txReceipt.TransactionIndex)
@@ -231,4 +237,11 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
 	require.NoError(t, receiptHandler.Close())
+}
+
+func mockTxHash(nonce uint64) []byte {
+	tx := gtypes.NewContractCreation(
+		nonce, nil, math.MaxUint64, big.NewInt(0), []byte(""),
+	)
+	return tx.Hash().Bytes()
 }
