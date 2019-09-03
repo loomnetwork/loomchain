@@ -137,8 +137,8 @@ func (r *ReceiptHandler) CommitBlock(height int64) error {
 
 // TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(
-	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error,
-) ([]byte, error) {
+	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error, txHash []byte,
+) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -150,7 +150,7 @@ func (r *ReceiptHandler) CacheReceipt(
 			r.currentReceipt.Logs,
 			leveldb.CreateEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
 		)
-		return r.currentReceipt.TxHash, nil
+		return nil
 	}
 
 	var status int32
@@ -162,10 +162,11 @@ func (r *ReceiptHandler) CacheReceipt(
 	receipt, err := leveldb.WriteReceipt(
 		state.Block(), caller, addr, events, status,
 		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
+		txHash,
 	)
 	if err != nil {
-		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")
+		return errors.Wrap(err, "receipt not written, returning empty hash")
 	}
 	r.currentReceipt = &receipt
-	return r.currentReceipt.TxHash, err
+	return err
 }

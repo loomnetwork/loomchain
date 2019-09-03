@@ -4,6 +4,8 @@ package evm
 
 import (
 	"encoding/json"
+	"math"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -14,6 +16,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
@@ -116,6 +119,7 @@ type LoomVm struct {
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
+	gasLimit       uint64
 }
 
 func NewLoomVm(
@@ -125,11 +129,17 @@ func NewLoomVm(
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
 ) vm.VM {
+	gasLimit := uint64(math.MaxUint64)
+	onChainGasLimit := uint64(loomState.Config().GetEvm().GetGasLimit())
+	if onChainGasLimit > 0 {
+		gasLimit = onChainGasLimit
+	}
 	return &LoomVm{
 		state:          loomState,
 		receiptHandler: receiptHandler,
 		createABM:      createABM,
 		debug:          debug,
+		gasLimit:       gasLimit,
 	}
 }
 
@@ -155,20 +165,21 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		_, err = levm.Commit()
 	}
 
-	var txHash []byte
-	if lvm.receiptHandler != nil {
-		var events []*ptypes.EventData
-		if err == nil {
-			events = lvm.receiptHandler.GetEventsFromLogs(
-				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
-			)
-		}
+	var events []*ptypes.EventData
+	if err == nil {
+		events = lvm.receiptHandler.GetEventsFromLogs(
+			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
+		)
+	}
 
-		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
-		if errSaveReceipt != nil {
-			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
-		}
+	tx := types.NewContractCreation(
+		uint64(auth.Nonce(lvm.state, caller)), nil, lvm.gasLimit, big.NewInt(0), code,
+	)
+	txHash := tx.Hash().Bytes()
+
+	errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+	if errSaveReceipt != nil {
+		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 	}
 
 	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
@@ -200,21 +211,21 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		_, err = levm.Commit()
 	}
 
-	var txHash []byte
-	if lvm.receiptHandler != nil {
-		var events []*ptypes.EventData
-		if err == nil {
-			events = lvm.receiptHandler.GetEventsFromLogs(
-				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
-			)
-		}
-
-		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
-		if errSaveReceipt != nil {
-			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
-		}
+	var events []*ptypes.EventData
+	if err == nil {
+		events = lvm.receiptHandler.GetEventsFromLogs(
+			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
+		)
 	}
+
+	tx := types.NewTransaction(uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local), nil, lvm.gasLimit, big.NewInt(0), input)
+	txHash := tx.Hash().Bytes()
+
+	errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+	if errSaveReceipt != nil {
+		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+	}
+
 	return txHash, err
 }
 

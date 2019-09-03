@@ -55,7 +55,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil)
+	err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 
@@ -76,7 +76,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	_, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil)
+	err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))

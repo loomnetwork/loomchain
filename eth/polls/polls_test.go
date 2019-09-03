@@ -259,7 +259,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state4 := common.MockStateAt(state, 4)
-	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
+	err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(4))
@@ -272,7 +272,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	_, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil)
+	err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
@@ -285,7 +285,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state25 := common.MockStateAt(state, 25)
-	_, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil)
+	err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(25))
@@ -298,7 +298,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state30 := common.MockStateAt(state, 30)
-	_, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil)
+	err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(30))
@@ -312,7 +312,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 			},
 		}
 		state := common.MockStateAt(state, uint64(height))
-		_, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil)
+		err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil)
 		require.NoError(t, err)
 		receiptHandler.CommitCurrentReceipt()
 		require.NoError(t, receiptHandler.CommitBlock(int64(height)))

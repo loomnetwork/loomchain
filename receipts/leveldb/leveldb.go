@@ -1,7 +1,6 @@
 package leveldb
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 
@@ -32,6 +31,7 @@ func WriteReceipt(
 	eventHandler loomchain.EventHandler,
 	evmTxIndex int32,
 	nonce int64,
+	txHash []byte,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
 		Nonce:             nonce,
@@ -45,14 +45,6 @@ func WriteReceipt(
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
-
-	preTxReceipt, err := proto.Marshal(&txReceipt)
-	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
-	}
-	h := sha256.New()
-	h.Write(preTxReceipt)
-	txHash := h.Sum(nil)
 
 	txReceipt.TxHash = txHash
 	txReceipt.Logs = append(txReceipt.Logs, CreateEventLogs(&txReceipt, block, events, eventHandler)...)
