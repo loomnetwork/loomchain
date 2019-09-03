@@ -12,11 +12,13 @@ type AppStoreConfig struct {
 	PruneInterval int64
 	// Number of versions to prune at a time.
 	PruneBatchSize int64
-
 	// If true the app store will write EVM state to both IAVLStore and EvmStore
 	// This config works with AppStore Version 3 (MultiWriterAppStore) only
 	SaveEVMStateToIAVL bool
-
+	// Specifies the number of IAVL tree versions that should be kept in memory before writing a new
+	// version to disk.
+	// If set to zero every version will be written to disk unless overriden via the on-chain config.
+	// If set to -1 every version will always be written to disk, regardless of the on-chain config.
 	IAVLFlushInterval int64
 }
 
@@ -28,7 +30,7 @@ func DefaultConfig() *AppStoreConfig {
 		PruneInterval:      0,
 		PruneBatchSize:     50,
 		SaveEVMStateToIAVL: false,
-		IAVLFlushInterval:  0, //default to zero until we know its ready
+		IAVLFlushInterval:  0, // allow override via on-chain config
 	}
 }
 

@@ -147,20 +147,28 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	}(time.Now())
 
 	oldVersion := s.Version()
-	config, err := LoadOnChainConfig(s)
-	if err != nil {
-		log.Error("Fail to load on-chain config", err)
-	}
-	if config.AppStore.GetIAVLFlushInterval() != 0 {
-		s.flushInterval = int64(config.AppStore.GetIAVLFlushInterval())
+	flushInterval := s.flushInterval
+
+	// TODO: Rather than loading the on-chain config here the flush interval override should be passed
+	//       in as a parameter to SaveVersion().
+	if flushInterval == 0 {
+		cfg, err := LoadOnChainConfig(s)
+		if err != nil {
+			errors.Wrap(err, "failed to load on-chain config")
+		}
+		if cfg.GetAppStore().GetIAVLFlushInterval() != 0 {
+			flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
+		}
+	} else if flushInterval == -1 {
+		flushInterval = 0
 	}
 
 	var version int64
 	var hash []byte
-	//Every X versions we should persist to disk
-	if s.flushInterval == 0 || ((oldVersion+1)%s.flushInterval == 0) {
-		if s.flushInterval != 0 {
-			log.Error(fmt.Sprintf("Flushing mem to disk at version %d\n", oldVersion+1))
+	// Every X versions we should persist to disk
+	if flushInterval == 0 || ((oldVersion+1)%flushInterval == 0) {
+		if flushInterval != 0 {
+			log.Info("[IAVLStore] Flushing mem to disk", "version", oldVersion+1)
 			hash, version, err = s.tree.FlushMemVersionDisk()
 		} else {
 			hash, version, err = s.tree.SaveVersion()
@@ -213,7 +221,15 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
+// flushInterval specifies the number of IAVL tree versions that should be kept in memory before
+// writing a new version to disk. If set to zero every version will be written to disk unless overriden
+// via the on-chain config. If set to -1 every version will always be written to disk, regardless of
+// the on-chain config.
 func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*IAVLStore, error) {
+	if flushInterval < -1 {
+		return nil, errors.New("invalid flush interval")
+	}
+
 	tree := iavl.NewMutableTree(db, 10000)
 	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
