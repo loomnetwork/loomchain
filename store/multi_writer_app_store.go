@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -121,6 +122,58 @@ func NewMultiWriterAppStore(
 
 	store.setLastSavedTreeToVersion(appStore.Version())
 	return store, nil
+}
+
+// LoadMultiWriterAppStore loads the app state at the target version from app.db & evm.db.
+func LoadMultiWriterAppStore(
+	appStoreCfg *AppStoreConfig, evmStoreCfg *EvmStoreConfig, appStoreDB db.DBWrapper,
+	targetVersion int64, collectMetrics bool, rootPath string,
+) (*MultiWriterAppStore, error) {
+	iavlStore, err := NewIAVLStore(appStoreDB, appStoreCfg.MaxVersions, targetVersion, appStoreCfg.IAVLFlushInterval)
+	if err != nil {
+		return nil, err
+	}
+	appStoreEvmRoot := iavlStore.Get(rootKey)
+	evmDB, err := db.LoadDB(
+		evmStoreCfg.DBBackend,
+		evmStoreCfg.DBName,
+		rootPath,
+		evmStoreCfg.CacheSizeMegs,
+		evmStoreCfg.WriteBufferMegs,
+		collectMetrics,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	evmStore, err := loadEvmStore(evmDB, iavlStore.Version(), evmStoreCfg.NumCachedRoots)
+	if err != nil {
+		return nil, err
+	}
+	evmStoreEvmRoot, evmVersion := evmStore.getLastSavedRoot(iavlStore.Version())
+	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
+		log.Info(
+			"EVM root mismatch, resyncing roots...",
+			"evm.db-ver", evmVersion, "app.db-ver", iavlStore.Version(),
+			"evm.db-root", hex.EncodeToString(evmStoreEvmRoot), "app.db-evm-root", hex.EncodeToString(appStoreEvmRoot),
+		)
+		latestVersion, err := iavl.NewMutableTree(appStoreDB, 10000).LatestVersion(evmVersion)
+		if err != nil {
+			return nil, err
+		}
+		if latestVersion == 0 {
+			latestVersion = -1
+		}
+		iavlStore, err = NewIAVLStore(appStoreDB, appStoreCfg.MaxVersions, latestVersion, appStoreCfg.IAVLFlushInterval)
+		if err != nil {
+			return nil, err
+		}
+		evmStore, err = loadEvmStore(evmDB, iavlStore.Version(), evmStoreCfg.NumCachedRoots)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return NewMultiWriterAppStore(iavlStore, evmStore, appStoreCfg.SaveEVMStateToIAVL)
 }
 
 func (s *MultiWriterAppStore) Delete(key []byte) {
