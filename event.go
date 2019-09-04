@@ -82,7 +82,8 @@ func (ed *DefaultEventHandler) Commit(height uint64) error {
 	for _, eventData := range eventsData {
 		ed.stash.add(height, eventData)
 	}
-	ed.stashCache.fetch(height)
+	// clear event cache
+	ed.stashCache.purge(height)
 	return nil
 }
 
