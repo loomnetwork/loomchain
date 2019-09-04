@@ -169,13 +169,13 @@
   Expected = ['Error','RPC error']
 
 [[TestCases]]
-  Delay = 5000
+  Delay = 1000
   RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
 
   [[TestCases]]
-  Delay = 5000
+  Delay = 1000
   RunCmd = "{{ $.LoomPath }} chain-cfg set-validator-info --build 50 -k {{index $.NodePrivKeyPathList 3}}"
   Condition = "excludes"
   Expected = ['Error','RPC error']
@@ -242,7 +242,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-pending-actions  -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
-  Expected = ['AppStore.NumEvmKeysToPrune'] 
+  Expected = ['AppStore.NumEvmKeysToPrune']
 
 # wait for block height to increase at least 1 blocks
 [[TestCases]]
@@ -304,3 +304,22 @@
   RunCmd = "{{ $.LoomPath }} chain-cfg config"
   Condition = "contains"
   Expected = ['"gasLimit": "0"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.IAVLFlushInterval --value 5 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Expected = ['Error','RPC error']
+
+# wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg config"
+  Condition = "contains"
+  Expected = ['"iavlFlushInterval": "5"']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.IavlFlushInterval --value 777 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["setting not found"]
