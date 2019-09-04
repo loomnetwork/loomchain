@@ -9,13 +9,15 @@ import (
 	"sync"
 	"time"
 
+	"crypto/sha512"
+
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
-
-	dbm "github.com/tendermint/tendermint/libs/db"
-
-	"crypto/sha512"
 )
 
 type SigningThreshold string
@@ -79,6 +81,31 @@ type FnConsensusReactor struct {
 	cfg *ReactorConfig
 }
 
+var (
+	safeSubmitMultiSignedMessageCounter metrics.Counter
+	nonceCounter                        metrics.Counter
+)
+
+func init() {
+	fieldKeys := []string{"method", "error"}
+	safeSubmitMultiSignedMessageCounter = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: "loomchain",
+			Subsystem: "fnConsensus",
+			Name:      "safe_submit_multisigned_count",
+			Help:      "Number of safeSubmitMultiSignedMessages called",
+		}, fieldKeys,
+	)
+	nonceCounter = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: "loomchain",
+			Subsystem: "fnConsensus",
+			Name:      "current_nonce",
+			Help:      "The current nonce of each fnID",
+		}, fieldKeys,
+	)
+}
+
 func NewFnConsensusReactor(
 	chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB,
 	parsableConfig *ReactorConfigParsable,
@@ -109,6 +136,13 @@ func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte,
 			f.Logger.Error("panicked while invoking SubmitMultiSignedMessage", "error", err)
 		}
 	}()
+	fmt.Println("Called SafeSubmit")
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "safeSubmitMultiSignedMessage", "error", fmt.Sprint(err != nil)}
+		safeSubmitMultiSignedMessageCounter.With(lvs...).Add(1)
+	}(time.Now())
+
 	fn.SubmitMultiSignedMessage(nil, message, signatures)
 }
 
@@ -404,6 +438,7 @@ OUTER_LOOP:
 
 // Creates a vote signed by the validator corresponding to the given index and broadcasts it to all peers.
 func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.ValidatorSet, validatorIndex int) {
+	fmt.Println("Called VOTE")
 	message, signature, err := f.safeGetMessageAndSignature(fn)
 	if err != nil {
 		f.Logger.Error(
@@ -448,6 +483,11 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	if !ok {
 		currentNonce = 1
 	}
+
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Vote", "fnID", fnID}
+		nonceCounter.With(lvs...).Add(1)
+	}(time.Now())
 
 	voteSet, err := NewVoteSet(
 		currentNonce,
@@ -516,6 +556,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 //       we could end up in a situation where 2/3+ majority is reached here but the threshold calculated
 //       by the Ethereum Gateway is slightly more than that.
 func (f *FnConsensusReactor) commit(fnID string) {
+	fmt.Println("Called Commit")
 	fn := f.fnRegistry.Get(fnID)
 	if fn == nil {
 		f.Logger.Error(
@@ -617,6 +658,11 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				}
 			}
 		}
+
+		defer func(begin time.Time) {
+			lvs := []string{"method", "Commit", "fnID", fnID}
+			nonceCounter.With(lvs...).Add(1)
+		}(time.Now())
 
 		f.state.CurrentNonces[fnID]++
 		f.state.PreviousValidatorSet = currentValidators
