@@ -83,7 +83,7 @@ type FnConsensusReactor struct {
 
 var (
 	safeSubmitMultiSignedMessageCounter metrics.Counter
-	nonceCounter                        metrics.Counter
+	nonceCounter                        metrics.Gauge
 )
 
 func init() {
@@ -91,17 +91,17 @@ func init() {
 		stdprometheus.CounterOpts{
 			Namespace: "loomchain",
 			Subsystem: "fnConsensus",
-			Name:      "safe_submit_multisigned_count",
+			Name:      "submitted_message_count",
 			Help:      "Number of safeSubmitMultiSignedMessages called",
 		}, []string{},
 	)
-	nonceCounter = kitprometheus.NewCounterFrom(
-		stdprometheus.CounterOpts{
+	nonceCounter = kitprometheus.NewGaugeFrom(
+		stdprometheus.GaugeOpts{
 			Namespace: "loomchain",
 			Subsystem: "fnConsensus",
 			Name:      "current_nonce",
 			Help:      "The current nonce of each fnID",
-		}, []string{},
+		}, []string{"method", "fnID"},
 	)
 }
 
@@ -135,10 +135,7 @@ func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte,
 			f.Logger.Error("panicked while invoking SubmitMultiSignedMessage", "error", err)
 		}
 	}()
-
-	lvs := []string{"method", "safeSubmitMultiSignedMessage"}
-	safeSubmitMultiSignedMessageCounter.With(lvs...).Add(1)
-
+	safeSubmitMultiSignedMessageCounter.Add(1)
 	fn.SubmitMultiSignedMessage(nil, message, signatures)
 }
 
@@ -478,9 +475,8 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	if !ok {
 		currentNonce = 1
 	}
-
-	lvs := []string{"method", "Vote", "fnID", fnID}
-	nonceCounter.With(lvs...).Add(1)
+	lvs := []string{"method", voteMethodID, "fnID", fnID}
+	nonceCounter.With(lvs...).Set(float64(currentNonce))
 
 	voteSet, err := NewVoteSet(
 		currentNonce,
@@ -651,8 +647,8 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			}
 		}
 
-		lvs := []string{"method", "Commit", "fnID", fnID}
-		nonceCounter.With(lvs...).Add(1)
+		lvs := []string{"method", commitMethodID, "fnID", fnID}
+		nonceCounter.With(lvs...).Set(float64(currentNonce))
 
 		f.state.CurrentNonces[fnID]++
 		f.state.PreviousValidatorSet = currentValidators
