@@ -87,14 +87,13 @@ var (
 )
 
 func init() {
-	fieldKeys := []string{"method", "error"}
 	safeSubmitMultiSignedMessageCounter = kitprometheus.NewCounterFrom(
 		stdprometheus.CounterOpts{
 			Namespace: "loomchain",
 			Subsystem: "fnConsensus",
 			Name:      "safe_submit_multisigned_count",
 			Help:      "Number of safeSubmitMultiSignedMessages called",
-		}, fieldKeys,
+		}, []string{},
 	)
 	nonceCounter = kitprometheus.NewCounterFrom(
 		stdprometheus.CounterOpts{
@@ -102,7 +101,7 @@ func init() {
 			Subsystem: "fnConsensus",
 			Name:      "current_nonce",
 			Help:      "The current nonce of each fnID",
-		}, fieldKeys,
+		}, []string{},
 	)
 }
 
@@ -136,12 +135,9 @@ func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte,
 			f.Logger.Error("panicked while invoking SubmitMultiSignedMessage", "error", err)
 		}
 	}()
-	fmt.Println("Called SafeSubmit")
-	var err error
-	defer func(begin time.Time) {
-		lvs := []string{"method", "safeSubmitMultiSignedMessage", "error", fmt.Sprint(err != nil)}
-		safeSubmitMultiSignedMessageCounter.With(lvs...).Add(1)
-	}(time.Now())
+
+	lvs := []string{"method", "safeSubmitMultiSignedMessage"}
+	safeSubmitMultiSignedMessageCounter.With(lvs...).Add(1)
 
 	fn.SubmitMultiSignedMessage(nil, message, signatures)
 }
@@ -438,7 +434,6 @@ OUTER_LOOP:
 
 // Creates a vote signed by the validator corresponding to the given index and broadcasts it to all peers.
 func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.ValidatorSet, validatorIndex int) {
-	fmt.Println("Called VOTE")
 	message, signature, err := f.safeGetMessageAndSignature(fn)
 	if err != nil {
 		f.Logger.Error(
@@ -484,10 +479,8 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		currentNonce = 1
 	}
 
-	defer func(begin time.Time) {
-		lvs := []string{"method", "Vote", "fnID", fnID}
-		nonceCounter.With(lvs...).Add(1)
-	}(time.Now())
+	lvs := []string{"method", "Vote", "fnID", fnID}
+	nonceCounter.With(lvs...).Add(1)
 
 	voteSet, err := NewVoteSet(
 		currentNonce,
@@ -556,7 +549,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 //       we could end up in a situation where 2/3+ majority is reached here but the threshold calculated
 //       by the Ethereum Gateway is slightly more than that.
 func (f *FnConsensusReactor) commit(fnID string) {
-	fmt.Println("Called Commit")
 	fn := f.fnRegistry.Get(fnID)
 	if fn == nil {
 		f.Logger.Error(
@@ -659,10 +651,8 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			}
 		}
 
-		defer func(begin time.Time) {
-			lvs := []string{"method", "Commit", "fnID", fnID}
-			nonceCounter.With(lvs...).Add(1)
-		}(time.Now())
+		lvs := []string{"method", "Commit", "fnID", fnID}
+		nonceCounter.With(lvs...).Add(1)
 
 		f.state.CurrentNonces[fnID]++
 		f.state.PreviousValidatorSet = currentValidators
