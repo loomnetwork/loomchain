@@ -553,6 +553,9 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
 
+	// TODO: Need to cleanup this receipts stuff...
+	// 1. The storeTx is no longer used by the receipt handler, so need to remove it.
+	// 2. receiptHandler.CommitBlock() should be moved to Application.Commit().
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
@@ -720,7 +723,10 @@ func (a *Application) Commit() abci.ResponseCommit {
 		panic(err)
 	}
 
-	a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs)
+	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
+		// TODO: consider panic instead
+		log.Error("Failed to save Tendermint -> EVM tx hash refs", "err", err)
+	}
 	a.childTxRefs = nil
 
 	height := a.curBlockHeader.GetHeight()
