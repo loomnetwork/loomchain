@@ -2,14 +2,13 @@ package fnConsensus
 
 import (
 	"bytes"
+	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
 	"time"
-
-	"crypto/sha512"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -82,26 +81,26 @@ type FnConsensusReactor struct {
 }
 
 var (
-	safeSubmitMultiSignedMessageCounter metrics.Counter
-	nonceCounter                        metrics.Gauge
+	submittedMessageCount metrics.Counter
+	nonceGauge            metrics.Gauge
 )
 
 func init() {
-	safeSubmitMultiSignedMessageCounter = kitprometheus.NewCounterFrom(
+	submittedMessageCount = kitprometheus.NewCounterFrom(
 		stdprometheus.CounterOpts{
 			Namespace: "loomchain",
 			Subsystem: "fnConsensus",
 			Name:      "submitted_message_count",
-			Help:      "Number of safeSubmitMultiSignedMessages called",
+			Help:      "Number of message successfully submitted by the validator",
 		}, []string{},
 	)
-	nonceCounter = kitprometheus.NewGaugeFrom(
+	nonceGauge = kitprometheus.NewGaugeFrom(
 		stdprometheus.GaugeOpts{
 			Namespace: "loomchain",
 			Subsystem: "fnConsensus",
 			Name:      "current_nonce",
-			Help:      "The current nonce of each fnID",
-		}, []string{"method", "fnID"},
+			Help:      "Current nonce (per fnID)",
+		}, []string{"fnID"},
 	)
 }
 
@@ -135,8 +134,8 @@ func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte,
 			f.Logger.Error("panicked while invoking SubmitMultiSignedMessage", "error", err)
 		}
 	}()
-	safeSubmitMultiSignedMessageCounter.Add(1)
 	fn.SubmitMultiSignedMessage(nil, message, signatures)
+	submittedMessageCount.Add(1)
 }
 
 // Returns a message and associated signature (which can be anything really).
@@ -475,8 +474,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	if !ok {
 		currentNonce = 1
 	}
-	lvs := []string{"method", voteMethodID, "fnID", fnID}
-	nonceCounter.With(lvs...).Set(float64(currentNonce))
 
 	voteSet, err := NewVoteSet(
 		currentNonce,
@@ -647,10 +644,8 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			}
 		}
 
-		lvs := []string{"method", commitMethodID, "fnID", fnID}
-		nonceCounter.With(lvs...).Set(float64(currentNonce))
-
 		f.state.CurrentNonces[fnID]++
+		nonceGauge.With("fnID", fnID).Set(float64(f.state.CurrentNonces[fnID]))
 		f.state.PreviousValidatorSet = currentValidators
 		f.state.PreviousMajVoteSets[fnID] = currentVoteSet
 		delete(f.state.CurrentVoteSets, fnID)
@@ -802,6 +797,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		f.state.PreviousMajVoteSets[remoteFnID] = remoteMajVoteSet
 		f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
 		f.state.CurrentNonces[remoteFnID] = remoteMajVoteSet.Nonce + 1
+		nonceGauge.With("fnID", remoteFnID).Set(float64(f.state.CurrentNonces[remoteFnID]))
 
 		// If we have found maj23 voteset with a nonce equal or greater than our current nonce,
 		// our current vote set is clearly outdated, and should be removed.
@@ -867,6 +863,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 	if !ok {
 		currentNonce = 1
 		f.state.CurrentNonces[fnID] = currentNonce
+		nonceGauge.With("fnID", fnID).Set(float64(currentNonce))
 	}
 	currentVoteSet := f.state.CurrentVoteSets[fnID]
 
@@ -901,6 +898,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		currentVoteSet = remoteVoteSet
 		currentNonce = remoteVoteSet.Nonce
+		nonceGauge.With("fnID", fnID).Set(float64(currentNonce))
 
 		hasOurVoteSetChanged = true
 		didWeContribute = false
