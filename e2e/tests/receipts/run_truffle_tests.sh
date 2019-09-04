@@ -12,5 +12,5 @@ trap cleanup EXIT
 bash ../cluster.sh --init --dir $TEST_DIR --start
 
 cd ../truffle
-CLUSTER_DIR=$TEST_DIR/cluster yarn test:memory
+CLUSTER_DIR=$TEST_DIR/cluster yarn test
 
