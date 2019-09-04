@@ -681,6 +681,10 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
+		if err := a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight())); err != nil {
+			log.Error("Emit Tx Event error", "err", err)
+		}
+
 		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
 			log.Error("Emit Tx Event error", "err", err)
 		}

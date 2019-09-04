@@ -24,6 +24,7 @@ type EventHandler interface {
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
 	LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet
+	Commit(height uint64) error
 }
 
 type EventDispatcher interface {
@@ -34,6 +35,7 @@ type EventDispatcher interface {
 type DefaultEventHandler struct {
 	dispatcher             EventDispatcher
 	stash                  *stash
+	stashCache             *stash
 	subscriptions          *SubscriptionSet
 	ethSubscriptions       *subs.EthSubscriptionSet
 	legacyEthSubscriptions *subs.LegacyEthSubscriptionSet
@@ -43,6 +45,7 @@ func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
 		dispatcher:             dispatcher,
 		stash:                  newStash(),
+		stashCache:             newStash(),
 		subscriptions:          NewSubscriptionSet(),
 		ethSubscriptions:       subs.NewEthSubscriptionSet(),
 		legacyEthSubscriptions: subs.NewLegacyEthSubscriptionSet(),
@@ -67,7 +70,19 @@ func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	}
 	// TODO: this is stupid, fix it
 	eventData := EventData(*msg)
-	ed.stash.add(height, &eventData)
+	ed.stashCache.add(height, &eventData)
+	return nil
+}
+
+func (ed *DefaultEventHandler) Commit(height uint64) error {
+	eventsData, err := ed.stashCache.fetch(height)
+	if err != nil {
+		return err
+	}
+	for _, eventData := range eventsData {
+		ed.stash.add(height, eventData)
+	}
+	ed.stashCache.fetch(height)
 	return nil
 }
 
@@ -155,6 +170,10 @@ func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err 
 
 	err = m.next.Post(height, e)
 	return
+}
+
+func (m InstrumentingEventHandler) Commit(height uint64) error {
+	return m.next.Commit(height)
 }
 
 // EmitBlockTx captures the metrics
