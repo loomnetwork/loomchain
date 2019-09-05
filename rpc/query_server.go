@@ -1038,7 +1038,7 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 
 	ctx, err := s.createStaticContractCtx(snapshot, "ethcoin")
 	if err != nil {
-		if err == registry.ErrNotFound {
+		if errors.Cause(err) == registry.ErrNotFound {
 			return eth.Quantity("0x0"), nil
 		}
 		return eth.Quantity("0x0"), err
