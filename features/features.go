@@ -49,7 +49,7 @@ const (
 	// Enables EVM tx receipts storage in separate DB.
 	EvmTxReceiptsVersion2Feature = "receipts:v2"
 
-	// Enables EVM contract events for EVM calls made from Go contracts
+	// Enables saving of EVM tx receipts for EVM calls made from Go contracts
 	EvmTxReceiptsVersion3 = "receipts:v3"
 
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
