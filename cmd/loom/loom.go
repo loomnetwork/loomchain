@@ -588,7 +588,7 @@ func destroyApp(cfg *config.Config) error {
 }
 
 func destroyReceiptsDB(cfg *config.Config) {
-	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
+	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb || cfg.ReceiptsVersion == 3 {
 		receptHandler := leveldb.LevelDbReceipts{}
 		receptHandler.ClearData()
 	}
