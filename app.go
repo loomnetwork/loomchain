@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/loomchain/features"
+
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -684,26 +686,28 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-			log.Error("Emit Tx Event error", "err", err)
-		}
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm || state.FeatureEnabled(features.EvmTxReceiptsVersion2_1, false) {
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+				log.Error("Emit Tx Event error", "err", err)
+			}
 
-		reader := a.ReceiptHandlerProvider.Reader()
-		if reader.GetCurrentReceipt() != nil {
-			receiptTxHash := reader.GetCurrentReceipt().TxHash
-			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
-				log.Error("failed to emit tx event to subscribers", "err", err)
+			reader := a.ReceiptHandlerProvider.Reader()
+			if reader.GetCurrentReceipt() != nil {
+				receiptTxHash := reader.GetCurrentReceipt().TxHash
+				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+					log.Error("failed to emit tx event to subscribers", "err", err)
+				}
+				txHash := ttypes.Tx(txBytes).Hash()
+				// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+				// so that we can use it to lookup relevant events using the TM tx hash.
+				if !bytes.Equal(txHash, receiptTxHash) {
+					a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+						ParentTxHash: txHash,
+						ChildTxHash:  receiptTxHash,
+					})
+				}
+				receiptHandler.CommitCurrentReceipt()
 			}
-			txHash := ttypes.Tx(txBytes).Hash()
-			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
-			// so that we can use it to lookup relevant events using the TM tx hash.
-			if !bytes.Equal(txHash, receiptTxHash) {
-				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
-					ParentTxHash: txHash,
-					ChildTxHash:  receiptTxHash,
-				})
-			}
-			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
 	}
