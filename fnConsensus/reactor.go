@@ -91,8 +91,8 @@ func init() {
 			Namespace: "loomchain",
 			Subsystem: "fnConsensus",
 			Name:      "submitted_message_count",
-			Help:      "Number of message successfully submitted by the validator",
-		}, []string{},
+			Help:      "Number of messages successfully submitted by the validator (per fnID)",
+		}, []string{"fnID"},
 	)
 	nonceGauge = kitprometheus.NewGaugeFrom(
 		stdprometheus.GaugeOpts{
@@ -127,7 +127,7 @@ func NewFnConsensusReactor(
 	return reactor, nil
 }
 
-func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte, signatures [][]byte) {
+func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fnID string, fn Fn, message []byte, signatures [][]byte) {
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -135,7 +135,7 @@ func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte,
 		}
 	}()
 	fn.SubmitMultiSignedMessage(nil, message, signatures)
-	submittedMessageCount.Add(1)
+	submittedMessageCount.With("fnID", fnID).Add(1)
 }
 
 // Returns a message and associated signature (which can be anything really).
@@ -502,6 +502,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 			return
 		}
 		f.safeSubmitMultiSignedMessage(
+			fnID,
 			fn,
 			safeCopyBytes(f.state.Messages[fnID].Payload),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
@@ -636,6 +637,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 					}
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
+						fnID,
 						fn,
 						safeCopyBytes(f.state.Messages[fnID].Payload),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
