@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loomnetwork/loomchain/features"
-
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
@@ -687,9 +686,10 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		// TODO: get rid of receiptVersion config once the receipts version 3 has been enabled on PlasmaChain
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
-			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3 {
+		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
+
+		if saveEvmTxReceipt {
 			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}
