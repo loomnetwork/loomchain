@@ -342,6 +342,7 @@ type Application struct {
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
+	ReceiptsVersion             int32
 }
 
 var _ abci.Application = &Application{}
@@ -686,7 +687,9 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm || state.FeatureEnabled(features.EvmTxReceiptsVersion2_1, false) {
+		// TODO: get rid of receiptVersion config once the receipts version 3 has been enabled on PlasmaChain
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3 {
 			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}

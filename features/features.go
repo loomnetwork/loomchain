@@ -50,7 +50,7 @@ const (
 	EvmTxReceiptsVersion2Feature = "receipts:v2"
 
 	// Enables EVM contract events for EVM calls made from Go contracts
-	EvmTxReceiptsVersion2_1 = "receipts:v2.1"
+	EvmTxReceiptsVersion3 = "receipts:v3"
 
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
