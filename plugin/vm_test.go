@@ -44,7 +44,7 @@ func (eh *fakeEventHandler) Post(height uint64, e *ptypes.EventData) error {
 	return nil
 }
 
-func (eh *fakeEventHandler) Purge() {
+func (eh *fakeEventHandler) Rollback() {
 }
 
 func (eh *fakeEventHandler) Commit(height uint64) error {

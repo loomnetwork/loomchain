@@ -20,7 +20,7 @@ type EventData types.EventData
 
 type EventHandler interface {
 	Post(height uint64, e *types.EventData) error
-	Purge()
+	Rollback()
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
@@ -46,7 +46,6 @@ func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
 		dispatcher:             dispatcher,
 		stash:                  newStash(),
-		eventCache:             make([]*EventData, 0),
 		subscriptions:          NewSubscriptionSet(),
 		ethSubscriptions:       subs.NewEthSubscriptionSet(),
 		legacyEthSubscriptions: subs.NewLegacyEthSubscriptionSet(),
@@ -79,13 +78,12 @@ func (ed *DefaultEventHandler) Commit(height uint64) error {
 	for _, eventData := range ed.eventCache {
 		ed.stash.add(height, eventData)
 	}
-	// clear event cache
-	ed.eventCache = make([]*EventData, 0)
+	ed.eventCache = nil
 	return nil
 }
 
-func (ed *DefaultEventHandler) Purge() {
-	ed.eventCache = make([]*EventData, 0)
+func (ed *DefaultEventHandler) Rollback() {
+	ed.eventCache = nil
 }
 
 func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
@@ -178,8 +176,8 @@ func (m InstrumentingEventHandler) Commit(height uint64) error {
 	return m.next.Commit(height)
 }
 
-func (m InstrumentingEventHandler) Purge() {
-	m.next.Purge()
+func (m InstrumentingEventHandler) Rollback() {
+	m.next.Rollback()
 }
 
 // EmitBlockTx captures the metrics
