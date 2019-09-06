@@ -88,7 +88,11 @@
                         "status": "WAITING"
                     },
                     {
-                        "name": "receipts:v2.1",
+                        "name": "receipts:v3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.1",
                         "status": "WAITING"
                     }
                 ]

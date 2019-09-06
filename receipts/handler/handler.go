@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"sync"
 
+	"github.com/loomnetwork/loomchain/features"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -162,11 +164,16 @@ func (r *ReceiptHandler) CacheReceipt(
 	receipt, err := leveldb.WriteReceipt(
 		state.Block(), caller, addr, events, status,
 		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
-		txHash,
 	)
 	if err != nil {
 		return errors.Wrap(err, "receipt not written, returning empty hash")
 	}
+
+	// use go-ethereum tx hash instead of loom tx hash
+	if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+		receipt.TxHash = txHash
+	}
+
 	r.currentReceipt = &receipt
 	return err
 }

@@ -221,7 +221,11 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
-					Name:   features.EvmTxReceiptsVersion2_1Feature,
+					Name:   features.EvmTxReceiptsVersion3,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   features.EvmTxReceiptsVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{

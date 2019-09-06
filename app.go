@@ -341,6 +341,7 @@ type Application struct {
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
+	ReceiptsVersion             int32
 }
 
 var _ abci.Application = &Application{}
@@ -554,6 +555,9 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
 
+	// TODO: Need to cleanup this receipts stuff...
+	// 1. The storeTx is no longer used by the receipt handler, so need to remove it.
+	// 2. receiptHandler.CommitBlock() should be moved to Application.Commit().
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
@@ -659,7 +663,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		// Pass tx hash generated from go-etheruem back to Tendermint on failed EVM txs
-		if state.FeatureEnabled(features.EvmTxReceiptsVersion2_1Feature, false) {
+		if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
 			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
 		}
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
@@ -696,26 +700,31 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-			log.Error("Emit Tx Event error", "err", err)
-		}
+		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
 
-		reader := a.ReceiptHandlerProvider.Reader()
-		if reader.GetCurrentReceipt() != nil {
-			receiptTxHash := reader.GetCurrentReceipt().TxHash
-			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
-				log.Error("failed to emit tx event to subscribers", "err", err)
+		if saveEvmTxReceipt {
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+				log.Error("Emit Tx Event error", "err", err)
 			}
-			txHash := ttypes.Tx(txBytes).Hash()
-			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
-			// so that we can use it to lookup relevant events using the TM tx hash.
-			if !bytes.Equal(txHash, receiptTxHash) {
-				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
-					ParentTxHash: txHash,
-					ChildTxHash:  receiptTxHash,
-				})
+
+			reader := a.ReceiptHandlerProvider.Reader()
+			if reader.GetCurrentReceipt() != nil {
+				receiptTxHash := reader.GetCurrentReceipt().TxHash
+				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+					log.Error("failed to emit tx event to subscribers", "err", err)
+				}
+				txHash := ttypes.Tx(txBytes).Hash()
+				// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+				// so that we can use it to lookup relevant events using the TM tx hash.
+				if !bytes.Equal(txHash, receiptTxHash) {
+					a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+						ParentTxHash: txHash,
+						ChildTxHash:  receiptTxHash,
+					})
+				}
+				receiptHandler.CommitCurrentReceipt()
 			}
-			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
 	}
@@ -735,10 +744,14 @@ func (a *Application) Commit() abci.ResponseCommit {
 		panic(err)
 	}
 
-	a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs)
+	height := a.curBlockHeader.GetHeight()
+
+	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
+		// TODO: consider panic instead
+		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
+	}
 	a.childTxRefs = nil
 
-	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
 			log.Error("Emit Block Event error", "err", err)

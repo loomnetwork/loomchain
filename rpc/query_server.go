@@ -35,6 +35,7 @@ import (
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -1037,6 +1038,9 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 
 	ctx, err := s.createStaticContractCtx(snapshot, "ethcoin")
 	if err != nil {
+		if errors.Cause(err) == registry.ErrNotFound {
+			return eth.Quantity("0x0"), nil
+		}
 		return eth.Quantity("0x0"), err
 	}
 	amount, err := ethcoin.BalanceOf(ctx, owner)
