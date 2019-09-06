@@ -36,7 +36,7 @@ type EventDispatcher interface {
 type DefaultEventHandler struct {
 	dispatcher             EventDispatcher
 	stash                  *stash
-	stashCache             *stash
+	eventCache             []*EventData
 	subscriptions          *SubscriptionSet
 	ethSubscriptions       *subs.EthSubscriptionSet
 	legacyEthSubscriptions *subs.LegacyEthSubscriptionSet
@@ -46,7 +46,7 @@ func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
 		dispatcher:             dispatcher,
 		stash:                  newStash(),
-		stashCache:             newStash(),
+		eventCache:             make([]*EventData, 0),
 		subscriptions:          NewSubscriptionSet(),
 		ethSubscriptions:       subs.NewEthSubscriptionSet(),
 		legacyEthSubscriptions: subs.NewLegacyEthSubscriptionSet(),
@@ -71,25 +71,21 @@ func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	}
 	// TODO: this is stupid, fix it
 	eventData := EventData(*msg)
-	ed.stashCache.add(height, &eventData)
+	ed.eventCache = append(ed.eventCache, &eventData)
 	return nil
 }
 
 func (ed *DefaultEventHandler) Commit(height uint64) error {
-	eventsData, err := ed.stashCache.fetch(height)
-	if err != nil {
-		return err
-	}
-	for _, eventData := range eventsData {
+	for _, eventData := range ed.eventCache {
 		ed.stash.add(height, eventData)
 	}
 	// clear event cache
-	ed.stashCache.purge(height)
+	ed.eventCache = make([]*EventData, 0)
 	return nil
 }
 
 func (ed *DefaultEventHandler) Purge(height uint64) {
-	ed.stashCache.purge(height)
+	ed.eventCache = make([]*EventData, 0)
 }
 
 func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
