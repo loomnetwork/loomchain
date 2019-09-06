@@ -680,6 +680,8 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
+		// clear event cache on failed txs
+		a.EventHandler.Purge()
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
 		return r, err
@@ -718,8 +720,8 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		}
 		storeTx.Commit()
 	} else {
-		// clear event cache
-		a.EventHandler.Purge(uint64(a.curBlockHeader.GetHeight()))
+		// clear event cache for CheckTx
+		a.EventHandler.Purge()
 	}
 	return r, nil
 }

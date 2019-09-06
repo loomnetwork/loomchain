@@ -20,7 +20,7 @@ type EventData types.EventData
 
 type EventHandler interface {
 	Post(height uint64, e *types.EventData) error
-	Purge(height uint64)
+	Purge()
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
@@ -84,7 +84,7 @@ func (ed *DefaultEventHandler) Commit(height uint64) error {
 	return nil
 }
 
-func (ed *DefaultEventHandler) Purge(height uint64) {
+func (ed *DefaultEventHandler) Purge() {
 	ed.eventCache = make([]*EventData, 0)
 }
 
@@ -178,8 +178,8 @@ func (m InstrumentingEventHandler) Commit(height uint64) error {
 	return m.next.Commit(height)
 }
 
-func (m InstrumentingEventHandler) Purge(height uint64) {
-	m.next.Purge(height)
+func (m InstrumentingEventHandler) Purge() {
+	m.next.Purge()
 }
 
 // EmitBlockTx captures the metrics
