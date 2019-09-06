@@ -211,7 +211,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	state := common.MockState(1)
 	state32 := common.MockStateAt(state, 32)
 	mockTxHash1 := utils.MockTxHash(1)
-	txHash, err = writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil, mockTxHash1)
+	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil, mockTxHash1)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(32))
