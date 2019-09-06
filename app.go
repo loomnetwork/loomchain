@@ -717,6 +717,9 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			}
 		}
 		storeTx.Commit()
+	} else {
+		// clear event cache
+		a.EventHandler.Purge(uint64(a.curBlockHeader.GetHeight()))
 	}
 	return r, nil
 }
