@@ -140,7 +140,7 @@ func (r *ReceiptHandler) CommitBlock(height int64) error {
 // TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(
 	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error, txHash []byte,
-) error {
+) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -152,7 +152,7 @@ func (r *ReceiptHandler) CacheReceipt(
 			r.currentReceipt.Logs,
 			leveldb.CreateEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
 		)
-		return nil
+		return nil, nil
 	}
 
 	var status int32
@@ -166,7 +166,7 @@ func (r *ReceiptHandler) CacheReceipt(
 		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
 	)
 	if err != nil {
-		return errors.Wrap(err, "receipt not written, returning empty hash")
+		return nil, errors.Wrap(err, "receipt not written, returning empty hash")
 	}
 
 	// use go-ethereum tx hash instead of loom tx hash
@@ -175,5 +175,5 @@ func (r *ReceiptHandler) CacheReceipt(
 	}
 
 	r.currentReceipt = &receipt
-	return err
+	return r.currentReceipt.TxHash, err
 }

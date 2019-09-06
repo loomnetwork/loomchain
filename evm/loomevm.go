@@ -174,11 +174,12 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 			)
 		}
 
-		txHash = types.NewContractCreation(
+		ethereumTxHash := types.NewContractCreation(
 			uint64(auth.Nonce(lvm.state, caller)), nil, lvm.gasLimit, big.NewInt(0), code,
 		).Hash().Bytes()
 
-		errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		var errSaveReceipt error
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, ethereumTxHash)
 		if errSaveReceipt != nil {
 			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 		}
@@ -222,12 +223,13 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 			)
 		}
 
-		txHash = types.NewTransaction(
+		ethereumTxHash := types.NewTransaction(
 			uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
 			nil, lvm.gasLimit, big.NewInt(0), input,
 		).Hash().Bytes()
 
-		errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		var errSaveReceipt error
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, ethereumTxHash)
 		if errSaveReceipt != nil {
 			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 		}
