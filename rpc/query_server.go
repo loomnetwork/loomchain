@@ -47,7 +47,6 @@ import (
 )
 
 type (
-	ListValidator      = dtypes.ListValidatorsResponse
 	ValidatorStatistic = dtypes.ValidatorStatistic
 	CandidateStatistic = dtypes.CandidateStatistic
 	ListCandidates     = dtypes.ListCandidatesResponse
@@ -139,7 +138,6 @@ type QueryServer struct {
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
-	loomchain.VMManagerProvider
 }
 
 var _ QueryService = &QueryServer{}
