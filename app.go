@@ -681,9 +681,9 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		storeTx.Rollback()
-		// Pass tx hash generated from go-etheruem back to Tendermint on failed EVM txs
+		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
 		if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			//receiptHandler.CommitCurrentReceipt()
+			receiptHandler.CommitCurrentReceipt()
 			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
 		}
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
@@ -717,9 +717,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	}
 
 	storeTx.Commit()
-	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-		isEvmTx = true
-	}
+	isEvmTx = (r.Info == utils.CallEVM || r.Info == utils.DeployEvm)
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
