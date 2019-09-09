@@ -6,7 +6,7 @@ type JsonGetValidators struct {
 
 type Validator struct {
 	Address         string `json:"address,omitempty"`
-	JailedStatus    bool   `json:"jailedStatus,omitempty"`
+	Jailed          bool   `json:"jailed,omitempty"`
 	Name            string `json:"name,omitempty"`
 	Description     string `json:"description,omitempty"`
 	Image           string `json:"image,omitempty"`

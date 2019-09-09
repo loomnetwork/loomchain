@@ -140,6 +140,25 @@
   Condition = "contains"
   Expected = ["2000000000000000000"]
 
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 update-candidate-info loomX test-trustwallet-endpoint loomX.io 350 -k {{index $.NodePrivKeyPathList 1}}"
+
+  # wait for 5 blocks so that the offline validator delegations get slashed
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 3"
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X GET --data {\"jsonrpc\":\"2.0\",\"id\":83} {{index $.NodeProxyAppAddressList 0}}/query/getvalidators"
+  All = true
+  Condition = "contains"
+  Expected = [
+                "\"jsonrpc\": \"2.0\",",
+                "\"id\": ",
+                "\"name\": \"loomX\",",
+                "\"description\": \"test-trustwallet-endpoint\",",
+                "\"website\": \"loomX.io\",",
+             ]
+
 # Node 1 staked 1.25M in order to become a validator, if the node was properly
 # slashed, the node's self-delegation should now be a bit less than 1.25M so the
 # figure "1250000000000000000000000" should not be present in the response.

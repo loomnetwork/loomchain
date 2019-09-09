@@ -1120,16 +1120,13 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 
 			getValidatorResponse = append(getValidatorResponse, blockatlas.Validator{
 				Address:         statistic.GetAddress().Local.String(),
-				JailedStatus:    statistic.Jailed,
+				Jailed:          statistic.Jailed,
 				Name:            candidate.Name,
 				Description:     candidate.Description,
 				DelegationTotal: statistic.GetDelegationTotal().Value.String(),
+				Website:         candidate.Website,
 			})
 		}
-	}
-
-	for _, c := range getValidatorResponse {
-		fmt.Printf("%+v\n\n", c)
 	}
 
 	return &blockatlas.JsonGetValidators{
