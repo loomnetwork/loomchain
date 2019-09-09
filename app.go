@@ -631,6 +631,8 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
+
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -639,15 +641,14 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
+	// Receipts generated from CheckTx need to be discarded
+	defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
+
 	_, err = a.TxHandler.ProcessTx(state, txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
-
-	storeTx.Rollback()
-	// Receipts generated from CheckTx need to be discarded
-	a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
 
 	return ok
 }
