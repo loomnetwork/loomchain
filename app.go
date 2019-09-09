@@ -692,7 +692,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
-		if !isCheckTx {
+		if !isCheckTx && state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
 			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Rollback()

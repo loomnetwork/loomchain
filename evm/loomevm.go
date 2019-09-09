@@ -119,7 +119,6 @@ type LoomVm struct {
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
-	gasLimit       uint64
 }
 
 func NewLoomVm(
@@ -129,17 +128,11 @@ func NewLoomVm(
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
 ) vm.VM {
-	gasLimit := uint64(math.MaxUint64)
-	onChainGasLimit := uint64(loomState.Config().GetEvm().GetGasLimit())
-	if onChainGasLimit > 0 {
-		gasLimit = onChainGasLimit
-	}
 	return &LoomVm{
 		state:          loomState,
 		receiptHandler: receiptHandler,
 		createABM:      createABM,
 		debug:          debug,
-		gasLimit:       gasLimit,
 	}
 }
 
@@ -175,7 +168,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		}
 
 		ethereumTxHash := types.NewContractCreation(
-			uint64(auth.Nonce(lvm.state, caller)), nil, lvm.gasLimit, big.NewInt(0), code,
+			uint64(auth.Nonce(lvm.state, caller)), nil, math.MaxUint64, big.NewInt(0), code,
 		).Hash().Bytes()
 
 		var errSaveReceipt error
@@ -225,7 +218,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 
 		ethereumTxHash := types.NewTransaction(
 			uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
-			nil, lvm.gasLimit, big.NewInt(0), input,
+			nil, math.MaxUint64, big.NewInt(0), input,
 		).Hash().Bytes()
 
 		var errSaveReceipt error
