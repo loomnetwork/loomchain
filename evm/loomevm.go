@@ -7,6 +7,8 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/loomnetwork/loomchain/features"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -167,9 +169,12 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 			)
 		}
 
-		ethereumTxHash := types.NewContractCreation(
-			uint64(auth.Nonce(lvm.state, caller)), nil, math.MaxUint64, big.NewInt(0), code,
-		).Hash().Bytes()
+		var ethereumTxHash []byte
+		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+			ethereumTxHash = types.NewContractCreation(
+				uint64(auth.Nonce(lvm.state, caller)), value.Int, math.MaxUint64, big.NewInt(0), code,
+			).Hash().Bytes()
+		}
 
 		var errSaveReceipt error
 		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, ethereumTxHash)
@@ -216,10 +221,13 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 			)
 		}
 
-		ethereumTxHash := types.NewTransaction(
-			uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
-			nil, math.MaxUint64, big.NewInt(0), input,
-		).Hash().Bytes()
+		var ethereumTxHash []byte
+		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+			ethereumTxHash = types.NewTransaction(
+				uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
+				value.Int, math.MaxUint64, big.NewInt(0), input,
+			).Hash().Bytes()
+		}
 
 		var errSaveReceipt error
 		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, ethereumTxHash)
