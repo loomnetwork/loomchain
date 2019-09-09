@@ -150,7 +150,7 @@ func (r *ReceiptHandler) CacheReceipt(
 			r.currentReceipt.Logs,
 			leveldb.CreateEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
 		)
-		return nil, nil
+		return r.currentReceipt.TxHash, nil
 	}
 
 	var status int32
@@ -166,7 +166,7 @@ func (r *ReceiptHandler) CacheReceipt(
 		txHash,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "receipt not written, returning empty hash")
+		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")
 	}
 
 	r.currentReceipt = &receipt
