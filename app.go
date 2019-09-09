@@ -676,6 +676,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, false)
 	if err != nil {
@@ -688,6 +689,8 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		}
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
+
+	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 
 	saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
 		state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
