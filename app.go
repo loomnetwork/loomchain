@@ -651,6 +651,11 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+
+	r, err := a.processTx(txBytes, false)
+
 	state := NewStoreState(
 		context.Background(),
 		a.Store,
@@ -659,10 +664,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		a.GetValidatorSet,
 	)
 
-	receiptHandler := a.ReceiptHandlerProvider.Store()
-	defer receiptHandler.DiscardCurrentReceipt()
-
-	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		// Pass tx hash generated from go-etheruem back to Tendermint on failed EVM txs
@@ -724,8 +725,9 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		storeTx.Rollback()
 		return r, err
 	}
-
-	storeTx.Commit()
+	if !isCheckTx {
+		storeTx.Commit()
+	}
 	return r, nil
 }
 
