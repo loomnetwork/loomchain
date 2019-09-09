@@ -651,17 +651,17 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	state := NewStoreState(
-		context.Background(),
-		a.Store,
-		a.curBlockHeader,
-		a.curBlockHash,
-		a.GetValidatorSet,
-	)
-
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
+
+		state := NewStoreState(
+			context.Background(),
+			a.Store,
+			a.curBlockHeader,
+			a.curBlockHash,
+			a.GetValidatorSet,
+		)
 		// Pass tx hash generated from go-etheruem back to Tendermint on failed EVM txs
 		if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
 			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
