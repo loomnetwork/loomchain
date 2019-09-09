@@ -680,6 +680,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	defer a.EventHandler.Rollback()
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
+		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
 		return r, err
 	}
