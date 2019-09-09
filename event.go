@@ -75,9 +75,7 @@ func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 }
 
 func (ed *DefaultEventHandler) Commit(height uint64) {
-	for _, eventData := range ed.eventCache {
-		ed.stash.add(height, eventData)
-	}
+	ed.stash.add(height, ed.eventCache)
 	ed.eventCache = nil
 }
 
@@ -308,14 +306,16 @@ func newStash() *stash {
 	}
 }
 
-func (s *stash) add(height uint64, msg *EventData) {
+func (s *stash) add(height uint64, msgs []*EventData) {
 	s.Lock()
 	defer s.Unlock()
 	_, ok := s.m[height]
 	if !ok {
 		s.m[height] = newEventSet()
 	}
-	s.m[height].Add(msg)
+	for _, msg := range msgs {
+		s.m[height].Add(msg)
+	}
 }
 
 func (s *stash) fetch(height uint64) ([]*EventData, error) {
