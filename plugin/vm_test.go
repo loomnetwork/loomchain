@@ -47,8 +47,7 @@ func (eh *fakeEventHandler) Post(height uint64, e *ptypes.EventData) error {
 func (eh *fakeEventHandler) Rollback() {
 }
 
-func (eh *fakeEventHandler) Commit(height uint64) error {
-	return nil
+func (eh *fakeEventHandler) Commit(height uint64) {
 }
 
 func (eh *fakeEventHandler) EmitBlockTx(_ uint64, _ time.Time) error {

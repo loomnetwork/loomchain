@@ -25,7 +25,7 @@ type EventHandler interface {
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
 	LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet
-	Commit(height uint64) error
+	Commit(height uint64)
 }
 
 type EventDispatcher interface {
@@ -74,12 +74,11 @@ func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	return nil
 }
 
-func (ed *DefaultEventHandler) Commit(height uint64) error {
+func (ed *DefaultEventHandler) Commit(height uint64) {
 	for _, eventData := range ed.eventCache {
 		ed.stash.add(height, eventData)
 	}
 	ed.eventCache = nil
-	return nil
 }
 
 func (ed *DefaultEventHandler) Rollback() {
@@ -172,8 +171,8 @@ func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err 
 	return
 }
 
-func (m InstrumentingEventHandler) Commit(height uint64) error {
-	return m.next.Commit(height)
+func (m InstrumentingEventHandler) Commit(height uint64) {
+	m.next.Commit(height)
 }
 
 func (m InstrumentingEventHandler) Rollback() {

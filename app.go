@@ -685,9 +685,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		if err := a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight())); err != nil {
-			log.Error("Emit Tx Event error", "err", err)
-		}
+		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 
 		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
 			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
