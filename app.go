@@ -630,11 +630,24 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		return ok
 	}
 
-	_, err = a.processTx(txBytes, true)
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	_, err = a.TxHandler.ProcessTx(state, txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
+
+	storeTx.Rollback()
+	// Receipts generated from CheckTx need to be discarded
+	a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
 
 	return ok
 }
@@ -651,24 +664,25 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	receiptHandler := a.ReceiptHandlerProvider.Store()
-	defer receiptHandler.DiscardCurrentReceipt()
-
-	r, err := a.processTx(txBytes, false)
-
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
-		a.Store,
+		storeTx,
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+
+	r, err := a.TxHandler.ProcessTx(state, txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
+		storeTx.Rollback()
 		// Pass tx hash generated from go-etheruem back to Tendermint on failed EVM txs
 		if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			receiptHandler.CommitCurrentReceipt()
+			//receiptHandler.CommitCurrentReceipt()
 			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
 		}
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
@@ -701,34 +715,11 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		}
 	}
 
+	storeTx.Commit()
 	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 		isEvmTx = true
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
-}
-
-func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
-	// for now the nonce will have a special cache that it rolls back each block
-	storeTx := store.WrapAtomic(a.Store).BeginTx()
-
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-		a.curBlockHash,
-		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
-
-	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
-	if err != nil {
-		storeTx.Rollback()
-		return r, err
-	}
-	if !isCheckTx {
-		storeTx.Commit()
-	}
-	return r, nil
 }
 
 // Commit commits the current block
