@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
@@ -557,4 +558,16 @@ func (m InstrumentingMiddleware) EthGetTransactionCount(
 
 	resp, err = m.next.EthGetTransactionCount(local, block)
 	return
+}
+
+// Trust wallet
+func (m InstrumentingMiddleware) GetValidators() (*blockatlas.JsonGetValidators, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetValidators", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.GetValidators()
 }

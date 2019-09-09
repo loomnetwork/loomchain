@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -63,6 +64,9 @@ type QueryService interface {
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
+
+	// Blockatlas endpoint
+	GetValidators() (*blockatlas.JsonGetValidators, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -130,6 +134,9 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
 	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
+
+	routes["getvalidators"] = rpcserver.NewRPCFunc(svc.GetValidators, "")
+
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)

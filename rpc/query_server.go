@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/gogo/protobuf/proto"
+	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
@@ -18,6 +18,7 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
 	"github.com/loomnetwork/go-loom"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -37,12 +38,22 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
+
+type (
+	ListValidator      = dtypes.ListValidatorsResponse
+	ValidatorStatistic = dtypes.ValidatorStatistic
+	CandidateStatistic = dtypes.CandidateStatistic
+	ListCandidates     = dtypes.ListCandidatesResponse
+)
+
+var ErrNotFound = errors.New("not found")
 
 const (
 	/**
@@ -128,6 +139,7 @@ type QueryServer struct {
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
+	loomchain.VMManagerProvider
 }
 
 var _ QueryService = &QueryServer{}
@@ -1071,6 +1083,81 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 
 func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
+}
+
+func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createDPOS3Ctx(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	validators, err := dposv3.ValidatorList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	candidates, err := dposv3.LoadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	getValidatorResponse := make([]blockatlas.Validator, 0)
+	chainID := ctx.Block().ChainID
+
+	for _, validator := range validators {
+		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+
+		for _, candidate := range candidates {
+			candidateAddr := loom.UnmarshalAddressPB(candidate.Address)
+			if address.Compare(candidateAddr) != 0 {
+				continue
+			}
+			statistic, err := getStatistic(ctx, address)
+			if err != nil && err != ErrNotFound {
+				return nil, err
+			}
+
+			getValidatorResponse = append(getValidatorResponse, blockatlas.Validator{
+				Address:         statistic.GetAddress().Local.String(),
+				JailedStatus:    statistic.Jailed,
+				Name:            candidate.Name,
+				Description:     candidate.Description,
+				DelegationTotal: statistic.GetDelegationTotal().Value.String(),
+			})
+		}
+	}
+
+	for _, c := range getValidatorResponse {
+		fmt.Printf("%+v\n\n", c)
+	}
+
+	return &blockatlas.JsonGetValidators{
+		Validators: getValidatorResponse,
+	}, nil
+}
+
+func getStatistic(ctx contractpb.StaticContext, address loom.Address) (*ValidatorStatistic, error) {
+	addressBytes, err := address.Local.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	return getStatisticByAddressBytes(ctx, addressBytes)
+}
+
+func getStatisticByAddressBytes(ctx contractpb.StaticContext, addressBytes []byte) (*ValidatorStatistic, error) {
+	var statistic ValidatorStatistic
+	err := ctx.Get(append([]byte("statistic"), addressBytes...), &statistic)
+	if err != nil {
+		return nil, err
+	}
+	return &statistic, nil
+}
+
+func (s *QueryServer) createDPOS3Ctx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "dposV3")
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
