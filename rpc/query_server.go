@@ -743,6 +743,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
