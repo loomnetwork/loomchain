@@ -18,14 +18,20 @@ import (
 
 type EventData types.EventData
 
+// EventHandler handles collection, storage, and dispatch of tx & block events.
 type EventHandler interface {
+	// Post stores an event in transient storage, it may be emitted later by EmitBlockTx.
 	Post(height uint64, e *types.EventData) error
+	// Commit adds events posted since the last Rollback to the set of events to be emitted when
+	// EmitBlockTx is called.
+	Commit(height uint64)
+	// Rollback discards any posted events that haven't been committed.
 	Rollback()
+	// Emits all events committed while processing the specified block.
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
 	LegacyEthSubscriptionSet() *subs.LegacyEthSubscriptionSet
-	Commit(height uint64)
 }
 
 type EventDispatcher interface {
