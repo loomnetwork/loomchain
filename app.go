@@ -651,23 +651,55 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	state := NewStoreState(
+		context.Background(),
+		a.Store,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	)
+
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-
-		state := NewStoreState(
-			context.Background(),
-			a.Store,
-			a.curBlockHeader,
-			a.curBlockHash,
-			a.GetValidatorSet,
-		)
 		// Pass tx hash generated from go-etheruem back to Tendermint on failed EVM txs
 		if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+			receiptHandler.CommitCurrentReceipt()
 			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
 		}
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
+
+	saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+		state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
+
+	if saveEvmTxReceipt {
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+			log.Error("Emit Tx Event error", "err", err)
+		}
+
+		reader := a.ReceiptHandlerProvider.Reader()
+		if reader.GetCurrentReceipt() != nil {
+			receiptTxHash := reader.GetCurrentReceipt().TxHash
+			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+				log.Error("failed to emit tx event to subscribers", "err", err)
+			}
+			txHash := ttypes.Tx(txBytes).Hash()
+			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+			// so that we can use it to lookup relevant events using the TM tx hash.
+			if !bytes.Equal(txHash, receiptTxHash) {
+				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+					ParentTxHash: txHash,
+					ChildTxHash:  receiptTxHash,
+				})
+			}
+			receiptHandler.CommitCurrentReceipt()
+		}
+	}
+
 	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 		isEvmTx = true
 	}
@@ -687,47 +719,13 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
-	receiptHandler := a.ReceiptHandlerProvider.Store()
-	defer receiptHandler.DiscardCurrentReceipt()
-
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
-		if !isCheckTx && state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			receiptHandler.CommitCurrentReceipt()
-		}
 		storeTx.Rollback()
 		return r, err
 	}
 
-	if !isCheckTx {
-		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
-			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
-
-		if saveEvmTxReceipt {
-			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-				log.Error("Emit Tx Event error", "err", err)
-			}
-
-			reader := a.ReceiptHandlerProvider.Reader()
-			if reader.GetCurrentReceipt() != nil {
-				receiptTxHash := reader.GetCurrentReceipt().TxHash
-				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
-					log.Error("failed to emit tx event to subscribers", "err", err)
-				}
-				txHash := ttypes.Tx(txBytes).Hash()
-				// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
-				// so that we can use it to lookup relevant events using the TM tx hash.
-				if !bytes.Equal(txHash, receiptTxHash) {
-					a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
-						ParentTxHash: txHash,
-						ChildTxHash:  receiptTxHash,
-					})
-				}
-				receiptHandler.CommitCurrentReceipt()
-			}
-		}
-		storeTx.Commit()
-	}
+	storeTx.Commit()
 	return r, nil
 }
 
