@@ -47,7 +47,6 @@ import (
 )
 
 type (
-	ValidatorStatistic = dtypes.ValidatorStatistic
 	CandidateStatistic = dtypes.CandidateStatistic
 	ListCandidates     = dtypes.ListCandidatesResponse
 )
@@ -1125,6 +1124,7 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 				Description:     candidate.Description,
 				DelegationTotal: statistic.GetDelegationTotal().Value.String(),
 				Website:         candidate.Website,
+				Fee:             strconv.FormatUint(candidate.Fee, 10),
 			})
 		}
 	}
@@ -1134,7 +1134,7 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 	}, nil
 }
 
-func getStatistic(ctx contractpb.StaticContext, address loom.Address) (*ValidatorStatistic, error) {
+func getStatistic(ctx contractpb.StaticContext, address loom.Address) (*dtypes.ValidatorStatistic, error) {
 	addressBytes, err := address.Local.Marshal()
 	if err != nil {
 		return nil, err
@@ -1142,8 +1142,8 @@ func getStatistic(ctx contractpb.StaticContext, address loom.Address) (*Validato
 	return getStatisticByAddressBytes(ctx, addressBytes)
 }
 
-func getStatisticByAddressBytes(ctx contractpb.StaticContext, addressBytes []byte) (*ValidatorStatistic, error) {
-	var statistic ValidatorStatistic
+func getStatisticByAddressBytes(ctx contractpb.StaticContext, addressBytes []byte) (*dtypes.ValidatorStatistic, error) {
+	var statistic dtypes.ValidatorStatistic
 	err := ctx.Get(append([]byte("statistic"), addressBytes...), &statistic)
 	if err != nil {
 		return nil, err
