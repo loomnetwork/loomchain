@@ -19,7 +19,7 @@ const (
 )
 
 type (
-	InitRequest          = ectypes.ETHCoinInitRequest
+	InitRequest          = ctypes.InitRequest
 	MintToGatewayRequest = ectypes.ETHCoinMintToGatewayRequest
 	TotalSupplyRequest   = ctypes.TotalSupplyRequest
 	TotalSupplyResponse  = ctypes.TotalSupplyResponse
@@ -74,7 +74,35 @@ func (c *ETHCoin) Meta() (plugin.Meta, error) {
 }
 
 func (c *ETHCoin) Init(ctx contract.Context, req *InitRequest) error {
-	return nil
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+
+	supply := loom.NewBigUIntFromInt(0)
+	for _, initAcct := range req.Accounts {
+		owner := loom.UnmarshalAddressPB(initAcct.Owner)
+		balance := loom.NewBigUIntFromInt(int64(initAcct.Balance))
+		balance.Mul(balance, div)
+
+		acct := &Account{
+			Owner: owner.MarshalPB(),
+			Balance: &types.BigUInt{
+				Value: *balance,
+			},
+		}
+		err := ctx.Set(accountKey(owner), acct)
+		if err != nil {
+			return err
+		}
+
+		supply.Add(supply, &acct.Balance.Value)
+	}
+
+	econ := &Economy{
+		TotalSupply: &types.BigUInt{
+			Value: *supply,
+		},
+	}
+	return ctx.Set(economyKey, econ)
 }
 
 // MintToGateway adds ETH to the Gateway contract balance, and updates the total supply.

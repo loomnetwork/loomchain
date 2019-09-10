@@ -217,6 +217,8 @@ func (s *MultiWriterAppStore) pruneOldEVMKeys() error {
 		pruneEVMKeysDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	// TODO: Rather than loading the on-chain config here relevant setting should be passed in as a
+	//       parameter to SaveVersion().
 	cfg, err := LoadOnChainConfig(s.appStore)
 	if err != nil {
 		return err

@@ -3,24 +3,29 @@
 package migrations
 
 import (
-	"github.com/gogo/protobuf/proto"
+	"bytes"
+	"strings"
+
+	"github.com/gogo/protobuf/jsonpb"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway"
+	"github.com/pkg/errors"
 )
 
-// GatewayMigration upgrades the Gateway contracts to consensus-reactor based multi-sig.
 func GatewayMigration(ctx *MigrationContext, parameters []byte) error {
-	gwMigrationRequest := tgtypes.TransferGatewaySwitchMainnetGatewayRequest{}
-	err := proto.Unmarshal(parameters, &gwMigrationRequest)
+	req := tgtypes.TransferGatewaySwitchMainnetGatewayRequest{}
+	if err := jsonpb.Unmarshal(bytes.NewBuffer(parameters), &req); err != nil {
+		return errors.Wrap(err, "failed to unmarshal migration parameters")
+	}
+
+	if len(strings.TrimSpace(req.GatewayName)) == 0 {
+		return errors.New("missing gateway name in migration parameters")
+	}
+
+	gatewayCtx, err := ctx.ContractContext(req.GatewayName)
 	if err != nil {
 		return err
 	}
 
-	gatewayCtx, err := ctx.ContractContext(gwMigrationRequest.GatewayName)
-	if err != nil {
-		return err
-	}
-
-	gateway.SwitchMainnetGateway(gatewayCtx, &gwMigrationRequest)
-	return nil
+	return gateway.SwitchMainnetGateway(gatewayCtx, &req)
 }

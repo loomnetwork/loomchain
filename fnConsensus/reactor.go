@@ -2,6 +2,7 @@ package fnConsensus
 
 import (
 	"bytes"
+	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -9,13 +10,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
-
-	dbm "github.com/tendermint/tendermint/libs/db"
-
-	"crypto/sha512"
 )
 
 type SigningThreshold string
@@ -79,6 +80,30 @@ type FnConsensusReactor struct {
 	cfg *ReactorConfig
 }
 
+var (
+	submittedMessageCount metrics.Counter
+	nonceGauge            metrics.Gauge
+)
+
+func init() {
+	submittedMessageCount = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: "loomchain",
+			Subsystem: "fnConsensus",
+			Name:      "submitted_message_count",
+			Help:      "Number of messages successfully submitted by the validator (per fnID)",
+		}, []string{"fnID"},
+	)
+	nonceGauge = kitprometheus.NewGaugeFrom(
+		stdprometheus.GaugeOpts{
+			Namespace: "loomchain",
+			Subsystem: "fnConsensus",
+			Name:      "current_nonce",
+			Help:      "Current nonce (per fnID)",
+		}, []string{"fnID"},
+	)
+}
+
 func NewFnConsensusReactor(
 	chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB,
 	parsableConfig *ReactorConfigParsable,
@@ -102,7 +127,7 @@ func NewFnConsensusReactor(
 	return reactor, nil
 }
 
-func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte, signatures [][]byte) {
+func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fnID string, fn Fn, message []byte, signatures [][]byte) {
 	defer func() {
 		err := recover()
 		if err != nil {
@@ -110,6 +135,7 @@ func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, message []byte,
 		}
 	}()
 	fn.SubmitMultiSignedMessage(nil, message, signatures)
+	submittedMessageCount.With("fnID", fnID).Add(1)
 }
 
 // Returns a message and associated signature (which can be anything really).
@@ -476,6 +502,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 			return
 		}
 		f.safeSubmitMultiSignedMessage(
+			fnID,
 			fn,
 			safeCopyBytes(f.state.Messages[fnID].Payload),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
@@ -610,6 +637,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 					}
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
+						fnID,
 						fn,
 						safeCopyBytes(f.state.Messages[fnID].Payload),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
@@ -619,6 +647,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 		}
 
 		f.state.CurrentNonces[fnID]++
+		nonceGauge.With("fnID", fnID).Set(float64(f.state.CurrentNonces[fnID]))
 		f.state.PreviousValidatorSet = currentValidators
 		f.state.PreviousMajVoteSets[fnID] = currentVoteSet
 		delete(f.state.CurrentVoteSets, fnID)
@@ -770,6 +799,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		f.state.PreviousMajVoteSets[remoteFnID] = remoteMajVoteSet
 		f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
 		f.state.CurrentNonces[remoteFnID] = remoteMajVoteSet.Nonce + 1
+		nonceGauge.With("fnID", remoteFnID).Set(float64(f.state.CurrentNonces[remoteFnID]))
 
 		// If we have found maj23 voteset with a nonce equal or greater than our current nonce,
 		// our current vote set is clearly outdated, and should be removed.
@@ -835,6 +865,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 	if !ok {
 		currentNonce = 1
 		f.state.CurrentNonces[fnID] = currentNonce
+		nonceGauge.With("fnID", fnID).Set(float64(currentNonce))
 	}
 	currentVoteSet := f.state.CurrentVoteSets[fnID]
 
@@ -869,6 +900,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		currentVoteSet = remoteVoteSet
 		currentNonce = remoteVoteSet.Nonce
+		nonceGauge.With("fnID", fnID).Set(float64(currentNonce))
 
 		hasOurVoteSetChanged = true
 		didWeContribute = false
