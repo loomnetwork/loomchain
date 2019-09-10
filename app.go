@@ -611,8 +611,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	ok := abci.ResponseCheckTx{Code: abci.CodeTypeOK}
-
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
@@ -627,7 +625,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	// only happen on node restarts, and only if the node doesn't receive any txs from it's peers
 	// before a client sends it a tx.
 	if a.curBlockHeader.Height == 0 {
-		return ok
+		return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -641,17 +639,20 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
-	// Receipts generated from CheckTx need to be discarded
+	// Receipts & events generated in CheckTx must be discarded since the app state changes they
+	// reflect aren't be persisted.
 	defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
 
 	_, err = a.TxHandler.ProcessTx(state, txBytes, true)
 	if err != nil {
-		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
+		log.Error("CheckTx", "err", err)
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
 
-	return ok
+	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 }
+
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	var err error
 	isEvmTx := false
@@ -666,6 +667,8 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	}(time.Now())
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
+
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -679,9 +682,9 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	defer a.EventHandler.Rollback()
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, false)
+	isEvmTx = (r.Info == utils.CallEVM || r.Info == utils.DeployEvm)
 	if err != nil {
-		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-		storeTx.Rollback()
+		log.Error("DeliverTx", "err", err)
 		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
 		if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
 			receiptHandler.CommitCurrentReceipt()
@@ -692,7 +695,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 
 	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 
-	saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+	saveEvmTxReceipt := isEvmTx ||
 		state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
 
 	if saveEvmTxReceipt {
@@ -720,7 +723,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	}
 
 	storeTx.Commit()
-	isEvmTx = (r.Info == utils.CallEVM || r.Info == utils.DeployEvm)
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
