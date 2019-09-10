@@ -654,13 +654,12 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 }
 
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
-	var err error
-	isEvmTx := false
+	var txFailed, isEvmTx bool
 	defer func(begin time.Time) {
 		lvs := []string{
 			"method", "DeliverTx",
-			"error", fmt.Sprint(err != nil),
-			"evm", fmt.Sprintf("%t", isEvmTx),
+			"error", fmt.Sprint(txFailed),
+			"evm", fmt.Sprint(isEvmTx),
 		}
 		requestCount.With(lvs[:4]...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
@@ -677,52 +676,134 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
+	var r abci.ResponseDeliverTx
+
+	if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+		r = a.deliverTx2(storeTx, txBytes)
+	} else {
+		r = a.deliverTx(storeTx, txBytes)
+	}
+
+	txFailed = r.Code != abci.CodeTypeOK
+	// TODO: this isn't 100% reliable when txFailed == true
+	isEvmTx = r.Info == utils.CallEVM || r.Info == utils.DeployEvm
+	return r
+}
+
+func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
+	r, err := a.processTx(storeTx, txBytes, false)
+	if err != nil {
+		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
+		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+	}
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
+}
+
+func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+
+	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
+	if err != nil {
+		return r, err
+	}
+
+	if !isCheckTx {
+		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
+
+		if saveEvmTxReceipt {
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+				log.Error("Emit Tx Event error", "err", err)
+			}
+
+			reader := a.ReceiptHandlerProvider.Reader()
+			if reader.GetCurrentReceipt() != nil {
+				receiptTxHash := reader.GetCurrentReceipt().TxHash
+				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+					log.Error("failed to emit tx event to subscribers", "err", err)
+				}
+				txHash := ttypes.Tx(txBytes).Hash()
+				// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+				// so that we can use it to lookup relevant events using the TM tx hash.
+				if !bytes.Equal(txHash, receiptTxHash) {
+					a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+						ParentTxHash: txHash,
+						ChildTxHash:  receiptTxHash,
+					})
+				}
+				receiptHandler.CommitCurrentReceipt()
+			}
+		}
+		storeTx.Commit()
+	}
+	return r, nil
+}
+
+func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
 	defer a.EventHandler.Rollback()
 
-	r, err := a.TxHandler.ProcessTx(state, txBytes, false)
-	isEvmTx = (r.Info == utils.CallEVM || r.Info == utils.DeployEvm)
-	if err != nil {
-		log.Error("DeliverTx", "err", err)
-		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
-		if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			receiptHandler.CommitCurrentReceipt()
-			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
+	r, txErr := a.TxHandler.ProcessTx(state, txBytes, false)
+
+	var receiptTxHash []byte
+	if a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
+		receiptTxHash = a.ReceiptHandlerProvider.Reader().GetCurrentReceipt().TxHash
+	}
+
+	// Store the receipt even if the tx itself failed
+	if len(receiptTxHash) > 0 {
+		txHash := ttypes.Tx(txBytes).Hash()
+		// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+		// so that we can use it to lookup relevant events using the TM tx hash.
+		if !bytes.Equal(txHash, receiptTxHash) {
+			a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+				ParentTxHash: txHash,
+				ChildTxHash:  receiptTxHash,
+			})
 		}
-		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+		receiptHandler.CommitCurrentReceipt()
+	}
+
+	if txErr != nil {
+		log.Error("DeliverTx", "err", txErr)
+		// FIXME: Don't use r.Data, it's shitty practice to use the return value when an error is returned
+		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
+		return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: txErr.Error()}
 	}
 
 	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+	storeTx.Commit()
 
-	saveEvmTxReceipt := isEvmTx ||
-		state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
+	// FIXME: Really shouldn't be sending out events until the whole block is committed because
+	//        the state changes from the tx won't be visible to queries until after Application.Commit()
+	if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+		log.Error("Emit Tx Event error", "err", err)
+	}
 
-	if saveEvmTxReceipt {
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-			log.Error("Emit Tx Event error", "err", err)
-		}
-
-		reader := a.ReceiptHandlerProvider.Reader()
-		if reader.GetCurrentReceipt() != nil {
-			receiptTxHash := reader.GetCurrentReceipt().TxHash
-			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
-				log.Error("failed to emit tx event to subscribers", "err", err)
-			}
-			txHash := ttypes.Tx(txBytes).Hash()
-			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
-			// so that we can use it to lookup relevant events using the TM tx hash.
-			if !bytes.Equal(txHash, receiptTxHash) {
-				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
-					ParentTxHash: txHash,
-					ChildTxHash:  receiptTxHash,
-				})
-			}
-			receiptHandler.CommitCurrentReceipt()
+	if len(receiptTxHash) > 0 {
+		if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+			log.Error("failed to emit tx event to subscribers", "err", err)
 		}
 	}
 
-	storeTx.Commit()
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
