@@ -41,5 +41,4 @@ installFromGithub() {
 	echo ""
 }
 
-## golangci-lint v1.13.2
-installFromGithub golangci/golangci-lint 7b2421d55194c9dc385eff7720a037aa9244ca3c cmd/golangci-lint
+installFromGithub golangci/golangci-lint v1.18.0 cmd/golangci-lint
