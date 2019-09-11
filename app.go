@@ -555,17 +555,8 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
 
-	// TODO: Need to cleanup this receipts stuff...
-	// 1. The storeTx is no longer used by the receipt handler, so need to remove it.
-	// 2. receiptHandler.CommitBlock() should be moved to Application.Commit().
+	// TODO: receiptHandler.CommitBlock() should be moved to Application.Commit()
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-		nil,
-		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
@@ -576,7 +567,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
-	state = NewStoreState(
+	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
