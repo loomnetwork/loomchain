@@ -757,13 +757,10 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 
 	r, txErr := a.TxHandler.ProcessTx(state, txBytes, false)
 
+	// Store the receipt even if the tx itself failed
 	var receiptTxHash []byte
 	if a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
 		receiptTxHash = a.ReceiptHandlerProvider.Reader().GetCurrentReceipt().TxHash
-	}
-
-	// Store the receipt even if the tx itself failed
-	if len(receiptTxHash) > 0 {
 		txHash := ttypes.Tx(txBytes).Hash()
 		// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
 		// so that we can use it to lookup relevant events using the TM tx hash.
@@ -778,7 +775,8 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 
 	if txErr != nil {
 		log.Error("DeliverTx", "err", txErr)
-		// FIXME: Don't use r.Data, it's shitty practice to use the return value when an error is returned
+		// FIXME: Really shouldn't be using r.Data if txErr != nil, but need to refactor TxHandler.ProcessTx
+		//        so it only returns r with the correct status code & log fields.
 		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
 		return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: txErr.Error()}
 	}
