@@ -1118,7 +1118,7 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 			}
 
 			getValidatorResponse = append(getValidatorResponse, blockatlas.Validator{
-				Address:         statistic.GetAddress().Local.String(),
+				Address:         prefixLoom(statistic.GetAddress().Local.String()),
 				Jailed:          statistic.Jailed,
 				Name:            candidate.Name,
 				Description:     candidate.Description,
@@ -1234,4 +1234,11 @@ func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	}
 	txObj, _, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
 	return txObj, err
+}
+
+func prefixLoom(address string) string {
+	if address[:2] != "0x" {
+		return address
+	}
+	return "loom" + address[2:]
 }
