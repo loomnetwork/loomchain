@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
@@ -340,6 +341,7 @@ type Application struct {
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
+	ReceiptsVersion             int32
 }
 
 var _ abci.Application = &Application{}
@@ -675,6 +677,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
@@ -684,26 +687,33 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	}
 
 	if !isCheckTx {
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-			log.Error("Emit Tx Event error", "err", err)
-		}
+		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 
-		reader := a.ReceiptHandlerProvider.Reader()
-		if reader.GetCurrentReceipt() != nil {
-			receiptTxHash := reader.GetCurrentReceipt().TxHash
-			if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
-				log.Error("failed to emit tx event to subscribers", "err", err)
+		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
+
+		if saveEvmTxReceipt {
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+				log.Error("Emit Tx Event error", "err", err)
 			}
-			txHash := ttypes.Tx(txBytes).Hash()
-			// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
-			// so that we can use it to lookup relevant events using the TM tx hash.
-			if !bytes.Equal(txHash, receiptTxHash) {
-				a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
-					ParentTxHash: txHash,
-					ChildTxHash:  receiptTxHash,
-				})
+
+			reader := a.ReceiptHandlerProvider.Reader()
+			if reader.GetCurrentReceipt() != nil {
+				receiptTxHash := reader.GetCurrentReceipt().TxHash
+				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+					log.Error("failed to emit tx event to subscribers", "err", err)
+				}
+				txHash := ttypes.Tx(txBytes).Hash()
+				// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+				// so that we can use it to lookup relevant events using the TM tx hash.
+				if !bytes.Equal(txHash, receiptTxHash) {
+					a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+						ParentTxHash: txHash,
+						ChildTxHash:  receiptTxHash,
+					})
+				}
+				receiptHandler.CommitCurrentReceipt()
 			}
-			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
 	}
