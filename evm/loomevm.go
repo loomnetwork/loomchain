@@ -169,17 +169,20 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 			)
 		}
 
-		var ethereumTxHash []byte
 		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			ethereumTxHash = types.NewContractCreation(
-				uint64(auth.Nonce(lvm.state, caller)), value.Int, math.MaxUint64, big.NewInt(0), code,
+			val := common.Big0
+			if value != nil {
+				val = value.Int
+			}
+			txHash = types.NewContractCreation(
+				uint64(auth.Nonce(lvm.state, caller)), val, math.MaxUint64, big.NewInt(0), code,
 			).Hash().Bytes()
 		}
 
 		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, ethereumTxHash)
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
 		if errSaveReceipt != nil {
-			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}
 	}
 
@@ -221,18 +224,21 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 			)
 		}
 
-		var ethereumTxHash []byte
 		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			ethereumTxHash = types.NewTransaction(
+			val := common.Big0
+			if value != nil {
+				val = value.Int
+			}
+			txHash = types.NewTransaction(
 				uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
-				value.Int, math.MaxUint64, big.NewInt(0), input,
+				val, math.MaxUint64, big.NewInt(0), input,
 			).Hash().Bytes()
 		}
 
 		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, ethereumTxHash)
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
 		if errSaveReceipt != nil {
-			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}
 	}
 
