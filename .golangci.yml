@@ -1,8 +1,5 @@
 run:
   deadline: 5m
-  build-tags:
-    - evm
-    - gateway
 
 linters:
   enable-all: true
