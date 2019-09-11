@@ -710,6 +710,7 @@ func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheck
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
@@ -717,6 +718,8 @@ func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheck
 	}
 
 	if !isCheckTx {
+		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+
 		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
 			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
 
