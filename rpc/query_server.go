@@ -42,6 +42,8 @@ import (
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
+
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -1055,22 +1057,18 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getStorageAt
-func (s *QueryServer) EthGetStorageAt(local eth.Data, position eth.Data, block eth.BlockHeight) (eth.Data, error) {
+func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth.BlockHeight) (eth.Data, error) {
 	address, err := eth.DecDataToAddress(s.ChainID, local)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to decode address parameter %v", local)
 	}
 
-	positionBytes, err := eth.DecDataToBytes(position)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to decode position parameter %v", position)
-	}
-
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
+	positionHash := ethcommon.HexToHash(position)
 	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
-	storage, err := evm.GetStorageAt(address, positionBytes)
+	storage, err := evm.GetStorageAt(address, positionHash[:])
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get EVM storage at %v", address.Local.String())
 	}

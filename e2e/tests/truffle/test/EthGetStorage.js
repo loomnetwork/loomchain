@@ -64,7 +64,7 @@ contract('StoreTestContract', async (accounts) => {
     assert.equal(result, 2, "Invalid value at index " + index)
 
     // uintarray[0]
-    result = await getStorageAt(ethUrl, storeContract.address, "0x036b6384b5eca791c62761152d0c79bb0604c104a5fb6f4eb0703f3154bb3db0")
+    result = await getStorageAt(ethUrl, storeContract.address, "0x36b6384b5eca791c62761152d0c79bb0604c104a5fb6f4eb0703f3154bb3db0")
     result = await web3js.utils.hexToNumber(result)
     assert.equal(result, 8000, "Invalid value at index " + index)
 

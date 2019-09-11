@@ -36,7 +36,7 @@ type QueryService interface {
 	EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceipt, error)
 	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
 	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
-	EthGetStorageAt(address eth.Data, position eth.Data, block eth.BlockHeight) (eth.Data, error)
+	EthGetStorageAt(address eth.Data, position string, block eth.BlockHeight) (eth.Data, error)
 	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
 	EthGetLogs(filter eth.JsonFilter) ([]eth.JsonLog, error)
 	EthGetBlockTransactionCountByHash(hash eth.Data) (eth.Quantity, error)

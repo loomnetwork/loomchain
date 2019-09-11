@@ -502,7 +502,7 @@ func (m InstrumentingMiddleware) EthGetBalance(address eth.Data, block eth.Block
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetStorageAt(address eth.Data, position eth.Data, block eth.BlockHeight) (resp eth.Data, err error) {
+func (m InstrumentingMiddleware) EthGetStorageAt(address eth.Data, position string, block eth.BlockHeight) (resp eth.Data, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetStorageAt", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
