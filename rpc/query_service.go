@@ -69,7 +69,7 @@ type QueryService interface {
 	GetValidators() (*trustwallet.JsonGetValidators, error)
 
 	// Stake endpoint
-	ListDelegations(address eth.Data) (*trustwallet.JsonListDelegation, error)
+	ListDelegations(address string) (*trustwallet.JsonListDelegation, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)

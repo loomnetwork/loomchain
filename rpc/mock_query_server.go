@@ -370,7 +370,7 @@ func (m *MockQueryService) GetValidators() (*trustwallet.JsonGetValidators, erro
 	return nil, nil
 }
 
-func (m *MockQueryService) ListDelegations() (*trustwallet.JsonGetValidators, error) {
+func (m *MockQueryService) ListDelegations(address string) (*trustwallet.JsonListDelegation, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"ListDelegations"}, m.MethodsCalled...)

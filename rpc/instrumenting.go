@@ -572,7 +572,7 @@ func (m InstrumentingMiddleware) GetValidators() (*trustwallet.JsonGetValidators
 	return m.next.GetValidators()
 }
 func (m InstrumentingMiddleware) ListDelegations(
-	address eth.Data,
+	address string,
 ) (*trustwallet.JsonListDelegation, error) {
 	var err error
 	defer func(begin time.Time) {

@@ -1142,10 +1142,14 @@ func (s *QueryServer) GetValidators() (*trustwallet.JsonGetValidators, error) {
 	}, nil
 }
 
-func (s *QueryServer) ListDelegations(address eth.Data) (*trustwallet.JsonListDelegation, error) {
-	validatorAddress, err := eth.DecDataToAddress(s.ChainID, address)
+func (s *QueryServer) ListDelegations(address string) (*trustwallet.JsonListDelegation, error) {
+	localAddr, err := decodeHexAddress(address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+	validatorAddress := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localAddr,
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
