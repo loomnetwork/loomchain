@@ -631,7 +631,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	).WithOnChainConfig(a.config)
 
 	// Receipts & events generated in CheckTx must be discarded since the app state changes they
-	// reflect aren't be persisted.
+	// reflect aren't persisted.
 	defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
 	defer a.EventHandler.Rollback()
 
@@ -681,6 +681,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	return r
 }
 
+// This version of DeliverTx doesn't store the receipts for failed EVM txs.
 func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(storeTx, txBytes, false)
 	if err != nil {
@@ -742,6 +743,7 @@ func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheck
 	return r, nil
 }
 
+// This version of DeliverTx stores the receipts for failed EVM txs.
 func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
 	state := NewStoreState(
 		context.Background(),
