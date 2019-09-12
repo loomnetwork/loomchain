@@ -1104,29 +1104,31 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 	getValidatorResponse := make([]blockatlas.Validator, 0)
 	chainID := ctx.Block().ChainID
 
+	validatorList := make(map[string]loom.Address, len(validators))
 	for _, validator := range validators {
-		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+		address := loom.LocalAddressFromPublicKey(validator.PubKey)
+		validatorList[address.String()] = loom.Address{ChainID: chainID, Local: address}
+	}
 
-		for _, candidate := range candidates {
-			candidateAddr := loom.UnmarshalAddressPB(candidate.Address)
-			if address.Compare(candidateAddr) != 0 {
-				continue
-			}
-			statistic, err := getStatistic(ctx, address)
-			if err != nil && err != ErrNotFound {
-				return nil, err
-			}
-
-			getValidatorResponse = append(getValidatorResponse, blockatlas.Validator{
-				Address:         prefixLoom(statistic.GetAddress().Local.String()),
-				Jailed:          statistic.Jailed,
-				Name:            candidate.Name,
-				Description:     candidate.Description,
-				DelegationTotal: statistic.GetDelegationTotal().Value.String(),
-				Website:         candidate.Website,
-				Fee:             strconv.FormatUint(candidate.Fee, 10),
-			})
+	for _, candidate := range candidates {
+		candidateAddr := loom.UnmarshalAddressPB(candidate.Address)
+		if validatorList[candidate.Address.Local.String()].Compare(candidateAddr) != 0 {
+			continue
 		}
+		statistic, err := getStatistic(ctx, candidateAddr)
+		if err != nil && err != ErrNotFound {
+			return nil, err
+		}
+
+		getValidatorResponse = append(getValidatorResponse, blockatlas.Validator{
+			Address:         prefixLoom(statistic.GetAddress().Local.String()),
+			Jailed:          statistic.Jailed,
+			Name:            candidate.Name,
+			Description:     candidate.Description,
+			DelegationTotal: statistic.GetDelegationTotal().Value.String(),
+			Website:         candidate.Website,
+			Fee:             strconv.FormatUint(candidate.Fee, 10),
+		})
 	}
 
 	return &blockatlas.JsonGetValidators{
