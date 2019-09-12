@@ -9,6 +9,6 @@ import (
 
 type WriteReceiptHandler interface {
 	CacheReceipt(
-		state State, caller, addr loom.Address, events []*types.EventData, err error, txhash []byte,
+		state State, caller, addr loom.Address, events []*types.EventData, err error,
 	) ([]byte, error)
 }

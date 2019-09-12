@@ -4,10 +4,6 @@ package evm
 
 import (
 	"encoding/json"
-	"math"
-	"math/big"
-
-	"github.com/loomnetwork/loomchain/features"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -18,7 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
@@ -169,18 +164,8 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 			)
 		}
 
-		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			val := common.Big0
-			if value != nil {
-				val = value.Int
-			}
-			txHash = types.NewContractCreation(
-				uint64(auth.Nonce(lvm.state, caller)), val, math.MaxUint64, big.NewInt(0), code,
-			).Hash().Bytes()
-		}
-
 		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
 			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}
@@ -224,19 +209,8 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 			)
 		}
 
-		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
-			val := common.Big0
-			if value != nil {
-				val = value.Int
-			}
-			txHash = types.NewTransaction(
-				uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
-				val, math.MaxUint64, big.NewInt(0), input,
-			).Hash().Bytes()
-		}
-
 		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
 			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}

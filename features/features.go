@@ -52,8 +52,7 @@ const (
 	// Enables saving of EVM tx receipts for EVM calls made from Go contracts
 	EvmTxReceiptsVersion3 = "receipts:v3"
 
-	// Enables saving of EVM tx receipts for failed EVM calls,
-	// and switches to an alternative algo for EVM tx hash generation.
+	// Enables saving of EVM tx receipts for failed EVM calls
 	EvmTxReceiptsVersion3_1 = "receipts:v3.1"
 
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to

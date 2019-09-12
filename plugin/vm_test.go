@@ -20,7 +20,6 @@ import (
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/events"
 	levm "github.com/loomnetwork/loomchain/evm"
 	rcommon "github.com/loomnetwork/loomchain/receipts/common"
@@ -215,8 +214,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash := utils.MockTxHash(1)
-	txHash, err = receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, txHash)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(1))
@@ -245,8 +243,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	)
 
 	state := rcommon.MockState(1)
-	txHash := utils.MockTxHash(1)
-	txHash, err = receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, txHash)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)
