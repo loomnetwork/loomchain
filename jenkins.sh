@@ -33,7 +33,7 @@ make tgoracle
 make tron_tgoracle
 make loomcoin_tgoracle
 make dposv2_oracle
-make plasmachain
+make basechain
 # copy the generic loom binary so it can be published later, the loom binary will be replaced by the
 # gateway variant when make loom-gateway executes
 cp loom loom-generic
@@ -41,7 +41,7 @@ make loom-gateway
 cp loom loom-gateway
 
 make loom-cleveldb
-make plasmachain-cleveldb
+make basechain-cleveldb
 
 
 export LOOM_BIN=`pwd`/loom
