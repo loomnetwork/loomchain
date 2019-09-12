@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -19,9 +20,11 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
+	lcmm "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	gltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -38,8 +41,8 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
-	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/rpc/trustwallet"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -61,6 +64,7 @@ const (
 
 	StatusTxSuccess = int32(1)
 	StatusTxFail    = int32(0)
+	decimal         = 18
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -1082,7 +1086,9 @@ func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
 }
 
-func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
+// staking method
+
+func (s *QueryServer) GetValidators() (*trustwallet.JsonGetValidators, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -1101,7 +1107,7 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 		return nil, err
 	}
 
-	getValidatorResponse := make([]blockatlas.Validator, 0)
+	getValidatorResponse := make([]trustwallet.Validator, 0)
 	chainID := ctx.Block().ChainID
 
 	validatorList := make(map[string]loom.Address, len(validators))
@@ -1120,7 +1126,7 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 			return nil, err
 		}
 
-		getValidatorResponse = append(getValidatorResponse, blockatlas.Validator{
+		getValidatorResponse = append(getValidatorResponse, trustwallet.Validator{
 			Address:         prefixLoom(statistic.GetAddress().Local.String()),
 			Jailed:          statistic.Jailed,
 			Name:            candidate.Name,
@@ -1131,8 +1137,82 @@ func (s *QueryServer) GetValidators() (*blockatlas.JsonGetValidators, error) {
 		})
 	}
 
-	return &blockatlas.JsonGetValidators{
+	return &trustwallet.JsonGetValidators{
 		Validators: getValidatorResponse,
+	}, nil
+}
+
+func (s *QueryServer) ListDelegations(address eth.Data) (*trustwallet.JsonListDelegation, error) {
+	validatorAddress, err := eth.DecDataToAddress(s.ChainID, address)
+	if err != nil {
+		return nil, errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createDPOS3Ctx(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	delegations, err := dposv3.LoadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := lcmm.BigZero()
+	candidateDelegations := make([]trustwallet.Delegation, 0)
+	for i, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Validator).Compare(validatorAddress) != 0 {
+			continue
+		}
+
+		delegation, err := dposv3.GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		delegatorAddress := loom.UnmarshalAddressPB(d.Delegator)
+		fmt.Printf("\n%d DELEGATION : %+v\n", i, delegation)
+
+		if delegation.GetAmount() == nil {
+			delegation.Amount = &gltypes.BigUInt{
+				Value: *loom.NewBigUIntFromInt(0),
+			}
+		}
+
+		if delegation.GetUpdateAmount() == nil {
+			delegation.UpdateAmount = &gltypes.BigUInt{
+				Value: *loom.NewBigUIntFromInt(0),
+			}
+		}
+		var updateValidator string
+		if delegation.GetUpdateValidator() != nil {
+			updateValidator = prefixLoom(loom.UnmarshalAddressPB(delegation.GetUpdateValidator()).Local.String())
+		}
+
+		candidateDelegations = append(candidateDelegations, trustwallet.Delegation{
+			ValidatorAddress:   prefixLoom(validatorAddress.Local.String()),
+			DelegatorAddress:   prefixLoom(delegatorAddress.Local.String()),
+			Index:              strconv.FormatUint(delegation.Index, 10),
+			Amount:             stringWithDecimal(delegation.GetAmount().Value.String(), decimal),
+			UpdatedValidator:   updateValidator,
+			UpdatedAmount:      stringWithDecimal(delegation.GetUpdateAmount().Value.String(), decimal),
+			LockTimeTier:       formatTimeTier(delegation.LocktimeTier.String()),
+			UpdateLockTimeTier: formatTimeTier(delegation.UpdateLocktimeTier.String()),
+			LockTime:           formatLockTime(delegation.LockTime),
+			State:              delegation.State.String(),
+			Referrer:           delegation.Referrer,
+		})
+		total = total.Add(total, &delegation.Amount.Value)
+	}
+
+	return &trustwallet.JsonListDelegation{
+		Delegations:     candidateDelegations,
+		DelegationTotal: stringWithDecimal(total.String(), decimal),
 	}, nil
 }
 
@@ -1243,4 +1323,33 @@ func prefixLoom(address string) string {
 		return address
 	}
 	return "loom" + address[2:]
+}
+
+func stringWithDecimal(s string, decimal int) string {
+	if decimal <= 0 {
+		return s
+	}
+
+	if len(s) <= decimal {
+		return "0." + strings.Repeat("0", decimal-len(s)) + s
+	}
+
+	return s[:len(s)-decimal] + "." + s[len(s)-decimal:]
+}
+
+func formatTimeTier(tier string) string {
+	var LocktimeTier = map[string]string{
+		"TIER_ZERO":  "2 weeks",
+		"TIER_ONE":   "3 months",
+		"TIER_TWO":   "6 months",
+		"TIER_THREE": "1 year",
+	}
+	return LocktimeTier[tier]
+}
+
+func formatLockTime(t uint64) string {
+	if t != 0 {
+		return time.Unix(int64(t), 0).String()
+	}
+	return "0"
 }

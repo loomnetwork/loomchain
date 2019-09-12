@@ -9,8 +9,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 
 	"github.com/loomnetwork/loomchain/config"
-	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/rpc/trustwallet"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -363,9 +363,16 @@ func (m *MockQueryService) EvmUnSubscribe(id string) (bool, error) {
 	return true, nil
 }
 
-func (m *MockQueryService) GetValidators() (*blockatlas.JsonGetValidators, error) {
+func (m *MockQueryService) GetValidators() (*trustwallet.JsonGetValidators, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	m.MethodsCalled = append([]string{"EvmUnSubscribe"}, m.MethodsCalled...)
+	m.MethodsCalled = append([]string{"GetValidators"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) ListDelegations() (*trustwallet.JsonGetValidators, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"ListDelegations"}, m.MethodsCalled...)
 	return nil, nil
 }

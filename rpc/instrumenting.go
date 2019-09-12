@@ -8,8 +8,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/config"
-	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/rpc/trustwallet"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -561,7 +561,7 @@ func (m InstrumentingMiddleware) EthGetTransactionCount(
 }
 
 // Trust wallet
-func (m InstrumentingMiddleware) GetValidators() (*blockatlas.JsonGetValidators, error) {
+func (m InstrumentingMiddleware) GetValidators() (*trustwallet.JsonGetValidators, error) {
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetValidators", "error", fmt.Sprint(err != nil)}
@@ -570,4 +570,16 @@ func (m InstrumentingMiddleware) GetValidators() (*blockatlas.JsonGetValidators,
 	}(time.Now())
 
 	return m.next.GetValidators()
+}
+func (m InstrumentingMiddleware) ListDelegations(
+	address eth.Data,
+) (*trustwallet.JsonListDelegation, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "ListDelegations", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.ListDelegations(address)
 }
