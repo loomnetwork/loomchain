@@ -159,7 +159,6 @@ func (r *ReceiptHandler) CacheReceipt(
 	} else {
 		status = common.StatusTxFail
 	}
-
 	receipt, err := leveldb.WriteReceipt(
 		state.Block(), caller, addr, events, status,
 		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
@@ -167,7 +166,6 @@ func (r *ReceiptHandler) CacheReceipt(
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")
 	}
-
 	r.currentReceipt = &receipt
 	return r.currentReceipt.TxHash, err
 }
