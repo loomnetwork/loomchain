@@ -19,12 +19,14 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
 	"github.com/loomnetwork/go-loom"
+	cointypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	lcmm "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	gltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -1220,6 +1222,66 @@ func (s *QueryServer) ListDelegations(address string) (*trustwallet.JsonListDele
 	}, nil
 }
 
+func (s *QueryServer) GetAccountInfo(address string) (
+	*trustwallet.JsonAccountInfo, error) {
+	localAddr, err := decodeHexAddress(address)
+	if err != nil {
+		return nil, err
+	}
+	account := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localAddr,
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createStaticContractCtx(snapshot, "coin")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create static coin context.")
+	}
+	acct, err := loadAccount(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("\n ACCOUNT INFO : %+v", acct)
+
+	resolvedAddr, err := auth.ResolveAccountAddress(account, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
+
+	n := auth.Nonce(snapshot, resolvedAddr)
+	return &trustwallet.JsonAccountInfo{
+		Address: acct.Owner.Local.String(),
+		Balance: stringWithDecimal(acct.GetBalance().Value.String(), decimal),
+		Nonce:   strconv.FormatUint(n, 10),
+	}, nil
+
+}
+
+func loadAccount(
+	ctx contractpb.StaticContext,
+	owner loom.Address,
+) (*cointypes.Account, error) {
+	acct := &cointypes.Account{
+		Owner: owner.MarshalPB(),
+		Balance: &gltypes.BigUInt{
+			Value: *loom.NewBigUIntFromInt(0),
+		},
+	}
+	err := ctx.Get(accountKey(owner), acct)
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+
+	return acct, nil
+}
+
+func accountKey(addr loom.Address) []byte {
+	return util.PrefixKey([]byte("account"), addr.Bytes())
+}
+
 func getStatistic(ctx contractpb.StaticContext, address loom.Address) (*dtypes.ValidatorStatistic, error) {
 	addressBytes, err := address.Local.Marshal()
 	if err != nil {
@@ -1239,6 +1301,10 @@ func getStatisticByAddressBytes(ctx contractpb.StaticContext, addressBytes []byt
 
 func (s *QueryServer) createDPOS3Ctx(state loomchain.State) (contractpb.StaticContext, error) {
 	return s.createStaticContractCtx(state, "dposV3")
+}
+
+func (s *QueryServer) createCoinCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "coin")
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {

@@ -67,7 +67,7 @@ type QueryService interface {
 
 	// trustwallet endpoint
 	GetValidators() (*trustwallet.JsonGetValidators, error)
-
+	GetAccountInfo(address string) (*trustwallet.JsonAccountInfo, error)
 	// Stake endpoint
 	ListDelegations(address string) (*trustwallet.JsonListDelegation, error)
 
@@ -141,6 +141,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	//stake endpoints
 	routes["getvalidators"] = rpcserver.NewRPCFunc(svc.GetValidators, "")
 	routes["listdelegations"] = rpcserver.NewRPCFunc(svc.ListDelegations, "address")
+	routes["getaccountinfo"] = rpcserver.NewRPCFunc(svc.GetAccountInfo, "address")
 
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))

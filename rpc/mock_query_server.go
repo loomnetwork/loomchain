@@ -376,3 +376,10 @@ func (m *MockQueryService) ListDelegations(address string) (*trustwallet.JsonLis
 	m.MethodsCalled = append([]string{"ListDelegations"}, m.MethodsCalled...)
 	return nil, nil
 }
+
+func (m *MockQueryService) GetAccountInfo(address string) (*trustwallet.JsonAccountInfo, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"GetAccountInfo"}, m.MethodsCalled...)
+	return nil, nil
+}

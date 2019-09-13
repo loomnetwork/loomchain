@@ -571,6 +571,7 @@ func (m InstrumentingMiddleware) GetValidators() (*trustwallet.JsonGetValidators
 
 	return m.next.GetValidators()
 }
+
 func (m InstrumentingMiddleware) ListDelegations(
 	address string,
 ) (*trustwallet.JsonListDelegation, error) {
@@ -582,4 +583,17 @@ func (m InstrumentingMiddleware) ListDelegations(
 	}(time.Now())
 
 	return m.next.ListDelegations(address)
+}
+
+func (m InstrumentingMiddleware) GetAccountInfo(
+	address string,
+) (*trustwallet.JsonAccountInfo, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetAccountInfo", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.GetAccountInfo(address)
 }

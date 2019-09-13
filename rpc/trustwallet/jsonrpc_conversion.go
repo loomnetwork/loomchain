@@ -15,6 +15,12 @@ type Validator struct {
 	Fee             string `json:"fee,omitempty"`
 }
 
+type JsonAccountInfo struct {
+	Address string `json:"address,omitempty"`
+	Balance string `json:"balance,omitempty"`
+	Nonce   string `json:"nonce,omitempty"`
+}
+
 type JsonListDelegation struct {
 	Delegations     []Delegation `json:"delegations,omitempty"`
 	DelegationTotal string       `json:"delegation_total,omitempty"`
