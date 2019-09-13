@@ -6,6 +6,8 @@ const (
 	TGCheckTxHashFeature = "tg:check-txhash"
 	// Enables hot wallet (users can submit Ethereum deposit tx hashes).
 	TGHotWalletFeature = "tg:hot-wallet"
+	// Enables hot wallet (users will have individual wallet for each token).
+	TGHotWallet2Feature = "tg:hot-wallet2"
 	// Enables prevention of zero amount token withdrawals in the Gateway contract
 	TGCheckZeroAmount = "tg:check-zamt"
 	// Enables workaround for handling of ERC721 deposits in the Gateway contract
