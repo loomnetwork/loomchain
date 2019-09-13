@@ -68,6 +68,14 @@
                         "status": "WAITING"
                     },
                     {
+                        "name": "receipts:v3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.1",
+                        "status": "WAITING"
+                    },
+                    {
                         "name": "coin:v1.1",
                         "status": "WAITING"
                     },
@@ -85,6 +93,14 @@
                     },
                     {
                         "name": "evm:constantinople",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.1",
                         "status": "WAITING"
                     }
                 ]

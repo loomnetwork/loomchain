@@ -79,6 +79,14 @@
                         "status": "WAITING"
                     },
                     {
+                        "name": "receipts:v3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.1",
+                        "status": "WAITING"
+                    },
+                    {
                         "name": "appstore:v3.1",
                         "status": "WAITING"
                     },
