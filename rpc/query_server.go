@@ -1144,14 +1144,14 @@ func (s *QueryServer) GetValidators() (*trustwallet.JsonGetValidators, error) {
 	}, nil
 }
 
-func (s *QueryServer) ListDelegations(address string) (*trustwallet.JsonListDelegation, error) {
-	localAddr, err := decodeHexAddress(address)
+func (s *QueryServer) ListDelegations(delegatorAddress string) (*trustwallet.JsonListDelegation, error) {
+	delAddr, err := decodeHexAddress(delegatorAddress)
 	if err != nil {
-		return nil, errors.Wrapf(err, "decoding input address parameter %v", address)
+		return nil, errors.Wrapf(err, "decoding input address parameter %v", delegatorAddress)
 	}
-	validatorAddress := loom.Address{
+	delegator := loom.Address{
 		ChainID: s.ChainID,
-		Local:   localAddr,
+		Local:   delAddr,
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
@@ -1168,9 +1168,9 @@ func (s *QueryServer) ListDelegations(address string) (*trustwallet.JsonListDele
 	}
 
 	total := lcmm.BigZero()
-	candidateDelegations := make([]trustwallet.Delegation, 0)
+	listDelegations := make([]trustwallet.Delegation, 0)
 	for i, d := range delegations {
-		if loom.UnmarshalAddressPB(d.Validator).Compare(validatorAddress) != 0 {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
 			continue
 		}
 
@@ -1181,7 +1181,6 @@ func (s *QueryServer) ListDelegations(address string) (*trustwallet.JsonListDele
 			return nil, err
 		}
 
-		delegatorAddress := loom.UnmarshalAddressPB(d.Delegator)
 		fmt.Printf("\n%d DELEGATION : %+v\n", i, delegation)
 
 		if delegation.GetAmount() == nil {
@@ -1200,9 +1199,9 @@ func (s *QueryServer) ListDelegations(address string) (*trustwallet.JsonListDele
 			updateValidator = prefixLoom(loom.UnmarshalAddressPB(delegation.GetUpdateValidator()).Local.String())
 		}
 
-		candidateDelegations = append(candidateDelegations, trustwallet.Delegation{
-			ValidatorAddress:   prefixLoom(validatorAddress.Local.String()),
-			DelegatorAddress:   prefixLoom(delegatorAddress.Local.String()),
+		listDelegations = append(listDelegations, trustwallet.Delegation{
+			ValidatorAddress:   prefixLoom(delegation.Validator.Local.String()),
+			DelegatorAddress:   prefixLoom(delegation.Delegator.Local.String()),
 			Index:              strconv.FormatUint(delegation.Index, 10),
 			Amount:             stringWithDecimal(delegation.GetAmount().Value.String(), decimal),
 			UpdatedValidator:   updateValidator,
@@ -1217,7 +1216,7 @@ func (s *QueryServer) ListDelegations(address string) (*trustwallet.JsonListDele
 	}
 
 	return &trustwallet.JsonListDelegation{
-		Delegations:     candidateDelegations,
+		Delegations:     listDelegations,
 		DelegationTotal: stringWithDecimal(total.String(), decimal),
 	}, nil
 }
@@ -1257,7 +1256,6 @@ func (s *QueryServer) GetAccountInfo(address string) (
 		Balance: stringWithDecimal(acct.GetBalance().Value.String(), decimal),
 		Nonce:   strconv.FormatUint(n, 10),
 	}, nil
-
 }
 
 func loadAccount(
