@@ -26,6 +26,17 @@ type LoomEthdb struct {
 	state      store.KVStore
 	lock       sync.RWMutex
 	logContext *ethdbLogContext
+	ethdb.Reader
+	ethdb.Writer
+	ethdb.Iteratee
+	ethdb.Stater
+	ethdb.Compacter
+}
+
+// BatchReplay wraps basic batch operations.
+type BatchReplay interface {
+	Put(key, value []byte)
+	Delete(key []byte)
 }
 
 func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
@@ -53,7 +64,8 @@ func (s *LoomEthdb) Delete(key []byte) error {
 	return nil
 }
 
-func (s *LoomEthdb) Close() {
+func (s *LoomEthdb) Close() error {
+	return nil
 }
 
 func (s *LoomEthdb) NewBatch() ethdb.Batch {
@@ -110,6 +122,21 @@ func (b *batch) Write() error {
 	return nil
 }
 
+func (b *batch) Replay(w ethdb.KeyValueWriter) error {
+	for _, kv := range b.cache {
+		if kv.value == nil {
+			if err := w.Delete(kv.key); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := w.Put(kv.key, kv.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (b *batch) Reset() {
 	b.cache = make([]kvPair, 0)
 	b.size = 0
@@ -144,31 +171,29 @@ type LogParams struct {
 	LogPutDump         bool
 	LogWriteDump       bool
 	LogBeforeWriteDump bool
+	LogReplay          bool
 }
 
 type LogBatch struct {
 	batch      batch
 	params     LogParams
 	logContext *ethdbLogContext
+	ethdb.Batch
 }
 
 const batchHeaderWithContext = `
-
 -----------------------------
 | NEW BATCH
 | Block: %v
 | Contract: %v
 | Caller: %v
 -----------------------------
-
 `
 
 const batchHeader = `
-
 -----------------------------
 | NEW BATCH
 -----------------------------
-
 `
 
 func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
@@ -188,6 +213,7 @@ func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
 		LogPutDump:         false,
 		LogWriteDump:       true,
 		LogBeforeWriteDump: false,
+		LogReplay:          true,
 	}
 
 	if !loggerStarted {
@@ -249,6 +275,14 @@ func (b *LogBatch) Write() error {
 		logger.Println("Write, after : ")
 		b.batch.Dump(&logger)
 	}
+	return err
+}
+
+func (b *LogBatch) Replay(w ethdb.KeyValueWriter) error {
+	if b.params.LogReplay {
+		logger.Println("Replay")
+	}
+	err := b.batch.Replay(w)
 	return err
 }
 

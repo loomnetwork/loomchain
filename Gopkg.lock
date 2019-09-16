@@ -134,12 +134,11 @@
   revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:3d71996594377f5010626a5e616690156254876ee131e1ed0293f58ca33e3456"
+  digest = "1:1208e7cb21b6dcfb6e95d77c3f77736be598996945698a3e825181e8e42dec27"
   name = "github.com/loomnetwork/mamamerkle"
   packages = ["."]
   pruneopts = "UT"
-  revision = "bd379c19d9638c72aea2c79b4ac0b973561e1783"
+  revision = "80089d23d292cdbff7b2b22bb8834670c23917e7"
 
 [[projects]]
   digest = "1:c568d7727aa262c32bdf8a3f7db83614f7af0ed661474b24588de635c20024c7"

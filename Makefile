@@ -24,19 +24,21 @@ GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
+MAMAMERKLE_DIR = $(GOPATH)/src/github.com/loomnetwork/mamamerkle
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
-GO_LOOM_GIT_REV = HEAD
+GO_LOOM_GIT_REV = Geth/Release-1.9Upgrade
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
 TG_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
-ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
+ETHEREUM_GIT_REV = 41d4c14e3c0ff404e890e62e153697e234fcfbf3
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
 BTCD_GIT_REV = 7d2daa5bfef28c5e282571bc06416516936115ee
+MAMAMERKLE_GIT_REV = 80089d23d292cdbff7b2b22bb8834670c23917e7
 # This is locked down to this particular revision because this is the last revision before the
 # google.golang.org/genproto was recompiled with a new version of protoc, which produces pb.go files
 # that don't appear to be compatible with the gogo protobuf & protoc versions we use.
@@ -237,6 +239,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
+	cd $(MAMAMERKLE_DIR) && git checkout $(MAMAMERKLE_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
@@ -279,3 +282,4 @@ clean:
 		contracts/dpos.so.3.0.0 \
 		contracts/plasmacash.so.1.0.0 \
 		pcoracle
+

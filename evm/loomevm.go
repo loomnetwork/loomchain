@@ -87,8 +87,8 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	return root, err
 }
 
-func (levm LoomEvm) RawDump() []byte {
-	d := levm.sdb.RawDump()
+func (levm LoomEvm) RawDump(excludeCode, excludeStorage, excludeMissingPreimages bool) []byte {
+	d := levm.sdb.RawDump(true, true, false)
 	output, err := json.MarshalIndent(d, "", "  ")
 	if err != nil {
 		panic(err)

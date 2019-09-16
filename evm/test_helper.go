@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"golang.org/x/crypto/sha3"
 )
 
 func getContractData(filename string) ContractData {
@@ -99,7 +99,7 @@ func checkEqual(b1, b2 []byte) bool {
 
 func evmParams(funcName string, params ...[]byte) []byte {
 	funcNameToBytes := []byte(funcName)
-	d := sha3.NewKeccak256()
+	d := sha3.NewLegacyKeccak256()
 	d.Write(funcNameToBytes)
 	hashedFuncName := d.Sum(nil)
 	clipedHashedFuncName := hashedFuncName[0:4]
