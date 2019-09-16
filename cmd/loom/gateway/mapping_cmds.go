@@ -375,7 +375,7 @@ func newMapAccountsCommand() *cobra.Command {
 }
 
 const ListContractMappingCmdExample = `
-loom gateway list-contract-mappings
+loom gateway list-contract-mappings <output-format>?
 `
 
 func newListContractMappingsCommand() *cobra.Command {
