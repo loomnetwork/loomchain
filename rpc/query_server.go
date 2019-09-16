@@ -17,6 +17,7 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -42,8 +43,6 @@ import (
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
-
-	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -1066,9 +1065,8 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	positionHash := ethcommon.HexToHash(position)
 	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
-	storage, err := evm.GetStorageAt(address, positionHash[:])
+	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get EVM storage at %v", address.Local.String())
 	}
