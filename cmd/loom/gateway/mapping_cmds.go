@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -419,12 +420,32 @@ func newListContractMappingsCommand() *cobra.Command {
 					ml.To = len(loom.UnmarshalAddressPB(value.To).String())
 				}
 			}
-			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
-			for _, value := range resp.PendingMappings {
-				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
-			}
-			for _, value := range resp.ConfimedMappings {
-				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To, loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
+
+			if len(args) > 0 {
+				if args[0] == "json" {
+					var mappingData MappingData
+					for _, value := range resp.ConfimedMappings {
+						mappingData.Data = append(mappingData.Data, FormattedMapping{
+							Local:   "0x" + value.From.Local.Hex(),
+							Foreign: "0x" + value.To.Local.Hex(),
+						})
+					}
+					bytes, err := json.MarshalIndent(mappingData, "", "  ")
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(bytes))
+				} else {
+					return errors.New("format not supported")
+				}
+			} else {
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
+				for _, value := range resp.PendingMappings {
+					fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
+				}
+				for _, value := range resp.ConfimedMappings {
+					fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To, loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
+				}
 			}
 			return nil
 		},
@@ -432,6 +453,15 @@ func newListContractMappingsCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
 	return cmd
+}
+
+type FormattedMapping struct {
+	Local   string `json:local`
+	Foreign string `json:foreign`
+}
+
+type MappingData struct {
+	Data []FormattedMapping `json:data`
 }
 
 const getContractMappingCmdExample = `
