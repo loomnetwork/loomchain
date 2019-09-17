@@ -1066,6 +1066,18 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
+	if block == "" {
+		block = "latest"
+	}
+
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid block height %s", block)
+	}
+	if int64(height) != snapshot.Block().Height {
+		return "", errors.Wrapf(err, "unable to get storage at height %v", block)
+	}
+
 	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
 	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
 	if err != nil {

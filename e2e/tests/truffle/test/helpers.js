@@ -60,14 +60,14 @@ async function getNonce(nodeAddr, account) {
   return res.result
 }
 
-async function getStorageAt(ethUrl,account,position){
+async function getStorageAt(ethUrl,account,position,block){
   var options = {
     method: 'POST',
     uri: ethUrl,
     body: {
       jsonrpc: '2.0',
       method: 'eth_getStorageAt',
-      params: [account, position, "latest"],
+      params: [account, position, block],
       id: 83,
     },
     json: true
@@ -77,4 +77,15 @@ async function getStorageAt(ethUrl,account,position){
   return res.result
 }
 
-module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt}
+async function getLatestBlock(nodeAddr) {
+  const ethUrl = `http://${nodeAddr}/rpc/status`
+  var options = {
+    method: 'GET',
+    uri: ethUrl,
+    json: true
+  };
+  const res = await rp(options)
+  return currentBlock = Number(res.result.sync_info.latest_block_height)
+}
+
+module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt ,getLatestBlock}
