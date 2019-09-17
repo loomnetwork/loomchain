@@ -18,6 +18,12 @@ async function delay(delayInms) {
   });
 }
 
+function toHexString(byteArray) {
+  return Array.from(byteArray, function(byte) {
+    return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+  }).join('')
+}
+
 async function waitForXBlocks(nodeAddr, block) {
   block = Number(block)
   const ethUrl = `http://${nodeAddr}/rpc/status`
@@ -88,4 +94,4 @@ async function getLatestBlock(nodeAddr) {
   return currentBlock = Number(res.result.sync_info.latest_block_height)
 }
 
-module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt ,getLatestBlock}
+module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt ,getLatestBlock ,toHexString}
