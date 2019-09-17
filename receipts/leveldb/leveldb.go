@@ -52,9 +52,8 @@ func WriteReceipt(
 	}
 	h := sha256.New()
 	h.Write(preTxReceipt)
-	txHash := h.Sum(nil)
+	txReceipt.TxHash = h.Sum(nil)
 
-	txReceipt.TxHash = txHash
 	txReceipt.Logs = append(txReceipt.Logs, CreateEventLogs(&txReceipt, block, events, eventHandler)...)
 	txReceipt.TransactionIndex = block.NumTxs - 1
 	return txReceipt, nil

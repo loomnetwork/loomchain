@@ -167,7 +167,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		var errSaveReceipt error
 		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
-			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}
 	}
 
@@ -212,9 +212,10 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		var errSaveReceipt error
 		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
-			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}
 	}
+
 	return txHash, err
 }
 

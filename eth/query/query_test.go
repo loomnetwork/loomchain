@@ -206,6 +206,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address: addr1.MarshalPB(),
 		},
 	}
+
 	state := common.MockState(1)
 	state32 := common.MockStateAt(state, 32)
 	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil)

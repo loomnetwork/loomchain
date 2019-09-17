@@ -259,6 +259,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 		},
 	}
 	state4 := common.MockStateAt(state, 4)
+
 	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
