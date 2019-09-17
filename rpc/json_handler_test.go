@@ -51,6 +51,7 @@ var (
 		{"net_version", "EthNetVersion", ``},
 		{"eth_getTransactionCount", "EthGetTransactionCount", ``},
 		{"eth_accounts", "EthAccounts", ``},
+		{"eth_getStorageAt", "EthGetStorageAt", ``},
 	}
 )
 
