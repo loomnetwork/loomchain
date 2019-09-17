@@ -259,6 +259,11 @@ func (e Evm) GetCode(addr loom.Address) []byte {
 	return e.sdb.GetCode(common.BytesToAddress(addr.Local))
 }
 
+func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
+	result := e.sdb.GetState(common.BytesToAddress(addr.Local), common.BytesToHash(key))
+	return result.Bytes(), nil
+}
+
 // TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin

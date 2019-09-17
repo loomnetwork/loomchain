@@ -234,3 +234,11 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 	}
 	return levm.GetCode(addr), nil
 }
+
+func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug)
+	if err != nil {
+		return nil, err
+	}
+	return levm.GetStorageAt(addr, key)
+}
