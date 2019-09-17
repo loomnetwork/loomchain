@@ -1,4 +1,4 @@
-const { waitForXBlocks, getNonce, toHexString} = require('./helpers')
+const { toHexString} = require('./helpers')
 const Web3 = require('web3')
 const fs = require('fs')
 const path = require('path')
@@ -42,14 +42,14 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
         contract = new web3.eth.Contract(TxHashTestContract._json.abi, txHashTestContract.address, {from});
     })
 
-     it('Test tx hash matches', async () => {
+     it('Test tx hashes match', async () => {
         let txParams = {
-            nonce: '0x1', //expect nonce to be 2
+            nonce: '0x1', //expect nonce to be 1
             gasPrice: '0x0', // gas price is always 0
             gasLimit: '0xFFFFFFFFFFFFFFFF', // gas limit right now is max.Uint64
             to: txHashTestContract.address,
             value: '0x0',
-            data: '0x60fe47b10000000000000000000000000000000000000000000000000000000000000457', // data of set(1111)
+            data: '0x60fe47b10000000000000000000000000000000000000000000000000000000000000457', // set(1111)
         }
 
         let tx = new EthereumTx(txParams)
@@ -68,7 +68,7 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
             gasLimit: '0xFFFFFFFFFFFFFFFF', // gas limit right now is max.Uint64
             to: txHashTestContract.address,
             value: '0x0',
-            data: '0x60fe47b100000000000000000000000000000000000000000000000000000000000008AE', // data of set(2222)
+            data: '0x60fe47b100000000000000000000000000000000000000000000000000000000000008AE', // set(2222)
         }
 
         tx = new EthereumTx(txParams)
