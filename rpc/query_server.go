@@ -1169,7 +1169,7 @@ func (s *QueryServer) ListDelegations(delegatorAddress string) (*trustwallet.Jso
 
 	total := lcmm.BigZero()
 	listDelegations := make([]trustwallet.Delegation, 0)
-	for i, d := range delegations {
+	for _, d := range delegations {
 		if loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
 			continue
 		}
@@ -1180,8 +1180,6 @@ func (s *QueryServer) ListDelegations(delegatorAddress string) (*trustwallet.Jso
 		} else if err != nil {
 			return nil, err
 		}
-
-		fmt.Printf("\n%d DELEGATION : %+v\n", i, delegation)
 
 		if delegation.GetAmount() == nil {
 			delegation.Amount = &gltypes.BigUInt{
