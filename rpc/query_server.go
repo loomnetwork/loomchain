@@ -1256,6 +1256,65 @@ func (s *QueryServer) GetAccountInfo(address string) (
 	}, nil
 }
 
+func (s *QueryServer) GetRewards(delegatorAddress string) (*trustwallet.JsonGetRewards, error) {
+	delAddr, err := decodeHexAddress(delegatorAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "decoding input address parameter %v", delegatorAddress)
+	}
+	delegator := loom.Address{
+		ChainID: s.ChainID,
+		Local:   delAddr,
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createDPOS3Ctx(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	delegations, err := dposv3.LoadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := lcmm.BigZero()
+	listRewards := make([]trustwallet.Reward, 0)
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
+			continue
+		}
+
+		delegation, err := dposv3.GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err != nil {
+			return nil, err
+		}
+
+		if delegation.GetIndex() != 0 {
+			continue
+		}
+
+		if delegation.GetAmount() == nil {
+			delegation.Amount = &gltypes.BigUInt{
+				Value: *loom.NewBigUIntFromInt(0),
+			}
+		}
+
+		listRewards = append(listRewards, trustwallet.Reward{
+			ValidatorAddress: prefixLoom(delegation.Validator.Local.String()),
+			DelegatorAddress: prefixLoom(delegation.Delegator.Local.String()),
+			Amount:           stringWithDecimal(delegation.GetAmount().Value.String(), decimal),
+		})
+		total = total.Add(total, &delegation.Amount.Value)
+	}
+
+	return &trustwallet.JsonGetRewards{
+		Rewards:     listRewards,
+		RewardTotal: stringWithDecimal(total.String(), decimal),
+	}, nil
+}
+
 func loadAccount(
 	ctx contractpb.StaticContext,
 	owner loom.Address,

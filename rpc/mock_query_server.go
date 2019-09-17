@@ -383,3 +383,10 @@ func (m *MockQueryService) GetAccountInfo(address string) (*trustwallet.JsonAcco
 	m.MethodsCalled = append([]string{"GetAccountInfo"}, m.MethodsCalled...)
 	return nil, nil
 }
+
+func (m *MockQueryService) GetRewards(address string) (*trustwallet.JsonGetRewards, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"GetRewards"}, m.MethodsCalled...)
+	return nil, nil
+}
