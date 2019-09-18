@@ -67,8 +67,8 @@ GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_BASE = -X $(PKG_BATTLEGROUND).BuildDate=$(BUILD_DATE) -X $(PKG_BATTLEGROUND).BuildGitSha=$(GAMECHAIN_GIT_SHA) -X $(PKG_BATTLEGROUND).BuildNumber=$(BUILD_NUMBER)
 GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_GATEWAY = -tags "evm gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=gateway"
-GOFLAGS_PLASMACHAIN = -tags "evm plasmachain gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=plasmachain"
-GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gateway gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=plasmachain"
+GOFLAGS_BASECHAIN = -tags "evm basechain gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=basechain"
+GOFLAGS_BASECHAIN_CLEVELDB = -tags "evm basechain gateway gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=basechain"
 GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
@@ -77,7 +77,7 @@ WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH
 
 E2E_TESTS_TIMEOUT = 37m
 
-.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle basechain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
@@ -136,14 +136,14 @@ gamechain-windows: proto
 loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
-plasmachain: proto $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_PLASMACHAIN) -o $@ $(PKG)/cmd/loom
+basechain: proto $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS_BASECHAIN) -o $@ $(PKG)/cmd/loom
 
-plasmachain-cleveldb: proto c-leveldb $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
+basechain-cleveldb: proto c-leveldb $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS_BASECHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
-plasmachain-windows:
-	$(WINDOWS_BUILD_VARS) make plasmachain
+basechain-windows:
+	$(WINDOWS_BUILD_VARS) make basechain
 
 loom-race: proto
 	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom

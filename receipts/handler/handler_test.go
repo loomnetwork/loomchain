@@ -43,9 +43,9 @@ func TestReceiptsHandlerChain(t *testing.T) {
 
 		if nonce%2 == 1 { // mock EVM transaction
 			stateI := common.MockStateTx(state, height, uint64(nonce))
-			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
+			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil, []byte{})
 			require.NoError(t, err)
-			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
+			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil, []byte{})
 			require.NoError(t, err)
 			if nonce == 1 { // mock deploy transaction
 				resp.Data = []byte("proto with contract address and tx hash")
