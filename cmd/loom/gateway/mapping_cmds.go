@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -377,8 +376,8 @@ func newMapAccountsCommand() *cobra.Command {
 
 const ListContractMappingCmdExample = `
 loom gateway list-contract-mappings
-loom gateway list-contract-mappings --raw true
-loom gateway list-contract-mappings --json true
+loom gateway list-contract-mappings --raw
+loom gateway list-contract-mappings --json
 `
 
 func newListContractMappingsCommand() *cobra.Command {
@@ -408,7 +407,8 @@ func newListContractMappingsCommand() *cobra.Command {
 			}
 
 			type MappingData struct {
-				Data []FormattedMapping `json:data`
+				Data    []FormattedMapping `json:data`
+				Pending []FormattedMapping `json:pending`
 			}
 
 			type maxLength struct {
@@ -417,57 +417,54 @@ func newListContractMappingsCommand() *cobra.Command {
 				Status int
 			}
 
-			ml := maxLength{From: 50, To: 50, Status: 9}
-			for _, value := range resp.PendingMappings {
-				if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
-					ml.From = len(loom.UnmarshalAddressPB(value.ForeignContract).String())
+			if gatewayCmdFlags.FormatJSON {
+				mappingData := &MappingData{
+					Data:    make([]FormattedMapping, 0),
+					Pending: make([]FormattedMapping, 0),
 				}
-				if len(loom.UnmarshalAddressPB(value.LocalContract).String()) > ml.To {
-					ml.To = len(loom.UnmarshalAddressPB(value.LocalContract).String())
+				for _, value := range resp.ConfimedMappings {
+					mappingData.Data = append(mappingData.Data, FormattedMapping{
+						Local:   "0x" + value.From.Local.Hex(),
+						Foreign: "0x" + value.To.Local.Hex(),
+					})
 				}
-			}
-			for _, value := range resp.ConfimedMappings {
-				if len(loom.UnmarshalAddressPB(value.From).String()) > ml.From {
-					ml.From = len(loom.UnmarshalAddressPB(value.From).String())
+				for _, value := range resp.PendingMappings {
+					mappingData.Pending = append(mappingData.Pending, FormattedMapping{
+						Local:   "0x" + value.LocalContract.Local.Hex(),
+						Foreign: "0x" + value.ForeignContract.Local.Hex(),
+					})
 				}
-				if len(loom.UnmarshalAddressPB(value.To).String()) > ml.To {
-					ml.To = len(loom.UnmarshalAddressPB(value.To).String())
-				}
-			}
-
-			if gatewayCmdFlags.FormatJSON != "" {
-				ok, err := strconv.ParseBool(gatewayCmdFlags.FormatJSON)
+				bytes, err := json.MarshalIndent(mappingData, "", "  ")
 				if err != nil {
 					return err
 				}
-				if ok {
-					var mappingData MappingData
-					for _, value := range resp.ConfimedMappings {
-						mappingData.Data = append(mappingData.Data, FormattedMapping{
-							Local:   "0x" + value.From.Local.Hex(),
-							Foreign: "0x" + value.To.Local.Hex(),
-						})
-					}
-					bytes, err := json.MarshalIndent(mappingData, "", "  ")
-					if err != nil {
-						return err
-					}
-					fmt.Println(string(bytes))
-				}
+				fmt.Println(string(bytes))
 				return nil
-			} else if gatewayCmdFlags.FormatRaw != "" {
-				ok, err := strconv.ParseBool(gatewayCmdFlags.FormatRaw)
+			} else if gatewayCmdFlags.FormatRaw {
+				out, err := formatJSON(resp)
 				if err != nil {
 					return err
 				}
-				if ok {
-					out, err := formatJSON(resp)
-					if err != nil {
-						return err
-					}
-					fmt.Println(out)
-				}
+				fmt.Println(out)
 			} else {
+				ml := maxLength{From: 50, To: 50, Status: 9}
+				for _, value := range resp.PendingMappings {
+					if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
+						ml.From = len(loom.UnmarshalAddressPB(value.ForeignContract).String())
+					}
+					if len(loom.UnmarshalAddressPB(value.LocalContract).String()) > ml.To {
+						ml.To = len(loom.UnmarshalAddressPB(value.LocalContract).String())
+					}
+				}
+				for _, value := range resp.ConfimedMappings {
+					if len(loom.UnmarshalAddressPB(value.From).String()) > ml.From {
+						ml.From = len(loom.UnmarshalAddressPB(value.From).String())
+					}
+					if len(loom.UnmarshalAddressPB(value.To).String()) > ml.To {
+						ml.To = len(loom.UnmarshalAddressPB(value.To).String())
+					}
+				}
+
 				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
 				for _, value := range resp.PendingMappings {
 					fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
