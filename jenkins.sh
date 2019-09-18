@@ -32,10 +32,10 @@ make validators-tool
 
 # build the oracles
 cd $TG_DIR
-make tgoracle
-make tron_tgoracle
-make loomcoin_tgoracle
-make dposv2_oracle
+PKG=$PKG_TRANSFER_GATEWAY make tgoracle
+PKG=$PKG_TRANSFER_GATEWAY make tron_tgoracle
+PKG=$PKG_TRANSFER_GATEWAY make loomcoin_tgoracle
+PKG=$PKG_TRANSFER_GATEWAY make dposv2_oracle
 # move them to the loomchain dir to make post-build steps simpler
 mv tgoracle $LOOM_SRC/tgoracle
 mv tron_tgoracle $LOOM_SRC/tron_tgoracle
