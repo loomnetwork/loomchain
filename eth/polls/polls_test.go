@@ -81,7 +81,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	sub.Remove(id)
 	result, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	require.NoError(t, receiptHandler.Close())
+	receiptHandler.Close()
 	evmAuxStore.ClearData()
 }
 
@@ -126,7 +126,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	sub.Remove(id)
 	result, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	require.NoError(t, receiptHandler.Close())
+	receiptHandler.Close()
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
@@ -197,7 +197,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	require.NoError(t, receiptHandler.Close())
+	receiptHandler.Close()
 }
 
 func TestTimeout(t *testing.T) {
@@ -245,7 +245,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	result, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
-	require.NoError(t, receiptHandler.Close())
+	receiptHandler.Close()
 }
 
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {

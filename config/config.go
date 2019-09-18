@@ -10,6 +10,8 @@ import (
 	"path"
 	"path/filepath"
 
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
+
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
@@ -135,7 +137,8 @@ type Config struct {
 
 	Auth *auth.Config
 
-	EvmStore *evm.EvmStoreConfig
+	EvmStore    *evm.EvmStoreConfig
+	EvmAuxStore *evmaux.EvmAuxStoreConfig
 	// Allow deployment of named EVM contracts (should only be used in tests!)
 	AllowNamedEvmContracts bool
 
@@ -413,6 +416,7 @@ func DefaultConfig() *Config {
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
+	cfg.EvmAuxStore = evmaux.DefaultEvmAuxStoreConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 

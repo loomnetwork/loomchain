@@ -2,14 +2,16 @@ package handler
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"sync"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 )
@@ -24,9 +26,8 @@ const (
 // ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
 // loomchain.ReceiptHandlerStore interfaces.
 type ReceiptHandler struct {
-	eventHandler    loomchain.EventHandler
-	leveldbReceipts *leveldb.LevelDbReceipts
-	evmAuxStore     *evmaux.EvmAuxStore
+	eventHandler loomchain.EventHandler
+	evmAuxStore  *evmaux.EvmAuxStore
 
 	mutex          *sync.RWMutex
 	receiptsCache  []*types.EvmTxReceipt
@@ -39,13 +40,12 @@ func NewReceiptHandler(
 	maxReceipts uint64, evmAuxStore *evmaux.EvmAuxStore,
 ) *ReceiptHandler {
 	return &ReceiptHandler{
-		eventHandler:    eventHandler,
-		receiptsCache:   []*types.EvmTxReceipt{},
-		txHashList:      [][]byte{},
-		currentReceipt:  nil,
-		mutex:           &sync.RWMutex{},
-		leveldbReceipts: leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts),
-		evmAuxStore:     evmAuxStore,
+		eventHandler:   eventHandler,
+		receiptsCache:  []*types.EvmTxReceipt{},
+		txHashList:     [][]byte{},
+		currentReceipt: nil,
+		mutex:          &sync.RWMutex{},
+		evmAuxStore:    evmAuxStore,
 	}
 }
 
@@ -55,12 +55,12 @@ func NewReceiptHandler(
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	// At first assume the input hash is a Tendermint tx hash and try to resolve it to an EVM tx hash,
 	// if that fails it might be an EVM tx hash.
-	evmTxHash, err := r.evmAuxStore.GetChildTxHash(txHash)
-	if len(evmTxHash) > 0 && err == nil {
+	evmTxHash := r.evmAuxStore.GetChildTxHash(txHash)
+	if len(evmTxHash) > 0 {
 		txHash = evmTxHash
 	}
 
-	receipt, err := r.leveldbReceipts.GetReceipt(txHash)
+	receipt, err := r.evmAuxStore.GetReceipt(txHash)
 	if err != nil {
 		return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "GetReceipt: %v", err)
 	}
@@ -95,15 +95,12 @@ func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
 	return hashListCopy
 }
 
-func (r *ReceiptHandler) Close() error {
-	if err := r.leveldbReceipts.Close(); err != nil {
-		return errors.Wrap(err, "closing receipt leveldb")
-	}
-	return nil
+func (r *ReceiptHandler) Close() {
+	r.evmAuxStore.Close()
 }
 
 func (r *ReceiptHandler) ClearData() error {
-	r.leveldbReceipts.ClearData()
+	r.evmAuxStore.ClearData()
 	return nil
 }
 
@@ -129,7 +126,7 @@ func (r *ReceiptHandler) CommitBlock(height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	err := r.leveldbReceipts.CommitBlock(r.receiptsCache, uint64(height))
+	err := r.evmAuxStore.CommitReceipts(r.receiptsCache, uint64(height))
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
 	return err
@@ -148,7 +145,7 @@ func (r *ReceiptHandler) CacheReceipt(
 	if r.currentReceipt != nil {
 		r.currentReceipt.Logs = append(
 			r.currentReceipt.Logs,
-			leveldb.CreateEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
+			createEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
 		)
 		return r.currentReceipt.TxHash, nil
 	}
@@ -159,7 +156,7 @@ func (r *ReceiptHandler) CacheReceipt(
 	} else {
 		status = common.StatusTxFail
 	}
-	receipt, err := leveldb.WriteReceipt(
+	receipt, err := writeReceipt(
 		state.Block(), caller, addr, events, status,
 		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
 	)
@@ -168,4 +165,60 @@ func (r *ReceiptHandler) CacheReceipt(
 	}
 	r.currentReceipt = &receipt
 	return r.currentReceipt.TxHash, err
+}
+
+func writeReceipt(
+	block loom.BlockHeader,
+	caller, addr loom.Address,
+	events []*types.EventData,
+	status int32,
+	eventHandler loomchain.EventHandler,
+	evmTxIndex int32,
+	nonce int64,
+) (types.EvmTxReceipt, error) {
+	txReceipt := types.EvmTxReceipt{
+		Nonce:             nonce,
+		TransactionIndex:  evmTxIndex,
+		BlockHash:         block.CurrentHash,
+		BlockNumber:       block.Height,
+		CumulativeGasUsed: 0,
+		GasUsed:           0,
+		ContractAddress:   addr.Local,
+		LogsBloom:         bloom.GenBloomFilter(events),
+		Status:            status,
+		CallerAddress:     caller.MarshalPB(),
+	}
+
+	preTxReceipt, err := proto.Marshal(&txReceipt)
+	if err != nil {
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
+	}
+	h := sha256.New()
+	h.Write(preTxReceipt)
+	txReceipt.TxHash = h.Sum(nil)
+
+	txReceipt.Logs = append(txReceipt.Logs, createEventLogs(&txReceipt, block, events, eventHandler)...)
+	txReceipt.TransactionIndex = block.NumTxs - 1
+	return txReceipt, nil
+}
+
+func createEventLogs(
+	txReceipt *types.EvmTxReceipt,
+	block loom.BlockHeader,
+	events []*types.EventData,
+	eventHandler loomchain.EventHandler,
+) []*types.EventData {
+	logs := make([]*types.EventData, 0, len(events))
+	for _, event := range events {
+		event.TxHash = txReceipt.TxHash
+		if eventHandler != nil {
+			_ = eventHandler.Post(uint64(txReceipt.BlockNumber), event)
+		}
+
+		pEvent := types.EventData(*event)
+		pEvent.BlockHash = block.CurrentHash
+		pEvent.TransactionIndex = uint64(block.NumTxs - 1)
+		logs = append(logs, &pEvent)
+	}
+	return logs
 }

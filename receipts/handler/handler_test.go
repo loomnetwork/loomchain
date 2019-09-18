@@ -105,6 +105,6 @@ func TestReceiptsHandlerChain(t *testing.T) {
 		require.EqualValues(t, common.StatusTxSuccess, txReceipt.Status)
 	}
 
-	require.NoError(t, receiptHandler.Close())
+	receiptHandler.Close()
 	require.NoError(t, receiptHandler.ClearData())
 }

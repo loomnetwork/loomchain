@@ -8,8 +8,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
-	goleveldb "github.com/syndtr/goleveldb/leveldb"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -18,6 +17,11 @@ var (
 	BloomPrefix  = []byte("bf")
 	TxHashPrefix = []byte("th")
 	txRefPrefix  = []byte("txr")
+
+	// keys to receipts linked list
+	headKey          = []byte("leveldb:head")
+	tailKey          = []byte("leveldb:tail")
+	currentDbSizeKey = []byte("leveldb:size")
 )
 
 func bloomFilterKey(height uint64) []byte {
@@ -34,12 +38,18 @@ func blockHeightToBytes(height uint64) []byte {
 	return heightB
 }
 
-func LoadStore() (*EvmAuxStore, error) {
-	evmAuxDB, err := goleveldb.OpenFile(EvmAuxDBName, nil)
-	if err != nil {
-		return nil, err
+func LoadStore(dbName, rootPath string, maxReceipts uint64, inMemory bool) (*EvmAuxStore, error) {
+	var db dbm.DB
+	if inMemory {
+		db = dbm.NewMemDB()
+	} else {
+		evmAuxDB, err := dbm.NewGoLevelDB(dbName, rootPath)
+		if err != nil {
+			return nil, err
+		}
+		db = evmAuxDB
 	}
-	return NewEvmAuxStore(evmAuxDB), nil
+	return NewEvmAuxStore(db, maxReceipts), nil
 }
 
 // ChildTxRef links a Tendermint tx hash to an EVM tx hash.
@@ -49,51 +59,49 @@ type ChildTxRef struct {
 }
 
 type EvmAuxStore struct {
-	db *leveldb.DB
+	db          dbm.DB
+	maxReceipts uint64
 }
 
-func NewEvmAuxStore(db *leveldb.DB) *EvmAuxStore {
-	return &EvmAuxStore{db: db}
+func NewEvmAuxStore(db dbm.DB, maxReceipts uint64) *EvmAuxStore {
+	return &EvmAuxStore{
+		db:          db,
+		maxReceipts: maxReceipts,
+	}
 }
 
-func (s *EvmAuxStore) Close() error {
-	return s.db.Close()
+func (s *EvmAuxStore) Close() {
+	s.db.Close()
 }
 
 func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {
-	filter, err := s.db.Get(bloomFilterKey(height), nil)
-	if err != nil && err != leveldb.ErrNotFound {
-		panic(err)
-	}
-	if err == leveldb.ErrNotFound {
+	filter := s.db.Get(bloomFilterKey(height))
+	if len(filter) == 0 {
 		return nil
 	}
 	return filter
 }
 
 func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
-	protHashList, err := s.db.Get(evmTxHashKey(height), nil)
-	if err != nil && err != leveldb.ErrNotFound {
-		return nil, err
-	}
-	if err == leveldb.ErrNotFound {
+	protHashList := s.db.Get(evmTxHashKey(height))
+	if len(protHashList) == 0 {
 		return [][]byte{}, nil
 	}
 	txHashList := types.EthTxHashList{}
-	err = proto.Unmarshal(protHashList, &txHashList)
+	err := proto.Unmarshal(protHashList, &txHashList)
 	return txHashList.EthTxHash, err
 }
 
-func (s *EvmAuxStore) SetBloomFilter(tran *leveldb.Transaction, filter []byte, height uint64) error {
-	return tran.Put(bloomFilterKey(height), filter, nil)
+func (s *EvmAuxStore) SetBloomFilter(batch dbm.Batch, filter []byte, height uint64) {
+	s.db.Set(bloomFilterKey(height), filter)
 }
 
-func (s *EvmAuxStore) SetTxHashList(tran *leveldb.Transaction, txHashList [][]byte, height uint64) error {
+func (s *EvmAuxStore) SetTxHashList(batch dbm.Batch, txHashList [][]byte, height uint64) error {
 	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}
-	tran.Put(evmTxHashKey(height), postTxHashList, nil)
+	s.db.Set(evmTxHashKey(height), postTxHashList)
 	return nil
 }
 
@@ -102,32 +110,24 @@ func (s *EvmAuxStore) SaveChildTxRefs(refs []ChildTxRef) error {
 	if len(refs) == 0 {
 		return nil
 	}
-
-	tran, err := s.db.OpenTransaction()
-	if err != nil {
-		return errors.Wrap(err, "failed to open tx in EvmAuxStore")
-	}
-	defer tran.Discard()
-
+	batch := s.db.NewBatch()
+	defer batch.Close()
 	for _, ref := range refs {
-		tran.Put(util.PrefixKey(txRefPrefix, ref.ParentTxHash), ref.ChildTxHash, nil)
+		batch.Set(util.PrefixKey(txRefPrefix, ref.ParentTxHash), ref.ChildTxHash)
 	}
-
-	if err := tran.Commit(); err != nil {
-		return errors.Wrap(err, "failed to commit tx in EvmAuxStore")
-	}
-
+	batch.Write()
 	return nil
 }
 
 // GetChildTxHash looks up the EVM tx hash that corresponds to the given Tendermint tx hash.
-func (s *EvmAuxStore) GetChildTxHash(parentTxHash []byte) ([]byte, error) {
-	return s.db.Get(util.PrefixKey(txRefPrefix, parentTxHash), nil)
+func (s *EvmAuxStore) GetChildTxHash(parentTxHash []byte) []byte {
+	return s.db.Get(util.PrefixKey(txRefPrefix, parentTxHash))
 }
 
-func (s *EvmAuxStore) DB() *leveldb.DB {
+func (s *EvmAuxStore) DB() dbm.DB {
 	return s.db
 }
+
 func (s *EvmAuxStore) ClearData() {
 	os.RemoveAll(EvmAuxDBName)
 }

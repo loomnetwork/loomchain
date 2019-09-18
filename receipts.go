@@ -22,7 +22,7 @@ type ReceiptHandlerStore interface {
 	CommitCurrentReceipt()
 	DiscardCurrentReceipt()
 	ClearData() error
-	Close() error
+	Close()
 }
 
 type ReceiptHandlerProvider interface {

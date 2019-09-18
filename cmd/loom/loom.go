@@ -36,7 +36,6 @@ import (
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/features"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/loomnetwork/loomchain/chainconfig"
@@ -589,7 +588,10 @@ func destroyApp(cfg *config.Config) error {
 
 func destroyReceiptsDB(cfg *config.Config) {
 	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb || cfg.ReceiptsVersion == 3 {
-		receptHandler := leveldb.LevelDbReceipts{}
+		receptHandler, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax, false)
+		if err != nil {
+			panic(err)
+		}
 		receptHandler.ClearData()
 	}
 }
@@ -773,7 +775,7 @@ func loadApp(
 	}
 
 	// load EVM Auxiliary Store
-	evmAuxStore, err := evmaux.LoadStore()
+	evmAuxStore, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax, false)
 	if err != nil {
 		return nil, err
 	}

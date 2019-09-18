@@ -96,7 +96,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
 	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
 
-	require.NoError(t, receiptHandler.Close())
+	receiptHandler.Close()
 }
 
 func TestMatchFilters(t *testing.T) {
@@ -231,5 +231,5 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.Equal(t, len(logs[0].Topics), 4)
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
-	require.NoError(t, receiptHandler.Close())
+	receiptHandler.Close()
 }
