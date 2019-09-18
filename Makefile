@@ -98,22 +98,19 @@ contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/plasma_cash/plugin
 
 tgoracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+	cd $(TRANSFER_GATEWAY_DIR) && make tgoracle
 
 loomcoin_tgoracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+	cd $(TRANSFER_GATEWAY_DIR) && make loomcoin_tgoracle
 
 tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+	cd $(TRANSFER_GATEWAY_DIR) && make tron_tgoracle
 
 binance_tgoracle: $(BINANCE_TGORACLE_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_BINANCE_TRORACLE)/cmd/$@
+	cd $(BINANCE_TGORACLE_DIR) && make binance_tgoracle
 
 pcoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
-
-dposv2_oracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@

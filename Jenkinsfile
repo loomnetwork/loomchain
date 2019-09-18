@@ -49,7 +49,6 @@ builders['linux'] = {
               gsutil cp tgoracle gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/tgoracle
               gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/loomcoin_tgoracle
               gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/tron_tgoracle
-              gsutil cp dposv2_oracle gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/dposv2_oracle
               gsutil cp loom-generic gs://downloads.loomx.io/loom/linux/latest/loom
               gsutil cp loom-gateway gs://downloads.loomx.io/loom/linux/latest/loom-gateway
               gsutil cp loom-cleveldb gs://downloads.loomx.io/loom/linux/latest/loom-cleveldb
@@ -59,7 +58,6 @@ builders['linux'] = {
               gsutil cp tgoracle gs://downloads.loomx.io/loom/linux/latest/tgoracle
               gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/linux/latest/loomcoin_tgoracle
               gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/linux/latest/tron_tgoracle
-              gsutil cp dposv2_oracle gs://downloads.loomx.io/loom/linux/latest/dposv2_oracle
               gsutil cp install.sh gs://downloads.loomx.io/install.sh
               docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
               docker tag loomnetwork/loom:latest loomnetwork/loom:${BUILD_NUMBER}
@@ -129,7 +127,6 @@ builders['osx'] = {
               gsutil cp tgoracle gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/tgoracle
               gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/loomcoin_tgoracle
               gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/tron_tgoracle
-              gsutil cp dposv2_oracle gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/dposv2_oracle
               gsutil cp loom-generic gs://downloads.loomx.io/loom/osx/latest/loom
               gsutil cp loom-gateway gs://downloads.loomx.io/loom/osx/latest/loom-gateway
               gsutil cp loom-cleveldb gs://downloads.loomx.io/loom/osx/latest/loom-cleveldb
@@ -139,7 +136,6 @@ builders['osx'] = {
               gsutil cp tgoracle gs://downloads.loomx.io/loom/osx/latest/tgoracle
               gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/osx/latest/loomcoin_tgoracle
               gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/osx/latest/tron_tgoracle
-              gsutil cp dposv2_oracle gs://downloads.loomx.io/loom/osx/latest/dposv2_oracle
             '''
           }
         }
