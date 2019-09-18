@@ -794,3 +794,31 @@ func (a *Application) ReadOnlyState() State {
 		a.GetValidatorSet,
 	)
 }
+
+func (a *Application) InMemoryApp(height uint64) InMemoryApp {
+	return NewInMemoryApp(a, height)
+}
+
+type InMemoryApp interface {
+	ProcessTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+}
+
+type inMemoryApp struct {
+	app *Application
+}
+
+func NewInMemoryApp(a *Application, height uint64) InMemoryApp {
+	app := Application{
+		lastBlockHeader: a.lastBlockHeader,
+		curBlockHeader:  a.curBlockHeader,
+		curBlockHash:    a.curBlockHash,
+		Store:           store.NewSplitStore(store.NewMemStore(), a.Store),
+		TxHandler:       a.TxHandler,
+		ReceiptsVersion: a.ReceiptsVersion,
+	}
+	return &inMemoryApp{&app}
+}
+
+func (ma *inMemoryApp) ProcessTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	return ma.app.processTx(txBytes, isCheckTx)
+}

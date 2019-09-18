@@ -89,7 +89,19 @@ type stateProvider struct {
 	ChainID string
 }
 
-func (s *stateProvider) ReadOnlyState() loomchain.State {
+func (s *stateProvider) MemoryApp() loomchain.State {
+	return loomchain.NewStoreState(
+		nil,
+		store.NewMemStore(),
+		abci.Header{
+			ChainID: s.ChainID,
+		},
+		nil,
+		nil,
+	)
+}
+
+func (s *stateProvider) MemoryState() loomchain.State {
 	return loomchain.NewStoreState(
 		nil,
 		store.NewMemStore(),

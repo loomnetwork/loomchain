@@ -58,6 +58,7 @@ const (
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
+	InMemoryApp(uint64) loomchain.InMemoryApp
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -1087,9 +1088,7 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config debug.JsonTrac
 	if err != nil {
 		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
 	}
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-	return debug.TraceTransaction(snapshot, blockNumber, txIndex, config)
+	return debug.TraceTransaction(s.InMemoryApp(blockNumber), s.BlockStore, int64(blockNumber), txIndex, config)
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
