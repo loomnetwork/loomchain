@@ -43,6 +43,7 @@ mv loomcoin_tgoracle $LOOM_SRC/loomcoin_tgoracle
 # don't care about dpos oracle, don't need to move it
 
 # build the various loom node variants
+cd $LOOM_SRC
 make basechain
 # copy the generic loom binary so it can be published later, the loom binary will be replaced by the
 # gateway variant when make loom-gateway executes
