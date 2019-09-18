@@ -382,6 +382,8 @@ loom gateway list-contract-mappings --json
 
 func newListContractMappingsCommand() *cobra.Command {
 	var gatewayType string
+	var formatJson bool
+	var formatRaw bool
 	cmd := &cobra.Command{
 		Use:     "list-contract-mappings",
 		Short:   "List all contract mappings",
@@ -417,7 +419,7 @@ func newListContractMappingsCommand() *cobra.Command {
 				Status int
 			}
 
-			if gatewayCmdFlags.FormatJSON {
+			if formatJson {
 				mappingData := &MappingData{
 					Data:    make([]FormattedMapping, 0),
 					Pending: make([]FormattedMapping, 0),
@@ -440,7 +442,7 @@ func newListContractMappingsCommand() *cobra.Command {
 				}
 				fmt.Println(string(bytes))
 				return nil
-			} else if gatewayCmdFlags.FormatRaw {
+			} else if formatRaw {
 				out, err := formatJSON(resp)
 				if err != nil {
 					return err
@@ -478,6 +480,8 @@ func newListContractMappingsCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	cmdFlags.BoolVar(&formatRaw, "raw", false, "Raw output format")
+	cmdFlags.BoolVar(&formatJson, "json", false, "JSON output format")
 	return cmd
 }
 

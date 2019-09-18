@@ -12,8 +12,6 @@ type gatewayFlags struct {
 	PrivKeyPath    string
 	EthPrivKeyPath string
 	Algo           string
-	FormatRaw      bool
-	FormatJSON     bool
 }
 
 var gatewayCmdFlags gatewayFlags
@@ -30,8 +28,6 @@ func newRootCommand() *cobra.Command {
 	pflags.StringVarP(&gatewayCmdFlags.EthPrivKeyPath, "eth-key", "", "", "Ethereum Private Key file path")
 	pflags.StringVarP(&gatewayCmdFlags.HSMConfigPath, "hsm", "", "", "HSM file path")
 	pflags.StringVarP(&gatewayCmdFlags.Algo, "algo", "", "ed25519", "Signing algorithm")
-	pflags.BoolVar(&gatewayCmdFlags.FormatRaw, "raw", false, "Raw output format")
-	pflags.BoolVar(&gatewayCmdFlags.FormatJSON, "json", false, "JSON output format")
 	return cmd
 }
 
