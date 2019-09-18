@@ -1,8 +1,6 @@
-const { toHexString} = require('./helpers')
 const Web3 = require('web3')
 const fs = require('fs')
 const path = require('path')
-
 const EthereumTx = require('ethereumjs-tx').Transaction
 
 const {
@@ -53,7 +51,7 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
         }
 
         let tx = new EthereumTx(txParams)
-        let expectedTxHash = toHexString(tx.hash())
+        let expectedTxHash = Buffer.from(tx.hash()).toString('hex')
        
         try {
             var txResult = await contract.methods.set(1111).send()
@@ -72,7 +70,7 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
         }
 
         tx = new EthereumTx(txParams)
-        expectedTxHash = toHexString(tx.hash())
+        expectedTxHash = Buffer.from(tx.hash()).toString('hex')
         
         try {
             var txResult = await contract.methods.set(2222).send()
