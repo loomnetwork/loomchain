@@ -403,37 +403,29 @@ func newListContractMappingsCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to call gateway.ListContractMapping")
 			}
 
-			type FormattedMapping struct {
-				Local   string `json:local`
-				Foreign string `json:foreign`
-			}
-
-			type MappingData struct {
-				Data    []FormattedMapping `json:data`
-				Pending []FormattedMapping `json:pending`
-			}
-
-			type maxLength struct {
-				From   int
-				To     int
-				Status int
-			}
-
 			if formatJson {
-				mappingData := &MappingData{
-					Data:    make([]FormattedMapping, 0),
-					Pending: make([]FormattedMapping, 0),
+				type formattedMapping struct {
+					Local   string `json:"local"`
+					Foreign string `json:"foreign"`
+				}
+
+				mappingData := struct {
+					Confirmed []formattedMapping `json:"confirmed"`
+					Pending   []formattedMapping `json:"pending"`
+				}{
+					Confirmed: make([]formattedMapping, 0, len(resp.ConfimedMappings)),
+					Pending:   make([]formattedMapping, 0, len(resp.PendingMappings)),
 				}
 				for _, value := range resp.ConfimedMappings {
-					mappingData.Data = append(mappingData.Data, FormattedMapping{
-						Local:   "0x" + value.From.Local.Hex(),
-						Foreign: "0x" + value.To.Local.Hex(),
+					mappingData.Confirmed = append(mappingData.Confirmed, formattedMapping{
+						Local:   loom.UnmarshalAddressPB(value.From).Local.String(),
+						Foreign: loom.UnmarshalAddressPB(value.To).Local.String(),
 					})
 				}
 				for _, value := range resp.PendingMappings {
-					mappingData.Pending = append(mappingData.Pending, FormattedMapping{
-						Local:   "0x" + value.LocalContract.Local.Hex(),
-						Foreign: "0x" + value.ForeignContract.Local.Hex(),
+					mappingData.Pending = append(mappingData.Pending, formattedMapping{
+						Local:   loom.UnmarshalAddressPB(value.LocalContract).Local.String(),
+						Foreign: loom.UnmarshalAddressPB(value.ForeignContract).Local.String(),
 					})
 				}
 				bytes, err := json.MarshalIndent(mappingData, "", "  ")
@@ -449,7 +441,15 @@ func newListContractMappingsCommand() *cobra.Command {
 				}
 				fmt.Println(out)
 			} else {
-				ml := maxLength{From: 50, To: 50, Status: 9}
+				ml := struct {
+					From   int
+					To     int
+					Status int
+				}{
+					From:   50,
+					To:     50,
+					Status: 9,
+				}
 				for _, value := range resp.PendingMappings {
 					if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
 						ml.From = len(loom.UnmarshalAddressPB(value.ForeignContract).String())
@@ -480,8 +480,8 @@ func newListContractMappingsCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
-	cmdFlags.BoolVar(&formatRaw, "raw", false, "Raw output format")
-	cmdFlags.BoolVar(&formatJson, "json", false, "JSON output format")
+	cmdFlags.BoolVar(&formatRaw, "raw", false, "Ouput raw JSON")
+	cmdFlags.BoolVar(&formatJson, "json", false, "Output prettified JSON")
 	return cmd
 }
 
