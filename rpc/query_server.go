@@ -37,6 +37,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
@@ -1071,6 +1072,24 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 
 func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
+}
+
+func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config debug.JsonTraceConfig) (interface{}, error) {
+	receipt, err := s.EthGetTransactionReceipt(hash)
+	if err != nil {
+		return nil, errors.Wrap(err, "cant find transaction matching hash")
+	}
+	blockNumber, err := eth.DecQuantityToUint(receipt.BlockNumber)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cant parse block number %v", receipt.BlockNumber)
+	}
+	txIndex, err := eth.DecQuantityToUint(receipt.TransactionIndex)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
+	}
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return debug.TraceTransaction(snapshot, blockNumber, txIndex, config)
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
