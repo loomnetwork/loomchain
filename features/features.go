@@ -55,6 +55,9 @@ const (
 	// Enables saving of EVM tx receipts for failed EVM calls
 	EvmTxReceiptsVersion3_1 = "receipts:v3.1"
 
+	// Enables switching to an alternative algo for EVM tx hash generation
+	EvmTxReceiptsVersion3_2 = "receipts:v3.2"
+
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"
