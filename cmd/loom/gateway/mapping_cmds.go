@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -375,7 +376,9 @@ func newMapAccountsCommand() *cobra.Command {
 }
 
 const ListContractMappingCmdExample = `
-loom gateway list-contract-mappings <output-format>?
+loom gateway list-contract-mappings
+loom gateway list-contract-mappings --raw true
+loom gateway list-contract-mappings --json true
 `
 
 func newListContractMappingsCommand() *cobra.Command {
@@ -398,11 +401,22 @@ func newListContractMappingsCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to call gateway.ListContractMapping")
 			}
+
+			type FormattedMapping struct {
+				Local   string `json:local`
+				Foreign string `json:foreign`
+			}
+
+			type MappingData struct {
+				Data []FormattedMapping `json:data`
+			}
+
 			type maxLength struct {
 				From   int
 				To     int
 				Status int
 			}
+
 			ml := maxLength{From: 50, To: 50, Status: 9}
 			for _, value := range resp.PendingMappings {
 				if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
@@ -421,8 +435,12 @@ func newListContractMappingsCommand() *cobra.Command {
 				}
 			}
 
-			if len(args) > 0 {
-				if args[0] == "json" {
+			if gatewayCmdFlags.FormatJSON != "" {
+				ok, err := strconv.ParseBool(gatewayCmdFlags.FormatJSON)
+				if err != nil {
+					return err
+				}
+				if ok {
 					var mappingData MappingData
 					for _, value := range resp.ConfimedMappings {
 						mappingData.Data = append(mappingData.Data, FormattedMapping{
@@ -435,8 +453,19 @@ func newListContractMappingsCommand() *cobra.Command {
 						return err
 					}
 					fmt.Println(string(bytes))
-				} else {
-					return errors.New("format not supported")
+				}
+				return nil
+			} else if gatewayCmdFlags.FormatRaw != "" {
+				ok, err := strconv.ParseBool(gatewayCmdFlags.FormatRaw)
+				if err != nil {
+					return err
+				}
+				if ok {
+					out, err := formatJSON(resp)
+					if err != nil {
+						return err
+					}
+					fmt.Println(out)
 				}
 			} else {
 				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
@@ -453,15 +482,6 @@ func newListContractMappingsCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
 	return cmd
-}
-
-type FormattedMapping struct {
-	Local   string `json:local`
-	Foreign string `json:foreign`
-}
-
-type MappingData struct {
-	Data []FormattedMapping `json:data`
 }
 
 const getContractMappingCmdExample = `
