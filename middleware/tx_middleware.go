@@ -174,11 +174,11 @@ func PostCommitMiddleWAre(cfg *config.Config, vmManager *vm.Manager) ([]loomchai
 	return postCommitMiddlewares, nil
 }
 
-type contextFactory func(s state.State) (contractpb.Context, error)
+type ContextFactory func(s state.State) (contractpb.Context, error)
 
-type staticContextFactory func(s state.State) (contractpb.StaticContext, error)
+type StaticContextFactory func(s state.State) (contractpb.StaticContext, error)
 
-func GetContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
+func GetContractCtx(pluginName string, vmManager *vm.Manager) ContextFactory {
 	return func(s state.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, s)
 		if err != nil {
@@ -188,7 +188,7 @@ func GetContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	}
 }
 
-func GetContractStaticCtx(pluginName string, vmManager *vm.Manager) staticContextFactory {
+func GetContractStaticCtx(pluginName string, vmManager *vm.Manager) StaticContextFactory {
 	return func(s state.State) (contractpb.StaticContext, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, s)
 		if err != nil {
