@@ -47,6 +47,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	}
 	state := makeMockState(t, receiptHandler)
 	ethFilter, err := eth.DecLogFilter(allFilter)
+	require.NoError(t, err)
 	id, err := sub.AddLogPoll(ethFilter, 1)
 	require.NoError(t, err)
 
@@ -80,7 +81,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 	evmAuxStore.ClearData()
@@ -125,7 +126,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -260,7 +261,8 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) state.S
 		},
 	}
 	state4 := common.MockStateAt(state, 4)
-	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
+
+	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(4))
@@ -273,7 +275,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) state.S
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	_, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil)
+	_, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
@@ -286,7 +288,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) state.S
 		},
 	}
 	state25 := common.MockStateAt(state, 25)
-	_, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil)
+	_, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(25))
@@ -299,7 +301,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) state.S
 		},
 	}
 	state30 := common.MockStateAt(state, 30)
-	_, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil)
+	_, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(30))
@@ -313,7 +315,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) state.S
 			},
 		}
 		state := common.MockStateAt(state, uint64(height))
-		_, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil)
+		_, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, []byte{})
 		require.NoError(t, err)
 		receiptHandler.CommitCurrentReceipt()
 		require.NoError(t, receiptHandler.CommitBlock(int64(height)))

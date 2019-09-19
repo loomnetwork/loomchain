@@ -215,7 +215,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	ms := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(ms, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(ms, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(1))
@@ -244,7 +244,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	)
 
 	ms := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(ms, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(ms, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, []byte{})
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(ms, 20)

@@ -146,7 +146,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 	createUserDeployerWhitelistCtx func(s state.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	txl := &contractTxLimiter{
-		contractStatsMap: make(map[string]*contractStats, 0),
+		contractStatsMap: make(map[string]*contractStats),
 	}
 	return loomchain.TxMiddlewareFunc(func(
 		s state.State,

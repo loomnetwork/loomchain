@@ -69,6 +69,7 @@ func TestBenchmark(t *testing.T) {
 	t.Run("MaxVers", benchMaxVersions)
 
 	files, err := ioutil.ReadDir("./testdata")
+	require.NoError(t, err)
 	for _, f := range files {
 		if !f.IsDir() {
 			continue
@@ -150,6 +151,7 @@ func timeIavlStore(b require.TestingT, name string, fn benchFunc) {
 	}
 	if checkDb {
 		diskDb, err := db.NewGoLevelDB(name, "./testdata")
+		require.NoError(b, err)
 		diskTree := iavl.NewMutableTree(diskDb, 0)
 		_, err = diskTree.Load()
 		require.NoError(b, err)

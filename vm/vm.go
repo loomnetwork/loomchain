@@ -13,6 +13,7 @@ type VM interface {
 	Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error)
 	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	GetCode(addr loom.Address) ([]byte, error)
+	GetStorageAt(addr loom.Address, hash []byte) ([]byte, error)
 }
 
 type Factory func(state.State) (VM, error)

@@ -1,8 +1,9 @@
 package subs
 
 import (
-	"github.com/phonkee/go-pubsub"
 	"sync"
+
+	"github.com/phonkee/go-pubsub"
 )
 
 // hub implements Hub interface
@@ -39,6 +40,7 @@ func (h *ethResetHub) closeSubscription(id string) {
 
 // Publish publishes message to subscribers
 func (h *ethResetHub) Publish(message pubsub.Message) int {
+	// FIXME: wtf is this a read lock when it's writing to h.unsent?
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 	count := 0
