@@ -21,6 +21,7 @@ linters:
     - stylecheck
     - dupl
     - prealloc # re-enable later when we quash the more annoying stuff
+    - funlen
 linters-settings:
 #   govet:
 #     check-shadowing: true
