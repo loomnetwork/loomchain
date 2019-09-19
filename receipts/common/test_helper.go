@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	"crypto/sha256"
-	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -71,7 +70,6 @@ func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
 }
 
 func NewMockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
-	os.RemoveAll(evmaux.EvmAuxDBName)
 	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	return evmAuxStore, nil
 }

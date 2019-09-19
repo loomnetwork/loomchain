@@ -157,8 +157,8 @@ func (r *ReceiptHandler) CacheReceipt(
 		status = common.StatusTxFail
 	}
 	receipt, err := writeReceipt(
-		state.Block(), caller, addr, events, status,
-		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
+		state.Block(), caller, addr, events, status, r.eventHandler,
+		int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)), txHash,
 	)
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")
@@ -175,6 +175,7 @@ func writeReceipt(
 	eventHandler loomchain.EventHandler,
 	evmTxIndex int32,
 	nonce int64,
+	txHash []byte,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
 		Nonce:             nonce,
@@ -189,13 +190,17 @@ func writeReceipt(
 		CallerAddress:     caller.MarshalPB(),
 	}
 
-	preTxReceipt, err := proto.Marshal(&txReceipt)
-	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
+	if len(txHash) == 0 {
+		preTxReceipt, err := proto.Marshal(&txReceipt)
+		if err != nil {
+			return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
+		}
+		h := sha256.New()
+		h.Write(preTxReceipt)
+		txReceipt.TxHash = h.Sum(nil)
+	} else {
+		txReceipt.TxHash = txHash
 	}
-	h := sha256.New()
-	h.Write(preTxReceipt)
-	txReceipt.TxHash = h.Sum(nil)
 
 	txReceipt.Logs = append(txReceipt.Logs, createEventLogs(&txReceipt, block, events, eventHandler)...)
 	txReceipt.TransactionIndex = block.NumTxs - 1

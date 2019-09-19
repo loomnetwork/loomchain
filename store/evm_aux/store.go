@@ -3,6 +3,7 @@ package evmaux
 import (
 	"encoding/binary"
 	"os"
+	"path/filepath"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	EvmAuxDBName = "receipts_db"
+	legacyEvmAuxDBName = "receipts_db"
 
 	BloomPrefix  = []byte("bf")
 	TxHashPrefix = []byte("th")
@@ -39,9 +40,8 @@ func blockHeightToBytes(height uint64) []byte {
 }
 
 func renameReceiptsDB(path, newName string) error {
-	oldName := "receipts_db"
-	if _, err := os.Stat(path + "/" + oldName); !os.IsNotExist(err) {
-		err := os.Rename(oldName, newName+".db")
+	if _, err := os.Stat(filepath.Join(path, legacyEvmAuxDBName)); !os.IsNotExist(err) {
+		err := os.Rename(filepath.Join(path, legacyEvmAuxDBName), filepath.Join(path, newName+".db"))
 		if err != nil {
 			return err
 		}
@@ -137,5 +137,5 @@ func (s *EvmAuxStore) DB() dbm.DB {
 }
 
 func (s *EvmAuxStore) ClearData() {
-	os.RemoveAll(EvmAuxDBName)
+	os.RemoveAll(legacyEvmAuxDBName)
 }
