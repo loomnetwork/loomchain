@@ -17,6 +17,7 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -749,6 +750,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
+		// if the receipt is not found, create it from TxObj
 		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
@@ -1053,6 +1055,36 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 	}
 
 	return eth.EncBigInt(*amount.Int), nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getStorageAt
+func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth.BlockHeight) (eth.Data, error) {
+	address, err := eth.DecDataToAddress(s.ChainID, local)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to decode address parameter %v", local)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	if block == "" {
+		block = "latest"
+	}
+
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid block height %s", block)
+	}
+	if int64(height) != snapshot.Block().Height {
+		return "", errors.Wrapf(err, "unable to get storage at height %v", block)
+	}
+
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get EVM storage at %v", address.Local.String())
+	}
+	return eth.EncBytes(storage), nil
 }
 
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {

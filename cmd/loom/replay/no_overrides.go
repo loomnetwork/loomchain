@@ -1,4 +1,4 @@
-// +build !plasmachain
+// +build !basechain
 
 package replay
 
