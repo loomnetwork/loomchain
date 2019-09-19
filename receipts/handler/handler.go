@@ -20,7 +20,6 @@ type ReceiptHandlerVersion int32
 
 const (
 	ReceiptHandlerLevelDb = 2 //ctypes.ReceiptStorage_LEVELDB
-	DefaultMaxReceipts    = uint64(2000)
 )
 
 // ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
@@ -36,8 +35,7 @@ type ReceiptHandler struct {
 }
 
 func NewReceiptHandler(
-	eventHandler loomchain.EventHandler,
-	maxReceipts uint64, evmAuxStore *evmaux.EvmAuxStore,
+	eventHandler loomchain.EventHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) *ReceiptHandler {
 	return &ReceiptHandler{
 		eventHandler:   eventHandler,

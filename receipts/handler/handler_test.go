@@ -27,7 +27,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
-	handler := NewReceiptHandler(&loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
+	handler := NewReceiptHandler(&loomchain.DefaultEventHandler{}, evmAuxStore)
 
 	var writer loomchain.WriteReceiptHandler = handler
 	var reader loomchain.ReadReceiptHandler = handler

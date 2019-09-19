@@ -58,7 +58,6 @@ import (
 	"github.com/loomnetwork/loomchain/migrations"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/loomnetwork/loomchain/receipts/handler"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -587,8 +586,8 @@ func destroyApp(cfg *config.Config) error {
 }
 
 func destroyReceiptsDB(cfg *config.Config) {
-	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb || cfg.ReceiptsVersion == 3 {
-		receptHandler, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax)
+	if cfg.ReceiptsVersion == 2 || cfg.ReceiptsVersion == 3 {
+		receptHandler, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EvmAuxStore.MaxReceipts)
 		if err != nil {
 			panic(err)
 		}
@@ -775,12 +774,12 @@ func loadApp(
 	}
 
 	// load EVM Auxiliary Store
-	evmAuxStore, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax)
+	evmAuxStore, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EvmAuxStore.MaxReceipts)
 	if err != nil {
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, cfg.EVMPersistentTxReceiptsMax, evmAuxStore)
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {

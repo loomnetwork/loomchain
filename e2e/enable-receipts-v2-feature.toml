@@ -38,6 +38,6 @@
  [[TestCases]]
    RunCmd = "/bin/ls ./0"
    Condition = "contains"
-   Expected = ['receipts_db']
+   Expected = ['evmaux.db']
 
 

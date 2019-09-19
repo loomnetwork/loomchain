@@ -208,7 +208,6 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
-		handler.DefaultMaxReceipts,
 		evmAuxStore,
 	)
 	require.NoError(t, err)
@@ -238,7 +237,6 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
-		handler.DefaultMaxReceipts,
 		evmAuxStore,
 	)
 

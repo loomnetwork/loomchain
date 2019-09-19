@@ -18,7 +18,6 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
-	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
@@ -37,10 +36,9 @@ type (
 )
 type Config struct {
 	// Cluster
-	ChainID                    string
-	RegistryVersion            int32
-	ReceiptsVersion            int32
-	EVMPersistentTxReceiptsMax uint64
+	ChainID         string
+	RegistryVersion int32
+	ReceiptsVersion int32
 
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
@@ -357,34 +355,33 @@ func ReadGenesis(path string) (*Genesis, error) {
 
 func DefaultConfig() *Config {
 	cfg := &Config{
-		RootDir:                    ".",
-		DBName:                     "app",
-		DBBackend:                  db.GoLevelDBBackend,
-		GenesisFile:                "genesis.json",
-		PluginsDir:                 "contracts",
-		RPCListenAddress:           "tcp://127.0.0.1:46657", // TODO this is an ephemeral port in linux, we should move this
-		ContractLogLevel:           "info",
-		LoomLogLevel:               "info",
-		LogDestination:             "",
-		BlockchainLogLevel:         "error",
-		Peers:                      "",
-		PersistentPeers:            "",
-		ChainID:                    "",
-		RPCProxyPort:               46658,
-		RPCBindAddress:             "tcp://0.0.0.0:46658",
-		UnsafeRPCEnabled:           false,
-		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
-		CreateEmptyBlocks:          true,
-		ContractLoaders:            []string{"static"},
-		LogStateDB:                 false,
-		LogEthDbBatch:              false,
-		RegistryVersion:            int32(registry.RegistryV2),
-		ReceiptsVersion:            int32(receipts.ReceiptHandlerLevelDb),
-		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
-		SessionDuration:            600,
-		EVMAccountsEnabled:         false,
-		EVMDebugEnabled:            false,
-		SampleGoContractEnabled:    false,
+		RootDir:                 ".",
+		DBName:                  "app",
+		DBBackend:               db.GoLevelDBBackend,
+		GenesisFile:             "genesis.json",
+		PluginsDir:              "contracts",
+		RPCListenAddress:        "tcp://127.0.0.1:46657", // TODO this is an ephemeral port in linux, we should move this
+		ContractLogLevel:        "info",
+		LoomLogLevel:            "info",
+		LogDestination:          "",
+		BlockchainLogLevel:      "error",
+		Peers:                   "",
+		PersistentPeers:         "",
+		ChainID:                 "",
+		RPCProxyPort:            46658,
+		RPCBindAddress:          "tcp://0.0.0.0:46658",
+		UnsafeRPCEnabled:        false,
+		UnsafeRPCBindAddress:    "tcp://127.0.0.1:26680",
+		CreateEmptyBlocks:       true,
+		ContractLoaders:         []string{"static"},
+		LogStateDB:              false,
+		LogEthDbBatch:           false,
+		RegistryVersion:         int32(registry.RegistryV2),
+		ReceiptsVersion:         3,
+		SessionDuration:         600,
+		EVMAccountsEnabled:      false,
+		EVMDebugEnabled:         false,
+		SampleGoContractEnabled: false,
 
 		Oracle:                 "",
 		DeployEnabled:          true,
@@ -508,7 +505,6 @@ const defaultLoomYamlTemplate = `# Loom Node config file
 ChainID: "{{ .ChainID }}"
 RegistryVersion: {{ .RegistryVersion }}
 ReceiptsVersion: {{ .ReceiptsVersion }}
-EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
@@ -723,6 +719,18 @@ EvmStore:
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
 {{end}}
 
+#
+# EvmAuxStore
+#
+EvmAuxStore:
+  # DBName defines evm auxiliary database file name
+  DBName: {{.EvmAuxStore.DBName}}
+  # DBBackend defines backend EVM auxiliary store type
+  # available backend types are 'goleveldb', or 'cleveldb'
+  DBBackend: {{.EvmAuxStore.DBBackend}}
+  # MaxReceipts defines the maximum number of EVM tx receipts stored in EVM auxiliary store
+  MaxReceipts: {{.EvmStore.CacheSizeMegs}}
+{{end}}
 # 
 #  FnConsensus reactor on/off switch + config
 #

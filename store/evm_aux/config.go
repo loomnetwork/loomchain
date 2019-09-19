@@ -6,15 +6,15 @@ type EvmAuxStoreConfig struct {
 	// DBBackend defines backend EVM store type
 	// available backend types are 'goleveldb', or 'cleveldb'
 	DBBackend string
-	// Persist data in database
-	PersistData bool
+	// MaxReceipts defines the maximum number of EVM tx receipts stored in EVM auxiliary store
+	MaxReceipts uint64
 }
 
 func DefaultEvmAuxStoreConfig() *EvmAuxStoreConfig {
 	return &EvmAuxStoreConfig{
 		DBName:      "evmaux",
 		DBBackend:   "goleveldb",
-		PersistData: true,
+		MaxReceipts: 5000,
 	}
 }
 

@@ -50,6 +50,10 @@ func renameReceiptsDB(path, newName string) error {
 }
 
 func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error) {
+	if maxReceipts == 0 {
+		return NewEvmAuxStore(dbm.NewMemDB(), maxReceipts), nil
+	}
+
 	if err := renameReceiptsDB(rootPath, dbName); err != nil {
 		return nil, err
 	}

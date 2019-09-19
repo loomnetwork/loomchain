@@ -21,13 +21,12 @@ type ReceiptHandlerProvider struct {
 
 func NewReceiptHandlerProvider(
 	eventHandler loomchain.EventHandler,
-	maxPersistentReceipts uint64,
 	evmAuxStore *evmaux.EvmAuxStore,
 ) *ReceiptHandlerProvider {
 	return &ReceiptHandlerProvider{
 		eventHandler: eventHandler,
 		evmAuxStore:  evmAuxStore,
-		handler:      handler.NewReceiptHandler(eventHandler, maxPersistentReceipts, evmAuxStore),
+		handler:      handler.NewReceiptHandler(eventHandler, evmAuxStore),
 	}
 }
 
