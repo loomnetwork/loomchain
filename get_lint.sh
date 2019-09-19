@@ -42,4 +42,4 @@ installFromGithub() {
 }
 
 installFromGithub golangci/golangci-lint v1.18.0 cmd/golangci-lint
-cd $(GOPATH)/bin && chmod +x golangci-lint
+cd "$GOPATH/bin" && chmod +x golangci-lint
