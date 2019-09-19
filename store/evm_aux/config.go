@@ -14,7 +14,7 @@ func DefaultEvmAuxStoreConfig() *EvmAuxStoreConfig {
 	return &EvmAuxStoreConfig{
 		DBName:      "evmaux",
 		DBBackend:   "goleveldb",
-		MaxReceipts: 5000,
+		MaxReceipts: 2000,
 	}
 }
 

@@ -729,7 +729,7 @@ EvmAuxStore:
   # available backend types are 'goleveldb', or 'cleveldb'
   DBBackend: {{.EvmAuxStore.DBBackend}}
   # MaxReceipts defines the maximum number of EVM tx receipts stored in EVM auxiliary store
-  MaxReceipts: {{.EvmStore.CacheSizeMegs}}
+  MaxReceipts: {{.EvmAuxStore.MaxReceipts}}
 {{end}}
 # 
 #  FnConsensus reactor on/off switch + config

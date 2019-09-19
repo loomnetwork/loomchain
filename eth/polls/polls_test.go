@@ -18,7 +18,9 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -31,8 +33,7 @@ func TestLogPoll(t *testing.T) {
 }
 
 func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -91,8 +92,7 @@ func TestTxPoll(t *testing.T) {
 }
 
 func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -130,8 +130,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -205,8 +204,7 @@ func TestTimeout(t *testing.T) {
 }
 
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -323,8 +321,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 }
 
 func TestAddRemove(t *testing.T) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	s := NewEthSubscriptions(evmAuxStore, blockStore)
 

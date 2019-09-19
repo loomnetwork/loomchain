@@ -12,6 +12,11 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
+var (
+	ErrTxReceiptNotFound      = errors.New("Tx receipt not found")
+	ErrPendingReceiptNotFound = errors.New("Pending receipt not found")
+)
+
 const (
 	StatusTxSuccess = int32(1)
 	StatusTxFail    = int32(0)
@@ -19,9 +24,15 @@ const (
 
 func (s *EvmAuxStore) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	txReceiptProto := s.db.Get(txHash)
+	if len(txReceiptProto) == 0 {
+		return types.EvmTxReceipt{}, ErrTxReceiptNotFound
+	}
 	txReceipt := types.EvmTxReceiptListItem{}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
-	return *txReceipt.Receipt, err
+	if err != nil {
+		return types.EvmTxReceipt{}, err
+	}
+	return *txReceipt.Receipt, nil
 }
 
 func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint64) error {
@@ -114,7 +125,6 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		return errors.Wrap(err, "append tx list")
 	}
 	s.SetBloomFilter(batch, filter, height)
-
 	batch.Write()
 	return nil
 }

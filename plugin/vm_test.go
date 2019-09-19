@@ -26,9 +26,11 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -202,8 +204,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 }
 
 func TestGetEvmTxReceipt(t *testing.T) {
-	evmAuxStore, err := rcommon.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	receiptHandler := handler.NewReceiptHandler(
@@ -231,8 +232,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 
 //This test should handle the case of pending transactions being readable
 func TestGetEvmTxReceiptNoCommit(t *testing.T) {
-	evmAuxStore, err := rcommon.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	receiptHandler := handler.NewReceiptHandler(

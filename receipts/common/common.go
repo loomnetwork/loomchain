@@ -1,11 +1,12 @@
 package common
 
 import (
-	"encoding/binary"
+	"context"
 
-	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
@@ -18,17 +19,21 @@ var (
 	ErrPendingReceiptNotFound = errors.New("Pending receipt not found")
 )
 
-func BlockHeightToBytes(height uint64) []byte {
-	heightB := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightB, height)
-	return heightB
+func MockState(height uint64) loomchain.State {
+	header := abci.Header{}
+	header.Height = int64(height)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 }
 
-func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
-	typesEvents := make([]*types.EventData, 0, len(events))
-	for _, event := range events {
-		typeEvent := types.EventData(*event)
-		typesEvents = append(typesEvents, &typeEvent)
-	}
-	return typesEvents
+func MockStateTx(state loomchain.State, height, TxNum uint64) loomchain.State {
+	header := abci.Header{}
+	header.Height = int64(height)
+	header.NumTxs = int64(TxNum)
+	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
+}
+
+func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
+	header := abci.Header{}
+	header.Height = int64(newHeight)
+	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
 }

@@ -21,6 +21,9 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/stretchr/testify/require"
+
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 const (
@@ -37,14 +40,12 @@ func TestQueryChain(t *testing.T) {
 }
 
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler := handler.NewReceiptHandler(eventHandler, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler = receiptHandler
 
-	require.NoError(t, err)
 	state := common.MockState(0)
 
 	state4 := common.MockStateAt(state, 4)
@@ -55,7 +56,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, []byte{})
+	_, err := writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 
@@ -145,7 +146,7 @@ func TestMatchFilters(t *testing.T) {
 	ethFilter5 := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, {"Topic6"}},
 	}
-	bloomFilter := bloom.GenBloomFilter(common.ConvertEventData(testEvents))
+	bloomFilter := bloom.GenBloomFilter(convertEventData(testEvents))
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter)) // address does not match
@@ -171,15 +172,12 @@ func TestGetLogs(t *testing.T) {
 }
 
 func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler := handler.NewReceiptHandler(eventHandler, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler = receiptHandler
-
-	require.NoError(t, err)
 	ethFilter := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
@@ -232,4 +230,13 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
 	receiptHandler.Close()
+}
+
+func convertEventData(events []*loomchain.EventData) []*types.EventData {
+	typesEvents := make([]*types.EventData, 0, len(events))
+	for _, event := range events {
+		typeEvent := types.EventData(*event)
+		typesEvents = append(typesEvents, &typeEvent)
+	}
+	return typesEvents
 }
