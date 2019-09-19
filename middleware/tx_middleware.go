@@ -167,8 +167,8 @@ func PostCommitMiddleWAre(cfg *config.Config, vmManager *vm.Manager) ([]loomchai
 		postCommitMiddlewares = append(postCommitMiddlewares, evmDeployRecorderMiddleware)
 	}
 
-	// We need to make sure nonce post commit middleware is last
-	// as it doesn't pass control to other middlewares after it.
+	// We need to make sure nonce post commit middleware is last as
+	// it doesn't pass control to other middlewares after it.
 	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
 
 	return postCommitMiddlewares, nil
