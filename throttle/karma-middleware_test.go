@@ -9,10 +9,10 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -39,7 +39,7 @@ func TestKarmaMiddleWare(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -54,30 +54,30 @@ func TestKarmaMiddleWare(t *testing.T) {
 	// This can also be done on init, but more concise this way
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStatesDeploy))
 
-	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(s.Context(), auth.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(_ state.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
 
 	// call fails as contract is not deployed
 	txSigned := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contract)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.Error(t, err)
 
 	// deploy contract
 	txSigned = mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	// call now works
 	txSigned = mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	// deactivate contract
@@ -87,7 +87,7 @@ func TestKarmaMiddleWare(t *testing.T) {
 
 	// call now fails
 	txSigned = mockSignedTx(t, uint64(4), callId, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.Error(t, err)
 }
 
@@ -95,7 +95,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -113,20 +113,20 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStatesDeploy))
 
-	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(s.Context(), auth.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(_ state.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
 
 	// deploy contract
 	txSigned := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	require.NoError(t, karma.SetConfig(contractContext, &ktypes.KarmaConfig{
@@ -135,6 +135,6 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	// deploy contract
 	txSigned = mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.Error(t, err)
 }

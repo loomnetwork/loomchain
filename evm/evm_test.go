@@ -17,12 +17,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/features"
-	"github.com/loomnetwork/loomchain/store"
-	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/store"
+	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
 const (
@@ -36,11 +37,11 @@ var (
 	blockTime            = time.Unix(123456789, 0)
 )
 
-func mockState() loomchain.State {
+func mockState() state.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	return state.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 }
 
 func TestProcessDeployTx(t *testing.T) {
@@ -76,8 +77,8 @@ func TestPrecompiles(t *testing.T) {
 
 	manager := lvm.NewManager()
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
-	state := mockState()
-	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
+	ms := mockState()
+	vm, _ := manager.InitVM(lvm.VMType_EVM, ms)
 	abiPc, pcAddr := deploySolContract(t, caller, "CallPrecompiles", vm)
 
 	index := len(ethvm.PrecompiledContractsByzantium) + 1
@@ -125,8 +126,8 @@ func TestPrecompilesAssembly(t *testing.T) {
 
 	manager := lvm.NewManager()
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
-	state := mockState()
-	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
+	ms := mockState()
+	vm, _ := manager.InitVM(lvm.VMType_EVM, ms)
 	abiPc, pcAddr := deploySolContract(t, caller, "CallPrecompiles", vm)
 
 	numEthPreCompiles := len(ethvm.PrecompiledContractsByzantium)
@@ -163,18 +164,18 @@ func TestValue(t *testing.T) {
 	}
 	manager := lvm.NewManager()
 	manager.Register(lvm.VMType_EVM, LoomVmFactory)
-	state := mockState()
+	ms := mockState()
 
-	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
+	vm, _ := manager.InitVM(lvm.VMType_EVM, ms)
 
-	testValue(t, state, vm, caller, true, negativeNumber)
-	testValue(t, state, vm, caller, true, positiveNumber)
-	testValue(t, state, vm, caller, false, negativeNumber)
-	testValue(t, state, vm, caller, false, positiveNumber)
+	testValue(t, ms, vm, caller, true, negativeNumber)
+	testValue(t, ms, vm, caller, true, positiveNumber)
+	testValue(t, ms, vm, caller, false, negativeNumber)
+	testValue(t, ms, vm, caller, false, positiveNumber)
 
 }
 
-func testValue(t *testing.T, state loomchain.State, vm lvm.VM, caller loom.Address, checkTxValueFeature bool, value int64) {
+func testValue(t *testing.T, s state.State, vm lvm.VM, caller loom.Address, checkTxValueFeature bool, value int64) {
 	defer func() {
 		if r := recover(); r != nil {
 			require.True(t, !checkTxValueFeature && value < 0)
@@ -186,7 +187,7 @@ func testValue(t *testing.T, state loomchain.State, vm lvm.VM, caller loom.Addre
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
 
-	state.SetFeature(features.CheckTxValueFeature, checkTxValueFeature)
+	s.SetFeature(features.CheckTxValueFeature, checkTxValueFeature)
 	_, _, err = vm.Create(caller, bytecode, loom.NewBigUIntFromInt(value))
 	if checkTxValueFeature && value < 0 {
 		require.Error(t, err)

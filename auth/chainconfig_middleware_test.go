@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -30,7 +31,7 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -38,9 +39,9 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 		Chains: map[string]ChainConfig{},
 	}
 
-	chainConfigMiddleware := NewChainConfigMiddleware(&authConfig, func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil })
-	_, err = chainConfigMiddleware.ProcessTx(state, signedTxBytes,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+	chainConfigMiddleware := NewChainConfigMiddleware(&authConfig, func(_ state.State) (contractpb.StaticContext, error) { return amCtx, nil })
+	_, err = chainConfigMiddleware.ProcessTx(s, signedTxBytes,
+		func(_ state.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
@@ -49,16 +50,16 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 }
 
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"default", true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"eth", true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"default", true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"eth", true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(s.Context(), ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
 		"default": {
@@ -84,10 +85,10 @@ func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 
 	tmx := NewChainConfigMiddleware(
 		&authConfig,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(_ state.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	txSigned := mockEd25519SignedTx(t, priKey1)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 }

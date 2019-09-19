@@ -11,10 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
-	lvm "github.com/loomnetwork/loomchain/vm"
+	"github.com/loomnetwork/go-loom"
 	"github.com/stretchr/testify/require"
+
+	"github.com/loomnetwork/loomchain/state"
+	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
 func testCryptoZombies(t *testing.T, vm lvm.VM, caller loom.Address) {
@@ -69,7 +70,7 @@ func testCryptoZombies(t *testing.T, vm lvm.VM, caller loom.Address) {
 
 }
 
-func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller loom.Address) {
+func testCryptoZombiesUpdateState(t *testing.T, s state.State, caller loom.Address) {
 	motherKat := loom.Address{
 		ChainID: "AChainID",
 		Local:   []byte("myMotherKat"),
@@ -80,17 +81,17 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
 	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")
 
-	vm, _ := manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ := manager.InitVM(lvm.VMType_PLUGIN, s)
 	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, s)
 	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
 
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, s)
 	checkKitty(t, vm, caller, kittyAddr, kittyData)
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, s)
 	makeZombie(t, vm, caller, zOwnershipAddr, zOwnershipData, "EEK")
 
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, s)
 	greedyZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 0)
 	// greedy zombie should look like:
 	//{
@@ -107,12 +108,12 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 		t.Error("Wrong dna for greedy zombie")
 	}
 
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, s)
 	setKittyAddress(t, vm, caller, kittyAddr, zOwnershipAddr, zOwnershipData)
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, s)
 	zombieFeed(t, vm, caller, zOwnershipAddr, zOwnershipData, 0, 67)
 
-	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, s)
 	newZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 1)
 	// New zombie should look like
 	//{

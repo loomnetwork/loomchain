@@ -25,6 +25,7 @@ import (
 	rcommon "github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -137,12 +138,12 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
+	s := state.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	evm := levm.NewLoomVm(state, nil, nil, nil, false)
+	vm := NewPluginVM(loader, s, createRegistry(s), &fakeEventHandler{}, nil, nil, nil, nil)
+	evm := levm.NewLoomVm(s, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
@@ -213,13 +214,13 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	ms := rcommon.MockState(1)
+	txHash, err := receiptHandler.CacheReceipt(ms, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(1))
 
-	state20 := rcommon.MockStateAt(state, 20)
+	state20 := rcommon.MockStateAt(ms, 20)
 	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
@@ -242,11 +243,11 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 		evmAuxStore,
 	)
 
-	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	ms := rcommon.MockState(1)
+	txHash, err := receiptHandler.CacheReceipt(ms, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 
-	state20 := rcommon.MockStateAt(state, 20)
+	state20 := rcommon.MockStateAt(ms, 20)
 	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)

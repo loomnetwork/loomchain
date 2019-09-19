@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
@@ -31,13 +32,13 @@ var (
 
 func GetBlockByNumber(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	s state.ReadOnlyState,
 	height int64,
 	full bool,
 	evmAuxStore *evmaux.EvmAuxStore,
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
-	if height > state.Block().Height {
+	if height > s.Block().Height {
 		return resp, errors.New("get block information for pending blocks not implemented yet")
 	}
 
@@ -210,10 +211,10 @@ func GetTxObjectFromBlockResult(
 	return txObj, contractAddress, nil
 }
 
-func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
+func GetNumTxBlock(blockStore store.BlockStore, s state.ReadOnlyState, height int64) (uint64, error) {
 	// todo make information about pending block available.
 	// Should be able to get transaction count from receipt object.
-	if height > state.Block().Height {
+	if height > s.Block().Height {
 		return 0, errors.New("get number of transactions for pending blocks, not implemented yet")
 	}
 
@@ -226,8 +227,8 @@ func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, h
 }
 
 // todo find better method of doing this. Maybe use a blockhash index.
-func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte) (int64, error) {
-	start := uint64(state.Block().Height)
+func GetBlockHeightFromHash(blockStore store.BlockStore, s state.ReadOnlyState, hash []byte) (int64, error) {
+	start := uint64(s.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
 		end = uint64(start) - searchBlockSize
@@ -265,7 +266,7 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 }
 
 func DeprecatedGetBlockByNumber(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
+	blockStore store.BlockStore, s state.ReadOnlyState, height int64, full bool,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	var blockresult *ctypes.ResultBlock
@@ -288,7 +289,7 @@ func DeprecatedGetBlockByNumber(
 	}
 	if full {
 		for _, txHash := range txHashList {
-			txObj, err := DeprecatedGetTxByHash(state, txHash, readReceipts)
+			txObj, err := DeprecatedGetTxByHash(s, txHash, readReceipts)
 			if err != nil {
 				return nil, errors.Wrap(err, "marshall tx object")
 			}
@@ -326,10 +327,10 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 }
 
 func DeprecatedGetBlockByHash(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte, full bool,
+	blockStore store.BlockStore, s state.ReadOnlyState, hash []byte, full bool,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
-	start := uint64(state.Block().Height)
+	start := uint64(s.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
 		end = uint64(start) - searchBlockSize
@@ -347,7 +348,7 @@ func DeprecatedGetBlockByHash(
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if info.BlockMetas[i] != nil {
 				if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-					return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts, evmAuxStore)
+					return DeprecatedGetBlockByNumber(blockStore, s, info.BlockMetas[i].Header.Height, full, readReceipts, evmAuxStore)
 				}
 			}
 		}

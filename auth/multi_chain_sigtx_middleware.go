@@ -15,6 +15,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/state"
+
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 )
@@ -53,10 +55,10 @@ type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureT
 // specific signing algos.
 func NewMultiChainSignatureTxMiddleware(
 	chains map[string]ChainConfig,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	createAddressMapperCtx func(s state.State) (contractpb.StaticContext, error),
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		s state.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
@@ -99,7 +101,7 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("recovery function for Tx type %v not found", chain.TxType)
 		}
 
-		recoveredAddr, err := recoverOrigin(signedTx, getAllowedSignatureTypes(state, msgSender.ChainID))
+		recoveredAddr, err := recoverOrigin(signedTx, getAllowedSignatureTypes(s, msgSender.ChainID))
 		if err != nil {
 			return r, errors.Wrapf(err, "failed to recover origin (tx type %v, chain ID %s)",
 				chain.TxType, msgSender.ChainID,
@@ -114,11 +116,11 @@ func NewMultiChainSignatureTxMiddleware(
 
 		switch chain.AccountType {
 		case NativeAccountType: // pass through origin & message sender as is
-			ctx := context.WithValue(state.Context(), ContextKeyOrigin, msgSender)
-			return next(state.WithContext(ctx), signedTx.Inner, isCheckTx)
+			ctx := context.WithValue(s.Context(), ContextKeyOrigin, msgSender)
+			return next(s.WithContext(ctx), signedTx.Inner, isCheckTx)
 
 		case MappedAccountType: // map origin & message sender to an address on this chain
-			origin, err := getMappedAccountAddress(state, msgSender, createAddressMapperCtx)
+			origin, err := getMappedAccountAddress(s, msgSender, createAddressMapperCtx)
 			if err != nil {
 				return r, err
 			}
@@ -141,8 +143,8 @@ func NewMultiChainSignatureTxMiddleware(
 				return r, errors.Wrap(err, "failed to marshal NonceTx")
 			}
 
-			ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-			return next(state.WithContext(ctx), nonceTxBytes, isCheckTx)
+			ctx := context.WithValue(s.Context(), ContextKeyOrigin, origin)
+			return next(s.WithContext(ctx), nonceTxBytes, isCheckTx)
 
 		default:
 			return r, fmt.Errorf("Invalid account type %v for chain ID %s", chain.AccountType, msgSender.ChainID)
@@ -151,11 +153,11 @@ func NewMultiChainSignatureTxMiddleware(
 }
 
 func getMappedAccountAddress(
-	state loomchain.State,
+	s state.State,
 	addr loom.Address,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	createAddressMapperCtx func(s state.State) (contractpb.StaticContext, error),
 ) (loom.Address, error) {
-	ctx, err := createAddressMapperCtx(state)
+	ctx, err := createAddressMapperCtx(s)
 	if err != nil {
 		return loom.Address{}, errors.Wrap(err, "failed to create Address Mapper context")
 	}
@@ -170,7 +172,7 @@ func getMappedAccountAddress(
 	}
 
 	mappedAddr := loom.UnmarshalAddressPB(resp.To)
-	if mappedAddr.ChainID != state.Block().ChainID {
+	if mappedAddr.ChainID != s.Block().ChainID {
 		return loom.Address{}, fmt.Errorf("mapped account %s has wrong chain ID", addr.String())
 	}
 
@@ -193,8 +195,8 @@ func verifyEd25519(tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
 }
 
-func getAllowedSignatureTypes(state loomchain.State, chainID string) []evmcompat.SignatureType {
-	if !state.FeatureEnabled(features.MultiChainSigTxMiddlewareVersion1_1, false) {
+func getAllowedSignatureTypes(s state.State, chainID string) []evmcompat.SignatureType {
+	if !s.FeatureEnabled(features.MultiChainSigTxMiddlewareVersion1_1, false) {
 		return []evmcompat.SignatureType{
 			evmcompat.SignatureType_EIP712,
 			evmcompat.SignatureType_GETH,
@@ -206,11 +208,11 @@ func getAllowedSignatureTypes(state loomchain.State, chainID string) []evmcompat
 	// TODO: chain <-> sig type associations should be in the loom.yml, not hard-coded here
 	switch chainID {
 	case "tron":
-		if state.FeatureEnabled(features.AuthSigTxFeaturePrefix+"tron", false) {
+		if s.FeatureEnabled(features.AuthSigTxFeaturePrefix+"tron", false) {
 			return []evmcompat.SignatureType{evmcompat.SignatureType_TRON}
 		}
 	case "binance":
-		if state.FeatureEnabled(features.AuthSigTxFeaturePrefix+"binance", false) {
+		if s.FeatureEnabled(features.AuthSigTxFeaturePrefix+"binance", false) {
 			return []evmcompat.SignatureType{evmcompat.SignatureType_BINANCE}
 		}
 	default:

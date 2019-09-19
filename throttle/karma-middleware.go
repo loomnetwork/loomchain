@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -23,20 +24,20 @@ func GetKarmaMiddleWare(
 	karmaEnabled bool,
 	maxCallCount int64,
 	sessionDuration int64,
-	createKarmaContractCtx func(state loomchain.State) (contractpb.Context, error),
+	createKarmaContractCtx func(s state.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	th := NewThrottle(sessionDuration, maxCallCount)
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		s state.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 		if !karmaEnabled {
-			return next(state, txBytes, isCheckTx)
+			return next(s, txBytes, isCheckTx)
 		}
 
-		origin := auth.Origin(state.Context())
+		origin := auth.Origin(s.Context())
 		if origin.IsEmpty() {
 			return res, errors.New("throttle: transaction has no origin [get-karma]")
 		}
@@ -51,7 +52,7 @@ func GetKarmaMiddleWare(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		ctx, err := createKarmaContractCtx(state)
+		ctx, err := createKarmaContractCtx(s)
 		if err != nil {
 			return res, errors.Wrap(err, "failed to create Karma contract context")
 		}
@@ -82,7 +83,7 @@ func GetKarmaMiddleWare(
 			return res, errors.Wrap(err, "failed to obtain Karma Oracle address")
 		}
 		if oracleAddr != nil && origin.Compare(*oracleAddr) == 0 {
-			r, err := next(state, txBytes, isCheckTx)
+			r, err := next(s, txBytes, isCheckTx)
 			if err != nil {
 				return r, err
 			}
@@ -133,7 +134,7 @@ func GetKarmaMiddleWare(
 			if originKarmaTotal > math.MaxInt64-th.maxCallCount {
 				callCount = math.MaxInt64
 			}
-			err := th.runThrottle(state, nonceTx.Sequence, origin, callCount, tx.Id, karmaMiddlewareThrottleKey)
+			err := th.runThrottle(s, nonceTx.Sequence, origin, callCount, tx.Id, karmaMiddlewareThrottleKey)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}
@@ -141,7 +142,7 @@ func GetKarmaMiddleWare(
 			return res, errors.Errorf("unknown transaction id %d", tx.Id)
 		}
 
-		r, err := next(state, txBytes, isCheckTx)
+		r, err := next(s, txBytes, isCheckTx)
 		if err != nil {
 			return r, err
 		}

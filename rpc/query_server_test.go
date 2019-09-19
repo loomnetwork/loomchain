@@ -19,6 +19,7 @@ import (
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -89,20 +90,8 @@ type stateProvider struct {
 	ChainID string
 }
 
-func (s *stateProvider) MemoryApp() loomchain.State {
-	return loomchain.NewStoreState(
-		nil,
-		store.NewMemStore(),
-		abci.Header{
-			ChainID: s.ChainID,
-		},
-		nil,
-		nil,
-	)
-}
-
-func (s *stateProvider) MemoryState() loomchain.State {
-	return loomchain.NewStoreState(
+func (s *stateProvider) ReadOnlyState() state.State {
+	return state.NewStoreState(
 		nil,
 		store.NewMemStore(),
 		abci.Header{

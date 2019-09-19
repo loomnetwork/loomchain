@@ -16,6 +16,7 @@ import (
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -58,7 +59,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	ms := state.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -73,13 +74,13 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	// This can also be done on init, but more concise this way
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
-	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(ms.Context(), loomAuth.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(_ state.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
@@ -88,7 +89,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
 		txSigned := mockSignedTx(t, uint64(i), deployId, vm.VMType_PLUGIN, contract)
-		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+		_, err := throttleMiddlewareHandler(tmx, ms, txSigned, ctx)
 
 		if i <= deployKarma.Value.Int64() {
 			require.NoError(t, err)
@@ -100,7 +101,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -115,13 +116,13 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	// This can also be done on init, but more concise this way
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
-	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(s.Context(), loomAuth.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(_ state.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
@@ -130,7 +131,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	for i := int64(1); i <= maxCallCount*2+callKarma.Value.Int64(); i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId, vm.VMType_PLUGIN, contract)
-		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+		_, err := throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 
 		if i <= maxCallCount+callKarma.Value.Int64() {
 			require.NoError(t, err)

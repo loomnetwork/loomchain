@@ -14,10 +14,12 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/state"
+
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/db"
 )
@@ -29,7 +31,7 @@ const (
 	pcentDeactivateTicks = 1
 )
 
-type benchmarkFunc func(state loomchain.State) error
+type benchmarkFunc func(_ state.State) error
 
 func BenchmarkUpkeep(b *testing.B) {
 	//kh2 := NewKarmaHandler(factory.RegistryV2, true, true)
@@ -79,7 +81,7 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 	}
 }
 
-func addMockUsersWithContracts(b *testing.B, karmaState loomchain.State, reg registry.Registry, logUsers float64, pctUsersHaveKarma int, logContracts int) {
+func addMockUsersWithContracts(b *testing.B, karmaState state.State, reg registry.Registry, logUsers float64, pctUsersHaveKarma int, logContracts int) {
 	users := uint64(math.Pow(10, float64(logUsers)))
 	usersWith := uint64(float64(users) * float64(pctUsersHaveKarma) / 100)
 	numContracts := uint64(math.Pow(10, float64(logContracts)))
@@ -126,7 +128,7 @@ func userAddr(user uint64) loom.Address {
 	return loom.MustParseAddress("chain:0x" + hex.EncodeToString([]byte(tail)))
 }
 
-func MockDeployEvmContract(b *testing.B, karmaState loomchain.State, owner loom.Address, nonce uint64, reg registry.Registry) loom.Address {
+func MockDeployEvmContract(b *testing.B, karmaState state.State, owner loom.Address, nonce uint64, reg registry.Registry) loom.Address {
 	contractAddr := plugin.CreateAddress(owner, nonce)
 	err := reg.Register("", contractAddr, owner)
 	require.NoError(b, err)
@@ -189,7 +191,7 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 	}
 }
 
-func MockDeployEvmContractT(t *testing.T, karmaState loomchain.State, owner loom.Address, nonce uint64, reg registry.Registry) loom.Address {
+func MockDeployEvmContractT(t *testing.T, karmaState state.State, owner loom.Address, nonce uint64, reg registry.Registry) loom.Address {
 	contractAddr := plugin.CreateAddress(owner, nonce)
 	err := reg.Register("", contractAddr, owner)
 	require.NoError(t, err)
@@ -198,7 +200,7 @@ func MockDeployEvmContractT(t *testing.T, karmaState loomchain.State, owner loom
 	return contractAddr
 }
 
-func addMockUsersWithContractsT(t *testing.T, karmaState loomchain.State, reg registry.Registry, logUsers float64, pctUsersHaveKarma int, logContracts int) {
+func addMockUsersWithContractsT(t *testing.T, karmaState state.State, reg registry.Registry, logUsers float64, pctUsersHaveKarma int, logContracts int) {
 	users := uint64(math.Pow(10, float64(logUsers)))
 	usersWith := uint64(float64(users) * float64(pctUsersHaveKarma) / 100)
 	numContracts := uint64(math.Pow(10, float64(logContracts)))
@@ -239,11 +241,11 @@ func addMockUsersWithContractsT(t *testing.T, karmaState loomchain.State, reg re
 	}
 }
 
-func addUsers(state loomchain.State, logSize int) loomchain.State {
+func addUsers(s state.State, logSize int) state.State {
 	entries := uint64(math.Pow(10, float64(logSize)))
 	for i := uint64(0); i < entries; i++ {
 		strI := strconv.FormatUint(i, 10)
-		state.Set([]byte("user"+strI), []byte(strI))
+		s.Set([]byte("user"+strI), []byte(strI))
 	}
-	return state
+	return s
 }

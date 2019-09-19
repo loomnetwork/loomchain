@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/state"
 )
 
 type DeployTxHandler struct {
@@ -22,7 +23,7 @@ type DeployTxHandler struct {
 }
 
 func (h *DeployTxHandler) ProcessTx(
-	state loomchain.State,
+	s state.State,
 	txBytes []byte,
 	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
@@ -34,7 +35,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	origin := auth.Origin(state.Context())
+	origin := auth.Origin(s.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 
 	if caller.Compare(origin) != 0 {
@@ -47,12 +48,12 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	version1_1 := state.FeatureEnabled(features.DeployTxVersion1_1Feature, false)
+	version1_1 := s.FeatureEnabled(features.DeployTxVersion1_1Feature, false)
 	if version1_1 && (tx.VmType == VMType_EVM) && (len(tx.Name) > 0) && !h.AllowNamedEVMContracts {
 		return r, errors.New("named evm contracts are not allowed")
 	}
 
-	vm, err := h.Manager.InitVM(tx.VmType, state)
+	vm, err := h.Manager.InitVM(tx.VmType, s)
 	if err != nil {
 		return r, err
 	}
@@ -85,7 +86,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
 	}
 
-	reg := h.CreateRegistry(state)
+	reg := h.CreateRegistry(s)
 	if err := reg.Register(tx.Name, addr, caller); err != nil && version1_1 {
 		return r, err
 	}
@@ -103,7 +104,7 @@ type CallTxHandler struct {
 }
 
 func (h *CallTxHandler) ProcessTx(
-	state loomchain.State,
+	s state.State,
 	txBytes []byte,
 	isCheckTx bool,
 
@@ -116,7 +117,7 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	origin := auth.Origin(state.Context())
+	origin := auth.Origin(s.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
 
@@ -130,7 +131,7 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	vm, err := h.Manager.InitVM(tx.VmType, state)
+	vm, err := h.Manager.InitVM(tx.VmType, s)
 	if err != nil {
 		return r, err
 	}

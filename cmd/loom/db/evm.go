@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -65,7 +66,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
-			state := loomchain.NewStoreState(
+			s := state.NewStoreState(
 				context.Background(),
 				storeTx,
 				abci.Header{
@@ -86,8 +87,8 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					common.NewDefaultContractsLoader(cfg),
-					state,
-					createRegistry(state),
+					s,
+					createRegistry(s),
 					eventHandler,
 					log.Default,
 					newABMFactory,
@@ -104,7 +105,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(s, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}
@@ -178,7 +179,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
-			state := loomchain.NewStoreState(
+			s := state.NewStoreState(
 				context.Background(),
 				storeTx,
 				abci.Header{
@@ -199,8 +200,8 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					common.NewDefaultContractsLoader(cfg),
-					state,
-					createRegistry(state),
+					s,
+					createRegistry(s),
 					eventHandler,
 					log.Default,
 					newABMFactory,
@@ -217,7 +218,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(s, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}

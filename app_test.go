@@ -7,6 +7,7 @@ import (
 
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/loomchain/db"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -36,7 +37,7 @@ func TestOnChainConfig(t *testing.T) {
 		Height: blockHeight,
 		Time:   blockTime,
 	}
-	state := NewStoreState(
+	state := state.NewStoreState(
 		context.Background(), kvStore, header, nil, nil,
 	).WithOnChainConfig(curCfg)
 	// check default config

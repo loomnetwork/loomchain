@@ -9,15 +9,16 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/state"
+
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // Contract context for tests that need both Go & EVM contracts.
 type FakeContextWithEVM struct {
 	*plugin.FakeContext
-	State                    loomchain.State
+	State                    state.State
 	useAccountBalanceManager bool
 }
 
@@ -34,7 +35,7 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 			Time:    block.Time.Unix(),
 		},
 	)
-	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
+	state := state.NewStoreState(context.Background(), ctx, block, nil, nil)
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state,

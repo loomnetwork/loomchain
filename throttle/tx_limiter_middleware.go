@@ -7,6 +7,8 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/state"
+
 	"github.com/pkg/errors"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
@@ -70,16 +72,16 @@ func (txl *txLimiter) isAccountLimitReached(account loom.Address) bool {
 func NewTxLimiterMiddleware(cfg *TxLimiterConfig) loomchain.TxMiddlewareFunc {
 	txl := newTxLimiter(cfg)
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		s state.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (loomchain.TxHandlerResult, error) {
 		if !isCheckTx {
-			return next(state, txBytes, isCheckTx)
+			return next(s, txBytes, isCheckTx)
 		}
 
-		origin := auth.Origin(state.Context())
+		origin := auth.Origin(s.Context())
 		if origin.IsEmpty() {
 			return loomchain.TxHandlerResult{}, errors.New("throttle: transaction has no origin [get-karma]")
 		}
@@ -88,6 +90,6 @@ func NewTxLimiterMiddleware(cfg *TxLimiterConfig) loomchain.TxMiddlewareFunc {
 			return loomchain.TxHandlerResult{}, errors.New("tx limit reached, try again later")
 		}
 
-		return next(state, txBytes, isCheckTx)
+		return next(s, txBytes, isCheckTx)
 	})
 }

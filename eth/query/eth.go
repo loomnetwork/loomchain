@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 
@@ -20,39 +21,39 @@ import (
 )
 
 func QueryChain(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
+	blockStore store.BlockStore, s state.ReadOnlyState, ethFilter eth.EthFilter,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
-	start, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
+	start, err := eth.DecBlockHeight(s.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
 	if err != nil {
 		return nil, err
 	}
-	end, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.ToBlock))
+	end, err := eth.DecBlockHeight(s.Block().Height, eth.BlockHeight(ethFilter.ToBlock))
 	if err != nil {
 		return nil, err
 	}
 
-	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
+	return GetBlockLogRange(blockStore, s, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
 }
 
 func DeprecatedQueryChain(
-	query string, blockStore store.BlockStore, state loomchain.ReadOnlyState,
+	query string, blockStore store.BlockStore, s state.ReadOnlyState,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err
 	}
-	start, err := utils.DeprecatedBlockNumber(string(ethFilter.FromBlock), uint64(state.Block().Height))
+	start, err := utils.DeprecatedBlockNumber(string(ethFilter.FromBlock), uint64(s.Block().Height))
 	if err != nil {
 		return nil, err
 	}
-	end, err := utils.DeprecatedBlockNumber(string(ethFilter.ToBlock), uint64(state.Block().Height))
+	end, err := utils.DeprecatedBlockNumber(string(ethFilter.ToBlock), uint64(s.Block().Height))
 	if err != nil {
 		return nil, err
 	}
 
-	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
+	eventLogs, err := GetBlockLogRange(blockStore, s, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +63,7 @@ func DeprecatedQueryChain(
 
 func GetBlockLogRange(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	s state.ReadOnlyState,
 	from, to uint64,
 	ethFilter eth.EthBlockFilter,
 	readReceipts loomchain.ReadReceiptHandler,
@@ -74,7 +75,7 @@ func GetBlockLogRange(
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(blockStore, state, ethFilter, height, readReceipts, evmAuxStore)
+		blockLogs, err := GetBlockLogs(blockStore, s, ethFilter, height, readReceipts, evmAuxStore)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +86,7 @@ func GetBlockLogRange(
 
 func GetBlockLogs(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	s state.ReadOnlyState,
 	ethFilter eth.EthBlockFilter,
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,

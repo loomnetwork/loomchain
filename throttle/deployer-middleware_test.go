@@ -8,10 +8,10 @@ import (
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -24,8 +24,8 @@ var (
 )
 
 func TestDeployerWhitelistMiddleware(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
-	state.SetFeature(features.DeployerWhitelistFeature, true)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	s.SetFeature(features.DeployerWhitelistFeature, true)
 
 	txSignedPlugin := mockSignedTx(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
 	txSignedEVM := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
@@ -40,31 +40,31 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 		Owner: owner.MarshalPB(),
 	}))
 
-	guestCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, guest)
-	ownerCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
+	guestCtx := context.WithValue(s.Context(), loomAuth.ContextKeyOrigin, guest)
+	ownerCtx := context.WithValue(s.Context(), loomAuth.ContextKeyOrigin, owner)
 
 	dwMiddleware, err := NewDeployerWhitelistMiddleware(
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(_ state.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
 	require.NoError(t, err)
 
 	// unauthorized deployer (DeployTx Plugin)
-	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedPlugin, guestCtx)
+	_, err = throttleMiddlewareHandler(dwMiddleware, s, txSignedPlugin, guestCtx)
 	require.Equal(t, ErrNotAuthorized, err)
 	// unauthorized deployer (DeployTx EVM)
-	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, guestCtx)
+	_, err = throttleMiddlewareHandler(dwMiddleware, s, txSignedEVM, guestCtx)
 	require.Equal(t, ErrNotAuthorized, err)
 	// unauthorized deployer (MigrationTx)
-	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, guestCtx)
+	_, err = throttleMiddlewareHandler(dwMiddleware, s, txSignedMigration, guestCtx)
 	require.Equal(t, ErrNotAuthorized, err)
 
 	// authorized deployer
-	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedPlugin, ownerCtx)
+	_, err = throttleMiddlewareHandler(dwMiddleware, s, txSignedPlugin, ownerCtx)
 	require.NoError(t, err)
-	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, ownerCtx)
+	_, err = throttleMiddlewareHandler(dwMiddleware, s, txSignedEVM, ownerCtx)
 	require.NoError(t, err)
-	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, ownerCtx)
+	_, err = throttleMiddlewareHandler(dwMiddleware, s, txSignedMigration, ownerCtx)
 	require.NoError(t, err)
 }

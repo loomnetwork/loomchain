@@ -3,13 +3,14 @@ package migrations
 import (
 	"github.com/pkg/errors"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
+
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/core"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -23,27 +24,27 @@ type MigrationContext struct {
 	manager        *vm.Manager
 	createRegistry registry.RegistryFactoryFunc
 	caller         loom.Address
-	state          loomchain.State
+	state          state.State
 	codeLoaders    map[string]core.ContractCodeLoader
 }
 
 func NewMigrationContext(
 	manager *vm.Manager,
 	createRegistry registry.RegistryFactoryFunc,
-	state loomchain.State,
+	s state.State,
 	caller loom.Address,
 ) *MigrationContext {
 	return &MigrationContext{
 		manager:        manager,
 		createRegistry: createRegistry,
-		state:          state,
+		state:          s,
 		caller:         caller,
 		codeLoaders:    core.GetDefaultCodeLoaders(),
 	}
 }
 
 // State returns the app state.
-func (mc *MigrationContext) State() loomchain.State {
+func (mc *MigrationContext) State() state.State {
 	return mc.state
 }
 

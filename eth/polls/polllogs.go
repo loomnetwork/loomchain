@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 
@@ -40,13 +41,13 @@ func NewEthLogPoll(filter string, evmAuxStore *evmaux.EvmAuxStore, blockStore st
 }
 
 func (p *EthLogPoll) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (EthPoll, interface{}, error) {
-	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
+	start, err := eth.DecBlockHeight(s.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
 	}
-	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
+	end, err := eth.DecBlockHeight(s.Block().Height, p.filter.ToBlock)
 	if err != nil {
 		return p, nil, err
 	}
@@ -63,7 +64,7 @@ func (p *EthLogPoll) Poll(
 	}
 
 	eventLogs, err := query.GetBlockLogRange(
-		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+		p.blockStore, s, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
 	)
 	if err != nil {
 		return p, nil, err
@@ -75,13 +76,13 @@ func (p *EthLogPoll) Poll(
 	return newLogPoll, eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
+func (p *EthLogPoll) AllLogs(s state.ReadOnlyState,
 	id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
-	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
+	start, err := eth.DecBlockHeight(s.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return nil, err
 	}
-	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
+	end, err := eth.DecBlockHeight(s.Block().Height, p.filter.ToBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +91,7 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
 	}
 
 	eventLogs, err := query.GetBlockLogRange(
-		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+		p.blockStore, s, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
 	)
 	if err != nil {
 		return nil, err
@@ -98,14 +99,14 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
 	return eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
+func (p *EthLogPoll) LegacyPoll(s state.ReadOnlyState,
 	id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
-	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
+	start, err := eth.DecBlockHeight(s.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
 	}
 
-	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
+	end, err := eth.DecBlockHeight(s.Block().Height, p.filter.ToBlock)
 	if err != nil {
 		return p, nil, err
 	}
@@ -117,7 +118,7 @@ func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
 		}
 	}
 	eventLogs, err := query.GetBlockLogRange(
-		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+		p.blockStore, s, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
 	)
 	if err != nil {
 		return p, nil, err

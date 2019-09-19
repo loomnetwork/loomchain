@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/loomnetwork/loomchain/state"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
 )
@@ -137,7 +138,7 @@ func (r *ReceiptHandler) CommitBlock(height int64) error {
 
 // TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(
-	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error,
+	s state.State, caller, addr loom.Address, events []*types.EventData, txErr error,
 ) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -148,7 +149,7 @@ func (r *ReceiptHandler) CacheReceipt(
 	if r.currentReceipt != nil {
 		r.currentReceipt.Logs = append(
 			r.currentReceipt.Logs,
-			leveldb.CreateEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
+			leveldb.CreateEventLogs(r.currentReceipt, s.Block(), events, r.eventHandler)...,
 		)
 		return r.currentReceipt.TxHash, nil
 	}
@@ -160,8 +161,8 @@ func (r *ReceiptHandler) CacheReceipt(
 		status = common.StatusTxFail
 	}
 	receipt, err := leveldb.WriteReceipt(
-		state.Block(), caller, addr, events, status,
-		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
+		s.Block(), caller, addr, events, status,
+		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(s, caller)),
 	)
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")

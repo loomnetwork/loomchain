@@ -12,10 +12,11 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
-func GetTxByHash(state loomchain.ReadOnlyState, blockStore store.BlockStore, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
+func GetTxByHash(blockStore store.BlockStore, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return eth.GetEmptyTxObject(), errors.Wrap(err, "reading receipt")
@@ -49,7 +50,7 @@ func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (et
 	return txObj, nil
 }
 
-func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetTxByHash(s state.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading receipt")
@@ -57,7 +58,7 @@ func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readRec
 	caller := loom.UnmarshalAddressPB(txReceipt.CallerAddress)
 
 	txObj := types.EvmTxObject{
-		Nonce:    auth.Nonce(state, caller),
+		Nonce:    auth.Nonce(s, caller),
 		Hash:     txHash,
 		Value:    0,
 		GasPrice: 0,
@@ -66,7 +67,7 @@ func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readRec
 		To:       txReceipt.ContractAddress,
 	}
 
-	if txReceipt.BlockNumber != state.Block().Height {
+	if txReceipt.BlockNumber != s.Block().Height {
 		txObj.BlockHash = txReceipt.BlockHash
 		txObj.BlockNumber = txReceipt.BlockNumber
 		txObj.TransactionIndex = 0

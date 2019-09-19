@@ -37,8 +37,8 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
-	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -57,8 +57,7 @@ const (
 
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
-	ReadOnlyState() loomchain.State
-	InMemoryApp(uint64) loomchain.InMemoryApp
+	ReadOnlyState() state.State
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -343,17 +342,17 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 }
 
 // Attempts to construct the context of the Address Mapper contract.
-func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
-	return s.createStaticContractCtx(state, "addressmapper")
+func (s *QueryServer) createAddressMapperCtx(ls state.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(ls, "addressmapper")
 }
 
-func (s *QueryServer) createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
+func (s *QueryServer) createStaticContractCtx(ls state.State, name string) (contractpb.StaticContext, error) {
 	ctx, err := lcp.NewInternalContractContext(
 		name,
 		lcp.NewPluginVM(
 			s.Loader,
-			state,
-			s.CreateRegistry(state),
+			ls,
+			s.CreateRegistry(ls),
 			nil, // event handler
 			log.Default,
 			s.NewABMFactory,
@@ -750,7 +749,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
-		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
+		resp, err := getReceiptByTendermintHash(s.BlockStore, r, txHash)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
 				// return nil response if cannot find hash
@@ -850,7 +849,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 	defer snapshot.Release()
 
 	r := s.ReceiptHandlerProvider.Reader()
-	txObj, err := query.GetTxByHash(snapshot, s.BlockStore, txHash, r)
+	txObj, err := query.GetTxByHash(s.BlockStore, txHash, r)
 	if err != nil {
 		if errors.Cause(err) != common.ErrTxReceiptNotFound {
 			return resp, err
@@ -1075,22 +1074,6 @@ func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
 }
 
-func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config debug.JsonTraceConfig) (interface{}, error) {
-	receipt, err := s.EthGetTransactionReceipt(hash)
-	if err != nil {
-		return nil, errors.Wrap(err, "cant find transaction matching hash")
-	}
-	blockNumber, err := eth.DecQuantityToUint(receipt.BlockNumber)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cant parse block number %v", receipt.BlockNumber)
-	}
-	txIndex, err := eth.DecQuantityToUint(receipt.TransactionIndex)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
-	}
-	return debug.TraceTransaction(s.InMemoryApp(blockNumber), s.BlockStore, int64(blockNumber), txIndex, config)
-}
-
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	if nil != s.BlockIndexStore {
 		return s.BlockIndexStore.GetBlockHeightByHash(hash)
@@ -1102,7 +1085,7 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	}
 }
 
-func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
+func getReceiptByTendermintHash(blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
 		return nil, err

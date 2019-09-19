@@ -13,12 +13,14 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	lstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -48,7 +50,7 @@ type LoomEvm struct {
 
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
-	loomState loomchain.State, accountBalanceManager AccountBalanceManager,
+	loomState lstate.State, accountBalanceManager AccountBalanceManager,
 	logContext *ethdbLogContext, debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
@@ -96,7 +98,7 @@ func (levm LoomEvm) RawDump() []byte {
 	return output
 }
 
-var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
+var LoomVmFactory = func(state lstate.State) (vm.VM, error) {
 	//TODO , debug bool, We should be able to pass in config
 	debug := false
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
@@ -112,14 +114,14 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
 // TODO: rename to LoomEVM
 type LoomVm struct {
-	state          loomchain.State
+	state          lstate.State
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
 }
 
 func NewLoomVm(
-	loomState loomchain.State,
+	loomState lstate.State,
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,

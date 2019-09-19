@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/loomnetwork/loomchain/state"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 
 	"github.com/loomnetwork/loomchain/store"
@@ -20,9 +21,9 @@ var (
 )
 
 type EthPoll interface {
-	AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error)
-	Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error)
-	LegacyPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error)
+	AllLogs(s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error)
+	Poll(s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error)
+	LegacyPoll(s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error)
 }
 
 type EthSubscriptions struct {
@@ -48,121 +49,121 @@ func NewEthSubscriptions(evmAuxStore *evmaux.EvmAuxStore, blockStore store.Block
 	return p
 }
 
-func (s *EthSubscriptions) Add(poll EthPoll, height uint64) string {
+func (es *EthSubscriptions) Add(poll EthPoll, height uint64) string {
 	id := utils.GetId()
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	es.mutex.Lock()
+	defer es.mutex.Unlock()
 
-	s.polls[id] = poll
-	s.lastPoll[id] = height
-	s.timestamps[height] = append(s.timestamps[height], id)
+	es.polls[id] = poll
+	es.lastPoll[id] = height
+	es.timestamps[height] = append(es.timestamps[height], id)
 
 	if height > BlockTimeout {
-		for h := s.lastPrune; h < height-BlockTimeout; h++ {
-			for _, id := range s.timestamps[h] {
-				delete(s.polls, id)
-				delete(s.lastPoll, id)
+		for h := es.lastPrune; h < height-BlockTimeout; h++ {
+			for _, id := range es.timestamps[h] {
+				delete(es.polls, id)
+				delete(es.lastPoll, id)
 			}
 
-			delete(s.timestamps, h)
+			delete(es.timestamps, h)
 		}
-		s.lastPrune = height
+		es.lastPrune = height
 	}
 
 	return id
 }
 
 // This function is not thread-safe. The mutex must be locked before calling it.
-func (s *EthSubscriptions) resetTimestamp(polledId string, height uint64) {
-	lp := s.lastPoll[polledId]
-	for i, id := range s.timestamps[lp] {
+func (es *EthSubscriptions) resetTimestamp(polledId string, height uint64) {
+	lp := es.lastPoll[polledId]
+	for i, id := range es.timestamps[lp] {
 		if id == polledId {
-			s.timestamps[lp] = append(s.timestamps[lp][:i], s.timestamps[lp][i+1:]...)
+			es.timestamps[lp] = append(es.timestamps[lp][:i], es.timestamps[lp][i+1:]...)
 		}
 	}
-	s.timestamps[height] = append(s.timestamps[height], polledId)
-	s.lastPoll[polledId] = height
+	es.timestamps[height] = append(es.timestamps[height], polledId)
+	es.lastPoll[polledId] = height
 }
 
-func (s *EthSubscriptions) AddLogPoll(filter eth.EthFilter, height uint64) (string, error) {
-	return s.Add(&EthLogPoll{
+func (es *EthSubscriptions) AddLogPoll(filter eth.EthFilter, height uint64) (string, error) {
+	return es.Add(&EthLogPoll{
 		filter:        filter,
 		lastBlockRead: uint64(0),
-		blockStore:    s.blockStore,
-		evmAuxStore:   s.evmAuxStore,
+		blockStore:    es.blockStore,
+		evmAuxStore:   es.evmAuxStore,
 	}, height), nil
 }
 
-func (s *EthSubscriptions) LegacyAddLogPoll(filter string, height uint64) (string, error) {
-	newPoll, err := NewEthLogPoll(filter, s.evmAuxStore, s.blockStore)
+func (es *EthSubscriptions) LegacyAddLogPoll(filter string, height uint64) (string, error) {
+	newPoll, err := NewEthLogPoll(filter, es.evmAuxStore, es.blockStore)
 	if err != nil {
 		return "", err
 	}
-	return s.Add(newPoll, height), nil
+	return es.Add(newPoll, height), nil
 }
 
-func (s *EthSubscriptions) AddBlockPoll(height uint64) string {
-	return s.Add(NewEthBlockPoll(height, s.evmAuxStore, s.blockStore), height)
+func (es *EthSubscriptions) AddBlockPoll(height uint64) string {
+	return es.Add(NewEthBlockPoll(height, es.evmAuxStore, es.blockStore), height)
 }
 
-func (s *EthSubscriptions) AddTxPoll(height uint64) string {
-	return s.Add(NewEthTxPoll(height, s.evmAuxStore, s.blockStore), height)
+func (es *EthSubscriptions) AddTxPoll(height uint64) string {
+	return es.Add(NewEthTxPoll(height, es.evmAuxStore, es.blockStore), height)
 }
 
-func (s *EthSubscriptions) AllLogs(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+func (es *EthSubscriptions) AllLogs(
+	s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	es.mutex.RLock()
+	defer es.mutex.RUnlock()
 
-	if poll, ok := s.polls[id]; !ok {
+	if poll, ok := es.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		return poll.AllLogs(state, id, readReceipts)
+		return poll.AllLogs(s, id, readReceipts)
 	}
 }
 
-func (s *EthSubscriptions) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+func (es *EthSubscriptions) Poll(
+	s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	es.mutex.Lock()
+	defer es.mutex.Unlock()
 
-	poll, ok := s.polls[id]
+	poll, ok := es.polls[id]
 	if !ok {
 		return nil, fmt.Errorf("subscription not found")
 	}
-	newPoll, result, err := poll.Poll(state, id, readReceipts)
-	s.polls[id] = newPoll
+	newPoll, result, err := poll.Poll(s, id, readReceipts)
+	es.polls[id] = newPoll
 
-	s.resetTimestamp(id, uint64(state.Block().Height))
+	es.resetTimestamp(id, uint64(s.Block().Height))
 	return result, err
 
 }
 
-func (s *EthSubscriptions) LegacyPoll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+func (es *EthSubscriptions) LegacyPoll(
+	s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) ([]byte, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	es.mutex.Lock()
+	defer es.mutex.Unlock()
 
-	poll, ok := s.polls[id]
+	poll, ok := es.polls[id]
 	if !ok {
 		return nil, fmt.Errorf("subscription not found")
 	}
-	newPoll, result, err := poll.LegacyPoll(state, id, readReceipts)
-	s.polls[id] = newPoll
+	newPoll, result, err := poll.LegacyPoll(s, id, readReceipts)
+	es.polls[id] = newPoll
 
-	s.resetTimestamp(id, uint64(state.Block().Height))
+	es.resetTimestamp(id, uint64(s.Block().Height))
 	return result, err
 
 }
 
-func (s *EthSubscriptions) Remove(id string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (es *EthSubscriptions) Remove(id string) {
+	es.mutex.Lock()
+	defer es.mutex.Unlock()
 
-	delete(s.polls, id)
-	delete(s.lastPoll, id)
+	delete(es.polls, id)
+	delete(es.lastPoll, id)
 }

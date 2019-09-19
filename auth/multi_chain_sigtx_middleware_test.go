@@ -27,6 +27,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -172,12 +173,12 @@ func TestBinanceSigning(t *testing.T) {
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(s.Context(), ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
 		"default": {
@@ -191,12 +192,12 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(_ state.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	// Define supported chains by in middleware
@@ -214,7 +215,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 	// tx using address mapping from eth account. Gives error.
 	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.Error(t, err)
 
 	// set up address mapping between eth and loom accounts
@@ -229,24 +230,24 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 	// tx using address mapping from eth account. No error this time as mapped loom account is found.
 	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 }
 
 func TestBinanceAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(features.AddressMapperVersion1_1, true)
-	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	s.SetFeature(features.AddressMapperVersion1_1, true)
+	s.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	// FIXME: Having to set feature flags twice is pretty stupid... need to fix this state/ctx mess.
 	fakeCtx.SetFeature(features.AddressMapperVersion1_1, true)
-	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	s.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
 	fakeCtx.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(s.Context(), ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
 		"default": {
@@ -260,12 +261,12 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(_ state.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	// Init the contract
@@ -283,7 +284,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 
 	// tx using address mapping from eth account. Gives error.
 	txSigned = mockBinanceSignedTx(t, "binance", signer)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.Error(t, err)
 
 	// set up address mapping between eth and loom accounts
@@ -298,25 +299,25 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 
 	// tx using address mapping from binance account. No error this time as mapped loom account is found.
 	txSigned = mockBinanceSignedTx(t, "binance", signer)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 }
 
 func TestChainIdVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
-	state.SetFeature(features.AddressMapperVersion1_1, true)
-	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
+	s := state.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	s.SetFeature(features.AddressMapperVersion1_1, true)
+	s.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	state.SetFeature(features.AddressMapperVersion1_1, true)
-	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
-	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
+	s.SetFeature(features.AddressMapperVersion1_1, true)
+	s.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
+	s.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(s.Context(), ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
 		"default": {
@@ -338,12 +339,12 @@ func TestChainIdVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(_ state.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	// Define supported chains by in middleware
@@ -361,7 +362,7 @@ func TestChainIdVerification(t *testing.T) {
 	// to a DAppChain account.
 	// Don't try this in production.
 	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
@@ -369,18 +370,18 @@ func TestChainIdVerification(t *testing.T) {
 	// to a DAppChain account.
 	// Don't try this in production.
 	txSigned = mockSignedTx(t, "tron", &auth.TronSigner{ethKey})
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 
 	// Binance
 	txSigned = mockBinanceSignedTx(t, "binance", auth.NewBinanceSigner(crypto.FromECDSA(ethKey)))
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, s, txSigned, ctx)
 	require.NoError(t, err)
 }
 
-func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
-	return ttm.ProcessTx(state.WithContext(ctx), signedTx,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, s state.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
+	return ttm.ProcessTx(s.WithContext(ctx), signedTx,
+		func(s state.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
 
 			var nonceTx NonceTx
 			if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
@@ -396,7 +397,7 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 			}
 
-			origin := Origin(state.Context())
+			origin := Origin(s.Context())
 			caller := loom.UnmarshalAddressPB(msg.From)
 			if caller.Compare(origin) != 0 {
 				return res, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)

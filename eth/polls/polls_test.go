@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/state"
 
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/store"
@@ -248,7 +249,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NoError(t, receiptHandler.Close())
 }
 
-func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
+func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) state.State {
 	state := common.MockState(0)
 
 	mockEvent4 := []*types.EventData{

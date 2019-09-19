@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/pkg/errors"
@@ -30,12 +31,12 @@ func NewEthTxPoll(height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore sto
 }
 
 func (p *EthTxPoll) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipt loomchain.ReadReceiptHandler,
+	s state.ReadOnlyState, id string, readReceipt loomchain.ReadReceiptHandler,
 ) (EthPoll, interface{}, error) {
-	if p.lastBlockRead+1 > uint64(state.Block().Height) {
+	if p.lastBlockRead+1 > uint64(s.Block().Height) {
 		return p, nil, nil
 	}
-	lastBlock, results, err := getTxHashes(state, p.lastBlockRead, readReceipt, p.evmAuxStore)
+	lastBlock, results, err := getTxHashes(s, p.lastBlockRead, readReceipt, p.evmAuxStore)
 	if err != nil {
 		return p, nil, nil
 	}
@@ -44,16 +45,16 @@ func (p *EthTxPoll) Poll(
 }
 
 func (p *EthTxPoll) AllLogs(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
-	_, results, err := getTxHashes(state, p.startBlock, readReceipts, p.evmAuxStore)
+	_, results, err := getTxHashes(s, p.startBlock, readReceipts, p.evmAuxStore)
 	return eth.EncBytesArray(results), err
 }
 
-func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64,
+func getTxHashes(s state.ReadOnlyState, lastBlockRead uint64,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore) (uint64, [][]byte, error) {
 	var txHashes [][]byte
-	for height := lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
+	for height := lastBlockRead + 1; height < uint64(s.Block().Height); height++ {
 		txHashList, err := evmAuxStore.GetTxHashList(height)
 
 		if err != nil {
@@ -68,14 +69,14 @@ func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64,
 }
 
 func (p *EthTxPoll) LegacyPoll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	s state.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (EthPoll, []byte, error) {
-	if p.lastBlockRead+1 > uint64(state.Block().Height) {
+	if p.lastBlockRead+1 > uint64(s.Block().Height) {
 		return p, nil, nil
 	}
 
 	var txHashes [][]byte
-	for height := p.lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
+	for height := p.lastBlockRead + 1; height < uint64(s.Block().Height); height++ {
 		txHashList, err := p.evmAuxStore.GetTxHashList(height)
 		if err != nil {
 			return p, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
@@ -84,7 +85,7 @@ func (p *EthTxPoll) LegacyPoll(
 			txHashes = append(txHashes, txHashList...)
 		}
 	}
-	p.lastBlockRead = uint64(state.Block().Height)
+	p.lastBlockRead = uint64(s.Block().Height)
 
 	blocksMsg := types.EthFilterEnvelope_EthTxHashList{
 		EthTxHashList: &types.EthTxHashList{EthTxHash: txHashes},

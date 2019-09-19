@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -142,19 +143,19 @@ func loadTierMap(ctx contractpb.StaticContext) (map[udwtypes.TierID]udwtypes.Tie
 // NewContractTxLimiterMiddleware creates a middleware function that limits how many call txs can be
 // sent to an EVM contract within a pre-configured block range.
 func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
-	createUserDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
+	createUserDeployerWhitelistCtx func(s state.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	txl := &contractTxLimiter{
 		contractStatsMap: make(map[string]*contractStats, 0),
 	}
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		s state.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 		if !isCheckTx {
-			return next(state, txBytes, isCheckTx)
+			return next(s, txBytes, isCheckTx)
 		}
 		var nonceTx auth.NonceTx
 		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
@@ -165,7 +166,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.New("throttle: unmarshal tx")
 		}
 		if tx.Id != callId {
-			return next(state, txBytes, isCheckTx)
+			return next(s, txBytes, isCheckTx)
 		}
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
@@ -176,12 +177,12 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 		}
 		if msgTx.VmType != vm.VMType_EVM {
-			return next(state, txBytes, isCheckTx)
+			return next(s, txBytes, isCheckTx)
 		}
 		if txl.inactiveDeployerContracts == nil ||
 			txl.contractToTierMap == nil ||
 			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {
-			ctx, err := createUserDeployerWhitelistCtx(state)
+			ctx, err := createUserDeployerWhitelistCtx(s)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
@@ -203,11 +204,11 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		// contracts the limiter doesn't know about shouldn't be throttled
 		contractTierID, ok := txl.contractToTierMap[contractAddr.String()]
 		if !ok {
-			return next(state, txBytes, isCheckTx)
+			return next(s, txBytes, isCheckTx)
 		}
 		if txl.tierMap == nil ||
 			(txl.tierDataLastUpdated+cfg.TierDataRefreshInterval) < time.Now().Unix() {
-			ctx, er := createUserDeployerWhitelistCtx(state)
+			ctx, er := createUserDeployerWhitelistCtx(s)
 			if er != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
@@ -220,7 +221,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		// ensure that tier corresponding to contract available in tierMap
 		_, ok = txl.tierMap[contractTierID]
 		if !ok {
-			ctx, er := createUserDeployerWhitelistCtx(state)
+			ctx, er := createUserDeployerWhitelistCtx(s)
 			if er != nil {
 				return res, errors.Wrap(err, "throttle: context creation")
 			}
@@ -230,11 +231,11 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			}
 			txl.tierMap[contractTierID] = tierInfo
 		}
-		if txl.isAccountLimitReached(contractAddr, state.Block().Height) {
+		if txl.isAccountLimitReached(contractAddr, s.Block().Height) {
 			return loomchain.TxHandlerResult{}, ErrTxLimitReached
 		}
-		txl.updateState(contractAddr, state.Block().Height)
+		txl.updateState(contractAddr, s.Block().Height)
 
-		return next(state, txBytes, isCheckTx)
+		return next(s, txBytes, isCheckTx)
 	})
 }

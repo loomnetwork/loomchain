@@ -7,8 +7,8 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
 	common "github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/state"
 )
 
 const (
@@ -26,7 +26,7 @@ func recordKey(name string) []byte {
 
 // StateRegistry stores contract meta data for named contracts only, and allows lookup by contract name.
 type StateRegistry struct {
-	State loomchain.State
+	State state.State
 }
 
 var _ common.Registry = &StateRegistry{}

@@ -2,6 +2,8 @@ package loomchain
 
 import (
 	"sort"
+
+	"github.com/loomnetwork/loomchain/state"
 )
 
 type forkRoute struct {
@@ -50,8 +52,8 @@ func (r *ForkRouter) Handle(chainID string, height int64, handler TxHandler) {
 	r.routes[chainID] = routes
 }
 
-func (r *ForkRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	block := state.Block()
+func (r *ForkRouter) ProcessTx(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	block := s.Block()
 	routes := r.routes[block.ChainID]
 
 	var found TxHandler
@@ -62,5 +64,5 @@ func (r *ForkRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxH
 		found = route
 	}
 
-	return found.ProcessTx(state, txBytes, isCheckTx)
+	return found.ProcessTx(s, txBytes, isCheckTx)
 }

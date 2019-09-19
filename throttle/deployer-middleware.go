@@ -10,6 +10,7 @@ import (
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -25,27 +26,27 @@ var (
 // NewEVMDeployRecorderPostCommitMiddleware returns post-commit middleware that
 // Records deploymentAddress and vmType
 func NewEVMDeployRecorderPostCommitMiddleware(
-	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
+	createDeployerWhitelistCtx func(s state.State) (contractpb.Context, error),
 ) (loomchain.PostCommitMiddleware, error) {
 	return loomchain.PostCommitMiddlewareFunc(func(
-		state loomchain.State,
+		s state.State,
 		txBytes []byte,
 		res loomchain.TxHandlerResult,
 		next loomchain.PostCommitHandler,
 		isCheckTx bool,
 	) error {
-		if !state.FeatureEnabled(features.UserDeployerWhitelistFeature, false) {
-			return next(state, txBytes, res, isCheckTx)
+		if !s.FeatureEnabled(features.UserDeployerWhitelistFeature, false) {
+			return next(s, txBytes, res, isCheckTx)
 		}
 
 		// If it isn't EVM deployment, no need to proceed further
 		if res.Info != utils.DeployEvm {
-			return next(state, txBytes, res, isCheckTx)
+			return next(s, txBytes, res, isCheckTx)
 		}
 
 		// This is checkTx, so bail out early.
 		if len(res.Data) == 0 {
-			return next(state, txBytes, res, isCheckTx)
+			return next(s, txBytes, res, isCheckTx)
 		}
 
 		var deployResponse vm.DeployResponse
@@ -53,8 +54,8 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
 		}
 
-		origin := auth.Origin(state.Context())
-		ctx, err := createDeployerWhitelistCtx(state)
+		origin := auth.Origin(s.Context())
+		ctx, err := createDeployerWhitelistCtx(s)
 		if err != nil {
 			return err
 		}
@@ -63,22 +64,22 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 			return errors.Wrapf(err, "error while recording deployment")
 		}
 
-		return next(state, txBytes, res, isCheckTx)
+		return next(s, txBytes, res, isCheckTx)
 	}), nil
 }
 
 func NewDeployerWhitelistMiddleware(
-	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
+	createDeployerWhitelistCtx func(s state.State) (contractpb.Context, error),
 ) (loomchain.TxMiddlewareFunc, error) {
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		s state.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 
-		if !state.FeatureEnabled(features.DeployerWhitelistFeature, false) {
-			return next(state, txBytes, isCheckTx)
+		if !s.FeatureEnabled(features.DeployerWhitelistFeature, false) {
+			return next(s, txBytes, isCheckTx)
 		}
 
 		var nonceTx auth.NonceTx
@@ -92,7 +93,7 @@ func NewDeployerWhitelistMiddleware(
 		}
 
 		if tx.Id != deployId && tx.Id != migrationId {
-			return next(state, txBytes, isCheckTx)
+			return next(s, txBytes, isCheckTx)
 		}
 
 		var msg vm.MessageTx
@@ -108,8 +109,8 @@ func NewDeployerWhitelistMiddleware(
 			}
 
 			if deployTx.VmType == vm.VMType_PLUGIN {
-				origin := auth.Origin(state.Context())
-				ctx, err := createDeployerWhitelistCtx(state)
+				origin := auth.Origin(s.Context())
+				ctx, err := createDeployerWhitelistCtx(s)
 				if err != nil {
 					return res, err
 				}
@@ -117,8 +118,8 @@ func NewDeployerWhitelistMiddleware(
 					return res, err
 				}
 			} else if deployTx.VmType == vm.VMType_EVM {
-				origin := auth.Origin(state.Context())
-				ctx, err := createDeployerWhitelistCtx(state)
+				origin := auth.Origin(s.Context())
+				ctx, err := createDeployerWhitelistCtx(s)
 				if err != nil {
 					return res, err
 				}
@@ -129,8 +130,8 @@ func NewDeployerWhitelistMiddleware(
 
 		} else if tx.Id == migrationId {
 			// Process migrationTx, checking for permission to migrate contract
-			origin := auth.Origin(state.Context())
-			ctx, err := createDeployerWhitelistCtx(state)
+			origin := auth.Origin(s.Context())
+			ctx, err := createDeployerWhitelistCtx(s)
 			if err != nil {
 				return res, err
 			}
@@ -139,7 +140,7 @@ func NewDeployerWhitelistMiddleware(
 			}
 		}
 
-		return next(state, txBytes, isCheckTx)
+		return next(s, txBytes, isCheckTx)
 	}), nil
 }
 

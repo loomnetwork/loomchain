@@ -11,9 +11,10 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/ed25519"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -46,7 +47,7 @@ func Origin(ctx context.Context) loom.Address {
 }
 
 var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
-	state loomchain.State,
+	s state.State,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 	isCheckTx bool,
@@ -59,13 +60,13 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	origin, err := GetOrigin(tx, state.Block().ChainID)
+	origin, err := GetOrigin(tx, s.Block().ChainID)
 	if err != nil {
 		return r, err
 	}
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-	return next(state.WithContext(ctx), tx.Inner, isCheckTx)
+	ctx := context.WithValue(s.Context(), ContextKeyOrigin, origin)
+	return next(s.WithContext(ctx), tx.Inner, isCheckTx)
 })
 
 func GetOrigin(tx SignedTx, chainId string) (loom.Address, error) {
@@ -91,8 +92,8 @@ func nonceKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("nonce"), addr.Bytes())
 }
 
-func Nonce(state loomchain.ReadOnlyState, addr loom.Address) uint64 {
-	return loomchain.NewSequence(nonceKey(addr)).Value(state)
+func Nonce(s state.ReadOnlyState, addr loom.Address) uint64 {
+	return loomchain.NewSequence(nonceKey(addr)).Value(s)
 }
 
 type NonceHandler struct {
@@ -101,30 +102,30 @@ type NonceHandler struct {
 }
 
 func (n *NonceHandler) Nonce(
-	state loomchain.State,
+	s state.State,
 	kvStore store.KVStore,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
-	origin := Origin(state.Context())
+	origin := Origin(s.Context())
 	if origin.IsEmpty() {
 		return r, errors.New("transaction has no origin [nonce]")
 	}
-	if n.lastHeight != state.Block().Height {
-		n.lastHeight = state.Block().Height
+	if n.lastHeight != s.Block().Height {
+		n.lastHeight = s.Block().Height
 		// Clear the cache for each block
 		n.nonceCache = make(map[string]uint64)
 	}
 	var seq uint64
 
-	incrementNonceOnFailedTx := state.Config().GetNonceHandler().GetIncNonceOnFailedTx()
+	incrementNonceOnFailedTx := s.Config().GetNonceHandler().GetIncNonceOnFailedTx()
 	if incrementNonceOnFailedTx && !isCheckTx {
 		// Unconditionally increment the nonce in DeliverTx, regardless of whether the tx succeeds
 		seq = loomchain.NewSequence(nonceKey(origin)).Next(kvStore)
 	} else {
-		seq = loomchain.NewSequence(nonceKey(origin)).Next(state)
+		seq = loomchain.NewSequence(nonceKey(origin)).Next(s)
 	}
 
 	var tx NonceTx
@@ -160,23 +161,23 @@ func (n *NonceHandler) Nonce(
 		return r, fmt.Errorf("sequence number does not match expected %d got %d", seq, tx.Sequence)
 	}
 
-	return next(state, tx.Inner, isCheckTx)
+	return next(s, tx.Inner, isCheckTx)
 }
 
-func (n *NonceHandler) IncNonce(state loomchain.State,
+func (n *NonceHandler) IncNonce(s state.State,
 	txBytes []byte,
 	result loomchain.TxHandlerResult,
 	postcommit loomchain.PostCommitHandler,
 	isCheckTx bool,
 ) error {
-	origin := Origin(state.Context())
+	origin := Origin(s.Context())
 	if origin.IsEmpty() {
 		return errors.New("transaction has no origin [IncNonce]")
 	}
 
 	// We only increment the nonce if the transaction is successful
 	// There are situations in checktx where we may not have committed the transaction to the statestore yet
-	if state.Config().GetNonceHandler().GetIncNonceOnFailedTx() {
+	if s.Config().GetNonceHandler().GetIncNonceOnFailedTx() {
 		if isCheckTx {
 			n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
 		}
@@ -192,12 +193,12 @@ var NonceTxPostNonceMiddleware = loomchain.PostCommitMiddlewareFunc(NonceTxHandl
 
 var NonceTxMiddleware = func(kvStore store.KVStore) loomchain.TxMiddlewareFunc {
 	nonceTxMiddleware := func(
-		state loomchain.State,
+		s state.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (loomchain.TxHandlerResult, error) {
-		return NonceTxHandler.Nonce(state, kvStore, txBytes, next, isCheckTx)
+		return NonceTxHandler.Nonce(s, kvStore, txBytes, next, isCheckTx)
 	}
 	return loomchain.TxMiddlewareFunc(nonceTxMiddleware)
 }

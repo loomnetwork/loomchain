@@ -9,6 +9,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/features"
 	regcommon "github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/state"
+
 	"github.com/pkg/errors"
 )
 
@@ -19,13 +21,13 @@ var (
 
 // ChainConfigManager implements loomchain.ChainConfigManager interface
 type ChainConfigManager struct {
-	ctx   contract.Context
-	state loomchain.State
-	build uint64
+	ctx    contract.Context
+	lState state.State
+	build  uint64
 }
 
 // NewChainConfigManager attempts to create an instance of ChainConfigManager.
-func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigManager, error) {
+func NewChainConfigManager(pvm *PluginVM, s state.State) (*ChainConfigManager, error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("chainconfig")
 	if err != nil {
@@ -41,9 +43,9 @@ func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigMa
 		build = 0
 	}
 	return &ChainConfigManager{
-		ctx:   ctx,
-		state: state,
-		build: build,
+		ctx:    ctx,
+		lState: s,
+		build:  build,
 	}, nil
 }
 
@@ -60,14 +62,14 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 		return err
 	}
 	for _, feature := range features {
-		c.state.SetFeature(feature.Name, true)
+		c.lState.SetFeature(feature.Name, true)
 	}
 	return nil
 }
 
 // UpdateConfig applies pending config changes to the on-chain config and returns the number of config changes
 func (c *ChainConfigManager) UpdateConfig() (int, error) {
-	if !c.state.FeatureEnabled(features.ChainCfgVersion1_3, false) {
+	if !c.lState.FeatureEnabled(features.ChainCfgVersion1_3, false) {
 		return 0, nil
 	}
 
@@ -77,7 +79,7 @@ func (c *ChainConfigManager) UpdateConfig() (int, error) {
 	}
 
 	for _, setting := range settings {
-		if err := c.state.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
+		if err := c.lState.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
 			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
 		}
 	}

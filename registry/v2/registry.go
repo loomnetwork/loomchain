@@ -8,8 +8,8 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
 	common "github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/state"
 )
 
 const (
@@ -36,7 +36,7 @@ func contractRecordKey(contractAddr loom.Address) []byte {
 // StateRegistry stores contract meta data for named & unnamed contracts, and allows lookup by
 // contract name or contract address.
 type StateRegistry struct {
-	State loomchain.State
+	State state.State
 }
 
 var _ common.Registry = &StateRegistry{}

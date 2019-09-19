@@ -6,28 +6,25 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loomnetwork/go-loom/config"
-	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/state"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
-	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/types"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	ttypes "github.com/tendermint/tendermint/types"
+
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
-	ttypes "github.com/tendermint/tendermint/types"
 )
 
+/*
 type ReadOnlyState interface {
 	store.KVReader
 	Validators() []*loom.Validator
@@ -276,12 +273,13 @@ func (s *readOnlyKVStoreAdapter) Set(key, value []byte) {
 func (s *readOnlyKVStoreAdapter) Delete(key []byte) {
 	panic("kvStoreSnapshotAdapter.Delete not implemented")
 }
-
+*/
+/*
 type TxHandler interface {
-	ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+	ProcessTx(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 }
 
-type TxHandlerFunc func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+type TxHandlerFunc func(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 
 type TxHandlerResult struct {
 	Data             []byte
@@ -292,12 +290,12 @@ type TxHandlerResult struct {
 	Tags []common.KVPair
 }
 
-func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	return f(state, txBytes, isCheckTx)
-}
+func (f TxHandlerFunc) ProcessTx(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	return f(s, txBytes, isCheckTx)
+}*/
 
 type QueryHandler interface {
-	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
+	Handle(s state.ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
 type KarmaHandler interface {
@@ -314,18 +312,18 @@ type ChainConfigManager interface {
 	UpdateConfig() (int, error)
 }
 
-type GetValidatorSet func(state State) (loom.ValidatorSet, error)
+//type GetValidatorSet func(state.State) (loom.ValidatorSet, error)
 
-type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
+type ValidatorsManagerFactoryFunc func(state.State) (ValidatorsManager, error)
 
-type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
+type ChainConfigManagerFactoryFunc func(state.State) (ChainConfigManager, error)
 
 type Application struct {
 	lastBlockHeader abci.Header
 	curBlockHeader  abci.Header
 	curBlockHash    []byte
 	Store           store.VersionedKVStore
-	Init            func(State) error
+	Init            func(state.State) error
 	TxHandler
 	QueryHandler
 	EventHandler
@@ -336,8 +334,8 @@ type Application struct {
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
-	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
-	GetValidatorSet             GetValidatorSet
+	CreateContractUpkeepHandler func(state.State) (KarmaHandler, error)
+	GetValidatorSet             state.GetValidatorSet
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
@@ -435,7 +433,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		panic("state version is not 1")
 	}
 
-	state := NewStoreState(
+	s := state.NewStoreState(
 		context.Background(),
 		a.Store,
 		abci.Header{
@@ -446,7 +444,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 	)
 
 	if a.Init != nil {
-		err := a.Init(state)
+		err := a.Init(s)
 		if err != nil {
 			panic(err)
 		}
@@ -479,7 +477,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
-		upkeepState := NewStoreState(
+		upkeepState := state.NewStoreState(
 			context.Background(),
 			upkeepStoreTx,
 			a.curBlockHeader,
@@ -499,7 +497,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
+	s := state.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -507,7 +505,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
-	validatorManager, err := a.CreateValidatorManager(state)
+	validatorManager, err := a.CreateValidatorManager(s)
 	if err != registry.ErrNotFound {
 		if err != nil {
 			panic(err)
@@ -520,7 +518,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	//Enable Features
-	chainConfigManager, err := a.CreateChainConfigManager(state)
+	chainConfigManager, err := a.CreateChainConfigManager(s)
 	if err != nil {
 		panic(err)
 	}
@@ -559,13 +557,13 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	// 1. The storeTx is no longer used by the receipt handler, so need to remove it.
 	// 2. receiptHandler.CommitBlock() should be moved to Application.Commit().
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-		nil,
-		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
+	//s := state.NewStoreState(
+	//	context.Background(),
+	//	storeTx,
+	//	a.curBlockHeader,
+	//	nil,
+	//	a.GetValidatorSet,
+	//).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
@@ -576,7 +574,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
-	state = NewStoreState(
+	s := state.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -584,7 +582,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
-	validatorManager, err := a.CreateValidatorManager(state)
+	validatorManager, err := a.CreateValidatorManager(s)
 	if err != registry.ErrNotFound {
 		if err != nil {
 			panic(err)
@@ -667,7 +665,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 
-	state := NewStoreState(
+	s := state.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -679,7 +677,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 	defer receiptHandler.DiscardCurrentReceipt()
 	defer a.EventHandler.Rollback()
 
-	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
+	r, err := a.TxHandler.ProcessTx(s, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
@@ -690,7 +688,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 
 		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
-			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
+			s.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
 
 		if saveEvmTxReceipt {
 			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
@@ -783,42 +781,14 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
-func (a *Application) ReadOnlyState() State {
+func (a *Application) ReadOnlyState() state.State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
-	return NewStoreStateSnapshot(
+	return state.NewStoreStateSnapshot(
 		nil,
 		a.Store.GetSnapshot(),
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
 	)
-}
-
-func (a *Application) InMemoryApp(height uint64) InMemoryApp {
-	return NewInMemoryApp(a, height)
-}
-
-type InMemoryApp interface {
-	ProcessTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
-}
-
-type inMemoryApp struct {
-	app *Application
-}
-
-func NewInMemoryApp(a *Application, height uint64) InMemoryApp {
-	app := Application{
-		lastBlockHeader: a.lastBlockHeader,
-		curBlockHeader:  a.curBlockHeader,
-		curBlockHash:    a.curBlockHash,
-		Store:           store.NewSplitStore(store.NewMemStore(), a.Store),
-		TxHandler:       a.TxHandler,
-		ReceiptsVersion: a.ReceiptsVersion,
-	}
-	return &inMemoryApp{&app}
-}
-
-func (ma *inMemoryApp) ProcessTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	return ma.app.processTx(txBytes, isCheckTx)
 }

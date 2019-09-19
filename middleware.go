@@ -9,36 +9,59 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/loomchain/log"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/state"
 )
 
-type TxMiddleware interface {
-	ProcessTx(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
+type TxHandler interface {
+	ProcessTx(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 }
 
-type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
+type TxHandlerFunc func(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+
+type TxHandlerResult struct {
+	Data             []byte
+	ValidatorUpdates []abci.Validator
+	Info             string
+	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
+	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tendermint/libs/pubsub/query)
+	Tags []common.KVPair
+}
+
+func (f TxHandlerFunc) ProcessTx(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	return f(s, txBytes, isCheckTx)
+}
+
+type TxMiddleware interface {
+	ProcessTx(s state.State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
+}
+
+type TxMiddlewareFunc func(s state.State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
 
 func (f TxMiddlewareFunc) ProcessTx(
-	state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
+	s state.State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
 ) (TxHandlerResult, error) {
-	return f(state, txBytes, next, isCheckTx)
+	return f(s, txBytes, next, isCheckTx)
 }
 
-type PostCommitHandler func(state State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error
+type PostCommitHandler func(s state.State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error
 
 type PostCommitMiddleware interface {
-	ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool) error
+	ProcessTx(s state.State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool) error
 }
 
 type PostCommitMiddlewareFunc func(
-	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool,
+	s state.State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool,
 ) error
 
 func (f PostCommitMiddlewareFunc) ProcessTx(
-	state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool,
+	s state.State, txBytes []byte, res TxHandlerResult, next PostCommitHandler, isCheckTx bool,
 ) error {
-	return f(state, txBytes, res, next, isCheckTx)
+	return f(s, txBytes, res, next, isCheckTx)
 }
 
 func MiddlewareTxHandler(
@@ -46,21 +69,21 @@ func MiddlewareTxHandler(
 	handler TxHandler,
 	postMiddlewares []PostCommitMiddleware,
 ) TxHandler {
-	postChain := func(state State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error { return nil }
+	postChain := func(s state.State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error { return nil }
 	for i := len(postMiddlewares) - 1; i >= 0; i-- {
 		m := postMiddlewares[i]
 		localNext := postChain
-		postChain = func(state State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error {
-			return m.ProcessTx(state, txBytes, res, localNext, isCheckTx)
+		postChain = func(s state.State, txBytes []byte, res TxHandlerResult, isCheckTx bool) error {
+			return m.ProcessTx(s, txBytes, res, localNext, isCheckTx)
 		}
 	}
 
-	next := TxHandlerFunc(func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-		result, err := handler.ProcessTx(state, txBytes, isCheckTx)
+	next := TxHandlerFunc(func(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+		result, err := handler.ProcessTx(s, txBytes, isCheckTx)
 		if err != nil {
 			return result, err
 		}
-		err = postChain(state, txBytes, result, isCheckTx)
+		err = postChain(s, txBytes, result, isCheckTx)
 		return result, err
 	})
 
@@ -68,15 +91,15 @@ func MiddlewareTxHandler(
 		m := middlewares[i]
 		// Need local var otherwise infinite loop occurs
 		nextLocal := next
-		next = func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-			return m.ProcessTx(state, txBytes, nextLocal, isCheckTx)
+		next = func(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+			return m.ProcessTx(s, txBytes, nextLocal, isCheckTx)
 		}
 	}
 
 	return next
 }
 
-var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+var NoopTxHandler = TxHandlerFunc(func(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	return TxHandlerResult{}, nil
 })
 
@@ -94,7 +117,7 @@ func rvalError(r interface{}) error {
 }
 
 var RecoveryTxMiddleware = TxMiddlewareFunc(func(
-	state State,
+	s state.State,
 	txBytes []byte,
 	next TxHandlerFunc,
 	isCheckTx bool,
@@ -108,28 +131,28 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 		}
 	}()
 
-	return next(state, txBytes, isCheckTx)
+	return next(s, txBytes, isCheckTx)
 })
 
 var LogTxMiddleware = TxMiddlewareFunc(func(
-	state State,
+	s state.State,
 	txBytes []byte,
 	next TxHandlerFunc,
 	isCheckTx bool,
 ) (TxHandlerResult, error) {
 	// TODO: set some tx specific logging info
-	return next(state, txBytes, isCheckTx)
+	return next(s, txBytes, isCheckTx)
 })
 
 var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
-	state State,
+	s state.State,
 	txBytes []byte,
 	res TxHandlerResult,
 	next PostCommitHandler,
 	isCheckTx bool,
 ) error {
 	log.Default.Info("Tx processed", "result", res, "payload", base64.StdEncoding.EncodeToString(txBytes))
-	return next(state, txBytes, res, isCheckTx)
+	return next(s, txBytes, res, isCheckTx)
 })
 
 // InstrumentingTxMiddleware maintains the state of metrics values internally
@@ -166,7 +189,7 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 
 // ProcessTx capture metrics and implements TxMiddleware
 func (m InstrumentingTxMiddleware) ProcessTx(
-	state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
+	s state.State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
 ) (r TxHandlerResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Tx", "error", fmt.Sprint(err != nil)}
@@ -174,6 +197,6 @@ func (m InstrumentingTxMiddleware) ProcessTx(
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	r, err = next(state, txBytes, isCheckTx)
+	r, err = next(s, txBytes, isCheckTx)
 	return
 }

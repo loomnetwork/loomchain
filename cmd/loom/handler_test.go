@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -35,7 +36,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(&vm.CallTxHandler{Manager: vmManager}))
 
 	kvStore := store.NewMemStore()
-	state := loomchain.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
+	s := state.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,
@@ -50,7 +51,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	}
 
 	// Try to process txs in which Alice attempts to impersonate Bob
-	_, err = rootHandler.ProcessTx(state, createTxWithInvalidCaller(t, signer, caller, &vm.DeployTx{
+	_, err = rootHandler.ProcessTx(s, createTxWithInvalidCaller(t, signer, caller, &vm.DeployTx{
 		VmType: vm.VMType_PLUGIN,
 		Code:   nil,
 		Name:   "hello",
@@ -58,7 +59,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "Origin doesn't match caller"))
 
-	_, err = rootHandler.ProcessTx(state, createTxWithInvalidCaller(t, signer, caller, &vm.CallTx{
+	_, err = rootHandler.ProcessTx(s, createTxWithInvalidCaller(t, signer, caller, &vm.CallTx{
 		VmType: vm.VMType_PLUGIN,
 	}, 2, 2), false)
 	require.Error(t, err)
