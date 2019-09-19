@@ -38,18 +38,26 @@ func blockHeightToBytes(height uint64) []byte {
 	return heightB
 }
 
-func LoadStore(dbName, rootPath string, maxReceipts uint64, inMemory bool) (*EvmAuxStore, error) {
-	var db dbm.DB
-	if inMemory {
-		db = dbm.NewMemDB()
-	} else {
-		evmAuxDB, err := dbm.NewGoLevelDB(dbName, rootPath)
+func renameReceiptsDB(path, newName string) error {
+	oldName := "receipts_db"
+	if _, err := os.Stat(path + "/" + oldName); !os.IsNotExist(err) {
+		err := os.Rename(oldName, newName+".db")
 		if err != nil {
-			return nil, err
+			return err
 		}
-		db = evmAuxDB
 	}
-	return NewEvmAuxStore(db, maxReceipts), nil
+	return nil
+}
+
+func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error) {
+	if err := renameReceiptsDB(rootPath, dbName); err != nil {
+		return nil, err
+	}
+	evmAuxDB, err := dbm.NewGoLevelDB(dbName, rootPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewEvmAuxStore(evmAuxDB, maxReceipts), nil
 }
 
 // ChildTxRef links a Tendermint tx hash to an EVM tx hash.
@@ -93,7 +101,7 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 }
 
 func (s *EvmAuxStore) SetBloomFilter(batch dbm.Batch, filter []byte, height uint64) {
-	s.db.Set(bloomFilterKey(height), filter)
+	batch.Set(bloomFilterKey(height), filter)
 }
 
 func (s *EvmAuxStore) SetTxHashList(batch dbm.Batch, txHashList [][]byte, height uint64) error {
@@ -101,7 +109,7 @@ func (s *EvmAuxStore) SetTxHashList(batch dbm.Batch, txHashList [][]byte, height
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}
-	s.db.Set(evmTxHashKey(height), postTxHashList)
+	batch.Set(evmTxHashKey(height), postTxHashList)
 	return nil
 }
 

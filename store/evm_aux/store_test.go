@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func TestTxHashOperation(t *testing.T) {
@@ -12,8 +13,7 @@ func TestTxHashOperation(t *testing.T) {
 		[]byte("hash1"),
 		[]byte("hash2"),
 	}
-	evmAuxStore, err := LoadStore("", "", 10000, true)
-	require.NoError(t, err)
+	evmAuxStore := NewEvmAuxStore(dbm.NewMemDB(), 10000)
 	txHashList, err := evmAuxStore.GetTxHashList(40)
 	require.Equal(t, 0, len(txHashList))
 	db := evmAuxStore.DB()
@@ -30,13 +30,11 @@ func TestTxHashOperation(t *testing.T) {
 
 func TestBloomFilterOperation(t *testing.T) {
 	bf1 := []byte("bloomfilter1")
-	evmAuxStore, err := LoadStore("", "", 10000, true)
-	require.NoError(t, err)
+	evmAuxStore := NewEvmAuxStore(dbm.NewMemDB(), 10000)
 	bf := evmAuxStore.GetBloomFilter(40)
 	require.Nil(t, bf)
 	db := evmAuxStore.DB()
 	batch := db.NewBatch()
-	require.NoError(t, err)
 	evmAuxStore.SetBloomFilter(batch, bf1, 30)
 	batch.Write()
 	bf = evmAuxStore.GetBloomFilter(30)

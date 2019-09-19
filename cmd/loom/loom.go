@@ -588,7 +588,7 @@ func destroyApp(cfg *config.Config) error {
 
 func destroyReceiptsDB(cfg *config.Config) {
 	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb || cfg.ReceiptsVersion == 3 {
-		receptHandler, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax, false)
+		receptHandler, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax)
 		if err != nil {
 			panic(err)
 		}
@@ -775,7 +775,7 @@ func loadApp(
 	}
 
 	// load EVM Auxiliary Store
-	evmAuxStore, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax, false)
+	evmAuxStore, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EVMPersistentTxReceiptsMax)
 	if err != nil {
 		return nil, err
 	}
