@@ -674,28 +674,28 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int) ([]byte, error) {
 	}
 
 	// TODO: Replace this with amino serialization.
-	var seperator = []byte{17, 19, 23, 29}
+	var separator = []byte{17, 19, 23, 29}
 
 	prefix := []byte(fmt.Sprintf(
 		"NONCE:%d|CD:%s|VA:%s|PL:",
 		voteSet.Nonce, voteSet.ChainID, voteSet.ValidatorAddresses[validatorIndex],
 	))
 
-	signBytes := make([]byte, len(prefix)+len(seperator)+len(voteSet.ValidatorsHash)+len(seperator)+len(payloadBytes))
+	signBytes := make([]byte, len(prefix)+len(separator)+len(voteSet.ValidatorsHash)+len(separator)+len(payloadBytes))
 
 	numCopied := 0
 
 	copy(signBytes[numCopied:], prefix)
 	numCopied += len(prefix)
 
-	copy(signBytes[numCopied:], seperator)
-	numCopied += len(seperator)
+	copy(signBytes[numCopied:], separator)
+	numCopied += len(separator)
 
 	copy(signBytes[numCopied:], voteSet.ValidatorsHash)
 	numCopied += len(voteSet.ValidatorsHash)
 
-	copy(signBytes[numCopied:], seperator)
-	numCopied += len(seperator)
+	copy(signBytes[numCopied:], separator)
+	numCopied += len(separator)
 
 	copy(signBytes[numCopied:], payloadBytes)
 

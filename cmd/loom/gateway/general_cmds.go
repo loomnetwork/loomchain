@@ -467,6 +467,9 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 
 				// Need to wait until the rewards delegation is unbonded.
 				timeToElections, err := dpos.TimeUntilElections(id)
+				if err != nil {
+					return err
+				}
 				fmt.Println("Time until elections: ", timeToElections)
 
 				sleepTime := int64(30)

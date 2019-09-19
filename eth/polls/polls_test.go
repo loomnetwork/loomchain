@@ -46,6 +46,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	}
 	state := makeMockState(t, receiptHandler)
 	ethFilter, err := eth.DecLogFilter(allFilter)
+	require.NoError(t, err)
 	id, err := sub.AddLogPoll(ethFilter, 1)
 	require.NoError(t, err)
 
@@ -79,7 +80,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 	evmAuxStore.ClearData()
@@ -124,7 +125,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }

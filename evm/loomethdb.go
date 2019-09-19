@@ -147,9 +147,8 @@ type LogParams struct {
 }
 
 type LogBatch struct {
-	batch      batch
-	params     LogParams
-	logContext *ethdbLogContext
+	batch  batch
+	params LogParams
 }
 
 const batchHeaderWithContext = `
