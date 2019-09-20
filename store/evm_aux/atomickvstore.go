@@ -27,10 +27,7 @@ func (a *atomicKVStore) Set(key, val []byte) {
 func (a *atomicKVStore) Has(key []byte) bool {
 	val, ok := a.cache[string(key)]
 	if ok {
-		if val != nil {
-			return true
-		}
-		return false
+		return val != nil
 	}
 	return a.db.Has(key)
 }

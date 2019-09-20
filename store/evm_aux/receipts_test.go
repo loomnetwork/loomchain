@@ -3,7 +3,6 @@ package evmaux
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -136,18 +135,6 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 			require.NoError(t, err1)
 			require.EqualValues(t, 0, bytes.Compare(c[i], txReceipt.TxHash))
 		}
-	}
-}
-
-//nolint:deadcode
-func dumpDbEntries(evmAuxStore *EvmAuxStore) {
-	fmt.Println("\nDumping leveldb")
-	db := evmAuxStore.DB()
-	iter := db.Iterator(nil, nil)
-	defer iter.Close()
-	for iter.Valid() {
-		fmt.Printf("key %s\t\tvalue %s\n", iter.Key(), iter.Value())
-		iter.Next()
 	}
 }
 
