@@ -719,6 +719,7 @@ EvmStore:
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
 {{end}}
 
+{{if .EvmAuxStore -}}
 #
 # EvmAuxStore
 #
@@ -731,6 +732,7 @@ EvmAuxStore:
   # MaxReceipts defines the maximum number of EVM tx receipts stored in EVM auxiliary store
   MaxReceipts: {{.EvmAuxStore.MaxReceipts}}
 {{end}}
+
 # 
 #  FnConsensus reactor on/off switch + config
 #
