@@ -15,11 +15,13 @@ func TestTxHashOperation(t *testing.T) {
 	}
 	evmAuxStore := NewEvmAuxStore(dbm.NewMemDB(), 10000)
 	txHashList, err := evmAuxStore.GetTxHashList(40)
+	require.NoError(t, err)
 	require.Equal(t, 0, len(txHashList))
 	require.NoError(t, err)
 	evmAuxStore.SetTxHashList(txHashList1, 30)
 	evmAuxStore.Commit()
 	txHashList, err = evmAuxStore.GetTxHashList(30)
+	require.NoError(t, err)
 	require.Equal(t, 2, len(txHashList))
 	require.Equal(t, true, bytes.Equal(txHashList1[0], txHashList1[0]))
 	require.Equal(t, true, bytes.Equal(txHashList1[1], txHashList1[1]))
