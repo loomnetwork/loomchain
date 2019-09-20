@@ -14,6 +14,11 @@ import (
 	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/spf13/cobra"
+
+	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -271,7 +276,7 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(evmStore).BeginTx()
-			state := loomchain.NewStoreState(
+			state := appstate.NewStoreState(
 				context.Background(),
 				storeTx,
 				abci.Header{
