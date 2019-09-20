@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -23,11 +24,11 @@ func GetKarmaMiddleWare(
 	karmaEnabled bool,
 	maxCallCount int64,
 	sessionDuration int64,
-	createKarmaContractCtx func(state loomchain.State) (contractpb.Context, error),
+	createKarmaContractCtx func(state appstate.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	th := NewThrottle(sessionDuration, maxCallCount)
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		state appstate.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,

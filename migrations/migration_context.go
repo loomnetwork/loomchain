@@ -5,11 +5,11 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/core"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -23,14 +23,14 @@ type MigrationContext struct {
 	manager        *vm.Manager
 	createRegistry registry.RegistryFactoryFunc
 	caller         loom.Address
-	state          loomchain.State
+	state          appstate.State
 	codeLoaders    map[string]core.ContractCodeLoader
 }
 
 func NewMigrationContext(
 	manager *vm.Manager,
 	createRegistry registry.RegistryFactoryFunc,
-	state loomchain.State,
+	state appstate.State,
 	caller loom.Address,
 ) *MigrationContext {
 	return &MigrationContext{
@@ -43,7 +43,7 @@ func NewMigrationContext(
 }
 
 // State returns the app state.
-func (mc *MigrationContext) State() loomchain.State {
+func (mc *MigrationContext) State() appstate.State {
 	return mc.state
 }
 

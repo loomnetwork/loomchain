@@ -6,28 +6,26 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loomnetwork/go-loom/config"
-	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
-	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/store"
-	blockindex "github.com/loomnetwork/loomchain/store/block_index"
-	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 	ttypes "github.com/tendermint/tendermint/types"
+
+	"github.com/loomnetwork/loomchain/log"
+	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
 
+/*
 type ReadOnlyState interface {
 	store.KVReader
 	Validators() []*loom.Validator
@@ -276,12 +274,12 @@ func (s *readOnlyKVStoreAdapter) Set(key, value []byte) {
 func (s *readOnlyKVStoreAdapter) Delete(key []byte) {
 	panic("kvStoreSnapshotAdapter.Delete not implemented")
 }
-
+*/
 type TxHandler interface {
-	ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+	ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 }
 
-type TxHandlerFunc func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+type TxHandlerFunc func(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 
 type TxHandlerResult struct {
 	Data             []byte
@@ -292,12 +290,12 @@ type TxHandlerResult struct {
 	Tags []common.KVPair
 }
 
-func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+func (f TxHandlerFunc) ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	return f(state, txBytes, isCheckTx)
 }
 
 type QueryHandler interface {
-	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
+	Handle(state appstate.ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
 type KarmaHandler interface {
@@ -314,18 +312,18 @@ type ChainConfigManager interface {
 	UpdateConfig() (int, error)
 }
 
-type GetValidatorSet func(state State) (loom.ValidatorSet, error)
+//type GetValidatorSet func(state appstate.State) (loom.ValidatorSet, error)
 
-type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
+type ValidatorsManagerFactoryFunc func(state appstate.State) (ValidatorsManager, error)
 
-type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
+type ChainConfigManagerFactoryFunc func(state appstate.State) (ChainConfigManager, error)
 
 type Application struct {
 	lastBlockHeader abci.Header
 	curBlockHeader  abci.Header
 	curBlockHash    []byte
 	Store           store.VersionedKVStore
-	Init            func(State) error
+	Init            func(appstate.State) error
 	TxHandler
 	QueryHandler
 	EventHandler
@@ -336,8 +334,8 @@ type Application struct {
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
-	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
-	GetValidatorSet             GetValidatorSet
+	CreateContractUpkeepHandler func(state appstate.State) (KarmaHandler, error)
+	GetValidatorSet             appstate.GetValidatorSet
 	EventStore                  store.EventStore
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
@@ -435,7 +433,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		panic("state version is not 1")
 	}
 
-	state := NewStoreState(
+	state := appstate.NewStoreState(
 		context.Background(),
 		a.Store,
 		abci.Header{
@@ -479,7 +477,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
-		upkeepState := NewStoreState(
+		upkeepState := appstate.NewStoreState(
 			context.Background(),
 			upkeepStoreTx,
 			a.curBlockHeader,
@@ -499,7 +497,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
+	state := appstate.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -567,7 +565,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
+	state := appstate.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -622,7 +620,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	defer storeTx.Rollback()
 
-	state := NewStoreState(
+	state := appstate.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -659,7 +657,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	defer storeTx.Rollback()
 
-	state := NewStoreState(
+	state := appstate.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -692,7 +690,7 @@ func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.Re
 }
 
 func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	state := NewStoreState(
+	state := appstate.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -745,7 +743,7 @@ func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheck
 
 // This version of DeliverTx stores the receipts for failed EVM txs.
 func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
-	state := NewStoreState(
+	state := appstate.NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -864,10 +862,10 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
-func (a *Application) ReadOnlyState() State {
+func (a *Application) ReadOnlyState() appstate.State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
-	return NewStoreStateSnapshot(
+	return appstate.NewStoreStateSnapshot(
 		nil,
 		a.Store.GetSnapshot(),
 		a.lastBlockHeader,

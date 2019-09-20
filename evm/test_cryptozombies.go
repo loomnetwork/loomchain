@@ -11,10 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
-	lvm "github.com/loomnetwork/loomchain/vm"
+	"github.com/loomnetwork/go-loom"
 	"github.com/stretchr/testify/require"
+
+	appstate "github.com/loomnetwork/loomchain/state"
+	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
 func testCryptoZombies(t *testing.T, vm lvm.VM, caller loom.Address) {
@@ -69,7 +70,7 @@ func testCryptoZombies(t *testing.T, vm lvm.VM, caller loom.Address) {
 
 }
 
-func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller loom.Address) {
+func testCryptoZombiesUpdateState(t *testing.T, state appstate.State, caller loom.Address) {
 	motherKat := loom.Address{
 		ChainID: "AChainID",
 		Local:   []byte("myMotherKat"),

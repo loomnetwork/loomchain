@@ -17,12 +17,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
+	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
@@ -36,11 +37,11 @@ var (
 	blockTime            = time.Unix(123456789, 0)
 )
 
-func mockState() loomchain.State {
+func mockState() appstate.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	return appstate.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 }
 
 func TestProcessDeployTx(t *testing.T) {
@@ -174,7 +175,7 @@ func TestValue(t *testing.T) {
 
 }
 
-func testValue(t *testing.T, state loomchain.State, vm lvm.VM, caller loom.Address, checkTxValueFeature bool, value int64) {
+func testValue(t *testing.T, state appstate.State, vm lvm.VM, caller loom.Address, checkTxValueFeature bool, value int64) {
 	defer func() {
 		if r := recover(); r != nil {
 			require.True(t, !checkTxValueFeature && value < 0)

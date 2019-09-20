@@ -14,6 +14,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -46,7 +47,7 @@ func Origin(ctx context.Context) loom.Address {
 }
 
 var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
-	state loomchain.State,
+	state appstate.State,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 	isCheckTx bool,
@@ -91,7 +92,7 @@ func nonceKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("nonce"), addr.Bytes())
 }
 
-func Nonce(state loomchain.ReadOnlyState, addr loom.Address) uint64 {
+func Nonce(state appstate.ReadOnlyState, addr loom.Address) uint64 {
 	return loomchain.NewSequence(nonceKey(addr)).Value(state)
 }
 
@@ -101,7 +102,7 @@ type NonceHandler struct {
 }
 
 func (n *NonceHandler) Nonce(
-	state loomchain.State,
+	state appstate.State,
 	kvStore store.KVStore,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
@@ -163,7 +164,7 @@ func (n *NonceHandler) Nonce(
 	return next(state, tx.Inner, isCheckTx)
 }
 
-func (n *NonceHandler) IncNonce(state loomchain.State,
+func (n *NonceHandler) IncNonce(state appstate.State,
 	txBytes []byte,
 	result loomchain.TxHandlerResult,
 	postcommit loomchain.PostCommitHandler,
@@ -192,7 +193,7 @@ var NonceTxPostNonceMiddleware = loomchain.PostCommitMiddlewareFunc(NonceTxHandl
 
 var NonceTxMiddleware = func(kvStore store.KVStore) loomchain.TxMiddlewareFunc {
 	nonceTxMiddleware := func(
-		state loomchain.State,
+		state appstate.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,

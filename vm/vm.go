@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 type VM interface {
@@ -15,7 +15,7 @@ type VM interface {
 	GetStorageAt(addr loom.Address, hash []byte) ([]byte, error)
 }
 
-type Factory func(loomchain.State) (VM, error)
+type Factory func(appstate.State) (VM, error)
 
 type Manager struct {
 	vms map[VMType]Factory
@@ -31,7 +31,7 @@ func (m *Manager) Register(typ VMType, fac Factory) {
 	m.vms[typ] = fac
 }
 
-func (m *Manager) InitVM(typ VMType, state loomchain.State) (VM, error) {
+func (m *Manager) InitVM(typ VMType, state appstate.State) (VM, error) {
 	fac, ok := m.vms[typ]
 	if !ok {
 		return nil, errors.New("vm type not found")

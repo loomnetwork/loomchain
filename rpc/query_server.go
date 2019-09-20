@@ -23,6 +23,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
@@ -39,6 +40,7 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -58,7 +60,7 @@ const (
 
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
-	ReadOnlyState() loomchain.State
+	ReadOnlyState() appstate.State
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -343,11 +345,11 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 }
 
 // Attempts to construct the context of the Address Mapper contract.
-func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
+func (s *QueryServer) createAddressMapperCtx(state appstate.State) (contractpb.StaticContext, error) {
 	return s.createStaticContractCtx(state, "addressmapper")
 }
 
-func (s *QueryServer) createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
+func (s *QueryServer) createStaticContractCtx(state appstate.State, name string) (contractpb.StaticContext, error) {
 	ctx, err := lcp.NewInternalContractContext(
 		name,
 		lcp.NewPluginVM(
@@ -1117,7 +1119,7 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	}
 }
 
-func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
+func getReceiptByTendermintHash(state appstate.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
 		return nil, err

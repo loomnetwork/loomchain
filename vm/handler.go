@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 type DeployTxHandler struct {
@@ -22,7 +23,7 @@ type DeployTxHandler struct {
 }
 
 func (h *DeployTxHandler) ProcessTx(
-	state loomchain.State,
+	state appstate.State,
 	txBytes []byte,
 	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
@@ -103,7 +104,7 @@ type CallTxHandler struct {
 }
 
 func (h *CallTxHandler) ProcessTx(
-	state loomchain.State,
+	state appstate.State,
 	txBytes []byte,
 	isCheckTx bool,
 

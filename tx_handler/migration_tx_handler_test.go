@@ -8,10 +8,10 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/migrations"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,7 @@ import (
 
 func TestMigrationTxHandler(t *testing.T) {
 	origin := loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(features.MigrationTxFeature, true)
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)

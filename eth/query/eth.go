@@ -5,22 +5,25 @@ package query
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	appstate "github.com/loomnetwork/loomchain/state"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func QueryChain(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
+	blockStore store.BlockStore, state appstate.ReadOnlyState, ethFilter eth.EthFilter,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
@@ -36,7 +39,7 @@ func QueryChain(
 }
 
 func DeprecatedQueryChain(
-	query string, blockStore store.BlockStore, state loomchain.ReadOnlyState,
+	query string, blockStore store.BlockStore, state appstate.ReadOnlyState,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
@@ -62,7 +65,7 @@ func DeprecatedQueryChain(
 
 func GetBlockLogRange(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	state appstate.ReadOnlyState,
 	from, to uint64,
 	ethFilter eth.EthBlockFilter,
 	readReceipts loomchain.ReadReceiptHandler,
@@ -85,7 +88,7 @@ func GetBlockLogRange(
 
 func GetBlockLogs(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	state appstate.ReadOnlyState,
 	ethFilter eth.EthBlockFilter,
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,

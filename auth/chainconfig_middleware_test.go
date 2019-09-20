@@ -10,14 +10,14 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"golang.org/x/crypto/ed25519"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"golang.org/x/crypto/ed25519"
 )
 
 func TestChainConfigMiddlewareSingleChain(t *testing.T) {
@@ -30,7 +30,7 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -38,9 +38,9 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 		Chains: map[string]ChainConfig{},
 	}
 
-	chainConfigMiddleware := NewChainConfigMiddleware(&authConfig, func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil })
+	chainConfigMiddleware := NewChainConfigMiddleware(&authConfig, func(state appstate.State) (contractpb.StaticContext, error) { return amCtx, nil })
 	_, err = chainConfigMiddleware.ProcessTx(state, signedTxBytes,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
@@ -49,7 +49,7 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 }
 
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	state.SetFeature(features.AuthSigTxFeaturePrefix+"default", true)
 	state.SetFeature(features.AuthSigTxFeaturePrefix+"eth", true)
 	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
@@ -84,7 +84,7 @@ func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 
 	tmx := NewChainConfigMiddleware(
 		&authConfig,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(_ appstate.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	txSigned := mockEd25519SignedTx(t, priKey1)

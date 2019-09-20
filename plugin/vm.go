@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/registry"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -35,7 +36,7 @@ var (
 
 type PluginVM struct {
 	Loader       Loader
-	State        loomchain.State
+	State        appstate.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
@@ -47,7 +48,7 @@ type PluginVM struct {
 
 func NewPluginVM(
 	loader Loader,
-	state loomchain.State,
+	state appstate.State,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
@@ -225,7 +226,7 @@ func (vm *PluginVM) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) 
 type contractContext struct {
 	caller  loom.Address
 	address loom.Address
-	loomchain.State
+	appstate.State
 	VM *PluginVM
 	registry.Registry
 	eventHandler loomchain.EventHandler

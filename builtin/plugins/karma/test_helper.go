@@ -10,12 +10,12 @@ import (
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -27,28 +27,28 @@ import (
 //       mock context, or if that's not sufficient the contract loading code may need to be
 //       refactored to make it possible to eliminate these helpers.
 
-func MockStateWithKarmaAndCoinT(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest) (loomchain.State, registry.Registry, vm.VM) {
+func MockStateWithKarmaAndCoinT(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest) (appstate.State, registry.Registry, vm.VM) {
 	appDb := db.NewMemDB()
 	state, reg, pluginVm, err := MockStateWithKarmaAndCoin(karmaInit, coinInit, appDb)
 	require.NoError(t, err)
 	return state, reg, pluginVm
 }
 
-func MockStateWithKarmaAndCoinB(b *testing.B, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDbName string) (loomchain.State, registry.Registry, vm.VM) {
+func MockStateWithKarmaAndCoinB(b *testing.B, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDbName string) (appstate.State, registry.Registry, vm.VM) {
 	appDb, err := db.NewGoLevelDB(appDbName, ".")
 	state, reg, pluginVm, err := MockStateWithKarmaAndCoin(karmaInit, coinInit, appDb)
 	require.NoError(b, err)
 	return state, reg, pluginVm
 }
 
-func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDb db.DB) (loomchain.State, registry.Registry, vm.VM, error) {
+func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDb db.DB) (appstate.State, registry.Registry, vm.VM, error) {
 	appStore, err := store.NewIAVLStore(appDb, 0, 0, 0)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	header := abci.Header{}
 	header.Height = int64(1)
-	state := loomchain.NewStoreState(context.Background(), appStore, header, nil, nil)
+	state := appstate.NewStoreState(context.Background(), appStore, header, nil, nil)
 
 	vmManager := vm.NewManager()
 	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
@@ -57,7 +57,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 		return nil, nil, nil, err
 	}
 	loader := plugin.NewStaticLoader(Contract, coin.Contract)
-	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
+	vmManager.Register(vm.VMType_PLUGIN, func(state appstate.State) (vm.VM, error) {
 		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)

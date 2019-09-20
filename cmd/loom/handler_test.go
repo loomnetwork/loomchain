@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -35,7 +36,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(&vm.CallTxHandler{Manager: vmManager}))
 
 	kvStore := store.NewMemStore()
-	state := loomchain.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
+	state := appstate.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,

@@ -27,6 +27,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -172,7 +173,7 @@ func TestBinanceSigning(t *testing.T) {
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -191,7 +192,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(state appstate.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
@@ -234,7 +235,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 }
 
 func TestBinanceAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	state.SetFeature(features.AddressMapperVersion1_1, true)
 	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
@@ -260,7 +261,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(state appstate.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
@@ -303,7 +304,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 }
 
 func TestChainIdVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
 	state.SetFeature(features.AddressMapperVersion1_1, true)
 	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(features.AuthSigTxFeaturePrefix+"tron", true)
@@ -338,7 +339,7 @@ func TestChainIdVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
+		func(state appstate.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
@@ -378,9 +379,9 @@ func TestChainIdVerification(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
+func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state appstate.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	return ttm.ProcessTx(state.WithContext(ctx), signedTx,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
 
 			var nonceTx NonceTx
 			if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {

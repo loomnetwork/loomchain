@@ -11,11 +11,12 @@ import (
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
+
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 const (
@@ -87,7 +88,7 @@ func (t *Throttle) getLimiterContext(ctx context.Context, nonce uint64, limit in
 	}
 }
 
-func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.Address, limit int64, txId uint32, key string) error {
+func (t *Throttle) runThrottle(state appstate.State, nonce uint64, origin loom.Address, limit int64, txId uint32, key string) error {
 	limitCtx, err := t.getLimiterContext(state.Context(), nonce, limit, txId, key)
 	if err != nil {
 		return errors.Wrap(err, "deploy limiter context")

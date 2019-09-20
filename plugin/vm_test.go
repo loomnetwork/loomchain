@@ -25,6 +25,7 @@ import (
 	rcommon "github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -137,7 +138,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
+	state := appstate.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 

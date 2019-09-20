@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/pkg/errors"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
@@ -70,7 +71,7 @@ func (txl *txLimiter) isAccountLimitReached(account loom.Address) bool {
 func NewTxLimiterMiddleware(cfg *TxLimiterConfig) loomchain.TxMiddlewareFunc {
 	txl := newTxLimiter(cfg)
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		state appstate.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,

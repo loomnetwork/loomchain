@@ -9,10 +9,10 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -39,7 +39,7 @@ func TestKarmaMiddleWare(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -60,7 +60,7 @@ func TestKarmaMiddleWare(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(state appstate.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
@@ -95,7 +95,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(karma.Contract)
@@ -119,7 +119,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(_ appstate.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)

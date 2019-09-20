@@ -13,9 +13,10 @@ import (
 	"github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 const (
@@ -28,7 +29,7 @@ var (
 	dummyKarma int64
 )
 
-type testFunc func(state loomchain.State)
+type testFunc func(state appstate.State)
 
 func TestKarma(t *testing.T) {
 	t.Skip("use benchmark")
@@ -91,7 +92,7 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn testFunc) {
 	}
 }
 
-func calculateKarma(state loomchain.State) {
+func calculateKarma(state appstate.State) {
 	const user = 0
 
 	var karmaSources karma.KarmaSources
@@ -117,7 +118,7 @@ func calculateKarma(state loomchain.State) {
 	dummyKarma = karmaValue.Int64()
 }
 
-func readKarma(state loomchain.State) {
+func readKarma(state appstate.State) {
 	var err error
 	const user = 0
 	protoAmount := state.Get(userKarmaKey(user))
@@ -127,7 +128,7 @@ func readKarma(state loomchain.State) {
 	}
 }
 
-func updateKarma(state loomchain.State) {
+func updateKarma(state appstate.State) {
 	userRange := state.Range([]byte("user."))
 	for _, userKV := range userRange {
 		var karmaStates karma.KarmaState
@@ -153,7 +154,7 @@ func updateKarma(state loomchain.State) {
 	}
 }
 
-func mockUsers(state loomchain.State, sources karma.KarmaSources, logUsers int) loomchain.State {
+func mockUsers(state appstate.State, sources karma.KarmaSources, logUsers int) appstate.State {
 	users := uint64(math.Pow(10, float64(logUsers)))
 	totalKarma := []byte(strconv.FormatInt(10, 10))
 	var userState karma.KarmaState
@@ -183,9 +184,9 @@ func userKarmaKey(user uint64) []byte {
 	return append([]byte("total-karma.user."), userKey(user)...)
 }
 
-func mockState(logSize int) loomchain.State {
+func mockState(logSize int) appstate.State {
 	header := abci.Header{}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	state := appstate.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 	entries := uint64(math.Pow(10, float64(logSize)))
 	for i := uint64(0); i < entries; i++ {
 		strI := strconv.FormatUint(i, 10)
@@ -194,7 +195,7 @@ func mockState(logSize int) loomchain.State {
 	return state
 }
 
-func mockSources(state loomchain.State, logSize int) (loomchain.State, karma.KarmaSources) {
+func mockSources(state appstate.State, logSize int) (appstate.State, karma.KarmaSources) {
 	numStates := uint64(math.Pow(10, float64(logSize)))
 	var sources karma.KarmaSources
 	for i := uint64(0); i < numStates; i++ {

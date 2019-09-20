@@ -63,6 +63,7 @@ import (
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -786,7 +787,7 @@ func loadApp(
 	}
 
 	vmManager := vm.NewManager()
-	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
+	vmManager.Register(vm.VMType_PLUGIN, func(state appstate.State) (vm.VM, error) {
 		return plugin.NewPluginVM(
 			loader,
 			state,
@@ -800,7 +801,7 @@ func loadApp(
 	})
 
 	if evm.EVMEnabled {
-		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
+		vmManager.Register(vm.VMType_EVM, func(state appstate.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
 			if newABMFactory != nil {
@@ -850,7 +851,7 @@ func loadApp(
 	}
 
 	rootAddr := loom.RootAddress(chainID)
-	init := func(state loomchain.State) error {
+	init := func(state appstate.State) error {
 		// init config
 		configBytes, err := proto.Marshal(&gen.Config)
 		if err != nil {
@@ -879,7 +880,7 @@ func loadApp(
 
 	router := loomchain.NewTxRouter()
 
-	isEvmTx := func(txID uint32, state loomchain.State, txBytes []byte, isCheckTx bool) bool {
+	isEvmTx := func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) bool {
 		var msg vm.MessageTx
 		err := proto.Unmarshal(txBytes, &msg)
 		if err != nil {
@@ -976,7 +977,7 @@ func loadApp(
 		postCommitMiddlewares = append(postCommitMiddlewares, evmDeployRecorderMiddleware)
 	}
 
-	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
+	createContractUpkeepHandler := func(state appstate.State) (loomchain.KarmaHandler, error) {
 		// TODO: This setting should be part of the config stored within the Karma contract itself,
 		//       that will allow us to switch the upkeep on & off via a tx.
 		if !cfg.Karma.UpkeepEnabled {
@@ -994,7 +995,7 @@ func loadApp(
 		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
-	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
+	getValidatorSet := func(state appstate.State) (loom.ValidatorSet, error) {
 		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
 			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
 			dposV3Ctx, err := createDPOSV3Ctx(state)
@@ -1035,7 +1036,7 @@ func loadApp(
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
-	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
+	createValidatorsManager := func(state appstate.State) (loomchain.ValidatorsManager, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
@@ -1050,7 +1051,7 @@ func loadApp(
 		return plugin.NewNoopValidatorsManager(), nil
 	}
 
-	createChainConfigManager := func(state loomchain.State) (loomchain.ChainConfigManager, error) {
+	createChainConfigManager := func(state appstate.State) (loomchain.ChainConfigManager, error) {
 		if !cfg.ChainConfig.ContractEnabled {
 			return nil, nil
 		}
@@ -1115,7 +1116,7 @@ func loadApp(
 }
 
 func deployContract(
-	state loomchain.State,
+	state appstate.State,
 	contractCfg config.ContractConfig,
 	vmManager *vm.Manager,
 	rootAddr loom.Address,
@@ -1158,12 +1159,12 @@ func deployContract(
 	return nil
 }
 
-type contextFactory func(state loomchain.State) (contractpb.Context, error)
+type contextFactory func(state appstate.State) (contractpb.Context, error)
 
-type staticContextFactory func(state loomchain.State) (contractpb.StaticContext, error)
+type staticContextFactory func(state appstate.State) (contractpb.StaticContext, error)
 
 func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
-	return func(state loomchain.State) (contractpb.Context, error) {
+	return func(state appstate.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
@@ -1173,7 +1174,7 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 }
 
 func getContractStaticCtx(pluginName string, vmManager *vm.Manager) staticContextFactory {
-	return func(state loomchain.State) (contractpb.StaticContext, error) {
+	return func(state appstate.State) (contractpb.StaticContext, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err

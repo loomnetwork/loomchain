@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -16,7 +17,7 @@ import (
 // by the DeployerWhitelist contract & middleware, though it's still in use on some clusters.
 func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		state appstate.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,

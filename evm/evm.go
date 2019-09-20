@@ -19,9 +19,10 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
+
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/state"
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
@@ -147,7 +148,7 @@ type Evm struct {
 	gasLimit        uint64
 }
 
-func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
+func NewEvm(sdb vm.StateDB, lstate state.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
 	p.gasLimit = lstate.Config().GetEvm().GetGasLimit()

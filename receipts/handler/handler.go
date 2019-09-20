@@ -6,12 +6,14 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	appstate "github.com/loomnetwork/loomchain/state"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	"github.com/pkg/errors"
 )
 
 type ReceiptHandlerVersion int32
@@ -137,7 +139,7 @@ func (r *ReceiptHandler) CommitBlock(height int64) error {
 
 // TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(
-	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error, txHash []byte,
+	state appstate.State, caller, addr loom.Address, events []*types.EventData, txErr error, txHash []byte,
 ) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()

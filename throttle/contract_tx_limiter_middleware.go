@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -142,13 +143,13 @@ func loadTierMap(ctx contractpb.StaticContext) (map[udwtypes.TierID]udwtypes.Tie
 // NewContractTxLimiterMiddleware creates a middleware function that limits how many call txs can be
 // sent to an EVM contract within a pre-configured block range.
 func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
-	createUserDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
+	createUserDeployerWhitelistCtx func(state appstate.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	txl := &contractTxLimiter{
 		contractStatsMap: make(map[string]*contractStats),
 	}
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		state appstate.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,

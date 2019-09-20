@@ -10,6 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
+	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -19,10 +23,8 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func newDumpEVMStateCommand() *cobra.Command {
@@ -65,7 +67,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
-			state := loomchain.NewStoreState(
+			state := appstate.NewStoreState(
 				context.Background(),
 				storeTx,
 				abci.Header{
@@ -178,7 +180,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
-			state := loomchain.NewStoreState(
+			state := appstate.NewStoreState(
 				context.Background(),
 				storeTx,
 				abci.Header{

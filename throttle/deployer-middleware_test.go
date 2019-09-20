@@ -8,14 +8,15 @@ import (
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/loomnetwork/loomchain/features"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -24,7 +25,7 @@ var (
 )
 
 func TestDeployerWhitelistMiddleware(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(features.DeployerWhitelistFeature, true)
 
 	txSignedPlugin := mockSignedTx(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
@@ -44,7 +45,7 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	ownerCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
 
 	dwMiddleware, err := NewDeployerWhitelistMiddleware(
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(_ appstate.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -28,7 +28,7 @@ type LoomEthdb struct {
 	logContext *ethdbLogContext
 }
 
-func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
+func NewLoomEthdb(_state state.State, logContext *ethdbLogContext) *LoomEthdb {
 	p := new(LoomEthdb)
 	p.state = store.PrefixKVStore(vmPrefix, _state)
 	p.logContext = logContext

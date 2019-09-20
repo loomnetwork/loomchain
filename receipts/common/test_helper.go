@@ -8,12 +8,13 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
-	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
 	goleveldb "github.com/syndtr/goleveldb/leveldb"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
 
 func MakeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
@@ -51,23 +52,23 @@ func MakeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventDa
 	return &dummy
 }
 
-func MockState(height uint64) loomchain.State {
+func MockState(height uint64) appstate.State {
 	header := abci.Header{}
 	header.Height = int64(height)
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	return appstate.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 }
 
-func MockStateTx(state loomchain.State, height, TxNum uint64) loomchain.State {
+func MockStateTx(state appstate.State, height, TxNum uint64) appstate.State {
 	header := abci.Header{}
 	header.Height = int64(height)
 	header.NumTxs = int64(TxNum)
-	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
+	return appstate.NewStoreState(context.Background(), state, header, nil, nil)
 }
 
-func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
+func MockStateAt(state appstate.State, newHeight uint64) appstate.State {
 	header := abci.Header{}
 	header.Height = int64(newHeight)
-	return loomchain.NewStoreState(context.Background(), state, header, nil, nil)
+	return appstate.NewStoreState(context.Background(), state, header, nil, nil)
 }
 
 func NewMockEvmAuxStore() (*evmaux.EvmAuxStore, error) {

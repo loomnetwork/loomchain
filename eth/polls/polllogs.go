@@ -12,10 +12,12 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 type EthLogPoll struct {
@@ -40,7 +42,7 @@ func NewEthLogPoll(filter string, evmAuxStore *evmaux.EvmAuxStore, blockStore st
 }
 
 func (p *EthLogPoll) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (EthPoll, interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
@@ -75,7 +77,7 @@ func (p *EthLogPoll) Poll(
 	return newLogPoll, eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
+func (p *EthLogPoll) AllLogs(state appstate.ReadOnlyState,
 	id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
@@ -98,7 +100,7 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
 	return eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
+func (p *EthLogPoll) LegacyPoll(state appstate.ReadOnlyState,
 	id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {

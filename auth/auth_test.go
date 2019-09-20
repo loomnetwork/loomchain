@@ -5,15 +5,17 @@ import (
 	"errors"
 	"testing"
 
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/config"
+
 	"github.com/loomnetwork/loomchain"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -27,9 +29,9 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
+	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
@@ -64,10 +66,10 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	ctx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	ctx = context.WithValue(ctx, ContextKeyCheckTx, true)
 	kvStore := store.NewMemStore()
-	state := loomchain.NewStoreState(ctx, kvStore, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
+	state := appstate.NewStoreState(ctx, kvStore, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 
 	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
 	)
@@ -77,12 +79,12 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	//State is reset on every run
 	ctx2 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	kvStore2 := store.NewMemStore()
-	state2 := loomchain.NewStoreState(ctx2, kvStore2, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
+	state2 := appstate.NewStoreState(ctx2, kvStore2, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 	_ = context.WithValue(ctx2, ContextKeyCheckTx, true)
 
 	//If we get the same sequence number in same block we should get an error
 	_, err = NonceTxHandler.Nonce(state2, kvStore2, nonceTxBytes,
-		func(state2 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, true,
 	)
@@ -92,12 +94,12 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	//State is reset on every run
 	ctx3 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	kvStore3 := store.NewMemStore()
-	state3 := loomchain.NewStoreState(ctx3, kvStore3, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
+	state3 := appstate.NewStoreState(ctx3, kvStore3, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 	_ = context.WithValue(ctx3, ContextKeyCheckTx, true)
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
 	_, err = NonceTxHandler.Nonce(state3, kvStore3, nonceTxBytes2,
-		func(state3 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, true,
 	)
@@ -107,11 +109,11 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	//Try a deliverTx at same height it should be fine
 	ctx3Dx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	kvStore3Dx := store.NewMemStore()
-	state3Dx := loomchain.NewStoreState(ctx3Dx, kvStore3Dx, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
+	state3Dx := appstate.NewStoreState(ctx3Dx, kvStore3Dx, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 	_ = context.WithValue(ctx3Dx, ContextKeyCheckTx, true)
 
 	_, err = NonceTxHandler.Nonce(state3Dx, kvStore3Dx, nonceTxBytes,
-		func(state3 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
 	)
@@ -122,10 +124,10 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	//State is reset on every run
 	ctx4 := context.WithValue(nil, ContextKeyOrigin, origin)
 	kvStore4 := store.NewMemStore()
-	state4 := loomchain.NewStoreState(ctx4, kvStore4, abci.Header{Height: 28}, nil, nil).WithOnChainConfig(cfg)
+	state4 := appstate.NewStoreState(ctx4, kvStore4, abci.Header{Height: 28}, nil, nil).WithOnChainConfig(cfg)
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
 	_, err = NonceTxHandler.Nonce(state4, kvStore4, nonceTxBytes,
-		func(state4 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, true,
 	)
@@ -163,7 +165,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 	ctx = context.WithValue(ctx, ContextKeyCheckTx, true)
 	kvStore := store.NewMemStore()
 	storeTx := store.WrapAtomic(kvStore).BeginTx()
-	state := loomchain.NewStoreState(ctx, storeTx, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
+	state := appstate.NewStoreState(ctx, storeTx, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 
 	// Nonce is 0
 	currentNonce := Nonce(state, origin)
@@ -171,7 +173,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 
 	// Send a successful tx
 	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
 		}, false,
 	)
@@ -182,7 +184,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 
 	// Send a failed tx, nonce should increase even though the transaction is reverted
 	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes2,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, errors.New("EVM transaction reverted")
 		}, false,
 	)
@@ -203,7 +205,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 
 	// Send another failed tx, nonce should not increment because the transaction reverted
 	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes3,
-		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(_ appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, errors.New("EVM transaction reverted")
 		}, false,
 	)

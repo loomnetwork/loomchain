@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/features"
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 // NewChainConfigMiddleware returns middleware that verifies signed txs using either
@@ -14,10 +15,10 @@ import (
 // based on the on-chain and off-chain auth config settings.
 func NewChainConfigMiddleware(
 	authConfig *Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	createAddressMapperCtx func(state appstate.State) (contractpb.StaticContext, error),
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		state appstate.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
@@ -33,7 +34,7 @@ func NewChainConfigMiddleware(
 }
 
 // Filters out any auth.ChainConfig(s) that haven't been enabled by the majority of validators.
-func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[string]ChainConfig {
+func getEnabledChains(chains map[string]ChainConfig, state appstate.State) map[string]ChainConfig {
 	enabledChains := map[string]ChainConfig{}
 	for chainID, config := range chains {
 		if state.FeatureEnabled(features.AuthSigTxFeaturePrefix+chainID, false) {
@@ -57,8 +58,8 @@ func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[
 // ResolveAccountAddress takes a local or foreign account address and returns the address used
 // to identify the account on this chain.
 func ResolveAccountAddress(
-	account loom.Address, state loomchain.State, authCfg *Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	account loom.Address, state appstate.State, authCfg *Config,
+	createAddressMapperCtx func(state appstate.State) (contractpb.StaticContext, error),
 ) (loom.Address, error) {
 	chains := getEnabledChains(authCfg.Chains, state)
 	if len(chains) > 0 {

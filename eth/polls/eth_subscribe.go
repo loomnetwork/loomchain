@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 var (
@@ -20,9 +21,9 @@ var (
 )
 
 type EthPoll interface {
-	AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error)
-	Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error)
-	LegacyPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error)
+	AllLogs(state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error)
+	Poll(state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error)
+	LegacyPoll(state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error)
 }
 
 type EthSubscriptions struct {
@@ -111,7 +112,7 @@ func (s *EthSubscriptions) AddTxPoll(height uint64) string {
 }
 
 func (s *EthSubscriptions) AllLogs(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -124,7 +125,7 @@ func (s *EthSubscriptions) AllLogs(
 }
 
 func (s *EthSubscriptions) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -142,7 +143,7 @@ func (s *EthSubscriptions) Poll(
 }
 
 func (s *EthSubscriptions) LegacyPoll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) ([]byte, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

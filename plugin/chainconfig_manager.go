@@ -5,11 +5,13 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/features"
 	regcommon "github.com/loomnetwork/loomchain/registry"
-	"github.com/pkg/errors"
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 var (
@@ -20,12 +22,12 @@ var (
 // ChainConfigManager implements loomchain.ChainConfigManager interface
 type ChainConfigManager struct {
 	ctx   contract.Context
-	state loomchain.State
+	state appstate.State
 	build uint64
 }
 
 // NewChainConfigManager attempts to create an instance of ChainConfigManager.
-func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigManager, error) {
+func NewChainConfigManager(pvm *PluginVM, state appstate.State) (*ChainConfigManager, error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("chainconfig")
 	if err != nil {

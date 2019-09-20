@@ -5,8 +5,10 @@ package polls
 import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
@@ -30,7 +32,7 @@ func NewEthBlockPoll(height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore 
 }
 
 func (p *EthBlockPoll) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (EthPoll, interface{}, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
@@ -44,14 +46,14 @@ func (p *EthBlockPoll) Poll(
 }
 
 func (p *EthBlockPoll) AllLogs(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state appstate.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
 	_, results, err := getBlockHashes(p.blockStore, state, p.startBlock)
 	return eth.EncBytesArray(results), err
 }
 
 func getBlockHashes(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, lastBlockRead uint64,
+	blockStore store.BlockStore, state appstate.ReadOnlyState, lastBlockRead uint64,
 ) (uint64, [][]byte, error) {
 	result, err := blockStore.GetBlockRangeByHeight(int64(lastBlockRead+1), state.Block().Height)
 	if err != nil {
@@ -70,7 +72,7 @@ func getBlockHashes(
 	return lastBlockRead, blockHashes, nil
 }
 
-func (p *EthBlockPoll) LegacyPoll(state loomchain.ReadOnlyState, id string,
+func (p *EthBlockPoll) LegacyPoll(state appstate.ReadOnlyState, id string,
 	readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil

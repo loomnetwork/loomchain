@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 )
@@ -53,10 +54,10 @@ type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureT
 // specific signing algos.
 func NewMultiChainSignatureTxMiddleware(
 	chains map[string]ChainConfig,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	createAddressMapperCtx func(state appstate.State) (contractpb.StaticContext, error),
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
-		state loomchain.State,
+		state appstate.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
@@ -151,9 +152,9 @@ func NewMultiChainSignatureTxMiddleware(
 }
 
 func getMappedAccountAddress(
-	state loomchain.State,
+	state appstate.State,
 	addr loom.Address,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	createAddressMapperCtx func(state appstate.State) (contractpb.StaticContext, error),
 ) (loom.Address, error) {
 	ctx, err := createAddressMapperCtx(state)
 	if err != nil {
@@ -193,7 +194,7 @@ func verifyEd25519(tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
 }
 
-func getAllowedSignatureTypes(state loomchain.State, chainID string) []evmcompat.SignatureType {
+func getAllowedSignatureTypes(state appstate.State, chainID string) []evmcompat.SignatureType {
 	if !state.FeatureEnabled(features.MultiChainSigTxMiddlewareVersion1_1, false) {
 		return []evmcompat.SignatureType{
 			evmcompat.SignatureType_EIP712,
