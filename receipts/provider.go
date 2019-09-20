@@ -16,16 +16,13 @@ type ReceiptReaderWriter interface {
 type ReceiptHandlerProvider struct {
 	eventHandler loomchain.EventHandler
 	handler      ReceiptReaderWriter
-	evmAuxStore  *evmaux.EvmAuxStore
 }
 
 func NewReceiptHandlerProvider(
-	eventHandler loomchain.EventHandler,
-	evmAuxStore *evmaux.EvmAuxStore,
+	eventHandler loomchain.EventHandler, evmAuxStore *evmaux.EvmAuxStore,
 ) *ReceiptHandlerProvider {
 	return &ReceiptHandlerProvider{
 		eventHandler: eventHandler,
-		evmAuxStore:  evmAuxStore,
 		handler:      handler.NewReceiptHandler(eventHandler, evmAuxStore),
 	}
 }
