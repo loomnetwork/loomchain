@@ -269,7 +269,7 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 			root, version := evmStore.Version()
 			evmRoot := gcommon.BytesToHash(root)
 
-			fmt.Printf("version:%d, root: %x\n", version, root)
+			fmt.Printf("version: %d, root: %x\n", version, root)
 
 			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(evmStore).BeginTx()
@@ -309,10 +309,12 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 					panic(err)
 				}
 
-				fmt.Printf("Account: %s\n", addr.Hex())
-				fmt.Printf("- Code: %x\n", srcState.GetCode(addr))
-				fmt.Printf("- Nonce: %d\n", srcState.GetNonce(addr))
-				fmt.Printf("- Balance: %d\n", srcState.GetBalance(addr))
+				fmt.Printf("Account: %s\n", gcommon.Bytes2Hex(addrBytes))
+				fmt.Printf("- Balance: %s\n", data.Balance.String())
+				fmt.Printf("- Nonce: %d\n", data.Nonce)
+				fmt.Printf("- Root: %s\n", gcommon.Bytes2Hex(data.Root[:]))
+				fmt.Printf("- CodeHash: %s\n", gcommon.Bytes2Hex((data.CodeHash)))
+				fmt.Printf("- Code: %x\n", gcommon.Bytes2Hex(srcState.GetCode(addr)))
 				fmt.Printf("- Storage Root: %x\n", srcState.StorageTrie(addr).Hash())
 
 				if dumpStorageTrie {
