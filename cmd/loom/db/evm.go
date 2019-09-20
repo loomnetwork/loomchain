@@ -233,7 +233,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
-	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Dump EVM state as it was the specified app height")
+	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Name of EVM state database")
 	return cmd
 }
 
@@ -310,7 +310,7 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 				}
 
 				fmt.Printf("Account: %s\n", addr.Hex())
-				fmt.Printf("- Code: %x\n", srcState.GetCodeHash(addr))
+				fmt.Printf("- Code: %x\n", srcState.GetCode(addr))
 				fmt.Printf("- Nonce: %d\n", srcState.GetNonce(addr))
 				fmt.Printf("- Balance: %d\n", srcState.GetBalance(addr))
 				fmt.Printf("- Storage Root: %x\n", srcState.StorageTrie(addr).Hash())
@@ -331,7 +331,7 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
-	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Dump EVM state as it was the specified app height")
+	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Name of EVM state database")
 	cmdFlags.BoolVar(&dumpStorageTrie, "storage-trie", false, "Dump all storage tries of accounts")
 	return cmd
 }
