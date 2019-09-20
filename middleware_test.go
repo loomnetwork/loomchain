@@ -3,9 +3,10 @@ package loomchain
 import (
 	"testing"
 
-	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/stretchr/testify/require"
-	common "github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/libs/common"
+
+	appstate "github.com/loomnetwork/loomchain/state"
 )
 
 type appHandler struct {

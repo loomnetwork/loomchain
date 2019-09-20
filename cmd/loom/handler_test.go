@@ -4,19 +4,20 @@ import (
 	"strings"
 	"testing"
 
-	proto "github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"golang.org/x/crypto/ed25519"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"golang.org/x/crypto/ed25519"
 )
 
 // Tx handlers must not process txs in which the caller doesn't match the signer.

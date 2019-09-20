@@ -17,9 +17,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
-	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	appstate "github.com/loomnetwork/loomchain/state"
 
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
