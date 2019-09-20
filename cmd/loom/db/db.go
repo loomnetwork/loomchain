@@ -16,6 +16,7 @@ func NewDBCommand() *cobra.Command {
 		newCompactDBCommand(),
 		newDumpEVMStateCommand(),
 		newDumpEVMStateMultiWriterAppStoreCommand(),
+		newDumpEVMStateFromEvmDB(),
 		newGetEvmHeightCommand(),
 		newGetAppHeightCommand(),
 	)

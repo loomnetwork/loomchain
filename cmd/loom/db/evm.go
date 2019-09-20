@@ -10,6 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	gcommon "github.com/ethereum/go-ethereum/common"
+	gstate "github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -230,6 +234,105 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
 	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Dump EVM state as it was the specified app height")
+	return cmd
+}
+
+func newDumpEVMStateFromEvmDB() *cobra.Command {
+	var appHeight int64
+	var evmDBName string
+	var dumpStorageTrie bool
+	cmd := &cobra.Command{
+		Use:   "evm-dump-3",
+		Short: "Dumps EVM state stored at a specific block height from evm.db",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := common.ParseConfig()
+			if err != nil {
+				return err
+			}
+
+			if appHeight == 0 {
+				appHeight = math.MaxInt64
+			}
+
+			evmDB, err := cdb.LoadDB(
+				"goleveldb", evmDBName,
+				cfg.RootPath(), 256, 4, false,
+			)
+			if err != nil {
+				return err
+			}
+
+			evmStore := store.NewEvmStore(evmDB, 100)
+			if err := evmStore.LoadVersion(appHeight); err != nil {
+				return err
+			}
+			root, version := evmStore.Version()
+			evmRoot := gcommon.BytesToHash(root)
+
+			fmt.Printf("version:%d, root: %x\n", version, root)
+
+			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
+			storeTx := store.WrapAtomic(evmStore).BeginTx()
+			state := loomchain.NewStoreState(
+				context.Background(),
+				storeTx,
+				abci.Header{
+					Height: appHeight,
+				},
+				// it is possible to load the block hash from the TM block store, but probably don't
+				// need it for just dumping the EVM state
+				nil,
+				nil,
+			)
+
+			srcStateDB := gstate.NewDatabase(evm.NewLoomEthdb(state, nil))
+			srcStateDBTrie, err := srcStateDB.OpenTrie(evmRoot)
+			if err != nil {
+				fmt.Printf("cannot open trie, %s\n", evmRoot.Hex())
+				return err
+			}
+			srcTrie, err := trie.New(evmRoot, srcStateDB.TrieDB())
+			if err != nil {
+				return err
+			}
+			srcState, err := gstate.New(evmRoot, srcStateDB)
+			if err != nil {
+				return err
+			}
+
+			it := trie.NewIterator(srcTrie.NodeIterator(nil))
+			for it.Next() {
+				addrBytes := srcStateDBTrie.GetKey(it.Key)
+				addr := gcommon.BytesToAddress(addrBytes)
+				var data gstate.Account
+				if err := rlp.DecodeBytes(it.Value, &data); err != nil {
+					panic(err)
+				}
+
+				fmt.Printf("Account: %s\n", addr.Hex())
+				fmt.Printf("- Code: %x\n", srcState.GetCodeHash(addr))
+				fmt.Printf("- Nonce: %d\n", srcState.GetNonce(addr))
+				fmt.Printf("- Balance: %d\n", srcState.GetBalance(addr))
+				fmt.Printf("- Storage Root: %x\n", srcState.StorageTrie(addr).Hash())
+
+				if dumpStorageTrie {
+					fmt.Println("- Storage Data:")
+					srcState.ForEachStorage(addr, func(key, value gcommon.Hash) bool {
+						fmt.Printf("	%s:%s\n", key.Hex(), value.Hex())
+						return true
+					})
+				}
+
+				fmt.Println("---------------------------------------")
+			}
+			return nil
+		},
+	}
+
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
+	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Dump EVM state as it was the specified app height")
+	cmdFlags.BoolVar(&dumpStorageTrie, "storage-trie", false, "Dump all storage tries of accounts")
 	return cmd
 }
 
