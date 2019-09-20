@@ -9,7 +9,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -39,17 +38,16 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 	if len(receipts) == 0 || s.maxReceipts == 0 {
 		return nil
 	}
+	defer s.store.Rollback()
 
 	size, headHash, tailHash, err := s.getDBParams()
 	if err != nil {
 		return errors.Wrap(err, "getting db params.")
 	}
 
-	batch := s.db.NewBatch()
-
 	tailReceiptItem := types.EvmTxReceiptListItem{}
 	if len(headHash) > 0 {
-		tailItemProto := s.db.Get(tailHash)
+		tailItemProto := s.store.Get(tailHash)
 		if len(tailItemProto) == 0 {
 			return errors.Wrap(err, "cannot find tail")
 		}
@@ -75,8 +73,8 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 				log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 				continue
 			}
-			updating := s.db.Has(tailHash)
-			batch.Set(tailHash, protoTail)
+			updating := s.store.Has(tailHash)
+			s.store.Set(tailHash, protoTail)
 			if !updating {
 				size++
 			}
@@ -98,8 +96,8 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		if err != nil {
 			log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 		} else {
-			updating := s.db.Has(tailHash)
-			batch.Set(tailHash, protoTail)
+			updating := s.store.Has(tailHash)
+			s.store.Set(tailHash, protoTail)
 			if !updating {
 				size++
 			}
@@ -108,7 +106,7 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 
 	if s.maxReceipts < size {
 		var numDeleted uint64
-		headHash, numDeleted, err = s.removeOldEntries(batch, headHash, size-s.maxReceipts)
+		headHash, numDeleted, err = s.removeOldEntries(headHash, size-s.maxReceipts)
 		if err != nil {
 			return errors.Wrap(err, "removing old receipts")
 		}
@@ -117,36 +115,35 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		}
 		size -= numDeleted
 	}
-
-	s.setDBParams(batch, size, headHash, tailHash)
+	s.setDBParams(size, headHash, tailHash)
 
 	filter := bloom.GenBloomFilter(events)
-	if err := s.SetTxHashList(batch, txHashArray, height); err != nil {
+	if err := s.SetTxHashList(txHashArray, height); err != nil {
 		return errors.Wrap(err, "append tx list")
 	}
-	s.SetBloomFilter(batch, filter, height)
-	batch.Write()
+	s.SetBloomFilter(filter, height)
+	s.Commit()
 	return nil
 }
 
 func (s *EvmAuxStore) getDBParams() (size uint64, head, tail []byte, err error) {
-	notEmpty := s.db.Has(currentDbSizeKey)
+	notEmpty := s.store.Has(currentDbSizeKey)
 	if !notEmpty {
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	sizeB := s.db.Get(currentDbSizeKey)
+	sizeB := s.store.Get(currentDbSizeKey)
 	size = binary.LittleEndian.Uint64(sizeB)
 	if size == 0 {
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	head = s.db.Get(headKey)
+	head = s.store.Get(headKey)
 	if len(head) == 0 {
 		return 0, []byte{}, []byte{}, errors.New("no head for non zero size receipt db")
 	}
 
-	tail = s.db.Get(tailKey)
+	tail = s.store.Get(tailKey)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -157,23 +154,23 @@ func (s *EvmAuxStore) getDBParams() (size uint64, head, tail []byte, err error) 
 	return size, head, tail, nil
 }
 
-func (s *EvmAuxStore) setDBParams(batch dbm.Batch, size uint64, head, tail []byte) {
-	batch.Set(headKey, head)
-	batch.Set(tailKey, tail)
+func (s *EvmAuxStore) setDBParams(size uint64, head, tail []byte) {
+	s.store.Set(headKey, head)
+	s.store.Set(tailKey, tail)
 	sizeB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sizeB, size)
-	batch.Set(currentDbSizeKey, sizeB)
+	s.store.Set(currentDbSizeKey, sizeB)
 }
 
-func (s *EvmAuxStore) removeOldEntries(batch dbm.Batch, head []byte, number uint64) ([]byte, uint64, error) {
+func (s *EvmAuxStore) removeOldEntries(head []byte, number uint64) ([]byte, uint64, error) {
 	itemsDeleted := uint64(0)
 	for i := uint64(0); i < number && len(head) > 0; i++ {
-		headItem := s.db.Get(head)
+		headItem := s.store.Get(head)
 		txHeadReceiptItem := types.EvmTxReceiptListItem{}
 		if err := proto.Unmarshal(headItem, &txHeadReceiptItem); err != nil {
 			return head, itemsDeleted, errors.Wrapf(err, "unmarshal head %s", string(headItem))
 		}
-		batch.Delete(head)
+		s.store.Delete(head)
 		itemsDeleted++
 		head = txHeadReceiptItem.NextTxHash
 	}

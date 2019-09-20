@@ -72,12 +72,14 @@ type ChildTxRef struct {
 
 type EvmAuxStore struct {
 	db          dbm.DB
+	store       *atomicKVStore
 	maxReceipts uint64
 }
 
 func NewEvmAuxStore(db dbm.DB, maxReceipts uint64) *EvmAuxStore {
 	return &EvmAuxStore{
 		db:          db,
+		store:       NewAtomicKVStore(db),
 		maxReceipts: maxReceipts,
 	}
 }
@@ -104,16 +106,16 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 	return txHashList.EthTxHash, err
 }
 
-func (s *EvmAuxStore) SetBloomFilter(batch dbm.Batch, filter []byte, height uint64) {
-	batch.Set(bloomFilterKey(height), filter)
+func (s *EvmAuxStore) SetBloomFilter(filter []byte, height uint64) {
+	s.store.Set(bloomFilterKey(height), filter)
 }
 
-func (s *EvmAuxStore) SetTxHashList(batch dbm.Batch, txHashList [][]byte, height uint64) error {
+func (s *EvmAuxStore) SetTxHashList(txHashList [][]byte, height uint64) error {
 	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}
-	batch.Set(evmTxHashKey(height), postTxHashList)
+	s.store.Set(evmTxHashKey(height), postTxHashList)
 	return nil
 }
 
@@ -138,6 +140,10 @@ func (s *EvmAuxStore) GetChildTxHash(parentTxHash []byte) []byte {
 
 func (s *EvmAuxStore) DB() dbm.DB {
 	return s.db
+}
+
+func (s *EvmAuxStore) Commit() {
+	s.store.Commit()
 }
 
 func (s *EvmAuxStore) ClearData() {
