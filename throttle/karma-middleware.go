@@ -9,13 +9,15 @@ import (
 	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 const karmaMiddlewareThrottleKey = "ThrottleTxMiddleWare"
@@ -25,19 +27,19 @@ func GetKarmaMiddleWare(
 	maxCallCount int64,
 	sessionDuration int64,
 	createKarmaContractCtx func(state appstate.State) (contractpb.Context, error),
-) loomchain.TxMiddlewareFunc {
+) txhandler.TxMiddlewareFunc {
 	th := NewThrottle(sessionDuration, maxCallCount)
-	return loomchain.TxMiddlewareFunc(func(
+	return txhandler.TxMiddlewareFunc(func(
 		state appstate.State,
 		txBytes []byte,
-		next loomchain.TxHandlerFunc,
+		next txhandler.TxHandlerFunc,
 		isCheckTx bool,
-	) (res loomchain.TxHandlerResult, err error) {
+	) (res txhandler.TxHandlerResult, err error) {
 		if !karmaEnabled {
 			return next(state, txBytes, isCheckTx)
 		}
 
-		origin := auth.Origin(state.Context())
+		origin := keys.Origin(state.Context())
 		if origin.IsEmpty() {
 			return res, errors.New("throttle: transaction has no origin [get-karma]")
 		}
@@ -47,7 +49,7 @@ func GetKarmaMiddleWare(
 			return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 		}
 
-		var tx loomchain.Transaction
+		var tx types.Transaction
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}

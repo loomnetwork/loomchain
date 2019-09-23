@@ -1,4 +1,4 @@
-package loomchain
+package txhandler
 
 import (
 	"encoding/base64"

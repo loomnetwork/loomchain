@@ -12,6 +12,7 @@ import (
 
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 
 	"github.com/loomnetwork/loomchain"
@@ -145,7 +146,7 @@ func GetTxObjectFromBlockResult(
 	}
 	txObj.Nonce = eth.EncInt(int64(nonceTx.Sequence))
 
-	var txTx loomchain.Transaction
+	var txTx ltypes.Transaction
 	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
 		return eth.GetEmptyTxObject(), nil, err
 	}

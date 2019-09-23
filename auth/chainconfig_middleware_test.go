@@ -10,11 +10,14 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/txhandler"
+
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
@@ -34,15 +37,15 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
-	authConfig := Config{
-		Chains: map[string]ChainConfig{},
+	authConfig := keys.Config{
+		Chains: map[string]keys.ChainConfig{},
 	}
 
 	chainConfigMiddleware := NewChainConfigMiddleware(&authConfig, func(state appstate.State) (contractpb.StaticContext, error) { return amCtx, nil })
 	_, err = chainConfigMiddleware.ProcessTx(state, signedTxBytes,
-		func(state appstate.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)
-			return loomchain.TxHandlerResult{}, nil
+			return txhandler.TxHandlerResult{}, nil
 		}, false,
 	)
 	require.NoError(t, err)
@@ -58,27 +61,27 @@ func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
-	chains := map[string]ChainConfig{
+	chains := map[string]keys.ChainConfig{
 		"default": {
-			TxType:      LoomSignedTxType,
-			AccountType: NativeAccountType,
+			TxType:      keys.LoomSignedTxType,
+			AccountType: keys.NativeAccountType,
 		},
 		"eth": {
-			TxType:      EthereumSignedTxType,
-			AccountType: MappedAccountType,
+			TxType:      keys.EthereumSignedTxType,
+			AccountType: keys.MappedAccountType,
 		},
 		"tron": {
-			TxType:      TronSignedTxType,
-			AccountType: MappedAccountType,
+			TxType:      keys.TronSignedTxType,
+			AccountType: keys.MappedAccountType,
 		},
 		"binance": {
-			TxType:      BinanceSignedTxType,
-			AccountType: MappedAccountType,
+			TxType:      keys.BinanceSignedTxType,
+			AccountType: keys.MappedAccountType,
 		},
 	}
-	authConfig := Config{
+	authConfig := keys.Config{
 		Chains: chains,
 	}
 

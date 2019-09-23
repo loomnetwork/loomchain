@@ -1,4 +1,4 @@
-package throttle
+package middleware
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	loomAuth "github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
@@ -41,8 +41,8 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 		Owner: owner.MarshalPB(),
 	}))
 
-	guestCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, guest)
-	ownerCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
+	guestCtx := context.WithValue(state.Context(), keys.ContextKeyOrigin, guest)
+	ownerCtx := context.WithValue(state.Context(), keys.ContextKeyOrigin, owner)
 
 	dwMiddleware, err := NewDeployerWhitelistMiddleware(
 		func(_ appstate.State) (contractpb.Context, error) {

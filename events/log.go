@@ -1,15 +1,14 @@
 package events
 
 import (
-	"github.com/loomnetwork/loomchain"
-	log "github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 // LogEventDispatcher just logs events
 type LogEventDispatcher struct {
 }
 
-var _ loomchain.EventDispatcher = &LogEventDispatcher{}
+//var _ loomchain.EventDispatcher = &LogEventDispatcher{}
 
 // NewLogEventDispatcher create a new redis dispatcher
 func NewLogEventDispatcher() *LogEventDispatcher {

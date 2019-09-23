@@ -14,7 +14,7 @@ import (
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
 
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	appstate "github.com/loomnetwork/loomchain/state"
 )
@@ -61,7 +61,7 @@ func (t *Throttle) getNewLimiter(ctx context.Context, limit int64) *limiter.Limi
 }
 
 func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter.Limiter {
-	address := auth.Origin(ctx).String()
+	address := keys.Origin(ctx).String()
 	_, ok := t.callLimiterPool[address]
 	if !ok {
 		t.callLimiterPool[address] = t.getNewLimiter(ctx, limit)
@@ -75,7 +75,7 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter
 }
 
 func (t *Throttle) getLimiterContext(ctx context.Context, nonce uint64, limit int64, txId uint32, key string) (limiter.Context, error) {
-	address := auth.Origin(ctx).String()
+	address := keys.Origin(ctx).String()
 	if address == t.lastAddress && nonce == t.lastNonce && t.lastId == txId {
 		return t.lastLimiterContext, nil
 	} else {

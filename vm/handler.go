@@ -8,12 +8,12 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 )
 
 type DeployTxHandler struct {
@@ -26,8 +26,8 @@ func (h *DeployTxHandler) ProcessTx(
 	state appstate.State,
 	txBytes []byte,
 	isCheckTx bool,
-) (loomchain.TxHandlerResult, error) {
-	var r loomchain.TxHandlerResult
+) (txhandler.TxHandlerResult, error) {
+	var r txhandler.TxHandlerResult
 
 	var msg MessageTx
 	err := proto.Unmarshal(txBytes, &msg)
@@ -35,7 +35,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	origin := auth.Origin(state.Context())
+	origin := keys.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 
 	if caller.Compare(origin) != 0 {
@@ -108,8 +108,8 @@ func (h *CallTxHandler) ProcessTx(
 	txBytes []byte,
 	isCheckTx bool,
 
-) (loomchain.TxHandlerResult, error) {
-	var r loomchain.TxHandlerResult
+) (txhandler.TxHandlerResult, error) {
+	var r txhandler.TxHandlerResult
 
 	var msg MessageTx
 	err := proto.Unmarshal(txBytes, &msg)
@@ -117,7 +117,7 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	origin := auth.Origin(state.Context())
+	origin := keys.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
 

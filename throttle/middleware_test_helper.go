@@ -6,30 +6,32 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
+
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 var (
 	contract = loom.MustParseAddress("chain:0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
 )
 
-func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state appstate.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
+func throttleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.State, tx auth.SignedTx, ctx context.Context) (txhandler.TxHandlerResult, error) {
 	return ttm.ProcessTx(
 		state.WithContext(ctx),
 		tx.Inner,
-		func(state appstate.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (res txhandler.TxHandlerResult, err error) {
 
 			var nonceTx loomAuth.NonceTx
 			if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
 				return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 			}
 
-			var tx loomchain.Transaction
+			var tx types.Transaction
 			if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 				return res, errors.New("throttle: unmarshal tx")
 			}
@@ -66,7 +68,7 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state appstate.St
 				})
 			}
 
-			return loomchain.TxHandlerResult{Data: data, Info: info}, err
+			return txhandler.TxHandlerResult{Data: data, Info: info}, err
 		},
 		false,
 	)

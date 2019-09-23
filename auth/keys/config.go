@@ -1,4 +1,4 @@
-package auth
+package keys
 
 type Config struct {
 	// Per-chain tx signing config, indexed by chain ID

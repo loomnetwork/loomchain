@@ -1,4 +1,4 @@
-package evm
+package config
 
 type EvmStoreConfig struct {
 	// DBName defines database file name

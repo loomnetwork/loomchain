@@ -1,8 +1,7 @@
 package events
 
 import (
-	"github.com/loomnetwork/loomchain"
-	log "github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/log"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -17,7 +16,7 @@ type RedisEventDispatcher struct {
 	queue string
 }
 
-var _ loomchain.EventDispatcher = &RedisEventDispatcher{}
+//var _ loomchain.EventDispatcher = &RedisEventDispatcher{}
 
 // NewRedisEventDispatcher create a new redis dispatcher
 func NewRedisEventDispatcher(host string) (*RedisEventDispatcher, error) {

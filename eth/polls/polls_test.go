@@ -28,7 +28,7 @@ var (
 )
 
 func TestLogPoll(t *testing.T) {
-	testLogPoll(t, handler.ReceiptHandlerLevelDb)
+	testLogPoll(t, common.ReceiptHandlerLevelDb)
 }
 
 func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
@@ -37,7 +37,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, common.DefaultMaxReceipts, evmAuxStore)
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	allFilter := eth.JsonFilter{
 		FromBlock: "earliest",
@@ -88,8 +88,8 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func TestTxPoll(t *testing.T) {
-	testLegacyTxPoll(t, handler.ReceiptHandlerLevelDb)
-	testTxPoll(t, handler.ReceiptHandlerLevelDb)
+	testLegacyTxPoll(t, common.ReceiptHandlerLevelDb)
+	testTxPoll(t, common.ReceiptHandlerLevelDb)
 }
 
 func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
@@ -98,7 +98,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, common.DefaultMaxReceipts, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler)
@@ -137,7 +137,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, common.DefaultMaxReceipts, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler)
@@ -203,7 +203,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 }
 
 func TestTimeout(t *testing.T) {
-	testTimeout(t, handler.ReceiptHandlerLevelDb)
+	testTimeout(t, common.ReceiptHandlerLevelDb)
 }
 
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
@@ -212,7 +212,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, common.DefaultMaxReceipts, evmAuxStore)
 
 	BlockTimeout = 10
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)

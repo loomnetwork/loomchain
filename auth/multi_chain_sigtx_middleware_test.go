@@ -25,10 +25,12 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/txhandler"
 )
 
 const (
@@ -178,7 +180,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
 		"default": {
@@ -247,7 +249,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
 		"default": {
@@ -317,7 +319,7 @@ func TestChainIdVerification(t *testing.T) {
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
 		"default": {
@@ -379,16 +381,16 @@ func TestChainIdVerification(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state appstate.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
+func throttleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	return ttm.ProcessTx(state.WithContext(ctx), signedTx,
-		func(state appstate.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (res txhandler.TxHandlerResult, err error) {
 
 			var nonceTx NonceTx
 			if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
 				return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 			}
 
-			var tx loomchain.Transaction
+			var tx txhandler.Transaction
 			if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 				return res, errors.New("throttle: unmarshal tx")
 			}
@@ -397,12 +399,12 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state appstate.St
 				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 			}
 
-			origin := Origin(state.Context())
+			origin := keys.Origin(state.Context())
 			caller := loom.UnmarshalAddressPB(msg.From)
 			if caller.Compare(origin) != 0 {
 				return res, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
 			}
-			return loomchain.TxHandlerResult{}, err
+			return txhandler.TxHandlerResult{}, err
 		}, false,
 	)
 }
@@ -461,7 +463,7 @@ func mockNonceTx(t *testing.T, from loom.Address, sequence uint64) []byte {
 		From: from.MarshalPB(),
 	})
 	require.NoError(t, err)
-	tx, err := proto.Marshal(&loomchain.Transaction{
+	tx, err := proto.Marshal(&txhandler.Transaction{
 		Id:   callId,
 		Data: messageTx,
 	})

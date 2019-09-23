@@ -9,13 +9,13 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -113,9 +113,9 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 		contractTxLimiterMiddleware.ProcessTx(
 			state,
 			txbytes,
-			func(_ appstate.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+			func(_ appstate.State, txBytes []byte, isCheckTx bool) (res txhandler.TxHandlerResult, err error) {
 				allowed = true
-				return loomchain.TxHandlerResult{}, nil
+				return txhandler.TxHandlerResult{}, nil
 			},
 			true,
 		)

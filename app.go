@@ -6,17 +6,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/features"
-	"github.com/loomnetwork/loomchain/registry"
-
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
 	ttypes "github.com/tendermint/tendermint/types"
+
+	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/txhandler"
+	"github.com/loomnetwork/loomchain/txhandler/middleware"
 
 	"github.com/loomnetwork/loomchain/log"
 	appstate "github.com/loomnetwork/loomchain/state"
@@ -24,25 +25,6 @@ import (
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
-
-type TxHandler interface {
-	ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
-}
-
-type TxHandlerFunc func(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
-
-type TxHandlerResult struct {
-	Data             []byte
-	ValidatorUpdates []abci.Validator
-	Info             string
-	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
-	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tendermint/libs/pubsub/query)
-	Tags []common.KVPair
-}
-
-func (f TxHandlerFunc) ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	return f(state, txBytes, isCheckTx)
-}
 
 type QueryHandler interface {
 	Handle(state appstate.ReadOnlyState, path string, data []byte) ([]byte, error)
@@ -72,7 +54,7 @@ type Application struct {
 	curBlockHash    []byte
 	Store           store.VersionedKVStore
 	Init            func(appstate.State) error
-	TxHandler
+	txhandler.TxHandler
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
@@ -88,6 +70,7 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
+	DebugTxHandler              txhandler.TxHandler
 }
 
 var _ abci.Application = &Application{}
@@ -437,7 +420,7 @@ func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.Re
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
-func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 	state := appstate.NewStoreState(
 		context.Background(),
 		storeTx,
@@ -619,5 +602,20 @@ func (a *Application) ReadOnlyState() appstate.State {
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
+	)
+}
+
+func (a *Application) InMemoryApp(blockNumber uint64) middleware.InMemoryApp {
+	// TODO: the store snapshot should be created atomically, otherwise the block header might
+	//       not match the state... need to figure out why this hasn't spectacularly failed already
+	return middleware.NewInMemoryApp(
+		a.lastBlockHeader,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.Store,
+		a.TxHandler,
+		a.ReceiptsVersion,
+		a.GetValidatorSet,
+		a.config,
 	)
 }

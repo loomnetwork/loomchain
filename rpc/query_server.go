@@ -26,6 +26,7 @@ import (
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -39,11 +40,13 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
+	"github.com/loomnetwork/loomchain/txhandler/middleware"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
@@ -61,6 +64,7 @@ const (
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() appstate.State
+	InMemoryApp(uint64) middleware.InMemoryApp
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -131,7 +135,7 @@ type QueryServer struct {
 	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
-	AuthCfg    *auth.Config
+	AuthCfg    *keys.Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -1106,6 +1110,23 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 
 func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
+}
+
+func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config debug.JsonTraceConfig) (interface{}, error) {
+	receipt, err := s.EthGetTransactionReceipt(hash)
+	if err != nil {
+		return nil, errors.Wrap(err, "cant find transaction matching hash")
+	}
+	blockNumber, err := eth.DecQuantityToUint(receipt.BlockNumber)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cant parse block number %v", receipt.BlockNumber)
+	}
+	txIndex, err := eth.DecQuantityToUint(receipt.TransactionIndex)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
+	}
+	cfg := debug.DecTraceConfig(config)
+	return debug.TraceTransaction(s.InMemoryApp(blockNumber), s.BlockStore, int64(blockNumber), txIndex, cfg)
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {

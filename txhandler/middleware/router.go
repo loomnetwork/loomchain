@@ -1,4 +1,4 @@
-package loomchain
+package middleware
 
 import (
 	"github.com/gogo/protobuf/proto"
@@ -6,27 +6,26 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 )
-
-type Transaction = types.Transaction
 
 type TxRouter struct {
 	deliverTxRoutes map[uint32]RouteHandler
 	checkTxRoutes   map[uint32]RouteHandler
 }
 
-type RouteHandler func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+type RouteHandler func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error)
 
 type RouteConditionFunc func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) bool
 
-var GeneratePassthroughRouteHandler = func(txHandler TxHandler) RouteHandler {
-	return func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+var GeneratePassthroughRouteHandler = func(txHandler txhandler.TxHandler) RouteHandler {
+	return func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 		return txHandler.ProcessTx(state, txBytes, isCheckTx)
 	}
 }
 
-func GenerateConditionalRouteHandler(conditionFn RouteConditionFunc, onTrue TxHandler, onFalse TxHandler) RouteHandler {
-	return RouteHandler(func(txId uint32, state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+func GenerateConditionalRouteHandler(conditionFn RouteConditionFunc, onTrue txhandler.TxHandler, onFalse txhandler.TxHandler) RouteHandler {
+	return RouteHandler(func(txId uint32, state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 		if conditionFn(txId, state, txBytes, isCheckTx) {
 			return onTrue.ProcessTx(state, txBytes, isCheckTx)
 		}
@@ -57,10 +56,10 @@ func (r *TxRouter) HandleCheckTx(txID uint32, handler RouteHandler) {
 	r.checkTxRoutes[txID] = handler
 }
 
-func (r *TxRouter) ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	var res TxHandlerResult
+func (r *TxRouter) ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+	var res txhandler.TxHandlerResult
 
-	var tx Transaction
+	var tx types.Transaction
 	err := proto.Unmarshal(txBytes, &tx)
 	if err != nil {
 		return res, err

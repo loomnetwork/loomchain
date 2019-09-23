@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth/sequence"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
-	handler := NewReceiptHandler(&loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
+	handler := NewReceiptHandler(&loomchain.DefaultEventHandler{}, common.DefaultMaxReceipts, evmAuxStore)
 
 	var writer loomchain.WriteReceiptHandler = handler
 	var reader loomchain.ReadReceiptHandler = handler
@@ -38,7 +39,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 	for nonce := 1; nonce < 21; nonce++ {
 		var txError error
 		var resp abci.ResponseDeliverTx
-		loomchain.NewSequence(util.PrefixKey([]byte("nonce"), addr1.Bytes())).Next(state)
+		sequence.NewSequence(util.PrefixKey([]byte("nonce"), addr1.Bytes())).Next(state)
 		var txHash []byte
 
 		if nonce%2 == 1 { // mock EVM transaction

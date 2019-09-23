@@ -5,24 +5,26 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
-	appstate "github.com/loomnetwork/loomchain/state"
-	"github.com/loomnetwork/loomchain/vm"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
+	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 // GetGoDeployTxMiddleWare creates middlware that only allows Go contract deployment tx to go through
 // if they originate from one of the allowed deployer accounts. This middleware has been superseded
 // by the DeployerWhitelist contract & middleware, though it's still in use on some clusters.
-func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddlewareFunc {
-	return loomchain.TxMiddlewareFunc(func(
+func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) txhandler.TxMiddlewareFunc {
+	return txhandler.TxMiddlewareFunc(func(
 		state appstate.State,
 		txBytes []byte,
-		next loomchain.TxHandlerFunc,
+		next txhandler.TxHandlerFunc,
 		isCheckTx bool,
-	) (res loomchain.TxHandlerResult, err error) {
-		var tx loomchain.Transaction
+	) (res txhandler.TxHandlerResult, err error) {
+		var tx types.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
 			return res, errors.Wrapf(err, "unmarshal tx %v", txBytes)
 		}
@@ -42,7 +44,7 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 		}
 
 		if deployTx.VmType == vm.VMType_PLUGIN {
-			origin := auth.Origin(state.Context())
+			origin := keys.Origin(state.Context())
 			for _, allowed := range allowedDeployers {
 				if 0 == origin.Compare(allowed) {
 					return next(state, txBytes, isCheckTx)
@@ -52,30 +54,4 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 		}
 		return next(state, txBytes, isCheckTx)
 	})
-}
-
-type GoContractDeployerWhitelistConfig struct {
-	Enabled             bool
-	DeployerAddressList []string
-}
-
-func DefaultGoContractDeployerWhitelistConfig() *GoContractDeployerWhitelistConfig {
-	return &GoContractDeployerWhitelistConfig{
-		Enabled: false,
-	}
-}
-
-func (c *GoContractDeployerWhitelistConfig) DeployerAddresses(chainId string) ([]loom.Address, error) {
-	deployerAddressList := make([]loom.Address, 0, len(c.DeployerAddressList))
-	for _, addrStr := range c.DeployerAddressList {
-		addr, err := loom.ParseAddress(addrStr)
-		if err != nil {
-			addr, err = loom.ParseAddress(chainId + ":" + addrStr)
-			if err != nil {
-				return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
-			}
-		}
-		deployerAddressList = append(deployerAddressList, addr)
-	}
-	return deployerAddressList, nil
 }

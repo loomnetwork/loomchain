@@ -7,45 +7,26 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/ed25519"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/ed25519"
+	"github.com/loomnetwork/loomchain/txhandler"
 )
 
-type SignedTxType string
-
-const (
-	LoomSignedTxType     SignedTxType = "loom"
-	EthereumSignedTxType SignedTxType = "eth"
-	TronSignedTxType     SignedTxType = "tron"
-	BinanceSignedTxType  SignedTxType = "binance"
-)
-
-// AccountType is used to specify which address should be used on-chain to identify a tx sender.
-type AccountType int
-
-const (
-	// NativeAccountType indicates that the tx sender address should be passed through to contracts
-	// as is, with the original chain ID intact.
-	NativeAccountType AccountType = iota
-	// MappedAccountType indicates that the tx sender address should be mapped to a DAppChain
-	// address before being passed through to contracts.
-	MappedAccountType
-)
-
-var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
-	LoomSignedTxType:     verifyEd25519,
-	EthereumSignedTxType: verifySolidity66Byte,
-	TronSignedTxType:     verifyTron,
-	BinanceSignedTxType:  verifyBinance,
+var originRecoveryFuncs = map[keys.SignedTxType]originRecoveryFunc{
+	keys.LoomSignedTxType:     verifyEd25519,
+	keys.EthereumSignedTxType: verifySolidity66Byte,
+	keys.TronSignedTxType:     verifyTron,
+	keys.BinanceSignedTxType:  verifyBinance,
 }
 
 type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
@@ -53,16 +34,16 @@ type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureT
 // NewMultiChainSignatureTxMiddleware returns tx signing middleware that supports a set of chain
 // specific signing algos.
 func NewMultiChainSignatureTxMiddleware(
-	chains map[string]ChainConfig,
+	chains map[string]keys.ChainConfig,
 	createAddressMapperCtx func(state appstate.State) (contractpb.StaticContext, error),
-) loomchain.TxMiddlewareFunc {
-	return loomchain.TxMiddlewareFunc(func(
+) txhandler.TxMiddlewareFunc {
+	return txhandler.TxMiddlewareFunc(func(
 		state appstate.State,
 		txBytes []byte,
-		next loomchain.TxHandlerFunc,
+		next txhandler.TxHandlerFunc,
 		isCheckTx bool,
-	) (loomchain.TxHandlerResult, error) {
-		var r loomchain.TxHandlerResult
+	) (txhandler.TxHandlerResult, error) {
+		var r txhandler.TxHandlerResult
 
 		var signedTx SignedTx
 		if err := proto.Unmarshal(txBytes, &signedTx); err != nil {
@@ -114,11 +95,11 @@ func NewMultiChainSignatureTxMiddleware(
 		}
 
 		switch chain.AccountType {
-		case NativeAccountType: // pass through origin & message sender as is
-			ctx := context.WithValue(state.Context(), ContextKeyOrigin, msgSender)
+		case keys.NativeAccountType: // pass through origin & message sender as is
+			ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, msgSender)
 			return next(state.WithContext(ctx), signedTx.Inner, isCheckTx)
 
-		case MappedAccountType: // map origin & message sender to an address on this chain
+		case keys.MappedAccountType: // map origin & message sender to an address on this chain
 			origin, err := getMappedAccountAddress(state, msgSender, createAddressMapperCtx)
 			if err != nil {
 				return r, err
@@ -142,7 +123,7 @@ func NewMultiChainSignatureTxMiddleware(
 				return r, errors.Wrap(err, "failed to marshal NonceTx")
 			}
 
-			ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+			ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 			return next(state.WithContext(ctx), nonceTxBytes, isCheckTx)
 
 		default:

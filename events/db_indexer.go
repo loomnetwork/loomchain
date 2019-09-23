@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/loomchain"
+
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -16,7 +16,7 @@ type DBIndexerEventDispatcher struct {
 	sync.Mutex
 }
 
-var _ loomchain.EventDispatcher = &DBIndexerEventDispatcher{}
+//var _ loomchain.EventDispatcher = &DBIndexerEventDispatcher{}
 
 func NewDBIndexerEventDispatcher(es store.EventStore) *DBIndexerEventDispatcher {
 	return &DBIndexerEventDispatcher{EventStore: es}

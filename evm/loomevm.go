@@ -22,7 +22,7 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/loomnetwork/loomchain/receipts/handler"
+	rcommon "github.com/loomnetwork/loomchain/receipts/common"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -108,7 +108,7 @@ var LoomVmFactory = func(state appstate.State) (vm.VM, error) {
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
 	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
 		eventHandler,
-		handler.DefaultMaxReceipts,
+		rcommon.DefaultMaxReceipts,
 		nil,
 	)
 	receiptHandler := receiptHandlerProvider.Writer()

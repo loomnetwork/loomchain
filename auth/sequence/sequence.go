@@ -1,4 +1,4 @@
-package loomchain
+package sequence
 
 import (
 	"bytes"

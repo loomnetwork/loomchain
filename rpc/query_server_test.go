@@ -102,6 +102,18 @@ func (s *stateProvider) ReadOnlyState() state.State {
 	)
 }
 
+func (s *stateProvider) InMemoryApp() state.State {
+	return state.NewStoreState(
+		nil,
+		store.NewMemStore(),
+		abci.Header{
+			ChainID: s.ChainID,
+		},
+		nil,
+		nil,
+	)
+}
+
 var testlog llog.TMLogger
 
 func TestQueryServer(t *testing.T) {

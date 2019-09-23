@@ -33,7 +33,7 @@ var (
 )
 
 func TestQueryChain(t *testing.T) {
-	testQueryChain(t, handler.ReceiptHandlerLevelDb)
+	testQueryChain(t, common.ReceiptHandlerLevelDb)
 }
 
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
@@ -41,7 +41,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.NoError(t, err)
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, common.DefaultMaxReceipts, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler = receiptHandler
 
 	require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestMatchFilters(t *testing.T) {
 	ethFilter5 := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, {"Topic6"}},
 	}
-	bloomFilter := bloom.GenBloomFilter(common.ConvertEventData(testEvents))
+	bloomFilter := bloom.GenBloomFilter(ConvertEventData(testEvents))
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter)) // address does not match
@@ -167,7 +167,7 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	testGetLogs(t, handler.ReceiptHandlerLevelDb)
+	testGetLogs(t, common.ReceiptHandlerLevelDb)
 }
 
 func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
@@ -176,7 +176,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, common.DefaultMaxReceipts, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler = receiptHandler
 
 	require.NoError(t, err)
@@ -232,4 +232,13 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
 	require.NoError(t, receiptHandler.Close())
+}
+
+func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
+	typesEvents := make([]*types.EventData, 0, len(events))
+	for _, event := range events {
+		typeEvent := types.EventData(*event)
+		typesEvents = append(typesEvents, &typeEvent)
+	}
+	return typesEvents
 }

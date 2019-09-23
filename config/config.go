@@ -10,19 +10,18 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/evm"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
-	receipts "github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
-	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
 
@@ -67,9 +66,9 @@ type Config struct {
 	CallEnabled                 bool
 	SessionDuration             int64
 	Karma                       *KarmaConfig
-	GoContractDeployerWhitelist *throttle.GoContractDeployerWhitelistConfig
-	TxLimiter                   *throttle.TxLimiterConfig
-	ContractTxLimiter           *throttle.ContractTxLimiterConfig
+	GoContractDeployerWhitelist *GoContractDeployerWhitelistConfig
+	TxLimiter                   *TxLimiterConfig
+	ContractTxLimiter           *ContractTxLimiterConfig
 	// Logging
 	LogDestination          string
 	ContractLogLevel        string
@@ -133,9 +132,9 @@ type Config struct {
 
 	FnConsensus *FnConsensusConfig
 
-	Auth *auth.Config
+	Auth *keys.Config
 
-	EvmStore *evm.EvmStoreConfig
+	EvmStore *EvmStoreConfig
 	// Allow deployment of named EVM contracts (should only be used in tests!)
 	AllowNamedEvmContracts bool
 
@@ -376,8 +375,8 @@ func DefaultConfig() *Config {
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
 		RegistryVersion:            int32(registry.RegistryV2),
-		ReceiptsVersion:            int32(receipts.ReceiptHandlerLevelDb),
-		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
+		ReceiptsVersion:            int32(common.ReceiptHandlerLevelDb),
+		EVMPersistentTxReceiptsMax: common.DefaultMaxReceipts,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
@@ -396,9 +395,9 @@ func DefaultConfig() *Config {
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
-	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
-	cfg.ContractTxLimiter = throttle.DefaultContractTxLimiterConfig()
-	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
+	cfg.TxLimiter = DefaultTxLimiterConfig()
+	cfg.ContractTxLimiter = DefaultContractTxLimiterConfig()
+	cfg.GoContractDeployerWhitelist = DefaultGoContractDeployerWhitelistConfig()
 	cfg.DPOSv2OracleConfig = DefaultDPOS2OracleConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
@@ -412,11 +411,11 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
-	cfg.EvmStore = evm.DefaultEvmStoreConfig()
+	cfg.EvmStore = DefaultEvmStoreConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
-	cfg.Auth = auth.DefaultConfig()
+	cfg.Auth = keys.DefaultConfig()
 	return cfg
 }
 

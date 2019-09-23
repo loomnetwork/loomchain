@@ -4,10 +4,11 @@ import (
 	"sort"
 
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 )
 
 type forkRoute struct {
-	TxHandler
+	txhandler.TxHandler
 	Height int64
 }
 
@@ -35,7 +36,7 @@ func NewForkRouter() *ForkRouter {
 	}
 }
 
-func (r *ForkRouter) Handle(chainID string, height int64, handler TxHandler) {
+func (r *ForkRouter) Handle(chainID string, height int64, handler txhandler.TxHandler) {
 	routes := r.routes[chainID]
 	found := sort.Search(len(routes), func(i int) bool {
 		return routes[i].Height >= height
@@ -52,11 +53,11 @@ func (r *ForkRouter) Handle(chainID string, height int64, handler TxHandler) {
 	r.routes[chainID] = routes
 }
 
-func (r *ForkRouter) ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+func (r *ForkRouter) ProcessTx(state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 	block := state.Block()
 	routes := r.routes[block.ChainID]
 
-	var found TxHandler
+	var found txhandler.TxHandler
 	for _, route := range routes {
 		if route.Height > block.Height {
 			break

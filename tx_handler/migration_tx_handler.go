@@ -5,18 +5,19 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	goloomvm "github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/migrations"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -48,8 +49,8 @@ func (h *MigrationTxHandler) ProcessTx(
 	state appstate.State,
 	txBytes []byte,
 	isCheckTx bool,
-) (loomchain.TxHandlerResult, error) {
-	var r loomchain.TxHandlerResult
+) (txhandler.TxHandlerResult, error) {
+	var r txhandler.TxHandlerResult
 
 	if !state.FeatureEnabled(features.MigrationTxFeature, false) {
 		return r, fmt.Errorf("MigrationTx feature hasn't been enabled")
@@ -61,7 +62,7 @@ func (h *MigrationTxHandler) ProcessTx(
 		return r, err
 	}
 
-	origin := auth.Origin(state.Context())
+	origin := keys.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 
 	if caller.Compare(origin) != 0 {

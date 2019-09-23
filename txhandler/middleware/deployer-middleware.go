@@ -1,18 +1,27 @@
-package throttle
+package middleware
 
 import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
+)
+
+const (
+	deployId    = uint32(1)
+	callId      = uint32(2)
+	migrationId = uint32(3)
 )
 
 var (
@@ -27,12 +36,12 @@ var (
 // Records deploymentAddress and vmType
 func NewEVMDeployRecorderPostCommitMiddleware(
 	createDeployerWhitelistCtx func(state appstate.State) (contractpb.Context, error),
-) (loomchain.PostCommitMiddleware, error) {
-	return loomchain.PostCommitMiddlewareFunc(func(
+) (txhandler.PostCommitMiddleware, error) {
+	return txhandler.PostCommitMiddlewareFunc(func(
 		state appstate.State,
 		txBytes []byte,
-		res loomchain.TxHandlerResult,
-		next loomchain.PostCommitHandler,
+		res txhandler.TxHandlerResult,
+		next txhandler.PostCommitHandler,
 		isCheckTx bool,
 	) error {
 		if !state.FeatureEnabled(features.UserDeployerWhitelistFeature, false) {
@@ -54,7 +63,7 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 			return errors.Wrapf(err, "unmarshal deploy response %v", res.Data)
 		}
 
-		origin := auth.Origin(state.Context())
+		origin := keys.Origin(state.Context())
 		ctx, err := createDeployerWhitelistCtx(state)
 		if err != nil {
 			return err
@@ -70,13 +79,13 @@ func NewEVMDeployRecorderPostCommitMiddleware(
 
 func NewDeployerWhitelistMiddleware(
 	createDeployerWhitelistCtx func(state appstate.State) (contractpb.Context, error),
-) (loomchain.TxMiddlewareFunc, error) {
-	return loomchain.TxMiddlewareFunc(func(
+) (txhandler.TxMiddlewareFunc, error) {
+	return txhandler.TxMiddlewareFunc(func(
 		state appstate.State,
 		txBytes []byte,
-		next loomchain.TxHandlerFunc,
+		next txhandler.TxHandlerFunc,
 		isCheckTx bool,
-	) (res loomchain.TxHandlerResult, err error) {
+	) (res txhandler.TxHandlerResult, err error) {
 
 		if !state.FeatureEnabled(features.DeployerWhitelistFeature, false) {
 			return next(state, txBytes, isCheckTx)
@@ -87,7 +96,7 @@ func NewDeployerWhitelistMiddleware(
 			return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 		}
 
-		var tx loomchain.Transaction
+		var tx types.Transaction
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}
@@ -109,7 +118,7 @@ func NewDeployerWhitelistMiddleware(
 			}
 
 			if deployTx.VmType == vm.VMType_PLUGIN {
-				origin := auth.Origin(state.Context())
+				origin := keys.Origin(state.Context())
 				ctx, err := createDeployerWhitelistCtx(state)
 				if err != nil {
 					return res, err
@@ -118,7 +127,7 @@ func NewDeployerWhitelistMiddleware(
 					return res, err
 				}
 			} else if deployTx.VmType == vm.VMType_EVM {
-				origin := auth.Origin(state.Context())
+				origin := keys.Origin(state.Context())
 				ctx, err := createDeployerWhitelistCtx(state)
 				if err != nil {
 					return res, err
@@ -130,7 +139,7 @@ func NewDeployerWhitelistMiddleware(
 
 		} else if tx.Id == migrationId {
 			// Process migrationTx, checking for permission to migrate contract
-			origin := auth.Origin(state.Context())
+			origin := keys.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, err
