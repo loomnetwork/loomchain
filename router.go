@@ -4,11 +4,14 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/features"
 )
 
 type Transaction = types.Transaction
 
 type TxRouter struct {
+	routes map[uint32]RouteHandler
+	// legacy, will be removed in a future release
 	deliverTxRoutes map[uint32]RouteHandler
 	checkTxRoutes   map[uint32]RouteHandler
 }
@@ -34,9 +37,18 @@ func GenerateConditionalRouteHandler(conditionFn RouteConditionFunc, onTrue TxHa
 
 func NewTxRouter() *TxRouter {
 	return &TxRouter{
+		routes:          make(map[uint32]RouteHandler),
 		deliverTxRoutes: make(map[uint32]RouteHandler),
 		checkTxRoutes:   make(map[uint32]RouteHandler),
 	}
+}
+
+func (r *TxRouter) Handle(txID uint32, handler TxHandler) {
+	if _, ok := r.routes[txID]; ok {
+		panic("handler for transaction already registered")
+	}
+	// TODO: remove the GeneratePassthroughRouteHandler once the deliver/checkTxRoutes are gone
+	r.routes[txID] = GeneratePassthroughRouteHandler(handler)
 }
 
 func (r *TxRouter) HandleDeliverTx(txID uint32, handler RouteHandler) {
@@ -65,10 +77,15 @@ func (r *TxRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHan
 	}
 
 	var routeHandler RouteHandler
-	if isCheckTx {
-		routeHandler = r.checkTxRoutes[tx.Id]
+
+	if state.FeatureEnabled(features.TxRouterVersion2, false) {
+		routeHandler = r.routes[tx.Id]
 	} else {
-		routeHandler = r.deliverTxRoutes[tx.Id]
+		if isCheckTx {
+			routeHandler = r.checkTxRoutes[tx.Id]
+		} else {
+			routeHandler = r.deliverTxRoutes[tx.Id]
+		}
 	}
 
 	return routeHandler(tx.Id, state, tx.Data, isCheckTx)

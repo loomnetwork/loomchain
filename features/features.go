@@ -115,4 +115,6 @@ const (
 
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"
+
+	TxRouterVersion2 = "tx:router:v2"
 )

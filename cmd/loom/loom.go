@@ -879,6 +879,8 @@ func loadApp(
 
 	router := loomchain.NewTxRouter()
 
+	// legacy router setup
+
 	isEvmTx := func(txID uint32, state loomchain.State, txBytes []byte, isCheckTx bool) bool {
 		var msg vm.MessageTx
 		err := proto.Unmarshal(txBytes, &msg)
@@ -920,6 +922,18 @@ func loadApp(
 	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
 	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
+
+	// non-legacy router setup
+
+	router.Handle(1, &tx_handler.DeployTxHandler{
+		Manager:                vmManager,
+		CreateRegistry:         createRegistry,
+		AllowNamedEVMContracts: cfg.AllowNamedEvmContracts,
+	})
+	router.Handle(2, &tx_handler.CallTxHandler{
+		Manager: vmManager,
+	})
+	router.Handle(3, migrationTxHandler)
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
