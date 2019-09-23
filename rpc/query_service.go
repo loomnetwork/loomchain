@@ -67,7 +67,7 @@ type QueryService interface {
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
 
 	//blockatlas
-	GetBlockTxs(height blockatlas.BlockHeight) (*blockatlas.JsonBlockObject, error)
+	GetBlockTxs(height blockatlas.BlockHeight) (blockatlas.JsonBlockObject, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -137,6 +137,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
 
 	routes["ba_block_txs"] = rpcserver.NewRPCFunc(svc.GetBlockTxs, "height")
+
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)

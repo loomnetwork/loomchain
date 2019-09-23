@@ -374,5 +374,5 @@ func (m *MockQueryService) GetBlockTxs(height blockatlas.BlockHeight) (*blockatl
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"GetBlockTxs"}, m.MethodsCalled...)
-	return nil, nil
+	return &blockatlas.JsonBlockObject{}, nil
 }

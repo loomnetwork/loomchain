@@ -18,10 +18,16 @@ import (
 )
 
 const (
-	deployId    = uint32(1)
-	callId      = uint32(2)
-	migrationTx = uint32(3)
+	DeployId    = uint32(1)
+	CallId      = uint32(2)
+	MigrationTx = uint32(3)
 )
+
+var TransactionType = map[uint32]string{
+	DeployId:    "DeployTx",
+	CallId:      "ContractCall",
+	MigrationTx: "MigrationTx",
+}
 
 var (
 	searchBlockSize = uint64(20)
@@ -32,7 +38,7 @@ func GetBlockByNumber(
 	state loomchain.ReadOnlyState,
 	height int64,
 	evmAuxStore *evmaux.EvmAuxStore,
-) (resp *JsonBlockObject, err error) {
+) (resp JsonBlockObject, err error) {
 
 	if height > state.Block().Height {
 		return resp, errors.New("get block information for pending blocks not implemented yet")
@@ -44,8 +50,11 @@ func GetBlockByNumber(
 		return resp, errors.Wrapf(err, "GetBlockByNumber failed to get block %d", height)
 	}
 
-	blockInfo := &JsonBlockObject{
-		Transactions:     nil,
+	blockInfo := JsonBlockObject{
+		Timestamp:        EncInt(int64(blockResult.Block.Header.Time.Unix())),
+		GasLimit:         EncInt(0),
+		GasUsed:          EncInt(0),
+		Size:             EncInt(0),
 		Nonce:            ZeroedData8Bytes,
 		TransactionsRoot: ZeroedData32Bytes,
 	}
@@ -95,7 +104,6 @@ func GetTxObjectFromBlockResult(
 		BlockHash:        EncBytes(blockResult.BlockMeta.BlockID.Hash),
 		BlockNumber:      EncInt(blockResult.Block.Header.Height),
 		TransactionIndex: EncInt(int64(index)),
-		Value:            EncInt(0),
 		GasPrice:         EncInt(0),
 		Gas:              EncInt(0),
 		Hash:             EncBytes(tx.Hash()),
@@ -125,7 +133,7 @@ func GetTxObjectFromBlockResult(
 
 	var input []byte
 	switch txTx.Id {
-	case deployId:
+	case DeployId:
 		{
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
@@ -147,11 +155,12 @@ func GetTxObjectFromBlockResult(
 					txObj.Hash = EncBytes(respData.TxHash)
 				}
 			}
-			if deployTx.Value != nil {
-				txObj.Value = EncBigInt(*deployTx.Value.Value.Int)
-			}
+			// if deployTx.Value != nil {
+			// 	txObj.Value = EncBigInt(*deployTx.Value.Value.Int)
+			// }
+			txObj.TransactionType = TransactionType[DeployId]
 		}
-	case callId:
+	case CallId:
 		{
 			var callTx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
@@ -171,13 +180,11 @@ func GetTxObjectFromBlockResult(
 			if err := proto.Unmarshal(input, &req); err != nil {
 				return GetEmptyTxObject(), nil, err
 			}
-			fmt.Printf("CALL-TX 1: %+v\n", req)
 
 			var methodcall gplugin.ContractMethodCall
 			if err := proto.Unmarshal(req.Body, &methodcall); err != nil {
 				return GetEmptyTxObject(), nil, err
 			}
-			fmt.Printf("CALL-TX 2: %+v\n", methodcall)
 
 			txObj.ContractMethod = methodcall.GetMethod()
 			switch methodcall.GetMethod() {
@@ -186,45 +193,40 @@ func GetTxObjectFromBlockResult(
 				if err := proto.Unmarshal(methodcall.Args, &transfer); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("CALL-TX 3 transfer: %+v\n", transfer)
 			case "Delegate":
 				var delegate dpos3types.DelegateRequest
 				if err := proto.Unmarshal(methodcall.Args, &delegate); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("CALL-TX 3 delegate : %+v\n", delegate)
+				txObj.Value = DelegateValue{
+					ValidatorAddress: EncAddress(delegate.GetValidatorAddress()),
+					Amount:           EncUint(delegate.Amount.Value.Uint64()),
+					LockTimeTier:     EncUint(delegate.LocktimeTier),
+					Referrer:         Data(delegate.GetReferrer()),
+				}
 			case "Redelegate":
 				var redelegate dpos3types.RedelegateRequest
 				if err := proto.Unmarshal(methodcall.Args, &redelegate); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("CALL-TX 3 redelegate : %+v\n", redelegate)
+				txObj.Value = ReDelegateValue{
+					ValidatorAddress:       EncAddress(redelegate.GetValidatorAddress()),
+					FormerValidatorAddress: EncAddress(redelegate.GetFormerValidatorAddress()),
+					Index:                  EncUint(redelegate.Index),
+					Amount:                 EncUint(redelegate.Amount.Value.Uint64()),
+					NewLockTimeTier:        EncUint(redelegate.NewLocktimeTier),
+					Referrer:               Data(redelegate.GetReferrer()),
+				}
 			default:
-				fmt.Printf("Something else %s\n", methodcall.GetMethod())
+				fmt.Printf("Some others method %s\n", methodcall.GetMethod())
 			}
+			txObj.TransactionType = TransactionType[CallId]
 		}
-	case migrationTx:
+	case MigrationTx:
 		txObj.To = msg.To.Local.String()
-		input = msg.Data
+		txObj.TransactionType = TransactionType[MigrationTx]
 	default:
 		return GetEmptyTxObject(), nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
-	txObj.Input = EncBytes(input)
-
 	return txObj, contractAddress, nil
-}
-
-func GetNumTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
-	// todo make information about pending block available.
-	// Should be able to get transaction count from receipt object.
-	if height > state.Block().Height {
-		return 0, errors.New("get number of transactions for pending blocks, not implemented yet")
-	}
-
-	var blockResults *ctypes.ResultBlockResults
-	blockResults, err := blockStore.GetBlockResults(&height)
-	if err != nil {
-		return 0, errors.Wrapf(err, "results for block %v", height)
-	}
-	return uint64(len(blockResults.Results.DeliverTx)), nil
 }

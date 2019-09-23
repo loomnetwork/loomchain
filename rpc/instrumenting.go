@@ -573,7 +573,7 @@ func (m InstrumentingMiddleware) EthGetTransactionCount(
 
 func (m InstrumentingMiddleware) GetBlockTxs(
 	height blockatlas.BlockHeight,
-) (resp *blockatlas.JsonBlockObject, err error) {
+) (resp blockatlas.JsonBlockObject, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetBlockTxs", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

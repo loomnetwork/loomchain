@@ -599,7 +599,7 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 	return k, nil
 }
 
-func (s *QueryServer) GetBlockTxs(block blockatlas.BlockHeight) (resp *blockatlas.JsonBlockObject, err error) {
+func (s *QueryServer) GetBlockTxs(block blockatlas.BlockHeight) (resp blockatlas.JsonBlockObject, err error) {
 	if block == "0x0" {
 		return blockatlas.GetBlockZero(), nil
 	}
@@ -618,8 +618,11 @@ func (s *QueryServer) GetBlockTxs(block blockatlas.BlockHeight) (resp *blockatla
 	}
 
 	reg := s.CreateRegistry(snapshot)
+
 	for i, tx := range resp.Transactions {
-		fmt.Println(s.ChainID + ":" + tx.To)
+		if tx.TransactionType != blockatlas.TransactionType[blockatlas.CallId] {
+			continue
+		}
 		contractAddr, err := loom.ParseAddress(s.ChainID + ":" + tx.To)
 		if err != nil {
 			return resp, errors.Wrapf(err, "%s", tx.To)
@@ -634,7 +637,7 @@ func (s *QueryServer) GetBlockTxs(block blockatlas.BlockHeight) (resp *blockatla
 	if block == "0x1" && resp.ParentHash == "0x0" {
 		resp.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
 	}
-
+	fmt.Printf("PASS : %+v", resp)
 	return resp, nil
 }
 
