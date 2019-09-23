@@ -166,19 +166,3 @@ func makeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
 	}
 	return dummies
 }
-
-func makeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventData) *types.EvmTxReceipt {
-	dummy := types.EvmTxReceipt{
-		TransactionIndex: int32(txNum),
-		BlockNumber:      int64(block),
-		Status:           statusTxSuccess,
-	}
-	protoDummy, err := proto.Marshal(&dummy)
-	require.NoError(t, err)
-	h := sha256.New()
-	h.Write(protoDummy)
-	dummy.TxHash = h.Sum(nil)
-	dummy.Logs = events
-
-	return &dummy
-}

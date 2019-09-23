@@ -18,7 +18,6 @@ var (
 
 const (
 	statusTxSuccess = int32(1)
-	statusTxFail    = int32(0)
 )
 
 func (s *EvmAuxStore) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
@@ -141,9 +140,6 @@ func (s *EvmAuxStore) getDBParams() (size uint64, head, tail []byte, err error) 
 	}
 
 	tail = s.db.Get(tailKey)
-	if err != nil {
-		return size, head, tail, err
-	}
 	if len(tail) == 0 {
 		return 0, []byte{}, []byte{}, errors.New("no tail for non zero size receipt db")
 	}

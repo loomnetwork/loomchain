@@ -39,11 +39,14 @@ func blockHeightToBytes(height uint64) []byte {
 	return heightB
 }
 
-func overrideEvmDBName(path, newName string) string {
+func renameReceiptsDB(path, newName string) error {
 	if _, err := os.Stat(filepath.Join(path, legacyEvmAuxDBName)); !os.IsNotExist(err) {
-		return "receipts_db"
+		err := os.Rename(filepath.Join(path, legacyEvmAuxDBName), filepath.Join(path, newName+".db"))
+		if err != nil {
+			return err
+		}
 	}
-	return newName
+	return nil
 }
 
 func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error) {
@@ -51,8 +54,10 @@ func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error
 		return NewEvmAuxStore(dbm.NewMemDB(), maxReceipts), nil
 	}
 
-	// overrideEvmDBName override dbName to receipts_db if receipts_db exists
-	dbName = overrideEvmDBName(rootPath, dbName)
+	// if receipts_db exits, rename it to (default: evmaux.db)
+	if err := renameReceiptsDB(rootPath, dbName); err != nil {
+		return nil, err
+	}
 	evmAuxDB, err := dbm.NewGoLevelDB(dbName, rootPath)
 	if err != nil {
 		return nil, err
