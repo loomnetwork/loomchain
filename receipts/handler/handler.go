@@ -93,15 +93,6 @@ func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
 	return hashListCopy
 }
 
-func (r *ReceiptHandler) Close() {
-	r.evmAuxStore.Close()
-}
-
-func (r *ReceiptHandler) ClearData() error {
-	r.evmAuxStore.ClearData()
-	return nil
-}
-
 func (r *ReceiptHandler) CommitCurrentReceipt() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -214,6 +205,7 @@ func createEventLogs(
 	logs := make([]*types.EventData, 0, len(events))
 	for _, event := range events {
 		event.TxHash = txReceipt.TxHash
+		// TODO: Move this out to the caller of CacheReceipt, and decouple EventHandler from ReceiptHandler
 		if eventHandler != nil {
 			_ = eventHandler.Post(uint64(txReceipt.BlockNumber), event)
 		}

@@ -1,5 +1,7 @@
 package evmaux
 
+import "math"
+
 type EvmAuxStoreConfig struct {
 	// DBName defines database file name
 	DBName string
@@ -7,6 +9,7 @@ type EvmAuxStoreConfig struct {
 	// available backend types are 'goleveldb', or 'cleveldb'
 	DBBackend string
 	// MaxReceipts defines the maximum number of EVM tx receipts stored in EVM auxiliary store
+	// if set to 0, no receipts are persisted in EVM auxiliary store
 	MaxReceipts uint64
 }
 
@@ -14,7 +17,7 @@ func DefaultEvmAuxStoreConfig() *EvmAuxStoreConfig {
 	return &EvmAuxStoreConfig{
 		DBName:      "evmaux",
 		DBBackend:   "goleveldb",
-		MaxReceipts: 2000,
+		MaxReceipts: math.MaxUint64,
 	}
 }
 

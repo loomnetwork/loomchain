@@ -21,8 +21,6 @@ type ReceiptHandlerStore interface {
 	CommitBlock(height int64) error
 	CommitCurrentReceipt()
 	DiscardCurrentReceipt()
-	ClearData() error
-	Close()
 }
 
 type ReceiptHandlerProvider interface {

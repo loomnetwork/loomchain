@@ -25,7 +25,6 @@ func TestTxHashOperation(t *testing.T) {
 	require.Equal(t, 2, len(txHashList))
 	require.Equal(t, true, bytes.Equal(txHashList1[0], txHashList1[0]))
 	require.Equal(t, true, bytes.Equal(txHashList1[1], txHashList1[1]))
-	evmAuxStore.ClearData()
 }
 
 func TestBloomFilterOperation(t *testing.T) {
@@ -37,5 +36,4 @@ func TestBloomFilterOperation(t *testing.T) {
 	evmAuxStore.Commit()
 	bf = evmAuxStore.GetBloomFilter(30)
 	require.Equal(t, true, bytes.Equal(bf, bf1))
-	evmAuxStore.ClearData()
 }

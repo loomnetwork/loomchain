@@ -248,7 +248,10 @@ func newInitCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				destroyReceiptsDB(cfg)
+				err = destroyReceiptsDB(cfg)
+				if err != nil {
+					return err
+				}
 				if err := destroyBlockIndexDB(cfg); err != nil {
 					return err
 				}
@@ -585,14 +588,14 @@ func destroyApp(cfg *config.Config) error {
 	return resetApp(cfg)
 }
 
-func destroyReceiptsDB(cfg *config.Config) {
+func destroyReceiptsDB(cfg *config.Config) error {
 	if cfg.ReceiptsVersion == 2 || cfg.ReceiptsVersion == 3 {
-		receptHandler, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EvmAuxStore.MaxReceipts)
+		err := os.RemoveAll(filepath.Join(cfg.RootPath(), cfg.EvmAuxStore.DBName+".db"))
 		if err != nil {
-			panic(err)
+			return err
 		}
-		receptHandler.ClearData()
 	}
+	return nil
 }
 
 func destroyBlockIndexDB(cfg *config.Config) error {

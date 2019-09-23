@@ -84,7 +84,6 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	receiptHandler.Close()
-	evmAuxStore.ClearData()
 }
 
 func TestTxPoll(t *testing.T) {

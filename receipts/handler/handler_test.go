@@ -106,5 +106,4 @@ func TestReceiptsHandlerChain(t *testing.T) {
 	}
 
 	receiptHandler.Close()
-	require.NoError(t, receiptHandler.ClearData())
 }

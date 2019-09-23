@@ -15,8 +15,8 @@ import (
 var (
 	legacyEvmAuxDBName = "receipts_db"
 
-	BloomPrefix  = []byte("bf")
-	TxHashPrefix = []byte("th")
+	bloomPrefix  = []byte("bf")
+	txHashPrefix = []byte("th")
 	txRefPrefix  = []byte("txr")
 
 	// keys to receipts linked list
@@ -26,11 +26,11 @@ var (
 )
 
 func bloomFilterKey(height uint64) []byte {
-	return util.PrefixKey(BloomPrefix, blockHeightToBytes(height))
+	return util.PrefixKey(bloomPrefix, blockHeightToBytes(height))
 }
 
 func evmTxHashKey(height uint64) []byte {
-	return util.PrefixKey(TxHashPrefix, blockHeightToBytes(height))
+	return util.PrefixKey(txHashPrefix, blockHeightToBytes(height))
 }
 
 func blockHeightToBytes(height uint64) []byte {
@@ -39,14 +39,11 @@ func blockHeightToBytes(height uint64) []byte {
 	return heightB
 }
 
-func renameReceiptsDB(path, newName string) error {
+func overrideEvmDBName(path, newName string) string {
 	if _, err := os.Stat(filepath.Join(path, legacyEvmAuxDBName)); !os.IsNotExist(err) {
-		err := os.Rename(filepath.Join(path, legacyEvmAuxDBName), filepath.Join(path, newName+".db"))
-		if err != nil {
-			return err
-		}
+		return "receipts_db"
 	}
-	return nil
+	return newName
 }
 
 func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error) {
@@ -54,9 +51,8 @@ func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error
 		return NewEvmAuxStore(dbm.NewMemDB(), maxReceipts), nil
 	}
 
-	if err := renameReceiptsDB(rootPath, dbName); err != nil {
-		return nil, err
-	}
+	// overrideEvmDBName override dbName to receipts_db if receipts_db exists
+	dbName = overrideEvmDBName(rootPath, dbName)
 	evmAuxDB, err := dbm.NewGoLevelDB(dbName, rootPath)
 	if err != nil {
 		return nil, err
@@ -84,10 +80,6 @@ func NewEvmAuxStore(db dbm.DB, maxReceipts uint64) *EvmAuxStore {
 	}
 }
 
-func (s *EvmAuxStore) Close() {
-	s.db.Close()
-}
-
 func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {
 	filter := s.db.Get(bloomFilterKey(height))
 	if len(filter) == 0 {
@@ -106,11 +98,11 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 	return txHashList.EthTxHash, err
 }
 
-func (s *EvmAuxStore) SetBloomFilter(filter []byte, height uint64) {
+func (s *EvmAuxStore) setBloomFilter(filter []byte, height uint64) {
 	s.store.Set(bloomFilterKey(height), filter)
 }
 
-func (s *EvmAuxStore) SetTxHashList(txHashList [][]byte, height uint64) error {
+func (s *EvmAuxStore) setTxHashList(txHashList [][]byte, height uint64) error {
 	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
@@ -144,8 +136,4 @@ func (s *EvmAuxStore) DB() dbm.DB {
 
 func (s *EvmAuxStore) Commit() {
 	s.store.Commit()
-}
-
-func (s *EvmAuxStore) ClearData() {
-	os.RemoveAll(legacyEvmAuxDBName)
 }

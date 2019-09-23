@@ -17,8 +17,8 @@ var (
 )
 
 const (
-	StatusTxSuccess = int32(1)
-	StatusTxFail    = int32(0)
+	statusTxSuccess = int32(1)
+	statusTxFail    = int32(0)
 )
 
 func (s *EvmAuxStore) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
@@ -85,7 +85,7 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		tailReceiptItem = types.EvmTxReceiptListItem{Receipt: txReceipt, NextTxHash: nil}
 
 		// only upload hashes to app db if transaction successful
-		if txReceipt.Status == StatusTxSuccess {
+		if txReceipt.Status == statusTxSuccess {
 			txHashArray = append(txHashArray, txReceipt.TxHash)
 		}
 
@@ -118,10 +118,10 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 	s.setDBParams(size, headHash, tailHash)
 
 	filter := bloom.GenBloomFilter(events)
-	if err := s.SetTxHashList(txHashArray, height); err != nil {
+	if err := s.setTxHashList(txHashArray, height); err != nil {
 		return errors.Wrap(err, "append tx list")
 	}
-	s.SetBloomFilter(filter, height)
+	s.setBloomFilter(filter, height)
 	s.Commit()
 	return nil
 }
