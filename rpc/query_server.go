@@ -38,6 +38,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
@@ -596,6 +597,45 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 		CreatorAddress:  rec.Owner,
 	}
 	return k, nil
+}
+
+func (s *QueryServer) GetBlockTxs(block blockatlas.BlockHeight) (resp *blockatlas.JsonBlockObject, err error) {
+	if block == "0x0" {
+		return blockatlas.GetBlockZero(), nil
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	height, err := blockatlas.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return resp, err
+	}
+
+	resp, err = blockatlas.GetBlockByNumber(s.BlockStore, snapshot, int64(height), s.EvmAuxStore)
+	if err != nil {
+		return resp, err
+	}
+
+	reg := s.CreateRegistry(snapshot)
+	for i, tx := range resp.Transactions {
+		fmt.Println(s.ChainID + ":" + tx.To)
+		contractAddr, err := loom.ParseAddress(s.ChainID + ":" + tx.To)
+		if err != nil {
+			return resp, errors.Wrapf(err, "%s", tx.To)
+		}
+		rec, err := reg.GetRecord(contractAddr)
+		if err != nil {
+			return resp, errors.Wrapf(err, "no contract exists at %s", contractAddr.String())
+		}
+		resp.Transactions[i].ContractName = rec.GetName()
+	}
+
+	if block == "0x1" && resp.ParentHash == "0x0" {
+		resp.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
+	}
+
+	return resp, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
