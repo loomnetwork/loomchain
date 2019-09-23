@@ -42,8 +42,6 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, evmAuxStore.CommitReceipts(receipts3, height))
 	confirmDbConsistency(t, evmAuxStore, 10, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...), commit)
 	confirmStateConsistency(t, evmAuxStore, receipts3, height)
-
-	evmAuxStore.Close()
 }
 
 func TestReceiptsCommitAllInOneBlock(t *testing.T) {
@@ -156,7 +154,7 @@ func makeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
 		dummy := types.EvmTxReceipt{
 			TransactionIndex: int32(i),
 			BlockNumber:      int64(block),
-			Status:           StatusTxSuccess,
+			Status:           statusTxSuccess,
 		}
 		protoDummy, err := proto.Marshal(&dummy)
 		require.NoError(t, err)
@@ -173,7 +171,7 @@ func makeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventDa
 	dummy := types.EvmTxReceipt{
 		TransactionIndex: int32(txNum),
 		BlockNumber:      int64(block),
-		Status:           StatusTxSuccess,
+		Status:           statusTxSuccess,
 	}
 	protoDummy, err := proto.Marshal(&dummy)
 	require.NoError(t, err)

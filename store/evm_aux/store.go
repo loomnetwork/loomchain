@@ -68,14 +68,14 @@ type ChildTxRef struct {
 
 type EvmAuxStore struct {
 	db          dbm.DB
-	store       *atomicKVStore
+	batch       dbm.Batch
 	maxReceipts uint64
 }
 
 func NewEvmAuxStore(db dbm.DB, maxReceipts uint64) *EvmAuxStore {
 	return &EvmAuxStore{
 		db:          db,
-		store:       NewAtomicKVStore(db),
+		batch:       db.NewBatch(),
 		maxReceipts: maxReceipts,
 	}
 }
@@ -99,7 +99,7 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 }
 
 func (s *EvmAuxStore) setBloomFilter(filter []byte, height uint64) {
-	s.store.Set(bloomFilterKey(height), filter)
+	s.batch.Set(bloomFilterKey(height), filter)
 }
 
 func (s *EvmAuxStore) setTxHashList(txHashList [][]byte, height uint64) error {
@@ -107,7 +107,7 @@ func (s *EvmAuxStore) setTxHashList(txHashList [][]byte, height uint64) error {
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}
-	s.store.Set(evmTxHashKey(height), postTxHashList)
+	s.batch.Set(evmTxHashKey(height), postTxHashList)
 	return nil
 }
 
@@ -135,5 +135,10 @@ func (s *EvmAuxStore) DB() dbm.DB {
 }
 
 func (s *EvmAuxStore) Commit() {
-	s.store.Commit()
+	s.batch.WriteSync()
+	s.Rollback()
+}
+
+func (s *EvmAuxStore) Rollback() {
+	s.batch = s.db.NewBatch()
 }

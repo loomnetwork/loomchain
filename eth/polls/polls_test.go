@@ -83,7 +83,6 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	sub.Remove(id)
 	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	receiptHandler.Close()
 }
 
 func TestTxPoll(t *testing.T) {
@@ -126,7 +125,6 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	sub.Remove(id)
 	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	receiptHandler.Close()
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
@@ -196,7 +194,6 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	receiptHandler.Close()
 }
 
 func TestTimeout(t *testing.T) {
@@ -243,7 +240,6 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	result, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
-	receiptHandler.Close()
 }
 
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {

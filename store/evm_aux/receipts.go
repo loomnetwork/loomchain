@@ -38,8 +38,8 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 	if len(receipts) == 0 || s.maxReceipts == 0 {
 		return nil
 	}
-	defer s.store.Rollback()
 
+	s.Rollback()
 	size, headHash, tailHash, err := s.getDBParams()
 	if err != nil {
 		return errors.Wrap(err, "getting db params.")
@@ -47,7 +47,7 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 
 	tailReceiptItem := types.EvmTxReceiptListItem{}
 	if len(headHash) > 0 {
-		tailItemProto := s.store.Get(tailHash)
+		tailItemProto := s.db.Get(tailHash)
 		if len(tailItemProto) == 0 {
 			return errors.Wrap(err, "cannot find tail")
 		}
@@ -73,11 +73,8 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 				log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 				continue
 			}
-			updating := s.store.Has(tailHash)
-			s.store.Set(tailHash, protoTail)
-			if !updating {
-				size++
-			}
+			s.batch.Set(tailHash, protoTail)
+			size++
 		}
 
 		// Set current receipt as next tail
@@ -91,19 +88,18 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 
 		events = append(events, txReceipt.Logs...)
 	}
+
 	if len(tailHash) > 0 {
 		protoTail, err := proto.Marshal(&tailReceiptItem)
 		if err != nil {
 			log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 		} else {
-			updating := s.store.Has(tailHash)
-			s.store.Set(tailHash, protoTail)
-			if !updating {
-				size++
-			}
+			s.batch.Set(tailHash, protoTail)
+			size++
 		}
 	}
 
+	// clear old receipts if the number of receipts exceeds the limit
 	if s.maxReceipts < size {
 		var numDeleted uint64
 		headHash, numDeleted, err = s.removeOldEntries(headHash, size-s.maxReceipts)
@@ -122,28 +118,29 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		return errors.Wrap(err, "append tx list")
 	}
 	s.setBloomFilter(filter, height)
+
 	s.Commit()
 	return nil
 }
 
 func (s *EvmAuxStore) getDBParams() (size uint64, head, tail []byte, err error) {
-	notEmpty := s.store.Has(currentDbSizeKey)
+	notEmpty := s.db.Has(currentDbSizeKey)
 	if !notEmpty {
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	sizeB := s.store.Get(currentDbSizeKey)
+	sizeB := s.db.Get(currentDbSizeKey)
 	size = binary.LittleEndian.Uint64(sizeB)
 	if size == 0 {
 		return 0, []byte{}, []byte{}, nil
 	}
 
-	head = s.store.Get(headKey)
+	head = s.db.Get(headKey)
 	if len(head) == 0 {
 		return 0, []byte{}, []byte{}, errors.New("no head for non zero size receipt db")
 	}
 
-	tail = s.store.Get(tailKey)
+	tail = s.db.Get(tailKey)
 	if err != nil {
 		return size, head, tail, err
 	}
@@ -155,22 +152,22 @@ func (s *EvmAuxStore) getDBParams() (size uint64, head, tail []byte, err error) 
 }
 
 func (s *EvmAuxStore) setDBParams(size uint64, head, tail []byte) {
-	s.store.Set(headKey, head)
-	s.store.Set(tailKey, tail)
+	s.batch.Set(headKey, head)
+	s.batch.Set(tailKey, tail)
 	sizeB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sizeB, size)
-	s.store.Set(currentDbSizeKey, sizeB)
+	s.batch.Set(currentDbSizeKey, sizeB)
 }
 
 func (s *EvmAuxStore) removeOldEntries(head []byte, number uint64) ([]byte, uint64, error) {
 	itemsDeleted := uint64(0)
 	for i := uint64(0); i < number && len(head) > 0; i++ {
-		headItem := s.store.Get(head)
+		headItem := s.db.Get(head)
 		txHeadReceiptItem := types.EvmTxReceiptListItem{}
 		if err := proto.Unmarshal(headItem, &txHeadReceiptItem); err != nil {
 			return head, itemsDeleted, errors.Wrapf(err, "unmarshal head %s", string(headItem))
 		}
-		s.store.Delete(head)
+		s.batch.Delete(head)
 		itemsDeleted++
 		head = txHeadReceiptItem.NextTxHash
 	}

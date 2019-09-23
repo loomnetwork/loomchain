@@ -104,6 +104,4 @@ func TestReceiptsHandlerChain(t *testing.T) {
 		require.EqualValues(t, 2*index, txReceipt.TransactionIndex)
 		require.EqualValues(t, common.StatusTxSuccess, txReceipt.Status)
 	}
-
-	receiptHandler.Close()
 }

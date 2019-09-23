@@ -96,8 +96,6 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	filterLogs, err := QueryChain(blockStore, state30, ethFilter, receiptHandler, evmAuxStore)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
 	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
-
-	receiptHandler.Close()
 }
 
 func TestMatchFilters(t *testing.T) {
@@ -228,8 +226,6 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Data, testEvents[0].EncodedBody))
 	require.Equal(t, len(logs[0].Topics), 4)
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
-
-	receiptHandler.Close()
 }
 
 func convertEventData(events []*loomchain.EventData) []*types.EventData {
