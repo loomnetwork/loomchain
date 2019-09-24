@@ -370,9 +370,9 @@ func (m *MockQueryService) EvmUnSubscribe(id string) (bool, error) {
 	return true, nil
 }
 
-func (m *MockQueryService) GetBlockTxs(height blockatlas.BlockHeight) (*blockatlas.JsonBlockObject, error) {
+func (m *MockQueryService) GetBlockTxs(height blockatlas.BlockHeight) (blockatlas.JsonBlockObject, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"GetBlockTxs"}, m.MethodsCalled...)
-	return &blockatlas.JsonBlockObject{}, nil
+	return blockatlas.JsonBlockObject{}, nil
 }

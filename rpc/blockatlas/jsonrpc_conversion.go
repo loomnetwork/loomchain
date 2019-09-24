@@ -2,6 +2,7 @@ package blockatlas
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"strconv"
 	"strings"
@@ -31,19 +32,19 @@ const (
 )
 
 type JsonTxObject struct {
-	Hash             Data        `json:"hash,omitempty"`
-	TransactionType  string      `json:"transactionType,omitempty"`
-	ContractName     string      `json:"contractName,omitempty"`
-	ContractMethod   string      `json:"contractMethod,omitempty"`
-	Nonce            Quantity    `json:"nonce,omitempty"`
-	BlockHash        Data        `json:"blockHash,omitempty"`
-	BlockNumber      Quantity    `json:"blockNumber,omitempty"`
-	TransactionIndex Quantity    `json:"transactionIndex,omitempty"`
-	From             string      `json:"from,omitempty"`
-	To               string      `json:"to"`
-	Value            interface{} `json:"value"`
-	GasPrice         Quantity    `json:"gasPrice,omitempty"`
-	Gas              Quantity    `json:"gas,omitempty"`
+	Hash             Data            `json:"hash,omitempty"`
+	TransactionType  string          `json:"transactionType,omitempty"`
+	ContractName     string          `json:"contractName,omitempty"`
+	ContractMethod   string          `json:"contractMethod,omitempty"`
+	Nonce            Quantity        `json:"nonce,omitempty"`
+	BlockHash        Data            `json:"blockHash,omitempty"`
+	BlockNumber      Quantity        `json:"blockNumber,omitempty"`
+	TransactionIndex Quantity        `json:"transactionIndex,omitempty"`
+	From             string          `json:"from,omitempty"`
+	To               string          `json:"to"`
+	Value            json.RawMessage `json:"value"`
+	GasPrice         Quantity        `json:"gasPrice,omitempty"`
+	Gas              Quantity        `json:"gas,omitempty"`
 }
 
 type JsonBlockObject struct {
@@ -56,23 +57,38 @@ type JsonBlockObject struct {
 	GasLimit         Quantity       `json:"gasLimit,omitempty"`
 	GasUsed          Quantity       `json:"gasUsed,omitempty"`
 	Timestamp        Quantity       `json:"timestamp,omitempty"`
-	Transactions     []JsonTxObject `json:"transactions,omitempty"`
+	Transactions     []JsonTxObject `json:"transactions"`
+}
+
+type ApproveValue struct {
+	Spender string `json:"spender_address,omitempty"`
+	Amount  string `json:"amount,omitempty"`
+}
+type TransferValue struct {
+	To     string `json:"to_address,omitempty"`
+	Amount string `json:"amount,omitempty"`
 }
 
 type DelegateValue struct {
-	ValidatorAddress Data     `json:"validator_address,omitempty"`
-	Amount           Quantity `json:"amount,omitempty"`
-	LockTimeTier     Quantity `json:"lock_time_tier,omitempty"`
-	Referrer         Data     `json:"referrer,omitempty"`
+	ValidatorAddress string `json:"validator_address,omitempty"`
+	Amount           string `json:"amount,omitempty"`
+	LockTimeTier     uint64 `json:"lock_time_tier,omitempty"`
+	Referrer         string `json:"referrer,omitempty"`
 }
 
 type ReDelegateValue struct {
-	ValidatorAddress       Data     `json:"validator_address,omitempty"`
-	FormerValidatorAddress Data     `former_validator_address,omitempty`
-	Index                  Quantity `json:"index,omitempty"`
-	Amount                 Quantity `json:"amount,omitempty"`
-	NewLockTimeTier        Quantity `json:"lock_time_tier,omitempty"`
-	Referrer               Data     `json:"referrer,omitempty"`
+	ValidatorAddress       string `json:"validator_address,omitempty"`
+	FormerValidatorAddress string `json:"former_validator_address,omitempty"`
+	Index                  uint64 `json:"index,omitempty"`
+	Amount                 string `json:"amount,omitempty"`
+	NewLockTimeTier        uint64 `json:"lock_time_tier,omitempty"`
+	Referrer               string `json:"referrer,omitempty"`
+}
+
+type UnbondValue struct {
+	ValidatorAddress string `json:"validator_address,omitempty"`
+	Amount           string `json:"amount,omitempty"`
+	Index            uint64 `json:"index,omitempty"`
 }
 
 func EncInt(value int64) Quantity {
@@ -227,7 +243,7 @@ func GetEmptyTxObject() JsonTxObject {
 		To:               string(ZeroedData32Bytes),
 		From:             string(ZeroedData32Bytes),
 		Gas:              ZeroedQuantity,
-		Value:            ZeroedQuantity,
+		Value:            nil,
 		GasPrice:         ZeroedQuantity,
 	}
 }

@@ -1,6 +1,7 @@
 package blockatlas
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -155,9 +156,13 @@ func GetTxObjectFromBlockResult(
 					txObj.Hash = EncBytes(respData.TxHash)
 				}
 			}
-			// if deployTx.Value != nil {
-			// 	txObj.Value = EncBigInt(*deployTx.Value.Value.Int)
-			// }
+			if deployTx.Value != nil {
+				val, err := json.Marshal(*deployTx.Value.Value.Int)
+				if err != nil {
+					return GetEmptyTxObject(), nil, err
+				}
+				txObj.Value = val
+			}
 			txObj.TransactionType = TransactionType[DeployId]
 		}
 	case CallId:
@@ -173,7 +178,11 @@ func GetTxObjectFromBlockResult(
 				txObj.Hash = EncBytes(txResultData)
 			}
 			if callTx.Value != nil {
-				txObj.Value = EncBigInt(*callTx.Value.Value.Int)
+				val, err := json.Marshal(*callTx.Value.Value.Int)
+				if err != nil {
+					return GetEmptyTxObject(), nil, err
+				}
+				txObj.Value = val
 			}
 
 			var req gplugin.Request
@@ -187,10 +196,35 @@ func GetTxObjectFromBlockResult(
 			}
 
 			txObj.ContractMethod = methodcall.GetMethod()
+			var val []byte
+			var err error
 			switch methodcall.GetMethod() {
 			case "Transfer":
 				var transfer cointypes.TransferRequest
 				if err := proto.Unmarshal(methodcall.Args, &transfer); err != nil {
+					return GetEmptyTxObject(), nil, err
+				}
+				fmt.Printf("TRANSFER-TX : %+v\n", transfer)
+				transferVal := TransferValue{
+					To:     transfer.To.Local.String(),
+					Amount: transfer.Amount.Value.String(),
+				}
+				val, err = json.Marshal(transferVal)
+				if err != nil {
+					return GetEmptyTxObject(), nil, err
+				}
+			case "Approve":
+				var approve cointypes.ApproveRequest
+				if err := proto.Unmarshal(methodcall.Args, &approve); err != nil {
+					return GetEmptyTxObject(), nil, err
+				}
+				fmt.Printf("APPROVE-TX : %+v\n", approve)
+				approveVal := TransferValue{
+					To:     approve.Spender.Local.String(),
+					Amount: approve.Amount.Value.String(),
+				}
+				val, err = json.Marshal(approveVal)
+				if err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
 			case "Delegate":
@@ -198,29 +232,60 @@ func GetTxObjectFromBlockResult(
 				if err := proto.Unmarshal(methodcall.Args, &delegate); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				txObj.Value = DelegateValue{
-					ValidatorAddress: EncAddress(delegate.GetValidatorAddress()),
-					Amount:           EncUint(delegate.Amount.Value.Uint64()),
-					LockTimeTier:     EncUint(delegate.LocktimeTier),
-					Referrer:         Data(delegate.GetReferrer()),
+				fmt.Printf("DELEGATE-TX : %+v\n", delegate)
+				delegateVal := DelegateValue{
+					ValidatorAddress: delegate.ValidatorAddress.Local.String(),
+					Amount:           delegate.Amount.Value.String(),
+					LockTimeTier:     delegate.LocktimeTier,
+					Referrer:         delegate.GetReferrer(),
+				}
+				val, err = json.Marshal(delegateVal)
+				if err != nil {
+					return GetEmptyTxObject(), nil, err
 				}
 			case "Redelegate":
 				var redelegate dpos3types.RedelegateRequest
 				if err := proto.Unmarshal(methodcall.Args, &redelegate); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				txObj.Value = ReDelegateValue{
-					ValidatorAddress:       EncAddress(redelegate.GetValidatorAddress()),
-					FormerValidatorAddress: EncAddress(redelegate.GetFormerValidatorAddress()),
-					Index:                  EncUint(redelegate.Index),
-					Amount:                 EncUint(redelegate.Amount.Value.Uint64()),
-					NewLockTimeTier:        EncUint(redelegate.NewLocktimeTier),
-					Referrer:               Data(redelegate.GetReferrer()),
+				fmt.Printf("REDELEGATE-TX : %+v\n", redelegate)
+				var amount string
+				if redelegate.Amount == nil {
+					amount = "max"
+				}
+				amount = redelegate.Amount.Value.String()
+				redelegateVal := ReDelegateValue{
+					ValidatorAddress:       redelegate.ValidatorAddress.Local.String(),
+					FormerValidatorAddress: redelegate.FormerValidatorAddress.Local.String(),
+					Index:                  redelegate.Index,
+					Amount:                 amount,
+					NewLockTimeTier:        redelegate.NewLocktimeTier,
+					Referrer:               redelegate.GetReferrer(),
+				}
+				val, err = json.Marshal(redelegateVal)
+				if err != nil {
+					return GetEmptyTxObject(), nil, err
+				}
+			case "Unbond":
+				var unbond dpos3types.UnbondRequest
+				if err := proto.Unmarshal(methodcall.Args, &unbond); err != nil {
+					return GetEmptyTxObject(), nil, err
+				}
+				fmt.Printf("UNBOND-TX : %+v\n", unbond)
+				unbondVal := UnbondValue{
+					ValidatorAddress: unbond.ValidatorAddress.Local.String(),
+					Index:            unbond.Index,
+					Amount:           unbond.Amount.Value.String(),
+				}
+				val, err = json.Marshal(unbondVal)
+				if err != nil {
+					return GetEmptyTxObject(), nil, err
 				}
 			default:
 				fmt.Printf("Some others method %s\n", methodcall.GetMethod())
 			}
 			txObj.TransactionType = TransactionType[CallId]
+			txObj.Value = val
 		}
 	case MigrationTx:
 		txObj.To = msg.To.Local.String()

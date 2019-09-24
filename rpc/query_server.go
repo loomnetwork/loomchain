@@ -637,7 +637,7 @@ func (s *QueryServer) GetBlockTxs(block blockatlas.BlockHeight) (resp blockatlas
 	if block == "0x1" && resp.ParentHash == "0x0" {
 		resp.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
 	}
-	fmt.Printf("PASS : %+v", resp)
+	fmt.Printf("PASS : %+v\n", resp)
 	return resp, nil
 }
 
