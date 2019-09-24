@@ -140,7 +140,6 @@ func GetTxObjectFromBlockResult(
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
 				return GetEmptyTxObject(), nil, err
 			}
-			fmt.Printf("DEPLOY-TX : %+v\n", deployTx)
 			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
@@ -200,7 +199,6 @@ func GetTxObjectFromBlockResult(
 				if err := proto.Unmarshal(methodcall.Args, &transfer); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("TRANSFER-TX : %+v\n", transfer)
 				var toAddr, amount string
 				if transfer.To != nil {
 					toAddr = transfer.To.Local.String()
@@ -220,7 +218,6 @@ func GetTxObjectFromBlockResult(
 				if err := proto.Unmarshal(methodcall.Args, &approve); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("APPROVE-TX : %+v\n", approve)
 				var spender, amount string
 				if approve.Spender != nil {
 					spender = approve.Spender.Local.String()
@@ -240,7 +237,6 @@ func GetTxObjectFromBlockResult(
 				if err := proto.Unmarshal(methodcall.Args, &delegate); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("DELEGATE-TX : %+v\n", delegate)
 				var validatorAddr, amount string
 				if delegate.ValidatorAddress != nil {
 					validatorAddr = delegate.ValidatorAddress.Local.String()
@@ -262,7 +258,6 @@ func GetTxObjectFromBlockResult(
 				if err := proto.Unmarshal(methodcall.Args, &redelegate); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("REDELEGATE-TX : %+v\n", redelegate)
 				var validatorAddr, formerAddr, amount string
 				if redelegate.ValidatorAddress != nil {
 					validatorAddr = redelegate.ValidatorAddress.Local.String()
@@ -271,7 +266,7 @@ func GetTxObjectFromBlockResult(
 					formerAddr = redelegate.FormerValidatorAddress.Local.String()
 				}
 				if redelegate.Amount == nil {
-					amount = "max"
+					amount = "previous delegation amount" //Equal to Previous delegation amount
 				}
 				amount = redelegate.Amount.Value.String()
 				val, err = json.Marshal(ReDelegateValue{
@@ -290,7 +285,6 @@ func GetTxObjectFromBlockResult(
 				if err := proto.Unmarshal(methodcall.Args, &unbond); err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-				fmt.Printf("UNBOND-TX : %+v\n", unbond)
 				var validatorAddr, amount string
 				if unbond.ValidatorAddress != nil {
 					validatorAddr = unbond.ValidatorAddress.Local.String()
