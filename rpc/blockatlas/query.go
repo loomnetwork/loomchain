@@ -157,11 +157,7 @@ func GetTxObjectFromBlockResult(
 				}
 			}
 			if deployTx.Value != nil {
-				val, err := json.Marshal(*deployTx.Value.Value.Int)
-				if err != nil {
-					return GetEmptyTxObject(), nil, err
-				}
-				txObj.Value = val
+				txObj.Value = deployTx.Value.Value.Bytes()
 			}
 			txObj.TransactionType = TransactionType[DeployId]
 		}
@@ -205,11 +201,17 @@ func GetTxObjectFromBlockResult(
 					return GetEmptyTxObject(), nil, err
 				}
 				fmt.Printf("TRANSFER-TX : %+v\n", transfer)
-				transferVal := TransferValue{
-					To:     transfer.To.Local.String(),
-					Amount: transfer.Amount.Value.String(),
+				var toAddr, amount string
+				if transfer.To != nil {
+					toAddr = transfer.To.Local.String()
 				}
-				val, err = json.Marshal(transferVal)
+				if transfer.Amount != nil {
+					amount = transfer.Amount.Value.String()
+				}
+				val, err = json.Marshal(TransferValue{
+					To:     toAddr,
+					Amount: amount,
+				})
 				if err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
@@ -219,11 +221,17 @@ func GetTxObjectFromBlockResult(
 					return GetEmptyTxObject(), nil, err
 				}
 				fmt.Printf("APPROVE-TX : %+v\n", approve)
-				approveVal := TransferValue{
-					To:     approve.Spender.Local.String(),
-					Amount: approve.Amount.Value.String(),
+				var spender, amount string
+				if approve.Spender != nil {
+					spender = approve.Spender.Local.String()
 				}
-				val, err = json.Marshal(approveVal)
+				if approve.Amount != nil {
+					amount = approve.Amount.Value.String()
+				}
+				val, err = json.Marshal(ApproveValue{
+					Spender: spender,
+					Amount:  amount,
+				})
 				if err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
@@ -233,13 +241,19 @@ func GetTxObjectFromBlockResult(
 					return GetEmptyTxObject(), nil, err
 				}
 				fmt.Printf("DELEGATE-TX : %+v\n", delegate)
-				delegateVal := DelegateValue{
-					ValidatorAddress: delegate.ValidatorAddress.Local.String(),
-					Amount:           delegate.Amount.Value.String(),
+				var validatorAddr, amount string
+				if delegate.ValidatorAddress != nil {
+					validatorAddr = delegate.ValidatorAddress.Local.String()
+				}
+				if delegate.Amount != nil {
+					amount = delegate.Amount.Value.Int.String()
+				}
+				val, err = json.Marshal(DelegateValue{
+					ValidatorAddress: validatorAddr,
+					Amount:           amount,
 					LockTimeTier:     delegate.LocktimeTier,
 					Referrer:         delegate.GetReferrer(),
-				}
-				val, err = json.Marshal(delegateVal)
+				})
 				if err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
@@ -249,20 +263,25 @@ func GetTxObjectFromBlockResult(
 					return GetEmptyTxObject(), nil, err
 				}
 				fmt.Printf("REDELEGATE-TX : %+v\n", redelegate)
-				var amount string
+				var validatorAddr, formerAddr, amount string
+				if redelegate.ValidatorAddress != nil {
+					validatorAddr = redelegate.ValidatorAddress.Local.String()
+				}
+				if redelegate.FormerValidatorAddress != nil {
+					formerAddr = redelegate.FormerValidatorAddress.Local.String()
+				}
 				if redelegate.Amount == nil {
 					amount = "max"
 				}
 				amount = redelegate.Amount.Value.String()
-				redelegateVal := ReDelegateValue{
-					ValidatorAddress:       redelegate.ValidatorAddress.Local.String(),
-					FormerValidatorAddress: redelegate.FormerValidatorAddress.Local.String(),
+				val, err = json.Marshal(ReDelegateValue{
+					ValidatorAddress:       validatorAddr,
+					FormerValidatorAddress: formerAddr,
 					Index:                  redelegate.Index,
 					Amount:                 amount,
 					NewLockTimeTier:        redelegate.NewLocktimeTier,
 					Referrer:               redelegate.GetReferrer(),
-				}
-				val, err = json.Marshal(redelegateVal)
+				})
 				if err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
@@ -272,17 +291,21 @@ func GetTxObjectFromBlockResult(
 					return GetEmptyTxObject(), nil, err
 				}
 				fmt.Printf("UNBOND-TX : %+v\n", unbond)
-				unbondVal := UnbondValue{
-					ValidatorAddress: unbond.ValidatorAddress.Local.String(),
-					Index:            unbond.Index,
-					Amount:           unbond.Amount.Value.String(),
+				var validatorAddr, amount string
+				if unbond.ValidatorAddress != nil {
+					validatorAddr = unbond.ValidatorAddress.Local.String()
 				}
-				val, err = json.Marshal(unbondVal)
+				if unbond.Amount != nil {
+					amount = unbond.Amount.Value.String()
+				}
+				val, err = json.Marshal(UnbondValue{
+					ValidatorAddress: validatorAddr,
+					Index:            unbond.Index,
+					Amount:           amount,
+				})
 				if err != nil {
 					return GetEmptyTxObject(), nil, err
 				}
-			default:
-				fmt.Printf("Some others method %s\n", methodcall.GetMethod())
 			}
 			txObj.TransactionType = TransactionType[CallId]
 			txObj.Value = val

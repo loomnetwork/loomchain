@@ -61,34 +61,34 @@ type JsonBlockObject struct {
 }
 
 type ApproveValue struct {
-	Spender string `json:"spender_address,omitempty"`
-	Amount  string `json:"amount,omitempty"`
+	Spender string `json:"spender_address"`
+	Amount  string `json:"amount"`
 }
 type TransferValue struct {
-	To     string `json:"to_address,omitempty"`
-	Amount string `json:"amount,omitempty"`
+	To     string `json:"to_address"`
+	Amount string `json:"amount"`
 }
 
 type DelegateValue struct {
-	ValidatorAddress string `json:"validator_address,omitempty"`
-	Amount           string `json:"amount,omitempty"`
-	LockTimeTier     uint64 `json:"lock_time_tier,omitempty"`
-	Referrer         string `json:"referrer,omitempty"`
+	ValidatorAddress string `json:"validator_address"`
+	Amount           string `json:"amount"`
+	LockTimeTier     uint64 `json:"lock_time_tier"`
+	Referrer         string `json:"referrer"`
 }
 
 type ReDelegateValue struct {
-	ValidatorAddress       string `json:"validator_address,omitempty"`
-	FormerValidatorAddress string `json:"former_validator_address,omitempty"`
-	Index                  uint64 `json:"index,omitempty"`
-	Amount                 string `json:"amount,omitempty"`
-	NewLockTimeTier        uint64 `json:"lock_time_tier,omitempty"`
-	Referrer               string `json:"referrer,omitempty"`
+	ValidatorAddress       string `json:"validator_address"`
+	FormerValidatorAddress string `json:"former_validator_address"`
+	Index                  uint64 `json:"index"`
+	Amount                 string `json:"amount"`
+	NewLockTimeTier        uint64 `json:"lock_time_tier"`
+	Referrer               string `json:"referrer"`
 }
 
 type UnbondValue struct {
-	ValidatorAddress string `json:"validator_address,omitempty"`
-	Amount           string `json:"amount,omitempty"`
-	Index            uint64 `json:"index,omitempty"`
+	ValidatorAddress string `json:"validator_address"`
+	Amount           string `json:"amount"`
+	Index            uint64 `json:"index"`
 }
 
 func EncInt(value int64) Quantity {
