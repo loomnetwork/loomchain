@@ -13,8 +13,8 @@
 
 [[TestCases]]
   RunCmd = "/bin/ls ./0"
-  Condition = "excludes"
-  #Excluded = ['receipts_db']
+  Condition = "contains"
+  Excluded = ['receipts_db']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg add-feature --build 0 receipts:v2 -k {{index $.NodePrivKeyPathList 0}}"
