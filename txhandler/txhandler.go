@@ -28,5 +28,5 @@ func (f TxHandlerFunc) ProcessTx(s state.State, txBytes []byte, isCheckTx bool) 
 }
 
 type TxHandlerFactory interface {
-	TxHandler(tracer *vm.Tracer) (TxHandler, error)
+	TxHandler(tracer vm.Tracer) (TxHandler, error)
 }

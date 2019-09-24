@@ -150,9 +150,8 @@ type Evm struct {
 }
 
 func NewEvm(
-	sdb vm.StateDB, lstate state.State, abm *evmAccountBalanceManager, debug bool, tracer *vm.Tracer,
+	sdb vm.StateDB, lstate state.State, abm *evmAccountBalanceManager, debug bool, tracer vm.Tracer,
 ) (*Evm, error) {
-
 	p := new(Evm)
 	p.sdb = sdb
 	p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
@@ -306,15 +305,24 @@ func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 	}
 }
 
-func createVmConfig(evmDebuggingEnabled bool, tracer *vm.Tracer) (vm.Config, error) {
+func createVmConfig(evmDebuggingEnabled bool, tracer vm.Tracer) (vm.Config, error) {
 	if evmDebuggingEnabled {
 		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
+	}
+	if tracer == nil {
+		logCfg := vm.LogConfig{
+			DisableMemory:  true, // disable memory capture
+			DisableStack:   true, // disable stack capture
+			DisableStorage: true, // disable storage capture
+			Limit:          0,    // maximum length of output, but zero means unlimited
+		}
+		tracer = vm.NewStructLogger(&logCfg)
 	}
 	return vm.Config{
 		// Debug enabled debugging Interpreter options
 		Debug: evmDebuggingEnabled,
 		// Tracer is the op code logger
-		Tracer: *tracer,
+		Tracer: tracer,
 		// NoRecursion disabled Interpreter call, callcode,
 		// delegate call and create.
 		NoRecursion: false,

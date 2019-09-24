@@ -55,7 +55,7 @@ type LoomEvm struct {
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
 	loomState appstate.State, accountBalanceManager AccountBalanceManager,
-	logContext *ethdbLogContext, debug bool, tracer *ethvm.Tracer,
+	logContext *ethdbLogContext, debug bool, tracer ethvm.Tracer,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
 	p.db = NewLoomEthdb(loomState, logContext)
@@ -125,7 +125,7 @@ type LoomVm struct {
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
-	tracer         *ethvm.Tracer
+	tracer         ethvm.Tracer
 }
 
 func NewLoomVm(
@@ -133,7 +133,7 @@ func NewLoomVm(
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
-	tracer *ethvm.Tracer,
+	tracer ethvm.Tracer,
 ) vm.VM {
 	return &LoomVm{
 		state:          loomState,

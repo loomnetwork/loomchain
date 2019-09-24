@@ -77,8 +77,8 @@ func (ma *inMemoryApp) TraceProcessTx(txBytes []byte, traceCfg eth.TraceConfig) 
 	if err != nil {
 		return txhandler.TxHandlerResult{}, nil, err
 	}
-
-	traceTxHandle, err := ma.txHandlerFactory.TxHandler(&tracer)
+	// Pass pointer to tracer as we want evm to run with this object, not a copy
+	traceTxHandle, err := ma.txHandlerFactory.TxHandler(tracer)
 	if err != nil {
 		return txhandler.TxHandlerResult{}, nil, err
 	}

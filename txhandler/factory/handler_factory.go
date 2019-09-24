@@ -1,12 +1,12 @@
 package factory
 
 import (
-	"github.com/ethereum/go-ethereum/eth"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
 
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/evm"
@@ -27,12 +27,14 @@ func NewTxHandlerFactory(
 	vmManager *vm.Manager,
 	chainID string,
 	store store.VersionedKVStore,
+	createRegistry factory.RegistryFactoryFunc,
 ) txhandler.TxHandlerFactory {
 	return txHandleFactory{
-		cfg:       cfg,
-		vmManager: vmManager,
-		chainID:   chainID,
-		store:     store,
+		cfg:            cfg,
+		vmManager:      vmManager,
+		chainID:        chainID,
+		store:          store,
+		createRegistry: createRegistry,
 	}
 }
 
@@ -44,7 +46,7 @@ type txHandleFactory struct {
 	createRegistry factory.RegistryFactoryFunc
 }
 
-func (f txHandleFactory) TxHandler(tracer *ethvm.Tracer) (txhandler.TxHandler, error) {
+func (f txHandleFactory) TxHandler(tracer ethvm.Tracer) (txhandler.TxHandler, error) {
 	vmManager := createVmManager(f.vmManager, tracer)
 
 	txMiddleware, err := txMiddleWare(f.cfg, vmManager, f.chainID, f.store)
@@ -63,7 +65,7 @@ func (f txHandleFactory) TxHandler(tracer *ethvm.Tracer) (txhandler.TxHandler, e
 	), nil
 }
 
-func createVmManager(vmManager *vm.Manager, tracer *ethvm.Tracer) vm.Manager {
+func createVmManager(vmManager *vm.Manager, tracer ethvm.Tracer) vm.Manager {
 	if tracer == nil && vmManager != nil {
 		return *vmManager
 	}
