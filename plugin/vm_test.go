@@ -144,7 +144,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	require.NoError(t, err)
 
 	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	evm := levm.NewLoomVm(state, nil, nil, nil, false)
+	evm := levm.NewLoomVm(state, nil, nil, false, nil)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
@@ -210,7 +210,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
-		common.DefaultMaxReceipts,
+		rcommon.DefaultMaxReceipts,
 		evmAuxStore,
 	)
 	require.NoError(t, err)
@@ -240,7 +240,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
-		common.DefaultMaxReceipts,
+		rcommon.DefaultMaxReceipts,
 		evmAuxStore,
 	)
 

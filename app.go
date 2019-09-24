@@ -58,6 +58,7 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
+	txhandler.TxHandlerFactory
 	EvmAuxStore *evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
@@ -606,8 +607,6 @@ func (a *Application) ReadOnlyState() appstate.State {
 }
 
 func (a *Application) InMemoryApp(blockNumber uint64) middleware.InMemoryApp {
-	// TODO: the store snapshot should be created atomically, otherwise the block header might
-	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return middleware.NewInMemoryApp(
 		a.lastBlockHeader,
 		a.curBlockHeader,
@@ -617,5 +616,6 @@ func (a *Application) InMemoryApp(blockNumber uint64) middleware.InMemoryApp {
 		a.ReceiptsVersion,
 		a.GetValidatorSet,
 		a.config,
+		a.TxHandlerFactory,
 	)
 }

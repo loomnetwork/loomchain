@@ -29,6 +29,7 @@ import (
 const (
 	EVMEnabled      = true
 	defaultGasLimit = math.MaxUint64
+	//defaultTraceTimeout = 5 * time.Second
 )
 
 //Metrics
@@ -148,17 +149,22 @@ type Evm struct {
 	gasLimit        uint64
 }
 
-func NewEvm(sdb vm.StateDB, lstate state.State, abm *evmAccountBalanceManager, debug bool) *Evm {
+func NewEvm(
+	sdb vm.StateDB, lstate state.State, abm *evmAccountBalanceManager, debug bool, tracer *vm.Tracer,
+) (*Evm, error) {
+
 	p := new(Evm)
 	p.sdb = sdb
 	p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
 	if p.gasLimit == 0 {
 		p.gasLimit = defaultGasLimit
 	}
-
 	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(features.EvmConstantinopleFeature, false))
-
-	p.vmConfig = defaultVmConfig(debug)
+	var err error
+	p.vmConfig, err = createVmConfig(debug, tracer)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating vm.Config")
+	}
 	p.validateTxValue = lstate.FeatureEnabled(features.CheckTxValueFeature, false)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
@@ -181,7 +187,7 @@ func NewEvm(sdb vm.StateDB, lstate state.State, abm *evmAccountBalanceManager, d
 			abm.Transfer(from, to, amount)
 		}
 	}
-	return p
+	return p, nil
 }
 
 func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
@@ -300,31 +306,15 @@ func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 	}
 }
 
-func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
-	logCfg := vm.LogConfig{
-		DisableMemory:  true, // disable memory capture
-		DisableStack:   true, // disable stack capture
-		DisableStorage: true, // disable storage capture
-		Limit:          0,    // maximum length of output, but zero means unlimited
-	}
-	debug := false
-
+func createVmConfig(evmDebuggingEnabled bool, tracer *vm.Tracer) (vm.Config, error) {
 	if evmDebuggingEnabled {
 		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
-		logCfg = vm.LogConfig{
-			DisableMemory:  true, // disable memory capture
-			DisableStack:   true, // disable stack capture
-			DisableStorage: true, // disable storage capture
-			Limit:          0,    // maximum length of output, but zero means unlimited
-		}
-		debug = true
 	}
-	logger := vm.NewStructLogger(&logCfg)
 	return vm.Config{
 		// Debug enabled debugging Interpreter options
-		Debug: debug,
+		Debug: evmDebuggingEnabled,
 		// Tracer is the op code logger
-		Tracer: logger,
+		Tracer: *tracer,
 		// NoRecursion disabled Interpreter call, callcode,
 		// delegate call and create.
 		NoRecursion: false,
@@ -334,5 +324,5 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 		// may be left uninitialised and will be set to the default
 		// table.
 		//JumpTable: [256]operation,
-	}
+	}, nil
 }

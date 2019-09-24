@@ -1,6 +1,7 @@
 package txhandler
 
 import (
+	"github.com/ethereum/go-ethereum/core/vm"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 
@@ -24,4 +25,8 @@ type TxHandlerResult struct {
 
 func (f TxHandlerFunc) ProcessTx(s state.State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	return f(s, txBytes, isCheckTx)
+}
+
+type TxHandlerFactory interface {
+	TxHandler(tracer *vm.Tracer) (TxHandler, error)
 }

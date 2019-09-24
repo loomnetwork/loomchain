@@ -16,11 +16,12 @@ var (
 const EVMEnabled = false
 
 func NewLoomVm(
-	loomState state.State,
-	eventHandler loomchain.EventHandler,
-	receiptHandler loomchain.WriteReceiptHandler,
-	createABM AccountBalanceManagerFactoryFunc,
-	debug bool,
+	_ state.State,
+	_ loomchain.EventHandler,
+	_ loomchain.WriteReceiptHandler,
+	_ AccountBalanceManagerFactoryFunc,
+	_ bool,
+	_ *eth.TraceConfig,
 ) lvm.VM {
 	return nil
 }

@@ -3,11 +3,14 @@
 package debug
 
 import (
+	"fmt"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/pkg/errors"
-
+	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/txhandler/middleware"
+	"github.com/pkg/errors"
 )
 
 func TraceTransaction(
@@ -26,10 +29,18 @@ func TraceTransaction(
 		tx := block.Block.Data.Txs[i]
 		_, _ = app.ProcessTx(tx)
 	}
+	result, tracer, err := app.TraceProcessTx(block.Block.Data.Txs[txIndex], config)
 
-	result, err := app.TraceProcessTx(block.Block.Data.Txs[txIndex], config)
-	if err != nil {
-		return nil, err
+	switch tracer := tracer.(type) {
+	case *vm.StructLogger:
+		return &ethapi.ExecutionResult{
+			Failed:      err == nil,
+			ReturnValue: fmt.Sprintf("%x", result),
+			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
+		}, nil
+	case *tracers.Tracer:
+		return tracer.GetResult()
+	default:
+		return nil, errors.New(fmt.Sprintf("bad tracer type %T", tracer))
 	}
-	return result, errors.New("not implemented")
 }

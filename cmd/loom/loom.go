@@ -43,6 +43,7 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/txhandler"
+	"github.com/loomnetwork/loomchain/txhandler/factory"
 	"github.com/loomnetwork/loomchain/txhandler/middleware"
 
 	"github.com/pkg/errors"
@@ -824,7 +825,7 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled, nil), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -849,7 +850,7 @@ func loadApp(
 			err := deployContract(
 				state,
 				contractCfg,
-				vmManager,
+				*vmManager,
 				rootAddr,
 				registry,
 				logger,
@@ -862,7 +863,7 @@ func loadApp(
 		return nil
 	}
 
-	createKarmaContractCtx := getContractCtx("karma", vmManager)
+	createKarmaContractCtx := getContractCtx("karma", *vmManager)
 
 	createContractUpkeepHandler := func(state appstate.State) (loomchain.KarmaHandler, error) {
 		// TODO: This setting should be part of the config stored within the Karma contract itself,
@@ -884,7 +885,7 @@ func loadApp(
 
 	getValidatorSet := func(state appstate.State) (loom.ValidatorSet, error) {
 		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
-			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
+			createDPOSV3Ctx := getContractCtx("dposV3", *vmManager)
 			dposV3Ctx, err := createDPOSV3Ctx(state)
 			if err != nil {
 				return nil, err
@@ -895,7 +896,7 @@ func loadApp(
 			}
 			return loom.NewValidatorSet(validators...), nil
 		} else if cfg.DPOSVersion == 2 {
-			createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
+			createDPOSV2Ctx := getContractCtx("dposV2", *vmManager)
 			dposV2Ctx, err := createDPOSV2Ctx(state)
 			if err != nil {
 				return nil, err
@@ -970,17 +971,22 @@ func loadApp(
 			return nil, err
 		}
 	*/
-	postCommitMiddlewares, err := postCommitMiddleWAre(cfg, vmManager)
-	if err != nil {
-		return nil, err
-	}
+	//postCommitMiddlewares, err := postCommitMiddleWAre(*cfg, *vmManager)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	//txHandler, err := middleware.AppTxHandler(cfg, vmManager, createRegistry, chainID, appStore)
 	//if err != nil {
 	//	return nil, err
 	//}
 
-	txMiddleware, err := txMiddleWare(cfg, vmManager, chainID, appStore)
+	//txMiddleware, err := txMiddleWare(*cfg, *vmManager, chainID, appStore)
+	//if err != nil {
+	//	return nil, err
+	//}
+	txHandlerFactory := factory.NewTxHandlerFactory(*cfg, vmManager, chainID, appStore)
+	chainTxHandler, err := txHandlerFactory.TxHandler(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -988,11 +994,13 @@ func loadApp(
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
-		TxHandler: txhandler.MiddlewareTxHandler(
-			txMiddleware,
-			router(cfg, vmManager, createRegistry),
-			postCommitMiddlewares,
-		),
+		//TxHandler: txhandler.MiddlewareTxHandler(
+		//	txMiddleware,
+		//	router(*cfg, *vmManager, createRegistry),
+		//	postCommitMiddlewares,
+		//),
+		TxHandler:                   chainTxHandler,
+		TxHandlerFactory:            txHandlerFactory,
 		BlockIndexStore:             blockIndexStore,
 		EventHandler:                eventHandler,
 		ReceiptHandlerProvider:      receiptHandlerProvider,
@@ -1009,7 +1017,7 @@ func loadApp(
 func deployContract(
 	state appstate.State,
 	contractCfg config.ContractConfig,
-	vmManager *vm.Manager,
+	vmManager vm.Manager,
 	rootAddr loom.Address,
 	registry regcommon.Registry,
 	logger log.TMLogger,
@@ -1051,8 +1059,8 @@ func deployContract(
 }
 
 func txMiddleWare(
-	cfg *config.Config,
-	vmManager *vm.Manager,
+	cfg config.Config,
+	vmManager vm.Manager,
 	chainID string,
 	appStore store.VersionedKVStore,
 ) ([]txhandler.TxMiddleware, error) {
@@ -1111,8 +1119,8 @@ func txMiddleWare(
 }
 
 func router(
-	cfg *config.Config,
-	vmManager *vm.Manager,
+	cfg config.Config,
+	vmManager vm.Manager,
 	createRegistry registry.RegistryFactoryFunc,
 ) txhandler.TxHandler {
 	router := middleware.NewTxRouter()
@@ -1150,17 +1158,17 @@ func router(
 	}
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager:                vmManager,
+		Manager:                &vmManager,
 		CreateRegistry:         createRegistry,
 		AllowNamedEVMContracts: cfg.AllowNamedEvmContracts,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
-		Manager: vmManager,
+		Manager: &vmManager,
 	}
 
 	migrationTxHandler := &tx_handler.MigrationTxHandler{
-		Manager:        vmManager,
+		Manager:        &vmManager,
 		CreateRegistry: createRegistry,
 		Migrations: map[int32]tx_handler.MigrationFunc{
 			1: migrations.DPOSv3Migration,
@@ -1181,7 +1189,7 @@ func router(
 	return router
 }
 
-func postCommitMiddleWAre(cfg *config.Config, vmManager *vm.Manager) ([]txhandler.PostCommitMiddleware, error) {
+func postCommitMiddleWAre(cfg config.Config, vmManager vm.Manager) ([]txhandler.PostCommitMiddleware, error) {
 	postCommitMiddlewares := []txhandler.PostCommitMiddleware{
 		txhandler.LogPostCommitMiddleware,
 	}
@@ -1202,11 +1210,7 @@ func postCommitMiddleWAre(cfg *config.Config, vmManager *vm.Manager) ([]txhandle
 	return postCommitMiddlewares, nil
 }
 
-type contextFactory func(state appstate.State) (contractpb.Context, error)
-
-type staticContextFactory func(state appstate.State) (contractpb.StaticContext, error)
-
-func getContractCtx(pluginName string, vmManager *vm.Manager) func(state appstate.State) (contractpb.Context, error) {
+func getContractCtx(pluginName string, vmManager vm.Manager) func(state appstate.State) (contractpb.Context, error) {
 	return func(state appstate.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
@@ -1216,7 +1220,7 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) func(state appstat
 	}
 }
 
-func getContractStaticCtx(pluginName string, vmManager *vm.Manager) func(state appstate.State) (contractpb.StaticContext, error) {
+func getContractStaticCtx(pluginName string, vmManager vm.Manager) func(state appstate.State) (contractpb.StaticContext, error) {
 	return func(state appstate.State) (contractpb.StaticContext, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
