@@ -63,6 +63,19 @@
   Condition = "excludes"
   Excluded = ["Error"]
 
+  [[TestCases]]
+  RunCmd = '/usr/bin/curl -X GET  {{index $.NodeProxyAppAddressList 0}}/query/ba_block_txs?height="latest"'
+  Condition = "contains"
+  Expected = [
+              '"id": ',
+              '"jsonrpc": "2.0"',
+              '"result": {',
+                '"hash": "0x',
+                '"number": "0x',
+                '"nonce": "0x0',
+                '"timestamp": "0x',
+             ]
+
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 3}}"
   Condition = "excludes"
@@ -292,3 +305,18 @@
   RunCmd = "{{ $.LoomPath }} dpos3 check-all-delegations {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = ["chainId\": \"default"]
+
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X GET  {{index $.NodeProxyAppAddressList 0}}/query/ba_block_txs?height="0x29"'
+  Condition = "contains"
+  Expected = [
+              '"id": ',
+              '"jsonrpc": "2.0"',
+              '"result": {',
+                '"hash": "0x',
+                '"number": "0x',
+                '"nonce": "0x0',
+                '"timestamp": "0x',
+             ]
+
+ 
