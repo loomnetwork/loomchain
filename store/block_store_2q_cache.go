@@ -42,7 +42,7 @@ func (s *TwoQueueBlockStoreCache) GetBlockByHeight(height *int64) (*ctypes.Resul
 		if err != nil {
 			return nil, err
 		}
-		//Takes care of special case when height is nil and default maximum height block is returned by BlockStore API
+		// Takes care of special case when height is nil and default maximum height block is returned by BlockStore API
 		s.TwoQueueCache.Add(blockinfo.Block.Height, blockinfo)
 	}
 	return blockinfo, nil
@@ -52,12 +52,12 @@ func (s *TwoQueueBlockStoreCache) GetBlockByHeight(height *int64) (*ctypes.Resul
 func (s *TwoQueueBlockStoreCache) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	const limit int64 = 20
 	var err error
-	//Get filterMinMax added to emulate error handling covered in tendermint blockstore
+	// Get filterMinMax added to emulate error handling covered in tendermint blockstore
 	minHeight, maxHeight, err = filterMinMaxforCache(minHeight, maxHeight)
 	if err != nil {
 		return nil, err
 	}
-	//Caches maximum 20 blocks per API call
+	// Caches maximum 20 blocks per API call
 	if (maxHeight - minHeight) > limit {
 		minHeight = maxHeight - limit + 1
 	}
@@ -69,12 +69,15 @@ func (s *TwoQueueBlockStoreCache) GetBlockRangeByHeight(minHeight, maxHeight int
 			blockMeta := cacheData.(*types.BlockMeta)
 			blockMetas = append(blockMetas, blockMeta)
 		} else {
-			//Called to fetch limited BlockInformation - BlockMetasOnly
+			// Called to fetch limited BlockInformation - BlockMetasOnly
 			blockRange, err := s.CachedBlockStore.GetBlockRangeByHeight(i, i)
 			if err != nil {
 				break
-				//This error can be ignored as it arise when i is greater than blockstore height, for which nothing is to be done
-				//Blocks till maximum blockchain height will already be cached till this point. Core tendermint API does not throw error in this case (maxheight > blockchain height in height range)so cache wrapper is also not throwing error
+				// This error can be ignored as it arise when i is greater than blockstore height,
+				// for which nothing is to be done.
+				// Blocks till maximum blockchain height will already be cached till this point.
+				// Core tendermint API does not throw error in this case (maxheight > blockchain height in height range)
+				// so cache wrapper is also not throwing error.
 			} else if (len(blockRange.BlockMetas) > 0) && (blockRange.BlockMetas[0] != nil) {
 				header := types.Header{
 					Height: blockRange.BlockMetas[0].Header.Height,

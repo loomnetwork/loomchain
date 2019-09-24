@@ -76,6 +76,10 @@
                         "status": "WAITING"
                     },
                     {
+                        "name": "receipts:v3.2",
+                        "status": "WAITING"
+                    },
+                    {
                         "name": "coin:v1.1",
                         "status": "WAITING"
                     },

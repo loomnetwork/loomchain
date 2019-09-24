@@ -17,7 +17,7 @@ type AppStoreConfig struct {
 	SaveEVMStateToIAVL bool
 	// Specifies the number of IAVL tree versions that should be kept in memory before writing a new
 	// version to disk.
-	// If set to zero every version will be written to disk unless overriden via the on-chain config.
+	// If set to zero every version will be written to disk unless overridden via the on-chain config.
 	// If set to -1 every version will always be written to disk, regardless of the on-chain config.
 	IAVLFlushInterval int64
 }

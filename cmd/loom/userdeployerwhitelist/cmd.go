@@ -77,7 +77,8 @@ loom dev remove-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 func removeUserDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "remove-deployer <deployer address>",
+		Use: "remove-deployer <deployer address>",
+		// nolint:lll
 		Short:   "Remove an account from the list of accounts authorized to deploy contracts on behalf of a user (the caller)",
 		Example: removeUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
@@ -103,7 +104,8 @@ loom dev swap-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 0x7262d4c97c7B
 func swapUserDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "swap-deployer <old-deployer address> <new-deployer address>",
+		Use: "swap-deployer <old-deployer address> <new-deployer address>",
+		// nolint:lll
 		Short:   "Swap an account from the list of accounts authorized to deploy contracts on behalf of a user to new account (the caller)",
 		Example: swapUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
