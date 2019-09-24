@@ -30,10 +30,6 @@ var TransactionType = map[uint32]string{
 	MigrationTx: "MigrationTx",
 }
 
-var (
-	searchBlockSize = uint64(20)
-)
-
 func GetBlockByNumber(
 	blockStore store.BlockStore,
 	state loomchain.ReadOnlyState,
@@ -66,7 +62,7 @@ func GetBlockByNumber(
 
 	var blockResults *ctypes.ResultBlockResults
 
-	// We ignore the error here becuase if the block results can't be loaded for any reason
+	// We ignore the error here because if the block results can't be loaded for any reason
 	// we'll try to load the data we need from tx_index.db instead.
 	// TODO: Log the error returned by GetBlockResults.
 	blockResults, _ = blockStore.GetBlockResults(&height)
@@ -132,7 +128,6 @@ func GetTxObjectFromBlockResult(
 	}
 	txObj.From = msg.From.Local.String()
 
-	var input []byte
 	switch txTx.Id {
 	case DeployId:
 		{
@@ -140,7 +135,6 @@ func GetTxObjectFromBlockResult(
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
 				return GetEmptyTxObject(), nil, err
 			}
-			input = deployTx.Code
 			if deployTx.VmType == vm.VMType_EVM {
 				var resp vm.DeployResponse
 				if err := proto.Unmarshal(txResultData, &resp); err != nil {
@@ -167,21 +161,13 @@ func GetTxObjectFromBlockResult(
 				return GetEmptyTxObject(), nil, err
 			}
 
-			input = callTx.Input
 			txObj.To = msg.To.Local.String()
 			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
 				txObj.Hash = EncBytes(txResultData)
 			}
-			if callTx.Value != nil {
-				val, err := json.Marshal(*callTx.Value.Value.Int)
-				if err != nil {
-					return GetEmptyTxObject(), nil, err
-				}
-				txObj.Value = val
-			}
 
 			var req gplugin.Request
-			if err := proto.Unmarshal(input, &req); err != nil {
+			if err := proto.Unmarshal(callTx.Input, &req); err != nil {
 				return GetEmptyTxObject(), nil, err
 			}
 
@@ -266,7 +252,7 @@ func GetTxObjectFromBlockResult(
 					formerAddr = redelegate.FormerValidatorAddress.Local.String()
 				}
 				if redelegate.Amount == nil {
-					amount = "previous delegation amount" //Equal to Previous delegation amount
+					amount = "amount" //Equal to Previous delegation amount
 				}
 				amount = redelegate.Amount.Value.String()
 				val, err = json.Marshal(ReDelegateValue{
