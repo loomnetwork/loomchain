@@ -1112,9 +1112,9 @@ func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
 }
 
-func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config debug.JsonTraceConfig) (interface{}, error) {
+func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error) {
 	receipt, err := s.EthGetTransactionReceipt(hash)
-	if err != nil {
+	if err != nil || receipt == nil {
 		return nil, errors.Wrap(err, "cant find transaction matching hash")
 	}
 	blockNumber, err := eth.DecQuantityToUint(receipt.BlockNumber)
@@ -1125,7 +1125,7 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config debug.JsonTrac
 	if err != nil {
 		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
 	}
-	cfg := debug.DecTraceConfig(config)
+	cfg := debug.DecTraceConfig(*config)
 	return debug.TraceTransaction(s.InMemoryApp(blockNumber), s.BlockStore, int64(blockNumber), txIndex, cfg)
 }
 

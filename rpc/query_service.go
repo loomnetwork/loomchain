@@ -67,7 +67,7 @@ type QueryService interface {
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
 
 	// debug transactions.
-	DebugTraceTransaction(hash eth.Data, config debug.JsonTraceConfig) (interface{}, error)
+	DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)

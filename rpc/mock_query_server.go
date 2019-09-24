@@ -370,7 +370,7 @@ func (m *MockQueryService) EvmUnSubscribe(id string) (bool, error) {
 	return true, nil
 }
 
-func (m *MockQueryService) DebugTraceTransaction(hash eth.Data, config debug.JsonTraceConfig) (interface{}, error) {
+func (m *MockQueryService) DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"DebugTraceTransaction"}, m.MethodsCalled...)

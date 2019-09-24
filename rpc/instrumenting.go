@@ -572,7 +572,7 @@ func (m InstrumentingMiddleware) EthGetTransactionCount(
 }
 
 func (m InstrumentingMiddleware) DebugTraceTransaction(
-	hash eth.Data, config debug.JsonTraceConfig,
+	hash eth.Data, config *debug.JsonTraceConfig,
 ) (resp interface{}, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DebugTraceTransaction", "error", fmt.Sprint(err != nil)}

@@ -4,26 +4,34 @@ package debug
 
 import (
 	"github.com/ethereum/go-ethereum/core/vm"
-	etheth "github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth"
 )
 
 type JsonTraceConfig struct {
-	DisableStorage bool   `json:"disableStorage,omitempty"`
-	DisableMemory  bool   `json:"disableMemory,omitempty"`
-	DisableStack   bool   `json:"disableStack,omitempty"`
-	Tracer         string `json:"tracer,omitempty"`
-	Timeout        string `json:"address,omitempty"`
+	LogConfig *JsonLogConfig `json:"logconfig,omitempty"`
+	Tracer    string         `json:"tracer,omitempty"`
+	Timeout   string         `json:"address,omitempty"`
 }
 
-func DecTraceConfig(jcfg JsonTraceConfig) etheth.TraceConfig {
-	return etheth.TraceConfig{
-		LogConfig: &vm.LogConfig{
-			DisableMemory:  jcfg.DisableMemory,
-			DisableStack:   jcfg.DisableStack,
-			DisableStorage: jcfg.DisableStorage,
-		},
-		Tracer:  &jcfg.Tracer,
-		Timeout: &jcfg.Timeout,
-		Reexec:  nil,
+type JsonLogConfig struct {
+	DisableStorage bool `json:"disableStorage,omitempty"`
+	DisableMemory  bool `json:"disableMemory,omitempty"`
+	DisableStack   bool `json:"disableStack,omitempty"`
+}
+
+func DecTraceConfig(jcfg JsonTraceConfig) eth.TraceConfig {
+	var logConfig *vm.LogConfig
+	if jcfg.LogConfig != nil {
+		logConfig = &vm.LogConfig{
+			DisableMemory:  jcfg.LogConfig.DisableMemory,
+			DisableStack:   jcfg.LogConfig.DisableStack,
+			DisableStorage: jcfg.LogConfig.DisableStorage,
+		}
+	}
+	return eth.TraceConfig{
+		LogConfig: logConfig,
+		Tracer:    &jcfg.Tracer,
+		Timeout:   &jcfg.Timeout,
+		Reexec:    nil,
 	}
 }

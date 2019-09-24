@@ -46,10 +46,10 @@ type txHandleFactory struct {
 	createRegistry factory.RegistryFactoryFunc
 }
 
-func (f txHandleFactory) TxHandler(tracer ethvm.Tracer) (txhandler.TxHandler, error) {
+func (f txHandleFactory) TxHandler(tracer ethvm.Tracer, metrics bool) (txhandler.TxHandler, error) {
 	vmManager := createVmManager(f.vmManager, tracer)
 
-	txMiddleware, err := txMiddleWare(f.cfg, vmManager, f.chainID, f.store)
+	txMiddleware, err := txMiddleWare(f.cfg, vmManager, f.chainID, f.store, metrics)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +82,7 @@ func txMiddleWare(
 	vmManager vm.Manager,
 	chainID string,
 	appStore store.VersionedKVStore,
+	metrics bool,
 ) ([]txhandler.TxMiddleware, error) {
 	txMiddleWare := []txhandler.TxMiddleware{
 		txhandler.LogTxMiddleware,
@@ -132,7 +133,9 @@ func txMiddleWare(
 		txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(goDeployers))
 	}
 
-	txMiddleWare = append(txMiddleWare, txhandler.NewInstrumentingTxMiddleware())
+	if metrics {
+		txMiddleWare = append(txMiddleWare, txhandler.NewInstrumentingTxMiddleware())
+	}
 
 	return txMiddleWare, nil
 }

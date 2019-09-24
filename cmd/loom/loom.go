@@ -986,7 +986,7 @@ func loadApp(
 	//	return nil, err
 	//}
 	txHandlerFactory := factory.NewTxHandlerFactory(*cfg, vmManager, chainID, appStore, createRegistry)
-	chainTxHandler, err := txHandlerFactory.TxHandler(nil)
+	chainTxHandler, err := txHandlerFactory.TxHandler(nil, true)
 	if err != nil {
 		return nil, err
 	}
