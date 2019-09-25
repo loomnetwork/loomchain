@@ -58,6 +58,9 @@ const (
 	// Enables switching to an alternative algo for EVM tx hash generation
 	EvmTxReceiptsVersion3_2 = "receipts:v3.2"
 
+	// Enables including sender address for EVM tx hash generation
+	EvmTxReceiptsVersion3_3 = "receipts:v3.3"
+
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"
