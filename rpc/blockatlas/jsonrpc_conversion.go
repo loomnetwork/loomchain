@@ -3,12 +3,10 @@ package blockatlas
 import (
 	"encoding/hex"
 	"encoding/json"
-	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/loomnetwork/go-loom"
-	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 )
 
@@ -20,41 +18,41 @@ type Data string
 type BlockHeight string
 
 const (
-	ZeroedQuantity    Quantity = "0x0"
-	ZeroedData        Data     = "0x0"
-	ZeroedData8Bytes  Data     = "0x0000000000000000"
-	ZeroedData20Bytes Data     = "0x0000000000000000000000000000000000000000"
-	ZeroedData32Bytes Data     = "0x0000000000000000000000000000000000000000000000000000000000000000"
-	ZeroedData64bytes Data     = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-	StatusTxSuccess            = "0x1"
+	ZeroedQuantity    string = "0x0"
+	ZeroedData        string = "0x0"
+	ZeroedData8Bytes  string = "0x0000000000000000"
+	ZeroedData20Bytes string = "0x0000000000000000000000000000000000000000"
+	ZeroedData32Bytes string = "0x0000000000000000000000000000000000000000000000000000000000000000"
+	ZeroedData64bytes string = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	StatusTxSuccess          = "0x1"
 )
 
 type JsonTxObject struct {
-	Hash             Data            `json:"hash,omitempty"`
+	Hash             string          `json:"hash,omitempty"`
 	TransactionType  string          `json:"transactionType,omitempty"`
 	ContractName     string          `json:"contractName,omitempty"`
 	ContractMethod   string          `json:"contractMethod,omitempty"`
-	Nonce            Quantity        `json:"nonce,omitempty"`
-	BlockHash        Data            `json:"blockHash,omitempty"`
-	BlockNumber      Quantity        `json:"blockNumber,omitempty"`
-	TransactionIndex Quantity        `json:"transactionIndex,omitempty"`
+	Nonce            string          `json:"nonce,omitempty"`
+	BlockHash        string          `json:"blockHash,omitempty"`
+	BlockNumber      int64           `json:"blockNumber,omitempty"`
+	TransactionIndex string          `json:"transactionIndex,omitempty"`
 	From             string          `json:"from,omitempty"`
 	To               string          `json:"to"`
 	Value            json.RawMessage `json:"value"`
-	GasPrice         Quantity        `json:"gasPrice,omitempty"`
-	Gas              Quantity        `json:"gas,omitempty"`
+	GasPrice         string          `json:"gasPrice,omitempty"`
+	Gas              string          `json:"gas,omitempty"`
 }
 
 type JsonBlockObject struct {
-	Number           Quantity       `json:"number,omitempty"`
-	Hash             Data           `json:"hash,omitempty"`
-	ParentHash       Data           `json:"parentHash,omitempty"`
-	Nonce            Data           `json:"nonce,omitempty"`
-	TransactionsRoot Data           `json:"transactionsRoot,omitempty"`
-	Size             Quantity       `json:"size,omitempty"`
-	GasLimit         Quantity       `json:"gasLimit,omitempty"`
-	GasUsed          Quantity       `json:"gasUsed,omitempty"`
-	Timestamp        Quantity       `json:"timestamp,omitempty"`
+	Number           int64          `json:"number,omitempty"`
+	Hash             string         `json:"hash,omitempty"`
+	ParentHash       string         `json:"parentHash,omitempty"`
+	Nonce            string         `json:"nonce,omitempty"`
+	TransactionsRoot string         `json:"transactionsRoot,omitempty"`
+	Size             string         `json:"size,omitempty"`
+	GasLimit         string         `json:"gasLimit,omitempty"`
+	GasUsed          string         `json:"gasUsed,omitempty"`
+	Timestamp        int64          `json:"timestamp,omitempty"`
 	Transactions     []JsonTxObject `json:"transactions"`
 }
 
@@ -89,25 +87,13 @@ type UnbondValue struct {
 	Index            uint64 `json:"index"`
 }
 
-func EncInt(value int64) Quantity {
-	return Quantity("0x" + strconv.FormatInt(value, 16))
-}
-
-func EncUint(value uint64) Quantity {
-	return Quantity("0x" + strconv.FormatUint(value, 16))
-}
-
-func EncBigInt(value big.Int) Quantity {
-	return Quantity("0x" + value.Text(16))
-}
-
 // Hex
-func EncBytes(value []byte) Data {
+func EncBytes(value []byte) string {
 	bytesStr := "0x" + hex.EncodeToString(value)
 	if bytesStr == "0x" {
 		bytesStr = "0x0"
 	}
-	return Data(strings.ToLower(bytesStr))
+	return strings.ToLower(bytesStr)
 }
 
 // Ptr to Hex
@@ -121,38 +107,6 @@ func EncPtrBytes(value []byte) *Data {
 	}
 	data := Data(strings.ToLower(bytesStr))
 	return &data
-}
-
-func EncPtrData(value Data) *Data {
-	if len(value) == 0 {
-		return nil
-	}
-	return &value
-}
-
-func EncBytesArray(list [][]byte) []Data {
-	dataArray := []Data{}
-	for _, hash := range list {
-		dataArray = append(dataArray, EncBytes(hash))
-	}
-	return dataArray
-}
-
-func EncAddress(value *ltypes.Address) Data {
-	if value == nil {
-		return ZeroedData
-	} else {
-		return EncBytes([]byte(value.Local))
-	}
-}
-
-func EncPtrAddress(value *ltypes.Address) *Data {
-	if value == nil {
-		return nil
-	} else {
-		data := EncBytes([]byte(value.Local))
-		return &data
-	}
 }
 
 type EthBlockFilter struct {
@@ -236,7 +190,7 @@ func GetEmptyTxObject() JsonTxObject {
 		Hash:             ZeroedData64bytes,
 		Nonce:            ZeroedQuantity,
 		BlockHash:        ZeroedData64bytes,
-		BlockNumber:      ZeroedQuantity,
+		BlockNumber:      int64(0),
 		TransactionIndex: ZeroedQuantity,
 		To:               string(ZeroedData32Bytes),
 		From:             string(ZeroedData32Bytes),
@@ -248,10 +202,10 @@ func GetEmptyTxObject() JsonTxObject {
 
 func GetBlockZero() JsonBlockObject {
 	blockInfo := JsonBlockObject{
-		Number:       ZeroedQuantity,
+		Number:       int64(0),
 		Hash:         "0x0000000000000000000000000000000000000000000000000000000000000001",
 		ParentHash:   ZeroedData32Bytes,
-		Timestamp:    "0x5af97a40", // TODO get the right timestamp, maybe the timestamp for block 0x1
+		Timestamp:    int64(1526299200), // TODO get the right timestamp, maybe the timestamp for block 0x1
 		GasLimit:     ZeroedQuantity,
 		GasUsed:      ZeroedQuantity,
 		Size:         ZeroedQuantity,
