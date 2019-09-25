@@ -2,7 +2,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}", "{{index $.NodeBase64AddressList 2}}", "{{index $.NodeBase64AddressList 3}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}", "{{index $.NodeAddressList 2}}", "{{index $.NodeAddressList 3}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin transfer dposV3 90 -k {{index $.NodePrivKeyPathList 0}}"
@@ -94,7 +94,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}", "{{index $.NodeBase64AddressList 2}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}", "{{index $.NodeAddressList 2}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unbond {{index $.NodeAddressList 0}} 0 0 -k {{index $.NodePrivKeyPathList 0}}"
@@ -112,7 +112,7 @@
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   All = true
   Condition = "contains"
-  Expected = ["{{index $.NodeBase64AddressList 0}}", "{{index $.NodeBase64AddressList 1}}", "{{index $.NodeBase64AddressList 2}}", "{{index $.NodeBase64AddressList 3}}"]
+  Expected = ["{{index $.NodeAddressList 0}}", "{{index $.NodeAddressList 1}}", "{{index $.NodeAddressList 2}}", "{{index $.NodeAddressList 3}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-rewards"
