@@ -965,26 +965,7 @@ func loadApp(
 			return nil, err
 		}
 	}
-	/*
-		txMiddleWare, err := middleware.TxMiddleWare(cfg, vmManager, chainID, appStore)
-		if err != nil {
-			return nil, err
-		}
-	*/
-	//postCommitMiddlewares, err := postCommitMiddleWAre(*cfg, *vmManager)
-	//if err != nil {
-	//	return nil, err
-	//}
 
-	//txHandler, err := middleware.AppTxHandler(cfg, vmManager, createRegistry, chainID, appStore)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	//txMiddleware, err := txMiddleWare(*cfg, *vmManager, chainID, appStore)
-	//if err != nil {
-	//	return nil, err
-	//}
 	txHandlerFactory := factory.NewTxHandlerFactory(*cfg, vmManager, chainID, appStore, createRegistry)
 	chainTxHandler, err := txHandlerFactory.TxHandler(nil, true)
 	if err != nil {
@@ -992,13 +973,8 @@ func loadApp(
 	}
 
 	return &loomchain.Application{
-		Store: appStore,
-		Init:  init,
-		//TxHandler: txhandler.MiddlewareTxHandler(
-		//	txMiddleware,
-		//	router(*cfg, *vmManager, createRegistry),
-		//	postCommitMiddlewares,
-		//),
+		Store:                       appStore,
+		Init:                        init,
 		TxHandler:                   chainTxHandler,
 		TxHandlerFactory:            txHandlerFactory,
 		BlockIndexStore:             blockIndexStore,
