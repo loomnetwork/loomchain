@@ -2,6 +2,7 @@ const Web3 = require('web3')
 const fs = require('fs')
 const path = require('path')
 const EthereumTx = require('ethereumjs-tx').Transaction
+const { loomTxHash } = require('./helpers')
 
 const {
     SpeculativeNonceTxMiddleware, SignedTxMiddleware, Client,
@@ -22,7 +23,8 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
         const privateKey = CryptoUtils.generatePrivateKey()
         const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey)
 
-        from = LocalAddress.fromPublicKey(publicKey).toString()
+        fromAddr = LocalAddress.fromPublicKey(publicKey)
+        from = fromAddr.toString()
 
         var client = new Client(chainID, writeUrl, readUrl)
         client.on('error', msg => {
@@ -51,7 +53,7 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
         }
 
         let tx = new EthereumTx(txParams)
-        let expectedTxHash = Buffer.from(tx.hash()).toString('hex')
+        let expectedTxHash = loomTxHash(tx, fromAddr)
        
         try {
             var txResult = await contract.methods.set(1111).send()
@@ -70,7 +72,7 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
         }
 
         tx = new EthereumTx(txParams)
-        expectedTxHash = Buffer.from(tx.hash()).toString('hex')
+        expectedTxHash = loomTxHash(tx, fromAddr)
         
         try {
             var txResult = await contract.methods.set(2222).send()

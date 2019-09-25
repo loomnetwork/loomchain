@@ -3,7 +3,6 @@
 package evm
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"math"
 	"math/big"
@@ -12,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -278,7 +278,7 @@ func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 }
 
 func loomTxHash(txHash []byte, from loom.Address) []byte {
-	h := sha256.New()
-	h.Write(append(txHash, from.Bytes()...))
+	h := sha3.NewKeccak256()
+	h.Write(append(txHash, from.Local...))
 	return h.Sum(nil)
 }

@@ -1,4 +1,5 @@
 const rp = require('request-promise')
+keccak256 = require('js-sha3').keccak256;
 
 async function assertRevert(promise) {
   try {
@@ -88,4 +89,12 @@ async function getLatestBlock(nodeAddr) {
   return currentBlock = Number(res.result.sync_info.latest_block_height)
 }
 
-module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt ,getLatestBlock}
+function loomTxHash(tx, fromAddr) {
+  let txHashBytes = Buffer.from(tx.hash())
+  let addrBytes = Buffer.from(fromAddr.bytes)
+  var arr = [txHashBytes, addrBytes];
+  let newTxHashBytes = Buffer.concat(arr)
+  return keccak256(newTxHashBytes).toString('hex')
+}
+
+module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt ,getLatestBlock, loomTxHash}
