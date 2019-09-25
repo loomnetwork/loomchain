@@ -72,6 +72,10 @@ const setWithdrawFeeCmdExample = `
 ./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
 `
 
+const setMxWithdrawLimitCmdExample = `
+./loom gateway set-max-withdrawal-limit 1000000 500000 gateway --key path/to/loom_priv.key
+`
+
 const updateMainnetAddressCmdExample = `
 ./loom gateway update-mainnet-address <mainnet-hex-address> gateway --key path/to/loom_priv.key
 `
@@ -657,6 +661,76 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 	return cmd
 }
 
+func newSetMaxWithdrawLimitCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "set-max-withdrawal-limit <total-amount-limit> <per-account-amount-limit> [gateway]",
+		Short:   "Sets maximum amount the gateway should allow withdrawal",
+		Example: setMxWithdrawLimitCmdExample,
+		Args:    cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var name string
+			if len(args) <= 2 || strings.EqualFold(args[2], GatewayName) {
+				name = GatewayName
+			} else if strings.EqualFold(args[2], LoomGatewayName) {
+				name = LoomGatewayName
+			} else {
+				return errors.New("only Gateway or LoomCoin gateway is allowed to set max withdrawal limit")
+			}
+
+			// Need to pad the amounts with 18 zeros to make sure it has enough decimals
+			var maxTotalAmount, maxPerAccountAmount *types.BigUInt
+			maxTotal, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+			if maxTotal >= 0 {
+				val := sciNot(maxTotal, 18)
+				maxTotalAmount = &types.BigUInt{Value: *val}
+			} else {
+				return errors.New("Invalid total-amount-limit argument")
+			}
+
+			maxPerAccount, err := strconv.ParseInt(args[1], 10, 64)
+			if err != nil {
+				return err
+			}
+			if maxTotal >= 0 {
+				val := sciNot(maxPerAccount, 18)
+				maxPerAccountAmount = &types.BigUInt{Value: *val}
+			} else {
+				return errors.New("Invalid per-account-amount-limit argument")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewaySetMaxWithdrawalLimitRequest{
+				MaxTotalDailyWithdrawalAmount:      maxTotalAmount,
+				MaxPerAccountDailyWithdrawalAmount: maxPerAccountAmount,
+			}
+
+			_, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	return cmd
+}
+
 func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update-mainnet-address <mainnet-address> <gateway-name>",
@@ -789,4 +863,11 @@ func newUpdateMainnetHotWalletAddressCommand() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
 }
