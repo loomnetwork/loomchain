@@ -14,7 +14,7 @@ type TxRouter struct {
 	checkTxRoutes   map[uint32]RouteHandler
 }
 
-type RouteHandler func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error)
+type RouteHandler func(txID uint32, _ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error)
 
 type RouteConditionFunc func(txID uint32, state appstate.State, txBytes []byte, isCheckTx bool) bool
 
