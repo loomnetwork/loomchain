@@ -89,7 +89,9 @@ func GetBlockByNumber(
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			var blockResultBytes []byte
-			if blockResults == nil {
+			if blockResults == nil ||
+				len(blockResults.Results.DeliverTx) <= index ||
+				blockResults.Results.DeliverTx[index] == nil {
 				// Retrieve tx result from tx_index.db
 				txResult, err := blockStore.GetTxResult(tx.Hash())
 				if err != nil {
