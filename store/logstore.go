@@ -129,3 +129,11 @@ func (s *LogStore) Prune() error {
 func (s *LogStore) GetSnapshot() Snapshot {
 	return s.store.GetSnapshot()
 }
+
+func (s *LogStore) VersionExists(version int64) bool {
+	return s.store.VersionExists(version)
+}
+
+func (s *LogStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
+	return s.store.RetrieveVersion(version)
+}

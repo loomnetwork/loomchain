@@ -378,6 +378,14 @@ func (c *versionedCachingStore) GetSnapshot() Snapshot {
 	)
 }
 
+func (c *versionedCachingStore) VersionExists(version int64) bool {
+	return c.VersionedKVStore.VersionExists(version)
+}
+
+func (c *versionedCachingStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
+	return c.VersionedKVStore.RetrieveVersion(version)
+}
+
 // CachingStoreSnapshot is a read-only CachingStore with specified version
 type versionedCachingStoreSnapshot struct {
 	Snapshot

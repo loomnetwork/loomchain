@@ -66,6 +66,21 @@ func NewStoreState(
 	}
 }
 
+func NewStoreState2(
+	ctx context.Context,
+	store store.KVStore,
+	block types.BlockHeader,
+	getValidatorSet GetValidatorSet,
+) *StoreState {
+	return &StoreState{
+		ctx:             ctx,
+		store:           store,
+		block:           block,
+		validators:      loom.NewValidatorSet(),
+		getValidatorSet: getValidatorSet,
+	}
+}
+
 func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
 	s.config = config
 	return s

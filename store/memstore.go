@@ -79,3 +79,11 @@ func (m *MemStore) Prune() error {
 func (m *MemStore) GetSnapshot() Snapshot {
 	panic("not implemented")
 }
+
+func (m *MemStore) VersionExists(version int64) bool {
+	panic("not implemented")
+}
+
+func (m *MemStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
+	panic("not implemented")
+}

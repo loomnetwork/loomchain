@@ -7,7 +7,9 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/loomnetwork/go-loom/builtin/types/chainconfig"
-	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
+	ttypes "github.com/tendermint/tendermint/types"
 
 	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
@@ -17,12 +19,13 @@ import (
 type InMemoryApp interface {
 	ProcessTx(txBytes []byte) (txhandler.TxHandlerResult, error)
 	TraceProcessTx(txBytes []byte, traceCfg eth.TraceConfig) (txhandler.TxHandlerResult, vm.Tracer, error)
+	NextBlock()
+	Height() int64
 }
 
 type inMemoryApp struct {
-	lastBlockHeader  abci.Header
-	curBlockHeader   abci.Header
-	curBlockHash     []byte
+	height           int64
+	blockstore       store.BlockStore
 	store            store.VersionedKVStore
 	txHandler        txhandler.TxHandler
 	receiptsVersion  int32
@@ -32,9 +35,8 @@ type inMemoryApp struct {
 }
 
 func NewInMemoryApp(
-	lastBlockHeader abci.Header,
-	curBlockHeader abci.Header,
-	curBlockHash []byte,
+	height int64,
+	blockstore store.BlockStore,
 	store store.VersionedKVStore,
 	txHandler txhandler.TxHandler,
 	receiptsVersion int32,
@@ -43,9 +45,8 @@ func NewInMemoryApp(
 	txHandlerFactory txhandler.TxHandlerFactory,
 ) InMemoryApp {
 	return &inMemoryApp{
-		lastBlockHeader:  lastBlockHeader,
-		curBlockHeader:   curBlockHeader,
-		curBlockHash:     curBlockHash,
+		height:           height,
+		blockstore:       blockstore,
 		store:            store,
 		txHandler:        txHandler,
 		receiptsVersion:  receiptsVersion,
@@ -55,6 +56,14 @@ func NewInMemoryApp(
 	}
 }
 
+func (ma *inMemoryApp) NextBlock() {
+	ma.height++
+}
+
+func (ma *inMemoryApp) Height() int64 {
+	return ma.height
+}
+
 func (ma *inMemoryApp) ProcessTx(txBytes []byte) (txhandler.TxHandlerResult, error) {
 	return ma.processTx(txBytes, ma.txHandler)
 }
@@ -62,11 +71,15 @@ func (ma *inMemoryApp) ProcessTx(txBytes []byte) (txhandler.TxHandlerResult, err
 func (ma *inMemoryApp) processTx(txBytes []byte, txHandler txhandler.TxHandler) (txhandler.TxHandlerResult, error) {
 	splitStoreTx := store.WrapAtomic(ma.store).BeginTx()
 	defer splitStoreTx.Rollback()
-	storeState := state.NewStoreState(
+	resultBlock, err := ma.blockstore.GetBlockByHeight(&ma.height)
+	if err != nil {
+		return txhandler.TxHandlerResult{}, errors.Errorf("retriving block for height %d", ma.height)
+	}
+
+	storeState := state.NewStoreState2(
 		context.Background(),
 		splitStoreTx,
-		ma.curBlockHeader,
-		ma.curBlockHash,
+		blockHeaderFromHeader(resultBlock.BlockMeta.Header),
 		ma.getValidatorSet,
 	).WithOnChainConfig(ma.config)
 	return txHandler.ProcessTx(storeState, txBytes, false)
@@ -96,4 +109,18 @@ func createTracer(traceCfg eth.TraceConfig) (vm.Tracer, error) {
 		return nil, err
 	}
 	return tracer, nil
+}
+
+func blockHeaderFromHeader(header ttypes.Header) types.BlockHeader {
+	return types.BlockHeader{
+		ChainID: header.ChainID,
+		Height:  header.Height,
+		Time:    int64(header.Time.Unix()),
+		NumTxs:  int32(header.NumTxs),
+		LastBlockID: types.BlockID{
+			Hash: header.LastBlockID.Hash,
+		},
+		ValidatorsHash: header.ValidatorsHash,
+		AppHash:        header.AppHash,
+	}
 }

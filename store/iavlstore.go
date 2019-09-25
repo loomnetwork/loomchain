@@ -216,6 +216,19 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 	}
 }
 
+func (s *IAVLStore) VersionExists(version int64) bool {
+	return s.tree.VersionExists(version)
+}
+
+func (s *IAVLStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
+	reader, err := newIAVLVersionReader(*s, version)
+	if err != nil {
+		return nil, err
+	}
+	splitStore := newSplitStore(reader, NewMemStore())
+	return splitStore, nil
+}
+
 // NewIAVLStore creates a new IAVLStore.
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.

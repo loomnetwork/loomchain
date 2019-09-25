@@ -354,3 +354,11 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 
 	return ret
 }
+
+func (m *MultiWriterAppStore) VersionExists(version int64) bool {
+	return m.appStore.VersionExists(version)
+}
+
+func (m *MultiWriterAppStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
+	return m.appStore.RetrieveVersion(version)
+}

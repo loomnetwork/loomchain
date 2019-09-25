@@ -6,34 +6,34 @@ import (
 )
 
 type splitStore struct {
+	KVReader
 	VersionedKVStore
-	diskStore VersionedKVStore
-	deleted   map[string]bool
+	deleted map[string]bool
 }
 
-func NewSplitStore(empty, full VersionedKVStore) VersionedKVStore {
+func newSplitStore(full KVReader, empty VersionedKVStore) VersionedKVStore {
 	return &splitStore{
+		KVReader:         full,
 		VersionedKVStore: empty,
-		diskStore:        full,
 		deleted:          make(map[string]bool),
 	}
 }
 
 func (ss splitStore) Get(key []byte) []byte {
-	if ss.VersionedKVStore.Has(key) {
-		return ss.VersionedKVStore.Get(key)
+	if ss.KVReader.Has(key) {
+		return ss.KVReader.Get(key)
 	}
 	if ss.deleted[string(key)] {
 		return nil
 	}
-	return ss.diskStore.Get(key)
+	return ss.VersionedKVStore.Get(key)
 }
 
 func (ss splitStore) Range(prefix []byte) plugin.RangeData {
-	resultRange := ss.VersionedKVStore.Range(prefix)
-	diskRange := ss.diskStore.Range(prefix)
+	resultRange := ss.KVReader.Range(prefix)
+	diskRange := ss.VersionedKVStore.Range(prefix)
 	for _, re := range diskRange {
-		if !ss.VersionedKVStore.Has(re.Key) && !ss.deleted[string(re.Key)] {
+		if !ss.KVReader.Has(re.Key) && !ss.deleted[string(re.Key)] {
 			resultRange = append(resultRange, re)
 		}
 	}
@@ -41,13 +41,13 @@ func (ss splitStore) Range(prefix []byte) plugin.RangeData {
 }
 
 func (ss splitStore) Has(key []byte) bool {
-	if ss.VersionedKVStore.Has(key) {
+	if ss.KVReader.Has(key) {
 		return true
 	}
 	if ss.deleted[string(key)] {
 		return false
 	}
-	return ss.diskStore.Has(key)
+	return ss.VersionedKVStore.Has(key)
 }
 
 func (ss splitStore) Set(key, value []byte) {

@@ -9,6 +9,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	ttypes "github.com/tendermint/tendermint/types"
@@ -606,16 +607,26 @@ func (a *Application) ReadOnlyState() appstate.State {
 	)
 }
 
-func (a *Application) InMemoryApp(blockNumber uint64) middleware.InMemoryApp {
+func (a *Application) InMemoryApp(blockNumber uint64, blockstore store.BlockStore) (middleware.InMemoryApp, error) {
+	startVersion := blockNumber
+	for ; a.Store.VersionExists(int64(startVersion)) || startVersion == 0; startVersion-- {
+	}
+	if startVersion == 0 {
+		return nil, errors.Errorf("no saved version for height %d", blockNumber)
+	}
+	startStore, err := a.Store.RetrieveVersion(int64(startVersion))
+	if err != nil {
+		return nil, err
+	}
+
 	return middleware.NewInMemoryApp(
-		a.lastBlockHeader,
-		a.curBlockHeader,
-		a.curBlockHash,
-		a.Store,
+		int64(startVersion),
+		blockstore,
+		startStore,
 		a.TxHandler,
 		a.ReceiptsVersion,
 		a.GetValidatorSet,
 		a.config,
 		a.TxHandlerFactory,
-	)
+	), nil
 }

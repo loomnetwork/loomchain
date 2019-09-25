@@ -54,6 +54,8 @@ type VersionedKVStore interface {
 	// Delete old version of the store
 	Prune() error
 	GetSnapshot() Snapshot
+	VersionExists(int64) bool
+	RetrieveVersion(int64) (VersionedKVStore, error)
 }
 
 type cacheItem struct {
