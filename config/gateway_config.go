@@ -3,23 +3,23 @@
 package config
 
 import (
-	"github.com/loomnetwork/transfer-gateway/gateway"
+	"github.com/loomnetwork/transfer-gateway/gateway/config"
 	dpos2cfg "github.com/loomnetwork/transfer-gateway/oracles/dpos2/config"
 )
 
-type TransferGatewayConfig = gateway.TransferGatewayConfig
+type TransferGatewayConfig = config.TransferGatewayConfig
 type OracleSerializableConfig = dpos2cfg.OracleSerializableConfig
 
 func DefaultTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
-	return gateway.DefaultConfig(rpcProxyPort)
+	return config.DefaultConfig(rpcProxyPort)
 }
 
 func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
-	return gateway.DefaultLoomCoinTGConfig(rpcProxyPort)
+	return config.DefaultLoomCoinTGConfig(rpcProxyPort)
 }
 
 func DefaultTronTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
-	return gateway.DefaultTronConfig(rpcProxyPort)
+	return config.DefaultTronConfig(rpcProxyPort)
 }
 
 func DefaultBinanceTGConfig() *TransferGatewayConfig {

@@ -8,10 +8,12 @@ import (
 
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
+	tgateway "github.com/loomnetwork/transfer-gateway/gateway"
+	tconfig "github.com/loomnetwork/transfer-gateway/gateway/config"
+
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/fnConsensus"
 	"github.com/loomnetwork/loomchain/log"
-	tgateway "github.com/loomnetwork/transfer-gateway/gateway"
 )
 
 const (
@@ -62,7 +64,7 @@ func checkQueryService(name string, chainID string, DAppChainReadURI string, DAp
 func startGatewayFn(
 	chainID string,
 	fnRegistry fnConsensus.FnRegistry,
-	cfg *tgateway.TransferGatewayConfig,
+	cfg *tconfig.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
@@ -85,7 +87,7 @@ func startGatewayFn(
 func startLoomCoinGatewayFn(
 	chainID string,
 	fnRegistry fnConsensus.FnRegistry,
-	cfg *tgateway.TransferGatewayConfig,
+	cfg *tconfig.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
@@ -107,7 +109,7 @@ func startLoomCoinGatewayFn(
 
 func startTronGatewayFn(chainID string,
 	fnRegistry fnConsensus.FnRegistry,
-	cfg *tgateway.TransferGatewayConfig,
+	cfg *tconfig.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
