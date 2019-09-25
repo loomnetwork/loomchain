@@ -3,6 +3,7 @@
 package evm
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"math"
 	"math/big"
@@ -176,6 +177,10 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 			txHash = types.NewContractCreation(
 				uint64(auth.Nonce(lvm.state, caller)), val, math.MaxUint64, big.NewInt(0), code,
 			).Hash().Bytes()
+
+			if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_3, false) {
+				txHash = loomTxHash(txHash, caller)
+			}
 		}
 
 		var errSaveReceipt error
@@ -223,7 +228,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 			)
 		}
 
-		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_2, false) {
 			val := common.Big0
 			if value != nil {
 				val = value.Int
@@ -232,6 +237,10 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 				uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
 				val, math.MaxUint64, big.NewInt(0), input,
 			).Hash().Bytes()
+
+			if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_3, false) {
+				txHash = loomTxHash(txHash, caller)
+			}
 		}
 
 		var errSaveReceipt error
@@ -266,4 +275,10 @@ func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return levm.GetStorageAt(addr, key)
+}
+
+func loomTxHash(txHash []byte, from loom.Address) []byte {
+	h := sha256.New()
+	h.Write(append(txHash, from.Bytes()...))
+	return h.Sum(nil)
 }
