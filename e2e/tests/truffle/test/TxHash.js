@@ -11,7 +11,9 @@ const {
 
 const TxHashTestContract = artifacts.require('TxHashTestContract')
 
- contract('TxHashTestContract', async (accounts) => {
+// Requires receipts:v3.3 to be enabled, and receipts:v3.4 not to be, but the new tx hash algo needs
+// more review & testing before we can release it so skipping this test for now.
+contract.skip('TxHashTestContract', async (accounts) => {
     let contract, fromAddr, nodeAddr, txHashTestContract
 
     beforeEach(async () => {
@@ -81,4 +83,4 @@ const TxHashTestContract = artifacts.require('TxHashTestContract')
             assert.fail("transaction reverted: " + err);
         }
     })
- })
+})

@@ -58,8 +58,11 @@ const (
 	// Enables switching to an alternative algo for EVM tx hash generation
 	EvmTxReceiptsVersion3_2 = "receipts:v3.2"
 
-	// Enables including sender address for EVM tx hash generation
+	// Fixes the alternative EVM tx hash generation introduced in v3.2
 	EvmTxReceiptsVersion3_3 = "receipts:v3.3"
+
+	// Reverts back to the original EVM tx hash generation (prior to v3.2 & v3.3)
+	EvmTxReceiptsVersion3_4 = "receipts:v3.4"
 
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
