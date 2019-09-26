@@ -142,7 +142,7 @@ type Config struct {
 	// Dragons
 	EVMDebugEnabled bool
 
-	// Minimum allowed of ProcessNumber
+	//Minimum number of file descriptor limit
 	MinimumFileDescriptorLimit uint64
 }
 

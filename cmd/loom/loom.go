@@ -1301,7 +1301,7 @@ func checkFileDescriptorLimit(min uint64) error {
 		return err
 	}
 	if rlimit.Cur < min {
-		return errors.New("insufficient file descriptor")
+		return fmt.Errorf("Current file descriptor limit (%d) is too low; minimum file descriptor limit is %d", rlimit.Cur, min)
 	}
 
 	return nil
