@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -1302,25 +1300,8 @@ func checkFileDescriptorLimit(min uint64) error {
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
 		return err
 	}
-
-	output, err := exec.Command("ulimit", "-n").Output()
-	if err != nil {
-		return err
-	}
-	if currentLimit, err := strconv.ParseUint(string(output[:len(output)-1]), 10, 64); err != nil {
-		return err
-	} else {
-		rlimit.Max = currentLimit
-	}
-	rlimit.Cur = rlimit.Max
-	if rlimit.Cur > min {
-		rlimit.Cur = min
-	} else {
+	if rlimit.Cur < min {
 		return errors.New("insufficient file descriptor")
-	}
-
-	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
-		return err
 	}
 
 	return nil
