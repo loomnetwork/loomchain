@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/rpc/blockatlas"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -367,4 +368,11 @@ func (m *MockQueryService) EvmUnSubscribe(id string) (bool, error) {
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"EvmUnSubscribe"}, m.MethodsCalled...)
 	return true, nil
+}
+
+func (m *MockQueryService) GetBlockTxs(height blockatlas.BlockHeight) (blockatlas.JsonBlockObject, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"GetBlockTxs"}, m.MethodsCalled...)
+	return blockatlas.JsonBlockObject{}, nil
 }

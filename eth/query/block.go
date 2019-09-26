@@ -81,7 +81,7 @@ func GetBlockByNumber(
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
 	var blockResults *ctypes.ResultBlockResults
 	if full {
-		// We ignore the error here becuase if the block results can't be loaded for any reason
+		// We ignore the error here because if the block results can't be loaded for any reason
 		// we'll try to load the data we need from tx_index.db instead.
 		// TODO: Log the error returned by GetBlockResults.
 		blockResults, _ = blockStore.GetBlockResults(&height)
