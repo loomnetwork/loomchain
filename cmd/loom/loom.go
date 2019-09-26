@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -342,7 +341,7 @@ func newRunCommand() *cobra.Command {
 		Short: "Run the blockchain node",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := checkFileDescriptorLimit(cfg.MinimumFileDescriptorLimit); err != nil {
-				fmt.Printf("[LOOM RUN] : %v", err)
+				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(0)
 			}
 			return nil
@@ -1299,38 +1298,29 @@ func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *lo
 }
 
 func checkFileDescriptorLimit(min uint64) error {
-	if runtime.GOOS == "windows" {
-		//  * On Windows Go uses the CreateFile API, which is limited to 16K files, non
-		//    changeable from within a running process
-		if min > 16384 {
-			return errors.New("file descriptor limit (16384) reached")
-		}
-		return nil
+	var rlimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
+		return err
+	}
+
+	output, err := exec.Command("ulimit", "-n").Output()
+	if err != nil {
+		return err
+	}
+	if currentLimit, err := strconv.ParseUint(string(output[:len(output)-1]), 10, 64); err != nil {
+		return err
 	} else {
-		var rlimit syscall.Rlimit
-		if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
-			return err
-		}
+		rlimit.Max = currentLimit
+	}
+	rlimit.Cur = rlimit.Max
+	if rlimit.Cur > min {
+		rlimit.Cur = min
+	} else {
+		return errors.New("insufficient file descriptor")
+	}
 
-		output, err := exec.Command("ulimit", "-n").Output()
-		if err != nil {
-			return err
-		}
-		if currentLimit, err := strconv.ParseUint(string(output[:len(output)-1]), 10, 64); err != nil {
-			return err
-		} else {
-			rlimit.Max = currentLimit
-		}
-		rlimit.Cur = rlimit.Max
-		if rlimit.Cur > min {
-			rlimit.Cur = min
-		} else {
-			return errors.New("maximum descriptor limit exceed")
-		}
-
-		if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
-			return err
-		}
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
+		return err
 	}
 
 	return nil
