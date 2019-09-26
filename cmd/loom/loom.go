@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -340,12 +341,8 @@ func newRunCommand() *cobra.Command {
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			output, err := exec.Command("ulimit", "-n").Output()
-			if err != nil {
-				return err
-			}
-			if currentLimit, _ := strconv.ParseUint(string(output[:len(output)-1]), 10, 64); currentLimit < cfg.MinimumProcessNumber {
-				fmt.Printf("Require at least %d process limit, Only have %d", cfg.MinimumProcessNumber, currentLimit)
+			if err := checkFileDescriptorLimit(cfg.MinimumFileDescriptorLimit); err != nil {
+				fmt.Printf("[LOOM RUN] : %v", err)
 				os.Exit(0)
 			}
 			return nil
@@ -1299,6 +1296,44 @@ func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *lo
 			log.Error("Error in pushing to Prometheus Push Gateway ", "Error", err)
 		}
 	}
+}
+
+func checkFileDescriptorLimit(min uint64) error {
+	if runtime.GOOS == "windows" {
+		//  * On Windows Go uses the CreateFile API, which is limited to 16K files, non
+		//    changeable from within a running process
+		if min > 16384 {
+			return errors.New("file descriptor limit (16384) reached")
+		}
+		return nil
+	} else {
+		var rlimit syscall.Rlimit
+		if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
+			return err
+		}
+
+		output, err := exec.Command("ulimit", "-n").Output()
+		if err != nil {
+			return err
+		}
+		if currentLimit, err := strconv.ParseUint(string(output[:len(output)-1]), 10, 64); err != nil {
+			return err
+		} else {
+			rlimit.Max = currentLimit
+		}
+		rlimit.Cur = rlimit.Max
+		if rlimit.Cur > min {
+			rlimit.Cur = min
+		} else {
+			return errors.New("maximum descriptor limit exceed")
+		}
+
+		if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func main() {

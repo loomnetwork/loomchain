@@ -143,7 +143,7 @@ type Config struct {
 	EVMDebugEnabled bool
 
 	// Minimum allowed of ProcessNumber
-	MinimumProcessNumber uint64
+	MinimumFileDescriptorLimit uint64
 }
 
 type Metrics struct {
@@ -386,12 +386,12 @@ func DefaultConfig() *Config {
 		EVMDebugEnabled:            false,
 		SampleGoContractEnabled:    false,
 
-		Oracle:                 "",
-		DeployEnabled:          true,
-		CallEnabled:            true,
-		DPOSVersion:            3,
-		AllowNamedEvmContracts: false,
-		MinimumProcessNumber:   512,
+		Oracle:                     "",
+		DeployEnabled:              true,
+		CallEnabled:                true,
+		DPOSVersion:                3,
+		AllowNamedEvmContracts:     false,
+		MinimumFileDescriptorLimit: 512,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -770,5 +770,5 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
-MinimumProcessNumber: {{ .MinimumProcessNumber }}
+MinimumFileDescriptorLimit: {{ .MinimumFileDescriptorLimit }}
 ` + transferGatewayLoomYamlTemplate
