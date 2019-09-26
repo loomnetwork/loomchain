@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -337,6 +339,17 @@ func newRunCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			output, err := exec.Command("ulimit", "-n").Output()
+			if err != nil {
+				return err
+			}
+			if currentLimit, _ := strconv.ParseUint(string(output[:len(output)-1]), 10, 64); currentLimit < cfg.MinimumProcessNumber {
+				fmt.Printf("Require at least %d process limit, Only have %d", cfg.MinimumProcessNumber, currentLimit)
+				os.Exit(0)
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err

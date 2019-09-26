@@ -141,6 +141,9 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
+
+	// Minimum allowed of ProcessNumber
+	MinimumProcessNumber uint64
 }
 
 type Metrics struct {
@@ -388,6 +391,7 @@ func DefaultConfig() *Config {
 		CallEnabled:            true,
 		DPOSVersion:            3,
 		AllowNamedEvmContracts: false,
+		MinimumProcessNumber:   512,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -766,5 +770,5 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
-
+MinimumProcessNumber: {{ .MinimumProcessNumber }}
 ` + transferGatewayLoomYamlTemplate
