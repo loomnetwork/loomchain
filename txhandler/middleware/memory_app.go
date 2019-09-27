@@ -19,6 +19,7 @@ import (
 type InMemoryApp interface {
 	ProcessTx(txBytes []byte) (txhandler.TxHandlerResult, error)
 	TraceProcessTx(txBytes []byte, traceCfg eth.TraceConfig) (txhandler.TxHandlerResult, vm.Tracer, error)
+	RunUpTo(height, index int64) error
 	NextBlock()
 	Height() int64
 }
@@ -62,6 +63,24 @@ func (ma *inMemoryApp) NextBlock() {
 
 func (ma *inMemoryApp) Height() int64 {
 	return ma.height
+}
+
+func (ma *inMemoryApp) RunUpTo(height, index int64) error {
+	for h := ma.Height(); h <= height; h++ {
+		block, err := ma.blockstore.GetBlockByHeight(&h)
+		if err != nil {
+			return errors.Wrapf(err, "getting block information at height %v", height)
+		}
+		for i := 0; i < len(block.Block.Data.Txs); i++ {
+			if h != height || i != int(index) {
+				_, _ = ma.ProcessTx(block.Block.Data.Txs[i])
+			} else {
+				return nil
+			}
+		}
+		ma.NextBlock()
+	}
+	return errors.Errorf("cannot find transaction at height %d index %d", height, index)
 }
 
 func (ma *inMemoryApp) ProcessTx(txBytes []byte) (txhandler.TxHandlerResult, error) {

@@ -1130,7 +1130,7 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTra
 	if err != nil {
 		return nil, err
 	}
-	return debug.TraceTransaction(memApp, s.BlockStore, int64(blockNumber), txIndex, cfg)
+	return debug.TraceTransaction(memApp, s.BlockStore, int64(blockNumber), int64(txIndex), cfg)
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {

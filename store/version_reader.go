@@ -40,5 +40,5 @@ func (s *iAVLVersionReader) Range(prefix []byte) plugin.RangeData {
 // Has checks if a key exists.
 func (s *iAVLVersionReader) Has(key []byte) bool {
 	value, _, _ := s.IAVLStore.tree.GetVersionedWithProof(key, s.version)
-	return value == nil
+	return value != nil
 }

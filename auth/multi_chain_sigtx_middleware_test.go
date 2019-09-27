@@ -12,19 +12,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	gltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/features"
@@ -35,7 +35,7 @@ import (
 
 const (
 	callId             = uint32(2)
-	sequence           = uint64(4)
+	seq                = uint64(4)
 	defaultLoomChainId = "default"
 )
 
@@ -53,11 +53,13 @@ var (
 
 func TestSigning(t *testing.T) {
 	pk, err := crypto.GenerateKey()
+	fmt.Printf("private key %x\n", pk)
 	require.NoError(t, err)
 	err = crypto.SaveECDSA("newpk", pk)
 	require.NoError(t, err)
 
 	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	fmt.Printf("private key %x\n", privateKey)
 	require.NoError(t, err)
 	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 	require.NoError(t, err)
@@ -182,14 +184,14 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
-	chains := map[string]ChainConfig{
+	chains := map[string]keys.ChainConfig{
 		"default": {
-			TxType:      LoomSignedTxType,
-			AccountType: NativeAccountType,
+			TxType:      keys.LoomSignedTxType,
+			AccountType: keys.NativeAccountType,
 		},
 		"eth": {
-			TxType:      EthereumSignedTxType,
-			AccountType: MappedAccountType,
+			TxType:      keys.EthereumSignedTxType,
+			AccountType: keys.MappedAccountType,
 		},
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
@@ -251,14 +253,14 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 
 	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
-	chains := map[string]ChainConfig{
+	chains := map[string]keys.ChainConfig{
 		"default": {
-			TxType:      LoomSignedTxType,
-			AccountType: NativeAccountType,
+			TxType:      keys.LoomSignedTxType,
+			AccountType: keys.NativeAccountType,
 		},
 		"binance": {
-			TxType:      BinanceSignedTxType,
-			AccountType: MappedAccountType,
+			TxType:      keys.BinanceSignedTxType,
+			AccountType: keys.MappedAccountType,
 		},
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
@@ -321,22 +323,22 @@ func TestChainIdVerification(t *testing.T) {
 
 	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
-	chains := map[string]ChainConfig{
+	chains := map[string]keys.ChainConfig{
 		"default": {
-			TxType:      LoomSignedTxType,
-			AccountType: NativeAccountType,
+			TxType:      keys.LoomSignedTxType,
+			AccountType: keys.NativeAccountType,
 		},
 		"eth": {
-			TxType:      EthereumSignedTxType,
-			AccountType: NativeAccountType,
+			TxType:      keys.EthereumSignedTxType,
+			AccountType: keys.NativeAccountType,
 		},
 		"tron": {
-			TxType:      TronSignedTxType,
-			AccountType: NativeAccountType,
+			TxType:      keys.TronSignedTxType,
+			AccountType: keys.NativeAccountType,
 		},
 		"binance": {
-			TxType:      BinanceSignedTxType,
-			AccountType: NativeAccountType,
+			TxType:      keys.BinanceSignedTxType,
+			AccountType: keys.NativeAccountType,
 		},
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
@@ -381,7 +383,7 @@ func TestChainIdVerification(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func throttleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
+func throttleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.State, signedTx []byte, ctx context.Context) (txhandler.TxHandlerResult, error) {
 	return ttm.ProcessTx(state.WithContext(ctx), signedTx,
 		func(state appstate.State, txBytes []byte, isCheckTx bool) (res txhandler.TxHandlerResult, err error) {
 
@@ -390,7 +392,7 @@ func throttleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.St
 				return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 			}
 
-			var tx txhandler.Transaction
+			var tx gltypes.Transaction
 			if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 				return res, errors.New("throttle: unmarshal tx")
 			}
@@ -418,7 +420,7 @@ func mockEd25519SignedTx(t *testing.T, key string) []byte {
 		ChainID: defaultLoomChainId,
 		Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
 	}
-	nonceTx := mockNonceTx(t, addr, sequence)
+	nonceTx := mockNonceTx(t, addr, seq)
 
 	signedTx := auth.SignTx(signer, nonceTx)
 	marshalledSignedTx, err := proto.Marshal(signedTx)
@@ -431,7 +433,7 @@ func mockSignedTx(t *testing.T, chainID string, signer auth.Signer) []byte {
 	require.NoError(t, err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*pubKey).Hex())
 	require.NoError(t, err)
-	nonceTx := mockNonceTx(t, loom.Address{ChainID: chainID, Local: ethLocalAdr}, sequence)
+	nonceTx := mockNonceTx(t, loom.Address{ChainID: chainID, Local: ethLocalAdr}, seq)
 
 	signedTx := auth.SignTx(signer, nonceTx)
 	marshalledSignedTx, err := proto.Marshal(signedTx)
@@ -442,7 +444,7 @@ func mockSignedTx(t *testing.T, chainID string, signer auth.Signer) []byte {
 func mockBinanceSignedTx(t *testing.T, chainID string, signer auth.Signer) []byte {
 	foreignLocalAddr, err := loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(signer.PublicKey()).Hex())
 	require.NoError(t, err)
-	nonceTx := mockNonceTx(t, loom.Address{ChainID: chainID, Local: foreignLocalAddr}, sequence)
+	nonceTx := mockNonceTx(t, loom.Address{ChainID: chainID, Local: foreignLocalAddr}, seq)
 
 	signedTx := auth.SignTx(signer, nonceTx)
 	marshalledSignedTx, err := proto.Marshal(signedTx)
@@ -463,7 +465,7 @@ func mockNonceTx(t *testing.T, from loom.Address, sequence uint64) []byte {
 		From: from.MarshalPB(),
 	})
 	require.NoError(t, err)
-	tx, err := proto.Marshal(&txhandler.Transaction{
+	tx, err := proto.Marshal(&gltypes.Transaction{
 		Id:   callId,
 		Data: messageTx,
 	})

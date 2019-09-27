@@ -18,37 +18,31 @@ import (
 func TraceTransaction(
 	app middleware.InMemoryApp,
 	blockstore store.BlockStore,
-	blockNumber int64,
-	txIndex uint64,
+	blockNumber, txIndex int64,
 	config eth.TraceConfig,
 ) (interface{}, error) {
-	for height := app.Height(); height <= blockNumber; height++ {
-		block, err := blockstore.GetBlockByHeight(&blockNumber)
-		if err != nil {
-			return nil, errors.Wrapf(err, "getting block information at height %v", blockNumber)
-		}
-		for i := uint64(0); i < txIndex; i++ {
-			if height != blockNumber || i != txIndex {
-				tx := block.Block.Data.Txs[i]
-				_, _ = app.ProcessTx(tx)
-			} else {
-				result, tracer, err := app.TraceProcessTx(block.Block.Data.Txs[txIndex], config)
-
-				switch tracer := tracer.(type) {
-				case *vm.StructLogger:
-					return &ethapi.ExecutionResult{
-						Failed:      err == nil,
-						ReturnValue: fmt.Sprintf("%x", result),
-						StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
-					}, nil
-				case *tracers.Tracer:
-					return tracer.GetResult()
-				default:
-					return nil, errors.New(fmt.Sprintf("bad tracer type %T", tracer))
-				}
-			}
-		}
-		app.NextBlock()
+	if err := app.RunUpTo(blockNumber, txIndex); err != nil {
+		return nil, err
 	}
-	return nil, errors.New("counld not find transaction")
+
+	block, err := blockstore.GetBlockByHeight(&blockNumber)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting block information at height %v", blockNumber)
+	}
+
+	result, tracer, err := app.TraceProcessTx(block.Block.Data.Txs[txIndex], config)
+
+	switch tracer := tracer.(type) {
+	case *vm.StructLogger:
+		return &ethapi.ExecutionResult{
+			Failed:      err == nil,
+			ReturnValue: fmt.Sprintf("%x", result),
+			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
+		}, nil
+	case *tracers.Tracer:
+		return tracer.GetResult()
+	default:
+		return nil, errors.New(fmt.Sprintf("bad tracer type %T", tracer))
+	}
+
 }

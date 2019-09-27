@@ -14,7 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/config"
 
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth/keys"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"

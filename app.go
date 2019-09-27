@@ -608,19 +608,19 @@ func (a *Application) ReadOnlyState() appstate.State {
 }
 
 func (a *Application) InMemoryApp(blockNumber uint64, blockstore store.BlockStore) (middleware.InMemoryApp, error) {
-	startVersion := blockNumber
-	for ; a.Store.VersionExists(int64(startVersion)) || startVersion == 0; startVersion-- {
+	startVersion := int64(blockNumber)
+	for ; !a.Store.VersionExists(startVersion) || startVersion == 0; startVersion-- {
 	}
 	if startVersion == 0 {
 		return nil, errors.Errorf("no saved version for height %d", blockNumber)
 	}
-	startStore, err := a.Store.RetrieveVersion(int64(startVersion))
+	startStore, err := a.Store.RetrieveVersion(startVersion)
 	if err != nil {
 		return nil, err
 	}
 
 	return middleware.NewInMemoryApp(
-		int64(startVersion),
+		startVersion,
 		blockstore,
 		startStore,
 		a.TxHandler,
