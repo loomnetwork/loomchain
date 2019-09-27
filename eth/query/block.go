@@ -101,6 +101,8 @@ func GetBlockByNumber(
 			txResultData = blockResults.Results.DeliverTx[index].Data
 		}
 
+		// TODO: When full is false this code ends up doing a bunch of useless encoding, should refactor
+		//       things a bit.
 		txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultData, int64(index))
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
