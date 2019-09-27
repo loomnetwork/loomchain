@@ -344,9 +344,9 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
+	checkUnsupportedBuild       bool
 }
 
-var checkUnsupportedBuild bool
 var _ abci.Application = &Application{}
 
 //Metrics
@@ -541,11 +541,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.config = nil
 		}
 
-		if !checkUnsupportedBuild {
+		if !a.checkUnsupportedBuild {
 			if err := chainConfigManager.CheckUnsupportedFeatures(); err != nil {
 				panic(err)
 			}
-			checkUnsupportedBuild = true
+			a.checkUnsupportedBuild = true
 		}
 	}
 
