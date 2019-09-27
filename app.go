@@ -149,10 +149,12 @@ func (s *StoreState) EnabledFeatures() []string {
 	featuresFromState := s.Range([]byte(featurePrefix))
 	enabledFeatures := make([]string, 0, len(featuresFromState))
 	for _, m := range featuresFromState {
+		fmt.Printf("\nF : %+v \n", m)
 		if bytes.Equal(m.Value, []byte{1}) {
 			enabledFeatures = append(enabledFeatures, string(m.Key))
 		}
 	}
+
 	return enabledFeatures
 }
 
@@ -312,6 +314,7 @@ type ValidatorsManager interface {
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 	UpdateConfig() (int, error)
+	CheckFeaturesBuildNumber(blockHeight int64) error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -528,7 +531,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
 		}
-
 		numConfigChanges, err := chainConfigManager.UpdateConfig()
 		if err != nil {
 			panic(err)
@@ -537,6 +539,10 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		if numConfigChanges > 0 {
 			// invalidate cached config so it's reloaded next time it's accessed
 			a.config = nil
+		}
+
+		if err := chainConfigManager.CheckFeaturesBuildNumber(a.height()); err != nil {
+			panic(err)
 		}
 	}
 
@@ -815,7 +821,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 
 	height := a.curBlockHeader.GetHeight()
-
+	fmt.Printf("\n COMMIT HEIGHT : %d\n Build : %s\n", height, Build)
 	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
 		// TODO: consider panic instead
 		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)

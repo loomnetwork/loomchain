@@ -318,6 +318,7 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal feature %s", string(m.Key))
 		}
+
 		// this one will calculate the percentage for pending feature
 		feature, err := getFeature(ctx, f.Name, curValidators)
 		if err != nil {
@@ -405,6 +406,23 @@ func HarvestPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action,
 	}
 
 	return actions, nil
+}
+
+func CheckFeaturesBuildNumber(ctx contract.Context, blockHeight, buildNumber uint64) error {
+	featureRange := ctx.Range([]byte(featurePrefix))
+	for _, m := range featureRange {
+		var f Feature
+		if err := proto.Unmarshal(m.Value, &f); err != nil {
+			return errors.Wrapf(err, "failed to unmarshal feature %s", string(m.Key))
+		}
+		if f.Status != FeatureEnabled {
+			continue
+		}
+		if f.BuildNumber > buildNumber && f.BlockHeight < blockHeight {
+			return errors.Errorf("current build number (%d) not support %s feature", buildNumber, f.Name)
+		}
+	}
+	return nil
 }
 
 // ListPendingActions returns a list of pending actions in the ChainConfig contract

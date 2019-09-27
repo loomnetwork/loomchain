@@ -84,3 +84,11 @@ func (c *ChainConfigManager) UpdateConfig() (int, error) {
 
 	return len(settings), nil
 }
+
+func (c *ChainConfigManager) CheckFeaturesBuildNumber(blockHeight int64) error {
+	err := chainconfig.CheckFeaturesBuildNumber(c.ctx, uint64(blockHeight), c.build)
+	if err != nil {
+		return err
+	}
+	return nil
+}
