@@ -408,7 +408,7 @@ func HarvestPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action,
 	return actions, nil
 }
 
-func CheckFeaturesBuildNumber(ctx contract.Context, blockHeight, buildNumber uint64) error {
+func CheckUnsupportedFeatures(ctx contract.Context, buildNumber uint64) error {
 	featureRange := ctx.Range([]byte(featurePrefix))
 	for _, m := range featureRange {
 		var f Feature
@@ -418,8 +418,8 @@ func CheckFeaturesBuildNumber(ctx contract.Context, blockHeight, buildNumber uin
 		if f.Status != FeatureEnabled {
 			continue
 		}
-		if f.BuildNumber > buildNumber && f.BlockHeight < blockHeight {
-			return errors.Errorf("current build number (%d) not support %s feature", buildNumber, f.Name)
+		if f.BuildNumber > buildNumber {
+			return errors.Errorf("current build number (%d) not support (%s) feature require build number (%d)", buildNumber, f.Name, f.BuildNumber)
 		}
 	}
 	return nil

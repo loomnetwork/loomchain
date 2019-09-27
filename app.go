@@ -313,7 +313,7 @@ type ValidatorsManager interface {
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 	UpdateConfig() (int, error)
-	CheckFeaturesBuildNumber(blockHeight int64) error
+	CheckUnsupportedFeatures() error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -540,7 +540,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.config = nil
 		}
 
-		if err := chainConfigManager.CheckFeaturesBuildNumber(a.height()); err != nil {
+		if err := chainConfigManager.CheckUnsupportedFeatures(); err != nil {
 			panic(err)
 		}
 	}
