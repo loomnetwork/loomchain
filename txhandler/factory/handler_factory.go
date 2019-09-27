@@ -48,12 +48,13 @@ type txHandleFactory struct {
 
 func (f txHandleFactory) TxHandler(tracer ethvm.Tracer, metrics bool) (txhandler.TxHandler, error) {
 	vmManager := createVmManager(f.vmManager, tracer)
+	nonceTxHandler := auth.NewNonceHandler()
 
-	txMiddleware, err := txMiddleWare(f.cfg, vmManager, f.chainID, f.store, metrics)
+	txMiddleware, err := txMiddleWare(f.cfg, vmManager, nonceTxHandler, f.chainID, f.store, metrics)
 	if err != nil {
 		return nil, err
 	}
-	postCommitMiddlewares, err := postCommitMiddleWAre(f.cfg, vmManager)
+	postCommitMiddlewares, err := postCommitMiddleWAre(f.cfg, vmManager, nonceTxHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +81,7 @@ func createVmManager(vmManager *vm.Manager, tracer ethvm.Tracer) vm.Manager {
 func txMiddleWare(
 	cfg config.Config,
 	vmManager vm.Manager,
+	nonceTxHandler *auth.NonceHandler,
 	chainID string,
 	appStore store.VersionedKVStore,
 	metrics bool,
@@ -123,7 +125,7 @@ func txMiddleWare(
 
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware(appStore))
+	txMiddleWare = append(txMiddleWare, auth.GetNonceTxMiddleware(appStore, nonceTxHandler))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -211,7 +213,11 @@ func router(
 	return router
 }
 
-func postCommitMiddleWAre(cfg config.Config, vmManager vm.Manager) ([]txhandler.PostCommitMiddleware, error) {
+func postCommitMiddleWAre(
+	cfg config.Config,
+	vmManager vm.Manager,
+	nonceTxHandler *auth.NonceHandler,
+) ([]txhandler.PostCommitMiddleware, error) {
 	postCommitMiddlewares := []txhandler.PostCommitMiddleware{
 		txhandler.LogPostCommitMiddleware,
 	}
@@ -227,7 +233,7 @@ func postCommitMiddleWAre(cfg config.Config, vmManager vm.Manager) ([]txhandler.
 
 	// We need to make sure nonce post commit middleware is last as
 	// it doesn't pass control to other middlewares after it.
-	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
+	postCommitMiddlewares = append(postCommitMiddlewares, auth.GetNonceTxPostNonceMiddleware(nonceTxHandler))
 
 	return postCommitMiddlewares, nil
 }

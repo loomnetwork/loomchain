@@ -20,6 +20,10 @@ import (
 	"github.com/loomnetwork/loomchain/txhandler"
 )
 
+var nonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
+
+var nonceTxPostNonceMiddleware = txhandler.PostCommitMiddlewareFunc(nonceTxHandler.IncNonce)
+
 func TestSignatureTxMiddleware(t *testing.T) {
 	origBytes := []byte("hello")
 	_, privKey, err := ed25519.GenerateKey(nil)
@@ -69,13 +73,13 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	kvStore := store.NewMemStore()
 	state := appstate.NewStoreState(ctx, kvStore, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 
-	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
+	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, false,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
+	nonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
 
 	//State is reset on every run
 	ctx2 := context.WithValue(context.Background(), keys.ContextKeyOrigin, origin)
@@ -84,13 +88,13 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	_ = context.WithValue(ctx2, keys.ContextKeyCheckTx, true)
 
 	//If we get the same sequence number in same block we should get an error
-	_, err = NonceTxHandler.Nonce(state2, kvStore2, nonceTxBytes,
+	_, err = nonceTxHandler.Nonce(state2, kvStore2, nonceTxBytes,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, true,
 	)
 	require.Errorf(t, err, "sequence number does not match")
-	//	NonceTxPostNonceMiddleware shouldnt get called on an error
+	//	nonceTxPostNonceMiddleware shouldnt get called on an error
 
 	//State is reset on every run
 	ctx3 := context.WithValue(context.Background(), keys.ContextKeyOrigin, origin)
@@ -99,13 +103,13 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	_ = context.WithValue(ctx3, keys.ContextKeyCheckTx, true)
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
-	_, err = NonceTxHandler.Nonce(state3, kvStore3, nonceTxBytes2,
+	_, err = nonceTxHandler.Nonce(state3, kvStore3, nonceTxBytes2,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, true,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes2, txhandler.TxHandlerResult{}, nil, false)
+	nonceTxPostNonceMiddleware(state, nonceTxBytes2, txhandler.TxHandlerResult{}, nil, false)
 
 	//Try a deliverTx at same height it should be fine
 	ctx3Dx := context.WithValue(context.Background(), keys.ContextKeyOrigin, origin)
@@ -113,13 +117,13 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	state3Dx := appstate.NewStoreState(ctx3Dx, kvStore3Dx, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 	_ = context.WithValue(ctx3Dx, keys.ContextKeyCheckTx, true)
 
-	_, err = NonceTxHandler.Nonce(state3Dx, kvStore3Dx, nonceTxBytes,
+	_, err = nonceTxHandler.Nonce(state3Dx, kvStore3Dx, nonceTxBytes,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, false,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
+	nonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
 
 	///--------------increase block height should kill cache
 	//State is reset on every run
@@ -127,13 +131,13 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	kvStore4 := store.NewMemStore()
 	state4 := appstate.NewStoreState(ctx4, kvStore4, abci.Header{Height: 28}, nil, nil).WithOnChainConfig(cfg)
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
-	_, err = NonceTxHandler.Nonce(state4, kvStore4, nonceTxBytes,
+	_, err = nonceTxHandler.Nonce(state4, kvStore4, nonceTxBytes,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, true,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
+	nonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
 }
 
 func TestRevertedTxNonceMiddleware(t *testing.T) {
@@ -173,18 +177,18 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 	require.Equal(t, uint64(0), currentNonce)
 
 	// Send a successful tx
-	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
+	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, false,
 	)
 	require.Nil(t, err)
-	NonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
+	nonceTxPostNonceMiddleware(state, nonceTxBytes, txhandler.TxHandlerResult{}, nil, false)
 	storeTx.Commit()
 	storeTx.Rollback()
 
 	// Send a failed tx, nonce should increase even though the transaction is reverted
-	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes2,
+	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes2,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, errors.New("EVM transaction reverted")
 		}, false,
@@ -205,7 +209,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 	require.NoError(t, err)
 
 	// Send another failed tx, nonce should not increment because the transaction reverted
-	_, err = NonceTxHandler.Nonce(state, kvStore, nonceTxBytes3,
+	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes3,
 		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, errors.New("EVM transaction reverted")
 		}, false,
