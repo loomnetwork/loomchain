@@ -149,7 +149,6 @@ func (s *StoreState) EnabledFeatures() []string {
 	featuresFromState := s.Range([]byte(featurePrefix))
 	enabledFeatures := make([]string, 0, len(featuresFromState))
 	for _, m := range featuresFromState {
-		fmt.Printf("\nF : %+v \n", m)
 		if bytes.Equal(m.Value, []byte{1}) {
 			enabledFeatures = append(enabledFeatures, string(m.Key))
 		}
@@ -821,7 +820,6 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 
 	height := a.curBlockHeader.GetHeight()
-	fmt.Printf("\n COMMIT HEIGHT : %d\n Build : %s\n", height, Build)
 	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
 		// TODO: consider panic instead
 		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
