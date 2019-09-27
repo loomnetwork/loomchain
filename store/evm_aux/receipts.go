@@ -73,7 +73,10 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 				continue
 			}
 			s.batch.Set(tailHash, protoTail)
-			size++
+			if !s.db.Has(tailHash) {
+				size++
+			}
+
 		}
 
 		// Set current receipt as next tail
@@ -94,7 +97,9 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 			log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 		} else {
 			s.batch.Set(tailHash, protoTail)
-			size++
+			if !s.db.Has(tailHash) {
+				size++
+			}
 		}
 	}
 
