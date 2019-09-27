@@ -113,10 +113,8 @@ func (s *EvmAuxStore) SetBloomFilter(tran *leveldb.Transaction, filter []byte, h
 }
 
 func (s *EvmAuxStore) IsDupEVMTxHash(txHash []byte) bool {
-	if _, ok := s.dupEVMTxHashes[string(txHash)]; ok {
-		return true
-	}
-	return false
+	_, ok := s.dupEVMTxHashes[string(txHash)]
+	return ok
 }
 
 func (s *EvmAuxStore) SetTxHashList(tran *leveldb.Transaction, txHashList [][]byte, height uint64) error {
