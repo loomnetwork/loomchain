@@ -89,11 +89,15 @@ func GetBlockByNumber(
 	for index, tx := range blockResult.Block.Data.Txs {
 		if full {
 			var blockResultBytes []byte
-			if blockResults == nil {
+			if blockResults == nil ||
+				len(blockResults.Results.DeliverTx) <= index ||
+				blockResults.Results.DeliverTx[index] == nil {
+				// TODO: Log an error when blockResults != nil, as it's somewhat unusual to have a
+				//       missing DeliverTx response.
 				// Retrieve tx result from tx_index.db
 				txResult, err := blockStore.GetTxResult(tx.Hash())
 				if err != nil {
-					return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
+					return resp, errors.Wrapf(err, "failed to load tx result, hash %X", tx.Hash())
 				}
 				blockResultBytes = txResult.TxResult.Data
 			} else {
@@ -102,7 +106,7 @@ func GetBlockByNumber(
 
 			txObj, _, err := GetTxObjectFromBlockResult(blockResult, blockResultBytes, int64(index))
 			if err != nil {
-				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
+				return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
 			}
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
