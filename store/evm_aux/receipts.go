@@ -102,6 +102,13 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 			}
 		}
 	}
+	s.setDBParams(size, headHash, tailHash)
+	filter := bloom.GenBloomFilter(events)
+	if err := s.setTxHashList(txHashArray, height); err != nil {
+		return errors.Wrap(err, "append tx list")
+	}
+	s.setBloomFilter(filter, height)
+	s.Commit()
 
 	// clear old receipts if the number of receipts exceeds the limit
 	if s.maxReceipts < size {
@@ -116,13 +123,6 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		size -= numDeleted
 	}
 	s.setDBParams(size, headHash, tailHash)
-
-	filter := bloom.GenBloomFilter(events)
-	if err := s.setTxHashList(txHashArray, height); err != nil {
-		return errors.Wrap(err, "append tx list")
-	}
-	s.setBloomFilter(filter, height)
-
 	s.Commit()
 	return nil
 }
