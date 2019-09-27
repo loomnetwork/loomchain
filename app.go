@@ -346,6 +346,7 @@ type Application struct {
 	ReceiptsVersion             int32
 }
 
+var checkUnsupportedBuild bool
 var _ abci.Application = &Application{}
 
 //Metrics
@@ -540,8 +541,11 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.config = nil
 		}
 
-		if err := chainConfigManager.CheckUnsupportedFeatures(); err != nil {
-			panic(err)
+		if !checkUnsupportedBuild {
+			if err := chainConfigManager.CheckUnsupportedFeatures(); err != nil {
+				panic(err)
+			}
+			checkUnsupportedBuild = true
 		}
 	}
 
