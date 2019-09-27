@@ -337,16 +337,15 @@ func newRunCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := checkFileDescriptorLimit(cfg.MinimumFileDescriptorLimit); err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err)
-				os.Exit(0)
-			}
-			return nil
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
+			}
+			if cfg.MinOpenFilesLimit != 0 {
+				if err := checkFileDescriptorLimit(cfg.MinOpenFilesLimit); err != nil {
+					fmt.Fprintf(os.Stderr, "%v\n", err)
+					os.Exit(0)
+				}
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			logger := log.Default
@@ -1298,10 +1297,11 @@ func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *lo
 func checkFileDescriptorLimit(min uint64) error {
 	var rlimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
-		return err
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return nil
 	}
 	if rlimit.Cur < min {
-		return fmt.Errorf("Current file descriptor limit (%d) is too low; minimum file descriptor limit is %d", rlimit.Cur, min)
+		return fmt.Errorf("Current open file limit (%d) is too low, please set it to at least %d", rlimit.Cur, min)
 	}
 
 	return nil
