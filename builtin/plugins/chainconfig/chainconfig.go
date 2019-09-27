@@ -234,41 +234,10 @@ func (c *ChainConfig) RemoveFeature(ctx contract.Context, req *RemoveFeatureRequ
 
 // ListFeatures returns info about all the currently known features.
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
-	curValidators, err := getCurrentValidators(ctx)
+	features, err := ListFeatures(ctx)
 	if err != nil {
 		return nil, err
 	}
-	featureRange := ctx.Range([]byte(featurePrefix))
-	features := []*Feature{}
-	featureList := make(map[string]bool)
-	for _, m := range featureRange {
-		var f Feature
-		if err := proto.Unmarshal(m.Value, &f); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
-		}
-		featureList[f.Name] = true
-		feature, err := getFeature(ctx, f.Name, curValidators)
-		if err != nil {
-			return nil, err
-		}
-		features = append(features, feature)
-	}
-	// Augment the feature list with features that have been enabled without going through this
-	// contract, e.g. via a migration tx.
-	featuresFromState := ctx.EnabledFeatures()
-	for _, feature := range featuresFromState {
-		if !featureList[feature] {
-			features = append(features, &Feature{
-				Name:        feature,
-				BlockHeight: 0,
-				BuildNumber: 0,
-				Status:      cctypes.Feature_ENABLED,
-			})
-		}
-	}
-	sort.Slice(features, func(i, j int) bool {
-		return features[i].Name < features[j].Name
-	})
 	return &ListFeaturesResponse{
 		Features: features,
 	}, nil
@@ -408,21 +377,43 @@ func HarvestPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action,
 	return actions, nil
 }
 
-func CheckUnsupportedFeatures(ctx contract.Context, buildNumber uint64) error {
+func ListFeatures(ctx contract.StaticContext) ([]*Feature, error) {
+	curValidators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return nil, err
+	}
 	featureRange := ctx.Range([]byte(featurePrefix))
+	features := []*Feature{}
+	featureList := make(map[string]bool)
 	for _, m := range featureRange {
 		var f Feature
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
-			return errors.Wrapf(err, "failed to unmarshal feature %s", string(m.Key))
+			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
 		}
-		if f.Status != FeatureEnabled {
-			continue
+		featureList[f.Name] = true
+		feature, err := getFeature(ctx, f.Name, curValidators)
+		if err != nil {
+			return nil, err
 		}
-		if f.BuildNumber > buildNumber {
-			return errors.Errorf("current build number (%d) not support (%s) feature require build number (%d)", buildNumber, f.Name, f.BuildNumber)
+		features = append(features, feature)
+	}
+	// Augment the feature list with features that have been enabled without going through this
+	// contract, e.g. via a migration tx.
+	featuresFromState := ctx.EnabledFeatures()
+	for _, feature := range featuresFromState {
+		if !featureList[feature] {
+			features = append(features, &Feature{
+				Name:        feature,
+				BlockHeight: 0,
+				BuildNumber: 0,
+				Status:      cctypes.Feature_ENABLED,
+			})
 		}
 	}
-	return nil
+	sort.Slice(features, func(i, j int) bool {
+		return features[i].Name < features[j].Name
+	})
+	return features, nil
 }
 
 // ListPendingActions returns a list of pending actions in the ChainConfig contract

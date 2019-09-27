@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
@@ -86,5 +87,20 @@ func (c *ChainConfigManager) UpdateConfig() (int, error) {
 }
 
 func (c *ChainConfigManager) CheckUnsupportedFeatures() error {
-	return chainconfig.CheckUnsupportedFeatures(c.ctx, c.build)
+	features, err := chainconfig.ListFeatures(c.ctx)
+	if err != nil {
+		return err
+	}
+
+	currBuildNumber, _ := strconv.ParseUint(loomchain.Build, 10, 64)
+	for _, f := range features {
+		if f.Status != cctypes.Feature_ENABLED {
+			continue
+		}
+		if f.BuildNumber > currBuildNumber {
+			return errors.Errorf("current build number (%d) not support (%s) feature require build number (%d)", currBuildNumber, f.Name, f.BuildNumber)
+		}
+	}
+
+	return nil
 }
