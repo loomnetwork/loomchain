@@ -103,7 +103,7 @@ func GetBlockByNumber(
 
 		// TODO: When full is false this code ends up doing a bunch of useless encoding, should refactor
 		//       things a bit.
-		txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultData, int64(index))
+		txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultData, int64(index), evmAuxStore)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
 		}
@@ -123,7 +123,7 @@ func GetBlockByNumber(
 }
 
 func GetTxObjectFromBlockResult(
-	blockResult *ctypes.ResultBlock, txResultData []byte, txIndex int64,
+	blockResult *ctypes.ResultBlock, txResultData []byte, txIndex int64, evmAuxStore *evmaux.EvmAuxStore,
 ) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[txIndex]
 	var contractAddress *eth.Data
@@ -137,6 +137,7 @@ func GetTxObjectFromBlockResult(
 		Hash:             eth.EncBytes(tx.Hash()),
 	}
 
+	var evmTxHash []byte
 	var signedTx auth.SignedTx
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
 		return eth.GetEmptyTxObject(), nil, err
@@ -181,6 +182,7 @@ func GetTxObjectFromBlockResult(
 				contractAddress = eth.EncPtrAddress(resp.Contract)
 				if len(respData.TxHash) > 0 {
 					txObj.Hash = eth.EncBytes(respData.TxHash)
+					evmTxHash = respData.TxHash
 				}
 			}
 			if deployTx.Value != nil {
@@ -198,6 +200,7 @@ func GetTxObjectFromBlockResult(
 			txObj.To = &to
 			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
 				txObj.Hash = eth.EncBytes(txResultData)
+				evmTxHash = txResultData
 			}
 			if callTx.Value != nil {
 				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
@@ -211,6 +214,10 @@ func GetTxObjectFromBlockResult(
 		return eth.GetEmptyTxObject(), nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 	txObj.Input = eth.EncBytes(input)
+
+	if evmAuxStore.IsDupEVMTxHash(evmTxHash) {
+		txObj.Hash = eth.EncBytes(tx.Hash())
+	}
 
 	return txObj, contractAddress, nil
 }

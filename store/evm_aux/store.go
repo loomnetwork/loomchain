@@ -1,6 +1,7 @@
 package evmaux
 
 import (
+	"bytes"
 	"encoding/binary"
 	"os"
 
@@ -15,10 +16,15 @@ import (
 var (
 	EvmAuxDBName = "receipts_db"
 
-	BloomPrefix  = []byte("bf")
-	TxHashPrefix = []byte("th")
-	txRefPrefix  = []byte("txr")
+	BloomPrefix     = []byte("bf")
+	TxHashPrefix    = []byte("th")
+	txRefPrefix     = []byte("txr")
+	dupTxHashPrefix = []byte("dtx")
 )
+
+func dupTxHashKey(txHash []byte) []byte {
+	return util.PrefixKey(dupTxHashPrefix, txHash)
+}
 
 func bloomFilterKey(height uint64) []byte {
 	return util.PrefixKey(BloomPrefix, blockHeightToBytes(height))
@@ -86,6 +92,17 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 
 func (s *EvmAuxStore) SetBloomFilter(tran *leveldb.Transaction, filter []byte, height uint64) error {
 	return tran.Put(bloomFilterKey(height), filter, nil)
+}
+
+func (s *EvmAuxStore) IsDupEVMTxHash(txHash []byte) bool {
+	data, err := s.db.Get(dupTxHashKey(txHash), nil)
+	if err != nil {
+		return false
+	}
+	if bytes.Equal(data, []byte{1}) {
+		return true
+	}
+	return false
 }
 
 func (s *EvmAuxStore) SetTxHashList(tran *leveldb.Transaction, txHashList [][]byte, height uint64) error {
