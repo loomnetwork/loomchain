@@ -110,7 +110,15 @@ func GetBlockByNumber(
 			}
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
-			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
+			txResult, err := blockStore.GetTxResult(tx.Hash())
+			if err != nil {
+				return resp, errors.Wrapf(err, "failed to load tx result, hash %X", tx.Hash())
+			}
+			txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index))
+			if err != nil {
+				return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
+			}
+			blockInfo.Transactions = append(blockInfo.Transactions, txObj.Hash)
 		}
 	}
 
