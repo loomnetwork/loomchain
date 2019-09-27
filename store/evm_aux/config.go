@@ -17,7 +17,7 @@ func DefaultEvmAuxStoreConfig() *EvmAuxStoreConfig {
 	return &EvmAuxStoreConfig{
 		DBName:      "evmaux",
 		DBBackend:   "goleveldb",
-		MaxReceipts: math.MaxUint64,
+		MaxReceipts: math.MaxInt64, // Validators tool does not support MaxUint64
 	}
 }
 
