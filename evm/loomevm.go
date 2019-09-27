@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -170,14 +171,22 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 			)
 		}
 
-		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_2, false) {
+		if !lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_4, false) {
 			val := common.Big0
 			if value != nil {
 				val = value.Int
 			}
-			txHash = types.NewContractCreation(
+			ethTxHash := types.NewContractCreation(
 				uint64(auth.Nonce(lvm.state, caller)), val, math.MaxUint64, big.NewInt(0), code,
 			).Hash().Bytes()
+
+			if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_3, false) {
+				// Since the eth tx isn't signed its hash isn't unique, so make it unique by hashing it
+				// with the caller address.
+				txHash = getLoomEvmTxHash(ethTxHash, caller.Local)
+			} else if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_2, false) {
+				txHash = ethTxHash
+			}
 		}
 
 		var errSaveReceipt error
@@ -225,15 +234,23 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 			)
 		}
 
-		if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+		if !lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_4, false) {
 			val := common.Big0
 			if value != nil {
 				val = value.Int
 			}
-			txHash = types.NewTransaction(
+			ethTxHash := types.NewTransaction(
 				uint64(auth.Nonce(lvm.state, caller)), common.BytesToAddress(addr.Local),
 				val, math.MaxUint64, big.NewInt(0), input,
 			).Hash().Bytes()
+
+			if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_3, false) {
+				// Since the eth tx isn't signed its hash isn't unique, so make it unique by hashing it
+				// with the caller address.
+				txHash = getLoomEvmTxHash(ethTxHash, caller.Local)
+			} else if lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+				txHash = ethTxHash
+			}
 		}
 
 		var errSaveReceipt error
@@ -268,4 +285,10 @@ func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return levm.GetStorageAt(addr, key)
+}
+
+func getLoomEvmTxHash(ethTxHash []byte, from loom.LocalAddress) []byte {
+	h := sha3.NewKeccak256()
+	h.Write(append(ethTxHash, from...))
+	return h.Sum(nil)
 }
