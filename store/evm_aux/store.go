@@ -1,7 +1,6 @@
 package evmaux
 
 import (
-	"bytes"
 	"encoding/binary"
 	"os"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	goleveldb "github.com/syndtr/goleveldb/leveldb"
+	goutil "github.com/syndtr/goleveldb/leveldb/util"
 )
 
 var (
@@ -55,11 +55,29 @@ type ChildTxRef struct {
 }
 
 type EvmAuxStore struct {
-	db *leveldb.DB
+	db             *leveldb.DB
+	dupEVMTxHashes map[string]bool
 }
 
 func NewEvmAuxStore(db *leveldb.DB) *EvmAuxStore {
-	return &EvmAuxStore{db: db}
+	dupEVMTxHashes := make(map[string]bool)
+	iter := db.NewIterator(
+		&goutil.Range{Start: dupTxHashPrefix, Limit: util.PrefixRangeEnd(dupTxHashPrefix)},
+		nil,
+	)
+	defer iter.Release()
+	for iter.Next() {
+		dupTxHash, err := util.UnprefixKey(iter.Key(), dupTxHashPrefix)
+		if err != nil {
+			panic(err)
+		}
+		dupEVMTxHashes[string(dupTxHash)] = true
+	}
+
+	return &EvmAuxStore{
+		db:             db,
+		dupEVMTxHashes: dupEVMTxHashes,
+	}
 }
 
 func (s *EvmAuxStore) Close() error {
@@ -95,11 +113,7 @@ func (s *EvmAuxStore) SetBloomFilter(tran *leveldb.Transaction, filter []byte, h
 }
 
 func (s *EvmAuxStore) IsDupEVMTxHash(txHash []byte) bool {
-	data, err := s.db.Get(dupTxHashKey(txHash), nil)
-	if err != nil {
-		return false
-	}
-	if bytes.Equal(data, []byte{1}) {
+	if _, ok := s.dupEVMTxHashes[string(txHash)]; ok {
 		return true
 	}
 	return false
