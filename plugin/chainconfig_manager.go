@@ -93,10 +93,18 @@ func (c *ChainConfigManager) CheckUnsupportedFeatures() error {
 	}
 
 	currBuildNumber, _ := strconv.ParseUint(loomchain.Build, 10, 64)
+	var latestUnsupportedBuildNumber uint64
+	var featureName string
 	for _, f := range features {
-		if f.BuildNumber > currBuildNumber && f.Status == cctypes.Feature_ENABLED {
-			return errors.Errorf("current build number (%d) not support (%s) feature require build number (%d)", currBuildNumber, f.Name, f.BuildNumber)
+		if f.BuildNumber > currBuildNumber &&
+			f.Status == cctypes.Feature_ENABLED &&
+			latestUnsupportedBuildNumber < f.BuildNumber {
+			latestUnsupportedBuildNumber = f.BuildNumber
+			featureName = f.Name
 		}
+	}
+	if latestUnsupportedBuildNumber != 0 {
+		return errors.Errorf("current build number (%d) not support (%s) feature require build number (%d)", currBuildNumber, featureName, latestUnsupportedBuildNumber)
 	}
 
 	return nil
