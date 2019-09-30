@@ -45,6 +45,9 @@ func LoadStore() (*EvmAuxStore, error) {
 	if err != nil {
 		return nil, err
 	}
+	evmAuxStore := NewEvmAuxStore(evmAuxDB)
+
+	// load duplicate tx hashes from db
 	dupEVMTxHashes := make(map[string]bool)
 	iter := evmAuxDB.NewIterator(
 		&goutil.Range{Start: dupTxHashPrefix, Limit: util.PrefixRangeEnd(dupTxHashPrefix)},
@@ -58,7 +61,9 @@ func LoadStore() (*EvmAuxStore, error) {
 		}
 		dupEVMTxHashes[string(dupTxHash)] = true
 	}
-	return NewEvmAuxStore(evmAuxDB, dupEVMTxHashes), nil
+	evmAuxStore.SetDupEVMTxHashes(dupEVMTxHashes)
+
+	return evmAuxStore, nil
 }
 
 // ChildTxRef links a Tendermint tx hash to an EVM tx hash.
@@ -72,15 +77,19 @@ type EvmAuxStore struct {
 	dupEVMTxHashes map[string]bool
 }
 
-func NewEvmAuxStore(db *leveldb.DB, dupEVMTxHashes map[string]bool) *EvmAuxStore {
+func NewEvmAuxStore(db *leveldb.DB) *EvmAuxStore {
 	return &EvmAuxStore{
 		db:             db,
-		dupEVMTxHashes: dupEVMTxHashes,
+		dupEVMTxHashes: make(map[string]bool),
 	}
 }
 
 func (s *EvmAuxStore) Close() error {
 	return s.db.Close()
+}
+
+func (s *EvmAuxStore) SetDupEVMTxHashes(dupEVMTxHashes map[string]bool) {
+	s.dupEVMTxHashes = dupEVMTxHashes
 }
 
 func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {

@@ -76,6 +76,6 @@ func NewMockEvmAuxStore() (*evmaux.EvmAuxStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	evmAuxStore := evmaux.NewEvmAuxStore(evmAuxDB, nil)
+	evmAuxStore := evmaux.NewEvmAuxStore(evmAuxDB)
 	return evmAuxStore, nil
 }

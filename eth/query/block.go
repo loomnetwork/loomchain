@@ -181,7 +181,7 @@ func GetTxObjectFromBlockResult(
 				contractAddress = eth.EncPtrAddress(resp.Contract)
 				if len(respData.TxHash) > 0 {
 					// Check duplicate EVM tx hash before using it
-					if evmAuxStore.IsDupEVMTxHash(respData.TxHash) {
+					if !evmAuxStore.IsDupEVMTxHash(respData.TxHash) {
 						txObj.Hash = eth.EncBytes(respData.TxHash)
 					}
 				}
@@ -201,7 +201,7 @@ func GetTxObjectFromBlockResult(
 			txObj.To = &to
 			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
 				// Check duplicate EVM tx hash before using it
-				if evmAuxStore.IsDupEVMTxHash(txResultData) {
+				if !evmAuxStore.IsDupEVMTxHash(txResultData) {
 					txObj.Hash = eth.EncBytes(txResultData)
 				}
 			}
