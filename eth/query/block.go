@@ -180,7 +180,10 @@ func GetTxObjectFromBlockResult(
 				}
 				contractAddress = eth.EncPtrAddress(resp.Contract)
 				if len(respData.TxHash) > 0 {
-					txObj.Hash = eth.EncBytes(respData.TxHash)
+					// Check duplicate EVM tx hash before using it
+					if evmAuxStore.IsDupEVMTxHash(respData.TxHash) {
+						txObj.Hash = eth.EncBytes(respData.TxHash)
+					}
 				}
 			}
 			if deployTx.Value != nil {
@@ -197,7 +200,10 @@ func GetTxObjectFromBlockResult(
 			to := eth.EncAddress(msg.To)
 			txObj.To = &to
 			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
-				txObj.Hash = eth.EncBytes(txResultData)
+				// Check duplicate EVM tx hash before using it
+				if evmAuxStore.IsDupEVMTxHash(txResultData) {
+					txObj.Hash = eth.EncBytes(txResultData)
+				}
 			}
 			if callTx.Value != nil {
 				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
@@ -211,14 +217,6 @@ func GetTxObjectFromBlockResult(
 		return eth.GetEmptyTxObject(), nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}
 	txObj.Input = eth.EncBytes(input)
-
-	evmTxHash, err := eth.DecDataToBytes(txObj.Hash)
-	if err != nil {
-		return eth.GetEmptyTxObject(), nil, err
-	}
-	if evmAuxStore.IsDupEVMTxHash(evmTxHash) {
-		txObj.Hash = eth.EncBytes(tx.Hash())
-	}
 
 	return txObj, contractAddress, nil
 }

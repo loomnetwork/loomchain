@@ -45,7 +45,20 @@ func LoadStore() (*EvmAuxStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewEvmAuxStore(evmAuxDB), nil
+	dupEVMTxHashes := make(map[string]bool)
+	iter := evmAuxDB.NewIterator(
+		&goutil.Range{Start: dupTxHashPrefix, Limit: util.PrefixRangeEnd(dupTxHashPrefix)},
+		nil,
+	)
+	defer iter.Release()
+	for iter.Next() {
+		dupTxHash, err := util.UnprefixKey(iter.Key(), dupTxHashPrefix)
+		if err != nil {
+			panic(err)
+		}
+		dupEVMTxHashes[string(dupTxHash)] = true
+	}
+	return NewEvmAuxStore(evmAuxDB, dupEVMTxHashes), nil
 }
 
 // ChildTxRef links a Tendermint tx hash to an EVM tx hash.
@@ -59,21 +72,7 @@ type EvmAuxStore struct {
 	dupEVMTxHashes map[string]bool
 }
 
-func NewEvmAuxStore(db *leveldb.DB) *EvmAuxStore {
-	dupEVMTxHashes := make(map[string]bool)
-	iter := db.NewIterator(
-		&goutil.Range{Start: dupTxHashPrefix, Limit: util.PrefixRangeEnd(dupTxHashPrefix)},
-		nil,
-	)
-	defer iter.Release()
-	for iter.Next() {
-		dupTxHash, err := util.UnprefixKey(iter.Key(), dupTxHashPrefix)
-		if err != nil {
-			panic(err)
-		}
-		dupEVMTxHashes[string(dupTxHash)] = true
-	}
-
+func NewEvmAuxStore(db *leveldb.DB, dupEVMTxHashes map[string]bool) *EvmAuxStore {
 	return &EvmAuxStore{
 		db:             db,
 		dupEVMTxHashes: dupEVMTxHashes,
