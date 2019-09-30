@@ -2,10 +2,39 @@ package evmaux
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoadDupEvmTxHashes(t *testing.T) {
+
+	// load to set dup tx hashes
+	evmAuxStore, err := LoadStore()
+
+	require.NoError(t, err)
+	// add dup EVM txhash keys prefixed with dtx
+	for i := 0; i < 100; i++ {
+		evmAuxStore.db.Put(dupTxHashKey([]byte(fmt.Sprintf("hash:%d", i))), []byte{1}, nil)
+	}
+	// add 100 keys prefixed with hash
+	for i := 0; i < 100; i++ {
+		evmAuxStore.db.Put([]byte(fmt.Sprintf("hash:%d", i)), []byte{1}, nil)
+	}
+	// add another 100 keys prefixed with ahash
+	for i := 0; i < 100; i++ {
+		evmAuxStore.db.Put([]byte(fmt.Sprintf("ahash:%d", i)), []byte{1}, nil)
+	}
+	require.NoError(t, evmAuxStore.Close())
+
+	evmAuxStore2, err := LoadStore()
+	require.NoError(t, err)
+	dupEvmTxHashes := evmAuxStore2.GetDupEVMTxHashes()
+	require.Equal(t, 100, len(dupEvmTxHashes))
+	evmAuxStore2.Close()
+	evmAuxStore2.ClearData()
+}
 
 func TestTxHashOperation(t *testing.T) {
 	txHashList1 := [][]byte{
