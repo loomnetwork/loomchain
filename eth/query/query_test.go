@@ -244,7 +244,7 @@ func TestDupEvmTxHash(t *testing.T) {
 	deployTx, err := proto.Marshal(&vm.DeployTx{
 		VmType: vm.VMType_EVM,
 	})
-	callTx, err := proto.Marshal(&vm.DeployTx{
+	callTx, err := proto.Marshal(&vm.CallTx{
 		VmType: vm.VMType_EVM,
 	})
 
@@ -294,11 +294,13 @@ func TestDupEvmTxHash(t *testing.T) {
 	txObj, _, err := GetTxObjectFromBlockResult(blockResultDeployTx, txResultData1, int64(0), evmAuxStore)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash1)))
+	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(ttypes.Tx(signedDeployTxBytes).Hash())))
 
-	// txhash3 is dup, so the returned hash must not be equal
+	// txhash2 is dup, so the returned hash must not be equal
 	txObj, _, err = GetTxObjectFromBlockResult(blockResultCallTx, txResultData2, int64(0), evmAuxStore)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash2)))
+	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(ttypes.Tx(signedCallTxBytes).Hash())))
 
 	// txhash3 is unique, so the returned hash must be equal
 	txObj, _, err = GetTxObjectFromBlockResult(blockResultDeployTx, txResultData3, int64(0), evmAuxStore)

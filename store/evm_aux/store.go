@@ -57,7 +57,7 @@ func LoadStore() (*EvmAuxStore, error) {
 	for iter.Next() {
 		dupTxHash, err := util.UnprefixKey(iter.Key(), dupTxHashPrefix)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		dupEVMTxHashes[string(dupTxHash)] = true
 	}
