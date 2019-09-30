@@ -95,6 +95,10 @@
                         "status": "WAITING"
                     },
                     {
+                        "name": "receipts:v3.4",
+                        "status": "WAITING"
+                    },
+                    {
                         "name": "appstore:v3.1",
                         "status": "WAITING"
                     },
