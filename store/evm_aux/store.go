@@ -92,6 +92,10 @@ func (s *EvmAuxStore) SetDupEVMTxHashes(dupEVMTxHashes map[string]bool) {
 	s.dupEVMTxHashes = dupEVMTxHashes
 }
 
+func (s *EvmAuxStore) GetDupEVMTxHashes() map[string]bool {
+	return s.dupEVMTxHashes
+}
+
 func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {
 	filter, err := s.db.Get(bloomFilterKey(height), nil)
 	if err != nil && err != leveldb.ErrNotFound {

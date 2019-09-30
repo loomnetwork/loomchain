@@ -234,10 +234,10 @@ func TestGetLogs(t *testing.T) {
 
 func TestDupEvmTxHash(t *testing.T) {
 	blockTxHash := getRandomTxHash()
-	txHash1 := getRandomTxHash()
-	txHash2 := getRandomTxHash()
-	txHash3 := getRandomTxHash()
-	txHash4 := getRandomTxHash()
+	txHash1 := getRandomTxHash() // DeployEVMTx that has dup EVM Tx Hash
+	txHash2 := getRandomTxHash() // CallEVMTx that has dup EVM Tx Hash
+	txHash3 := getRandomTxHash() // DeploEVMTx that has unique EVM Tx Hash
+	txHash4 := getRandomTxHash() // CallEVMTx that has unique EVM Tx Hash
 	from := loom.MustParseAddress("default:0x7262d4c97c7B93937E4810D289b7320e9dA82857")
 	to := loom.MustParseAddress("default:0x7262d4c97c7B93937E4810D289b7320e9dA82857")
 
@@ -290,22 +290,22 @@ func TestDupEvmTxHash(t *testing.T) {
 	txResultData3 := mockDeployResponse(txHash3)
 	txResultData4 := txHash4
 
-	// EVM txhash1 is dup, so the return hash must not be equal
+	// txhash1 is dup, so the returned hash must not be equal
 	txObj, _, err := GetTxObjectFromBlockResult(blockResultDeployTx, txResultData1, int64(0), evmAuxStore)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash1)))
 
-	// EVM txhash3 is dup, so the return hash must not be equal
+	// txhash3 is dup, so the returned hash must not be equal
 	txObj, _, err = GetTxObjectFromBlockResult(blockResultCallTx, txResultData2, int64(0), evmAuxStore)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash2)))
 
-	// EVM txhash3 is unique, so the return hash must be equal
+	// txhash3 is unique, so the returned hash must be equal
 	txObj, _, err = GetTxObjectFromBlockResult(blockResultDeployTx, txResultData3, int64(0), evmAuxStore)
 	require.NoError(t, err)
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash3)))
 
-	// EVM txhash4 is unique, so the return hash must be equal
+	// txhash4 is unique, so the returned hash must be equal
 	txObj, _, err = GetTxObjectFromBlockResult(blockResultCallTx, txResultData4, int64(0), evmAuxStore)
 	require.NoError(t, err)
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash4)))
