@@ -1087,8 +1087,41 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 	return eth.EncBytes(storage), nil
 }
 
-func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
-	return eth.Quantity("0x0"), nil
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_estimateGas
+func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Quantity, err error) {
+	var caller loom.Address
+	if len(query.From) > 0 {
+		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
+		if err != nil {
+			return resp, err
+		}
+	} else {
+		caller = loom.RootAddress(s.ChainID)
+	}
+	fmt.Printf("\ncaller : %+v\n", caller)
+	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
+	if err != nil {
+		return resp, err
+	}
+	fmt.Printf("\ncontract : %+v\n", contract)
+	data, err := eth.DecDataToBytes(query.Data)
+	if err != nil {
+		return resp, err
+	}
+	fmt.Printf("\ndata : %+v\n", data)
+	var amount *loom.BigUInt
+	val, err := eth.DecQuantityToUint(query.Value)
+	if err != nil {
+		return resp, err
+	}
+	amount.SetUint64(val)
+	fmt.Printf("\namount : %+v\n", amount)
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	gasUsed, err := vm.EstimateGas(caller, contract, data, amount)
+	return eth.EncUint(gasUsed), err
 }
 
 func (s *QueryServer) EthGasPrice() (eth.Quantity, error) {

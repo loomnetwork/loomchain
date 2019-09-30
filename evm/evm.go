@@ -264,6 +264,32 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 	return result.Bytes(), nil
 }
 
+func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.BigUInt) (uint64, error) {
+	var err error
+	var usedGas uint64
+
+	origin := common.BytesToAddress(caller.Local)
+	contract := common.BytesToAddress(addr.Local)
+	vmenv := e.NewEnv(origin)
+
+	var val *big.Int
+	if value == nil {
+		val = common.Big0
+	} else {
+		val = value.Int
+		if val == nil {
+			//there seems like there are serialization issues where we can get bad data here
+			val = common.Big0
+		}
+		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
+			return 0, errors.Errorf("value %v must be non negative", value)
+		}
+	}
+	_, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
+	usedGas = e.gasLimit - leftOverGas
+	return usedGas, err
+}
+
 // TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
