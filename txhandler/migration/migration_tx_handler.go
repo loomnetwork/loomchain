@@ -1,4 +1,4 @@
-package tx_handler
+package migration
 
 import (
 	"bytes"

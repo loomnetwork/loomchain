@@ -16,9 +16,9 @@ import (
 	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/txhandler/middleware"
+	"github.com/loomnetwork/loomchain/txhandler/migration"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -191,10 +191,10 @@ func router(
 		Manager: &vmManager,
 	}
 
-	migrationTxHandler := &tx_handler.MigrationTxHandler{
+	migrationTxHandler := &migration.MigrationTxHandler{
 		Manager:        &vmManager,
 		CreateRegistry: createRegistry,
-		Migrations: map[int32]tx_handler.MigrationFunc{
+		Migrations: map[int32]migration.MigrationFunc{
 			1: migrations.DPOSv3Migration,
 			2: migrations.GatewayMigration,
 			3: migrations.GatewayMigration,
