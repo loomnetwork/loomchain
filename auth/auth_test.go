@@ -17,10 +17,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 )
 
-var nonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
-
-var nonceTxPostNonceMiddleware = loomchain.PostCommitMiddlewareFunc(nonceTxHandler.IncNonce)
-
 func TestSignatureTxMiddleware(t *testing.T) {
 	origBytes := []byte("hello")
 	_, privKey, err := ed25519.GenerateKey(nil)
@@ -41,6 +37,9 @@ func TestSignatureTxMiddleware(t *testing.T) {
 }
 
 func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
+	nonceTxHandler := NewNonceHandler()
+	nonceTxPostNonceMiddleware := nonceTxHandler.PostCommitMiddleware()
+
 	pubkey, _, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
@@ -139,6 +138,9 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 }
 
 func TestRevertedTxNonceMiddleware(t *testing.T) {
+	nonceTxHandler := NewNonceHandler()
+	nonceTxPostNonceMiddleware := nonceTxHandler.PostCommitMiddleware()
+
 	pubkey, _, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)

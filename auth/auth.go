@@ -100,6 +100,10 @@ type NonceHandler struct {
 	lastHeight int64
 }
 
+func NewNonceHandler() *NonceHandler {
+	return &NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
+}
+
 func (n *NonceHandler) Nonce(
 	state loomchain.State,
 	kvStore store.KVStore,
@@ -163,7 +167,8 @@ func (n *NonceHandler) Nonce(
 	return next(state, tx.Inner, isCheckTx)
 }
 
-func (n *NonceHandler) IncNonce(state loomchain.State,
+func (n *NonceHandler) IncNonce(
+	state loomchain.State,
 	txBytes []byte,
 	result loomchain.TxHandlerResult,
 	postcommit loomchain.PostCommitHandler,
@@ -186,21 +191,17 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 	return nil
 }
 
-func NewNonceHandler() *NonceHandler {
-	return &NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
-}
-
-func GetNonceTxMiddleware(kvStore store.KVStore, nonceTxHandler *NonceHandler) loomchain.TxMiddlewareFunc {
+func (n *NonceHandler) TxMiddleware(kvStore store.KVStore) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
-		return nonceTxHandler.Nonce(state, kvStore, txBytes, next, isCheckTx)
+		return n.Nonce(state, kvStore, txBytes, next, isCheckTx)
 	})
 }
 
-func GetNonceTxPostNonceMiddleware(nonceTxHandler *NonceHandler) loomchain.PostCommitMiddlewareFunc {
-	return nonceTxHandler.IncNonce
+func (n *NonceHandler) PostCommitMiddleware() loomchain.PostCommitMiddlewareFunc {
+	return loomchain.PostCommitMiddlewareFunc(n.IncNonce)
 }
