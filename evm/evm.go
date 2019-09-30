@@ -306,7 +306,7 @@ func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 }
 
 func createVmConfig(evmDebuggingEnabled bool, tracer vm.Tracer) (vm.Config, error) {
-	if evmDebuggingEnabled {
+	if evmDebuggingEnabled || tracer != nil {
 		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
 	}
 	if tracer == nil {
@@ -320,7 +320,7 @@ func createVmConfig(evmDebuggingEnabled bool, tracer vm.Tracer) (vm.Config, erro
 	}
 	return vm.Config{
 		// Debug enabled debugging Interpreter options
-		Debug: evmDebuggingEnabled,
+		Debug: evmDebuggingEnabled || (tracer != nil),
 		// Tracer is the op code logger
 		Tracer: tracer,
 		// NoRecursion disabled Interpreter call, callcode,

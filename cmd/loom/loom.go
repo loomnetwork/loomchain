@@ -15,10 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/prometheus/client_golang/prometheus/push"
-	"github.com/tendermint/tendermint/libs/db"
-
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -27,8 +23,11 @@ import (
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/crypto"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/tendermint/tendermint/libs/db"
 
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
