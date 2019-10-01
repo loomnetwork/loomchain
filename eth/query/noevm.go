@@ -20,7 +20,7 @@ func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ 
 	return eth.JsonBlockObject{}, nil
 }
 
-func GetTxObjectFromBlockResult(_ *ctypes.ResultBlock, _ []byte, _ int64) (eth.JsonTxObject, *eth.Data, error) {
+func GetTxObjectFromBlockResult(_ *ctypes.ResultBlock, _ []byte, _ int64, _ *evmaux.EvmAuxStore) (eth.JsonTxObject, *eth.Data, error) {
 	return eth.JsonTxObject{}, nil, nil
 }
 
@@ -52,7 +52,7 @@ func GetTxByHash(_ loomchain.ReadOnlyState, _ store.BlockStore, _ []byte, _ loom
 	return eth.JsonTxObject{}, nil
 }
 
-func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64) (txObj eth.JsonTxObject, err error) {
+func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64, _ *evmaux.EvmAuxStore) (txObj eth.JsonTxObject, err error) {
 	return eth.JsonTxObject{}, nil
 }
 
