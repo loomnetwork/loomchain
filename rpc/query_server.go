@@ -271,7 +271,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false)
+	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, nil, false)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
@@ -312,7 +312,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	vm := levm.NewLoomVm(snapshot, nil, nil, nil, nil, false)
 	return vm.GetCode(contractAddr)
 }
 
@@ -326,7 +326,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, nil, false)
 	code, err := evm.GetCode(addr)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting evm code for %v", address)
@@ -1079,7 +1079,7 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 		return "", errors.Wrapf(err, "unable to get storage at height %v", block)
 	}
 
-	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, nil, false)
 	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get EVM storage at %v", address.Local.String())

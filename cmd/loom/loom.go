@@ -819,7 +819,14 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(
+				state,
+				eventHandler,
+				receiptHandlerProvider.Writer(),
+				createABM,
+				getContractStaticCtx("addressmapper", vmManager),
+				cfg.EVMDebugEnabled,
+			), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -859,7 +866,7 @@ func loadApp(
 		state.Set(configKey, configBytes)
 
 		registry := createRegistry(state)
-		evm.AddLoomPrecompiles()
+		//evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
 			err := deployContract(
 				state,

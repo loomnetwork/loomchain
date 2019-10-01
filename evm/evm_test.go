@@ -16,13 +16,17 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
+	sha3 "github.com/miguelmota/go-solidity-sha3"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
@@ -130,7 +134,7 @@ func TestPrecompilesAssembly(t *testing.T) {
 	abiPc, pcAddr := deploySolContract(t, caller, "CallPrecompiles", vm)
 
 	numEthPreCompiles := len(ethvm.PrecompiledContractsByzantium)
-	AddLoomPrecompiles()
+	//AddLoomPrecompiles()
 	require.Equal(t, numEthPreCompiles+numLoomPreCompiles, len(ethvm.PrecompiledContractsByzantium))
 
 	msg := []byte("TestInput")
@@ -192,6 +196,49 @@ func testValue(t *testing.T, state loomchain.State, vm lvm.VM, caller loom.Addre
 		require.Error(t, err)
 		require.Equal(t, err.Error(), fmt.Sprintf("value %v must be non negative", big.NewInt(value)))
 	}
+}
+
+func TestEcrecover(t *testing.T) {
+	caller := loom.Address{
+		ChainID: "myChainID",
+		Local:   []byte("myCaller"),
+	}
+
+	manager := lvm.NewManager()
+	manager.Register(lvm.VMType_EVM, LoomVmFactory)
+	state := mockState()
+	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
+	abiEc, ecAddr := deploySolContract(t, caller, "TestEcrecover", vm)
+
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	require.NoError(t, err)
+	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
+	signer := &auth.EthSigner66Byte{privateKey}
+	mockTx := []byte("mock tx")
+	signature := signer.Sign(mockTx)
+	publicKey := signer.PublicKey()
+	fmt.Printf("publickey %s or\n %x\n", ethPublicAddr.String(), publicKey)
+
+	//hash := sha3.SoliditySHA3(mockTx)
+	require.Len(t, signature, 66)
+	var hash, r, s [32]byte
+	copy(hash[:], sha3.SoliditySHA3(mockTx)[:])
+	copy(r[:], signature[1:33])
+	copy(s[:], signature[33:65])
+	v := signature[65]
+	_ = hash
+	_ = v
+	_ = r
+	_ = s
+
+	input, err := abiEc.Pack("QueryEcrecover", hash, v, r, s)
+	require.NoError(t, err, "packing parameters")
+	//_, err = vm.Call(caller, ecAddr, input, nil)//loom.NewBigUIntFromInt(7))
+	result, err := vm.StaticCall(caller, ecAddr, input)
+	fmt.Println("static call output", result, "error", err)
+	require.NoError(t, err)
 }
 
 // This tests that the Solidity global variables match the corresponding

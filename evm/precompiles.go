@@ -5,10 +5,15 @@ package evm
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+
+	"github.com/loomnetwork/loomchain"
 )
 
-func AddLoomPrecompiles() {
+func AddLoomPrecompiles(_state loomchain.State, createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error)) {
 	index := len(vm.PrecompiledContractsByzantium) + 1
+	vm.PrecompiledContractsByzantium[common.BytesToAddress([]byte{byte(index)})] = NewMappedAccountPCF(_state, createAddressMapperCtx)
+	index++
 	vm.PrecompiledContractsByzantium[common.BytesToAddress([]byte{byte(index)})] = &TransferWithBlockchain{}
 	index++
 	vm.PrecompiledContractsByzantium[common.BytesToAddress([]byte{byte(index)})] = &TransferPlasmaToken{}

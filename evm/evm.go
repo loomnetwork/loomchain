@@ -180,6 +180,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 			abm.Transfer(from, to, amount)
 		}
 	}
+	customLoomPrecompiles()
 	return p
 }
 
