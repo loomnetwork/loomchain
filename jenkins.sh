@@ -5,7 +5,6 @@ set -ex
 PKG=github.com/loomnetwork/loomchain
 
 # setup temp GOPATH
-export GO111MODULE=off
 export GOPATH=/tmp/gopath-$BUILD_TAG
 export
 export PATH=$GOPATH:$PATH:/var/lib/jenkins/workspace/commongopath/bin:$GOPATH/bin
