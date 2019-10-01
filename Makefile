@@ -190,7 +190,7 @@ $(SSHA3_DIR):
 
 $(TRANSFER_GATEWAY_DIR):
 	git clone -q git@github.com:loomnetwork/transfer-gateway.git $@
-	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV)
+	cd $(TRANSFER_GATEWAY_DIR) && git checkout master && git pull && git checkout $(TG_GIT_REV) && git pull origin $(TG_GIT_REV)
 
 $(BINANCE_TGORACLE_DIR):
 	git clone -q git@github.com:loomnetwork/binance-tgoracle.git $@
