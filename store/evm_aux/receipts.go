@@ -115,22 +115,51 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 	// Set BloomFilter
 	filter := bloom.GenBloomFilter(events)
 	batch.Set(bloomFilterKey(height), filter)
+
 	// Commit
 	batch.WriteSync()
 
-	// clear old receipts if the number of receipts exceeds the limit
-	batch = s.db.NewBatch()
-	if s.maxReceipts < size {
-		var numDeleted uint64
-		headHash, numDeleted, err = removeOldEntries(s.db, batch, headHash, size-s.maxReceipts)
-		if err != nil {
-			return errors.Wrap(err, "removing old receipts")
-		}
-		if size < numDeleted {
-			return errors.Wrap(err, "invalid count of deleted receipts")
-		}
-		size -= numDeleted
+	return s.RemoveOldReceipts()
+}
+
+// RemoveOldReceipts removes old receipts once the number of receipts exceeds the limit
+// TODO: This function is not used in the production since we keep all the receipts.
+//       We should probaby get rid of it and the entire linked-list structure.
+func (s *EvmAuxStore) RemoveOldReceipts() error {
+	size, headHash, tailHash, err := s.getDBParams()
+	if err != nil {
+		return errors.Wrap(err, "getting db params.")
 	}
+
+	// do nothing if the number of receipts does not exceed the limit
+	if s.maxReceipts >= size {
+		return nil
+	}
+
+	batch := s.db.NewBatch()
+
+	var numDeleted uint64
+	itemsDeleted := uint64(0)
+	head := headHash
+	toDeletedReceipt := size - s.maxReceipts
+	for i := uint64(0); i < toDeletedReceipt && len(head) > 0; i++ {
+		headItem := s.db.Get(head)
+		txHeadReceiptItem := types.EvmTxReceiptListItem{}
+		if err := proto.Unmarshal(headItem, &txHeadReceiptItem); err != nil {
+			return errors.Wrapf(err, "unmarshal head %s", string(headItem))
+		}
+		batch.Delete(head)
+		itemsDeleted++
+		head = txHeadReceiptItem.NextTxHash
+	}
+	if itemsDeleted < toDeletedReceipt {
+		return errors.Errorf("Unable to delete %v receipts, only %v deleted", toDeletedReceipt, itemsDeleted)
+	}
+	if size < numDeleted {
+		return errors.Wrap(err, "invalid count of deleted receipts")
+	}
+	size -= numDeleted
+
 	setDBParams(batch, size, headHash, tailHash)
 	batch.WriteSync()
 	return nil
@@ -167,23 +196,4 @@ func setDBParams(batch dbm.Batch, size uint64, head, tail []byte) {
 	sizeB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sizeB, size)
 	batch.Set(currentDbSizeKey, sizeB)
-}
-
-func removeOldEntries(db dbm.DB, batch dbm.Batch, head []byte, number uint64) ([]byte, uint64, error) {
-	itemsDeleted := uint64(0)
-	for i := uint64(0); i < number && len(head) > 0; i++ {
-		headItem := db.Get(head)
-		txHeadReceiptItem := types.EvmTxReceiptListItem{}
-		if err := proto.Unmarshal(headItem, &txHeadReceiptItem); err != nil {
-			return head, itemsDeleted, errors.Wrapf(err, "unmarshal head %s", string(headItem))
-		}
-		batch.Delete(head)
-		itemsDeleted++
-		head = txHeadReceiptItem.NextTxHash
-	}
-	if itemsDeleted < number {
-		return head, itemsDeleted, errors.Errorf("Unable to delete %v receipts, only %v deleted", number, itemsDeleted)
-	}
-
-	return head, itemsDeleted, nil
 }

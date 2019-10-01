@@ -1,39 +1,44 @@
 package evmaux
 
 import (
-	"bytes"
+	"fmt"
 	"testing"
 
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/stretchr/testify/require"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
-func TestTxHashOperation(t *testing.T) {
-	txHashList1 := [][]byte{
-		[]byte("hash1"),
-		[]byte("hash2"),
-	}
-	evmAuxStore := NewEvmAuxStore(dbm.NewMemDB(), 10000)
-	txHashList, err := evmAuxStore.GetTxHashList(40)
-	require.NoError(t, err)
-	require.Equal(t, 0, len(txHashList))
-	require.NoError(t, err)
-	evmAuxStore.setTxHashList(txHashList1, 30)
-	evmAuxStore.Commit()
-	txHashList, err = evmAuxStore.GetTxHashList(30)
-	require.NoError(t, err)
-	require.Equal(t, 2, len(txHashList))
-	require.Equal(t, true, bytes.Equal(txHashList1[0], txHashList1[0]))
-	require.Equal(t, true, bytes.Equal(txHashList1[1], txHashList1[1]))
-}
+func TestLoadDupEvmTxHashes(t *testing.T) {
 
-func TestBloomFilterOperation(t *testing.T) {
-	bf1 := []byte("bloomfilter1")
-	evmAuxStore := NewEvmAuxStore(dbm.NewMemDB(), 10000)
-	bf := evmAuxStore.GetBloomFilter(40)
-	require.Nil(t, bf)
-	evmAuxStore.setBloomFilter(bf1, 30)
-	evmAuxStore.Commit()
-	bf = evmAuxStore.GetBloomFilter(30)
-	require.Equal(t, true, bytes.Equal(bf, bf1))
+	evmAuxDB := dbm.NewMemDB()
+	// load to set dup tx hashes
+	evmAuxStore := NewEvmAuxStore(evmAuxDB, 10000)
+	// add dup EVM txhash keys prefixed with dtx
+	for i := 0; i < 100; i++ {
+		evmAuxStore.db.Set(dupTxHashKey([]byte(fmt.Sprintf("hash:%d", i))), []byte{1})
+	}
+	// add 100 keys prefixed with hash
+	for i := 0; i < 100; i++ {
+		evmAuxStore.db.Set([]byte(fmt.Sprintf("hash:%d", i)), []byte{1})
+	}
+	// add another 100 keys prefixed with ahash
+	for i := 0; i < 100; i++ {
+		evmAuxStore.db.Set([]byte(fmt.Sprintf("ahash:%d", i)), []byte{1})
+	}
+
+	dupEVMTxHashes := make(map[string]bool)
+	iter := evmAuxDB.Iterator(
+		dupTxHashPrefix, util.PrefixRangeEnd(dupTxHashPrefix),
+	)
+	defer iter.Close()
+	for iter.Valid() {
+		dupTxHash, err := util.UnprefixKey(iter.Key(), dupTxHashPrefix)
+		require.NoError(t, err)
+		dupEVMTxHashes[string(dupTxHash)] = true
+		iter.Next()
+	}
+	evmAuxStore.SetDupEVMTxHashes(dupEVMTxHashes)
+	dupEvmTxHashes := evmAuxStore.GetDupEVMTxHashes()
+	require.Equal(t, 100, len(dupEvmTxHashes))
 }
