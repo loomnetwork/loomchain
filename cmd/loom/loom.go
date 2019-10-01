@@ -590,7 +590,11 @@ func destroyApp(cfg *config.Config) error {
 
 func destroyReceiptsDB(cfg *config.Config) error {
 	if cfg.ReceiptsVersion == 2 || cfg.ReceiptsVersion == 3 {
-		err := os.RemoveAll(filepath.Join(cfg.RootPath(), cfg.EvmAuxStore.DBName+".db"))
+		dbPath := filepath.Join(cfg.RootPath(), cfg.EvmAuxStore.DBName+".db")
+		if util.FileExists(dbPath) {
+			return nil
+		}
+		err := os.RemoveAll(dbPath)
 		if err != nil {
 			return err
 		}

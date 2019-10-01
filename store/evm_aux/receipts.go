@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -38,7 +39,8 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		return nil
 	}
 
-	s.Rollback()
+	batch := s.db.NewBatch()
+
 	size, headHash, tailHash, err := s.getDBParams()
 	if err != nil {
 		return errors.Wrap(err, "getting db params.")
@@ -72,7 +74,7 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 				log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 				continue
 			}
-			s.batch.Set(tailHash, protoTail)
+			batch.Set(tailHash, protoTail)
 			if !s.db.Has(tailHash) {
 				size++
 			}
@@ -96,24 +98,31 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		if err != nil {
 			log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 		} else {
-			s.batch.Set(tailHash, protoTail)
+			batch.Set(tailHash, protoTail)
 			if !s.db.Has(tailHash) {
 				size++
 			}
 		}
 	}
-	s.setDBParams(size, headHash, tailHash)
-	filter := bloom.GenBloomFilter(events)
-	if err := s.setTxHashList(txHashArray, height); err != nil {
-		return errors.Wrap(err, "append tx list")
+	setDBParams(batch, size, headHash, tailHash)
+
+	// Set TxHashList
+	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashArray})
+	if err != nil {
+		return errors.Wrap(err, "marshal tx hash list")
 	}
-	s.setBloomFilter(filter, height)
-	s.Commit()
+	batch.Set(evmTxHashKey(height), postTxHashList)
+	// Set BloomFilter
+	filter := bloom.GenBloomFilter(events)
+	batch.Set(bloomFilterKey(height), filter)
+	// Commit
+	batch.WriteSync()
 
 	// clear old receipts if the number of receipts exceeds the limit
+	batch = s.db.NewBatch()
 	if s.maxReceipts < size {
 		var numDeleted uint64
-		headHash, numDeleted, err = s.removeOldEntries(headHash, size-s.maxReceipts)
+		headHash, numDeleted, err = removeOldEntries(s.db, batch, headHash, size-s.maxReceipts)
 		if err != nil {
 			return errors.Wrap(err, "removing old receipts")
 		}
@@ -122,8 +131,8 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 		}
 		size -= numDeleted
 	}
-	s.setDBParams(size, headHash, tailHash)
-	s.Commit()
+	setDBParams(batch, size, headHash, tailHash)
+	batch.WriteSync()
 	return nil
 }
 
@@ -152,23 +161,23 @@ func (s *EvmAuxStore) getDBParams() (size uint64, head, tail []byte, err error) 
 	return size, head, tail, nil
 }
 
-func (s *EvmAuxStore) setDBParams(size uint64, head, tail []byte) {
-	s.batch.Set(headKey, head)
-	s.batch.Set(tailKey, tail)
+func setDBParams(batch dbm.Batch, size uint64, head, tail []byte) {
+	batch.Set(headKey, head)
+	batch.Set(tailKey, tail)
 	sizeB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sizeB, size)
-	s.batch.Set(currentDbSizeKey, sizeB)
+	batch.Set(currentDbSizeKey, sizeB)
 }
 
-func (s *EvmAuxStore) removeOldEntries(head []byte, number uint64) ([]byte, uint64, error) {
+func removeOldEntries(db dbm.DB, batch dbm.Batch, head []byte, number uint64) ([]byte, uint64, error) {
 	itemsDeleted := uint64(0)
 	for i := uint64(0); i < number && len(head) > 0; i++ {
-		headItem := s.db.Get(head)
+		headItem := db.Get(head)
 		txHeadReceiptItem := types.EvmTxReceiptListItem{}
 		if err := proto.Unmarshal(headItem, &txHeadReceiptItem); err != nil {
 			return head, itemsDeleted, errors.Wrapf(err, "unmarshal head %s", string(headItem))
 		}
-		s.batch.Delete(head)
+		batch.Delete(head)
 		itemsDeleted++
 		head = txHeadReceiptItem.NextTxHash
 	}

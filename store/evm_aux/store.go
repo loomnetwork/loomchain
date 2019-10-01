@@ -8,7 +8,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/pkg/errors"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
@@ -73,14 +72,12 @@ type ChildTxRef struct {
 
 type EvmAuxStore struct {
 	db          dbm.DB
-	batch       dbm.Batch
 	maxReceipts uint64
 }
 
 func NewEvmAuxStore(db dbm.DB, maxReceipts uint64) *EvmAuxStore {
 	return &EvmAuxStore{
 		db:          db,
-		batch:       db.NewBatch(),
 		maxReceipts: maxReceipts,
 	}
 }
@@ -101,19 +98,6 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 	txHashList := types.EthTxHashList{}
 	err := proto.Unmarshal(protHashList, &txHashList)
 	return txHashList.EthTxHash, err
-}
-
-func (s *EvmAuxStore) setBloomFilter(filter []byte, height uint64) {
-	s.batch.Set(bloomFilterKey(height), filter)
-}
-
-func (s *EvmAuxStore) setTxHashList(txHashList [][]byte, height uint64) error {
-	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
-	if err != nil {
-		return errors.Wrap(err, "marshal tx hash list")
-	}
-	s.batch.Set(evmTxHashKey(height), postTxHashList)
-	return nil
 }
 
 // SaveChildTxRefs persists references between Tendermint & EVM tx hashes to the underlying DB.
@@ -137,13 +121,4 @@ func (s *EvmAuxStore) GetChildTxHash(parentTxHash []byte) []byte {
 
 func (s *EvmAuxStore) DB() dbm.DB {
 	return s.db
-}
-
-func (s *EvmAuxStore) Commit() {
-	s.batch.WriteSync()
-	s.Rollback()
-}
-
-func (s *EvmAuxStore) Rollback() {
-	s.batch = s.db.NewBatch()
 }
