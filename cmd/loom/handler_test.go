@@ -39,7 +39,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,
-		auth.NonceTxMiddleware(kvStore),
+		auth.NewNonceHandler().TxMiddleware(kvStore),
 	}
 
 	rootHandler := loomchain.MiddlewareTxHandler(txMiddleWare, router, nil)
