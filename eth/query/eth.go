@@ -95,23 +95,28 @@ func getBlockLogs(
 	bloomFilter := evmAuxStore.GetBloomFilter(height)
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			txObject, err := GetBlockByNumber(blockStore, state, int64(height), false, evmAuxStore)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get block at height %d", height)
-			}
-
 			var txHashList [][]byte
-			for _, txHash := range txObject.Transactions {
-				hash, err := eth.DecDataToBytes(txHash.(eth.Data))
-				if err != nil {
-					return nil, errors.Wrapf(err, "unable to decode txhash %x", txHash)
+
+			// Try get txHashList from BlockStore
+			txObject, err := GetBlockByNumber(blockStore, state, int64(height), false, evmAuxStore)
+			if err == nil {
+				for _, txHash := range txObject.Transactions {
+					hash, err := eth.DecDataToBytes(txHash.(eth.Data))
+					if err != nil {
+						return nil, errors.Wrapf(err, "unable to decode txhash %x", txHash)
+					}
+					txHashList = append(txHashList, hash)
 				}
-				txHashList = append(txHashList, hash)
 			}
 
-			if err != nil {
-				return nil, errors.Wrapf(err, "txhash for block height %d", height)
+			// Try get txHashList from EvmAuxStore instead if txHashList is empty
+			if len(txHashList) == 0 {
+				txHashList, err = evmAuxStore.GetTxHashList(height)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to get block at height %d", height)
+				}
 			}
+
 			var logsBlock []*ptypes.EthFilterLog
 			for _, txHash := range txHashList {
 				txReceipt, err := readReceipts.GetReceipt(txHash)
