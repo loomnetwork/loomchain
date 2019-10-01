@@ -95,7 +95,19 @@ func getBlockLogs(
 	bloomFilter := evmAuxStore.GetBloomFilter(height)
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			txHashList, err := evmAuxStore.GetTxHashList(height)
+			txObject, err := GetBlockByNumber(blockStore, state, int64(height), false, evmAuxStore)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get block at height %d", height)
+			}
+
+			var txHashList [][]byte
+			for _, txHash := range txObject.Transactions {
+				hash, err := eth.DecDataToBytes(txHash.(eth.Data))
+				if err != nil {
+					return nil, errors.Wrapf(err, "unable to decode txhash %x", txHash)
+				}
+				txHashList = append(txHashList, hash)
+			}
 
 			if err != nil {
 				return nil, errors.Wrapf(err, "txhash for block height %d", height)
