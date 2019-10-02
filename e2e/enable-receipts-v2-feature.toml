@@ -9,11 +9,11 @@
 [[TestCases]]
    RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
    Condition = "excludes"
-   Expected = ['receipts:v2']
+   Excluded = ['receipts:v2']
 
 [[TestCases]]
   RunCmd = "/bin/ls ./0"
-  Condition = "excludes"
+  Condition = "contains"
   Expected = ['receipts_db']
 
 [[TestCases]]
