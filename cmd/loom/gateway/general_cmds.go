@@ -72,8 +72,9 @@ const setWithdrawFeeCmdExample = `
 ./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
 `
 
-const setMxWithdrawLimitCmdExample = `
-./loom gateway set-max-withdrawal-limit 1000000 500000 gateway --key path/to/loom_priv.key
+const setWithdrawLimitCmdExample = `
+./loom gateway set-withdrawal-limit gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
+./loom gateway set-withdrawal-limit loomcoin-gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
 `
 
 const updateMainnetAddressCmdExample = `
@@ -661,12 +662,12 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 	return cmd
 }
 
-func newSetMaxWithdrawLimitCommand() *cobra.Command {
+func newSetWithdrawLimitCommand() *cobra.Command {
+	var totalLimit, accountLimit int64
 	cmd := &cobra.Command{
-		Use:     "set-max-withdrawal-limit <total-amount-limit> <per-account-amount-limit> [gateway]",
+		Use:     "set-withdrawal-limit <gateway>",
 		Short:   "Sets maximum amount the gateway should allow withdrawal",
-		Example: setMxWithdrawLimitCmdExample,
-		Args:    cobra.MinimumNArgs(2),
+		Example: setWithdrawLimitCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loomKeyPath := gatewayCmdFlags.PrivKeyPath
 			hsmPath := gatewayCmdFlags.HSMConfigPath
@@ -677,37 +678,21 @@ func newSetMaxWithdrawLimitCommand() *cobra.Command {
 			}
 
 			var name string
-			if len(args) <= 2 || strings.EqualFold(args[2], GatewayName) {
+			if len(args) <= 1 || strings.EqualFold(args[0], GatewayName) {
 				name = GatewayName
-			} else if strings.EqualFold(args[2], LoomGatewayName) {
+			} else if strings.EqualFold(args[0], LoomGatewayName) {
 				name = LoomGatewayName
 			} else {
 				return errors.New("only Gateway or LoomCoin gateway is allowed to set max withdrawal limit")
 			}
 
-			// Need to pad the amounts with 18 zeros to make sure it has enough decimals
-			var maxTotalAmount, maxPerAccountAmount *types.BigUInt
-			maxTotal, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return err
-			}
-			if maxTotal >= 0 {
-				val := sciNot(maxTotal, 18)
-				maxTotalAmount = &types.BigUInt{Value: *val}
-			} else {
-				return errors.New("Invalid total-amount-limit argument")
+			if totalLimit < 0 || accountLimit < 0 {
+				return errors.New("amount must be greater than zero")
 			}
 
-			maxPerAccount, err := strconv.ParseInt(args[1], 10, 64)
-			if err != nil {
-				return err
-			}
-			if maxTotal >= 0 {
-				val := sciNot(maxPerAccount, 18)
-				maxPerAccountAmount = &types.BigUInt{Value: *val}
-			} else {
-				return errors.New("Invalid per-account-amount-limit argument")
-			}
+			// Need to pad the amounts with 18 zeros to make sure it has enough decimals
+			maxTotalAmount := sciNot(totalLimit, 18)
+			maxPerAccountAmount := sciNot(accountLimit, 18)
 
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
@@ -717,8 +702,8 @@ func newSetMaxWithdrawLimitCommand() *cobra.Command {
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
 			req := &tgtypes.TransferGatewaySetMaxWithdrawalLimitRequest{
-				MaxTotalDailyWithdrawalAmount:      maxTotalAmount,
-				MaxPerAccountDailyWithdrawalAmount: maxPerAccountAmount,
+				MaxTotalDailyWithdrawalAmount:      &types.BigUInt{Value: *maxTotalAmount},
+				MaxPerAccountDailyWithdrawalAmount: &types.BigUInt{Value: *maxPerAccountAmount},
 			}
 
 			_, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil)
@@ -728,6 +713,8 @@ func newSetMaxWithdrawLimitCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.PersistentFlags().Int64Var(&totalLimit, "total-limit", 0, "Total limit")
+	cmd.PersistentFlags().Int64Var(&accountLimit, "account-limit", 0, "Account limit")
 	return cmd
 }
 
