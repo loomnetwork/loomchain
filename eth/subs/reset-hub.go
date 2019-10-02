@@ -40,8 +40,8 @@ func (h *ethResetHub) closeSubscription(id string) {
 
 // Publish publishes message to subscribers
 func (h *ethResetHub) Publish(message pubsub.Message) int {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
 	count := 0
 	for _, sub := range h.clients {
 		if sub.Match(message.Topic()) {
