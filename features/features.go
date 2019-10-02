@@ -100,6 +100,9 @@ const (
 	// Enables config setting in the ChainConfig contract.
 	ChainCfgVersion1_3 = "chaincfg:v1.3"
 
+	// Enables store build number to state
+	ChainCfgVersion1_4 = "chaincfg:v1.4"
+
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
 	EvmDBFeature = "db:evm"

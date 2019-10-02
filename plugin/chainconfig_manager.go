@@ -1,11 +1,9 @@
 package plugin
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/loomnetwork/go-loom"
-	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
@@ -18,7 +16,7 @@ var (
 	// ErrChainConfigContractNotFound indicates that the ChainConfig contract hasn't been deployed yet.
 	ErrChainConfigContractNotFound = errors.New("[ChainConfigManager] ChainContract contract not found")
 
-	ErrBuildNotSupported = errors.New("[ChainConfigManager] Current build not support")
+	ErrUnsupportedBuild = errors.New("[ChainConfigManager] Current build is no longer supported")
 )
 
 // ChainConfigManager implements loomchain.ChainConfigManager interface
@@ -53,12 +51,7 @@ func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigMa
 
 // EnableFeatures activates feature flags.
 func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
-	supportBuild := c.state.GetMinimumBuild()
-	if c.build < supportBuild {
-		return ErrBuildNotSupported
-	}
-
-	features, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight), c.build)
+	listFeatures, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight), c.build)
 	if err != nil {
 		// When an unsupported feature has been activated by the rest of the chain
 		// panic to prevent the node from processing any further blocks until it's
@@ -69,15 +62,19 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 		return err
 	}
 
-	for _, feature := range features {
+	supportBuild := c.state.GetMinBuildNumber()
+	if c.build < supportBuild {
+		return ErrUnsupportedBuild
+	}
+	for _, feature := range listFeatures {
 		c.state.SetFeature(feature.Name, true)
 		if feature.BuildNumber > supportBuild {
 			supportBuild = feature.BuildNumber
 		}
 	}
-	c.state.SetMinBuildNumber(supportBuild)
-	fmt.Printf("\nEnabled Feature %+v, Height %d, ChainConfig build %d\n", features, blockHeight, supportBuild)
-	fmt.Println("minimum build to run : ", supportBuild)
+	if c.state.FeatureEnabled(features.ChainCfgVersion1_4, false) {
+		c.state.SetMinBuildNumber(supportBuild)
+	}
 	return nil
 }
 
@@ -86,9 +83,9 @@ func (c *ChainConfigManager) UpdateConfig() (int, error) {
 	if !c.state.FeatureEnabled(features.ChainCfgVersion1_3, false) {
 		return 0, nil
 	}
-	supportBuild := c.state.GetMinimumBuild()
+	supportBuild := c.state.GetMinBuildNumber()
 	if c.build < supportBuild {
-		return 0, ErrBuildNotSupported
+		return 0, ErrUnsupportedBuild
 	}
 
 	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
@@ -105,30 +102,9 @@ func (c *ChainConfigManager) UpdateConfig() (int, error) {
 			}
 		}
 	}
-	c.state.SetMinBuildNumber(supportBuild)
+
+	if c.state.FeatureEnabled(features.ChainCfgVersion1_4, false) {
+		c.state.SetMinBuildNumber(supportBuild)
+	}
 	return len(settings), nil
-}
-
-func (c *ChainConfigManager) CheckUnsupportedFeatures() error {
-	features, err := chainconfig.ListFeatures(c.ctx)
-	if err != nil {
-		return err
-	}
-
-	currBuildNumber, _ := strconv.ParseUint(loomchain.Build, 10, 64)
-	var latestUnsupportedBuildNumber uint64
-	var featureName string
-	for _, feature := range features {
-		if feature.BuildNumber > currBuildNumber &&
-			feature.Status == cctypes.Feature_ENABLED &&
-			latestUnsupportedBuildNumber < feature.BuildNumber {
-			latestUnsupportedBuildNumber = feature.BuildNumber
-			featureName = feature.Name
-		}
-	}
-	if latestUnsupportedBuildNumber != 0 {
-		return errors.Errorf("current build number (%d) not support (%s) feature require build number (%d)", currBuildNumber, featureName, latestUnsupportedBuildNumber)
-	}
-
-	return nil
 }

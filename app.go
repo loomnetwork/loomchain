@@ -48,7 +48,7 @@ type State interface {
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
 	SetMinBuildNumber(uint64)
-	GetMinimumBuild() uint64
+	GetMinBuildNumber() uint64
 	ChangeConfigSetting(name, value string) error
 }
 
@@ -187,7 +187,7 @@ func (s *StoreState) SetMinBuildNumber(minbuild uint64) {
 	s.store.Set([]byte(minimumBuildKey), build)
 }
 
-func (s *StoreState) GetMinimumBuild() uint64 {
+func (s *StoreState) GetMinBuildNumber() uint64 {
 	build := s.store.Get([]byte(minimumBuildKey))
 	if bytes.Equal(build, []byte{}) {
 		return 0
@@ -332,7 +332,6 @@ type ValidatorsManager interface {
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 	UpdateConfig() (int, error)
-	CheckUnsupportedFeatures() error
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -363,7 +362,6 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
-	checkUnsupportedBuild       bool
 }
 
 var _ abci.Application = &Application{}
@@ -560,12 +558,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.config = nil
 		}
 
-		// if !a.checkUnsupportedBuild {
-		// 	if err := chainConfigManager.CheckUnsupportedFeatures(); err != nil {
-		// 		panic(err)
-		// 	}
-		// 	a.checkUnsupportedBuild = true
-		// }
 	}
 
 	storeTx.Commit()
