@@ -138,7 +138,6 @@ func (s *EvmAuxStore) RemoveOldReceipts() error {
 
 	batch := s.db.NewBatch()
 
-	var numDeleted uint64
 	itemsDeleted := uint64(0)
 	head := headHash
 	toDeletedReceipt := size - s.maxReceipts
@@ -155,12 +154,12 @@ func (s *EvmAuxStore) RemoveOldReceipts() error {
 	if itemsDeleted < toDeletedReceipt {
 		return errors.Errorf("Unable to delete %v receipts, only %v deleted", toDeletedReceipt, itemsDeleted)
 	}
-	if size < numDeleted {
+	if size < itemsDeleted {
 		return errors.Wrap(err, "invalid count of deleted receipts")
 	}
-	size -= numDeleted
+	size -= itemsDeleted
 
-	setDBParams(batch, size, headHash, tailHash)
+	setDBParams(batch, size, head, tailHash)
 	batch.WriteSync()
 	return nil
 }
