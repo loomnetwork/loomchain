@@ -21,7 +21,6 @@ func (h *CallTxHandler) ProcessTx(
 	state loomchain.State,
 	txBytes []byte,
 	isCheckTx bool,
-
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
