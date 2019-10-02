@@ -99,14 +99,16 @@ func getBlockLogs(
 
 			// Get txHashList from BlockStore
 			txObject, err := GetBlockByNumber(blockStore, state, int64(height), false, evmAuxStore)
-			if err == nil {
-				for _, txHash := range txObject.Transactions {
-					hash, err := eth.DecDataToBytes(txHash.(eth.Data))
-					if err != nil {
-						return nil, errors.Wrapf(err, "unable to decode txhash %x", txHash)
-					}
-					txHashList = append(txHashList, hash)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get block at height %d", height)
+			}
+
+			for _, txHash := range txObject.Transactions {
+				hash, err := eth.DecDataToBytes(txHash.(eth.Data))
+				if err != nil {
+					return nil, errors.Wrapf(err, "unable to decode txhash %x", txHash)
 				}
+				txHashList = append(txHashList, hash)
 			}
 
 			var logsBlock []*ptypes.EthFilterLog
