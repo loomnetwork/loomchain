@@ -3,6 +3,7 @@ package loomchain
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -46,6 +47,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
+	//SetMinBuildNumber(uint64, bool)
 	ChangeConfigSetting(name, value string) error
 }
 
@@ -174,6 +176,13 @@ func (s *StoreState) SetFeature(name string, val bool) {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
+}
+
+func (s *StoreState) SetMinBuildNumber(minbuild uint64) {
+	// uint64 to byte
+	data := make([]byte, 8)
+	binary.BigEndian.PutUint64(data, minbuild)
+	s.store.Set([]byte("minbuild"), data)
 }
 
 // ChangeConfigSetting updates the value of the given on-chain config setting.
