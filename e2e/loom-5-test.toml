@@ -93,12 +93,12 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
   Condition = "excludes"
-  Excludes = ["{{index $.NodeBase64AddressList 0}}"]
+  Excluded = ["{{index $.NodeBase64AddressList 0}}"]
 
 [[TestCases]]
   RunCmd = "check_validators"
   Condition = "excludes"
-  Excludes = ["{{index $.NodePubKeyList 0}}"]
+  Excluded = ["{{index $.NodePubKeyList 0}}"]
 
 # The validatorCount is only set to a non-zero value in dposV3.Initialize so if
 # the value is 14, it implies the v2 state was successfully transferred to v3
