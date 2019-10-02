@@ -750,6 +750,8 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
+		// TODO: Log the error, this fallback should be happening very rarely so we should probably
+		//       setup an alert to detect when this happens.
 		// if the receipt is not found, create it from TxObj
 		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash, s.EvmAuxStore)
 		if err != nil {
@@ -774,6 +776,9 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 			txReceipt.TransactionIndex, len(blockResult.Block.Data.Txs),
 		)
 	}
+	// TODO: We've got a receipt at this point, the only thing it's missing is the block timestamp in
+	//       the event logs (which can be obtained from blockResult), loading the tx result at this
+	//       point seems like a waste of time.
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
@@ -853,6 +858,8 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 	r := s.ReceiptHandlerProvider.Reader()
 	txObj, err := query.GetTxByHash(snapshot, s.BlockStore, txHash, r, s.EvmAuxStore)
 	if err != nil {
+		// TODO: Should call r.GetReceipt instead of query.GetTxByHash so we don't have to use this
+		//       flimsy error cause checking.
 		if errors.Cause(err) != common.ErrTxReceiptNotFound {
 			return resp, err
 		}
