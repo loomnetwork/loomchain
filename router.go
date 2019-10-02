@@ -4,7 +4,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/features"
 )
 
 type Transaction = types.Transaction
@@ -78,14 +77,12 @@ func (r *TxRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHan
 
 	var routeHandler RouteHandler
 
-	if state.FeatureEnabled(features.TxRouterVersion2, false) {
+	if state.Config().GetTxRouter().UseSingleRoute {
 		routeHandler = r.routes[tx.Id]
+	} else if isCheckTx {
+		routeHandler = r.checkTxRoutes[tx.Id]
 	} else {
-		if isCheckTx {
-			routeHandler = r.checkTxRoutes[tx.Id]
-		} else {
-			routeHandler = r.deliverTxRoutes[tx.Id]
-		}
+		routeHandler = r.deliverTxRoutes[tx.Id]
 	}
 
 	return routeHandler(tx.Id, state, tx.Data, isCheckTx)
