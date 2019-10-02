@@ -47,7 +47,8 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
-	//SetMinBuildNumber(uint64, bool)
+	SetMinBuildNumber(uint64)
+	GetMinimumBuild() uint64
 	ChangeConfigSetting(name, value string) error
 }
 
@@ -140,7 +141,8 @@ func (s *StoreState) Context() context.Context {
 }
 
 const (
-	featurePrefix = "feature"
+	featurePrefix   = "feature"
+	minimumBuildKey = "minbuild"
 )
 
 func featureKey(featureName string) []byte {
@@ -180,9 +182,17 @@ func (s *StoreState) SetFeature(name string, val bool) {
 
 func (s *StoreState) SetMinBuildNumber(minbuild uint64) {
 	// uint64 to byte
-	data := make([]byte, 8)
-	binary.BigEndian.PutUint64(data, minbuild)
-	s.store.Set([]byte("minbuild"), data)
+	build := make([]byte, 8)
+	binary.BigEndian.PutUint64(build, minbuild)
+	s.store.Set([]byte(minimumBuildKey), build)
+}
+
+func (s *StoreState) GetMinimumBuild() uint64 {
+	build := s.store.Get([]byte(minimumBuildKey))
+	if bytes.Equal(build, []byte{}) {
+		return 0
+	}
+	return binary.BigEndian.Uint64(build)
 }
 
 // ChangeConfigSetting updates the value of the given on-chain config setting.
@@ -550,12 +560,12 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.config = nil
 		}
 
-		if !a.checkUnsupportedBuild {
-			if err := chainConfigManager.CheckUnsupportedFeatures(); err != nil {
-				panic(err)
-			}
-			a.checkUnsupportedBuild = true
-		}
+		// if !a.checkUnsupportedBuild {
+		// 	if err := chainConfigManager.CheckUnsupportedFeatures(); err != nil {
+		// 		panic(err)
+		// 	}
+		// 	a.checkUnsupportedBuild = true
+		// }
 	}
 
 	storeTx.Commit()
