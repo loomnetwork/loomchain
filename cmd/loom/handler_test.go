@@ -7,6 +7,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -36,6 +37,57 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 
 	kvStore := store.NewMemStore()
 	state := loomchain.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
+
+	txMiddleWare := []loomchain.TxMiddleware{
+		auth.SignatureTxMiddleware,
+		auth.NonceTxMiddleware(kvStore),
+	}
+
+	rootHandler := loomchain.MiddlewareTxHandler(txMiddleWare, router, nil)
+	signer := lauth.NewEd25519Signer(alicePrivKey)
+	caller := loom.Address{
+		ChainID: "default",
+		Local:   loom.LocalAddressFromPublicKey(bobPubKey),
+	}
+
+	// Try to process txs in which Alice attempts to impersonate Bob
+	_, err = rootHandler.ProcessTx(state, createTxWithInvalidCaller(t, signer, caller, &vm.DeployTx{
+		VmType: vm.VMType_PLUGIN,
+		Code:   nil,
+		Name:   "hello",
+	}, 1, 1), false)
+	require.Error(t, err)
+	require.True(t, strings.HasPrefix(err.Error(), "Origin doesn't match caller"))
+
+	_, err = rootHandler.ProcessTx(state, createTxWithInvalidCaller(t, signer, caller, &vm.CallTx{
+		VmType: vm.VMType_PLUGIN,
+	}, 2, 2), false)
+	require.Error(t, err)
+	require.True(t, strings.HasPrefix(err.Error(), "Origin doesn't match caller"))
+}
+
+func TestSingleRouteTxHandlerWithInvalidCaller(t *testing.T) {
+	_, alicePrivKey, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+
+	bobPubKey, _, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
+
+	vmManager := vm.NewManager()
+	router := loomchain.NewTxRouter()
+	router.Handle(1, &vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry})
+	router.Handle(2, &vm.CallTxHandler{Manager: vmManager})
+
+	kvStore := store.NewMemStore()
+	state := loomchain.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
+	require.NoError(t, store.SaveOnChainConfig(kvStore, &cctypes.Config{
+		TxRouter: &cctypes.TxRouterConfig{
+			UseSingleRoute: true,
+		},
+	}))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,
