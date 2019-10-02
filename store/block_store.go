@@ -37,10 +37,15 @@ type BlockStore interface {
 }
 
 type MockBlockStore struct {
+	blocks       map[int64]*ctypes.ResultBlock
+	blockResults map[int64]*ctypes.ResultBlockResults
 }
 
-func NewMockBlockStore() BlockStore {
-	return &MockBlockStore{}
+func NewMockBlockStore() *MockBlockStore {
+	return &MockBlockStore{
+		blocks:       make(map[int64]*ctypes.ResultBlock),
+		blockResults: make(map[int64]*ctypes.ResultBlockResults),
+	}
 }
 
 func (s *MockBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
@@ -50,6 +55,10 @@ func (s *MockBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, e
 	h, err := getHeight(h, height)
 	if err != nil {
 		return nil, err
+	}
+
+	if block, ok := s.blocks[*height]; ok {
+		return block, nil
 	}
 
 	lastCommit := &types.Commit{
@@ -101,6 +110,10 @@ func (s *MockBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResu
 	if err != nil {
 		return nil, err
 	}
+
+	if block, ok := s.blockResults[*height]; ok {
+		return block, nil
+	}
 	//To simulate error at a height
 	//load the results, error returned for a height value in core tendermint API
 	//results, err := sm.LoadABCIResponses(stateDB, height)
@@ -114,8 +127,54 @@ func (s *MockBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResu
 	}, nil
 }
 
+func (s *MockBlockStore) SetBlockResults(blockResult *ctypes.ResultBlockResults) {
+	s.blockResults[blockResult.Height] = blockResult
+}
+
+func (s *MockBlockStore) SetBlock(block *ctypes.ResultBlock) {
+	s.blocks[block.Block.Height] = block
+}
+
 func (s *MockBlockStore) GetTxResult(_ []byte) (*ctypes.ResultTx, error) {
 	return nil, nil
+}
+
+func MockBlock(height int64, blockTxHash []byte, txs [][]byte) *ctypes.ResultBlock {
+	blockTxs := []types.Tx{}
+	for _, tx := range txs {
+		blockTxs = append(blockTxs, tx)
+	}
+	return &ctypes.ResultBlock{
+		BlockMeta: &types.BlockMeta{
+			BlockID: types.BlockID{
+				Hash: blockTxHash,
+			},
+		},
+		Block: &types.Block{
+			Data: types.Data{
+				Txs: blockTxs,
+			},
+			Header: types.Header{
+				Height: height,
+			},
+		},
+	}
+}
+
+func MockBlockResults(height int64, data [][]byte) *ctypes.ResultBlockResults {
+	deliverTx := []*abci.ResponseDeliverTx{}
+	for _, d := range data {
+		res := &abci.ResponseDeliverTx{
+			Data: d,
+		}
+		deliverTx = append(deliverTx, res)
+	}
+	return &ctypes.ResultBlockResults{
+		Height: height,
+		Results: &state.ABCIResponses{
+			DeliverTx: deliverTx,
+		},
+	}
 }
 
 func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
