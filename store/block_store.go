@@ -57,7 +57,7 @@ func (s *MockBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, e
 		return nil, err
 	}
 
-	if block, ok := s.blocks[*height]; ok {
+	if block, ok := s.blocks[h]; ok {
 		return block, nil
 	}
 
@@ -111,7 +111,7 @@ func (s *MockBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResu
 		return nil, err
 	}
 
-	if block, ok := s.blockResults[*height]; ok {
+	if block, ok := s.blockResults[h]; ok {
 		return block, nil
 	}
 	//To simulate error at a height
