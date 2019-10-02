@@ -678,7 +678,7 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 			}
 
 			var name string
-			if len(args) <= 1 || strings.EqualFold(args[0], GatewayName) {
+			if len(args) == 0 || strings.EqualFold(args[0], GatewayName) {
 				name = GatewayName
 			} else if strings.EqualFold(args[0], LoomGatewayName) {
 				name = LoomGatewayName
