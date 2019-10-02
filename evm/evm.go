@@ -228,7 +228,9 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
-
+	ip := common.BytesToHash(input)
+	fmt.Println("PASS EVM CALL with HASH : ", ip)
+	defer fmt.Println("END EVM CALL")
 	var val *big.Int
 	if value == nil {
 		val = common.Big0
@@ -242,8 +244,10 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 			return nil, errors.Errorf("value %v must be non negative", value)
 		}
 	}
+	fmt.Println("PASS EVM CALL with Value : ", val.String())
 	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
 	usedGas = e.gasLimit - leftOverGas
+	fmt.Println("usedGas on evm Call :", usedGas)
 	return ret, err
 }
 
@@ -267,7 +271,6 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.BigUInt) (uint64, error) {
 	var err error
 	var usedGas uint64
-
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
@@ -285,7 +288,12 @@ func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.Bi
 			return 0, errors.Errorf("value %v must be non negative", value)
 		}
 	}
+
+	fmt.Println("PASSING ESTIMATEGAS")
 	_, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
+	if err != nil {
+		fmt.Println("ERROR ESTIMATEGAS")
+	}
 	usedGas = e.gasLimit - leftOverGas
 	return usedGas, err
 }
