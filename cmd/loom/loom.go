@@ -1301,10 +1301,12 @@ func checkFileDescriptorLimit(min uint64) error {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return nil
 	}
+	fmt.Printf("Current rlimit : %d\n", rlimit.Cur)
+	fmt.Printf("Max rlimit : %d\n", rlimit.Max)
+	fmt.Printf("Minimum required : %d\n", min)
 	if rlimit.Cur < min {
 		return fmt.Errorf("Current open file limit (%d) is too low, please set it to at least %d", rlimit.Cur, min)
 	}
-
 	return nil
 }
 
