@@ -73,7 +73,7 @@ type ChildTxRef struct {
 type EvmAuxStore struct {
 	db             dbm.DB
 	maxReceipts    uint64
-	dupEVMTxHashes map[string]bool
+	dupEVMTxHashes map[string]bool // duplicate evm tx hashes list
 }
 
 func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error) {
