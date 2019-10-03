@@ -182,17 +182,17 @@ func (s *StoreState) SetFeature(name string, val bool) {
 
 func (s *StoreState) SetMinBuildNumber(minbuild uint64) {
 	// uint64 to byte
-	build := make([]byte, 8)
-	binary.BigEndian.PutUint64(build, minbuild)
-	s.store.Set([]byte(minimumBuildKey), build)
+	buildBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(buildBytes, minbuild)
+	s.store.Set([]byte(minimumBuildKey), buildBytes)
 }
 
 func (s *StoreState) GetMinBuildNumber() uint64 {
-	build := s.store.Get([]byte(minimumBuildKey))
-	if bytes.Equal(build, []byte{}) {
+	buildBytes := s.store.Get([]byte(minimumBuildKey))
+	if len(buildBytes) == 0 {
 		return 0
 	}
-	return binary.BigEndian.Uint64(build)
+	return binary.BigEndian.Uint64(buildBytes)
 }
 
 // ChangeConfigSetting updates the value of the given on-chain config setting.

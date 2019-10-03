@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -733,14 +732,16 @@ func loadApp(
 		return nil, err
 	}
 
-	if build := appStore.Get(minimumBuildKey); !bytes.Equal(build, []byte{}) {
-		minimumBuild := binary.BigEndian.Uint64(build)
-		currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
-		if err != nil {
-			currentBuild = 0
-		}
-		if currentBuild < minimumBuild {
-			return nil, fmt.Errorf("current build not supported (%d), require (%d)", currentBuild, minimumBuild)
+	if !cfg.SkipMinBuildCheck {
+		if buildBytes := appStore.Get(minimumBuildKey); len(buildBytes) > 0 {
+			minimumBuild := binary.BigEndian.Uint64(buildBytes)
+			currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse loomchain build number")
+			}
+			if currentBuild < minimumBuild {
+				return nil, fmt.Errorf("build %d is too old, upgrade to build %d or later", currentBuild, minimumBuild)
+			}
 		}
 	}
 
