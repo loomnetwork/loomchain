@@ -95,33 +95,27 @@ func getBlockLogs(
 	bloomFilter := evmAuxStore.GetBloomFilter(height)
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			var txHashList [][]byte
-
-			// Get txHashList from BlockStore
 			txObject, err := GetBlockByNumber(blockStore, state, int64(height), false, evmAuxStore)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get block at height %d", height)
 			}
 
-			for _, txHash := range txObject.Transactions {
-				hash, err := eth.DecDataToBytes(txHash.(eth.Data))
-				if err != nil {
-					return nil, errors.Wrapf(err, "unable to decode txhash %x", txHash)
-				}
-				txHashList = append(txHashList, hash)
-			}
-
 			var logsBlock []*ptypes.EthFilterLog
-			for _, txHash := range txHashList {
+			for _, txHashData := range txObject.Transactions {
+				txHash, err := eth.DecDataToBytes(txHashData.(eth.Data))
+				if err != nil {
+					return nil, errors.Wrapf(err, "unable to decode txhash %x", txHashData)
+				}
+
 				txReceipt, err := readReceipts.GetReceipt(txHash)
 				if errors.Cause(err) == common.ErrTxReceiptNotFound {
 					continue
 				} else if err != nil {
-					return nil, errors.Wrap(err, "getting receipt")
+					return nil, errors.Wrap(err, "failed to load receipt")
 				}
 				logsTx, err := getTxHashLogs(blockStore, txReceipt, ethFilter, txHash)
 				if err != nil {
-					return nil, errors.Wrap(err, "logs for tx")
+					return nil, errors.Wrap(err, "failed to load tx logs")
 				}
 				logsBlock = append(logsBlock, logsTx...)
 			}
