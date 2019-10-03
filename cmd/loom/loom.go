@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -76,8 +78,9 @@ import (
 )
 
 var (
-	appHeightKey = []byte("appheight")
-	configKey    = []byte("config")
+	appHeightKey    = []byte("appheight")
+	configKey       = []byte("config")
+	minimumBuildKey = []byte("minbuild")
 )
 
 var RootCmd = &cobra.Command{
@@ -728,6 +731,17 @@ func loadApp(
 
 	if err != nil {
 		return nil, err
+	}
+
+	if build := appStore.Get(minimumBuildKey); !bytes.Equal(build, []byte{}) {
+		minimumBuild := binary.BigEndian.Uint64(build)
+		currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
+		if err != nil {
+			currentBuild = 0
+		}
+		if currentBuild < minimumBuild {
+			return nil, fmt.Errorf("current build not supported (%d), require (%d)", currentBuild, minimumBuild)
+		}
 	}
 
 	var eventStore store.EventStore

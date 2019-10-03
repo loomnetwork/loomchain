@@ -318,7 +318,6 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal feature %s", string(m.Key))
 		}
-
 		// this one will calculate the percentage for pending feature
 		feature, err := getFeature(ctx, f.Name, curValidators)
 		if err != nil {

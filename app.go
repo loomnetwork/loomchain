@@ -38,6 +38,7 @@ type ReadOnlyState interface {
 	FeatureEnabled(string, bool) bool
 	Config() *cctypes.Config
 	EnabledFeatures() []string
+	GetMinBuildNumber() uint64
 }
 
 type State interface {
@@ -48,7 +49,6 @@ type State interface {
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
 	SetMinBuildNumber(uint64)
-	GetMinBuildNumber() uint64
 	ChangeConfigSetting(name, value string) error
 }
 
@@ -557,9 +557,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			// invalidate cached config so it's reloaded next time it's accessed
 			a.config = nil
 		}
-
 	}
-
 	storeTx.Commit()
 
 	return abci.ResponseBeginBlock{}

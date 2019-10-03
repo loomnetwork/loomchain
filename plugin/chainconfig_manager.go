@@ -15,8 +15,6 @@ import (
 var (
 	// ErrChainConfigContractNotFound indicates that the ChainConfig contract hasn't been deployed yet.
 	ErrChainConfigContractNotFound = errors.New("[ChainConfigManager] ChainContract contract not found")
-
-	ErrUnsupportedBuild = errors.New("[ChainConfigManager] Current build is no longer supported")
 )
 
 // ChainConfigManager implements loomchain.ChainConfigManager interface
@@ -63,9 +61,6 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 	}
 
 	supportBuild := c.state.GetMinBuildNumber()
-	if c.build < supportBuild {
-		return ErrUnsupportedBuild
-	}
 	for _, feature := range listFeatures {
 		c.state.SetFeature(feature.Name, true)
 		if feature.BuildNumber > supportBuild {
@@ -83,16 +78,13 @@ func (c *ChainConfigManager) UpdateConfig() (int, error) {
 	if !c.state.FeatureEnabled(features.ChainCfgVersion1_3, false) {
 		return 0, nil
 	}
-	supportBuild := c.state.GetMinBuildNumber()
-	if c.build < supportBuild {
-		return 0, ErrUnsupportedBuild
-	}
 
 	settings, err := chainconfig.HarvestPendingActions(c.ctx, c.build)
 	if err != nil {
 		return 0, err
 	}
 
+	supportBuild := c.state.GetMinBuildNumber()
 	for _, setting := range settings {
 		if err := c.state.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
 			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
