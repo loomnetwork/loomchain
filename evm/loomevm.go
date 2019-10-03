@@ -15,16 +15,17 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/evm/precompiles"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -57,10 +58,12 @@ func NewLoomEvm(
 	loomState loomchain.State,
 	accountBalanceManager AccountBalanceManager,
 	logContext *ethdbLogContext,
-	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error),
+	loomPrecompilerHandler precompiles.EvmPrecompilerHandler,
 	debug bool,
 ) (*LoomEvm, error) {
-	AddLoomPrecompiles(loomState, createAddressMapperCtx)
+	if loomPrecompilerHandler != nil {
+		loomPrecompilerHandler.AddEvmPrecompiles(loomState)
+	}
 	p := new(LoomEvm)
 	p.db = NewLoomEthdb(loomState, logContext)
 	oldRoot, err := p.db.Get(rootKey)
@@ -125,7 +128,7 @@ type LoomVm struct {
 	state                  loomchain.State
 	receiptHandler         loomchain.WriteReceiptHandler
 	createABM              AccountBalanceManagerFactoryFunc
-	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error)
+	loomPrecompilerHandler precompiles.EvmPrecompilerHandler
 	debug                  bool
 }
 
@@ -134,14 +137,14 @@ func NewLoomVm(
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
-	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error),
+	loomPrecompilerHandler precompiles.EvmPrecompilerHandler,
 	debug bool,
 ) vm.VM {
 	return &LoomVm{
 		state:                  loomState,
 		receiptHandler:         receiptHandler,
 		createABM:              createABM,
-		createAddressMapperCtx: createAddressMapperCtx,
+		loomPrecompilerHandler: loomPrecompilerHandler,
 		debug:                  debug,
 	}
 }
@@ -159,7 +162,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		contractAddr: loom.Address{},
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.createAddressMapperCtx, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.loomPrecompilerHandler, lvm.debug)
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
@@ -222,7 +225,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		contractAddr: addr,
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.createAddressMapperCtx, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.loomPrecompilerHandler, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +273,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(true), nil, lvm.createAddressMapperCtx, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(true), nil, lvm.loomPrecompilerHandler, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +281,7 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.createAddressMapperCtx, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.loomPrecompilerHandler, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +289,7 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 }
 
 func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.createAddressMapperCtx, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.loomPrecompilerHandler, lvm.debug)
 	if err != nil {
 		return nil, err
 	}

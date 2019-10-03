@@ -28,14 +28,11 @@ import (
 )
 
 const (
-	BlockHeight        = int64(34)
-	numLoomPreCompiles = 2
+	BlockHeight = int64(34)
 )
 
 var (
-	PrecompiledRunOutput = ""
-	PrecompiledGasOutput = 0
-	blockTime            = time.Unix(123456789, 0)
+	blockTime = time.Unix(123456789, 0)
 )
 
 func mockState() loomchain.State {
@@ -67,24 +64,6 @@ func TestProcessDeployTx(t *testing.T) {
 	// committed to the state.
 	// The state carries over to be used to create the VM for the next transaction.
 	testCryptoZombiesUpdateState(t, mockState(), caller)
-}
-
-type TestPrecompiledFunction struct {
-	t *testing.T
-}
-
-func (p TestPrecompiledFunction) RequiredGas(input []byte) uint64 {
-	expected := []byte("TestInput")
-	require.True(p.t, 0 == bytes.Compare(expected, input[:len(expected)]), "wrong input to required gas")
-	PrecompiledGasOutput = 123
-	return uint64(0)
-}
-
-func (p TestPrecompiledFunction) Run(input []byte) ([]byte, error) {
-	expected := []byte("TestInput")
-	require.True(p.t, 0 == bytes.Compare(expected, input[:len(expected)]), "wrong input to run")
-	PrecompiledRunOutput = "TestPrecompiledFunction"
-	return []byte("TestPrecompiledFunction"), nil
 }
 
 func TestValue(t *testing.T) {
@@ -277,6 +256,8 @@ func testMsgSender(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm 
 func deploySolContract(t *testing.T, caller loom.Address, filename string, vm lvm.VM) (abi.ABI, loom.Address) {
 	bytetext, err := ioutil.ReadFile("testdata/" + filename + ".bin")
 	require.NoError(t, err, "reading "+filename+".bin")
+	str := string(bytetext)
+	_ = str
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
 

@@ -35,6 +35,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/evm/precompiles/loomprecompiles"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
@@ -824,7 +825,7 @@ func loadApp(
 				eventHandler,
 				receiptHandlerProvider.Writer(),
 				createABM,
-				getContractStaticCtx("addressmapper", vmManager),
+				loomprecompiles.NewLoomPrecompileHandler(getContractStaticCtx("addressmapper", vmManager)),
 				cfg.EVMDebugEnabled,
 			), nil
 		})

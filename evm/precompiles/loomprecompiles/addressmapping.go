@@ -1,12 +1,14 @@
-package evm
+package loomprecompiles
 
 import (
 	"fmt"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
 
 func NewMapToLoomAddress(
@@ -32,31 +34,29 @@ func (ma mapToLoomAccount) Run(input []byte) ([]byte, error) {
 	strI := string(input)
 	_ = strI
 	fmt.Printf("in mapToLoomAccount input hex %x str string %s bytes %v\n", input, input, input)
-
 	addr := loom.Address{
 		ChainID: string(input[20:]),
 		Local:   input[:20],
 	}
-	return addr.Local, nil
-	/*
-		ctx, err := ma.createAddressMapperCtx(ma.state)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create Address Mapper context")
-		}
-		am := &address_mapper.AddressMapper{}
+	//return []byte(addr.Local), nil
 
-		resp, err := am.GetMapping(ctx, &address_mapper.GetMappingRequest{
-			From: addr.MarshalPB(),
-		})
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to map account %s", addr.String())
-		}
+	ctx, err := ma.createAddressMapperCtx(ma.state)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+	}
+	am := &address_mapper.AddressMapper{}
 
-		mappedAddr := loom.UnmarshalAddressPB(resp.To)
-		if mappedAddr.ChainID != ma.state.Block().ChainID {
-			return nil, fmt.Errorf("mapped account %s has wrong chain ID", addr.String())
-		}
+	resp, err := am.GetMapping(ctx, &address_mapper.GetMappingRequest{
+		From: addr.MarshalPB(),
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to map account %s", addr.String())
+	}
 
-		return mappedAddr.Local, nil
-	*/
+	mappedAddr := loom.UnmarshalAddressPB(resp.To)
+	if mappedAddr.ChainID != ma.state.Block().ChainID {
+		return nil, fmt.Errorf("mapped account %s has wrong chain ID", addr.String())
+	}
+
+	return mappedAddr.Local, nil
 }
