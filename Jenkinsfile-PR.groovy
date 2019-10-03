@@ -44,7 +44,7 @@ builders['linux'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux", "${sha1}");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux", "${ghprbActualCommit}");
 
         stage ('Build - Linux') {
           nodejs('v10.16.3 (LTS)') {
@@ -58,7 +58,7 @@ builders['linux'] = {
         throw e
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux", "${sha1}");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux", "${ghprbActualCommit}");
           sh '''
             cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
             find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz -T -
@@ -67,7 +67,7 @@ builders['linux'] = {
           '''
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux", "${sha1}");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux", "${ghprbActualCommit}");
         }
       }
     }
@@ -106,7 +106,7 @@ disabled['windows'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows", "${sha1}");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows", "${ghprbActualCommit}");
 
         stage ('Build - Windows') {
           bat '''
@@ -118,10 +118,10 @@ disabled['windows'] = {
         throw e
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows", "${sha1}");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows", "${ghprbActualCommit}");
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows", "${sha1}");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows", "${ghprbActualCommit}");
         }
       }
     }
@@ -160,7 +160,7 @@ builders['osx'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX", "${sha1}");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX", "${ghprbActualCommit}");
 
         stage ('Build - OSX') {
           nodejs('v10.16.3 (LTS)') {
@@ -174,7 +174,7 @@ builders['osx'] = {
         throw e
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX", "${sha1}");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX", "${ghprbActualCommit}");
           sh '''
             cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
             find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz -T -
@@ -183,7 +183,7 @@ builders['osx'] = {
           '''
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX", "${sha1}");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX", "${ghprbActualCommit}");
         }
       }
     }
