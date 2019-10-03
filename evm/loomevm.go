@@ -57,7 +57,7 @@ func NewLoomEvm(
 	loomState loomchain.State,
 	accountBalanceManager AccountBalanceManager,
 	logContext *ethdbLogContext,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error),
 	debug bool,
 ) (*LoomEvm, error) {
 	AddLoomPrecompiles(loomState, createAddressMapperCtx)
@@ -125,7 +125,7 @@ type LoomVm struct {
 	state                  loomchain.State
 	receiptHandler         loomchain.WriteReceiptHandler
 	createABM              AccountBalanceManagerFactoryFunc
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error)
+	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error)
 	debug                  bool
 }
 
@@ -134,7 +134,7 @@ func NewLoomVm(
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error),
 	debug bool,
 ) vm.VM {
 	return &LoomVm{

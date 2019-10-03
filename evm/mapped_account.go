@@ -1,43 +1,62 @@
 package evm
 
 import (
+	"fmt"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 
 	"github.com/loomnetwork/loomchain"
 )
 
-func NewMappedAccountPCF(
+func NewMapToLoomAddress(
 	_state loomchain.State,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
-) *mappedAccount {
-	return &mappedAccount{
+	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error),
+) *mapToLoomAccount {
+	return &mapToLoomAccount{
 		state:                  _state,
 		createAddressMapperCtx: createAddressMapperCtx,
 	}
 }
 
-type mappedAccount struct {
+type mapToLoomAccount struct {
 	state                  loomchain.State
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error)
+	createAddressMapperCtx func(loomchain.State) (contractpb.StaticContext, error)
 }
 
-func (ma mappedAccount) RequiredGas(input []byte) uint64 {
+func (ma mapToLoomAccount) RequiredGas(input []byte) uint64 {
 	return uint64(0)
 }
 
-func (ma mappedAccount) Run(input []byte) ([]byte, error) {
-	/*	addr := input[:20]
-		fromChain := input[20:]
+func (ma mapToLoomAccount) Run(input []byte) ([]byte, error) {
+	strI := string(input)
+	_ = strI
+	fmt.Printf("in mapToLoomAccount input hex %x str string %s bytes %v\n", input, input, input)
 
-		writeURI := gatewayCmdFlags.URI + "/rpc"
-		readURI := gatewayCmdFlags.URI + "/query"
-		rpcClient = client.NewDAppChainRPCClient(gatewayCmdFlags.ChainID, writeURI, readURI)
-		rpcClient := getDAppChainClient()
-		mapperAddr, err := rpcClient.Resolve("addressmapper")
+	addr := loom.Address{
+		ChainID: string(input[20:]),
+		Local:   input[:20],
+	}
+	return addr.Local, nil
+	/*
+		ctx, err := ma.createAddressMapperCtx(ma.state)
 		if err != nil {
-			return errors.Wrap(err, "failed to resolve DAppChain Address Mapper address")
+			return nil, errors.Wrap(err, "failed to create Address Mapper context")
 		}
-		mapper := client.NewContract(rpcClient, mapperAddr.Local)
+		am := &address_mapper.AddressMapper{}
+
+		resp, err := am.GetMapping(ctx, &address_mapper.GetMappingRequest{
+			From: addr.MarshalPB(),
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to map account %s", addr.String())
+		}
+
+		mappedAddr := loom.UnmarshalAddressPB(resp.To)
+		if mappedAddr.ChainID != ma.state.Block().ChainID {
+			return nil, fmt.Errorf("mapped account %s has wrong chain ID", addr.String())
+		}
+
+		return mappedAddr.Local, nil
 	*/
-	return nil, nil
 }
