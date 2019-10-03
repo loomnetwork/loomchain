@@ -53,6 +53,7 @@ func NewReceiptHandler(
 // The tx hash can either be the hash of the Tendermint tx within which the EVM tx was embedded or,
 // the hash of the embedded EVM tx itself.
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
+	requestedTxHash := txHash
 	// At first assume the input hash is a Tendermint tx hash and try to resolve it to an EVM tx hash,
 	// if that fails it might be an EVM tx hash.
 	evmTxHash, err := r.evmAuxStore.GetChildTxHash(txHash)
@@ -64,6 +65,12 @@ func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	if err != nil {
 		return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "GetReceipt: %v", err)
 	}
+	// Tx hash on receipt has to match the requested tx hash
+	receipt.TxHash = requestedTxHash
+	for _, eventLog := range receipt.Logs {
+		eventLog.TxHash = requestedTxHash
+	}
+
 	return receipt, nil
 }
 
@@ -137,7 +144,7 @@ func (r *ReceiptHandler) CommitBlock(height int64) error {
 
 // TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(
-	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error,
+	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error, txHash []byte,
 ) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -160,8 +167,8 @@ func (r *ReceiptHandler) CacheReceipt(
 		status = common.StatusTxFail
 	}
 	receipt, err := leveldb.WriteReceipt(
-		state.Block(), caller, addr, events, status,
-		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
+		state.Block(), caller, addr, events, status, r.eventHandler,
+		int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)), txHash,
 	)
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")

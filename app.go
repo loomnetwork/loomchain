@@ -555,17 +555,8 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
 
-	// TODO: Need to cleanup this receipts stuff...
-	// 1. The storeTx is no longer used by the receipt handler, so need to remove it.
-	// 2. receiptHandler.CommitBlock() should be moved to Application.Commit().
+	// TODO: receiptHandler.CommitBlock() should be moved to Application.Commit()
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-		nil,
-		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
@@ -576,7 +567,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
-	state = NewStoreState(
+	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
@@ -611,8 +602,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	ok := abci.ResponseCheckTx{Code: abci.CodeTypeOK}
-
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
@@ -627,46 +616,82 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	// only happen on node restarts, and only if the node doesn't receive any txs from it's peers
 	// before a client sends it a tx.
 	if a.curBlockHeader.Height == 0 {
-		return ok
+		return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 	}
 
-	_, err = a.processTx(txBytes, true)
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
+
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	// Receipts & events generated in CheckTx must be discarded since the app state changes they
+	// reflect aren't persisted.
+	defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
+
+	_, err = a.TxHandler.ProcessTx(state, txBytes, true)
 	if err != nil {
-		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
+		log.Error("CheckTx", "tx", ttypes.Tx(txBytes).Hash(), "err", err)
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
 
-	return ok
+	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 }
+
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
-	var err error
-	isEvmTx := false
+	var txFailed, isEvmTx bool
 	defer func(begin time.Time) {
 		lvs := []string{
 			"method", "DeliverTx",
-			"error", fmt.Sprint(err != nil),
-			"evm", fmt.Sprintf("%t", isEvmTx),
+			"error", fmt.Sprint(txFailed),
+			"evm", fmt.Sprint(isEvmTx),
 		}
 		requestCount.With(lvs[:4]...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	r, err := a.processTx(txBytes, false)
-	if err != nil {
-		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
+
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	var r abci.ResponseDeliverTx
+
+	if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+		r = a.deliverTx2(storeTx, txBytes)
+	} else {
+		r = a.deliverTx(storeTx, txBytes)
 	}
-	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-		isEvmTx = true
+
+	txFailed = r.Code != abci.CodeTypeOK
+	// TODO: this isn't 100% reliable when txFailed == true
+	isEvmTx = r.Info == utils.CallEVM || r.Info == utils.DeployEvm
+	return r
+}
+
+// This version of DeliverTx doesn't store the receipts for failed EVM txs.
+func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
+	r, err := a.processTx(storeTx, txBytes, false)
+	if err != nil {
+		log.Error("DeliverTx", "tx", ttypes.Tx(txBytes).Hash(), "err", err)
+		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
-func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
-	// for now the nonce will have a special cache that it rolls back each block
-	storeTx := store.WrapAtomic(a.Store).BeginTx()
-
+func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -677,15 +702,16 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
-		storeTx.Rollback()
-		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
 		return r, err
 	}
 
 	if !isCheckTx {
+		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+
 		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
 			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
 
@@ -715,6 +741,64 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		storeTx.Commit()
 	}
 	return r, nil
+}
+
+// This version of DeliverTx stores the receipts for failed EVM txs.
+func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
+
+	r, txErr := a.TxHandler.ProcessTx(state, txBytes, false)
+
+	// Store the receipt even if the tx itself failed
+	var receiptTxHash []byte
+	if a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
+		receiptTxHash = a.ReceiptHandlerProvider.Reader().GetCurrentReceipt().TxHash
+		txHash := ttypes.Tx(txBytes).Hash()
+		// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+		// so that we can use it to lookup relevant events using the TM tx hash.
+		if !bytes.Equal(txHash, receiptTxHash) {
+			a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+				ParentTxHash: txHash,
+				ChildTxHash:  receiptTxHash,
+			})
+		}
+		receiptHandler.CommitCurrentReceipt()
+	}
+
+	if txErr != nil {
+		log.Error("DeliverTx", "tx", ttypes.Tx(txBytes).Hash(), "err", txErr)
+		// FIXME: Really shouldn't be using r.Data if txErr != nil, but need to refactor TxHandler.ProcessTx
+		//        so it only returns r with the correct status code & log fields.
+		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
+		return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: txErr.Error()}
+	}
+
+	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+	storeTx.Commit()
+
+	// FIXME: Really shouldn't be sending out events until the whole block is committed because
+	//        the state changes from the tx won't be visible to queries until after Application.Commit()
+	if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+		log.Error("Emit Tx Event error", "err", err)
+	}
+
+	if len(receiptTxHash) > 0 {
+		if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+			log.Error("failed to emit tx event to subscribers", "err", err)
+		}
+	}
+
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
 // Commit commits the current block

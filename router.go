@@ -23,7 +23,7 @@ var GeneratePassthroughRouteHandler = func(txHandler TxHandler) RouteHandler {
 	}
 }
 
-var GenerateConditionalRouteHandler = func(conditionFn RouteConditionFunc, onTrue TxHandler, onFalse TxHandler) RouteHandler {
+func GenerateConditionalRouteHandler(conditionFn RouteConditionFunc, onTrue TxHandler, onFalse TxHandler) RouteHandler {
 	return RouteHandler(func(txId uint32, state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 		if conditionFn(txId, state, txBytes, isCheckTx) {
 			return onTrue.ProcessTx(state, txBytes, isCheckTx)

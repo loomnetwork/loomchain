@@ -1023,7 +1023,8 @@ func loadApp(
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware(appStore))
+	nonceTxHandler := auth.NewNonceHandler()
+	txMiddleWare = append(txMiddleWare, nonceTxHandler.TxMiddleware(appStore))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -1091,7 +1092,7 @@ func loadApp(
 
 	// We need to make sure nonce post commit middleware is last
 	// as it doesn't pass control to other middlewares after it.
-	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
+	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
 	return &loomchain.Application{
 		Store: appStore,

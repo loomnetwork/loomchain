@@ -70,7 +70,9 @@
   Expected = [ "" ]
 
 [[TestCases]]
-  Delay = 1000
+  RunCmd = "wait_for_block_height_to_increase 0 1"
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg get-feature db:evm"
   Condition = "contains"
   Expected = [ "ENABLED" ]

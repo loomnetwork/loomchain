@@ -21,6 +21,7 @@ linters:
     - stylecheck
     - dupl
     - prealloc # re-enable later when we quash the more annoying stuff
+    - funlen
 linters-settings:
 #   govet:
 #     check-shadowing: true
@@ -46,7 +47,7 @@ linters-settings:
   lll:
     # max line length, lines longer will be reported. Default is 120.
     # '\t' is counted as 1 character by default, and can be changed with the tab-width option
-    line-length: 120
+    line-length: 200 # should be 120, but need to fix the more important linter errors first...
 #   goimports:
 #     local-prefixes: github.com/golangci/golangci-lint
 #   gocritic:

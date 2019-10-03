@@ -32,6 +32,7 @@ func WriteReceipt(
 	eventHandler loomchain.EventHandler,
 	evmTxIndex int32,
 	nonce int64,
+	txHash []byte,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
 		Nonce:             nonce,
@@ -46,15 +47,18 @@ func WriteReceipt(
 		CallerAddress:     caller.MarshalPB(),
 	}
 
-	preTxReceipt, err := proto.Marshal(&txReceipt)
-	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
+	if len(txHash) == 0 {
+		preTxReceipt, err := proto.Marshal(&txReceipt)
+		if err != nil {
+			return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
+		}
+		h := sha256.New()
+		h.Write(preTxReceipt)
+		txReceipt.TxHash = h.Sum(nil)
+	} else {
+		txReceipt.TxHash = txHash
 	}
-	h := sha256.New()
-	h.Write(preTxReceipt)
-	txHash := h.Sum(nil)
 
-	txReceipt.TxHash = txHash
 	txReceipt.Logs = append(txReceipt.Logs, CreateEventLogs(&txReceipt, block, events, eventHandler)...)
 	txReceipt.TransactionIndex = block.NumTxs - 1
 	return txReceipt, nil
