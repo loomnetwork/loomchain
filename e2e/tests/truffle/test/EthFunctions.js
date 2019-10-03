@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
 const MyToken = artifacts.require('MyToken');
+const SimpleStore = artifacts.require('SimpleStore');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
@@ -144,7 +145,7 @@ contract('MyToken', async (accounts) => {
     assert.equal(ethOwner.toLowerCase(), web3js.utils.padLeft(owner, 64).toLowerCase(), "result using tokenContract and eth.call");
   });
 
-  it('eth_estimateGas', async () => {
+  it('MyToken eth_estimateGas', async () => {
     const tokenContract = await MyToken.deployed(); 
     contract = new web3js.eth.Contract(MyToken._json.abi, tokenContract.address, {alice});
     await tokenContract.mintToken(113, { from: alice });
@@ -153,8 +154,29 @@ contract('MyToken', async (accounts) => {
       data: "0x6352211e0000000000000000000000000000000000000000000000000000000000000070", // abi for ownerOf(12)
       value: 0
     },"latest");
-    assert.equal(gas,722, "pass transaction gas estimate");
+    assert.equal(gas,722, "[MyToken] pass transaction gas estimate");
+  });
+
+  it('SimpleStore eth_estimateGas', async () => {
+    const setAttemp = {
+     "first" : 500 ,
+     "second": 1000 ,
+    }
+    const SimpleStoreContract = await SimpleStore.deployed(); 
+    await SimpleStoreContract.set(setAttemp.first,{from:alice})
+
+    contract = new web3js.eth.Contract(SimpleStore._json.abi, SimpleStoreContract.address, {alice});
+    let actual = await contract.methods.get().call({from:bob.toString()});
+    assert.equal(actual,setAttemp.first,"[SimpleStore] ....")
+    const gasEst = await contract.methods.set(setAttemp.second).estimateGas();
+    assert.equal(gasEst,6487, "[SimpleStore] pass transaction gas estimate");
+
+    actual = await contract.methods.get().call({from:bob.toString()});
+    assert.equal(actual,setAttemp.first,"[SimpleStore] state must not change on estimateGas call")
+  
+    await SimpleStoreContract.set(setAttemp.second,{from:bob})
+    actual = await contract.methods.get().call();
+    assert.equal(actual,setAttemp.second);
   });
 
 });
-

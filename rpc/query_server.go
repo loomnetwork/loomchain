@@ -1096,48 +1096,36 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_estimateGas
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Quantity, err error) {
-	// var caller loom.Address
-	// if len(query.From) > 0 {
-	// 	caller, err = eth.DecDataToAddress(s.ChainID, query.From)
-	// 	if err != nil {
-	// 		return resp, err
-	// 	}
-	// } else {
-	// 	caller = loom.RootAddress(s.ChainID)
-	// }
-	// fmt.Printf("\ncaller : %+v\n", caller)
-	// contract, err := eth.DecDataToAddress(s.ChainID, query.To)
-	// if err != nil {
-	// 	return resp, err
-	// }
-	// fmt.Printf("\ncontract : %+v\n", contract)
-	// data, err := eth.DecDataToBytes(query.Data)
-	// if err != nil {
-	// 	return resp, err
-	// }
-	// fmt.Printf("\ndata : %+v\n", data)
-	// fmt.Printf("data Hash: %+v\n", ethcommon.BytesToHash(data))
-	// amount := loom.NewBigUIntFromInt(0)
-	// val, err := eth.DecQuantityToUint(query.Value)
-	// if err != nil {
-	// 	fmt.Println("here")
-	// 	return resp, err
-	// }
-	// fmt.Printf("\nval : %+v\n", val)
-	// _ = amount.SetUint64(val)
-	// fmt.Printf("\namount : %+v\n", amount)
+	var caller loom.Address
+	if len(query.From) > 0 {
+		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
+		if err != nil {
+			return resp, err
+		}
+	} else {
+		caller = loom.RootAddress(s.ChainID)
+	}
 
-	// snapshot := s.StateProvider.ReadOnlyState()
-	// defer snapshot.Release()
+	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
+	if err != nil {
+		return resp, err
+	}
 
-	// vm := levm.NewLoomVm(snapshot, nil, nil, nil, true)
-	// gasUsed, err := vm.EstimateGas(caller, contract, data, amount)
-	// if err != nil {
-	// 	fmt.Printf("error in call estimateGas %+v", err)
-	// }
-	// fmt.Println("query_server est. gas : ", gasUsed)
-	// return eth.EncUint(gasUsed), err
-	return eth.Quantity("0x0"), nil
+	data, err := eth.DecDataToBytes(query.Data)
+	if err != nil {
+		return resp, err
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	vm := levm.NewLoomVm(snapshot, nil, nil, nil, true)
+	gasUsed, err := vm.EstimateGas(caller, contract, data, nil)
+	if err != nil {
+		fmt.Printf("error in call estimateGas %+v", err)
+	}
+	fmt.Println("query_server est. gas : ", gasUsed)
+	return eth.EncUint(gasUsed), err
 }
 
 func (s *QueryServer) EthGasPrice() (eth.Quantity, error) {
