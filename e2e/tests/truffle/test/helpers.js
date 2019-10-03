@@ -1,4 +1,5 @@
 const rp = require('request-promise')
+const keccak256 = require('js-sha3').keccak256
 
 async function assertRevert(promise) {
   try {
@@ -88,4 +89,19 @@ async function getLatestBlock(nodeAddr) {
   return currentBlock = Number(res.result.sync_info.latest_block_height)
 }
 
-module.exports = { assertRevert, delay, waitForXBlocks, getNonce, getStorageAt ,getLatestBlock}
+/**
+ * Generates a hash for an EVM tx that will be executed by a Loom node.
+ * This hash can be used to lookup the corresponding tx receipt.
+ * @param {EthereumTx} ethTx Unsigned Ethereum transaction.
+ * @param {Web3Address} fromAddr Sender address.
+ */
+function getLoomEvmTxHash(ethTx, fromAddr) {
+  return keccak256(Buffer.concat([
+    Buffer.from(ethTx.hash()),
+    Buffer.from(fromAddr.bytes)
+  ])).toString('hex')
+}
+
+module.exports = {
+  assertRevert, delay, waitForXBlocks, getNonce, getStorageAt, getLatestBlock, getLoomEvmTxHash
+}

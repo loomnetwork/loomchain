@@ -79,34 +79,39 @@ func GetBlockByNumber(
 	blockInfo.Number = eth.EncInt(height)
 	bloomFilter := evmAuxStore.GetBloomFilter(uint64(height))
 	blockInfo.LogsBloom = eth.EncBytes(bloomFilter)
-	var blockResults *ctypes.ResultBlockResults
-	if full {
-		// We ignore the error here becuase if the block results can't be loaded for any reason
-		// we'll try to load the data we need from tx_index.db instead.
-		// TODO: Log the error returned by GetBlockResults.
-		blockResults, _ = blockStore.GetBlockResults(&height)
-	}
-	for index, tx := range blockResult.Block.Data.Txs {
-		if full {
-			var blockResultBytes []byte
-			if blockResults == nil {
-				// Retrieve tx result from tx_index.db
-				txResult, err := blockStore.GetTxResult(tx.Hash())
-				if err != nil {
-					return resp, errors.Wrapf(err, "cant find tx details, hash %X", tx.Hash())
-				}
-				blockResultBytes = txResult.TxResult.Data
-			} else {
-				blockResultBytes = blockResults.Results.DeliverTx[index].Data
-			}
+	// We ignore the error here because if the block results can't be loaded for any reason
+	// we'll try to load the data we need from tx_index.db instead.
+	// TODO: Log the error returned by GetBlockResults.
+	blockResults, _ := blockStore.GetBlockResults(&height)
 
-			txObj, _, err := GetTxObjectFromBlockResult(blockResult, blockResultBytes, int64(index))
+	for index, tx := range blockResult.Block.Data.Txs {
+		var txResultData []byte
+		if blockResults == nil ||
+			len(blockResults.Results.DeliverTx) <= index ||
+			blockResults.Results.DeliverTx[index] == nil {
+			// TODO: Log an error when blockResults != nil, as it's somewhat unusual to have a
+			//       missing DeliverTx response.
+			// Retrieve tx result from tx_index.db
+			txResult, err := blockStore.GetTxResult(tx.Hash())
 			if err != nil {
-				return resp, errors.Wrapf(err, "cant resolve tx, hash %X", tx.Hash())
+				return resp, errors.Wrapf(err, "failed to load tx result, hash %X", tx.Hash())
 			}
+			txResultData = txResult.TxResult.Data
+		} else {
+			txResultData = blockResults.Results.DeliverTx[index].Data
+		}
+
+		// TODO: When full is false this code ends up doing a bunch of useless encoding, should refactor
+		//       things a bit.
+		txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultData, int64(index), evmAuxStore)
+		if err != nil {
+			return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
+		}
+
+		if full {
 			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
-			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(tx.Hash()))
+			blockInfo.Transactions = append(blockInfo.Transactions, txObj.Hash)
 		}
 	}
 
@@ -118,14 +123,14 @@ func GetBlockByNumber(
 }
 
 func GetTxObjectFromBlockResult(
-	blockResult *ctypes.ResultBlock, txResultData []byte, index int64,
+	blockResult *ctypes.ResultBlock, txResultData []byte, txIndex int64, evmAuxStore *evmaux.EvmAuxStore,
 ) (eth.JsonTxObject, *eth.Data, error) {
-	tx := blockResult.Block.Data.Txs[index]
+	tx := blockResult.Block.Data.Txs[txIndex]
 	var contractAddress *eth.Data
 	txObj := eth.JsonTxObject{
 		BlockHash:        eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
 		BlockNumber:      eth.EncInt(blockResult.Block.Header.Height),
-		TransactionIndex: eth.EncInt(int64(index)),
+		TransactionIndex: eth.EncInt(int64(txIndex)),
 		Value:            eth.EncInt(0),
 		GasPrice:         eth.EncInt(0),
 		Gas:              eth.EncInt(0),
@@ -175,7 +180,10 @@ func GetTxObjectFromBlockResult(
 				}
 				contractAddress = eth.EncPtrAddress(resp.Contract)
 				if len(respData.TxHash) > 0 {
-					txObj.Hash = eth.EncBytes(respData.TxHash)
+					// Check duplicate EVM tx hash before using it
+					if !evmAuxStore.IsDupEVMTxHash(respData.TxHash) {
+						txObj.Hash = eth.EncBytes(respData.TxHash)
+					}
 				}
 			}
 			if deployTx.Value != nil {
@@ -192,7 +200,10 @@ func GetTxObjectFromBlockResult(
 			to := eth.EncAddress(msg.To)
 			txObj.To = &to
 			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
-				txObj.Hash = eth.EncBytes(txResultData)
+				// Check duplicate EVM tx hash before using it
+				if !evmAuxStore.IsDupEVMTxHash(txResultData) {
+					txObj.Hash = eth.EncBytes(txResultData)
+				}
 			}
 			if callTx.Value != nil {
 				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)

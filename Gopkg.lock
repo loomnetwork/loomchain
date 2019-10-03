@@ -20,9 +20,12 @@
   revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [[projects]]
-  digest = "1:95f4fdfbc8d7723bd21e467aabe98d86f06d3e2557b1ba92bf9df8aea6706784"
+  digest = "1:1d8e1cb71c33a9470bbbae09bfec09db43c6bf358dfcae13cd8807c4e2a9a2bf"
   name = "github.com/btcsuite/btcutil"
-  packages = ["base58"]
+  packages = [
+    "base58",
+    "bech32",
+  ]
   pruneopts = "UT"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
 
@@ -307,7 +310,7 @@
 
 [[projects]]
   branch = "loomchain"
-  digest = "1:70d9461d1f2ba2ef6ecd33c03ebb5be662affdd2411785bcf17e33137a68ab1c"
+  digest = "1:dd101ab4dc08ffc08bcf9c0cd52b93a44e121edbf1c5cfbabdac62dc6469f73c"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -360,7 +363,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "9d871e29f9d34ee6563a821c78e1a23b8984c822"
+  revision = "62d42c27fdaca37f3f76ac8bcc107e6f661c1de7"
   source = "https://github.com/loomnetwork/tendermint.git"
 
 [[projects]]
@@ -425,6 +428,7 @@
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
     "github.com/btcsuite/btcutil/base58",
+    "github.com/btcsuite/btcutil/bech32",
     "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/gorilla/websocket",
