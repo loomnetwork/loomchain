@@ -5,8 +5,13 @@ package throttle
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -17,6 +22,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
@@ -107,8 +113,6 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	}
 }
 
-
-
 func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
@@ -163,7 +167,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 	require.True(t, id == callId || id == deployId || id == migrationId || id == ethId)
 
 	switch id {
-	case callId: {
+	case callId:
 		callTx, err := proto.Marshal(&vm.CallTx{
 			VmType: vmType,
 			Input:  origBytes,
@@ -175,8 +179,8 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
-	}
-	case deployId:	{
+
+	case deployId:
 		deployTX, err := proto.Marshal(&vm.DeployTx{
 			VmType: vmType,
 			Code:   origBytes,
@@ -188,9 +192,9 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
-	}
 
-	case ethId: { // to ~ empty indicates deploy tx
+	case ethId:
+		// to ~ empty indicates deploy tx
 		ethBytes, err := ethTxBytes(sequence, to, origBytes)
 		require.NoError(t, err)
 		messageTx, err = proto.Marshal(&vm.MessageTx{
@@ -198,8 +202,8 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
-	}
-	case migrationId: {
+
+	case migrationId:
 		migrationTx, err := proto.Marshal(&vm.MigrationTx{
 			ID: 1,
 		})
@@ -210,8 +214,8 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
-	}}
-	
+	}
+
 	tx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   id,
 		Data: messageTx,
@@ -239,9 +243,9 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 
 func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 	bigZero := big.NewInt(0)
-	var tx *types.Transaction
+	var tx *ethtypes.Transaction
 	if to.IsEmpty() {
-		tx = types.NewContractCreation(
+		tx = ethtypes.NewContractCreation(
 			sequence,
 			big.NewInt(24),
 			0,
@@ -249,7 +253,7 @@ func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 			data,
 		)
 	} else {
-		tx = types.NewTransaction(
+		tx = ethtypes.NewTransaction(
 			sequence,
 			common.BytesToAddress(to.Local),
 			big.NewInt(11),
@@ -259,12 +263,12 @@ func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 		)
 	}
 	chainConfig := utils.DefaultChainConfig(true)
-	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
+	signer := ethtypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	ethKey, err := crypto.GenerateKey()
 	if err != nil {
 		return nil, err
 	}
-	tx, err = types.SignTx(tx, signer, ethKey)
+	tx, err = ethtypes.SignTx(tx, signer, ethKey)
 	if err != nil {
 		return nil, err
 	}
