@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"fmt"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -60,8 +61,8 @@ func (t *TendermintPRCFunc) UnmarshalParamsAndCall(
 
 	tmTx, err := ethereumToTendermintTx(t.chainID, txBytes)
 	if err != nil {
-		return nil, eth.NewErrorf(
-			eth.EcServer, "Parse parameters", "convert ethereum tx to tendermint tx, error %v", err,
+		return nil, eth.NewError(
+			eth.EcServer, fmt.Sprintf("failed to wrap eth tx: %v", err), "",
 		)
 	}
 

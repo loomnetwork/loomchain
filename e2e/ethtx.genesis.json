@@ -3,6 +3,13 @@
     {
       "vm": "plugin",
       "format": "plugin",
+      "name": "addressmapper",
+      "location": "addressmapper:0.1.0",
+      "init": null
+    },
+    {
+      "vm": "plugin",
+      "format": "plugin",
       "name": "coin",
       "location": "coin:1.0.0",
       "init": {
@@ -28,11 +35,43 @@
             "status":"WAITING"
           },
           {
+            "name":"dpos:v3.1",
+            "status":"WAITING"
+          },
+          {
+            "name":"chaincfg:v1.1",
+            "status":"WAITING"
+          },
+          {
+            "name":"chaincfg:v1.2",
+            "status":"WAITING"
+          },
+          {
+            "name":"chaincfg:v1.3",
+            "status":"WAITING"
+          },
+          {
+            "name":"receipts:v2",
+            "status":"WAITING"
+          },
+          {
+            "name":"receipts:v3.4",
+            "status":"WAITING"
+          },
+          {
+            "name":"receipts:v3.1",
+            "status":"WAITING"
+          },
+          {
             "name": "auth:sigtx:eth",
             "status": "WAITING"
           },
           {
             "name": "EthTxFeature",
+            "status": "WAITING"
+          },
+          {
+            "name": "evm:constantinople",
             "status": "WAITING"
           }
         ]

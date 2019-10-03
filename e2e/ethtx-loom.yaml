@@ -4,9 +4,3 @@ DPOSVersion: 3
 CreateEmptyBlocks: true
 ChainConfig:
   ContractEnabled: true
-Auth:
-  Chains:
-    default:
-      TxType: "loom"
-    eth:
-      TxType: "eth"

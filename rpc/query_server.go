@@ -278,6 +278,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
 	var caller loom.Address
+	// TODO: This is wrong, the caller chain ID should be assumed to be "eth:"
 	if len(query.From) > 0 {
 		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
 		if err != nil {
