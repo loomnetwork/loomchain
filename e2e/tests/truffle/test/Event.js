@@ -59,6 +59,41 @@ contract('EventTestContract', async (accounts) => {
         } catch (err) {
             assert.fail(err)
         }
+
+        try {
+            var eventCount2 = 0
+            contract.events.allEvents()
+                .on('data', (event) => {
+                    eventCount2++
+                })
+            var tx = await contract.methods.set(1).send()
+            assert.equal(2, tx.events.NewValueSet.length)
+            assert.equal(true, (tx.events.AnotherValueSet != undefined))
+            var tx = await contract.methods.set(2).send()
+            assert.equal(2, tx.events.NewValueSet.length)
+            assert.equal(true, (tx.events.AnotherValueSet != undefined))
+            // total 6 events
+            assert.equal(6, eventCount2)
+        } catch (err) {
+            assert.fail(err)
+        }
+
+        try {
+            var eventCount3 = 0
+            contract.events.allEvents()
+                .on('data', (event) => {
+                    eventCount3++
+                })
+            // sending two txs in one block
+            contract.methods.set(1).send().then()
+            var tx = await contract.methods.set(2).send()
+            assert.equal(2, tx.events.NewValueSet.length)
+            assert.equal(true, (tx.events.AnotherValueSet != undefined))
+            // total 6 events
+            assert.equal(6, eventCount3)
+        } catch (err) {
+            assert.fail(err)
+        }
     })
 
 })
