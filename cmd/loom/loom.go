@@ -418,8 +418,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
-				return err
+			if fnRegistry != nil {
+				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
+					return err
+				}
 			}
 
 			if err := startPlasmaOracle(chainID, cfg.PlasmaCash); err != nil {
@@ -586,7 +588,7 @@ func destroyApp(cfg *config.Config) error {
 }
 
 func destroyReceiptsDB(cfg *config.Config) {
-	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
+	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb || cfg.ReceiptsVersion == 3 {
 		receptHandler := leveldb.LevelDbReceipts{}
 		receptHandler.ClearData()
 	}
@@ -1030,7 +1032,8 @@ func loadApp(
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware(appStore))
+	nonceTxHandler := auth.NewNonceHandler()
+	txMiddleWare = append(txMiddleWare, nonceTxHandler.TxMiddleware(appStore))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -1098,7 +1101,7 @@ func loadApp(
 
 	// We need to make sure nonce post commit middleware is last
 	// as it doesn't pass control to other middlewares after it.
-	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
+	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
 	return &loomchain.Application{
 		Store: appStore,
@@ -1117,6 +1120,7 @@ func loadApp(
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
+		ReceiptsVersion:             cfg.ReceiptsVersion,
 	}, nil
 }
 

@@ -39,6 +39,13 @@
         {
             "vm": "plugin",
             "format": "plugin",
+            "name": "sample-go-contract",
+            "location": "sample-go-contract:1.0.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
             "name": "chainconfig",
             "location": "chainconfig:1.0.0",
             "init": {
@@ -69,6 +76,26 @@
                     },
                     {
                         "name": "coin:v1.1",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.1",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.2",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "receipts:v3.4",
                         "status": "WAITING"
                     },
                     {

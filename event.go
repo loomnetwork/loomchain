@@ -18,8 +18,16 @@ import (
 
 type EventData types.EventData
 
+// EventHandler handles collection, storage, and dispatch of tx & block events.
 type EventHandler interface {
+	// Post stores an event in transient storage, it may be emitted later by EmitBlockTx.
 	Post(height uint64, e *types.EventData) error
+	// Commit adds events posted since the last Rollback to the set of events to be emitted when
+	// EmitBlockTx is called.
+	Commit(height uint64)
+	// Rollback discards any posted events that haven't been committed.
+	Rollback()
+	// Emits all events committed while processing the specified block.
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
@@ -34,6 +42,7 @@ type EventDispatcher interface {
 type DefaultEventHandler struct {
 	dispatcher             EventDispatcher
 	stash                  *stash
+	eventCache             []*EventData
 	subscriptions          *SubscriptionSet
 	ethSubscriptions       *subs.EthSubscriptionSet
 	legacyEthSubscriptions *subs.LegacyEthSubscriptionSet
@@ -67,8 +76,17 @@ func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	}
 	// TODO: this is stupid, fix it
 	eventData := EventData(*msg)
-	ed.stash.add(height, &eventData)
+	ed.eventCache = append(ed.eventCache, &eventData)
 	return nil
+}
+
+func (ed *DefaultEventHandler) Commit(height uint64) {
+	ed.stash.add(height, ed.eventCache)
+	ed.eventCache = nil
+}
+
+func (ed *DefaultEventHandler) Rollback() {
+	ed.eventCache = nil
 }
 
 func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
@@ -155,6 +173,14 @@ func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err 
 
 	err = m.next.Post(height, e)
 	return
+}
+
+func (m InstrumentingEventHandler) Commit(height uint64) {
+	m.next.Commit(height)
+}
+
+func (m InstrumentingEventHandler) Rollback() {
+	m.next.Rollback()
 }
 
 // EmitBlockTx captures the metrics
@@ -286,14 +312,16 @@ func newStash() *stash {
 	}
 }
 
-func (s *stash) add(height uint64, msg *EventData) {
+func (s *stash) add(height uint64, msgs []*EventData) {
 	s.Lock()
 	defer s.Unlock()
 	_, ok := s.m[height]
 	if !ok {
 		s.m[height] = newEventSet()
 	}
-	s.m[height].Add(msg)
+	for _, msg := range msgs {
+		s.m[height].Add(msg)
+	}
 }
 
 func (s *stash) fetch(height uint64) ([]*EventData, error) {

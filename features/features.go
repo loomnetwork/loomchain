@@ -49,6 +49,25 @@ const (
 	// Enables EVM tx receipts storage in separate DB.
 	EvmTxReceiptsVersion2Feature = "receipts:v2"
 
+	// Enables saving of EVM tx receipts for EVM calls made from Go contracts.
+	// NOTE: This flag will have no effect once EvmTxReceiptsVersion3_1 is activated.
+	EvmTxReceiptsVersion3 = "receipts:v3"
+
+	// Enables saving of EVM tx receipts for failed EVM calls
+	// NOTE: On new clusters this flag should only be activated after EvmTxReceiptsVersion3_4.
+	EvmTxReceiptsVersion3_1 = "receipts:v3.1"
+
+	// Enables switching to an alternative algo for EVM tx hash generation
+	// NOTE: This flag will have no effect once EvmTxReceiptsVersion3_4 is activated.
+	EvmTxReceiptsVersion3_2 = "receipts:v3.2"
+
+	// Fixes the alternative EVM tx hash generation introduced in v3.2
+	// NOTE: This flag will have no effect once EvmTxReceiptsVersion3_4 is activated.
+	EvmTxReceiptsVersion3_3 = "receipts:v3.3"
+
+	// Reverts back to the original EVM tx hash generation (prior to v3.2 & v3.3)
+	EvmTxReceiptsVersion3_4 = "receipts:v3.4"
+
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"

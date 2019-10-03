@@ -69,12 +69,12 @@ func GetBlockLogRange(
 	evmAuxStore *evmaux.EvmAuxStore,
 ) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
-		return nil, fmt.Errorf("to block before end block")
+		return nil, fmt.Errorf("from block (%v) greater than to block (%v)", from, to)
 	}
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(blockStore, state, ethFilter, height, readReceipts, evmAuxStore)
+		blockLogs, err := getBlockLogs(blockStore, state, ethFilter, height, readReceipts, evmAuxStore)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +83,7 @@ func GetBlockLogRange(
 	return eventLogs, nil
 }
 
-func GetBlockLogs(
+func getBlockLogs(
 	blockStore store.BlockStore,
 	state loomchain.ReadOnlyState,
 	ethFilter eth.EthBlockFilter,

@@ -26,10 +26,12 @@ const (
 type ReceiptHandler struct {
 	eventHandler    loomchain.EventHandler
 	leveldbReceipts *leveldb.LevelDbReceipts
-	mutex           *sync.RWMutex
-	receiptsCache   []*types.EvmTxReceipt
-	txHashList      [][]byte
-	currentReceipt  *types.EvmTxReceipt
+	evmAuxStore     *evmaux.EvmAuxStore
+
+	mutex          *sync.RWMutex
+	receiptsCache  []*types.EvmTxReceipt
+	txHashList     [][]byte
+	currentReceipt *types.EvmTxReceipt
 }
 
 func NewReceiptHandler(
@@ -43,14 +45,32 @@ func NewReceiptHandler(
 		currentReceipt:  nil,
 		mutex:           &sync.RWMutex{},
 		leveldbReceipts: leveldb.NewLevelDbReceipts(evmAuxStore, maxReceipts),
+		evmAuxStore:     evmAuxStore,
 	}
 }
 
+// GetReceipt looks up an EVM tx receipt by tx hash.
+// The tx hash can either be the hash of the Tendermint tx within which the EVM tx was embedded or,
+// the hash of the embedded EVM tx itself.
 func (r *ReceiptHandler) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
+	requestedTxHash := txHash
+	// At first assume the input hash is a Tendermint tx hash and try to resolve it to an EVM tx hash,
+	// if that fails it might be an EVM tx hash.
+	evmTxHash, err := r.evmAuxStore.GetChildTxHash(txHash)
+	if len(evmTxHash) > 0 && err == nil {
+		txHash = evmTxHash
+	}
+
 	receipt, err := r.leveldbReceipts.GetReceipt(txHash)
 	if err != nil {
 		return receipt, errors.Wrapf(common.ErrTxReceiptNotFound, "GetReceipt: %v", err)
 	}
+	// Tx hash on receipt has to match the requested tx hash
+	receipt.TxHash = requestedTxHash
+	for _, eventLog := range receipt.Logs {
+		eventLog.TxHash = requestedTxHash
+	}
+
 	return receipt, nil
 }
 
@@ -69,6 +89,7 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 func (r *ReceiptHandler) GetCurrentReceipt() *types.EvmTxReceipt {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
+
 	return r.currentReceipt
 }
 
@@ -94,9 +115,10 @@ func (r *ReceiptHandler) ClearData() error {
 }
 
 func (r *ReceiptHandler) CommitCurrentReceipt() {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	if r.currentReceipt != nil {
-		r.mutex.Lock()
-		defer r.mutex.Unlock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
 		r.currentReceipt = nil
@@ -106,13 +128,15 @@ func (r *ReceiptHandler) CommitCurrentReceipt() {
 func (r *ReceiptHandler) DiscardCurrentReceipt() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
 	r.currentReceipt = nil
 }
 
-func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
+func (r *ReceiptHandler) CommitBlock(height int64) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	err := r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
+
+	err := r.leveldbReceipts.CommitBlock(r.receiptsCache, uint64(height))
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
 	return err
@@ -120,10 +144,22 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 
 // TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(
-	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error,
+	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error, txHash []byte,
 ) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
+	// If there's an existing receipt that means we're trying to store a receipt for an internal
+	// contract call, instead of creating a separate receipt for the internal call we merge the logs
+	// from the internal call into the existing receipt.
+	if r.currentReceipt != nil {
+		r.currentReceipt.Logs = append(
+			r.currentReceipt.Logs,
+			leveldb.CreateEventLogs(r.currentReceipt, state.Block(), events, r.eventHandler)...,
+		)
+		return r.currentReceipt.TxHash, nil
+	}
+
 	var status int32
 	if txErr == nil {
 		status = common.StatusTxSuccess
@@ -131,8 +167,8 @@ func (r *ReceiptHandler) CacheReceipt(
 		status = common.StatusTxFail
 	}
 	receipt, err := leveldb.WriteReceipt(
-		state.Block(), caller, addr, events, status,
-		r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)),
+		state.Block(), caller, addr, events, status, r.eventHandler,
+		int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)), txHash,
 	)
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")

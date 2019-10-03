@@ -29,9 +29,10 @@ func WriteReceipt(
 	caller, addr loom.Address,
 	events []*types.EventData,
 	status int32,
-	eventHadler loomchain.EventHandler,
+	eventHandler loomchain.EventHandler,
 	evmTxIndex int32,
 	nonce int64,
+	txHash []byte,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
 		Nonce:             nonce,
@@ -46,29 +47,42 @@ func WriteReceipt(
 		CallerAddress:     caller.MarshalPB(),
 	}
 
-	preTxReceipt, err := proto.Marshal(&txReceipt)
-	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
+	if len(txHash) == 0 {
+		preTxReceipt, err := proto.Marshal(&txReceipt)
+		if err != nil {
+			return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
+		}
+		h := sha256.New()
+		h.Write(preTxReceipt)
+		txReceipt.TxHash = h.Sum(nil)
+	} else {
+		txReceipt.TxHash = txHash
 	}
-	h := sha256.New()
-	h.Write(preTxReceipt)
-	txHash := h.Sum(nil)
 
-	txReceipt.TxHash = txHash
-	blockHeight := uint64(txReceipt.BlockNumber)
+	txReceipt.Logs = append(txReceipt.Logs, CreateEventLogs(&txReceipt, block, events, eventHandler)...)
+	txReceipt.TransactionIndex = block.NumTxs - 1
+	return txReceipt, nil
+}
+
+func CreateEventLogs(
+	txReceipt *types.EvmTxReceipt,
+	block loom_types.BlockHeader,
+	events []*types.EventData,
+	eventHandler loomchain.EventHandler,
+) []*types.EventData {
+	logs := make([]*types.EventData, 0, len(events))
 	for _, event := range events {
-		event.TxHash = txHash
-		if eventHadler != nil {
-			_ = eventHadler.Post(blockHeight, event)
+		event.TxHash = txReceipt.TxHash
+		if eventHandler != nil {
+			_ = eventHandler.Post(uint64(txReceipt.BlockNumber), event)
 		}
 
 		pEvent := types.EventData(*event)
 		pEvent.BlockHash = block.CurrentHash
 		pEvent.TransactionIndex = uint64(block.NumTxs - 1)
-		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
+		logs = append(logs, &pEvent)
 	}
-	txReceipt.TransactionIndex = block.NumTxs - 1
-	return txReceipt, nil
+	return logs
 }
 
 func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
@@ -102,7 +116,7 @@ func (lr LevelDbReceipts) Close() error {
 	return nil
 }
 
-func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error {
+func (lr *LevelDbReceipts) CommitBlock(receipts []*types.EvmTxReceipt, height uint64) error {
 	if len(receipts) == 0 {
 		return nil
 	}

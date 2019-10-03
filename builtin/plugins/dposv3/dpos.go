@@ -1521,7 +1521,7 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, jailingEn
 	if ctx.FeatureEnabled(features.DPOSVersion3_4, false) {
 		jailOfflineValidator = jailingEnabled
 	}
-	if jailOfflineValidator {
+	if jailOfflineValidator && !statistic.Jailed {
 		downtime := getDowntimeRecord(ctx, statistic)
 		if downtime.Periods[0] == downtimePeriod &&
 			downtime.Periods[1] == downtimePeriod &&

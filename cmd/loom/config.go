@@ -132,6 +132,17 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			})
 	}
 
+	if cfg.SampleGoContractEnabled {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "sample-go-contract",
+				Location:   "sample-go-contract:1.0.0",
+			},
+		)
+	}
+
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts,
 			config.ContractConfig{
@@ -207,6 +218,14 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 				},
 				&cctypes.Feature{
 					Name:   features.EvmTxReceiptsVersion2Feature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   features.EvmTxReceiptsVersion3_4,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
+					Name:   features.EvmTxReceiptsVersion3_1,
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{

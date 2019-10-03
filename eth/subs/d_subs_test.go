@@ -81,6 +81,7 @@ func TestSubscribe(t *testing.T) {
 		}
 		message, err = proto.Marshal(&eventData)
 		require.NoError(t, err)
+
 		ethSubSet.Reset()
 		ethSubSet.Publish(pubsub.NewMessage(string(message), message))
 		require.Equal(t, messageShouldBeSent[currentIndex], messageSent)

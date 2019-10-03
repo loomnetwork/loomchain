@@ -17,6 +17,7 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -35,6 +36,7 @@ import (
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
@@ -47,6 +49,7 @@ const (
 	/**
 	 * contract GoContract {}
 	 */
+	// nolint:lll
 	goGetCode = "0x608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f6b4dfb4146044575b600080fd5b348015604f57600080fd5b5060566098565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b73e288d6eec7150d6a22fde33f0aa2d81e06591c4d815600a165627a7a72305820b8b6992011e1a3286b9546ca427bf9cb05db8bd25addbee7a9894131d9db12500029"
 
 	StatusTxSuccess = int32(1)
@@ -773,13 +776,13 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		return nil, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
-		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash)
+		// TODO: Log the error, this fallback should be happening very rarely so we should probably
+		//       setup an alert to detect when this happens.
+		// if the receipt is not found, create it from TxObj
+		resp, err := getReceiptByTendermintHash(s.BlockStore, r, txHash, s.EvmAuxStore)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
 				// return nil response if cannot find hash
@@ -789,7 +792,6 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		}
 		return resp, nil
 	}
-	snapshot.Release()
 
 	height := int64(txReceipt.BlockNumber)
 	blockResult, err := s.BlockStore.GetBlockByHeight(&height)
@@ -802,6 +804,9 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 			txReceipt.TransactionIndex, len(blockResult.Block.Data.Txs),
 		)
 	}
+	// TODO: We've got a receipt at this point, the only thing it's missing is the block timestamp in
+	//       the event logs (which can be obtained from blockResult), loading the tx result at this
+	//       point seems like a waste of time.
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
@@ -875,17 +880,15 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 		return resp, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	r := s.ReceiptHandlerProvider.Reader()
-	txObj, err := query.GetTxByHash(s.BlockStore, txHash, r)
+	txObj, err := query.GetTxByHash(s.BlockStore, txHash, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore)
 	if err != nil {
+		// TODO: Should call r.GetReceipt instead of query.GetTxByHash so we don't have to use this
+		//       flimsy error cause checking.
 		if errors.Cause(err) != common.ErrTxReceiptNotFound {
 			return resp, err
 		}
 
-		txObj, err = getTxByTendermintHash(s.BlockStore, txHash)
+		txObj, err = getTxByTendermintHash(s.BlockStore, txHash, s.EvmAuxStore)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to find tx with hash %v", txHash)
 		}
@@ -912,7 +915,7 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 		return txObj, err
 	}
 
-	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex)
+	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex, s.EvmAuxStore)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
@@ -932,7 +935,7 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	if err != nil {
 		return txObj, err
 	}
-	return query.GetTxByBlockAndIndex(s.BlockStore, height, txIndex)
+	return query.GetTxByBlockAndIndex(s.BlockStore, height, txIndex, s.EvmAuxStore)
 }
 
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
@@ -1074,6 +1077,9 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 
 	ctx, err := s.createStaticContractCtx(snapshot, "ethcoin")
 	if err != nil {
+		if errors.Cause(err) == registry.ErrNotFound {
+			return eth.Quantity("0x0"), nil
+		}
 		return eth.Quantity("0x0"), err
 	}
 	amount, err := ethcoin.BalanceOf(ctx, owner)
@@ -1085,6 +1091,36 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 	}
 
 	return eth.EncBigInt(*amount.Int), nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getStorageAt
+func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth.BlockHeight) (eth.Data, error) {
+	address, err := eth.DecDataToAddress(s.ChainID, local)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to decode address parameter %v", local)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	if block == "" {
+		block = "latest"
+	}
+
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return "", errors.Wrapf(err, "invalid block height %s", block)
+	}
+	if int64(height) != snapshot.Block().Height {
+		return "", errors.Wrapf(err, "unable to get storage at height %v", block)
+	}
+
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get EVM storage at %v", address.Local.String())
+	}
+	return eth.EncBytes(storage), nil
 }
 
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
@@ -1117,7 +1153,10 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	}
 }
 
-func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockStore, rh loomchain.ReadReceiptHandler, hash []byte) (*eth.JsonTxReceipt, error) {
+func getReceiptByTendermintHash(
+	blockStore store.BlockStore,
+	rh loomchain.ReadReceiptHandler, hash []byte, evmAuxStore *evmaux.EvmAuxStore,
+) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
 		return nil, err
@@ -1126,7 +1165,9 @@ func getReceiptByTendermintHash(state loomchain.State, blockStore store.BlockSto
 	if err != nil {
 		return nil, err
 	}
-	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
+	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(
+		blockResult, txResults.TxResult.Data, int64(txResults.Index), evmAuxStore,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1174,7 +1215,9 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 	return &jsonReceipt
 }
 
-func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTxObject, error) {
+func getTxByTendermintHash(
+	blockStore store.BlockStore, hash []byte, evmAuxStore *evmaux.EvmAuxStore,
+) (eth.JsonTxObject, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
 		return eth.JsonTxObject{}, err
@@ -1183,6 +1226,8 @@ func getTxByTendermintHash(blockStore store.BlockStore, hash []byte) (eth.JsonTx
 	if err != nil {
 		return eth.JsonTxObject{}, err
 	}
-	txObj, _, err := query.GetTxObjectFromBlockResult(blockResult, txResults.TxResult.Data, int64(txResults.Index))
+	txObj, _, err := query.GetTxObjectFromBlockResult(
+		blockResult, txResults.TxResult.Data, int64(txResults.Index), evmAuxStore,
+	)
 	return txObj, err
 }

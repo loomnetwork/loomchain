@@ -172,6 +172,7 @@ func EncEvent(log types.EventData) JsonLog {
 		data = EncBytes(log.EncodedBody)
 	}
 
+	// TODO: Copy log.BlockTime
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),

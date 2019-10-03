@@ -24,7 +24,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 set-slashing-percentages 200 300 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
-  Expected = ["Error"]
+  Excluded = ["Error"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 get-dpos-state"

@@ -21,7 +21,7 @@ builders['linux'] = {
           checkout changelog: true, poll: true, scm:
           [
             $class: 'GitSCM',
-            branches: [[name: 'origin/pull/*/head']],
+            branches: [[name: '${ghprbActualCommit}']],
             doGenerateSubmoduleConfigurations: false,
             extensions: [
               [$class: 'PreBuildMerge',
@@ -83,7 +83,7 @@ disabled['windows'] = {
           checkout changelog: true, poll: true, scm:
           [
             $class: 'GitSCM',
-            branches: [[name: 'origin/pull/*/head']],
+            branches: [[name: '${ghprbActualCommit}']],
             doGenerateSubmoduleConfigurations: false,
             extensions: [
               [$class: 'PreBuildMerge',
@@ -137,7 +137,7 @@ builders['osx'] = {
           checkout changelog: true, poll: true, scm:
           [
             $class: 'GitSCM',
-            branches: [[name: 'origin/pull/*/head']],
+            branches: [[name: '${ghprbActualCommit}']],
             doGenerateSubmoduleConfigurations: false,
             extensions: [
               [$class: 'PreBuildMerge',

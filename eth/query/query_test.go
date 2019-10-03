@@ -4,23 +4,29 @@ package query
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/sha256"
 	"testing"
 
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/loomnetwork/loomchain/receipts/common"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/stretchr/testify/require"
+	ttypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -33,10 +39,6 @@ var (
 )
 
 func TestQueryChain(t *testing.T) {
-	testQueryChain(t, handler.ReceiptHandlerLevelDb)
-}
-
-func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	eventDispatcher := events.NewLogEventDispatcher()
@@ -55,7 +57,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil)
+	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 
@@ -66,7 +68,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.EqualValues(t, int64(4), blockInfo.Number)
 	require.EqualValues(t, 1, len(blockInfo.Transactions))
 
-	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
+	require.NoError(t, receiptHandler.CommitBlock(4))
 
 	mockEvent2 := []*types.EventData{
 		{
@@ -76,10 +78,10 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	_, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil)
+	_, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
+	require.NoError(t, receiptHandler.CommitBlock(20))
 
 	blockStore := store.NewMockBlockStore()
 
@@ -167,10 +169,6 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	testGetLogs(t, handler.ReceiptHandlerLevelDb)
-}
-
-func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 
@@ -206,12 +204,13 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address: addr1.MarshalPB(),
 		},
 	}
+
 	state := common.MockState(1)
 	state32 := common.MockStateAt(state, 32)
-	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil)
+	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state32, 32))
+	require.NoError(t, receiptHandler.CommitBlock(32))
 
 	txReceipt, err := receiptHandler.GetReceipt(txHash)
 	require.NoError(t, err)
@@ -231,4 +230,150 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 
 	require.NoError(t, receiptHandler.Close())
+}
+
+func TestDupEvmTxHash(t *testing.T) {
+	blockTxHash := getRandomTxHash()
+	txHash1 := getRandomTxHash() // DeployEVMTx that has dup EVM Tx Hash
+	txHash2 := getRandomTxHash() // CallEVMTx that has dup EVM Tx Hash
+	txHash3 := getRandomTxHash() // DeploEVMTx that has unique EVM Tx Hash
+	txHash4 := getRandomTxHash() // CallEVMTx that has unique EVM Tx Hash
+	from := loom.MustParseAddress("default:0x7262d4c97c7B93937E4810D289b7320e9dA82857")
+	to := loom.MustParseAddress("default:0x7262d4c97c7B93937E4810D289b7320e9dA82857")
+
+	deployTx, err := proto.Marshal(&vm.DeployTx{
+		VmType: vm.VMType_EVM,
+	})
+	callTx, err := proto.Marshal(&vm.CallTx{
+		VmType: vm.VMType_EVM,
+	})
+
+	signedDeployTxBytes := mockSignedTx(t, deployId, to, from, deployTx)
+	signedCallTxBytes := mockSignedTx(t, callId, to, from, callTx)
+
+	blockResultDeployTx := &ctypes.ResultBlock{
+		BlockMeta: &ttypes.BlockMeta{
+			BlockID: ttypes.BlockID{
+				Hash: blockTxHash,
+			},
+		},
+		Block: &ttypes.Block{
+			Data: ttypes.Data{
+				Txs: ttypes.Txs{signedDeployTxBytes},
+			},
+		},
+	}
+
+	blockResultCallTx := &ctypes.ResultBlock{
+		BlockMeta: &ttypes.BlockMeta{
+			BlockID: ttypes.BlockID{
+				Hash: blockTxHash,
+			},
+		},
+		Block: &ttypes.Block{
+			Data: ttypes.Data{
+				Txs: ttypes.Txs{signedCallTxBytes},
+			},
+		},
+	}
+
+	evmAuxStore, err := common.NewMockEvmAuxStore()
+	require.NoError(t, err)
+
+	dupEVMTxHashes := make(map[string]bool)
+	dupEVMTxHashes[string(txHash1)] = true
+	dupEVMTxHashes[string(txHash2)] = true
+	evmAuxStore.SetDupEVMTxHashes(dupEVMTxHashes)
+
+	txResultData1 := mockDeployResponse(txHash1)
+	txResultData2 := txHash2
+	txResultData3 := mockDeployResponse(txHash3)
+	txResultData4 := txHash4
+
+	// txhash1 is dup, so the returned hash must not be equal
+	txObj, _, err := GetTxObjectFromBlockResult(blockResultDeployTx, txResultData1, int64(0), evmAuxStore)
+	require.NoError(t, err)
+	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash1)))
+	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(ttypes.Tx(signedDeployTxBytes).Hash())))
+
+	// txhash2 is dup, so the returned hash must not be equal
+	txObj, _, err = GetTxObjectFromBlockResult(blockResultCallTx, txResultData2, int64(0), evmAuxStore)
+	require.NoError(t, err)
+	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash2)))
+	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(ttypes.Tx(signedCallTxBytes).Hash())))
+
+	// txhash3 is unique, so the returned hash must be equal
+	txObj, _, err = GetTxObjectFromBlockResult(blockResultDeployTx, txResultData3, int64(0), evmAuxStore)
+	require.NoError(t, err)
+	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash3)))
+
+	// txhash4 is unique, so the returned hash must be equal
+	txObj, _, err = GetTxObjectFromBlockResult(blockResultCallTx, txResultData4, int64(0), evmAuxStore)
+	require.NoError(t, err)
+	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash4)))
+}
+
+func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, data []byte) []byte {
+	var mgsData []byte
+	var err error
+	if id == deployId {
+		mgsData, err = proto.Marshal(&vm.DeployTx{
+			VmType: vm.VMType_EVM,
+		})
+		require.NoError(t, err)
+	} else if id == callId {
+		mgsData, err = proto.Marshal(&vm.CallTx{
+			VmType: vm.VMType_EVM,
+		})
+		require.NoError(t, err)
+	}
+
+	messageTx, err := proto.Marshal(&vm.MessageTx{
+		To:   to.MarshalPB(),
+		From: from.MarshalPB(),
+		Data: mgsData,
+	})
+	require.NoError(t, err)
+
+	txTx, err := proto.Marshal(&loomchain.Transaction{
+		Data: messageTx,
+		Id:   id,
+	})
+	require.NoError(t, err)
+
+	nonceTx, err := proto.Marshal(&auth.NonceTx{
+		Sequence: 1,
+		Inner:    txTx,
+	})
+	require.NoError(t, err)
+
+	signedTx, err := proto.Marshal(&auth.SignedTx{
+		Inner: nonceTx,
+	})
+
+	return signedTx
+}
+
+func mockDeployResponse(txHash []byte) []byte {
+	deployResponseData, err := proto.Marshal(&vm.DeployResponseData{
+		TxHash: txHash,
+	})
+	if err != nil {
+		panic(err)
+	}
+	deployResponse, err := proto.Marshal(&vm.DeployResponse{
+		Output: deployResponseData,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return deployResponse
+}
+
+func getRandomTxHash() []byte {
+	token := make([]byte, 32)
+	rand.Read(token)
+	h := sha256.New()
+	h.Write(token)
+	return h.Sum(nil)
 }

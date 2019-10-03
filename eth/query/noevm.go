@@ -16,16 +16,21 @@ func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyStat
 	return nil, nil
 }
 
-func GetBlockByNumber(_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ *evmaux.EvmAuxStore) (eth.JsonBlockObject, error) {
+func GetBlockByNumber(
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ *evmaux.EvmAuxStore,
+) (eth.JsonBlockObject, error) {
 	return eth.JsonBlockObject{}, nil
 }
 
-func GetTxObjectFromBlockResult(_ *ctypes.ResultBlock, _ []byte, _ int64) (eth.JsonTxObject, *eth.Data, error) {
+func GetTxObjectFromBlockResult(
+	_ *ctypes.ResultBlock, _ []byte, _ int64, _ *evmaux.EvmAuxStore,
+) (eth.JsonTxObject, *eth.Data, error) {
 	return eth.JsonTxObject{}, nil, nil
 }
 
 func DeprecatedGetBlockByNumber(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore,
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ loomchain.ReadReceiptHandler,
+	_ *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	return nil, nil
 }
@@ -35,7 +40,8 @@ func GetPendingBlock(_ int64, _ bool, _ loomchain.ReadReceiptHandler) ([]byte, e
 }
 
 func DeprecatedGetBlockByHash(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ []byte, _ bool, _ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore,
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ []byte, _ bool, _ loomchain.ReadReceiptHandler,
+	_ *evmaux.EvmAuxStore,
 ) ([]byte, error) {
 	return nil, nil
 }
@@ -48,16 +54,19 @@ func GetBlockHeightFromHash(_ store.BlockStore, _ loomchain.ReadOnlyState, _ []b
 	return 0, nil
 }
 
-func GetTxByHash(_ store.BlockStore, _ []byte, _ loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
+func GetTxByHash(
+	_ store.BlockStore, _ []byte, _ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore,
+) (eth.JsonTxObject, error) {
 	return eth.JsonTxObject{}, nil
 }
 
-func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64) (txObj eth.JsonTxObject, err error) {
+func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64, _ *evmaux.EvmAuxStore) (txObj eth.JsonTxObject, err error) {
 	return eth.JsonTxObject{}, nil
 }
 
 func QueryChain(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore,
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler,
+	_ *evmaux.EvmAuxStore,
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }

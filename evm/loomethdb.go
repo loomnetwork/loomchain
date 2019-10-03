@@ -123,7 +123,7 @@ func (b *batch) Delete(key []byte) error {
 	return nil
 }
 
-func (b *batch) Dump(logger log.Logger) {
+func (b *batch) Dump(logger *log.Logger) {
 	b.parentStore.lock.Lock()
 	defer b.parentStore.lock.Unlock()
 	logger.Print("\n---- BATCH DUMP ----\n")
@@ -222,7 +222,7 @@ func (b *LogBatch) Put(key, value []byte) error {
 	}
 	err := b.batch.Put(key, value)
 	if b.params.LogPutDump {
-		b.batch.Dump(logger)
+		b.batch.Dump(&logger)
 	}
 	return err
 }
@@ -241,12 +241,12 @@ func (b *LogBatch) Write() error {
 	}
 	if b.params.LogBeforeWriteDump {
 		logger.Println("Write, before : ")
-		b.batch.Dump(logger)
+		b.batch.Dump(&logger)
 	}
 	err := b.batch.Write()
 	if b.params.LogWriteDump {
 		logger.Println("Write, after : ")
-		b.batch.Dump(logger)
+		b.batch.Dump(&logger)
 	}
 	return err
 }
