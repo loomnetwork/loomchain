@@ -663,7 +663,7 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 }
 
 func newSetWithdrawLimitCommand() *cobra.Command {
-	var totalLimit, accountLimit int64
+	var totalLimit, accountLimit, decimals int64
 	cmd := &cobra.Command{
 		Use:     "set-withdrawal-limit <gateway>",
 		Short:   "Sets maximum amount the gateway should allow withdrawal",
@@ -682,17 +682,22 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 				name = GatewayName
 			} else if strings.EqualFold(args[0], LoomGatewayName) {
 				name = LoomGatewayName
+			} else if strings.EqualFold(args[0], BinanceGatewayName) {
+				name = BinanceGatewayName
 			} else {
-				return errors.New("only Gateway or LoomCoin gateway is allowed to set max withdrawal limit")
+				return errors.New("only Gateway, LoomCoin, or Binance gateway is allowed to set max withdrawal limit")
 			}
 
 			if totalLimit < 0 || accountLimit < 0 {
 				return errors.New("amount must be greater than zero")
 			}
+			if decimals < 0 {
+				return errors.New("decimals must be greater than zero")
+			}
 
 			// Need to pad the amounts with 18 zeros to make sure it has enough decimals
-			maxTotalAmount := sciNot(totalLimit, 18)
-			maxPerAccountAmount := sciNot(accountLimit, 18)
+			maxTotalAmount := sciNot(totalLimit, decimals)
+			maxPerAccountAmount := sciNot(accountLimit, decimals)
 
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
@@ -715,6 +720,7 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 	}
 	cmd.PersistentFlags().Int64Var(&totalLimit, "total-limit", 0, "Total limit")
 	cmd.PersistentFlags().Int64Var(&accountLimit, "account-limit", 0, "Account limit")
+	cmd.PersistentFlags().Int64Var(&decimals, "decimals", 18, "The number of decimals appended to the amounts")
 	return cmd
 }
 
