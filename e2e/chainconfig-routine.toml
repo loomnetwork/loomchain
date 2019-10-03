@@ -6,17 +6,17 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg add-feature auto-enabled:feature-1 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
-  Expected = ['Error']
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg add-feature auto-enabled:feature-2 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
-  Expected = ['Error']
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg add-feature auto-enabled:feature-3 --build 111 --no-auto-enable -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
-  Expected = ['Error']
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
@@ -27,7 +27,7 @@
   Delay = 20000
   RunCmd = "{{ $.LoomPath }} chain-cfg add-feature chaincfg:v1.2 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
-  Expected = ['Error']
+  Excluded = ['Error']
 
 [[TestCases]]
   RunCmd = "wait_for_block_height_to_increase 0 2"
