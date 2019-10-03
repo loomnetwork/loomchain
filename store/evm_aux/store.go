@@ -64,6 +64,18 @@ func renameReceiptsDB(path, newName string) error {
 	return nil
 }
 
+// ChildTxRef links a Tendermint tx hash to an EVM tx hash.
+type ChildTxRef struct {
+	ParentTxHash []byte
+	ChildTxHash  []byte
+}
+
+type EvmAuxStore struct {
+	db             dbm.DB
+	maxReceipts    uint64
+	dupEVMTxHashes map[string]bool
+}
+
 func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error) {
 	if maxReceipts == 0 {
 		return NewEvmAuxStore(dbm.NewMemDB(), maxReceipts), nil
@@ -96,18 +108,6 @@ func LoadStore(dbName, rootPath string, maxReceipts uint64) (*EvmAuxStore, error
 	evmAuxStore.SetDupEVMTxHashes(dupEVMTxHashes)
 
 	return evmAuxStore, nil
-}
-
-// ChildTxRef links a Tendermint tx hash to an EVM tx hash.
-type ChildTxRef struct {
-	ParentTxHash []byte
-	ChildTxHash  []byte
-}
-
-type EvmAuxStore struct {
-	db             dbm.DB
-	maxReceipts    uint64
-	dupEVMTxHashes map[string]bool
 }
 
 func NewEvmAuxStore(db dbm.DB, maxReceipts uint64) *EvmAuxStore {

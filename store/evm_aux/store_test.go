@@ -13,6 +13,10 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
+const (
+	dbConfigKeys = 3
+)
+
 func TestLoadDupEvmTxHashes(t *testing.T) {
 
 	evmAuxDB := dbm.NewMemDB()
@@ -46,10 +50,6 @@ func TestLoadDupEvmTxHashes(t *testing.T) {
 	dupEvmTxHashes := evmAuxStore.GetDupEVMTxHashes()
 	require.Equal(t, 100, len(dupEvmTxHashes))
 }
-
-const (
-	dbConfigKeys = 3
-)
 
 func TestReceiptsCyclicDB(t *testing.T) {
 	evmAuxStore := NewEvmAuxStore(dbm.NewMemDB(), 10)
@@ -98,7 +98,7 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 func confirmDbConsistency(t *testing.T, evmAuxStore *EvmAuxStore,
 	size uint64, head, tail []byte, receipts []*types.EvmTxReceipt, commit int) {
 	var err error
-	dbSize, dbHead, dbTail, err := evmAuxStore.getDBParams()
+	dbSize, dbHead, dbTail, err := getDBParams(evmAuxStore.db)
 	require.NoError(t, err)
 
 	require.EqualValues(t, size, uint64(len(receipts)))
