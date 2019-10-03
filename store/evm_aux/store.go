@@ -72,7 +72,7 @@ type ChildTxRef struct {
 
 type EvmAuxStore struct {
 	db             dbm.DB
-	maxReceipts    uint64
+	maxReceipts    uint64          // if set to 0, no receipts will be stored
 	dupEVMTxHashes map[string]bool // duplicate evm tx hashes list
 }
 
