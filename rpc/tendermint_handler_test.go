@@ -14,20 +14,18 @@ import (
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/loomnetwork/go-loom/common/evmcompat"
-	"github.com/stretchr/testify/require"
-
 	"github.com/gogo/protobuf/proto"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	ttypes "github.com/tendermint/tendermint/types"
-
-	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
-
+	"github.com/loomnetwork/go-loom/common/evmcompat"
+	ltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/vm"
 	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/stretchr/testify/require"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ttypes "github.com/tendermint/tendermint/types"
 )
 
 type ethTestTx struct {
@@ -82,9 +80,13 @@ func TestTendermintPRCFunc(t *testing.T) {
 	log.Setup("debug", "file://-")
 	testlog = log.Root.With("module", "query-server")
 
-	qs := &MockQueryService{}
 	mt := &MockTendermintRpc{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, nil, mt)
+	handler := MakeEthQueryServiceHandler(
+		testlog, nil,
+		map[string]eth.RPCFunc{
+			"eth_sendRawTransaction": NewTendermintRPCFunc("default", mt.BroadcastTxSync),
+		},
+	)
 	chainConfig := utils.DefaultChainConfig(true)
 	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	for _, testTx := range ethTestTxs {
@@ -152,17 +154,34 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadc
 	return &ctypes.ResultBroadcastTx{}, nil
 }
 
-func (mt *MockTendermintRpc) ethereumToTendermintTx(txBytes []byte) (ttypes.Tx, error) {
-	return ethereumToTendermintTx(mt, txBytes)
-}
-
 func (t *MockTendermintRpc) ChainID() string {
 	return "default"
 }
 
-func (mt *MockTendermintRpc) localToEthAccount(local []byte) (loom.Address, error) {
-	return loom.Address{
-		ChainID: "eth",
-		Local:   local,
-	}, nil
+func tendermintToEthereumTx(tmTx ttypes.Tx) (*etypes.Transaction, error) {
+	var signedTx auth.SignedTx
+	if err := proto.Unmarshal([]byte(tmTx), &signedTx); err != nil {
+		return nil, err
+	}
+
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return nil, err
+	}
+
+	var txTx ltypes.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
+		return nil, err
+	}
+
+	var msg vm.MessageTx
+	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
+		return nil, err
+	}
+
+	var tx etypes.Transaction
+	if err := rlp.DecodeBytes(msg.Data, &tx); err != nil {
+		return nil, err
+	}
+	return &tx, nil
 }

@@ -1250,40 +1250,31 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
-	loomSever := rpc.LoomServer{
-		ChainID:        chainID,
-		StateProvider:  app,
-		Loader:         loader,
-		CreateRegistry: createRegistry,
-		NewABMFactory:  newABMFactory,
-		AuthCfg:        cfg.Auth,
-	}
 	qs := &rpc.QueryServer{
-		LoomServer:             loomSever,
+		StateProvider:          app,
+		ChainID:                chainID,
+		Loader:                 loader,
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
 		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
 		EthPolls:               *polls.NewEthSubscriptions(app.EvmAuxStore, blockstore),
+		CreateRegistry:         createRegistry,
+		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
 		BlockIndexStore:        app.BlockIndexStore,
 		EventStore:             app.EventStore,
+		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 	}
-	tmsvc := &rpc.RuntimeTendermintRpc{LoomServer: loomSever}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
 		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
-	// query service
-	var qsvc rpc.QueryService
-	{
-		qsvc = qs
-		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
-	}
+	var qsvc rpc.QueryService = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qs)
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, tmsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
+	err = rpc.RPCServer(qsvc, chainID, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
 	if err != nil {
 		return err
 	}

@@ -153,45 +153,48 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	return mux
 }
 
-// makeQueryServiceHandler returns a http handler mapping to query service
-func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger, hub *Hub, tm TendermintRpc) http.Handler {
-	wsmux := http.NewServeMux()
-	routesJson := map[string]eth.RPCFunc{}
-	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
-	routesJson["eth_getBlockByNumber"] = eth.NewRPCFunc(svc.EthGetBlockByNumber, "block,full")
-	routesJson["eth_getBlockByHash"] = eth.NewRPCFunc(svc.EthGetBlockByHash, "hash,full")
-	routesJson["eth_getTransactionReceipt"] = eth.NewRPCFunc(svc.EthGetTransactionReceipt, "hash")
-	routesJson["eth_getTransactionByHash"] = eth.NewRPCFunc(svc.EthGetTransactionByHash, "hash")
-	routesJson["eth_getCode"] = eth.NewRPCFunc(svc.EthGetCode, "address,block")
-	routesJson["eth_getStorageAt"] = eth.NewRPCFunc(svc.EthGetStorageAt, "address,position,block")
-	routesJson["eth_call"] = eth.NewRPCFunc(svc.EthCall, "query,block")
-	routesJson["eth_getLogs"] = eth.NewRPCFunc(svc.EthGetLogs, "filter")
-	routesJson["eth_getBlockTransactionCountByNumber"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByNumber, "block")
-	routesJson["eth_getBlockTransactionCountByHash"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByHash, "hash")
-	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(
+func createDefaultEthRoutes(svc QueryService, chainID string) map[string]eth.RPCFunc {
+	routes := map[string]eth.RPCFunc{}
+	routes["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
+	routes["eth_getBlockByNumber"] = eth.NewRPCFunc(svc.EthGetBlockByNumber, "block,full")
+	routes["eth_getBlockByHash"] = eth.NewRPCFunc(svc.EthGetBlockByHash, "hash,full")
+	routes["eth_getTransactionReceipt"] = eth.NewRPCFunc(svc.EthGetTransactionReceipt, "hash")
+	routes["eth_getTransactionByHash"] = eth.NewRPCFunc(svc.EthGetTransactionByHash, "hash")
+	routes["eth_getCode"] = eth.NewRPCFunc(svc.EthGetCode, "address,block")
+	routes["eth_getStorageAt"] = eth.NewRPCFunc(svc.EthGetStorageAt, "address,position,block")
+	routes["eth_call"] = eth.NewRPCFunc(svc.EthCall, "query,block")
+	routes["eth_getLogs"] = eth.NewRPCFunc(svc.EthGetLogs, "filter")
+	routes["eth_getBlockTransactionCountByNumber"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByNumber, "block")
+	routes["eth_getBlockTransactionCountByHash"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByHash, "hash")
+	routes["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(
 		svc.EthGetTransactionByBlockHashAndIndex, "block,index")
-	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(
+	routes["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(
 		svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
 
-	routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
-	routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
-	routesJson["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
-	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
-	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
+	routes["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
+	routes["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
+	routes["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
+	routes["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
+	routes["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
 
-	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
-	routesJson["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "conn,method,filter")
-	routesJson["eth_unsubscribe"] = eth.NewRPCFunc(svc.EthUnsubscribe, "id")
+	routes["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
+	routes["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "conn,method,filter")
+	routes["eth_unsubscribe"] = eth.NewRPCFunc(svc.EthUnsubscribe, "id")
 
-	routesJson["eth_accounts"] = eth.NewRPCFunc(svc.EthAccounts, "")
-	routesJson["eth_getBalance"] = eth.NewRPCFunc(svc.EthGetBalance, "address,block")
-	routesJson["eth_estimateGas"] = eth.NewRPCFunc(svc.EthEstimateGas, "query")
-	routesJson["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
-	routesJson["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
-	routesJson["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
+	routes["eth_accounts"] = eth.NewRPCFunc(svc.EthAccounts, "")
+	routes["eth_getBalance"] = eth.NewRPCFunc(svc.EthGetBalance, "address,block")
+	routes["eth_estimateGas"] = eth.NewRPCFunc(svc.EthEstimateGas, "query")
+	routes["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
+	routes["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
+	routes["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
+	routes["eth_sendRawTransaction"] = NewTendermintRPCFunc(chainID, rpccore.BroadcastTxSync)
+	return routes
+}
 
-	routesJson["eth_sendRawTransaction"] = NewTendermintRPCFunc("eth_sendRawTransaction", tm)
-	RegisterRPCFuncs(wsmux, routesJson, logger, hub)
+// MakeEthQueryServiceHandler returns an http handler mapping to query service
+func MakeEthQueryServiceHandler(logger log.TMLogger, hub *Hub, routes map[string]eth.RPCFunc) http.Handler {
+	wsmux := http.NewServeMux()
+	RegisterRPCFuncs(wsmux, routes, logger, hub)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {

@@ -112,74 +112,15 @@ type StateProvider interface {
 //     "id": "123456789"
 //   }
 // - POST request to "/nonce" endpoint with form-encoded key param.
-
-type LoomServer struct {
+type QueryServer struct {
 	ChainID string
 	StateProvider
-	Loader         lcp.Loader
-	CreateRegistry registryFac.RegistryFactoryFunc
-	NewABMFactory  lcp.NewAccountBalanceManagerFactoryFunc
-	AuthCfg        *auth.Config
-}
-
-// Attempts to construct the context of the Address Mapper contract.
-func (l *LoomServer) createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
-	return l.createStaticContractCtx(state, "addressmapper")
-}
-
-func (l *LoomServer) createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
-	ctx, err := lcp.NewInternalContractContext(
-		name,
-		lcp.NewPluginVM(
-			l.Loader,
-			state,
-			l.CreateRegistry(state),
-			nil, // event handler
-			log.Default,
-			l.NewABMFactory,
-			nil, // receipt writer
-			nil, // receipt reader
-		),
-		true,
-	)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create %s context", name)
-	}
-	return ctx, nil
-}
-
-func (l *LoomServer) localToEthAccount(local []byte) (loom.Address, error) {
-	chianId := ""
-	for id, chain := range l.AuthCfg.Chains {
-		if chain.TxType == auth.EthereumSignedTxType {
-			chianId = id
-			break
-		}
-	}
-	if len(chianId) == 0 {
-		return loom.Address{}, errors.New("loomchain not configured for ethereum accounts")
-	}
-	addr := loom.Address{
-		ChainID: chianId,
-		Local:   local,
-	}
-
-	snapshot := l.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, l.AuthCfg, l.createAddressMapperCtx)
-	if err != nil {
-		return loom.Address{}, errors.Wrap(err, "failed to resolve account address")
-	}
-
-	return resolvedAddr, nil
-}
-
-type QueryServer struct {
-	LoomServer
+	Loader                 lcp.Loader
 	Subscriptions          *loomchain.SubscriptionSet
 	EthSubscriptions       *subs.EthSubscriptionSet
 	EthLegacySubscriptions *subs.LegacyEthSubscriptionSet
 	EthPolls               polls.EthSubscriptions
+	CreateRegistry         registryFac.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
@@ -188,6 +129,7 @@ type QueryServer struct {
 	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
+	AuthCfg    *auth.Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -398,6 +340,32 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 		return eth.Data(goGetCode), nil
 	}
 	return eth.EncBytes(code), nil
+}
+
+// Attempts to construct the context of the Address Mapper contract.
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "addressmapper")
+}
+
+func (s *QueryServer) createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
+	ctx, err := lcp.NewInternalContractContext(
+		name,
+		lcp.NewPluginVM(
+			s.Loader,
+			state,
+			s.CreateRegistry(state),
+			nil, // event handler
+			log.Default,
+			s.NewABMFactory,
+			nil, // receipt writer
+			nil, // receipt reader
+		),
+		true,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create %s context", name)
+	}
+	return ctx, nil
 }
 
 // Nonce returns the nonce of the last committed tx sent by the given account.
@@ -1028,8 +996,10 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 	return true, nil
 }
 
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactioncount
-func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+// EthGetTransactionCount implements https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactioncount
+// The input address is assumed to be an Ethereum account address, so it'll be mapped to a local
+// account, and the transaction count returned will be for that local account.
+func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -1041,20 +1011,21 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	if height != uint64(snapshot.Block().Height) {
 		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
 	}
-	localBytes, err := eth.DecDataToBytes(local)
+
+	addrBytes, err := eth.DecDataToBytes(address)
 	if err != nil {
 		return eth.Quantity("0x0"), err
 	}
-	address, err := s.localToEthAccount(localBytes)
-	if err != nil {
-		return eth.Quantity("0x0"), err
+	addr := loom.Address{
+		ChainID: "eth",
+		Local:   addrBytes,
 	}
-	nonce, err := s.Nonce("", address.String())
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
-		return eth.Quantity("0x0"), errors.Wrap(err, "requesting transaction count")
+		return eth.Quantity("0x0"), errors.Wrap(err, "failed to resolve account address")
 	}
 
-	return eth.EncUint(nonce), nil
+	return eth.EncUint(auth.Nonce(snapshot, resolvedAddr)), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getbalance
