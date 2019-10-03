@@ -121,7 +121,7 @@ disabled['windows'] = {
           setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows", "${sha1}");
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows"), "${sha1}";
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows", "${sha1}");
         }
       }
     }
