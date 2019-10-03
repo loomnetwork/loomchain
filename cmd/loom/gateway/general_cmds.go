@@ -75,6 +75,7 @@ const setWithdrawFeeCmdExample = `
 const setWithdrawLimitCmdExample = `
 ./loom gateway set-withdrawal-limit gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
 ./loom gateway set-withdrawal-limit loomcoin-gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
+./loom gateway set-withdrawal-limit binance-gateway --total-limit 1000000 --account-limit 500000 --decimals 8 --key path/to/loom_priv.key
 `
 
 const updateMainnetAddressCmdExample = `
@@ -695,7 +696,7 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 				return errors.New("decimals must be greater than zero")
 			}
 
-			// Need to pad the amounts with 18 zeros to make sure it has enough decimals
+			// create amounts with decimals
 			maxTotalAmount := sciNot(totalLimit, decimals)
 			maxPerAccountAmount := sciNot(accountLimit, decimals)
 
