@@ -280,8 +280,7 @@ func TestDupEvmTxHash(t *testing.T) {
 		},
 	}
 
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 
 	dupEVMTxHashes := make(map[string]bool)
 	dupEVMTxHashes[string(txHash1)] = true
