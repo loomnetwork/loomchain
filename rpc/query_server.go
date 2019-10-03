@@ -113,8 +113,8 @@ type StateProvider interface {
 //   }
 // - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
-	ChainID string
 	StateProvider
+	ChainID                string
 	Loader                 lcp.Loader
 	Subscriptions          *loomchain.SubscriptionSet
 	EthSubscriptions       *subs.EthSubscriptionSet

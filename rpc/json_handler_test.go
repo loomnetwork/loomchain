@@ -112,13 +112,11 @@ func testEthSubscribeEthUnSubscribe(t *testing.T) {
 	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
 	require.NoError(t, err)
 	var qs QueryService = &QueryServer{
-		LoomServer: LoomServer{
-			StateProvider:  &stateProvider{},
-			Loader:         loader,
-			AuthCfg:        auth.DefaultConfig(),
-			CreateRegistry: createRegistry,
-		},
+		StateProvider:    &stateProvider{},
+		Loader:           loader,
+		CreateRegistry:   createRegistry,
 		BlockStore:       store.NewMockBlockStore(),
+		AuthCfg:          auth.DefaultConfig(),
 		EthSubscriptions: eventHandler.EthSubscriptionSet(),
 	}
 	handler := MakeEthQueryServiceHandler(testlog, hub, createDefaultEthRoutes(qs, "default"))
