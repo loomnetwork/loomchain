@@ -259,6 +259,7 @@ func (s *EvmAuxStore) CommitReceipts(receipts []*types.EvmTxReceipt, height uint
 	setDBParams(batch, size, headHash, tailHash)
 
 	// Set TxHashList
+	// TODO: Get rid of this TxHashList because it is not correct anymore after child-tx-refs is used
 	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashArray})
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
