@@ -1,8 +1,8 @@
 pragma solidity ^0.5.0;
 
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
-contract MyCoin is ERC20Mintable {
+contract MyCoin is ERC20 {
     string public name = "MyCoin";
     string public symbol = "MCC";
     uint8 public decimals = 18;
