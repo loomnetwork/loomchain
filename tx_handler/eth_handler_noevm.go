@@ -1,16 +1,16 @@
 // +build !evm
 
-package vm
+package tx_handler
 
 import (
-	"github.com/pkg/errors"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 )
 
 type EthTxHandler struct {
-	*Manager
+	*vm.Manager
 	CreateRegistry factory.RegistryFactoryFunc
 }
 

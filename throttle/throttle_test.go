@@ -236,3 +236,37 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 	require.True(t, ed25519.Verify(txSigned.PublicKey, txSigned.Inner, txSigned.Signature))
 	return txSigned
 }
+
+func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
+	bigZero := big.NewInt(0)
+	var tx *types.Transaction
+	if to.IsEmpty() {
+		tx = types.NewContractCreation(
+			sequence,
+			big.NewInt(24),
+			0,
+			bigZero,
+			data,
+		)
+	} else {
+		tx = types.NewTransaction(
+			sequence,
+			common.BytesToAddress(to.Local),
+			big.NewInt(11),
+			0,
+			bigZero,
+			data,
+		)
+	}
+	chainConfig := utils.DefaultChainConfig(true)
+	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
+	ethKey, err := crypto.GenerateKey()
+	if err != nil {
+		return nil, err
+	}
+	tx, err = types.SignTx(tx, signer, ethKey)
+	if err != nil {
+		return nil, err
+	}
+	return rlp.EncodeToBytes(&tx)
+}

@@ -834,7 +834,7 @@ func loadApp(
 		Manager: vmManager,
 	}
 
-	ethTxHandler := &vm.EthTxHandler{
+	ethTxHandler := &tx_handler.EthTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
 	}

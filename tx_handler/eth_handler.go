@@ -1,6 +1,6 @@
 // +build evm
 
-package vm
+package tx_handler
 
 import (
 	"fmt"
@@ -8,21 +8,20 @@ import (
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
-
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 )
 
 type EthTxHandler struct {
-	*Manager
+	*vm.Manager
 	CreateRegistry factory.RegistryFactoryFunc
 }
 
@@ -37,7 +36,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, errors.New("ethereum transactions feature not enabled")
 	}
 
-	var msg MessageTx
+	var msg vm.MessageTx
 	err := proto.Unmarshal(txBytes, &msg)
 	if err != nil {
 		return r, err
@@ -50,7 +49,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
 	}
 
-	vm, err := h.Manager.InitVM(VMType_EVM, state)
+	vmInstance, err := h.Manager.InitVM(vm.VMType_EVM, state)
 	if err != nil {
 		return r, err
 	}
@@ -65,9 +64,9 @@ func (h *EthTxHandler) ProcessTx(
 		return r, errors.Errorf("value %v must be non negative", value)
 	}
 	if ethTx.To() == nil {
-		retCreate, addr, errCreate := vm.Create(origin, ethTx.Data(), value)
+		retCreate, addr, errCreate := vmInstance.Create(origin, ethTx.Data(), value)
 
-		response, errMarshal := proto.Marshal(&DeployResponse{
+		response, errMarshal := proto.Marshal(&vm.DeployResponse{
 			Contract: &types.Address{
 				ChainId: addr.ChainID,
 				Local:   addr.Local,
@@ -93,7 +92,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, nil
 	} else {
 		to := loom.UnmarshalAddressPB(msg.To)
-		r.Data, err = vm.Call(origin, to, ethTx.Data(), value)
+		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), value)
 		if err != nil {
 			return r, err
 		}
