@@ -120,7 +120,7 @@ func TestMapAccount(t *testing.T) {
 	copy(s[:], signature[33:65])
 	v := signature[65]
 
-	input, err := abiPc.Pack("TestMappedAccount", hash, v, r, s, chain2)
+	input, err := abiPc.Pack("TestMappedAccount", "eth", hash, v, r, s, chain2)
 	require.NoError(t, err, "packing parameters")
 
 	ret, err := evmVm.StaticCall(caller, pcAddr, input)
@@ -198,7 +198,7 @@ func TestMapToLoomAccount(t *testing.T) {
 	copy(s[:], signature[33:65])
 	v := signature[65]
 
-	input, err := abiPc.Pack("TestMappedLoomAccount", hash, v, r, s)
+	input, err := abiPc.Pack("TestMappedLoomAccount", "eth", hash, v, r, s)
 	require.NoError(t, err, "packing parameters")
 
 	ret, err := evmVm.StaticCall(caller, pcAddr, input)

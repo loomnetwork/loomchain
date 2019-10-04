@@ -1,13 +1,12 @@
 pragma solidity >=0.4.21;
 
 contract TestLoomNativeApi {
-    string constant fromChain = "eth";
-    function TestMappedLoomAccount(bytes32 hash, uint8 v, bytes32 r, bytes32 s) public view returns (address) {
-        return MappedAccount(fromChain, ecrecover(hash, v, r, s));
+    function TestMappedLoomAccount(string memory ethChainId, bytes32 hash, uint8 v, bytes32 r, bytes32 s) public view returns (address) {
+        return MappedAccount(ethChainId, ecrecover(hash, v, r, s));
     }
 
-    function TestMappedAccount(bytes32 hash, uint8 v, bytes32 r, bytes32 s, string memory toChain) public view returns (address) {
-        return MappedAccount(fromChain, ecrecover(hash, v, r, s), toChain);
+    function TestMappedAccount(string memory ethChainId, bytes32 hash, uint8 v, bytes32 r, bytes32 s, string memory toChain) public view returns (address) {
+        return MappedAccount(ethChainId, ecrecover(hash, v, r, s), toChain);
     }
 
     // LoomApi library

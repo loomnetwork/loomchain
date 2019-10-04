@@ -4,6 +4,7 @@ package evm
 
 import (
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/evm/precompiles"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
