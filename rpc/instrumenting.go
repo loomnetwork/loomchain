@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/rpc/trustwallet"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -568,4 +569,55 @@ func (m InstrumentingMiddleware) EthGetTransactionCount(
 
 	resp, err = m.next.EthGetTransactionCount(local, block)
 	return
+}
+
+// Trust wallet
+func (m InstrumentingMiddleware) GetValidators() (*trustwallet.JsonGetValidators, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetValidators", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.GetValidators()
+}
+
+func (m InstrumentingMiddleware) ListDelegations(
+	address string,
+) (*trustwallet.JsonListDelegation, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "ListDelegations", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.ListDelegations(address)
+}
+
+func (m InstrumentingMiddleware) GetAccountInfo(
+	address string,
+) (*trustwallet.JsonAccountInfo, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetAccountInfo", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.GetAccountInfo(address)
+}
+
+func (m InstrumentingMiddleware) GetRewards(
+	address string,
+) (*trustwallet.JsonGetRewards, error) {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetRewards", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.GetRewards(address)
 }

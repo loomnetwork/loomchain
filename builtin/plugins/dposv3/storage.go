@@ -211,6 +211,10 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	return DefaultNoCache.loadDelegationList(ctx)
 }
 
+func LoadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
+	return DefaultNoCache.loadDelegationList(ctx)
+}
+
 func (c *CachedDposStorage) loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	if c.EnableCaching && len(c.delegations) > 0 {
 		return c.delegations, nil

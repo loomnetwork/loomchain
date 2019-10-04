@@ -10,6 +10,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/rpc/trustwallet"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -367,4 +368,32 @@ func (m *MockQueryService) EvmUnSubscribe(id string) (bool, error) {
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"EvmUnSubscribe"}, m.MethodsCalled...)
 	return true, nil
+}
+
+func (m *MockQueryService) GetValidators() (*trustwallet.JsonGetValidators, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"GetValidators"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) ListDelegations(address string) (*trustwallet.JsonListDelegation, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"ListDelegations"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) GetAccountInfo(address string) (*trustwallet.JsonAccountInfo, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"GetAccountInfo"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) GetRewards(address string) (*trustwallet.JsonGetRewards, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"GetRewards"}, m.MethodsCalled...)
+	return nil, nil
 }

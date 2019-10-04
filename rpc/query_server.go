@@ -6,10 +6,11 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-
-	"github.com/gorilla/websocket"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
@@ -19,9 +20,14 @@ import (
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
+	cointypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
+	lcmm "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	gltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -39,11 +45,19 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/rpc/trustwallet"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
+
+type (
+	CandidateStatistic = dtypes.CandidateStatistic
+	ListCandidates     = dtypes.ListCandidatesResponse
+)
+
+var ErrNotFound = errors.New("not found")
 
 const (
 	/**
@@ -54,6 +68,7 @@ const (
 
 	StatusTxSuccess = int32(1)
 	StatusTxFail    = int32(0)
+	decimal         = 18
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -1113,6 +1128,280 @@ func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
 }
 
+// staking method
+
+func (s *QueryServer) GetValidators() (*trustwallet.JsonGetValidators, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createDPOS3Ctx(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	validators, err := dposv3.ValidatorList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	candidates, err := dposv3.LoadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	getValidatorResponse := make([]trustwallet.Validator, 0)
+	chainID := ctx.Block().ChainID
+
+	validatorList := make(map[string]loom.Address, len(validators))
+	for _, validator := range validators {
+		address := loom.LocalAddressFromPublicKey(validator.PubKey)
+		validatorList[address.String()] = loom.Address{ChainID: chainID, Local: address}
+	}
+
+	for _, candidate := range candidates {
+		candidateAddr := loom.UnmarshalAddressPB(candidate.Address)
+		if validatorList[candidate.Address.Local.String()].Compare(candidateAddr) != 0 {
+			continue
+		}
+		statistic, err := getStatistic(ctx, candidateAddr)
+		if err != nil && err != ErrNotFound {
+			return nil, err
+		}
+
+		getValidatorResponse = append(getValidatorResponse, trustwallet.Validator{
+			Address:         prefixLoom(statistic.GetAddress().Local.String()),
+			Jailed:          statistic.Jailed,
+			Name:            candidate.Name,
+			Description:     candidate.Description,
+			DelegationTotal: statistic.GetDelegationTotal().Value.String(),
+			Website:         candidate.Website,
+			Fee:             strconv.FormatUint(candidate.Fee, 10),
+		})
+	}
+
+	return &trustwallet.JsonGetValidators{
+		Validators: getValidatorResponse,
+	}, nil
+}
+
+func (s *QueryServer) ListDelegations(delegatorAddress string) (*trustwallet.JsonListDelegation, error) {
+	delAddr, err := decodeHexAddress(delegatorAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "decoding input address parameter %v", delegatorAddress)
+	}
+	delegator := loom.Address{
+		ChainID: s.ChainID,
+		Local:   delAddr,
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createDPOS3Ctx(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	delegations, err := dposv3.LoadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := lcmm.BigZero()
+	listDelegations := make([]trustwallet.Delegation, 0)
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
+			continue
+		}
+
+		delegation, err := dposv3.GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		if delegation.GetAmount() == nil {
+			delegation.Amount = &gltypes.BigUInt{
+				Value: *loom.NewBigUIntFromInt(0),
+			}
+		}
+
+		if delegation.GetUpdateAmount() == nil {
+			delegation.UpdateAmount = &gltypes.BigUInt{
+				Value: *loom.NewBigUIntFromInt(0),
+			}
+		}
+		var updateValidator string
+		if delegation.GetUpdateValidator() != nil {
+			updateValidator = prefixLoom(loom.UnmarshalAddressPB(delegation.GetUpdateValidator()).Local.String())
+		}
+
+		listDelegations = append(listDelegations, trustwallet.Delegation{
+			ValidatorAddress:   prefixLoom(delegation.Validator.Local.String()),
+			DelegatorAddress:   prefixLoom(delegation.Delegator.Local.String()),
+			Index:              strconv.FormatUint(delegation.Index, 10),
+			Amount:             stringWithDecimal(delegation.GetAmount().Value.String(), decimal),
+			UpdatedValidator:   updateValidator,
+			UpdatedAmount:      stringWithDecimal(delegation.GetUpdateAmount().Value.String(), decimal),
+			LockTimeTier:       formatTimeTier(delegation.LocktimeTier.String()),
+			UpdateLockTimeTier: formatTimeTier(delegation.UpdateLocktimeTier.String()),
+			LockTime:           formatLockTime(delegation.LockTime),
+			State:              delegation.State.String(),
+			Referrer:           delegation.Referrer,
+		})
+		total = total.Add(total, &delegation.Amount.Value)
+	}
+
+	return &trustwallet.JsonListDelegation{
+		Delegations:     listDelegations,
+		DelegationTotal: stringWithDecimal(total.String(), decimal),
+	}, nil
+}
+
+func (s *QueryServer) GetAccountInfo(address string) (
+	*trustwallet.JsonAccountInfo, error) {
+	localAddr, err := decodeHexAddress(address)
+	if err != nil {
+		return nil, err
+	}
+	account := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localAddr,
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createStaticContractCtx(snapshot, "coin")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create static coin context.")
+	}
+	acct, err := loadAccount(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("\n ACCOUNT INFO : %+v", acct)
+
+	resolvedAddr, err := auth.ResolveAccountAddress(account, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
+
+	n := auth.Nonce(snapshot, resolvedAddr)
+	return &trustwallet.JsonAccountInfo{
+		Address: acct.Owner.Local.String(),
+		Balance: stringWithDecimal(acct.GetBalance().Value.String(), decimal),
+		Nonce:   strconv.FormatUint(n, 10),
+	}, nil
+}
+
+func (s *QueryServer) GetRewards(delegatorAddress string) (*trustwallet.JsonGetRewards, error) {
+	delAddr, err := decodeHexAddress(delegatorAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "decoding input address parameter %v", delegatorAddress)
+	}
+	delegator := loom.Address{
+		ChainID: s.ChainID,
+		Local:   delAddr,
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	ctx, err := s.createDPOS3Ctx(snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	delegations, err := dposv3.LoadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := lcmm.BigZero()
+	listRewards := make([]trustwallet.Reward, 0)
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
+			continue
+		}
+
+		delegation, err := dposv3.GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err != nil {
+			return nil, err
+		}
+
+		if delegation.GetIndex() != 0 {
+			continue
+		}
+
+		if delegation.GetAmount() == nil {
+			delegation.Amount = &gltypes.BigUInt{
+				Value: *loom.NewBigUIntFromInt(0),
+			}
+		}
+
+		listRewards = append(listRewards, trustwallet.Reward{
+			ValidatorAddress: prefixLoom(delegation.Validator.Local.String()),
+			DelegatorAddress: prefixLoom(delegation.Delegator.Local.String()),
+			Amount:           stringWithDecimal(delegation.GetAmount().Value.String(), decimal),
+		})
+		total = total.Add(total, &delegation.Amount.Value)
+	}
+
+	return &trustwallet.JsonGetRewards{
+		Rewards:     listRewards,
+		RewardTotal: stringWithDecimal(total.String(), decimal),
+	}, nil
+}
+
+func loadAccount(
+	ctx contractpb.StaticContext,
+	owner loom.Address,
+) (*cointypes.Account, error) {
+	acct := &cointypes.Account{
+		Owner: owner.MarshalPB(),
+		Balance: &gltypes.BigUInt{
+			Value: *loom.NewBigUIntFromInt(0),
+		},
+	}
+	err := ctx.Get(accountKey(owner), acct)
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+
+	return acct, nil
+}
+
+func accountKey(addr loom.Address) []byte {
+	return util.PrefixKey([]byte("account"), addr.Bytes())
+}
+
+func getStatistic(ctx contractpb.StaticContext, address loom.Address) (*dtypes.ValidatorStatistic, error) {
+	addressBytes, err := address.Local.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	return getStatisticByAddressBytes(ctx, addressBytes)
+}
+
+func getStatisticByAddressBytes(ctx contractpb.StaticContext, addressBytes []byte) (*dtypes.ValidatorStatistic, error) {
+	var statistic dtypes.ValidatorStatistic
+	err := ctx.Get(append([]byte("statistic"), addressBytes...), &statistic)
+	if err != nil {
+		return nil, err
+	}
+	return &statistic, nil
+}
+
+func (s *QueryServer) createDPOS3Ctx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "dposV3")
+}
+
+func (s *QueryServer) createCoinCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "coin")
+}
+
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	if nil != s.BlockIndexStore {
 		return s.BlockIndexStore.GetBlockHeightByHash(hash)
@@ -1201,4 +1490,40 @@ func getTxByTendermintHash(
 		blockResult, txResults.TxResult.Data, int64(txResults.Index), evmAuxStore,
 	)
 	return txObj, err
+}
+
+func prefixLoom(address string) string {
+	if address[:2] != "0x" {
+		return address
+	}
+	return "loom" + address[2:]
+}
+
+func stringWithDecimal(s string, decimal int) string {
+	if decimal <= 0 {
+		return s
+	}
+
+	if len(s) <= decimal {
+		return "0." + strings.Repeat("0", decimal-len(s)) + s
+	}
+
+	return s[:len(s)-decimal] + "." + s[len(s)-decimal:]
+}
+
+func formatTimeTier(tier string) string {
+	var LocktimeTier = map[string]string{
+		"TIER_ZERO":  "2 weeks",
+		"TIER_ONE":   "3 months",
+		"TIER_TWO":   "6 months",
+		"TIER_THREE": "1 year",
+	}
+	return LocktimeTier[tier]
+}
+
+func formatLockTime(t uint64) string {
+	if t != 0 {
+		return time.Unix(int64(t), 0).String()
+	}
+	return "0"
 }
