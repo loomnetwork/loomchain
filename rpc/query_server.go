@@ -783,7 +783,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
 			// return nil response if cannot find hash
-			return nil, nil
+			return completeReceipt(nil, blockResult, &txReceipt), nil
 		}
 		return nil, err
 	}
@@ -1167,21 +1167,25 @@ func getReceiptByTendermintHash(
 }
 
 func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) *eth.JsonTxReceipt {
+	jsonReceipt := eth.EncTxReceipt(*txReceipt)
 	if len(txReceipt.Logs) > 0 {
 		timestamp := blockResult.Block.Header.Time.Unix()
 		for i := 0; i < len(txReceipt.Logs); i++ {
 			txReceipt.Logs[i].BlockTime = timestamp
 		}
 	}
-	if txResults.TxResult.Code == abci.CodeTypeOK {
-		txReceipt.Status = StatusTxSuccess
-	} else {
-		txReceipt.Status = StatusTxFail
-	}
-	jsonReceipt := eth.EncTxReceipt(*txReceipt)
-	if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
-		jsonReceipt.To = jsonReceipt.ContractAddress
-		jsonReceipt.ContractAddress = nil
+
+	if txResults != nil {
+		if txResults.TxResult.Code == abci.CodeTypeOK {
+			txReceipt.Status = StatusTxSuccess
+		} else {
+			txReceipt.Status = StatusTxFail
+		}
+
+		if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
+			jsonReceipt.To = jsonReceipt.ContractAddress
+			jsonReceipt.ContractAddress = nil
+		}
 	}
 	return &jsonReceipt
 }
