@@ -157,7 +157,7 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 }
 
 func (s *TendermintBlockStore) GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error) {
-	blockResult, err := core.BlockResults(height)
+	blockResult, err := s.GetBlockResults(height)
 	if err != nil {
 		return nil, err
 	}
@@ -166,15 +166,19 @@ func (s *TendermintBlockStore) GetTxResultByHeightAndIndex(height *int64, index 
 		return nil, ErrIndexOutOfRange
 	}
 
-	return &ctypes.ResultTx{
-		Index:  uint32(index),
-		Height: *height,
-		TxResult: abci.ResponseDeliverTx{
-			Code: blockResult.Results.DeliverTx[index].Code,
-			Data: blockResult.Results.DeliverTx[index].Data,
-			Info: blockResult.Results.DeliverTx[index].Info,
-		},
-	}, nil
+	resultTx := &ctypes.ResultTx{
+		Index:    uint32(index),
+		Height:   *height,
+		TxResult: abci.ResponseDeliverTx{},
+	}
+
+	if blockResult.Results.DeliverTx[index] != nil {
+		resultTx.TxResult.Code = blockResult.Results.DeliverTx[index].Code
+		resultTx.TxResult.Data = blockResult.Results.DeliverTx[index].Data
+		resultTx.TxResult.Info = blockResult.Results.DeliverTx[index].Info
+	}
+
+	return resultTx, nil
 }
 
 func blockMetaKey(height int64) string {
