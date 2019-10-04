@@ -782,7 +782,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
-			// return nil response if cannot find hash
+			// return receipts without blockresult info
 			return completeReceipt(nil, blockResult, &txReceipt), nil
 		}
 		return nil, err
