@@ -3,7 +3,6 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -189,7 +188,6 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 }
 
 func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	fmt.Println("PASS PLUGIN EVM CALL")
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	var err error
 	if vm.newABMFactory != nil {

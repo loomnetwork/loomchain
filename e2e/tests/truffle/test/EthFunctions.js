@@ -9,13 +9,13 @@ const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
 contract('MyToken', async (accounts) => {
-  let web3js;
+  let web3js,nodeAddr;
 
   beforeEach(async () => {
     if (!process.env.CLUSTER_DIR) {
       throw new Error('CLUSTER_DIR env var not defined');
     }
-    let nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8');
+    nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8');
     web3js = new Web3(new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`));
 
     alice = accounts[1];
