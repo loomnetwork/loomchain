@@ -14,8 +14,9 @@ const {
 const EventTestContract = artifacts.require('EventTestContract')
 
 contract('EventTestContract', async (accounts) => {
-    let contract, from, nodeAddr, web3js, contractAddress
-
+    let contract, from, nodeAddr, contractAddress, web3eth
+    const newValueSetEventTopic = "0xb922f092a64f1a076de6f21e4d7c6400b6e55791cc935e7bb8e7e90f7652f15b"
+    const anotherValueSetEventTopic = "0xccdec039614c54f7047ec6e5fbd3b6b8d5d78e1a38737dcc140cf162a774a83f"
     beforeEach(async () => {
         nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
         const chainID = 'default'
@@ -47,7 +48,7 @@ contract('EventTestContract', async (accounts) => {
         web3eth = new Web3(new Web3.providers.WebsocketProvider(`ws://${nodeAddr}/eth`));
     })
 
-    it('Test emitted events', async () => {
+    it('contract.events.allEvents() & web3.eth.subscribe()', async () => {
         try {
             var eventCount = 0
             // Test loom
@@ -66,7 +67,7 @@ contract('EventTestContract', async (accounts) => {
             });
             var tx = await contract.methods.set(1).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(true, (tx.events.AnotherValueSet != undefined))
+            assert.equal(2, tx.events.AnotherValueSet.logIndex)
             assert.equal(3, eventCount)
             assert.equal(3, ethEventCount)
         } catch (err) {
@@ -90,10 +91,10 @@ contract('EventTestContract', async (accounts) => {
             });
             var tx = await contract.methods.set(1).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(true, (tx.events.AnotherValueSet != undefined))
+            assert.equal(2, tx.events.AnotherValueSet.logIndex)
             var tx = await contract.methods.set(2).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(true, (tx.events.AnotherValueSet != undefined))
+            assert.equal(2, tx.events.AnotherValueSet.logIndex)
             // total 6 events
             assert.equal(6, eventCount2)
             assert.equal(6, ethEventCount2)
@@ -120,13 +121,120 @@ contract('EventTestContract', async (accounts) => {
             contract.methods.set(1).send().then()
             var tx = await contract.methods.set(2).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(true, (tx.events.AnotherValueSet != undefined))
+            assert.equal(2, tx.events.AnotherValueSet.logIndex)
             // total 6 events
             assert.equal(6, eventCount3)
             assert.equal(6, ethEventCount3)
         } catch (err) {
             assert.fail(err)
         }
+    })
+
+    it('contract.events.allEvents({topics:[]}) & web3.eth.subscribe(topics:[])', async () => {
+
+        try {
+            var newValueSetCount = 0
+            var anotherValueSetCount = 0
+            // Test loom
+            contract.events.allEvents({
+                    topics: [
+                        newValueSetEventTopic,
+                    ]
+                })
+                .on('data', (event) => {
+                    newValueSetCount++
+                })
+            contract.events.allEvents({
+                    topics: [
+                        anotherValueSetEventTopic,
+                    ]
+                })
+                .on('data', (event) => {
+                    anotherValueSetCount++
+                })
+            // Test /eth endpoint
+            var ethNewValueSetCount = 0
+            var ethAnotherValueSetCount = 0
+            web3eth.eth.subscribe('logs', {
+                address: contractAddress,
+                topics: [newValueSetEventTopic],
+            }, function (error, result) {
+                if (!error) {
+                    ethNewValueSetCount++
+                }
+            });
+            web3eth.eth.subscribe('logs', {
+                address: contractAddress,
+                topics: [anotherValueSetEventTopic],
+            }, function (error, result) {
+                if (!error) {
+                    ethAnotherValueSetCount++
+                }
+            });
+
+            var tx = await contract.methods.set(1).send()
+            assert.equal(2, tx.events.NewValueSet.length)
+            assert.equal(2, tx.events.AnotherValueSet.logIndex)
+            assert.equal(2, newValueSetCount)
+            assert.equal(1, anotherValueSetCount)
+            assert.equal(2, ethNewValueSetCount)
+            assert.equal(1, ethAnotherValueSetCount)
+        } catch (err) {
+            assert.fail(err)
+        }
+
+
+        try {
+            var newValueSetCount2 = 0
+            var anotherValueSetCount2 = 0
+            // Test loom
+            contract.events.allEvents({
+                    topics: [
+                        newValueSetEventTopic,
+                    ]
+                })
+                .on('data', (event) => {
+                    newValueSetCount2++
+                })
+            contract.events.allEvents({
+                    topics: [
+                        anotherValueSetEventTopic,
+                    ]
+                })
+                .on('data', (event) => {
+                    anotherValueSetCount2++
+                })
+            // Test /eth endpoint
+            var ethNewValueSetCount2 = 0
+            var ethAnotherValueSetCount2 = 0
+            web3eth.eth.subscribe('logs', {
+                address: contractAddress,
+                topics: [newValueSetEventTopic],
+            }, function (error, result) {
+                if (!error) {
+                    ethNewValueSetCount2++
+                }
+            });
+            web3eth.eth.subscribe('logs', {
+                address: contractAddress,
+                topics: [anotherValueSetEventTopic],
+            }, function (error, result) {
+                if (!error) {
+                    ethAnotherValueSetCount2++
+                }
+            });
+
+            contract.methods.set(1).send().then()
+            var tx = await contract.methods.set(1).send()
+        
+            assert.equal(4, newValueSetCount2)
+            assert.equal(2, anotherValueSetCount2)
+            assert.equal(4, ethNewValueSetCount2)
+            assert.equal(2, ethAnotherValueSetCount2)
+        } catch(err) {
+            assert.fail(err)
+        }
+
     })
 
 })
