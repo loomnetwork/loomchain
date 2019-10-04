@@ -2,7 +2,6 @@ package store
 
 import (
 	lru "github.com/hashicorp/golang-lru"
-	abci "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 )
@@ -131,25 +130,4 @@ func (s *LRUBlockStoreCache) GetTxResult(txHash []byte) (*ctypes.ResultTx, error
 		s.Cache.Add(txHashKey(txResult.Hash), txResult)
 	}
 	return txResult, nil
-}
-
-func (s *LRUBlockStoreCache) GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error) {
-	blockResult, err := s.GetBlockResults(height)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(blockResult.Results.DeliverTx) <= index {
-		return nil, ErrIndexOutOfRange
-	}
-
-	return &ctypes.ResultTx{
-		Index:  uint32(index),
-		Height: *height,
-		TxResult: abci.ResponseDeliverTx{
-			Code: blockResult.Results.DeliverTx[index].Code,
-			Data: blockResult.Results.DeliverTx[index].Data,
-			Info: blockResult.Results.DeliverTx[index].Info,
-		},
-	}, nil
 }

@@ -116,10 +116,6 @@ func (s *MockBlockStore) GetTxResult(_ []byte) (*ctypes.ResultTx, error) {
 	return nil, nil
 }
 
-func (s *MockBlockStore) GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error) {
-	return nil, nil
-}
-
 func MockBlock(height int64, blockTxHash []byte, txs [][]byte) *ctypes.ResultBlock {
 	blockTxs := []types.Tx{}
 	for _, tx := range txs {

@@ -36,8 +36,6 @@ type BlockStore interface {
 	GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error)
 	// Get transaction result from Tendermint Tx Hash
 	GetTxResult(txHash []byte) (*ctypes.ResultTx, error)
-	// Get transaction result from height and index
-	GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error)
 }
 type TendermintBlockStore struct {
 }
@@ -154,31 +152,6 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 			Info: txResult.TxResult.Info,
 		},
 	}, nil
-}
-
-func (s *TendermintBlockStore) GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error) {
-	blockResult, err := s.GetBlockResults(height)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(blockResult.Results.DeliverTx) <= index {
-		return nil, ErrIndexOutOfRange
-	}
-
-	resultTx := &ctypes.ResultTx{
-		Index:    uint32(index),
-		Height:   *height,
-		TxResult: abci.ResponseDeliverTx{},
-	}
-
-	if blockResult.Results.DeliverTx[index] != nil {
-		resultTx.TxResult.Code = blockResult.Results.DeliverTx[index].Code
-		resultTx.TxResult.Data = blockResult.Results.DeliverTx[index].Data
-		resultTx.TxResult.Info = blockResult.Results.DeliverTx[index].Info
-	}
-
-	return resultTx, nil
 }
 
 func blockMetaKey(height int64) string {

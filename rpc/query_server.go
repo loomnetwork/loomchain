@@ -782,9 +782,19 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
-			txResults, err := s.BlockStore.GetTxResultByHeightAndIndex(&height, int(txReceipt.TransactionIndex))
-			if err != nil {
+			blockResults, err := s.BlockStore.GetBlockResults(&height)
+			if err != nil || len(blockResults.Results.DeliverTx) <= int(txReceipt.TransactionIndex) {
 				return nil, nil
+			}
+			txResults = &ctypes.ResultTx{
+				Index:    uint32(txReceipt.TransactionIndex),
+				Height:   height,
+				TxResult: abci.ResponseDeliverTx{},
+			}
+			if blockResults.Results.DeliverTx[txReceipt.TransactionIndex] != nil {
+				txResults.TxResult.Code = blockResults.Results.DeliverTx[txReceipt.TransactionIndex].Code
+				txResults.TxResult.Data = blockResults.Results.DeliverTx[txReceipt.TransactionIndex].Data
+				txResults.TxResult.Info = blockResults.Results.DeliverTx[txReceipt.TransactionIndex].Info
 			}
 			return completeReceipt(txResults, blockResult, &txReceipt), nil
 		}
