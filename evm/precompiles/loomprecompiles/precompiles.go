@@ -24,4 +24,7 @@ type loomPrecompileHandler struct {
 func (h loomPrecompileHandler) AddEvmPrecompiles(_state loomchain.State) {
 	vm.PrecompiledContractsByzantium[common.BytesToAddress([]byte{byte(int(precompiles.MapToLoomAddress))})] =
 		NewMapToLoomAddress(_state, h.createAddressMapperCtx)
+
+	vm.PrecompiledContractsByzantium[common.BytesToAddress([]byte{byte(int(precompiles.MapToAddress))})] =
+		NewMapToAddress(_state, h.createAddressMapperCtx)
 }

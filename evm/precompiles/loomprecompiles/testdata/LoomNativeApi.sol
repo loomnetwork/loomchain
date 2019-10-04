@@ -1,6 +1,6 @@
 pragma solidity >=0.4.21;
 
-library LoomApi {
+library LoomNativeApi {
     address constant LoomPrecompilesStartIndex = 0x0000000000000000000000000000000000000020;//0x20;
     address constant MapToLoomAddress = 0x0000000000000000000000000000000000000021;
     address constant MapAddresses = 0x0000000000000000000000000000000000000022;
@@ -11,7 +11,6 @@ library LoomApi {
         for (uint i = 0; i < 20; i++) {
             input[i] = byte(uint8(uint(addr) / (2**(8*(19 - i)))));
         }
-        //https://ethereum.stackexchange.com/questions/884/how-to-convert-an-address-to-bytes-in-solidity/885#885
         for (uint j = 0; j < fromB.length; j++) {
             input[20+j] = fromB[j];
         }
@@ -22,7 +21,7 @@ library LoomApi {
     //    return this;
     //}
 
-    function callPFAssembly(address _addr, bytes memory _input) public view returns (bytes20)
+    function callPFAssembly(address _addr, bytes memory _input) view returns (bytes20)
     {
         uint256 inSize = _input.length*4+1;
         uint256 inLenght = _input.length;

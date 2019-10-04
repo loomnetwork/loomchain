@@ -7,7 +7,7 @@ import (
 const (
 	LoomPrecompilesStartIndex = 0x20
 	MapToLoomAddress          = iota + LoomPrecompilesStartIndex
-	MapAddresses
+	MapToAddress
 )
 
 type EvmPrecompilerHandler interface {
