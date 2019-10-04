@@ -22,7 +22,6 @@ func TestEthJSONRPC2(t *testing.T) {
 		{"getBlockTransactionCountByNumber", "eth-4-test.toml", 1, 1, "empty-genesis.json", "eth-test-1-loom.yaml"},
 		{"getLogs", "eth-5-test.toml", 1, 4, "empty-genesis.json", "eth-test-2-loom.yaml"},
 		{"go-getBlockByNumber", "eth-6-test.toml", 1, 3, "coin.genesis.json", "eth-test-1-loom.yaml"},
-		{"ethSendRawTransaction", "eth-7-test.toml", 4, 10, "ethtx.genesis.json", "ethtx-loom.yaml"},
 	}
 
 	for _, test := range tests {

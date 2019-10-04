@@ -1,6 +1,0 @@
-RegistryVersion: 2
-ReceiptsVersion: 2
-DPOSVersion: 3
-CreateEmptyBlocks: true
-ChainConfig:
-  ContractEnabled: true

@@ -113,6 +113,14 @@
                     {
                         "name": "evm:constantinople",
                         "status": "WAITING"
+                    },
+                    {
+                        "name": "auth:sigtx:eth",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "EthTxFeature",
+                        "status": "WAITING"
                     }
                 ]
             }
