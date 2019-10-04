@@ -1,6 +1,7 @@
 const Web3 = require('web3')
 const fs = require('fs')
 const path = require('path')
+const { getEventSignature } = require('./helpers')
 
 const {
     SpeculativeNonceTxMiddleware,
@@ -14,9 +15,7 @@ const {
 const EventTestContract = artifacts.require('EventTestContract')
 
 contract('EventTestContract', async (accounts) => {
-    let contract, from, nodeAddr, contractAddress, web3eth
-    const newValueSetEventTopic = "0xb922f092a64f1a076de6f21e4d7c6400b6e55791cc935e7bb8e7e90f7652f15b"
-    const anotherValueSetEventTopic = "0xccdec039614c54f7047ec6e5fbd3b6b8d5d78e1a38737dcc140cf162a774a83f"
+    let contract, from, nodeAddr, contractAddress, web3eth, newValueSetEventTopic, anotherValueSetEventTopic
     beforeEach(async () => {
         nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
         const chainID = 'default'
@@ -45,6 +44,11 @@ contract('EventTestContract', async (accounts) => {
         contract = new web3.eth.Contract(EventTestContract._json.abi, contractAddress, {
             from
         });
+        newValueSetEventTopic = getEventSignature(contract,"NewValueSet")
+        anotherValueSetEventTopic = getEventSignature(contract,"AnotherValueSet")
+
+        console.log(newValueSetEventTopic, anotherValueSetEventTopic)
+        
         web3eth = new Web3(new Web3.providers.WebsocketProvider(`ws://${nodeAddr}/eth`));
     })
 
