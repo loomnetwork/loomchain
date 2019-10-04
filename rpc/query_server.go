@@ -782,8 +782,13 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
-			// return receipts without blockresult info
-			return completeReceipt(nil, blockResult, &txReceipt), nil
+
+			txResults, err := s.BlockStore.GetTxResultByHeightAndIndex(&height, int(txReceipt.TransactionIndex))
+			if err != nil {
+				// return receipts without blockresult info
+				return completeReceipt(nil, blockResult, &txReceipt), nil
+			}
+			return completeReceipt(txResults, blockResult, &txReceipt), nil
 		}
 		return nil, err
 	}
@@ -1167,7 +1172,6 @@ func getReceiptByTendermintHash(
 }
 
 func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) *eth.JsonTxReceipt {
-	jsonReceipt := eth.EncTxReceipt(*txReceipt)
 	if len(txReceipt.Logs) > 0 {
 		timestamp := blockResult.Block.Header.Time.Unix()
 		for i := 0; i < len(txReceipt.Logs); i++ {
@@ -1175,6 +1179,7 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 		}
 	}
 
+	jsonReceipt := eth.EncTxReceipt(*txReceipt)
 	if txResults != nil {
 		if txResults.TxResult.Code == abci.CodeTypeOK {
 			txReceipt.Status = StatusTxSuccess

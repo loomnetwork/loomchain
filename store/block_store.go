@@ -13,6 +13,10 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
+var (
+	ErrIndexOutOfRange = errors.New("Transaction index out of range")
+)
+
 // BlockStore provides access to block info.
 //
 // TODO: This is a quick, dirty, and very leaky abstraction of the underlying TM block store
@@ -30,8 +34,10 @@ type BlockStore interface {
 	// GetBlockResults retrieves the results of the txs committed to the block at the specified height,
 	// specify nil to retrieve results from the latest block.
 	GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error)
-	// Get Transaction Results from Tendermint Tx Hash
+	// Get transaction Results from Tendermint Tx Hash
 	GetTxResult(txHash []byte) (*ctypes.ResultTx, error)
+	// Get transaction result from height and index
+	GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error)
 }
 type TendermintBlockStore struct {
 }
@@ -146,6 +152,27 @@ func (s *TendermintBlockStore) GetTxResult(txHash []byte) (*ctypes.ResultTx, err
 			Code: txResult.TxResult.Code,
 			Data: txResult.TxResult.Data,
 			Info: txResult.TxResult.Info,
+		},
+	}, nil
+}
+
+func (s *TendermintBlockStore) GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error) {
+	blockResult, err := core.BlockResults(height)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(blockResult.Results.DeliverTx) <= index {
+		return nil, ErrIndexOutOfRange
+	}
+
+	return &ctypes.ResultTx{
+		Index:  uint32(index),
+		Height: *height,
+		TxResult: abci.ResponseDeliverTx{
+			Code: blockResult.Results.DeliverTx[index].Code,
+			Data: blockResult.Results.DeliverTx[index].Data,
+			Info: blockResult.Results.DeliverTx[index].Info,
 		},
 	}, nil
 }
