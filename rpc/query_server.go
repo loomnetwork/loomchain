@@ -1185,7 +1185,7 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 		} else {
 			txReceipt.Status = StatusTxFail
 		}
-
+		jsonReceipt = eth.EncTxReceipt(*txReceipt)
 		if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
 			jsonReceipt.To = jsonReceipt.ContractAddress
 			jsonReceipt.ContractAddress = nil
