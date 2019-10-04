@@ -13,10 +13,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-var (
-	ErrIndexOutOfRange = errors.New("Transaction index out of range")
-)
-
 // BlockStore provides access to block info.
 //
 // TODO: This is a quick, dirty, and very leaky abstraction of the underlying TM block store

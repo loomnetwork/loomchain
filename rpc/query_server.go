@@ -1186,13 +1186,11 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 			txReceipt.Logs[i].BlockTime = timestamp
 		}
 	}
-
 	if txResults.TxResult.Code == abci.CodeTypeOK {
 		txReceipt.Status = StatusTxSuccess
 	} else {
 		txReceipt.Status = StatusTxFail
 	}
-
 	jsonReceipt := eth.EncTxReceipt(*txReceipt)
 	if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
 		jsonReceipt.To = jsonReceipt.ContractAddress
