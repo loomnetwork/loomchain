@@ -1097,13 +1097,14 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_estimateGas
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Quantity, err error) {
 	var caller loom.Address
+	const ethChainID = "eth"
 	if len(query.From) > 0 {
-		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
+		caller, err = eth.DecDataToAddress(ethChainID, query.From)
 		if err != nil {
 			return resp, err
 		}
 	} else {
-		caller = loom.RootAddress(s.ChainID)
+		caller = loom.RootAddress(ethChainID)
 	}
 
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
@@ -1122,10 +1123,9 @@ func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.Block
 	vm := levm.NewLoomVm(snapshot, nil, nil, nil, true)
 	gasUsed, err := vm.EstimateGas(caller, contract, data, nil)
 	if err != nil {
-		fmt.Printf("error in call estimateGas %+v", err)
+		return resp, errors.Wrapf(err, "failed to call eth_estimateGas")
 	}
-	fmt.Println("query_server est. gas : ", gasUsed)
-	return eth.EncUint(gasUsed), err
+	return eth.EncUint(gasUsed), nil
 }
 
 func (s *QueryServer) EthGasPrice() (eth.Quantity, error) {

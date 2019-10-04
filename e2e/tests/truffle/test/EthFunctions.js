@@ -2,8 +2,9 @@
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
+const { waitForXBlocks } = require('./helpers')
 const MyToken = artifacts.require('MyToken');
-const SimpleStore = artifacts.require('SimpleStore');
+const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
@@ -145,36 +146,25 @@ contract('MyToken', async (accounts) => {
     assert.equal(ethOwner.toLowerCase(), web3js.utils.padLeft(owner, 64).toLowerCase(), "result using tokenContract and eth.call");
   });
 
-  it('MyToken eth_estimateGas', async () => {
-    const tokenContract = await MyToken.deployed(); 
-    contract = new web3js.eth.Contract(MyToken._json.abi, tokenContract.address, {alice});
-    await tokenContract.mintToken(113, { from: alice });
-    const gas = await web3js.eth.estimateGas({
-      to: tokenContract.address,
-      data: "0x6352211e0000000000000000000000000000000000000000000000000000000000000070", // abi for ownerOf(12)
-      value: 0
-    },"latest");
-    assert.equal(gas,722, "[MyToken] pass transaction gas estimate");
-  });
-
-  it('SimpleStore eth_estimateGas', async () => {
+  it('GasEstimateTestContract eth_estimateGas', async () => {
     const setAttemp = {
      "first" : 500 ,
      "second": 1000 ,
     }
-    const SimpleStoreContract = await SimpleStore.deployed(); 
-    await SimpleStoreContract.set(setAttemp.first,{from:alice})
+    const gasContract = await GasEstimateTestContract.deployed(); 
+    await gasContract.set(setAttemp.first,{from:alice})
 
-    contract = new web3js.eth.Contract(SimpleStore._json.abi, SimpleStoreContract.address, {alice});
+    contract = new web3js.eth.Contract(GasEstimateTestContract._json.abi, gasContract.address, {alice});
     let actual = await contract.methods.get().call({from:bob.toString()});
-    assert.equal(actual,setAttemp.first,"[SimpleStore] ....")
+    assert.equal(actual,setAttemp.first,"[GasEstimateTestContract] ....")
     const gasEst = await contract.methods.set(setAttemp.second).estimateGas();
-    assert.equal(gasEst,6487, "[SimpleStore] pass transaction gas estimate");
+    assert.equal(gasEst,6487, "[GasEstimateTestContract] pass transaction gas estimate");
 
+    await waitForXBlocks(nodeAddr, 2)
     actual = await contract.methods.get().call({from:bob.toString()});
-    assert.equal(actual,setAttemp.first,"[SimpleStore] state must not change on estimateGas call")
+    assert.equal(actual,setAttemp.first,"[GasEstimateTestContract] state must not change on estimateGas call")
   
-    await SimpleStoreContract.set(setAttemp.second,{from:bob})
+    await gasContract.set(setAttemp.second,{from:bob})
     actual = await contract.methods.get().call();
     assert.equal(actual,setAttemp.second);
   });

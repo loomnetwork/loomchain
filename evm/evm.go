@@ -272,25 +272,21 @@ func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.Bi
 	vmenv := e.NewEnv(origin)
 
 	var val *big.Int
-	if value == nil {
+	if value == nil || value.Int == nil {
 		val = common.Big0
 	} else {
 		val = value.Int
-		if val == nil {
-			//there seems like there are serialization issues where we can get bad data here
-			val = common.Big0
-		}
-		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
-			return 0, errors.Errorf("value %v must be non negative", value)
+		if val.Cmp(common.Big0) < 0 {
+			return 0, errors.Errorf("value %v must be non negetive", value)
 		}
 	}
 
 	_, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
 	if err != nil {
-		fmt.Println("ERROR ESTIMATEGAS")
+		return 0, err
 	}
 	usedGas = e.gasLimit - leftOverGas
-	return usedGas, err
+	return usedGas, nil
 }
 
 // TODO: this doesn't need to be exported, rename to newEVM

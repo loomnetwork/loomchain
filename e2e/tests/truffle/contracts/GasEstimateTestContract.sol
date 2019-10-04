@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-contract SimpleStore {
+contract GasEstimateTestContract {
   uint value;
 
   event NewValueSet(uint _value);

@@ -4,7 +4,6 @@ package evm
 
 import (
 	"encoding/json"
-	"fmt"
 	"math"
 	"math/big"
 
@@ -210,8 +209,6 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	fmt.Println("PASS LOOM VM CALL")
-	defer fmt.Println("END LOOM VM CALL")
 	logContext := &ethdbLogContext{
 		blockHeight:  lvm.state.Block().Height,
 		contractAddr: addr,
