@@ -783,10 +783,10 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
 			blockResults, err := s.BlockStore.GetBlockResults(&height)
-			if err != nil || len(blockResults.Results.DeliverTx) <= int(txReceipt.TransactionIndex) {
-				return nil, nil
-			}
-			if blockResults.Results.DeliverTx[txReceipt.TransactionIndex] == nil {
+			if err != nil ||
+				blockResults == nil ||
+				len(blockResults.Results.DeliverTx) <= int(txReceipt.TransactionIndex) ||
+				blockResults.Results.DeliverTx[txReceipt.TransactionIndex] == nil {
 				return nil, nil
 			}
 			return completeReceipt(
