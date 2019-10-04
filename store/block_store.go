@@ -34,7 +34,7 @@ type BlockStore interface {
 	// GetBlockResults retrieves the results of the txs committed to the block at the specified height,
 	// specify nil to retrieve results from the latest block.
 	GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error)
-	// Get transaction Results from Tendermint Tx Hash
+	// Get transaction result from Tendermint Tx Hash
 	GetTxResult(txHash []byte) (*ctypes.ResultTx, error)
 	// Get transaction result from height and index
 	GetTxResultByHeightAndIndex(height *int64, index int) (*ctypes.ResultTx, error)
