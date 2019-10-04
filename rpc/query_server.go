@@ -1187,18 +1187,16 @@ func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock
 		}
 	}
 
+	if txResults.TxResult.Code == abci.CodeTypeOK {
+		txReceipt.Status = StatusTxSuccess
+	} else {
+		txReceipt.Status = StatusTxFail
+	}
+
 	jsonReceipt := eth.EncTxReceipt(*txReceipt)
-	if txResults != nil {
-		if txResults.TxResult.Code == abci.CodeTypeOK {
-			txReceipt.Status = StatusTxSuccess
-		} else {
-			txReceipt.Status = StatusTxFail
-		}
-		jsonReceipt = eth.EncTxReceipt(*txReceipt)
-		if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
-			jsonReceipt.To = jsonReceipt.ContractAddress
-			jsonReceipt.ContractAddress = nil
-		}
+	if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
+		jsonReceipt.To = jsonReceipt.ContractAddress
+		jsonReceipt.ContractAddress = nil
 	}
 	return &jsonReceipt
 }
