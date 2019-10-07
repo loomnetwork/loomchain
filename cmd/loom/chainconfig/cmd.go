@@ -552,14 +552,14 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			if err := cdc.UnmarshalJSON(rawJson, &rpcResult); err != nil {
 				return err
 			}
-			addressList := make(map[string]bool, len(rpcResult.Validators))
+			activeValidatorList := make(map[string]bool, len(rpcResult.Validators))
 			for _, v := range rpcResult.Validators {
 				bytePubkey := [ed25519.PubKeyEd25519Size]byte(v.PubKey.(ed25519.PubKeyEd25519))
 				encoder := base64.StdEncoding
 				s := encoder.EncodeToString(bytePubkey[:])
-				pubKeyB64_1, _ := encoder.DecodeString(s)
-				localAddr := loom.LocalAddressFromPublicKey(pubKeyB64_1)
-				addressList[localAddr.String()] = true
+				pubKeyB64, _ := encoder.DecodeString(s)
+				localAddr := loom.LocalAddressFromPublicKey(pubKeyB64)
+				activeValidatorList[localAddr.String()] = true
 			}
 
 			type maxLength struct {
@@ -592,14 +592,14 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.Status+ml.UpdateAt+14) + "\n")
 			for _, v := range resp.Validators {
 				if !showAll {
-					if !addressList[v.Address.Local.String()] {
+					if !activeValidatorList[v.Address.Local.String()] {
 						continue
 					}
 				}
 				fmt.Printf(
 					"%-*s | %-*s | %-*d | %-*v | %-*s |\n",
 					ml.Name, nameList[v.Address.Local.String()], ml.Validator, v.Address.Local.String(),
-					ml.BuildNumber, v.BuildNumber, ml.Status, addressList[v.Address.Local.String()],
+					ml.BuildNumber, v.BuildNumber, ml.Status, activeValidatorList[v.Address.Local.String()],
 					ml.UpdateAt, time.Unix(int64(v.UpdatedAt), 0).UTC(),
 				)
 			}
@@ -607,7 +607,7 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			counters := make(map[uint64]int)
 			for _, validator := range resp.Validators {
 				if !showAll {
-					if !addressList[validator.Address.Local.String()] {
+					if !activeValidatorList[validator.Address.Local.String()] {
 						continue
 					}
 				}
@@ -622,10 +622,9 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				if showAll {
 					fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(resp.Validators))
 				} else {
-					fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(addressList))
+					fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(activeValidatorList))
 				}
 			}
-			fmt.Printf("ShowAll value : %v\n", showAll)
 			return nil
 		},
 	}
