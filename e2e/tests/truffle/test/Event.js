@@ -46,8 +46,6 @@ contract('EventTestContract', async (accounts) => {
         });
         newValueSetEventTopic = getEventSignature(contract,"NewValueSet")
         anotherValueSetEventTopic = getEventSignature(contract,"AnotherValueSet")
-
-        console.log(newValueSetEventTopic, anotherValueSetEventTopic)
         
         web3eth = new Web3(new Web3.providers.WebsocketProvider(`ws://${nodeAddr}/eth`));
     })
@@ -71,7 +69,9 @@ contract('EventTestContract', async (accounts) => {
             });
             var tx = await contract.methods.set(1).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(2, tx.events.AnotherValueSet.logIndex)
+            assert.equal(1, tx.events.NewValueSet[0].returnValues[0])
+            assert.equal(2, tx.events.NewValueSet[1].returnValues[0])
+            assert.equal(2, tx.events.AnotherValueSet.returnValues[0])
             assert.equal(3, eventCount)
             assert.equal(3, ethEventCount)
         } catch (err) {
@@ -95,10 +95,14 @@ contract('EventTestContract', async (accounts) => {
             });
             var tx = await contract.methods.set(1).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(2, tx.events.AnotherValueSet.logIndex)
+            assert.equal(1, tx.events.NewValueSet[0].returnValues[0])
+            assert.equal(2, tx.events.NewValueSet[1].returnValues[0])
+            assert.equal(2, tx.events.AnotherValueSet.returnValues[0])
             var tx = await contract.methods.set(2).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(2, tx.events.AnotherValueSet.logIndex)
+            assert.equal(2, tx.events.NewValueSet[0].returnValues[0])
+            assert.equal(3, tx.events.NewValueSet[1].returnValues[0])
+            assert.equal(3, tx.events.AnotherValueSet.returnValues[0])
             // total 6 events
             assert.equal(6, eventCount2)
             assert.equal(6, ethEventCount2)
@@ -125,7 +129,9 @@ contract('EventTestContract', async (accounts) => {
             contract.methods.set(1).send().then()
             var tx = await contract.methods.set(2).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(2, tx.events.AnotherValueSet.logIndex)
+            assert.equal(2, tx.events.NewValueSet[0].returnValues[0])
+            assert.equal(3, tx.events.NewValueSet[1].returnValues[0])
+            assert.equal(3, tx.events.AnotherValueSet.returnValues[0])
             // total 6 events
             assert.equal(6, eventCount3)
             assert.equal(6, ethEventCount3)
@@ -178,7 +184,9 @@ contract('EventTestContract', async (accounts) => {
 
             var tx = await contract.methods.set(1).send()
             assert.equal(2, tx.events.NewValueSet.length)
-            assert.equal(2, tx.events.AnotherValueSet.logIndex)
+            assert.equal(1, tx.events.NewValueSet[0].returnValues[0])
+            assert.equal(2, tx.events.NewValueSet[1].returnValues[0])
+            assert.equal(2, tx.events.AnotherValueSet.returnValues[0])
             assert.equal(2, newValueSetCount)
             assert.equal(1, anotherValueSetCount)
             assert.equal(2, ethNewValueSetCount)
@@ -230,7 +238,11 @@ contract('EventTestContract', async (accounts) => {
 
             contract.methods.set(1).send().then()
             var tx = await contract.methods.set(1).send()
-        
+            assert.equal(2, tx.events.NewValueSet.length)
+            assert.equal(1, tx.events.NewValueSet[0].returnValues[0])
+            assert.equal(2, tx.events.NewValueSet[1].returnValues[0])
+            assert.equal(2, tx.events.AnotherValueSet.returnValues[0])
+
             assert.equal(4, newValueSetCount2)
             assert.equal(2, anotherValueSetCount2)
             assert.equal(4, ethNewValueSetCount2)
