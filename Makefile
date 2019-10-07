@@ -202,7 +202,7 @@ validators-tool: $(TRANSFER_GATEWAY_DIR)
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# Temp workaround for https://github.com/prometheus/procfs/issues/221
-	go get github.com/prometheus/procfs
+	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
 	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
 
 	go get \
