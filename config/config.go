@@ -141,7 +141,7 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
-
+	// Set to true to disable minimum required build number on node startup
 	SkipMinBuildCheck bool
 }
 
@@ -769,5 +769,6 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
+# Set to true to disable minimum required build number on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
 ` + transferGatewayLoomYamlTemplate

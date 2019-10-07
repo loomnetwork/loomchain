@@ -77,9 +77,8 @@ import (
 )
 
 var (
-	appHeightKey    = []byte("appheight")
-	configKey       = []byte("config")
-	minimumBuildKey = []byte("minbuild")
+	appHeightKey = []byte("appheight")
+	configKey    = []byte("config")
 )
 
 var RootCmd = &cobra.Command{
@@ -733,7 +732,7 @@ func loadApp(
 	}
 
 	if !cfg.SkipMinBuildCheck {
-		if buildBytes := appStore.Get(minimumBuildKey); len(buildBytes) > 0 {
+		if buildBytes := appStore.Get([]byte(loomchain.MinBuildKey)); len(buildBytes) > 0 {
 			minimumBuild := binary.BigEndian.Uint64(buildBytes)
 			currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
 			if err != nil {

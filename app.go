@@ -141,8 +141,8 @@ func (s *StoreState) Context() context.Context {
 }
 
 const (
-	featurePrefix   = "feature"
-	minimumBuildKey = "minbuild"
+	featurePrefix = "feature"
+	MinBuildKey   = "minbuild"
 )
 
 func featureKey(featureName string) []byte {
@@ -180,15 +180,16 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
-func (s *StoreState) SetMinBuildNumber(minbuild uint64) {
-	// uint64 to byte
+// SetMinBuildNumber sets the minimum build number all nodes must be running.
+func (s *StoreState) SetMinBuildNumber(minBuild uint64) {
 	buildBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(buildBytes, minbuild)
-	s.store.Set([]byte(minimumBuildKey), buildBytes)
+	binary.BigEndian.PutUint64(buildBytes, minBuild)
+	s.store.Set([]byte(MinBuildKey), buildBytes)
 }
 
+// GetMinBuildNumber returns the minimum build number all nodes must be running.
 func (s *StoreState) GetMinBuildNumber() uint64 {
-	buildBytes := s.store.Get([]byte(minimumBuildKey))
+	buildBytes := s.store.Get([]byte(MinBuildKey))
 	if len(buildBytes) == 0 {
 		return 0
 	}
@@ -196,8 +197,7 @@ func (s *StoreState) GetMinBuildNumber() uint64 {
 }
 
 // ChangeConfigSetting updates the value of the given on-chain config setting.
-// If an error occurs while trying to update the config the change is rolled back, if the rollback
-// itself fails this function will panic.
+// If an error occurs while trying to update the config the change is discarded.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
 	cfg, err := store.LoadOnChainConfig(s.store)
 	if err != nil {
@@ -548,6 +548,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
 		}
+
 		numConfigChanges, err := chainConfigManager.UpdateConfig()
 		if err != nil {
 			panic(err)
@@ -558,6 +559,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.config = nil
 		}
 	}
+
 	storeTx.Commit()
 
 	return abci.ResponseBeginBlock{}
@@ -833,6 +835,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 
 	height := a.curBlockHeader.GetHeight()
+
 	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
 		// TODO: consider panic instead
 		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
