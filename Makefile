@@ -22,6 +22,7 @@ HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
+PROMETHEUS_PROCFS_DIR=$(GOPATH)/src/github.com/prometheus/procfs
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
 
@@ -200,6 +201,10 @@ validators-tool: $(TRANSFER_GATEWAY_DIR)
 	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
+	# Temp workaround for https://github.com/prometheus/procfs/issues/221
+	go get github.com/prometheus/procfs
+	cd $(PROMETHEUS_PROCFS_DIR) git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
+
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
