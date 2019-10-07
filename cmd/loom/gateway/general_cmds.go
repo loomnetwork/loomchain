@@ -720,12 +720,13 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 				MaxPerAccountDailyWithdrawalAmount: &types.BigUInt{Value: *maxPerAccountAmount},
 			}
 
+			state := stateResp.State
 			// if maxTotalAmount or maxPerAccountAmount is 0, just set it to the current state value
-			if maxTotalAmount.Cmp(big.NewInt(0)) == 0 {
-				req.MaxTotalDailyWithdrawalAmount = stateResp.MaxTotalDailyWithdrawalAmount
+			if maxTotalAmount.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+				req.MaxTotalDailyWithdrawalAmount = state.MaxTotalDailyWithdrawalAmount
 			}
-			if maxPerAccountAmount.Cmp(big.NewInt(0)) == 0 {
-				req.MaxPerAccountDailyWithdrawalAmount = stateResp.MaxPerAccountDailyWithdrawalAmount
+			if maxPerAccountAmount.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+				req.MaxPerAccountDailyWithdrawalAmount = state.MaxPerAccountDailyWithdrawalAmount
 			}
 
 			_, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil)
