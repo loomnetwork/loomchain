@@ -480,7 +480,7 @@ func newListContractMappingsCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
-	cmdFlags.BoolVar(&formatRaw, "raw", false, "Ouput raw JSON")
+	cmdFlags.BoolVar(&formatRaw, "raw", false, "Output raw JSON")
 	cmdFlags.BoolVar(&formatJson, "json", false, "Output prettified JSON")
 	return cmd
 }

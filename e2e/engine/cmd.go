@@ -435,7 +435,7 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			}
 		}
 	case "excludes":
-		var excludeds []string
+		var excludes []string
 		for _, excluded := range n.Excluded {
 			t, err := template.New("excluded").Parse(excluded)
 			if err != nil {
@@ -446,10 +446,10 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			if err != nil {
 				return err
 			}
-			excludeds = append(excludeds, buf.String())
+			excludes = append(excludes, buf.String())
 		}
 
-		for _, excluded := range excludeds {
+		for _, excluded := range excludes {
 			if strings.Contains(string(out), excluded) {
 				return fmt.Errorf("❌ expect output to exclude '%s' got '%s'", excluded, string(out))
 			}
