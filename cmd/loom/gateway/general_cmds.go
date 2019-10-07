@@ -707,9 +707,25 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
+			// fetch the current limit value from state
+			stateReq := &tgtypes.TransferGatewayStateRequest{}
+			stateResp := &tgtypes.TransferGatewayStateResponse{}
+			_, err = gateway.StaticCall("GetState", stateReq, gatewayAddr, stateResp)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+
 			req := &tgtypes.TransferGatewaySetMaxWithdrawalLimitRequest{
 				MaxTotalDailyWithdrawalAmount:      &types.BigUInt{Value: *maxTotalAmount},
 				MaxPerAccountDailyWithdrawalAmount: &types.BigUInt{Value: *maxPerAccountAmount},
+			}
+
+			// if maxTotalAmount or maxPerAccountAmount is 0, just set it to the current state value
+			if maxTotalAmount.Cmp(big.NewInt(0)) == 0 {
+				req.MaxTotalDailyWithdrawalAmount = stateResp.MaxTotalDailyWithdrawalAmount
+			}
+			if maxPerAccountAmount.Cmp(big.NewInt(0)) == 0 {
+				req.MaxPerAccountDailyWithdrawalAmount = stateResp.MaxPerAccountDailyWithdrawalAmount
 			}
 
 			_, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil)
