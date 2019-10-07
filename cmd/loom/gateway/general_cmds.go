@@ -664,10 +664,10 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 }
 
 func newSetWithdrawLimitCommand() *cobra.Command {
-	var totalLimit, accountLimit, decimals int64
+	var totalLimit, accountLimit, decimals uint64
 	cmd := &cobra.Command{
 		Use:     "set-withdrawal-limit <gateway>",
-		Short:   "Sets maximum amount the gateway should allow withdrawal",
+		Short:   "Sets maximum ETH or LOOM amount the gateway should allow users to withdraw per day",
 		Example: setWithdrawLimitCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loomKeyPath := gatewayCmdFlags.PrivKeyPath
@@ -686,19 +686,12 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 			} else if strings.EqualFold(args[0], BinanceGatewayName) {
 				name = BinanceGatewayName
 			} else {
-				return errors.New("only Gateway, LoomCoin, or Binance gateway is allowed to set max withdrawal limit")
-			}
-
-			if totalLimit < 0 || accountLimit < 0 {
-				return errors.New("amount must be greater than zero")
-			}
-			if decimals < 0 {
-				return errors.New("decimals must be greater than zero")
+				return fmt.Errorf("withdrawal limits not supported by %s", name)
 			}
 
 			// create amounts with decimals
-			maxTotalAmount := sciNot(totalLimit, decimals)
-			maxPerAccountAmount := sciNot(accountLimit, decimals)
+			maxTotalAmount := sciNot(int64(totalLimit), int64(decimals))
+			maxPerAccountAmount := sciNot(int64(accountLimit), int64(decimals))
 
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
@@ -707,12 +700,11 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
-			// fetch the current limit value from state
+			// fetch the current limits
 			stateReq := &tgtypes.TransferGatewayStateRequest{}
 			stateResp := &tgtypes.TransferGatewayStateResponse{}
-			_, err = gateway.StaticCall("GetState", stateReq, gatewayAddr, stateResp)
-			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			if _, err := gateway.StaticCall("GetState", stateReq, gatewayAddr, stateResp); err != nil {
+				return errors.Wrap(err, "failed to fetch current withdrawal limits")
 			}
 
 			req := &tgtypes.TransferGatewaySetMaxWithdrawalLimitRequest{
@@ -721,24 +713,32 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 			}
 
 			state := stateResp.State
-			// if maxTotalAmount or maxPerAccountAmount is 0, just set it to the current state value
-			if maxTotalAmount.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+			// Unless a new non-zero limit was provided keep the existing limit
+			if totalLimit == 0 {
 				req.MaxTotalDailyWithdrawalAmount = state.MaxTotalDailyWithdrawalAmount
 			}
-			if maxPerAccountAmount.Cmp(loom.NewBigUIntFromInt(0)) == 0 {
+			if accountLimit == 0 {
 				req.MaxPerAccountDailyWithdrawalAmount = state.MaxPerAccountDailyWithdrawalAmount
 			}
 
-			_, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil)
-			if err != nil {
+			if _, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil); err != nil {
 				return err
 			}
 			return nil
 		},
 	}
-	cmd.PersistentFlags().Int64Var(&totalLimit, "total-limit", 0, "Total limit")
-	cmd.PersistentFlags().Int64Var(&accountLimit, "account-limit", 0, "Account limit")
-	cmd.PersistentFlags().Int64Var(&decimals, "decimals", 18, "The number of decimals appended to the amounts")
+	cmd.Flags().Uint64Var(
+		&totalLimit, "total-limit", 0,
+		"Max total amount the gateway should allow to be withdrawn per day",
+	)
+	cmd.Flags().Uint64Var(
+		&accountLimit, "account-limit", 0,
+		"Max total amount the gateway should allow to be withdrawn per day by any one account",
+	)
+	cmd.Flags().Uint64Var(
+		&decimals, "decimals", 18,
+		"The number of decimals to append to input amounts",
+	)
 	return cmd
 }
 
