@@ -540,16 +540,16 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				return err
 			}
 
-			var rawJson json.RawMessage
+			var rawJSON json.RawMessage
 			rpcclient := client.NewJSONRPCClient(flags.URI + "/rpc")
-			err = rpcclient.Call("validators", map[string]interface{}{}, "11", &rawJson)
+			err = rpcclient.Call("validators", map[string]interface{}{}, "11", &rawJSON)
 			if err != nil {
 				return err
 			}
 			cdc := amino.NewCodec()
 			coretypes.RegisterAmino(cdc)
 			var rpcResult coretypes.ResultValidators
-			if err := cdc.UnmarshalJSON(rawJson, &rpcResult); err != nil {
+			if err := cdc.UnmarshalJSON(rawJSON, &rpcResult); err != nil {
 				return err
 			}
 			activeValidatorList := make(map[string]bool, len(rpcResult.Validators))
@@ -654,9 +654,3 @@ type ByBuild []cctype.ValidatorInfo
 func (a ByBuild) Len() int           { return len(a) }
 func (a ByBuild) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByBuild) Less(i, j int) bool { return a[i].BuildNumber < a[j].BuildNumber }
-
-func getDAppChainClient(callFlags *cli.ContractCallFlags) *client.DAppChainRPCClient {
-	writeURI := callFlags.URI + "/rpc"
-	readURI := callFlags.URI + "/query"
-	return client.NewDAppChainRPCClient(callFlags.ChainID, writeURI, readURI)
-}
