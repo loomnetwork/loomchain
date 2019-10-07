@@ -52,7 +52,6 @@ var (
 )
 
 func TestMapAccount(t *testing.T) {
-	//t.Skip()
 	mockState := mockState(mainChain)
 	manager := vm.NewManager()
 	manager.Register(vm.VMType_EVM, loomVmFactory(manager))
@@ -130,7 +129,6 @@ func TestMapAccount(t *testing.T) {
 }
 
 func TestMapToLoomAccount(t *testing.T) {
-	//t.Skip()
 	mockState := mockState(mainChain)
 	manager := vm.NewManager()
 	manager.Register(vm.VMType_EVM, loomVmFactory(manager))
