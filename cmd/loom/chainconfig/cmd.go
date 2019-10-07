@@ -1,7 +1,6 @@
 package chainconfig
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -552,14 +551,11 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			if err := cdc.UnmarshalJSON(rawJSON, &rpcResult); err != nil {
 				return err
 			}
+
 			activeValidatorList := make(map[string]bool, len(rpcResult.Validators))
 			for _, v := range rpcResult.Validators {
-				bytePubkey := [ed25519.PubKeyEd25519Size]byte(v.PubKey.(ed25519.PubKeyEd25519))
-				encoder := base64.StdEncoding
-				s := encoder.EncodeToString(bytePubkey[:])
-				pubKeyB64, _ := encoder.DecodeString(s)
-				localAddr := loom.LocalAddressFromPublicKey(pubKeyB64)
-				activeValidatorList[localAddr.String()] = true
+				pubKey := [ed25519.PubKeyEd25519Size]byte(v.PubKey.(ed25519.PubKeyEd25519))
+				activeValidatorList[loom.LocalAddressFromPublicKey(pubKey[:]).String()] = true
 			}
 
 			type maxLength struct {
@@ -591,10 +587,8 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			fmt.Printf(
 				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.Status+ml.UpdateAt+14) + "\n")
 			for _, v := range resp.Validators {
-				if !showAll {
-					if !activeValidatorList[v.Address.Local.String()] {
-						continue
-					}
+				if !showAll && !activeValidatorList[v.Address.Local.String()] {
+					continue
 				}
 				fmt.Printf(
 					"%-*s | %-*s | %-*d | %-*v | %-*s |\n",
@@ -606,10 +600,8 @@ func ListValidatorsInfoCmd() *cobra.Command {
 
 			counters := make(map[uint64]int)
 			for _, validator := range resp.Validators {
-				if !showAll {
-					if !activeValidatorList[validator.Address.Local.String()] {
-						continue
-					}
+				if !showAll && !activeValidatorList[validator.Address.Local.String()] {
+					continue
 				}
 				counters[validator.BuildNumber]++
 			}
@@ -629,7 +621,7 @@ func ListValidatorsInfoCmd() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.BoolVar(&showAll, "all", false, "show both active and inactive validators")
+	cmdFlags.BoolVar(&showAll, "all", false, "Show both active and inactive validators")
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }
