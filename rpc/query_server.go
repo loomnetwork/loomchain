@@ -779,12 +779,20 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
-			// return nil response if cannot find hash
-			return nil, nil
+			blockResults, err := s.BlockStore.GetBlockResults(&height)
+			if err != nil ||
+				blockResults == nil ||
+				len(blockResults.Results.DeliverTx) <= int(txReceipt.TransactionIndex) ||
+				blockResults.Results.DeliverTx[txReceipt.TransactionIndex] == nil {
+				return nil, nil
+			}
+			return completeReceipt(
+				blockResults.Results.DeliverTx[txReceipt.TransactionIndex], blockResult, &txReceipt,
+			), nil
 		}
 		return nil, err
 	}
-	return completeReceipt(txResults, blockResult, &txReceipt), nil
+	return completeReceipt(&txResults.TxResult, blockResult, &txReceipt), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblocktransactioncountbyhash
@@ -1164,23 +1172,25 @@ func getReceiptByTendermintHash(
 
 		return &jsonReceipt, nil
 	}
-	return completeReceipt(txResults, blockResult, &txReceipt), nil
+	return completeReceipt(&txResults.TxResult, blockResult, &txReceipt), nil
 }
 
-func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) *eth.JsonTxReceipt {
+func completeReceipt(
+	txResult *abci.ResponseDeliverTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt,
+) *eth.JsonTxReceipt {
 	if len(txReceipt.Logs) > 0 {
 		timestamp := blockResult.Block.Header.Time.Unix()
 		for i := 0; i < len(txReceipt.Logs); i++ {
 			txReceipt.Logs[i].BlockTime = timestamp
 		}
 	}
-	if txResults.TxResult.Code == abci.CodeTypeOK {
+	if txResult.Code == abci.CodeTypeOK {
 		txReceipt.Status = StatusTxSuccess
 	} else {
 		txReceipt.Status = StatusTxFail
 	}
 	jsonReceipt := eth.EncTxReceipt(*txReceipt)
-	if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
+	if txResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
 		jsonReceipt.To = jsonReceipt.ContractAddress
 		jsonReceipt.ContractAddress = nil
 	}

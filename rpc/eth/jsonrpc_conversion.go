@@ -104,7 +104,7 @@ type JsonTxCallObject struct {
 	GasPrice Quantity `json:"gasPrice,omitempty"`
 	Value    Quantity `json:"value,omitempty"`
 	Data     Data     `json:"data,omitempty"`
-	Nonce    Quantity `json:"nonce.omitempty"`
+	Nonce    Quantity `json:"nonce,omitempty"`
 }
 
 type JsonFilter struct {

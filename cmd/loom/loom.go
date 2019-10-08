@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -728,6 +729,19 @@ func loadApp(
 
 	if err != nil {
 		return nil, err
+	}
+
+	if !cfg.SkipMinBuildCheck {
+		if buildBytes := appStore.Get([]byte(loomchain.MinBuildKey)); len(buildBytes) > 0 {
+			minimumBuild := binary.BigEndian.Uint64(buildBytes)
+			currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse loomchain build number")
+			}
+			if currentBuild < minimumBuild {
+				return nil, fmt.Errorf("build %d is too old, upgrade to build %d or later", currentBuild, minimumBuild)
+			}
+		}
 	}
 
 	var eventStore store.EventStore
