@@ -14,7 +14,7 @@
 [[TestCases]]
   RunCmd = "/bin/ls ./0"
   Condition = "contains"
-  Expected = ['receipts_db']
+  Expected = ['evmaux.db']
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg add-feature --build 0 receipts:v2 -k {{index $.NodePrivKeyPathList 0}}"
@@ -38,6 +38,6 @@
  [[TestCases]]
    RunCmd = "/bin/ls ./0"
    Condition = "contains"
-   Expected = ['receipts_db']
+   Expected = ['evmaux.db']
 
 

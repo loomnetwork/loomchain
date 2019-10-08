@@ -11,8 +11,10 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -24,10 +26,8 @@ func TestReceiptsHandlerChain(t *testing.T) {
 	height := uint64(1)
 	state := common.MockState(height)
 
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
-
-	handler := NewReceiptHandler(&loomchain.DefaultEventHandler{}, DefaultMaxReceipts, evmAuxStore)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
+	handler := NewReceiptHandler(&loomchain.DefaultEventHandler{}, evmAuxStore)
 
 	var writer loomchain.WriteReceiptHandler = handler
 	var reader loomchain.ReadReceiptHandler = handler
@@ -43,7 +43,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 
 		if nonce%2 == 1 { // mock EVM transaction
 			stateI := common.MockStateTx(state, height, uint64(nonce))
-			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil, []byte{})
+			_, err := writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil, []byte{})
 			require.NoError(t, err)
 			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil, []byte{})
 			require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 		require.EqualValues(t, common.StatusTxSuccess, receipt.Status)
 	}
 
-	err = receiptHandler.CommitBlock(int64(height))
+	err := receiptHandler.CommitBlock(int64(height))
 	require.NoError(t, err)
 
 	pendingHashList = reader.GetPendingTxHashList()
@@ -104,7 +104,4 @@ func TestReceiptsHandlerChain(t *testing.T) {
 		require.EqualValues(t, 2*index, txReceipt.TransactionIndex)
 		require.EqualValues(t, common.StatusTxSuccess, txReceipt.Status)
 	}
-
-	require.NoError(t, receiptHandler.Close())
-	require.NoError(t, receiptHandler.ClearData())
 }

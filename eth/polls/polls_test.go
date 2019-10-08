@@ -20,7 +20,9 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -35,12 +37,11 @@ const (
 )
 
 func TestLogPoll(t *testing.T) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, evmAuxStore)
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	allFilter := eth.JsonFilter{
 		FromBlock: "earliest",
@@ -86,8 +87,6 @@ func TestLogPoll(t *testing.T) {
 	sub.Remove(id)
 	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	require.NoError(t, receiptHandler.Close())
-	evmAuxStore.ClearData()
 }
 
 func TestTxPoll(t *testing.T) {
@@ -96,12 +95,11 @@ func TestTxPoll(t *testing.T) {
 }
 
 func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler, blockStore)
@@ -131,16 +129,14 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	sub.Remove(id)
 	_, err = sub.LegacyPoll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	require.NoError(t, receiptHandler.Close())
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
 	state := makeMockState(t, receiptHandler, blockStore)
@@ -202,7 +198,6 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	result, err = sub.Poll(state220, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	require.NoError(t, receiptHandler.Close())
 }
 
 func TestTimeout(t *testing.T) {
@@ -210,12 +205,11 @@ func TestTimeout(t *testing.T) {
 }
 
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
+	receiptHandler := handler.NewReceiptHandler(eventHandler, evmAuxStore)
 
 	BlockTimeout = 10
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
@@ -250,7 +244,6 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	result, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
-	require.NoError(t, receiptHandler.Close())
 }
 
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler, blockStore *store.MockBlockStore) loomchain.State {
@@ -348,8 +341,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler, blockSt
 }
 
 func TestAddRemove(t *testing.T) {
-	evmAuxStore, err := common.NewMockEvmAuxStore()
-	require.NoError(t, err)
+	evmAuxStore := evmaux.NewEvmAuxStore(dbm.NewMemDB(), 1000)
 	blockStore := store.NewMockBlockStore()
 	s := NewEthSubscriptions(evmAuxStore, blockStore)
 

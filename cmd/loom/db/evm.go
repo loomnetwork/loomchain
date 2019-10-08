@@ -63,7 +63,6 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
 				eventHandler,
-				cfg.EVMPersistentTxReceiptsMax,
 				nil,
 			)
 
@@ -176,7 +175,6 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
 				eventHandler,
-				cfg.EVMPersistentTxReceiptsMax,
 				nil,
 			)
 

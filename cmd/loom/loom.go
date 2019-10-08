@@ -37,7 +37,6 @@ import (
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/features"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/loomnetwork/loomchain/chainconfig"
@@ -60,7 +59,6 @@ import (
 	"github.com/loomnetwork/loomchain/migrations"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/loomnetwork/loomchain/receipts/handler"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -251,7 +249,10 @@ func newInitCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				destroyReceiptsDB(cfg)
+				err = destroyReceiptsDB(cfg)
+				if err != nil {
+					return err
+				}
 				if err := destroyBlockIndexDB(cfg); err != nil {
 					return err
 				}
@@ -588,11 +589,16 @@ func destroyApp(cfg *config.Config) error {
 	return resetApp(cfg)
 }
 
-func destroyReceiptsDB(cfg *config.Config) {
-	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb || cfg.ReceiptsVersion == 3 {
-		receptHandler := leveldb.LevelDbReceipts{}
-		receptHandler.ClearData()
+func destroyReceiptsDB(cfg *config.Config) error {
+	dbPath := filepath.Join(cfg.RootPath(), cfg.EvmAuxStore.DBName+".db")
+	if !util.FileExists(dbPath) {
+		return nil
 	}
+	err := os.RemoveAll(dbPath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func destroyBlockIndexDB(cfg *config.Config) error {
@@ -787,12 +793,12 @@ func loadApp(
 	}
 
 	// load EVM Auxiliary Store
-	evmAuxStore, err := evmaux.LoadStore()
+	evmAuxStore, err := evmaux.LoadStore(cfg.EvmAuxStore.DBName, cfg.RootPath(), cfg.EvmAuxStore.MaxReceipts)
 	if err != nil {
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, cfg.EVMPersistentTxReceiptsMax, evmAuxStore)
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
