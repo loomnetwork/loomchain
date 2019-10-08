@@ -393,11 +393,8 @@ func DefaultConfig() *Config {
 		CallEnabled:            true,
 		DPOSVersion:            3,
 		AllowNamedEvmContracts: false,
-<<<<<<< HEAD
 		MinOpenFilesLimit:      100000,
-=======
 		SkipMinBuildCheck:      false,
->>>>>>> master
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -776,10 +773,7 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
-<<<<<<< HEAD
 MinOpenFilesLimit: {{ .MinOpenFilesLimit }}
-=======
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
->>>>>>> master
 ` + transferGatewayLoomYamlTemplate
