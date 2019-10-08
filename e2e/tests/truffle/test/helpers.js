@@ -1,5 +1,6 @@
 const rp = require('request-promise')
 const keccak256 = require('js-sha3').keccak256
+const web3 = require('web3')
 
 async function assertRevert(promise) {
   try {
@@ -41,6 +42,14 @@ async function waitForXBlocks(nodeAddr, block) {
     }
   }
   return
+}
+
+function getEventSignature(contract, eventName) {
+  const eventJsonInterface = web3.utils._.find(
+    contract._jsonInterface,
+    o => o.name === eventName && o.type === 'event',
+  )
+  return eventJsonInterface.signature
 }
 
 async function getNonce(nodeAddr, account) {
@@ -103,5 +112,6 @@ function getLoomEvmTxHash(ethTx, fromAddr) {
 }
 
 module.exports = {
-  assertRevert, delay, waitForXBlocks, getNonce, getStorageAt, getLatestBlock, getLoomEvmTxHash
+  assertRevert, delay, waitForXBlocks, getNonce, getStorageAt, 
+  getLatestBlock, getLoomEvmTxHash, getEventSignature,
 }
