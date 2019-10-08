@@ -72,6 +72,12 @@ const setWithdrawFeeCmdExample = `
 ./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
 `
 
+const setWithdrawLimitCmdExample = `
+./loom gateway set-withdrawal-limit gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
+./loom gateway set-withdrawal-limit loomcoin-gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
+./loom gateway set-withdrawal-limit binance-gateway --total-limit 1000000 --account-limit 500000 --decimals 8 --key path/to/loom_priv.key
+`
+
 const updateMainnetAddressCmdExample = `
 ./loom gateway update-mainnet-address <mainnet-hex-address> gateway --key path/to/loom_priv.key
 `
@@ -657,6 +663,85 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 	return cmd
 }
 
+func newSetWithdrawLimitCommand() *cobra.Command {
+	var totalLimit, accountLimit, decimals uint64
+	cmd := &cobra.Command{
+		Use:     "set-withdrawal-limit <gateway>",
+		Short:   "Sets maximum ETH or LOOM amount the gateway should allow users to withdraw per day",
+		Example: setWithdrawLimitCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var name string
+			if len(args) == 0 || strings.EqualFold(args[0], GatewayName) {
+				name = GatewayName
+			} else if strings.EqualFold(args[0], LoomGatewayName) {
+				name = LoomGatewayName
+			} else if strings.EqualFold(args[0], BinanceGatewayName) {
+				name = BinanceGatewayName
+			} else {
+				return fmt.Errorf("withdrawal limits not supported by %s", name)
+			}
+
+			// create amounts with decimals
+			maxTotalAmount := sciNot(int64(totalLimit), int64(decimals))
+			maxPerAccountAmount := sciNot(int64(accountLimit), int64(decimals))
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			// fetch the current limits
+			stateReq := &tgtypes.TransferGatewayStateRequest{}
+			stateResp := &tgtypes.TransferGatewayStateResponse{}
+			if _, err := gateway.StaticCall("GetState", stateReq, gatewayAddr, stateResp); err != nil {
+				return errors.Wrap(err, "failed to fetch current withdrawal limits")
+			}
+
+			req := &tgtypes.TransferGatewaySetMaxWithdrawalLimitRequest{
+				MaxTotalDailyWithdrawalAmount:      &types.BigUInt{Value: *maxTotalAmount},
+				MaxPerAccountDailyWithdrawalAmount: &types.BigUInt{Value: *maxPerAccountAmount},
+			}
+
+			state := stateResp.State
+			// Unless a new non-zero limit was provided keep the existing limit
+			if totalLimit == 0 {
+				req.MaxTotalDailyWithdrawalAmount = state.MaxTotalDailyWithdrawalAmount
+			}
+			if accountLimit == 0 {
+				req.MaxPerAccountDailyWithdrawalAmount = state.MaxPerAccountDailyWithdrawalAmount
+			}
+
+			if _, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Uint64Var(
+		&totalLimit, "total-limit", 0,
+		"Max total amount the gateway should allow to be withdrawn per day",
+	)
+	cmd.Flags().Uint64Var(
+		&accountLimit, "account-limit", 0,
+		"Max total amount the gateway should allow to be withdrawn per day by any one account",
+	)
+	cmd.Flags().Uint64Var(
+		&decimals, "decimals", 18,
+		"The number of decimals to append to input amounts",
+	)
+	return cmd
+}
+
 func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update-mainnet-address <mainnet-address> <gateway-name>",
@@ -789,4 +874,11 @@ func newUpdateMainnetHotWalletAddressCommand() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
 }

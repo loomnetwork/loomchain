@@ -14,6 +14,8 @@ const (
 	TGFixERC721Feature = "tg:fix-erc721"
 	// Enables support for Binance contract mappings in the Binance Gateway contract
 	TGBinanceContractMappingFeature = "tg:binance-cm"
+	// Enables daily limiting of withdrawal amount
+	TGWithdrawalLimitFeature = "tg:withdrawal-limit"
 	// Store Mainnet Gateway address in Gateway Go contract
 	TGVersion1_1 = "tg:v1.1"
 	// Enable additional validation of account & contract chain IDs to make it harder to obtain
@@ -101,6 +103,9 @@ const (
 
 	// Enables config setting in the ChainConfig contract.
 	ChainCfgVersion1_3 = "chaincfg:v1.3"
+
+	// Enables checking of minimum required build number on node startup.
+	ChainCfgVersion1_4 = "chaincfg:v1.4"
 
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
