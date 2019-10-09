@@ -391,6 +391,7 @@ type Application struct {
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
 	TrieDB                      *trie.Database
+	FlushInterval               int64 // commit Patricia trie to disk every N blocks
 	lastSavedEVMRoot            []byte
 }
 
@@ -867,12 +868,18 @@ func (a *Application) Commit() abci.ResponseCommit {
 		a.curBlockHash,
 		a.GetValidatorSet,
 	)
-	cfg := state.Config()
 	curHeight := a.curBlockHeader.GetHeight()
-	flushInterval := cfg.GetAppStore().GetIAVLFlushInterval()
+
+	flushInterval := a.FlushInterval
+	if flushInterval == 0 {
+		cfg := state.Config()
+		flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
+	} else if flushInterval == -1 {
+		flushInterval = 0
+	}
 
 	// Only commit Patricia tree every N blocks
-	if flushInterval == 0 || uint64(curHeight)%flushInterval == 0 {
+	if flushInterval == 0 || curHeight%flushInterval == 0 {
 		evmRoot := state.Get(util.PrefixKey(vmPrefix, rootKey))
 		if len(evmRoot) > 0 && bytes.Compare(a.lastSavedEVMRoot, evmRoot) != 0 {
 			ethDB := store.NewLoomEthDB(state, nil)

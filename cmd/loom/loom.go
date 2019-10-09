@@ -1128,6 +1128,7 @@ func loadApp(
 		EvmAuxStore:                 evmAuxStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
 		TrieDB:                      trie.NewDatabase(nil),
+		FlushInterval:               cfg.AppStore.IAVLFlushInterval,
 	}, nil
 }
 
