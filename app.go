@@ -8,6 +8,7 @@ import (
 	"time"
 
 	gcommon "github.com/ethereum/go-ethereum/common"
+	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
@@ -41,7 +42,7 @@ type ReadOnlyState interface {
 	Config() *cctypes.Config
 	EnabledFeatures() []string
 	GetMinBuildNumber() uint64
-	GetTrieDB() *trie.Database
+	GetEVMStateDB() gstate.Database
 }
 
 type State interface {
@@ -149,8 +150,12 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-func (s *StoreState) GetTrieDB() *trie.Database {
-	return s.trieDB
+func (s *StoreState) GetEVMStateDB() gstate.Database {
+	ethDB := store.NewLoomEthDB(s, nil)
+	s.trieDB.SetDiskDB(ethDB)
+	evmStateDB := gstate.NewDatabase(ethDB)
+	evmStateDB.SetTrieDB(s.trieDB)
+	return evmStateDB
 }
 
 const (

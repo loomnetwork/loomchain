@@ -58,17 +58,12 @@ func NewLoomEvm(
 		return nil, err
 	}
 
-	trieDB := loomState.GetTrieDB()
-	trieDB.SetDiskDB(p.db)
-	sdb := state.NewDatabase(p.db)
-	sdb.SetTrieDB(trieDB)
-
 	var abm *evmAccountBalanceManager
 	if accountBalanceManager != nil {
 		abm = newEVMAccountBalanceManager(accountBalanceManager, loomState.Block().ChainID)
-		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), sdb)
+		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), loomState.GetEVMStateDB())
 	} else {
-		p.sdb, err = state.New(common.BytesToHash(oldRoot), sdb)
+		p.sdb, err = state.New(common.BytesToHash(oldRoot), loomState.GetEVMStateDB())
 	}
 	if err != nil {
 		return nil, err
