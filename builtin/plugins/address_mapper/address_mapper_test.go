@@ -32,8 +32,10 @@ var (
 type AddressMapperTestSuite struct {
 	suite.Suite
 	validEthKey     *ecdsa.PrivateKey
+	validEthKey2    *ecdsa.PrivateKey
 	invalidEthKey   *ecdsa.PrivateKey
 	validEthAddr    loom.Address
+	validEthAddr2   loom.Address
 	invalidEthAddr  loom.Address
 	validDAppAddr   loom.Address
 	invalidDAppAddr loom.Address
@@ -73,6 +75,12 @@ func (s *AddressMapperTestSuite) SetupTest() {
 	binanceLocalAddr, err := loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(pubkey).Hex())
 	s.validBinanceAddr = loom.Address{ChainID: "binance", Local: binanceLocalAddr}
 	s.validDAppAddr3 = loom.Address{ChainID: "chain", Local: addr4.Local}
+
+	s.validEthKey2, err = crypto.GenerateKey()
+	r.NoError(err)
+	ethLocalAddr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(s.validEthKey2.PublicKey).Hex())
+	r.NoError(err)
+	s.validEthAddr2 = loom.Address{ChainID: "eth", Local: ethLocalAddr2}
 
 	fmt.Printf("EthAddr: %v, DAppAddr: %v\n", s.validEthAddr, s.validDAppAddr)
 }
@@ -560,4 +568,58 @@ func (s *AddressMapperTestSuite) TestMultiChainAddressMapperHasIdentityMapping()
 	})
 	r.NoError(err)
 	r.Len(dappMultichainMapping.Mappings, 3)
+
+	//Mapp eth2-->dapp
+	sig, err = SignIdentityMapping(s.validEthAddr2, s.validDAppAddr, s.validEthKey2, sigType)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validEthAddr2.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	// check eth must mapped
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validEthAddr2.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	getMultiChainResp, err = amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Len(getMultiChainResp.Mappings, 4)
+
+	getMultiChainResp, err = amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validEthAddr2.MarshalPB(),
+	})
+
+	r.NoError(err)
+	s.Equal(s.validDAppAddr.Local.String(), getMultiChainResp.Mappings[0].To.Local.String())
+	s.Equal(s.validDAppAddr.ChainID, getMultiChainResp.Mappings[0].To.ChainId)
+
+	//Mapp eth2-->dapp again expect error
+	sig, err = SignIdentityMapping(s.validEthAddr2, s.validDAppAddr, s.validEthKey2, sigType)
+	r.NoError(err)
+	r.Equal(ErrAlreadyRegistered, amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validEthAddr2.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	//Mapp dapp-->eth2 again expect error
+	sig, err = SignIdentityMapping(s.validDAppAddr, s.validEthAddr2, s.validEthKey2, sigType)
+	r.NoError(err)
+	r.Equal(ErrAlreadyRegistered, amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validDAppAddr.MarshalPB(),
+		To:        s.validEthAddr2.MarshalPB(),
+		Signature: sig,
+	}))
+
+	getMultiChainResp, err = amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Len(getMultiChainResp.Mappings, 4)
 }

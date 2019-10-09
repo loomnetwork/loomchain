@@ -7,6 +7,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
@@ -141,6 +143,26 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 			}
 			return err
 		}
+	} else {
+		var mapping AddressMapping
+		mappingRange := ctx.Range(addressKey(from))
+		for _, m := range mappingRange {
+			if err := proto.Unmarshal(m.Value, &mapping); err != nil {
+				return err
+			}
+			if to.Compare(loom.UnmarshalAddressPB(mapping.To)) == 0 {
+				return ErrAlreadyRegistered
+			}
+		}
+		mappingRange = ctx.Range(addressKey(to))
+		for _, m := range mappingRange {
+			if err := proto.Unmarshal(m.Value, &mapping); err != nil {
+				return err
+			}
+			if req.To == mapping.To {
+				return ErrAlreadyRegistered
+			}
+		}
 	}
 
 	if !isMultiChainEnable {
@@ -160,7 +182,8 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 		}
 	} else {
 
-		err := ctx.Set(multiChainAddressKey(from, req.To.ChainId, 0), &AddressMapping{
+		r1 := rand.New(rand.NewSource(time.Now().UnixNano()))
+		err := ctx.Set(multiChainAddressKey(from, req.To.ChainId, uint64(r1.Intn(1000))), &AddressMapping{
 			From: req.From,
 			To:   req.To,
 		})
@@ -168,13 +191,14 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 			return err
 		}
 
-		err = ctx.Set(multiChainAddressKey(to, req.From.ChainId, 0), &AddressMapping{
+		err = ctx.Set(multiChainAddressKey(to, req.From.ChainId, uint64(r1.Intn(1000))), &AddressMapping{
 			From: req.To,
 			To:   req.From,
 		})
 		if err != nil {
 			return err
 		}
+
 		// fmt.Printf("multichain key    %+v\n", multiChainAddressKey(from, req.To.ChainId, 0))
 		// fmt.Printf("GET multichain key%+v\n", getMultiChainAddressKey(from, req.To.ChainId))
 		// fmt.Printf("multichain key    %+v\n", multiChainAddressKey(to, req.From.ChainId, 0))
@@ -325,7 +349,7 @@ func verifySig(from, to loom.Address, chainID string, sig []byte, allowedSigType
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 		// ssha.Uint64(nonce),
-		// ssha.String(to.ChainID),
+		ssha.String(to.ChainID),
 	)
 
 	sigType := evmcompat.SignatureType(sig[0])
@@ -334,7 +358,7 @@ func verifySig(from, to loom.Address, chainID string, sig []byte, allowedSigType
 			ssha.Address(common.BytesToAddress(from.Local)),
 			ssha.Address(common.BytesToAddress(to.Local)),
 			// ssha.Uint64(nonce),
-			// ssha.String(to.ChainID),
+			ssha.String(to.ChainID),
 		)
 	}
 
@@ -357,7 +381,7 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType e
 		ssha.Address(common.BytesToAddress(from.Local)),
 		ssha.Address(common.BytesToAddress(to.Local)),
 		//ssha.Uint64(nonce),
-		// ssha.String(to.ChainID),
+		ssha.String(to.ChainID),
 	)
 
 	if sigType == evmcompat.SignatureType_TRON {
@@ -367,7 +391,7 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType e
 			ssha.Address(common.BytesToAddress(from.Local)),
 			ssha.Address(common.BytesToAddress(to.Local)),
 			//ssha.Uint64(nonce),
-			// ssha.String(to.ChainID),
+			ssha.String(to.ChainID),
 		)
 	}
 
