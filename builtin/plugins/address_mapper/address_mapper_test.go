@@ -115,6 +115,12 @@ func (s *AddressMapperTestSuite) TestAddressMapperHasIdentityMapping() {
 	})
 	r.NoError(err)
 	s.Equal(true, hasMappingResponse.HasMapping)
+
+	// r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+	// 	From:      s.validEthAddr.MarshalPB(),
+	// 	To:        s.validDAppAddr.MarshalPB(),
+	// 	Signature: sig,
+	// }))
 }
 
 func (s *AddressMapperTestSuite) TestAddressMapperAddSameIdentityMapping() {
@@ -418,4 +424,140 @@ func (s *AddressMapperTestSuite) TestBinanceSigRecovery() {
 	addr, err := evmcompat.BitcoinRecover(hash2, sig[1:])
 	r.NoError(err)
 	r.Equal(common.HexToAddress("0x131cD1A71cBc107b773c1763e7c9E11b26548F0c").Hex(), addr.Hex())
+}
+
+func (s *AddressMapperTestSuite) TestMultiChainAddressMapperHasIdentityMapping() {
+	r := s.Require()
+	//plugin.CreateFakeContext(s.validDAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/),
+	fakeCtx := plugin.CreateFakeContext(s.validDAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
+	fakeCtx.SetFeature(features.AddressMapperVersion1_1, true)
+	fakeCtx.SetFeature(features.AddressMapperVersion1_2, true)
+	ctx := contract.WrapPluginContext(fakeCtx)
+
+	amContract := &AddressMapper{}
+	r.NoError(amContract.Init(ctx, &InitRequest{}))
+	// check if validDAppAddr mapped?
+	hasMappingResponse, err := amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(false, hasMappingResponse.HasMapping)
+
+	//Mapp eth-->dapp
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey, sigType)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validEthAddr.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	// check eth must mapped
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validEthAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	// check dapp must mapped
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	getMultiChainResp, err := amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validEthAddr.Local.String(), getMultiChainResp.Mappings[0].To.Local.String())
+	s.Equal(s.validEthAddr.ChainID, getMultiChainResp.Mappings[0].To.ChainId)
+
+	getMultiChainResp, err = amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validEthAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validDAppAddr.Local.String(), getMultiChainResp.Mappings[0].To.Local.String())
+	s.Equal(s.validDAppAddr.ChainID, getMultiChainResp.Mappings[0].To.ChainId)
+
+	// binance must not be mapped before
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validBinanceAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(false, hasMappingResponse.HasMapping)
+
+	// map binance --> dapp
+	sig, err = SignIdentityMapping(s.validBinanceAddr, s.validDAppAddr, s.validBinanceKey, evmcompat.SignatureType_BINANCE)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validBinanceAddr.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validBinanceAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	getMultiChainResp, err = amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validBinanceAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validDAppAddr.Local.String(), getMultiChainResp.Mappings[0].To.Local.String())
+	s.Equal(s.validDAppAddr.ChainID, getMultiChainResp.Mappings[0].To.ChainId)
+
+	dappMultichainMapping, err := amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	r.Len(dappMultichainMapping.Mappings, 2)
+
+	// tronAddr must not be mapped before
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validTronAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(false, hasMappingResponse.HasMapping)
+	// map tron-->dapp
+	sig, err = SignIdentityMapping(s.validTronAddr, s.validDAppAddr, s.validTronKey, evmcompat.SignatureType_TRON)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validTronAddr.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validTronAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	getMultiChainResp, err = amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validBinanceAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(s.validDAppAddr.Local.String(), getMultiChainResp.Mappings[0].To.Local.String())
+	s.Equal(s.validDAppAddr.ChainID, getMultiChainResp.Mappings[0].To.ChainId)
+
+	dappMultichainMapping, err = amContract.GetMultiChainMapping(ctx, &GetMultiChainMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	r.Len(dappMultichainMapping.Mappings, 3)
 }
