@@ -184,7 +184,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 
 	snapshot = store.GetSnapshot()
 	rangeData = snapshot.Range(vmPrefix)
-	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
+	require.Equal(4, len(rangeData))
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
@@ -196,7 +196,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 
 	snapshot = store.GetSnapshot()
 	rangeData = snapshot.Range(vmPrefix)
-	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
+	require.Equal(4, len(rangeData))
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
@@ -242,8 +242,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	store.Delete(vmPrefixKey("gg"))
 
 	dataRange := store.Range(vmPrefix)
-	require.Equal(6+1, len(dataRange)) // +1 is for the evm root that written by the EVM store itself
-
+	require.Equal(6, len(dataRange))
 	_, version, err = store.SaveVersion()
 	require.Equal(int64(2), version)
 	require.NoError(err)
