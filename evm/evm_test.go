@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/trie"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
@@ -40,7 +42,9 @@ func mockState() loomchain.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	memDB := store.NewMemStore()
+	trieDB := trie.NewDatabase(store.NewLoomEthDB(memDB, nil))
+	return loomchain.NewStoreState(context.Background(), memDB, header, nil, nil).WithTrieDB(trieDB)
 }
 
 func TestProcessDeployTx(t *testing.T) {

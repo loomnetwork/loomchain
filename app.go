@@ -860,19 +860,20 @@ func (a *Application) Commit() abci.ResponseCommit {
 		a.GetValidatorSet,
 	)
 	cfg := state.Config()
-
 	curHeight := a.curBlockHeader.GetHeight()
 	flushInterval := cfg.GetAppStore().GetIAVLFlushInterval()
+
+	// Only commit Patricia tree every N blocks
 	if flushInterval == 0 || uint64(curHeight)%flushInterval == 0 {
-		ethDB := store.NewLoomEthDB(state, nil)
 		evmRoot := state.Get(util.PrefixKey(vmPrefix, rootKey))
 		if len(evmRoot) > 0 && bytes.Compare(a.lastSavedEVMRoot, evmRoot) != 0 {
-			rootHash := gcommon.BytesToHash(evmRoot)
+			ethDB := store.NewLoomEthDB(state, nil)
 			a.TrieDB.SetDiskDB(ethDB)
-			if err := a.TrieDB.Commit(rootHash, false); err != nil {
+			if err := a.TrieDB.Commit(gcommon.BytesToHash(evmRoot), false); err != nil {
 				panic(err)
 			}
 			a.lastSavedEVMRoot = evmRoot
+			a.TrieDB = trie.NewDatabase(ethDB)
 		}
 	}
 

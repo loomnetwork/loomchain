@@ -6,11 +6,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/ethereum/go-ethereum/trie"
+
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -34,7 +37,8 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 			Time:    block.Time.Unix(),
 		},
 	)
-	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
+	trieDB := trie.NewDatabase(store.NewLoomEthDB(ctx, nil))
+	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil).WithTrieDB(trieDB)
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state,
