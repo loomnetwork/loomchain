@@ -195,9 +195,9 @@ func (s *EvmStore) Commit(version int64) []byte {
 		currentRoot = defaultRoot
 	}
 	// save Patricia root of EVM state only if it changes
-	if !bytes.Equal(currentRoot, s.lastSavedRoot) {
-		s.Set(evmRootKey(version), currentRoot)
-	}
+	// if !bytes.Equal(currentRoot, s.lastSavedRoot) {
+	// 	s.Set(evmRootKey(version), currentRoot)
+	// }
 
 	s.rootCache.Add(version, currentRoot)
 

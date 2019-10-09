@@ -161,10 +161,18 @@ const (
 var (
 	vmPrefix = []byte("vm")
 	rootKey  = []byte("vmroot")
+	// This is the prefix of versioning Patricia roots
+	evmRootPrefix = []byte("evmroot")
 )
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+func evmRootKey(blockHeight int64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(blockHeight))
+	return util.PrefixKey(vmPrefix, []byte(evmRootPrefix), b)
 }
 
 func (s *StoreState) EnabledFeatures() []string {
@@ -874,6 +882,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 			}
 			a.lastSavedEVMRoot = evmRoot
 			a.TrieDB = trie.NewDatabase(ethDB)
+			a.Store.Set(evmRootKey(curHeight), evmRoot)
 		}
 	}
 
