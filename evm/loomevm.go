@@ -22,6 +22,7 @@ import (
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -38,12 +39,6 @@ type StateDB interface {
 	Commit(bool) (common.Hash, error)
 }
 
-type ethdbLogContext struct {
-	blockHeight  int64
-	contractAddr loom.Address
-	callerAddr   loom.Address
-}
-
 // TODO: this doesn't need to be exported, rename to loomEvmWithState
 type LoomEvm struct {
 	*Evm
@@ -54,21 +49,26 @@ type LoomEvm struct {
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
 	loomState loomchain.State, accountBalanceManager AccountBalanceManager,
-	logContext *ethdbLogContext, debug bool,
+	logContext *store.EthDBLogContext, debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
-	p.db = NewLoomEthdb(loomState, logContext)
+	p.db = store.NewLoomEthDB(loomState, logContext)
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
 		return nil, err
 	}
 
+	trieDB := loomState.GetTrieDB()
+	trieDB.SetDiskDB(p.db)
+	sdb := state.NewDatabase(p.db)
+	sdb.SetTrieDB(trieDB)
+
 	var abm *evmAccountBalanceManager
 	if accountBalanceManager != nil {
 		abm = newEVMAccountBalanceManager(accountBalanceManager, loomState.Block().ChainID)
-		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), sdb)
 	} else {
-		p.sdb, err = state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+		p.sdb, err = state.New(common.BytesToHash(oldRoot), sdb)
 	}
 	if err != nil {
 		return nil, err
@@ -83,9 +83,9 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	if err != nil {
 		return root, err
 	}
-	if err := levm.sdb.Database().TrieDB().Commit(root, false); err != nil {
-		return root, err
-	}
+	// if err := levm.sdb.Database().TrieDB().Commit(root, false); err != nil {
+	// 	return root, err
+	// }
 	if err := levm.db.Put(rootKey, root[:]); err != nil {
 		return root, err
 	}
@@ -146,11 +146,7 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
-	logContext := &ethdbLogContext{
-		blockHeight:  lvm.state.Block().Height,
-		contractAddr: loom.Address{},
-		callerAddr:   caller,
-	}
+	logContext := store.NewEthDBLogContext(lvm.state.Block().Height, loom.Address{}, caller)
 	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
 	if err != nil {
 		return nil, loom.Address{}, err
@@ -209,11 +205,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	logContext := &ethdbLogContext{
-		blockHeight:  lvm.state.Block().Height,
-		contractAddr: addr,
-		callerAddr:   caller,
-	}
+	logContext := store.NewEthDBLogContext(lvm.state.Block().Height, addr, caller)
 	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
 	if err != nil {
 		return nil, err

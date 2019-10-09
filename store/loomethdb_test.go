@@ -1,6 +1,4 @@
-// +build evm
-
-package evm
+package store
 
 import (
 	"bytes"

@@ -1,6 +1,4 @@
-// +build evm
-
-package evm
+package store
 
 import (
 	"bytes"
@@ -11,53 +9,66 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
+	loom "github.com/loomnetwork/go-loom"
 )
 
 var (
-	LogEthDbBatch = true
+	LogEthDBBatch = true
 	logger        log.Logger
 	loggerStarted = false
 )
 
+type EthDBLogContext struct {
+	blockHeight  int64
+	contractAddr loom.Address
+	callerAddr   loom.Address
+}
+
+func NewEthDBLogContext(height int64, contractAddr loom.Address, callerAddr loom.Address) *EthDBLogContext {
+	return &EthDBLogContext{
+		blockHeight:  height,
+		contractAddr: contractAddr,
+		callerAddr:   callerAddr,
+	}
+}
+
 // implements ethdb.Database
-type LoomEthdb struct {
-	state      store.KVStore
+type LoomEthDB struct {
+	state      KVStore
 	lock       sync.RWMutex
-	logContext *ethdbLogContext
+	logContext *EthDBLogContext
 }
 
-func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
-	p := new(LoomEthdb)
-	p.state = store.PrefixKVStore(vmPrefix, _state)
-	p.logContext = logContext
-	return p
+func NewLoomEthDB(_state KVStore, logContext *EthDBLogContext) *LoomEthDB {
+	return &LoomEthDB{
+		state:      PrefixKVStore(vmPrefix, _state),
+		logContext: logContext,
+	}
 }
 
-func (s *LoomEthdb) Put(key []byte, value []byte) error {
+func (s *LoomEthDB) Put(key []byte, value []byte) error {
 	s.state.Set(key, value)
 	return nil
 }
 
-func (s *LoomEthdb) Get(key []byte) ([]byte, error) {
+func (s *LoomEthDB) Get(key []byte) ([]byte, error) {
 	return s.state.Get(key), nil
 }
 
-func (s *LoomEthdb) Has(key []byte) (bool, error) {
+func (s *LoomEthDB) Has(key []byte) (bool, error) {
 	return s.state.Has(key), nil
 }
 
-func (s *LoomEthdb) Delete(key []byte) error {
+func (s *LoomEthDB) Delete(key []byte) error {
 	s.state.Delete(key)
 	return nil
 }
 
-func (s *LoomEthdb) Close() {
+func (s *LoomEthDB) Close() {
 }
 
-func (s *LoomEthdb) NewBatch() ethdb.Batch {
-	if LogEthDbBatch {
+func (s *LoomEthDB) NewBatch() ethdb.Batch {
+	if LogEthDBBatch {
 		return s.NewLogBatch(s.logContext)
 	} else {
 		newBatch := new(batch)
@@ -75,7 +86,7 @@ type kvPair struct {
 
 type batch struct {
 	cache       []kvPair
-	parentStore *LoomEthdb
+	parentStore *LoomEthDB
 	size        int
 }
 
@@ -132,7 +143,7 @@ func (b *batch) Dump(logger *log.Logger) {
 	}
 }
 
-type LogParams struct {
+type EthDBLogParams struct {
 	LogFilename        string
 	LogFlags           int
 	LogReset           bool
@@ -148,7 +159,7 @@ type LogParams struct {
 
 type LogBatch struct {
 	batch  batch
-	params LogParams
+	params EthDBLogParams
 }
 
 const batchHeaderWithContext = `
@@ -170,12 +181,12 @@ const batchHeader = `
 
 `
 
-func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
+func (s *LoomEthDB) NewLogBatch(logContext *EthDBLogContext) ethdb.Batch {
 	b := new(LogBatch)
 	b.batch = *new(batch)
 	b.batch.parentStore = s
 	b.batch.Reset()
-	b.params = LogParams{
+	b.params = EthDBLogParams{
 		LogFilename:        "ethdb-batch.log",
 		LogFlags:           0,
 		LogReset:           true,

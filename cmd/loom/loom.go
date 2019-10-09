@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/tendermint/tendermint/libs/db"
 
+	"github.com/ethereum/go-ethereum/trie"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -836,7 +837,7 @@ func loadApp(
 			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
-	evm.LogEthDbBatch = cfg.LogEthDbBatch
+	store.LogEthDBBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager:                vmManager,
@@ -1126,6 +1127,7 @@ func loadApp(
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
+		TrieDB:                      trie.NewDatabase(nil),
 	}, nil
 }
 
