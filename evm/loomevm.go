@@ -61,9 +61,9 @@ func NewLoomEvm(
 	var abm *evmAccountBalanceManager
 	if accountBalanceManager != nil {
 		abm = newEVMAccountBalanceManager(accountBalanceManager, loomState.Block().ChainID)
-		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), loomState.GetEVMStateDB())
+		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), loomState.EVMStateDB())
 	} else {
-		p.sdb, err = state.New(common.BytesToHash(oldRoot), loomState.GetEVMStateDB())
+		p.sdb, err = state.New(common.BytesToHash(oldRoot), loomState.EVMStateDB())
 	}
 	if err != nil {
 		return nil, err

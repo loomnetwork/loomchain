@@ -42,7 +42,6 @@ type ReadOnlyState interface {
 	Config() *cctypes.Config
 	EnabledFeatures() []string
 	GetMinBuildNumber() uint64
-	GetEVMStateDB() gstate.Database
 }
 
 type State interface {
@@ -54,6 +53,7 @@ type State interface {
 	SetFeature(string, bool)
 	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
+	EVMStateDB() gstate.Database
 }
 
 type StoreState struct {
@@ -150,7 +150,7 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-func (s *StoreState) GetEVMStateDB() gstate.Database {
+func (s *StoreState) EVMStateDB() gstate.Database {
 	ethDB := store.NewLoomEthDB(s, nil)
 	s.trieDB.SetDiskDB(ethDB)
 	evmStateDB := gstate.NewDatabase(ethDB)
