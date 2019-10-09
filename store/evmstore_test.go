@@ -43,7 +43,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	evmStore.Set([]byte("SSSSS"), []byte("SSSSS"))
 	evmStore.Set([]byte("vvvvv"), []byte("vvv"))
 	dataRange = evmStore.Range(nil)
-	require.Equal(107, len(dataRange))
+	require.Equal(106, len(dataRange))
 	evmStore.Commit(2)
 	evmStore.Set([]byte("SSSSS"), []byte("S1"))
 	ret := evmStore.Get([]byte("SSSSS"))
@@ -51,12 +51,12 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	evmStore.Delete([]byte("SSSSS"))
 	evmStore.Delete([]byte("hello1"))
 	dataRange = evmStore.Range(nil)
-	require.Equal(105, len(dataRange))
+	require.Equal(104, len(dataRange))
 	evmStore.Commit(3)
 	evmStore.Delete([]byte("SSSSS"))
 	evmStore.Delete([]byte("hello1"))
 	dataRange = evmStore.Range(nil)
-	require.Equal(105, len(dataRange))
+	require.Equal(104, len(dataRange))
 }
 
 func (t *EvmStoreTestSuite) TestEvmStoreBasicMethods() {
