@@ -1,6 +1,7 @@
 package chainconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -12,10 +13,14 @@ import (
 	"github.com/loomnetwork/go-loom"
 	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/config"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/spf13/cobra"
+	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 var (
@@ -513,6 +518,7 @@ loom chain-cfg list-validators
 
 func ListValidatorsInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
+	var showAll bool
 	cmd := &cobra.Command{
 		Use:     "list-validators",
 		Short:   "Show info stored for each validator",
@@ -533,14 +539,34 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				return err
 			}
 
+			var rawJSON json.RawMessage
+			rpcclient := client.NewJSONRPCClient(flags.URI + "/rpc")
+			err = rpcclient.Call("validators", map[string]interface{}{}, "11", &rawJSON)
+			if err != nil {
+				return err
+			}
+			cdc := amino.NewCodec()
+			coretypes.RegisterAmino(cdc)
+			var rpcResult coretypes.ResultValidators
+			if err := cdc.UnmarshalJSON(rawJSON, &rpcResult); err != nil {
+				return err
+			}
+
+			activeValidatorList := make(map[string]bool, len(rpcResult.Validators))
+			for _, v := range rpcResult.Validators {
+				pubKey := [ed25519.PubKeyEd25519Size]byte(v.PubKey.(ed25519.PubKeyEd25519))
+				activeValidatorList[loom.LocalAddressFromPublicKey(pubKey[:]).String()] = true
+			}
+
 			type maxLength struct {
 				Name        int
 				Validator   int
 				BuildNumber int
 				UpdateAt    int
+				Status      int
 			}
 
-			ml := maxLength{Name: 20, Validator: 42, BuildNumber: 5, UpdateAt: 29}
+			ml := maxLength{Name: 20, Validator: 42, BuildNumber: 5, UpdateAt: 29, Status: 6}
 
 			sort.Slice(resp.Validators[:], func(i, j int) bool {
 				return resp.Validators[i].BuildNumber < resp.Validators[j].BuildNumber
@@ -556,34 +582,46 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			}
 
 			fmt.Printf(
-				"%-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Validator, "validator",
-				ml.BuildNumber, "build", ml.UpdateAt, "Last Update")
+				"%-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Validator, "validator",
+				ml.BuildNumber, "build", ml.Status, "active", ml.UpdateAt, "Last Update")
 			fmt.Printf(
-				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.UpdateAt+10) + "\n")
-			for _, value := range resp.Validators {
+				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.Status+ml.UpdateAt+14) + "\n")
+			for _, v := range resp.Validators {
+				if !showAll && !activeValidatorList[v.Address.Local.String()] {
+					continue
+				}
 				fmt.Printf(
-					"%-*s | %-*s | %-*d | %-*s |\n",
-					ml.Name, nameList[value.Address.Local.String()], ml.Validator, value.Address.Local.String(),
-					ml.BuildNumber, value.BuildNumber, ml.UpdateAt, time.Unix(int64(value.UpdatedAt), 0).UTC(),
+					"%-*s | %-*s | %-*d | %-*v | %-*s |\n",
+					ml.Name, nameList[v.Address.Local.String()], ml.Validator, v.Address.Local.String(),
+					ml.BuildNumber, v.BuildNumber, ml.Status, activeValidatorList[v.Address.Local.String()],
+					ml.UpdateAt, time.Unix(int64(v.UpdatedAt), 0).UTC(),
 				)
 			}
 
 			counters := make(map[uint64]int)
 			for _, validator := range resp.Validators {
+				if !showAll && !activeValidatorList[validator.Address.Local.String()] {
+					continue
+				}
 				counters[validator.BuildNumber]++
 			}
 			fmt.Printf(
 				"\n%-*s| %-*s | \n", 11, "BuildNumber", 10, "Percentage")
 			fmt.Printf(
-				strings.Repeat("-", 27) + "\n")
+				strings.Repeat("-", 25) + "\n")
 
 			for k, v := range counters {
-				fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(resp.Validators))
+				if showAll {
+					fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(resp.Validators))
+				} else {
+					fmt.Printf("%-*d | %-*d  | \n", 10, k, 9, v*100/len(activeValidatorList))
+				}
 			}
-
 			return nil
 		},
 	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.BoolVar(&showAll, "all", false, "Show both active and inactive validators")
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
 	return cmd
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/phonkee/go-pubsub"
 )
 
-// hub implements Hub interface
+// LegacyEthResetHub implements Hub interface
 // Remembers which subscribers messages have been published to
 // and does not send repeat messages to any subscribers.
 // Revert resets the memory of the subscribers that have received messages.
@@ -16,19 +16,18 @@ type LegacyEthResetHub struct {
 }
 
 // New returns new hub instance. hub is goroutine safe.
-func NewLegacyEthResetHub() (result pubsub.ResetHub) {
-	result = &LegacyEthResetHub{
+func NewLegacyEthResetHub() pubsub.ResetHub {
+	return &LegacyEthResetHub{
 		mutex:    &sync.RWMutex{},
 		registry: map[pubsub.Subscriber]bool{},
 	}
-	return
 }
 
 // CloseSubscriber removes subscriber from hub
 func (h *LegacyEthResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	delete(h.registry, subscriber)
-	h.mutex.Unlock()
 }
 
 // Publish publishes message to subscribers
@@ -39,12 +38,9 @@ func (h *LegacyEthResetHub) Publish(message pubsub.Message) int {
 
 	count := 0
 	// iterate over all subscribers, and publish messages
-	for sub, unsent := range h.registry {
-		if unsent {
-			if sub.Match(message.Topic()) {
-				count += sub.Publish(message)
-				h.registry[sub] = false
-			}
+	for sub := range h.registry {
+		if sub.Match(message.Topic()) {
+			count += sub.Publish(message)
 		}
 	}
 
@@ -69,8 +65,9 @@ func (h *LegacyEthResetHub) Subscribe(topics ...string) pubsub.Subscriber {
 
 func (h *LegacyEthResetHub) Reset() {
 	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	for sub := range h.registry {
 		h.registry[sub] = true
 	}
-	h.mutex.Unlock()
 }
