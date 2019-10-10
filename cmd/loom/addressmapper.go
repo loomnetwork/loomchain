@@ -75,9 +75,16 @@ func AddIdentityMappingCmd() *cobra.Command {
 				sigType = evmcompat.SignatureType_BINANCE
 			}
 
+			var nonceResp address_mapper.GetNonceResponse
 			foreignAddr := loom.Address{ChainID: chainId, Local: foreignLocalAddr}
 			mapping.To = foreignAddr.MarshalPB()
-			mapping.Signature, err = address_mapper.SignIdentityMapping(user, foreignAddr, privkey, sigType)
+			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "GetNonce", &address_mapper.GetNonceRequest{
+				Address: user.MarshalPB(),
+			}, &nonceResp)
+			if err != nil {
+				return errors.Wrapf(err, "sigining mapping with %s key", chainId)
+			}
+			mapping.Signature, err = address_mapper.SignIdentityMapping(user, foreignAddr, privkey, sigType, nonceResp.Nonce)
 			if err != nil {
 				return errors.Wrapf(err, "sigining mapping with %s key", chainId)
 			}
