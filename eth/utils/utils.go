@@ -21,7 +21,7 @@ func UnmarshalEthFilter(query []byte) (eth.EthFilter, error) {
 	var filter struct {
 		FromBlock string        `json:"fromBlock"`
 		ToBlock   string        `json:"toBlock"`
-		Addresses []string      `json:"address"`
+		Addresses []string      `json:"addresses"`
 		Topics    []interface{} `json:"topics"`
 	}
 	json.Unmarshal(query, &filter)
