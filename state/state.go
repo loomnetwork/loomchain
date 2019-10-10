@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 
 	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
@@ -25,6 +26,7 @@ type ReadOnlyState interface {
 	FeatureEnabled(string, bool) bool
 	Config() *cctypes.Config
 	EnabledFeatures() []string
+	GetMinBuildNumber() uint64
 }
 
 type State interface {
@@ -34,6 +36,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
+	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
 }
 
@@ -113,6 +116,7 @@ func (s *StoreState) Context() context.Context {
 
 const (
 	featurePrefix = "feature"
+	MinBuildKey   = "minbuild"
 )
 
 func (s *StoreState) EnabledFeatures() []string {
@@ -143,6 +147,22 @@ func (s *StoreState) SetFeature(name string, val bool) {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
+}
+
+// SetMinBuildNumber sets the minimum build number all nodes must be running.
+func (s *StoreState) SetMinBuildNumber(minBuild uint64) {
+	buildBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(buildBytes, minBuild)
+	s.store.Set([]byte(MinBuildKey), buildBytes)
+}
+
+// GetMinBuildNumber returns the minimum build number all nodes must be running.
+func (s *StoreState) GetMinBuildNumber() uint64 {
+	buildBytes := s.store.Get([]byte(MinBuildKey))
+	if len(buildBytes) == 0 {
+		return 0
+	}
+	return binary.BigEndian.Uint64(buildBytes)
 }
 
 // ChangeConfigSetting updates the value of the given on-chain config setting.

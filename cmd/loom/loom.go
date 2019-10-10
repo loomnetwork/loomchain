@@ -733,7 +733,7 @@ func loadApp(
 	}
 
 	if !cfg.SkipMinBuildCheck {
-		if buildBytes := appStore.Get([]byte(loomchain.MinBuildKey)); len(buildBytes) > 0 {
+		if buildBytes := appStore.Get([]byte(appstate.MinBuildKey)); len(buildBytes) > 0 {
 			minimumBuild := binary.BigEndian.Uint64(buildBytes)
 			currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
 			if err != nil {
