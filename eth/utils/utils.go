@@ -21,7 +21,7 @@ func UnmarshalEthFilter(query []byte) (eth.EthFilter, error) {
 	var filter struct {
 		FromBlock string        `json:"fromBlock"`
 		ToBlock   string        `json:"toBlock"`
-		Address   string        `json:"address"`
+		Addresses []string      `json:"address"`
 		Topics    []interface{} `json:"topics"`
 	}
 	json.Unmarshal(query, &filter)
@@ -31,13 +31,16 @@ func UnmarshalEthFilter(query []byte) (eth.EthFilter, error) {
 		ToBlock:   eth.BlockHeight(filter.ToBlock),
 	}
 
-	if len(filter.Address) > 0 {
-		address, err := loom.LocalAddressFromHexString(filter.Address)
-		if err != nil {
-			return eth.EthFilter{}, fmt.Errorf("invalid ethfilter, address")
+	for _, address := range filter.Addresses {
+		if len(address) > 0 {
+			addr, err := loom.LocalAddressFromHexString(address)
+			if err != nil {
+				return eth.EthFilter{}, fmt.Errorf("invalid ethfilter, address")
+			}
+			rFilter.Addresses = append(rFilter.Addresses, addr)
 		}
-		rFilter.Addresses = append(rFilter.Addresses, address)
 	}
+
 	if len(filter.Topics) > SolidtyMaxTopics {
 		return eth.EthFilter{}, fmt.Errorf("invalid ethfilter, too many topics")
 	}
