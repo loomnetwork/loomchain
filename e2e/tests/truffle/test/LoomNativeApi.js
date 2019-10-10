@@ -11,7 +11,7 @@ const {
 
 contract('LoomNativeApi', async (accounts) => {
     let web3js, wallet, loomAddress;
-    let testApi, testHash, sig
+    let testApi, testHash, sig;
     const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim();
     const msg = '0x8CbaC5e4d803bE2A3A5cd3DbE7174504c6DD0c1C';
 
@@ -32,7 +32,6 @@ contract('LoomNativeApi', async (accounts) => {
         };
         client.txMiddleware = setupMiddlewareFn(client, privateKey);
 
-        const httpProvider =  new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`);
         web3js = new Web3(new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`));
 
         publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey);
