@@ -95,25 +95,17 @@ func (am *AddressMapper) Init(ctx contract.Context, req *InitRequest) error {
 // AddIdentityMapping adds a mapping between a DAppChain account and a Mainnet account.
 // The caller must provide proof of ownership of the Mainnet account.
 func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) error {
-	fmt.Println("CHECKPOINT -1")
 	if req.From == nil || req.To == nil || req.Signature == nil {
 		return ErrInvalidRequest
 	}
 
-	var isMultiChainEnable bool
-	if ctx.FeatureEnabled(features.AddressMapperVersion1_2, false) {
-		isMultiChainEnable = true
-	}
-	fmt.Println("CHECKPOINT 0")
 	from := loom.UnmarshalAddressPB(req.From)
 	to := loom.UnmarshalAddressPB(req.To)
 	if from.ChainID == "" || to.ChainID == "" {
 		return ErrInvalidRequest
 	}
 
-	fmt.Println("CHECKPOINT 1")
 	if from.Compare(to) == 0 {
-		fmt.Println("error from == to")
 		return ErrInvalidRequest
 	}
 
@@ -128,34 +120,32 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_BINANCE)
 	}
 
-	fmt.Println("CHECKPOINT 2")
 	callerAddr := ctx.Message().Sender
 	if callerAddr.Compare(from) == 0 {
-		fmt.Println("ADDRESS MAPPER 1")
 		n, err := getNonce(ctx, from)
 		if err != nil {
-			return errors.Wrap(err, "get nonce fail")
+			return errors.Wrapf(err, "get nonce fail for address %s", from.Local.String())
 		}
 		if err := verifySig(from, to, to.ChainID, req.Signature, allowedSigTypes, n); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
 	} else if callerAddr.Compare(to) == 0 {
-
 		n, err := getNonce(ctx, to)
 		if err != nil {
-			return errors.Wrap(err, "get nonce fail")
+			return errors.Wrapf(err, "get nonce fail for address %s", to.Local.String())
 		}
-		fmt.Println(n)
-		fmt.Println("ADDRESS MAPPER 3")
 		if err := verifySig(from, to, from.ChainID, req.Signature, allowedSigTypes, n); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
 	} else {
-		fmt.Println("ERROR in compare account")
 		return ErrInvalidRequest
 	}
 
-	fmt.Println("CHECKPOINT 3")
+	var isMultiChainEnable bool
+	if ctx.FeatureEnabled(features.AddressMapperVersion1_2, false) {
+		isMultiChainEnable = true
+	}
+
 	var existingMapping AddressMapping
 	if !isMultiChainEnable {
 		if err := ctx.Get(addressKey(from), &existingMapping); err != contract.ErrNotFound {
@@ -164,11 +154,25 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 			}
 			return err
 		}
-
 		if err := ctx.Get(addressKey(to), &existingMapping); err != contract.ErrNotFound {
 			if err == nil {
 				return ErrAlreadyRegistered
 			}
+			return err
+		}
+
+		err := ctx.Set(addressKey(from), &AddressMapping{
+			From: req.From,
+			To:   req.To,
+		})
+		if err != nil {
+			return err
+		}
+		err = ctx.Set(addressKey(to), &AddressMapping{
+			From: req.To,
+			To:   req.From,
+		})
+		if err != nil {
 			return err
 		}
 	} else {
@@ -191,24 +195,6 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 				return ErrAlreadyRegistered
 			}
 		}
-	}
-
-	if !isMultiChainEnable {
-		err := ctx.Set(addressKey(from), &AddressMapping{
-			From: req.From,
-			To:   req.To,
-		})
-		if err != nil {
-			return err
-		}
-		err = ctx.Set(addressKey(to), &AddressMapping{
-			From: req.To,
-			To:   req.From,
-		})
-		if err != nil {
-			return err
-		}
-	} else {
 		r1 := rand.New(rand.NewSource(time.Now().UnixNano()))
 		err := ctx.Set(multiChainAddressKey(from, req.To.ChainId, uint64(r1.Intn(1000))), &AddressMapping{
 			From: req.From,
@@ -248,7 +234,7 @@ func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappin
 	listMappingResponse := ListMappingResponse{
 		Mappings: []*AddressMapping{},
 	}
-	addressList := make(map[string]bool, len(mappingRange)/2)
+	addressList := make(map[string]bool, len(mappingRange))
 	for _, m := range mappingRange {
 		var mapping AddressMapping
 		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
@@ -287,7 +273,6 @@ func (am *AddressMapper) HasMapping(ctx contract.StaticContext, req *HasMappingR
 			hasResponse.HasMapping = false
 		}
 	} else {
-		addr := loom.UnmarshalAddressPB(req.From)
 		mappingRange := ctx.Range(addressKey(addr))
 		if len(mappingRange) == 0 {
 			hasResponse.HasMapping = false
@@ -354,24 +339,6 @@ func (am *AddressMapper) GetMultiChainMapping(ctx contract.StaticContext, req *G
 		})
 	}
 	return &getMultiChainResponse, nil
-}
-
-func (am *AddressMapper) IncreaseNonce(ctx contract.Context, req *SetNonceRequest) error {
-	var nonce Nonce
-	var n uint64
-	addr := loom.UnmarshalAddressPB(req.Address)
-	if err := ctx.Get(nonceKey(addr), &nonce); err != nil {
-		if err != contract.ErrNotFound {
-			return err
-		}
-	} else {
-		n = nonce.Nonce
-	}
-
-	return ctx.Set(nonceKey(addr), &Nonce{
-		Address: req.Address,
-		Nonce:   n + 1,
-	})
 }
 
 func (am *AddressMapper) GetNonce(ctx contract.Context, req *GetNonceRequest) (*GetNonceResponse, error) {
@@ -483,8 +450,3 @@ func increaseNonce(ctx contract.Context, addr loom.Address) error {
 		Nonce:   n + 1,
 	})
 }
-
-// func saveCandidateList(ctx contract.Context) error {
-// 	sorted := sortCandidates(cl)
-// 	return ctx.Set(candidatesKey, &dtypes.CandidateList{Candidates: sorted})
-// }
