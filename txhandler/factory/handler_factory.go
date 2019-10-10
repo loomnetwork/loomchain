@@ -125,7 +125,7 @@ func txMiddleWare(
 
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.GetNonceTxMiddleware(appStore, nonceTxHandler))
+	txMiddleWare = append(txMiddleWare, nonceTxHandler.TxMiddleware(appStore))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -233,7 +233,7 @@ func postCommitMiddleWAre(
 
 	// We need to make sure nonce post commit middleware is last as
 	// it doesn't pass control to other middlewares after it.
-	postCommitMiddlewares = append(postCommitMiddlewares, auth.GetNonceTxPostNonceMiddleware(nonceTxHandler))
+	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
 	return postCommitMiddlewares, nil
 }
