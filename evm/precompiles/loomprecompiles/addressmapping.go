@@ -29,9 +29,6 @@ func (ma mapToLoomAddress) RequiredGas(input []byte) uint64 {
 }
 
 func (ma mapToLoomAddress) Run(input []byte) ([]byte, error) {
-	strI := string(input)
-	_ = strI
-
 	addr := loom.Address{
 		ChainID: string(input[20:]),
 		Local:   input[:20],
