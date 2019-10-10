@@ -1,7 +1,7 @@
 pragma solidity >=0.4.21;
 
 library LoomNativeApi {
-    address constant LoomPrecompilesStartIndex = 0x0000000000000000000000000000000000000020;//0x20;
+    address constant LoomPrecompilesStartIndex = 0x0000000000000000000000000000000000000020;
     address constant MapToLoomAddress = 0x0000000000000000000000000000000000000021;
     address constant MapToAddress = 0x0000000000000000000000000000000000000022;
 
