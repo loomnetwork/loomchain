@@ -51,7 +51,7 @@ func NewChainConfigManager(pvm *PluginVM, state appstate.State) (*ChainConfigMan
 
 // EnableFeatures activates feature flags.
 func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
-	features, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight), c.build)
+	featureList, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight), c.build)
 	if err != nil {
 		// When an unsupported feature has been activated by the rest of the chain
 		// panic to prevent the node from processing any further blocks until it's
@@ -61,8 +61,18 @@ func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
 		}
 		return err
 	}
-	for _, feature := range features {
+
+	var minRequiredBuild uint64
+	for _, feature := range featureList {
 		c.state.SetFeature(feature.Name, true)
+		if feature.BuildNumber > minRequiredBuild {
+			minRequiredBuild = feature.BuildNumber
+		}
+	}
+
+	if c.state.FeatureEnabled(features.ChainCfgVersion1_4, false) &&
+		(minRequiredBuild > c.state.GetMinBuildNumber()) {
+		c.state.SetMinBuildNumber(minRequiredBuild)
 	}
 	return nil
 }
@@ -78,11 +88,18 @@ func (c *ChainConfigManager) UpdateConfig() (int, error) {
 		return 0, err
 	}
 
+	var minRequiredBuild uint64
 	for _, setting := range settings {
 		if err := c.state.ChangeConfigSetting(setting.Name, setting.Value); err != nil {
 			c.ctx.Logger().Error("failed to apply config change", "key", setting.Name, "err", err)
+		} else if setting.BuildNumber > minRequiredBuild {
+			minRequiredBuild = setting.BuildNumber
 		}
 	}
 
+	if c.state.FeatureEnabled(features.ChainCfgVersion1_4, false) &&
+		(minRequiredBuild > c.state.GetMinBuildNumber()) {
+		c.state.SetMinBuildNumber(minRequiredBuild)
+	}
 	return len(settings), nil
 }

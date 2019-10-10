@@ -10,15 +10,21 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	goleveldb "github.com/syndtr/goleveldb/leveldb"
+	goutil "github.com/syndtr/goleveldb/leveldb/util"
 )
 
 var (
 	EvmAuxDBName = "receipts_db"
 
-	BloomPrefix  = []byte("bf")
-	TxHashPrefix = []byte("th")
-	txRefPrefix  = []byte("txr")
+	BloomPrefix     = []byte("bf")
+	TxHashPrefix    = []byte("th")
+	txRefPrefix     = []byte("txr")
+	dupTxHashPrefix = []byte("dtx")
 )
+
+func dupTxHashKey(txHash []byte) []byte {
+	return util.PrefixKey(dupTxHashPrefix, txHash)
+}
 
 func bloomFilterKey(height uint64) []byte {
 	return util.PrefixKey(BloomPrefix, blockHeightToBytes(height))
@@ -39,7 +45,25 @@ func LoadStore() (*EvmAuxStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewEvmAuxStore(evmAuxDB), nil
+	evmAuxStore := NewEvmAuxStore(evmAuxDB)
+
+	// load duplicate tx hashes from db
+	dupEVMTxHashes := make(map[string]bool)
+	iter := evmAuxDB.NewIterator(
+		&goutil.Range{Start: dupTxHashPrefix, Limit: util.PrefixRangeEnd(dupTxHashPrefix)},
+		nil,
+	)
+	defer iter.Release()
+	for iter.Next() {
+		dupTxHash, err := util.UnprefixKey(iter.Key(), dupTxHashPrefix)
+		if err != nil {
+			return nil, err
+		}
+		dupEVMTxHashes[string(dupTxHash)] = true
+	}
+	evmAuxStore.SetDupEVMTxHashes(dupEVMTxHashes)
+
+	return evmAuxStore, nil
 }
 
 // ChildTxRef links a Tendermint tx hash to an EVM tx hash.
@@ -49,15 +73,27 @@ type ChildTxRef struct {
 }
 
 type EvmAuxStore struct {
-	db *leveldb.DB
+	db             *leveldb.DB
+	dupEVMTxHashes map[string]bool
 }
 
 func NewEvmAuxStore(db *leveldb.DB) *EvmAuxStore {
-	return &EvmAuxStore{db: db}
+	return &EvmAuxStore{
+		db:             db,
+		dupEVMTxHashes: make(map[string]bool),
+	}
 }
 
 func (s *EvmAuxStore) Close() error {
 	return s.db.Close()
+}
+
+func (s *EvmAuxStore) SetDupEVMTxHashes(dupEVMTxHashes map[string]bool) {
+	s.dupEVMTxHashes = dupEVMTxHashes
+}
+
+func (s *EvmAuxStore) GetDupEVMTxHashes() map[string]bool {
+	return s.dupEVMTxHashes
 }
 
 func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {
@@ -86,6 +122,11 @@ func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
 
 func (s *EvmAuxStore) SetBloomFilter(tran *leveldb.Transaction, filter []byte, height uint64) error {
 	return tran.Put(bloomFilterKey(height), filter, nil)
+}
+
+func (s *EvmAuxStore) IsDupEVMTxHash(txHash []byte) bool {
+	_, ok := s.dupEVMTxHashes[string(txHash)]
+	return ok
 }
 
 func (s *EvmAuxStore) SetTxHashList(tran *leveldb.Transaction, txHashList [][]byte, height uint64) error {

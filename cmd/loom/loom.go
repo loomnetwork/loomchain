@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -731,6 +732,19 @@ func loadApp(
 		return nil, err
 	}
 
+	if !cfg.SkipMinBuildCheck {
+		if buildBytes := appStore.Get([]byte(loomchain.MinBuildKey)); len(buildBytes) > 0 {
+			minimumBuild := binary.BigEndian.Uint64(buildBytes)
+			currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse loomchain build number")
+			}
+			if currentBuild < minimumBuild {
+				return nil, fmt.Errorf("build %d is too old, upgrade to build %d or later", currentBuild, minimumBuild)
+			}
+		}
+	}
+
 	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
 	switch cfg.EventDispatcher.Dispatcher {
@@ -1024,7 +1038,8 @@ func loadApp(
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware(appStore))
+	nonceTxHandler := auth.NewNonceHandler()
+	txMiddleWare = append(txMiddleWare, nonceTxHandler.TxMiddleware(appStore))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -1092,7 +1107,7 @@ func loadApp(
 
 	// We need to make sure nonce post commit middleware is last
 	// as it doesn't pass control to other middlewares after it.
-	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
+	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
 	return &loomchain.Application{
 		Store: appStore,

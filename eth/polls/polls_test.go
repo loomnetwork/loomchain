@@ -7,7 +7,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/vm"
 	appstate "github.com/loomnetwork/loomchain/state"
 
 	"github.com/loomnetwork/loomchain/events"
@@ -27,11 +29,13 @@ var (
 	contract = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-func TestLogPoll(t *testing.T) {
-	testLogPoll(t, handler.ReceiptHandlerLevelDb)
-}
+const (
+	deployId    = uint32(1)
+	callId      = uint32(2)
+	migrationTx = uint32(3)
+)
 
-func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+func TestLogPoll(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
@@ -45,7 +49,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 		Address:   nil,
 		Topics:    nil,
 	}
-	state := makeMockState(t, receiptHandler)
+	state := makeMockState(t, receiptHandler, blockStore)
 	ethFilter, err := eth.DecLogFilter(allFilter)
 	require.NoError(t, err)
 	id, err := sub.AddLogPoll(ethFilter, 1)
@@ -101,7 +105,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
-	state := makeMockState(t, receiptHandler)
+	state := makeMockState(t, receiptHandler, blockStore)
 	id := sub.AddTxPoll(uint64(5))
 
 	var envolope types.EthFilterEnvelope
@@ -140,7 +144,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
-	state := makeMockState(t, receiptHandler)
+	state := makeMockState(t, receiptHandler, blockStore)
 	id := sub.AddTxPoll(uint64(5))
 
 	state27 := common.MockStateAt(state, uint64(27))
@@ -216,7 +220,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	BlockTimeout = 10
 	sub := NewEthSubscriptions(evmAuxStore, blockStore)
-	state := makeMockState(t, receiptHandler)
+	state := makeMockState(t, receiptHandler, blockStore)
 
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
@@ -250,7 +254,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NoError(t, receiptHandler.Close())
 }
 
-func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) appstate.State {
+func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler, blockStore *store.MockBlockStore) appstate.State {
 	state := common.MockState(0)
 
 	mockEvent4 := []*types.EventData{
@@ -262,10 +266,14 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) appstat
 	}
 	state4 := common.MockStateAt(state, 4)
 
-	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil, []byte{})
+	evmTxHash, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(4))
+
+	tx := mockSignedTx(t, callId, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(4, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(4, evmTxHash, [][]byte{tx}))
 
 	mockEvent20 := []*types.EventData{
 		{
@@ -275,10 +283,14 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) appstat
 		},
 	}
 	state20 := common.MockStateAt(state, 20)
-	_, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil, []byte{})
+	evmTxHash, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
+
+	tx = mockSignedTx(t, callId, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(20, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(20, evmTxHash, [][]byte{tx}))
 
 	mockEvent25 := []*types.EventData{
 		{
@@ -288,10 +300,14 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) appstat
 		},
 	}
 	state25 := common.MockStateAt(state, 25)
-	_, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil, []byte{})
+	evmTxHash, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(25))
+
+	tx = mockSignedTx(t, callId, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(25, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(25, evmTxHash, [][]byte{tx}))
 
 	mockEvent30 := []*types.EventData{
 		{
@@ -301,10 +317,14 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) appstat
 		},
 	}
 	state30 := common.MockStateAt(state, 30)
-	_, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, []byte{})
+	evmTxHash, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(30))
+
+	tx = mockSignedTx(t, callId, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(30, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(30, evmTxHash, [][]byte{tx}))
 
 	for height := 100; height < 120; height++ {
 		mockEvent := []*types.EventData{
@@ -315,10 +335,14 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) appstat
 			},
 		}
 		state := common.MockStateAt(state, uint64(height))
-		_, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, []byte{})
+		evmTxHash, err = receiptHandler.CacheReceipt(state, addr1, contract, mockEvent, nil, []byte{})
 		require.NoError(t, err)
 		receiptHandler.CommitCurrentReceipt()
 		require.NoError(t, receiptHandler.CommitBlock(int64(height)))
+
+		tx = mockSignedTx(t, callId, loom.Address{}, loom.Address{}, evmTxHash)
+		blockStore.SetBlockResults(store.MockBlockResults(int64(height), [][]byte{evmTxHash}))
+		blockStore.SetBlock(store.MockBlock(int64(height), evmTxHash, [][]byte{tx}))
 	}
 
 	return state
@@ -345,4 +369,45 @@ func TestAddRemove(t *testing.T) {
 	s.Remove(id)
 	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
+}
+
+func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, data []byte) []byte {
+	var mgsData []byte
+	var err error
+	if id == deployId {
+		mgsData, err = proto.Marshal(&vm.DeployTx{
+			VmType: vm.VMType_EVM,
+		})
+		require.NoError(t, err)
+	} else if id == callId {
+		mgsData, err = proto.Marshal(&vm.CallTx{
+			VmType: vm.VMType_EVM,
+		})
+		require.NoError(t, err)
+	}
+
+	messageTx, err := proto.Marshal(&vm.MessageTx{
+		To:   to.MarshalPB(),
+		From: from.MarshalPB(),
+		Data: mgsData,
+	})
+	require.NoError(t, err)
+
+	txTx, err := proto.Marshal(&loomchain.Transaction{
+		Data: messageTx,
+		Id:   id,
+	})
+	require.NoError(t, err)
+
+	nonceTx, err := proto.Marshal(&auth.NonceTx{
+		Sequence: 1,
+		Inner:    txTx,
+	})
+	require.NoError(t, err)
+
+	signedTx, err := proto.Marshal(&auth.SignedTx{
+		Inner: nonceTx,
+	})
+
+	return signedTx
 }
