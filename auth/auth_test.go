@@ -42,7 +42,11 @@ func TestSignatureTxMiddleware(t *testing.T) {
 		}, false,
 	)
 }
+
 func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
+	nonceTxHandler := NewNonceHandler()
+	nonceTxPostNonceMiddleware := nonceTxHandler.PostCommitMiddleware()
+
 	pubkey, _, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
@@ -74,7 +78,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	state := appstate.NewStoreState(ctx, kvStore, abci.Header{Height: 27}, nil, nil).WithOnChainConfig(cfg)
 
 	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, false,
 	)
@@ -89,7 +93,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//If we get the same sequence number in same block we should get an error
 	_, err = nonceTxHandler.Nonce(state2, kvStore2, nonceTxBytes,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state2 appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, true,
 	)
@@ -104,7 +108,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
 	_, err = nonceTxHandler.Nonce(state3, kvStore3, nonceTxBytes2,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state3 appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, true,
 	)
@@ -118,7 +122,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	_ = context.WithValue(ctx3Dx, keys.ContextKeyCheckTx, true)
 
 	_, err = nonceTxHandler.Nonce(state3Dx, kvStore3Dx, nonceTxBytes,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state3 appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, false,
 	)
@@ -132,7 +136,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	state4 := appstate.NewStoreState(ctx4, kvStore4, abci.Header{Height: 28}, nil, nil).WithOnChainConfig(cfg)
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
 	_, err = nonceTxHandler.Nonce(state4, kvStore4, nonceTxBytes,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state4 appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, true,
 	)
@@ -141,6 +145,9 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 }
 
 func TestRevertedTxNonceMiddleware(t *testing.T) {
+	nonceTxHandler := NewNonceHandler()
+	nonceTxPostNonceMiddleware := nonceTxHandler.PostCommitMiddleware()
+
 	pubkey, _, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
@@ -178,7 +185,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 
 	// Send a successful tx
 	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, nil
 		}, false,
 	)
@@ -189,7 +196,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 
 	// Send a failed tx, nonce should increase even though the transaction is reverted
 	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes2,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, errors.New("EVM transaction reverted")
 		}, false,
 	)
@@ -210,7 +217,7 @@ func TestRevertedTxNonceMiddleware(t *testing.T) {
 
 	// Send another failed tx, nonce should not increment because the transaction reverted
 	_, err = nonceTxHandler.Nonce(state, kvStore, nonceTxBytes3,
-		func(_ appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
+		func(state appstate.State, txBytes []byte, isCheckTx bool) (txhandler.TxHandlerResult, error) {
 			return txhandler.TxHandlerResult{}, errors.New("EVM transaction reverted")
 		}, false,
 	)

@@ -106,7 +106,7 @@ func GetBlockByNumber(
 
 		// TODO: When full is false this code ends up doing a bunch of useless encoding, should refactor
 		//       things a bit.
-		txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultData, int64(index))
+		txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultData, int64(index), evmAuxStore)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
 		}
@@ -126,7 +126,7 @@ func GetBlockByNumber(
 }
 
 func GetTxObjectFromBlockResult(
-	blockResult *ctypes.ResultBlock, txResultData []byte, txIndex int64,
+	blockResult *ctypes.ResultBlock, txResultData []byte, txIndex int64, evmAuxStore *evmaux.EvmAuxStore,
 ) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[txIndex]
 	var contractAddress *eth.Data
@@ -183,7 +183,10 @@ func GetTxObjectFromBlockResult(
 				}
 				contractAddress = eth.EncPtrAddress(resp.Contract)
 				if len(respData.TxHash) > 0 {
-					txObj.Hash = eth.EncBytes(respData.TxHash)
+					// Check duplicate EVM tx hash before using it
+					if !evmAuxStore.IsDupEVMTxHash(respData.TxHash) {
+						txObj.Hash = eth.EncBytes(respData.TxHash)
+					}
 				}
 			}
 			if deployTx.Value != nil {
@@ -200,7 +203,10 @@ func GetTxObjectFromBlockResult(
 			to := eth.EncAddress(msg.To)
 			txObj.To = &to
 			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
-				txObj.Hash = eth.EncBytes(txResultData)
+				// Check duplicate EVM tx hash before using it
+				if !evmAuxStore.IsDupEVMTxHash(txResultData) {
+					txObj.Hash = eth.EncBytes(txResultData)
+				}
 			}
 			if callTx.Value != nil {
 				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)

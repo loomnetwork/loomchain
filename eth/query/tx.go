@@ -15,17 +15,26 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
 
-func GetTxByHash(state appstate.ReadOnlyState, blockStore store.BlockStore, txHash []byte, readReceipts loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
+func GetTxByHash(
+	state appstate.ReadOnlyState, blockStore store.BlockStore, txHash []byte,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
+) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return eth.GetEmptyTxObject(), errors.Wrap(err, "reading receipt")
 	}
-	return GetTxByBlockAndIndex(blockStore, uint64(txReceipt.BlockNumber), uint64(txReceipt.TransactionIndex))
+	return GetTxByBlockAndIndex(
+		blockStore, uint64(txReceipt.BlockNumber),
+		uint64(txReceipt.TransactionIndex), evmAuxStore,
+	)
 }
 
-func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (eth.JsonTxObject, error) {
+func GetTxByBlockAndIndex(
+	blockStore store.BlockStore, height, index uint64, evmAuxStore *evmaux.EvmAuxStore,
+) (eth.JsonTxObject, error) {
 	iHeight := int64(height)
 
 	blockResult, err := blockStore.GetBlockByHeight(&iHeight)
@@ -42,7 +51,7 @@ func GetTxByBlockAndIndex(blockStore store.BlockStore, height, index uint64) (et
 		return eth.GetEmptyTxObject(), errors.Wrapf(err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
 	}
 
-	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index))
+	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index), evmAuxStore)
 	if err != nil {
 		return eth.GetEmptyTxObject(), err
 	}

@@ -140,6 +140,8 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
+	// Set to true to disable minimum required build number check on node startup
+	SkipMinBuildCheck bool
 }
 
 type Metrics struct {
@@ -387,6 +389,7 @@ func DefaultConfig() *Config {
 		CallEnabled:            true,
 		DPOSVersion:            3,
 		AllowNamedEvmContracts: false,
+		SkipMinBuildCheck:      false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -765,5 +768,6 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
-
+# Set to true to disable minimum required build number check on node startup
+SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
 ` + transferGatewayLoomYamlTemplate
