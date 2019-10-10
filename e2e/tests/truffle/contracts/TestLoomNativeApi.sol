@@ -25,7 +25,6 @@ library TestLoomNativeApi {
         while (divisor != 0) {
             uint256 digit = length / divisor;
             if (digit == 0) {
-                // Skip leading zeros
                 if (lengthLength == 0) {
                     divisor /= 10;
                     continue;

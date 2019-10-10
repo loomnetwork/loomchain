@@ -867,7 +867,6 @@ func loadApp(
 		state.Set(configKey, configBytes)
 
 		registry := createRegistry(state)
-		//evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
 			err := deployContract(
 				state,

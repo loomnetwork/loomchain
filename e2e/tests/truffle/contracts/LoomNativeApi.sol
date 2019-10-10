@@ -45,12 +45,12 @@ library LoomNativeApi {
             let p := mload(0x40)
             mstore(p, inSize)
             if iszero(staticcall(
-            gas,
-            _addr,
-            start,
-            inLenght,
-            p,
-            outSize
+                gas,
+                _addr,
+                start,
+                inLenght,
+                p,
+                outSize
             )) {
                 revert(0,0)
             }
