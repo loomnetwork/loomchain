@@ -19,8 +19,8 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/loomnetwork/tendermint/libs/db"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -40,7 +40,7 @@ func mockState() loomchain.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	return loomchain.NewStoreState(context.Background(), db.NewMemDB(), header, nil, nil)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 }
 
 func TestProcessDeployTx(t *testing.T) {
