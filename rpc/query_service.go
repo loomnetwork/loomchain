@@ -187,7 +187,7 @@ func createDefaultEthRoutes(svc QueryService, chainID string) map[string]eth.RPC
 	routes["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
 	routes["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
 	routes["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
-	routes["eth_sendRawTransaction"] = NewTendermintRPCFunc(chainID, rpccore.BroadcastTxSync)
+	routes["eth_sendRawTransaction"] = NewSendRawTransactionRPCFunc(chainID, rpccore.BroadcastTxSync)
 	return routes
 }
 

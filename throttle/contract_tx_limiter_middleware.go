@@ -195,6 +195,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		default:
 			return next(state, txBytes, isCheckTx)
 		}
+
 		if txl.inactiveDeployerContracts == nil ||
 			txl.contractToTierMap == nil ||
 			(txl.contractDataLastUpdated+cfg.ContractDataRefreshInterval) < time.Now().Unix() {

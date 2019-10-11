@@ -82,7 +82,7 @@ func TestTendermintPRCFunc(t *testing.T) {
 	handler := MakeEthQueryServiceHandler(
 		testlog, nil,
 		map[string]eth.RPCFunc{
-			"eth_sendRawTransaction": NewTendermintRPCFunc("default", mt.BroadcastTxSync),
+			"eth_sendRawTransaction": eth.NewSendRawTransactionRPCFunc("default", mt.BroadcastTxSync),
 		},
 	)
 	ethChainID, err := evmcompat.ToEthereumChainID("default")

@@ -18,7 +18,9 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type TendermintPRCFunc struct {
+// TODO: This doesn't belong in this package, should be in rpc/eth, but moving it there is non-trivial
+//       due to import cycles
+type SendRawTransactionPRCFunc struct {
 	eth.HttpRPCFunc
 	chainID     string
 	broadcastTx func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
@@ -26,14 +28,14 @@ type TendermintPRCFunc struct {
 
 // Tendermint handlers need parameters translated.
 // Only one method supported.
-func NewTendermintRPCFunc(chainID string, broadcastTx func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)) eth.RPCFunc {
-	return &TendermintPRCFunc{
+func NewSendRawTransactionRPCFunc(chainID string, broadcastTx func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)) eth.RPCFunc {
+	return &SendRawTransactionPRCFunc{
 		chainID:     chainID,
 		broadcastTx: broadcastTx,
 	}
 }
 
-func (t *TendermintPRCFunc) UnmarshalParamsAndCall(
+func (t *SendRawTransactionPRCFunc) UnmarshalParamsAndCall(
 	input eth.JsonRpcRequest, conn *websocket.Conn,
 ) (json.RawMessage, *eth.Error) {
 	if len(input.Params) == 0 {
