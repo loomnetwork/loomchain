@@ -107,19 +107,6 @@ func (s *EvmAuxStore) GetBloomFilter(height uint64) []byte {
 	return filter
 }
 
-func (s *EvmAuxStore) GetTxHashList(height uint64) ([][]byte, error) {
-	protHashList, err := s.db.Get(evmTxHashKey(height), nil)
-	if err != nil && err != leveldb.ErrNotFound {
-		return nil, err
-	}
-	if err == leveldb.ErrNotFound {
-		return [][]byte{}, nil
-	}
-	txHashList := types.EthTxHashList{}
-	err = proto.Unmarshal(protHashList, &txHashList)
-	return txHashList.EthTxHash, err
-}
-
 func (s *EvmAuxStore) SetBloomFilter(tran *leveldb.Transaction, filter []byte, height uint64) error {
 	return tran.Put(bloomFilterKey(height), filter, nil)
 }

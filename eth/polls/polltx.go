@@ -6,6 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -35,7 +36,9 @@ func (p *EthTxPoll) Poll(
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
-	lastBlock, results, err := getTxHashes(state, p.lastBlockRead, readReceipt, p.evmAuxStore)
+	lastBlock, results, err := getTxHashes(
+		p.blockStore, state, p.lastBlockRead, readReceipt, p.evmAuxStore,
+	)
 	if err != nil {
 		return p, nil, nil
 	}
@@ -46,15 +49,15 @@ func (p *EthTxPoll) Poll(
 func (p *EthTxPoll) AllLogs(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
-	_, results, err := getTxHashes(state, p.startBlock, readReceipts, p.evmAuxStore)
+	_, results, err := getTxHashes(p.blockStore, state, p.startBlock, readReceipts, p.evmAuxStore)
 	return eth.EncBytesArray(results), err
 }
 
-func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64,
+func getTxHashes(blockStore store.BlockStore, state loomchain.ReadOnlyState, lastBlockRead uint64,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore) (uint64, [][]byte, error) {
 	var txHashes [][]byte
 	for height := lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
-		txHashList, err := evmAuxStore.GetTxHashList(height)
+		txHashList, err := query.GetTxHashList(blockStore, state, int64(height), evmAuxStore)
 
 		if err != nil {
 			return lastBlockRead, nil, errors.Wrapf(err, "reading tx hashes at height %d", height)
@@ -76,7 +79,7 @@ func (p *EthTxPoll) LegacyPoll(
 
 	var txHashes [][]byte
 	for height := p.lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
-		txHashList, err := p.evmAuxStore.GetTxHashList(height)
+		txHashList, err := query.GetTxHashList(p.blockStore, state, int64(height), p.evmAuxStore)
 		if err != nil {
 			return p, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
 		}

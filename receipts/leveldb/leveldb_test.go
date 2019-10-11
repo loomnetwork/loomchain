@@ -30,7 +30,6 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	// store 5 receipts
 	require.NoError(t, handler.CommitBlock(receipts1, height))
 	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1, commit)
-	confirmStateConsistency(t, evmAuxStore, receipts1, height)
 	// db reaching max
 	height = 2
 	receipts2 := common.MakeDummyReceipts(t, 7, height)
@@ -38,7 +37,6 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	// store another 7 receipts
 	require.NoError(t, handler.CommitBlock(receipts2, height))
 	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...), commit)
-	confirmStateConsistency(t, evmAuxStore, receipts2, height)
 
 	// db at max
 	height = 3
@@ -47,7 +45,6 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	// store another 5 receipts
 	require.NoError(t, handler.CommitBlock(receipts3, height))
 	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...), commit)
-	confirmStateConsistency(t, evmAuxStore, receipts3, height)
 
 	require.NoError(t, handler.Close())
 
@@ -72,7 +69,6 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(receipts1, height))
 
 	confirmDbConsistency(t, handler, maxSize, receipts1[1].TxHash, receipts1[10].TxHash, receipts1[1:], commit)
-	confirmStateConsistency(t, evmAuxStore, receipts1, height)
 
 	require.NoError(t, handler.Close())
 
@@ -130,14 +126,6 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts,
 	}
 }
 
-func confirmStateConsistency(t *testing.T, evmAuxStore *evmaux.EvmAuxStore, receipts []*types.EvmTxReceipt, height uint64) {
-	txHashes, err := evmAuxStore.GetTxHashList(height)
-	require.NoError(t, err)
-	for i := 0; i < len(receipts); i++ {
-		require.EqualValues(t, 0, bytes.Compare(txHashes[i], receipts[i].TxHash))
-	}
-}
-
 func TestConfirmTransactionReceipts(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
@@ -147,24 +135,6 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
 	// store 5 receipts
 	require.NoError(t, handler.CommitBlock(receipts1, height))
-	txHashes, err := evmAuxStore.GetTxHashList(height)
-	require.NoError(t, err)
-	a := []byte("0xf0675dc27bC62b584Ab2E8E1D483a55CFac9E960")
-	b := []byte("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")
-	c := append(txHashes, a, b)
-
-	for i := 0; i < len(c); i++ {
-		//for i > len(c)-3 These are invalid tx hashes, so error must be returned by GetReceipt in this case
-		if i > len(c)-3 {
-			_, err1 := handler.GetReceipt(c[i])
-			require.Error(t, err1)
-		} else {
-			//These are valid hashes so valid txReceipt must be returned
-			txReceipt, err1 := handler.GetReceipt(c[i])
-			require.NoError(t, err1)
-			require.EqualValues(t, 0, bytes.Compare(c[i], txReceipt.TxHash))
-		}
-	}
 	require.NoError(t, handler.Close())
 	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.NoError(t, err)

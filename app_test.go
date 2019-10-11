@@ -2,8 +2,12 @@ package loomchain
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/loomnetwork/go-loom"
 
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/loomchain/db"
@@ -18,6 +22,9 @@ var (
 )
 
 func TestOnChainConfig(t *testing.T) {
+	pubKey, err := base64.StdEncoding.DecodeString("e8NSTtvP5KViOdeQWhSEglxOLuq8JW31IsmhqyGwUvQ=")
+	addr := loom.Address{ChainID: "default", Local: loom.LocalAddressFromPublicKey(pubKey)}
+	fmt.Println(addr.String())
 	kvStore, err := mockMultiWriterStore(10)
 	require.NoError(t, err)
 	// This is the first version of on chain-config
