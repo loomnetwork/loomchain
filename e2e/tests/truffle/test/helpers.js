@@ -65,7 +65,7 @@ function getContractFuncInterface(contract, funcName) {
   return jsonInterface
 }
 
-async function getNonce(nodeAddr, account) {
+async function ethGetTransactionCount(nodeAddr, account) {
   const ethUrl = `http://${nodeAddr}/eth`
   var options = {
       method: 'POST',
@@ -125,6 +125,6 @@ function getLoomEvmTxHash(ethTx, fromAddr) {
 }
 
 module.exports = {
-  assertRevert, delay, waitForXBlocks, getNonce, getStorageAt, 
+  assertRevert, delay, waitForXBlocks, ethGetTransactionCount, getStorageAt, 
   getLatestBlock, getLoomEvmTxHash, getEventSignature, getContractFuncInterface
 }

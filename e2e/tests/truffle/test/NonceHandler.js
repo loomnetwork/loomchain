@@ -1,46 +1,62 @@
-const { waitForXBlocks, getNonce } = require('./helpers')
+const { waitForXBlocks, ethGetTransactionCount } = require('./helpers')
 const Web3 = require('web3')
 const fs = require('fs')
 const path = require('path')
-
- const {
-    SpeculativeNonceTxMiddleware, SignedTxMiddleware, Client,
-    LocalAddress, CryptoUtils, LoomProvider
+const {
+    SpeculativeNonceTxMiddleware, SignedTxMiddleware, Client, EthersSigner,
+    createDefaultTxMiddleware, Address, LocalAddress, CryptoUtils, LoomProvider, Contracts
 } = require('loom-js')
+const ethers = require('ethers').ethers
 
- const NonceTestContract = artifacts.require('NonceTestContract')
+const NonceTestContract = artifacts.require('NonceTestContract')
 
- contract('NonceTestContract', async (accounts) => {
+contract('NonceTestContract', async (accounts) => {
     let contract, from, nodeAddr
 
     beforeEach(async () => {
         nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
-        const chainID = 'default'
-        const writeUrl = `ws://${nodeAddr}/websocket`
-        const readUrl = `ws://${nodeAddr}/queryws`
-
-        const privateKey = CryptoUtils.generatePrivateKey()
-        const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey)
-
-        from = LocalAddress.fromPublicKey(publicKey).toString()
-
-        var client = new Client(chainID, writeUrl, readUrl)
+                
+        const client = new Client('default', `ws://${nodeAddr}/websocket`, `ws://${nodeAddr}/queryws`)
         client.on('error', msg => {
             console.error('Error on connect to client', msg)
             console.warn('Please verify if loom cluster is running')
         })
+        const privKey = CryptoUtils.generatePrivateKey()
+        const pubKey = CryptoUtils.publicKeyFromPrivateKey(privKey)
+        client.txMiddleware = createDefaultTxMiddleware(client, privKey);
+
         const setupMiddlewareFn = function(client, privateKey) {
           const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey)
           return [new SpeculativeNonceTxMiddleware(publicKey, client), new SignedTxMiddleware(privateKey)]
         }
-        var loomProvider = new LoomProvider(client, privateKey, setupMiddlewareFn)
+        const loomProvider = new LoomProvider(client, privKey, setupMiddlewareFn)
+        const web3 = new Web3(loomProvider)
+        
+        // Create a mapping between a DAppChain account & an Ethereum account so that
+        // ethGetTransactionCount can resolve the Ethereum address it's given to a DAppChain address
+        const localAddr = new Address(client.chainId, LocalAddress.fromPublicKey(pubKey));
+        const addressMapper = await Contracts.AddressMapper.createAsync(client, localAddr);
+        const ethAccount = web3.eth.accounts.create();
+        const ethWallet = new ethers.Wallet(ethAccount.privateKey);
+        await addressMapper.addIdentityMappingAsync(
+            localAddr,
+            new Address('eth', LocalAddress.fromHexString(ethAccount.address)),
+            new EthersSigner(ethWallet)
+        );
+        from = ethAccount.address
 
-        let web3 = new Web3(loomProvider)
-        let nonceTestContract = await NonceTestContract.deployed()
-        contract = new web3.eth.Contract(NonceTestContract._json.abi, nonceTestContract.address, {from});
+        const nonceTestContract = await NonceTestContract.deployed()
+        contract = new web3.eth.Contract(
+            NonceTestContract._json.abi,
+            nonceTestContract.address,
+            // contract calls go through LoomProvider, which expect the sender address to be
+            // a local address (not an eth address)
+            { from: localAddr.local.toString() }
+        );
     })
 
-     it('Test nonce handler with failed txs', async () => {
+    it('Test nonce handler with failed txs', async () => {
+        const initialNonce = await ethGetTransactionCount(nodeAddr, from)
         // send three reverted txs
         var deliveredTxCount = 0;
         try {
@@ -83,9 +99,9 @@ const path = require('path')
         }
 
         await waitForXBlocks(nodeAddr, 2)
-        let nonce = await getNonce(nodeAddr, from)
+        let nonce = await ethGetTransactionCount(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
-        assert.equal("0x" + deliveredTxCount, nonce)
+        assert.equal(deliveredTxCount, parseInt(nonce, 16) - parseInt(initialNonce, 16))
 
          // send three more reverted txs without await
         contract.methods.err().send().then().catch(function(err) {
@@ -105,12 +121,13 @@ const path = require('path')
         })
 
         await waitForXBlocks(nodeAddr, 2)
-        nonce = await getNonce(nodeAddr, from)
+        nonce = await ethGetTransactionCount(nodeAddr, from)
         // expect nonce to increment even if the txs reverted
-        assert.equal("0x6", nonce)
+        assert.equal(6, parseInt(nonce, 16) - parseInt(initialNonce, 16))
     })
 
     it('Test nonce handler with successful txs', async () => {
+        const initialNonce = await ethGetTransactionCount(nodeAddr, from)
         // send three successful txs
         try {
             await contract.methods.set(1111).send()
@@ -121,9 +138,9 @@ const path = require('path')
         }
         
         await waitForXBlocks(nodeAddr, 2)
-        let nonce = await getNonce(nodeAddr, from)
+        let nonce = await ethGetTransactionCount(nodeAddr, from)
         // expect nonce to increment 
-        assert.equal("0x3", nonce)
+        assert.equal(3, parseInt(nonce, 16) - parseInt(initialNonce, 16))
 
         // send three more successful txs without await
         contract.methods.set(4444).send().then().catch(function(e) {})
@@ -131,12 +148,13 @@ const path = require('path')
         contract.methods.set(6666).send().then().catch(function(e) {})
 
         await waitForXBlocks(nodeAddr, 2)
-        nonce = await getNonce(nodeAddr, from)
+        nonce = await ethGetTransactionCount(nodeAddr, from)
         // expect nonce to increment
-        assert.equal("0x6", nonce)
+        assert.equal(6, parseInt(nonce, 16) - parseInt(initialNonce, 16))
     })
 
     it('Test nonce handler with mixed txs', async () => {
+        const initialNonce = await ethGetTransactionCount(nodeAddr, from)
         // send a mix of successful & failed txs
         try {
             await contract.methods.set(1111).send()
@@ -156,15 +174,14 @@ const path = require('path')
         await waitForXBlocks(nodeAddr, 1)
         try {
             await contract.methods.set(2222).send()
-        }catch(err) {
+        } catch(err) {
             assert.fail("transaction reverted: " + err);
         }
         
-        
         await waitForXBlocks(nodeAddr, 2)
-        let nonce = await getNonce(nodeAddr, from)
+        let nonce = await ethGetTransactionCount(nodeAddr, from)
         // expect nonce to increment 
-        assert.equal("0x3", nonce)
+        assert.equal(3, parseInt(nonce, 16) - parseInt(initialNonce, 16))
 
         // send three more mixed txs without await
         contract.methods.set(4444).send().then().catch(function(e) {
@@ -176,9 +193,9 @@ const path = require('path')
         })
 
         await waitForXBlocks(nodeAddr, 2)
-        nonce = await getNonce(nodeAddr, from)
+        nonce = await ethGetTransactionCount(nodeAddr, from)
         // expect nonce to increment
-        assert.equal("0x6", nonce)
+        assert.equal(6, parseInt(nonce, 16) - parseInt(initialNonce, 16))
 
         // send three more mixed txs without await
         contract.methods.err().send().then().catch(function(e) {})
@@ -188,9 +205,9 @@ const path = require('path')
         contract.methods.err().send().then().catch(function(e) {})
 
         await waitForXBlocks(nodeAddr, 2)
-        nonce = await getNonce(nodeAddr, from)
+        nonce = await ethGetTransactionCount(nodeAddr, from)
         // expect nonce to increment
-        assert.equal("0x9", nonce)
+        assert.equal(9, parseInt(nonce, 16) - parseInt(initialNonce, 16))
     })
 
- })
+})

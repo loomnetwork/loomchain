@@ -157,11 +157,12 @@ contract('MyToken', async (accounts) => {
         console.error('Error on connect to client', msg);
         console.warn('Please verify if loom cluster is running');
     });
-    const privKey = CryptoUtils.B64ToUint8Array(
-      'D6XCGyCcDZ5TE22h66AlU+Bn6JqL4RnSl4a09RGU9LfM53JFG/T5GAnC0uiuIIiw9Dl0TwEAmdGb+WE0Bochkg=='
-    );
+    const privKey = CryptoUtils.generatePrivateKey();
     const pubKey = CryptoUtils.publicKeyFromPrivateKey(privKey);
     client.txMiddleware = createDefaultTxMiddleware(client, privKey);
+    // Create a mapping between Alice's DAppChain account & Ethereum account, this is necessary in
+    // order to match the signer address that will be recovered from the Ethereum tx to a DAppChain
+    // account, without this mapping the Ethereum tx will be rejected.
     const aliceLoomAddr = new Address(client.chainId, LocalAddress.fromPublicKey(pubKey));
     const addressMapper = await Contracts.AddressMapper.createAsync(client, aliceLoomAddr);
     const ethPrivateKey = '0xe331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109';
