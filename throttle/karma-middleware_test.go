@@ -68,23 +68,23 @@ func TestKarmaMiddleWare(t *testing.T) {
 	)
 
 	// call fails as contract is not deployed
-	txSigned := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contract)
+	txSigned := mockSignedTx(t, uint64(1), types.TxID_CALL, vm.VMType_EVM, contract)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
-	txSigned = mockSignedTx(t, uint64(1), ethId, vm.VMType_EVM, contract)
+	txSigned = mockSignedTx(t, uint64(1), types.TxID_ETHEREUM, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
 	// deploy contract
-	txSigned = mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
+	txSigned = mockSignedTx(t, uint64(2), types.TxID_DEPLOY, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
 	// call now works
-	txSigned = mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contract)
+	txSigned = mockSignedTx(t, uint64(3), types.TxID_CALL, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
-	txSigned = mockSignedTx(t, uint64(1), ethId, vm.VMType_EVM, contract)
+	txSigned = mockSignedTx(t, uint64(1), types.TxID_ETHEREUM, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -94,10 +94,10 @@ func TestKarmaMiddleWare(t *testing.T) {
 	require.NoError(t, karma.DeactivateContract(contractContext, record))
 
 	// call now fails
-	txSigned = mockSignedTx(t, uint64(4), callId, vm.VMType_EVM, contract)
+	txSigned = mockSignedTx(t, uint64(4), types.TxID_CALL, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
-	txSigned = mockSignedTx(t, uint64(1), ethId, vm.VMType_EVM, contract)
+	txSigned = mockSignedTx(t, uint64(1), types.TxID_ETHEREUM, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 }
@@ -136,7 +136,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 	)
 
 	// deploy contract
-	txSigned := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
+	txSigned := mockSignedTx(t, uint64(2), types.TxID_DEPLOY, vm.VMType_EVM, contract)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -145,7 +145,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 	}))
 
 	// deploy contract
-	txSigned = mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
+	txSigned = mockSignedTx(t, uint64(2), types.TxID_DEPLOY, vm.VMType_EVM, contract)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 }

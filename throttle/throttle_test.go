@@ -218,7 +218,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id types.TxID, vmType vm.VMType
 	}
 
 	tx, err := proto.Marshal(&loomchain.Transaction{
-		Id:   id,
+		Id:   uint32(id),
 		Data: messageTx,
 	})
 	require.NoError(t, err)

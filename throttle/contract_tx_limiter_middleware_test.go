@@ -101,7 +101,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	// create middleware
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
-	txSignedEVM1 := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contractAddr)
+	txSignedEVM1 := mockSignedTx(t, uint64(1), types.TxID_CALL, vm.VMType_EVM, contractAddr)
 	cfg := DefaultContractTxLimiterConfig()
 	contractTxLimiterMiddleware := NewContractTxLimiterMiddleware(cfg,
 		func(state loomchain.State) (contractpb.Context, error) {
