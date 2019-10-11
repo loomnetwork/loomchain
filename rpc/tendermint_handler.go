@@ -1,20 +1,17 @@
 package rpc
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -104,11 +101,11 @@ func ethereumToTendermintTx(chainID string, txBytes []byte) (types.Tx, error) {
 		}.MarshalPB()
 	}
 
-	chainConfig := utils.DefaultChainConfig(true)
-	// Convert the chain ID string to an integer the same way LoomProvider does in loom-js
-	chainIDHash := hex.EncodeToString(crypto.Keccak256([]byte(chainID)))[0:13]
-	chainConfig.ChainID, _ = big.NewInt(0).SetString(chainIDHash, 16)
-	ethSigner := etypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
+	ethChainID, err := evmcompat.ToEthereumChainID(chainID)
+	if err != nil {
+		return nil, err
+	}
+	ethSigner := etypes.NewEIP155Signer(ethChainID)
 	ethFrom, err := etypes.Sender(ethSigner, &tx)
 	if err != nil {
 		return nil, err

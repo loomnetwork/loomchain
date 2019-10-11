@@ -52,6 +52,19 @@ function getEventSignature(contract, eventName) {
   return eventJsonInterface.signature
 }
 
+/**
+ * Returns the JSON interface of the given contract method.
+ * @param {web3.eth.Contract} contract Contract instance
+ * @param {string} funcName Contract method name
+ */
+function getContractFuncInterface(contract, funcName) {
+  const jsonInterface = web3.utils._.find(
+    contract._jsonInterface,
+    o => o.name === funcName && o.type === 'function',
+  )
+  return jsonInterface
+}
+
 async function getNonce(nodeAddr, account) {
   const ethUrl = `http://${nodeAddr}/eth`
   var options = {
@@ -113,5 +126,5 @@ function getLoomEvmTxHash(ethTx, fromAddr) {
 
 module.exports = {
   assertRevert, delay, waitForXBlocks, getNonce, getStorageAt, 
-  getLatestBlock, getLoomEvmTxHash, getEventSignature,
+  getLatestBlock, getLoomEvmTxHash, getEventSignature, getContractFuncInterface
 }

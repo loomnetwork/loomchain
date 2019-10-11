@@ -9,20 +9,20 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
@@ -243,9 +243,9 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 
 func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 	bigZero := big.NewInt(0)
-	var tx *ethtypes.Transaction
+	var tx *etypes.Transaction
 	if to.IsEmpty() {
-		tx = ethtypes.NewContractCreation(
+		tx = etypes.NewContractCreation(
 			sequence,
 			big.NewInt(24),
 			0,
@@ -253,7 +253,7 @@ func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 			data,
 		)
 	} else {
-		tx = ethtypes.NewTransaction(
+		tx = etypes.NewTransaction(
 			sequence,
 			common.BytesToAddress(to.Local),
 			big.NewInt(11),
@@ -262,13 +262,16 @@ func ethTxBytes(sequence uint64, to loom.Address, data []byte) ([]byte, error) {
 			data,
 		)
 	}
-	chainConfig := utils.DefaultChainConfig(true)
-	signer := ethtypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
+	ethChainID, err := evmcompat.ToEthereumChainID("default")
+	if err != nil {
+		return nil, err
+	}
+	signer := etypes.NewEIP155Signer(ethChainID)
 	ethKey, err := crypto.GenerateKey()
 	if err != nil {
 		return nil, err
 	}
-	tx, err = ethtypes.SignTx(tx, signer, ethKey)
+	tx, err = etypes.SignTx(tx, signer, ethKey)
 	if err != nil {
 		return nil, err
 	}

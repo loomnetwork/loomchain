@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -20,7 +19,6 @@ import (
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	lauth "github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/evm/utils"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/stretchr/testify/require"
@@ -29,14 +27,14 @@ import (
 )
 
 type ethTestTx struct {
-	tx *types.Transaction
+	tx *etypes.Transaction
 }
 
 var (
 	bigZero    = big.NewInt(0)
 	ethTestTxs = []ethTestTx{
 		{
-			types.NewTransaction(
+			etypes.NewTransaction(
 				7,
 				common.HexToAddress("0xb16a379ec18d4093666f8f38b11a3071c920207d"),
 				big.NewInt(11),
@@ -46,7 +44,7 @@ var (
 			),
 		},
 		{
-			types.NewTransaction(
+			etypes.NewTransaction(
 				1,
 				common.HexToAddress("0x3d7Fc003CD15B4c42C9300708673eA22b386AA2A"),
 				bigZero,
@@ -56,7 +54,7 @@ var (
 			),
 		},
 		{
-			types.NewContractCreation(
+			etypes.NewContractCreation(
 				9,
 				big.NewInt(24),
 				0,
@@ -65,7 +63,7 @@ var (
 			),
 		},
 		{
-			types.NewContractCreation(
+			etypes.NewContractCreation(
 				1,
 				bigZero,
 				0,
@@ -87,30 +85,30 @@ func TestTendermintPRCFunc(t *testing.T) {
 			"eth_sendRawTransaction": NewTendermintRPCFunc("default", mt.BroadcastTxSync),
 		},
 	)
-	chainConfig := utils.DefaultChainConfig(true)
-	signer := types.MakeSigner(&chainConfig, chainConfig.EIP155Block)
+	ethChainID, err := evmcompat.ToEthereumChainID("default")
+	require.NoError(t, err)
+	signer := etypes.NewEIP155Signer(ethChainID)
 	for _, testTx := range ethTestTxs {
 		ethKey, err := crypto.GenerateKey()
 		require.NoError(t, err)
-		tx, err := types.SignTx(testTx.tx, signer, ethKey)
-		local, err := types.Sender(signer, tx)
+		tx, err := etypes.SignTx(testTx.tx, signer, ethKey)
+		require.NoError(t, err)
+		local, err := etypes.Sender(signer, tx)
 		require.NoError(t, err)
 		inData, err := rlp.EncodeToBytes(&tx)
+		require.NoError(t, err)
 
 		payload := `{"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["` + eth.EncBytes(inData) + `"],"id":99}`
-
 		req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(string(payload)))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		require.Equal(t, 200, rec.Result().StatusCode)
-
-		require.NoError(t, err)
 		require.Equal(t, 0, bytes.Compare(local.Bytes(), mt.txs[0].From.Bytes()))
 		compareTxs(t, testTx.tx, mt.txs[0].Tx)
 	}
 }
 
-func compareTxs(t *testing.T, tx1, tx2 *types.Transaction) {
+func compareTxs(t *testing.T, tx1, tx2 *etypes.Transaction) {
 	require.Equal(t, tx1.Nonce(), tx2.Nonce())
 	require.Equal(t, 0, bytes.Compare(tx1.Data(), tx2.Data()))
 	if tx1.To() == nil {
@@ -140,7 +138,7 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadc
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
 		return nil, err
 	}
-	from, err := lauth.VerifySolidity66Byte(signedTx, []evmcompat.SignatureType{
+	from, err := lauth.VerifySolidity66Byte(mt.ChainID(), signedTx, []evmcompat.SignatureType{
 		evmcompat.SignatureType_EIP712,
 		evmcompat.SignatureType_GETH,
 		evmcompat.SignatureType_TREZOR,
@@ -154,7 +152,7 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadc
 	return &ctypes.ResultBroadcastTx{}, nil
 }
 
-func (t *MockTendermintRpc) ChainID() string {
+func (mt *MockTendermintRpc) ChainID() string {
 	return "default"
 }
 

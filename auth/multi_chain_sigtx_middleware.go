@@ -49,7 +49,8 @@ var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
 	BinanceSignedTxType:  verifyBinance,
 }
 
-type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
+// Recovers the signer address from a signed tx.
+type originRecoveryFunc func(chainID string, tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
 
 // NewMultiChainSignatureTxMiddleware returns tx signing middleware that supports a set of chain
 // specific signing algos.
@@ -106,7 +107,9 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("recovery function for Tx type %v not found", chain.TxType)
 		}
 
-		recoveredAddr, err := recoverOrigin(signedTx, getAllowedSignatureTypes(state, msgSender.ChainID))
+		recoveredAddr, err := recoverOrigin(
+			state.Block().ChainID, signedTx, getAllowedSignatureTypes(state, msgSender.ChainID),
+		)
 		if err != nil {
 			return r, errors.Wrapf(err, "failed to recover origin (tx type %v, chain ID %s)",
 				chain.TxType, msgSender.ChainID,
@@ -184,7 +187,7 @@ func getMappedAccountAddress(
 	return mappedAddr, nil
 }
 
-func verifyEd25519(tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
+func verifyEd25519(chainID string, tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 	if len(tx.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid public key length")
 	}

@@ -6,9 +6,9 @@ const {
   createDefaultTxMiddleware, Client, Address, LocalAddress, CryptoUtils, Contracts, EthersSigner
 } = require('loom-js')
 const ethers = require('ethers').ethers
+const { getContractFuncInterface } = require('./helpers')
 
 const MyToken = artifacts.require('MyToken');
-const TxHashTestContract = artifacts.require('TxHashTestContract')
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
@@ -175,17 +175,20 @@ contract('MyToken', async (accounts) => {
     client.disconnect();
 
     // Encode & send the raw Eth tx
-    const txHashTestContract = await TxHashTestContract.deployed()
-    let txParams = {
-      nonce: '0x2', // expect nonce to be 1
+    const tokenContract = await MyToken.deployed();
+    const mintTokenInterface = getContractFuncInterface(
+      new web3js.eth.Contract(MyToken._json.abi, tokenContract.address), 'mintToken'
+    )
+    const txParams = {
+      nonce: '0x2', // identity mapping tx used nonce 1, so this tx must have nonce 2
       gasPrice: '0x0', // gas price is always 0
       gasLimit: '0xFFFFFFFFFFFFFFFF', // gas limit right now is max.Uint64
-      to: txHashTestContract.address,
+      to: tokenContract.address,
       value: '0x0',
-      data: '0x60fe47b10000000000000000000000000000000000000000000000000000000000000457', // set(1111)
+      data: web3js.eth.abi.encodeFunctionCall(mintTokenInterface, ['103']) // mintToken(103)
     }
-
-    let result = await web3js.eth.accounts.signTransaction(txParams, ethPrivateKey);
+    
+    const payload = await web3js.eth.accounts.signTransaction(txParams, ethPrivateKey);
     /*
     return new Promise((resolve, reject) => {
       web3js.eth.sendSignedTransaction(result.rawTransaction)
@@ -199,9 +202,7 @@ contract('MyToken', async (accounts) => {
       .on('error', console.error)
     })
     */
-    result = web3js.eth.sendSignedTransaction(result.rawTransaction)
-    console.log('sendSignedTx result ' + result.toString())
+    result = await web3js.eth.sendSignedTransaction(payload.rawTransaction)
+    assert.equal(result.status, true, 'tx submitted successfully')
   });
-
 });
-
