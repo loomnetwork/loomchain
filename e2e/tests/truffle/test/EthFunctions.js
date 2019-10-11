@@ -2,7 +2,6 @@
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
-const EthereumTx = require('ethereumjs-tx').Transaction
 const {
   createDefaultTxMiddleware, Client, Address, LocalAddress, CryptoUtils, Contracts, EthersSigner
 } = require('loom-js')
@@ -178,7 +177,7 @@ contract('MyToken', async (accounts) => {
     // Encode & send the raw Eth tx
     const txHashTestContract = await TxHashTestContract.deployed()
     let txParams = {
-      nonce: '0x1', // expect nonce to be 1
+      nonce: '0x2', // expect nonce to be 1
       gasPrice: '0x0', // gas price is always 0
       gasLimit: '0xFFFFFFFFFFFFFFFF', // gas limit right now is max.Uint64
       to: txHashTestContract.address,
@@ -187,7 +186,21 @@ contract('MyToken', async (accounts) => {
     }
 
     let result = await web3js.eth.accounts.signTransaction(txParams, ethPrivateKey);
-    result = await web3js.eth.sendSignedTransaction(result.rawTransaction);
+    /*
+    return new Promise((resolve, reject) => {
+      web3js.eth.sendSignedTransaction(result.rawTransaction)
+      .on('transactionHash', txHash => {
+        console.log('rawTx Hash: ' + txHash)
+      })
+      .on('receipt', receipt => {
+        console.log('receipt: ' + receipt)
+        resolve()
+      })
+      .on('error', console.error)
+    })
+    */
+    result = web3js.eth.sendSignedTransaction(result.rawTransaction)
+    console.log('sendSignedTx result ' + result.toString())
   });
 
 });

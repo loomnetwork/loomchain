@@ -4,8 +4,11 @@ package auth
 
 import (
 	"bytes"
+	"encoding/hex"
+	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/protobuf/proto"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
@@ -70,6 +73,9 @@ func verifyEthTx(signedTx SignedTx) ([]byte, error) {
 	}
 
 	chainConfig := utils.DefaultChainConfig(true)
+	// Convert the chain ID string to an integer the same way LoomProvider does in loom-js
+	chainIDHash := hex.EncodeToString(crypto.Keccak256([]byte(msg.To.ChainId)))[0:13]
+	chainConfig.ChainID, _ = big.NewInt(0).SetString(chainIDHash, 16)
 	ethSigner := etypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	from, err := etypes.Sender(ethSigner, &tx)
 	if err != nil {

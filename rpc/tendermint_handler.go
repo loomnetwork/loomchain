@@ -1,10 +1,13 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -73,6 +76,9 @@ func (t *TendermintPRCFunc) UnmarshalParamsAndCall(
 	if r == nil {
 		return nil, eth.NewError(eth.EcServer, "Server error", "transaction returned nil result")
 	}
+	if r.Code != 0 {
+		return nil, eth.NewError(eth.EcServer, fmt.Sprintf("CheckTx failed: %s", r.Log), "")
+	}
 
 	var result json.RawMessage
 	result, err = json.Marshal(eth.EncBytes(r.Hash))
@@ -99,6 +105,9 @@ func ethereumToTendermintTx(chainID string, txBytes []byte) (types.Tx, error) {
 	}
 
 	chainConfig := utils.DefaultChainConfig(true)
+	// Convert the chain ID string to an integer the same way LoomProvider does in loom-js
+	chainIDHash := hex.EncodeToString(crypto.Keccak256([]byte(chainID)))[0:13]
+	chainConfig.ChainID, _ = big.NewInt(0).SetString(chainIDHash, 16)
 	ethSigner := etypes.MakeSigner(&chainConfig, chainConfig.EIP155Block)
 	ethFrom, err := etypes.Sender(ethSigner, &tx)
 	if err != nil {
