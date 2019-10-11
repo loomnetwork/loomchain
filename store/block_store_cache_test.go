@@ -6,10 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	maxHeight = 2000
-)
-
 func TestBlockFetchAtHeightLRU(t *testing.T) {
 	b := NewMockBlockStore()
 	cachedblockStore, err := NewLRUBlockStoreCache(200, b)
