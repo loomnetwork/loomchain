@@ -39,9 +39,9 @@ type LoomEthDB struct {
 	logContext *EthDBLogContext
 }
 
-func NewLoomEthDB(_state KVStore, logContext *EthDBLogContext) *LoomEthDB {
+func NewLoomEthDB(evmStore KVStore, logContext *EthDBLogContext) *LoomEthDB {
 	return &LoomEthDB{
-		state:      PrefixKVStore(vmPrefix, _state),
+		state:      PrefixKVStore(vmPrefix, evmStore),
 		logContext: logContext,
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -36,6 +37,7 @@ var (
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
+	EvmStore     *store.EvmStore
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
@@ -68,6 +70,11 @@ func NewPluginVM(
 }
 
 var _ vm.VM = &PluginVM{}
+
+func (vm *PluginVM) WithEvmStore(evmStore *store.EvmStore) *PluginVM {
+	vm.EvmStore = evmStore
+	return vm
+}
 
 func (vm *PluginVM) CreateContractContext(
 	caller,
@@ -196,7 +203,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EvmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -209,7 +216,8 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
+
+	evm := levm.NewLoomVm(vm.State, vm.EvmStore, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 

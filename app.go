@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	gcommon "github.com/ethereum/go-ethereum/common"
 	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/go-loom/config"
@@ -53,7 +52,6 @@ type State interface {
 	SetFeature(string, bool)
 	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
-	EVMStateDB() gstate.Database
 }
 
 type StoreState struct {
@@ -102,11 +100,6 @@ func NewStoreState(
 
 func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
 	s.config = config
-	return s
-}
-
-func (s *StoreState) WithTrieDB(trieDB *trie.Database) *StoreState {
-	s.trieDB = trieDB
 	return s
 }
 
@@ -384,6 +377,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandlerProvider
 	EvmAuxStore *evmaux.EvmAuxStore
+	EvmStore    *store.EvmStore
 	blockindex.BlockIndexStore
 	CreateValidatorManager   ValidatorsManagerFactoryFunc
 	CreateChainConfigManager ChainConfigManagerFactoryFunc
@@ -541,7 +535,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
-		).WithOnChainConfig(a.config).WithTrieDB(a.TrieDB)
+		).WithOnChainConfig(a.config)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
 			panic(err)
@@ -561,7 +555,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithTrieDB(a.TrieDB)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -629,7 +623,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithTrieDB(a.TrieDB)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -684,7 +678,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithTrieDB(a.TrieDB)
+	).WithOnChainConfig(a.config)
 
 	// Receipts & events generated in CheckTx must be discarded since the app state changes they
 	// reflect aren't persisted.
@@ -721,7 +715,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithTrieDB(a.TrieDB)
+	).WithOnChainConfig(a.config)
 
 	var r abci.ResponseDeliverTx
 
@@ -754,7 +748,7 @@ func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheck
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithTrieDB(a.TrieDB)
+	).WithOnChainConfig(a.config)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
@@ -807,7 +801,7 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithTrieDB(a.TrieDB)
+	).WithOnChainConfig(a.config)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
@@ -865,39 +859,6 @@ func (a *Application) Commit() abci.ResponseCommit {
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-
-	state := NewStoreState(
-		context.Background(),
-		a.Store,
-		a.curBlockHeader,
-		a.curBlockHash,
-		a.GetValidatorSet,
-	)
-	curHeight := a.curBlockHeader.GetHeight()
-
-	flushInterval := a.FlushInterval
-	if flushInterval == 0 {
-		cfg := state.Config()
-		flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
-	} else if flushInterval == -1 {
-		flushInterval = 0
-	}
-
-	// Only commit Patricia tree every N blocks
-	if flushInterval == 0 || curHeight%flushInterval == 0 {
-		evmRoot := state.Get(util.PrefixKey(vmPrefix, rootKey))
-		if len(evmRoot) > 0 && bytes.Compare(a.lastSavedEVMRoot, evmRoot) != 0 {
-			ethDB := store.NewLoomEthDB(state, nil)
-			a.TrieDB.SetDiskDB(ethDB)
-			if err := a.TrieDB.Commit(gcommon.BytesToHash(evmRoot), false); err != nil {
-				panic(err)
-			}
-			a.lastSavedEVMRoot = evmRoot
-			a.TrieDB = trie.NewDatabase(ethDB)
-			a.Store.Set(evmRootKey(curHeight), evmRoot)
-		}
-	}
-
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
@@ -962,5 +923,5 @@ func (a *Application) ReadOnlyState() State {
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-	).WithTrieDB(a.TrieDB)
+	)
 }

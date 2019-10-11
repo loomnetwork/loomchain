@@ -6,6 +6,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ethereum/go-ethereum/trie"
+
+	gcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	lru "github.com/hashicorp/golang-lru"
@@ -58,19 +61,24 @@ type EvmStore struct {
 	lastSavedRoot []byte
 	rootCache     *lru.Cache
 	version       int64
+	trieDB        *trie.Database
+	flushInterval int64
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
-func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int) *EvmStore {
+func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int, flushInterval int64) *EvmStore {
 	rootCache, err := lru.New(numCachedRoots)
 	if err != nil {
 		panic(err)
 	}
 	evmStore := &EvmStore{
-		evmDB:     evmDB,
-		cache:     make(map[string]cacheItem),
-		rootCache: rootCache,
+		evmDB:         evmDB,
+		cache:         make(map[string]cacheItem),
+		rootCache:     rootCache,
+		flushInterval: flushInterval,
 	}
+	ethDB := NewLoomEthDB(evmStore, nil)
+	evmStore.trieDB = trie.NewDatabase(ethDB)
 	return evmStore
 }
 
@@ -195,9 +203,37 @@ func (s *EvmStore) Commit(version int64) []byte {
 		currentRoot = defaultRoot
 	}
 
-	// only save default root, new valid root will be saved in app.Commit()
-	if !bytes.Equal(currentRoot, s.lastSavedRoot) && bytes.Equal(currentRoot, defaultRoot) {
-		s.Set(evmRootKey(version), currentRoot)
+	flushInterval := s.flushInterval
+
+	// TODO: Rather than loading the on-chain config here the flush interval override should be passed
+	//       in as a parameter to SaveVersion().
+	if flushInterval == 0 {
+		cfg, err := LoadOnChainConfig(s)
+		if err != nil {
+			panic(errors.Wrap(err, "failed to load on-chain config"))
+		}
+		if cfg.GetAppStore().GetIAVLFlushInterval() != 0 {
+			flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
+		}
+	} else if flushInterval == -1 {
+		flushInterval = 0
+	}
+
+	// Only commit Patricia tree every N blocks
+	if flushInterval == 0 || version%flushInterval == 0 {
+		if len(currentRoot) > 0 && !bytes.Equal(defaultRoot, currentRoot) {
+			if err := s.trieDB.Commit(gcommon.BytesToHash(currentRoot), false); err != nil {
+				panic(err)
+			}
+			ethDB := NewLoomEthDB(s, nil)
+			s.trieDB = trie.NewDatabase(ethDB)
+			s.Set(evmRootKey(version), currentRoot)
+		}
+
+		// We have to save default root
+		if bytes.Equal(defaultRoot, currentRoot) {
+			s.Set(evmRootKey(version), currentRoot)
+		}
 	}
 
 	s.rootCache.Add(version, currentRoot)
@@ -239,6 +275,14 @@ func (s *EvmStore) LoadVersion(targetVersion int64) error {
 
 func (s *EvmStore) Version() ([]byte, int64) {
 	return s.rootHash, s.version
+}
+
+func (s *EvmStore) TrieDB() *trie.Database {
+	return s.trieDB
+}
+
+func (s *EvmStore) SetTrieDB(trieDB *trie.Database) {
+	s.trieDB = trieDB
 }
 
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {

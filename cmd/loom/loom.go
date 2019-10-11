@@ -607,12 +607,15 @@ func destroyBlockIndexDB(cfg *config.Config) error {
 	return nil
 }
 
-func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
+func loadAppStore(
+	cfg *config.Config, logger *loom.Logger, targetVersion int64,
+) (store.VersionedKVStore, *store.EvmStore, error) {
 	db, err := cdb.LoadDB(
-		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
+		cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if cfg.AppStore.CompactOnLoad {
@@ -626,6 +629,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	var appStore store.VersionedKVStore
+	var evmStore *store.EvmStore
 	if cfg.AppStore.Version == 1 { // TODO: cleanup these hardcoded numbers
 		if cfg.AppStore.PruneInterval > int64(0) {
 			logger.Info("Loading Pruning IAVL Store")
@@ -637,49 +641,49 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 				FlushInterval: cfg.AppStore.IAVLFlushInterval,
 			})
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			logger.Info("Loading IAVL Store")
 			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
 		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
+		evmStore, err = loadEvmStore(cfg, iavlStore.Version())
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	} else {
-		return nil, errors.New("Invalid AppStore.Version config setting")
+		return nil, nil, errors.New("Invalid AppStore.Version config setting")
 	}
 
 	if cfg.LogStateDB {
 		appStore, err = store.NewLogStore(appStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	if cfg.CachingStoreConfig.CachingEnabled {
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		logger.Info("VersionedCachingStore enabled")
 	}
 
-	return appStore, nil
+	return appStore, evmStore, nil
 }
 
 func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
@@ -710,7 +714,7 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 	if err != nil {
 		return nil, err
 	}
-	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots)
+	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots, cfg.AppStore.IAVLFlushInterval)
 	if err := evmStore.LoadVersion(targetVersion); err != nil {
 		return nil, err
 	}
@@ -726,8 +730,7 @@ func loadApp(
 ) (*loomchain.Application, error) {
 	logger := log.Root
 
-	appStore, err := loadAppStore(cfg, log.Default, appHeight)
-
+	appStore, evmStore, err := loadAppStore(cfg, log.Default, appHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -834,7 +837,7 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, evmStore, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	store.LogEthDBBatch = cfg.LogEthDbBatch
@@ -1126,6 +1129,7 @@ func loadApp(
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
+		EvmStore:                    evmStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
 		TrieDB:                      trie.NewDatabase(nil),
 		FlushInterval:               cfg.AppStore.IAVLFlushInterval,
@@ -1276,6 +1280,7 @@ func initQueryService(
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
+		EvmStore:               app.EvmStore,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

@@ -6,14 +6,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum/go-ethereum/trie"
-
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	levm "github.com/loomnetwork/loomchain/evm"
-	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -37,8 +34,7 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 			Time:    block.Time.Unix(),
 		},
 	)
-	trieDB := trie.NewDatabase(store.NewLoomEthDB(ctx, nil))
-	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil).WithTrieDB(trieDB)
+	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state,
@@ -107,7 +103,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
+	vm := levm.NewLoomVm(c.State, nil, nil, nil, createABM, false)
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
 
@@ -116,7 +112,7 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
+	vm := levm.NewLoomVm(c.State, nil, nil, nil, createABM, false)
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }
 

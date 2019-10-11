@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/trie"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	proto "github.com/gogo/protobuf/proto"
@@ -139,14 +137,12 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	memDB := store.NewMemStore()
-	trieDB := trie.NewDatabase(store.NewLoomEthDB(memDB, nil))
-	state := loomchain.NewStoreState(context.Background(), memDB, block, nil, nil).WithTrieDB(trieDB)
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 
 	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	evm := levm.NewLoomVm(state, nil, nil, nil, false)
+	evm := levm.NewLoomVm(state, nil, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")

@@ -107,8 +107,8 @@ func newDumpEVMStateCommand() *cobra.Command {
 					return err
 				}
 			}
-
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			// TODO: this needs EVMStore
+			vm, err := evm.NewLoomEvm(state, nil, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}
@@ -154,7 +154,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			evmStore := store.NewEvmStore(evmDB, 100)
+			evmStore := store.NewEvmStore(evmDB, 100, cfg.AppStore.IAVLFlushInterval)
 			if err := evmStore.LoadVersion(iavlStore.Version()); err != nil {
 				return err
 			}
@@ -220,8 +220,8 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 					return err
 				}
 			}
-
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			// TODO: Fix this, it needs EVMStore
+			vm, err := evm.NewLoomEvm(state, nil, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}
@@ -262,7 +262,7 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 				return err
 			}
 
-			evmStore := store.NewEvmStore(evmDB, 100)
+			evmStore := store.NewEvmStore(evmDB, 100, cfg.AppStore.IAVLFlushInterval)
 			if err := evmStore.LoadVersion(appHeight); err != nil {
 				return err
 			}
@@ -364,7 +364,7 @@ func newGetEvmHeightCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			evmStore := store.NewEvmStore(db, 100)
+			evmStore := store.NewEvmStore(db, 100, 0)
 			if err := evmStore.LoadVersion(math.MaxInt64); err != nil {
 				return err
 			}
