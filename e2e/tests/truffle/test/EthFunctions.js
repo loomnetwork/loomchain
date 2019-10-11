@@ -185,7 +185,7 @@ contract('MyToken', async (accounts) => {
       gasLimit: '0xFFFFFFFFFFFFFFFF', // gas limit right now is max.Uint64
       to: tokenContract.address,
       value: '0x0',
-      data: web3js.eth.abi.encodeFunctionCall(mintTokenInterface, ['103']) // mintToken(103)
+      data: web3js.eth.abi.encodeFunctionCall(mintTokenInterface, ['150']) // mintToken(150)
     }
     
     const payload = await web3js.eth.accounts.signTransaction(txParams, ethPrivateKey);
