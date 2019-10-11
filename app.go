@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
@@ -143,34 +142,13 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-func (s *StoreState) EVMStateDB() gstate.Database {
-	ethDB := store.NewLoomEthDB(s, nil)
-	s.trieDB.SetDiskDB(ethDB)
-	evmStateDB := gstate.NewDatabase(ethDB)
-	evmStateDB.SetTrieDB(s.trieDB)
-	return evmStateDB
-}
-
 const (
 	featurePrefix = "feature"
 	MinBuildKey   = "minbuild"
 )
 
-var (
-	vmPrefix = []byte("vm")
-	rootKey  = []byte("vmroot")
-	// This is the prefix of versioning Patricia roots
-	evmRootPrefix = []byte("evmroot")
-)
-
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
-}
-
-func evmRootKey(blockHeight int64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(blockHeight))
-	return util.PrefixKey(vmPrefix, []byte(evmRootPrefix), b)
 }
 
 func (s *StoreState) EnabledFeatures() []string {
@@ -257,7 +235,6 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 		ctx:             ctx,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
-		trieDB:          s.trieDB,
 	}
 }
 
@@ -268,7 +245,6 @@ func (s *StoreState) WithPrefix(prefix []byte) State {
 		ctx:             s.ctx,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
-		trieDB:          s.trieDB,
 	}
 }
 
@@ -389,9 +365,6 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
-	TrieDB                      *trie.Database
-	FlushInterval               int64 // commit Patricia trie to disk every N blocks
-	lastSavedEVMRoot            []byte
 }
 
 var _ abci.Application = &Application{}
