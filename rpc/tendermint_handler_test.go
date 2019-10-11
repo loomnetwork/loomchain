@@ -138,12 +138,7 @@ func (mt *MockTendermintRpc) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadc
 	if err := proto.Unmarshal([]byte(tx), &signedTx); err != nil {
 		return nil, err
 	}
-	from, err := lauth.VerifySolidity66Byte(mt.ChainID(), signedTx, []evmcompat.SignatureType{
-		evmcompat.SignatureType_EIP712,
-		evmcompat.SignatureType_GETH,
-		evmcompat.SignatureType_TREZOR,
-		evmcompat.SignatureType_TRON,
-	})
+	from, err := lauth.VerifyWrappedEthTx(mt.ChainID(), signedTx, nil)
 	if err != nil {
 		return nil, err
 	}

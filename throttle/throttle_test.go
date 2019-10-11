@@ -95,7 +95,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	deployKarma := userState.DeployKarmaTotal
 
 	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
-		txSigned := mockSignedTx(t, uint64(i), deployId, vm.VMType_PLUGIN, contract)
+		txSigned := mockSignedTx(t, uint64(i), types.TxID_DEPLOY, vm.VMType_PLUGIN, contract)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= deployKarma.Value.Int64() {
@@ -104,7 +104,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	}
 
 	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
-		txSigned := mockSignedTx(t, uint64(i), ethId, vm.VMType_EVM, loom.Address{})
+		txSigned := mockSignedTx(t, uint64(i), types.TxID_ETHEREUM, vm.VMType_EVM, loom.Address{})
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= deployKarma.Value.Int64() {
@@ -146,7 +146,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	callKarma := userState.CallKarmaTotal
 
 	for i := int64(1); i <= maxCallCount*2+callKarma.Value.Int64(); i++ {
-		txSigned := mockSignedTx(t, uint64(i), callId, vm.VMType_PLUGIN, contract)
+		txSigned := mockSignedTx(t, uint64(i), types.TxID_CALL, vm.VMType_PLUGIN, contract)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= maxCallCount+callKarma.Value.Int64() {
@@ -157,17 +157,16 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	}
 }
 
-func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to loom.Address) auth.SignedTx {
+func mockSignedTx(t *testing.T, sequence uint64, id types.TxID, vmType vm.VMType, to loom.Address) auth.SignedTx {
 	origBytes := []byte("origin")
 	// TODO: wtf is this generating a new key every time, what's the point of the sequence number then?
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.Nil(t, err)
 
 	var messageTx []byte
-	require.True(t, id == callId || id == deployId || id == migrationId || id == ethId)
 
 	switch id {
-	case callId:
+	case types.TxID_CALL:
 		callTx, err := proto.Marshal(&vm.CallTx{
 			VmType: vmType,
 			Input:  origBytes,
@@ -180,7 +179,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 		})
 		require.NoError(t, err)
 
-	case deployId:
+	case types.TxID_DEPLOY:
 		deployTX, err := proto.Marshal(&vm.DeployTx{
 			VmType: vmType,
 			Code:   origBytes,
@@ -193,17 +192,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 		})
 		require.NoError(t, err)
 
-	case ethId:
-		// to ~ empty indicates deploy tx
-		ethBytes, err := ethTxBytes(sequence, to, origBytes)
-		require.NoError(t, err)
-		messageTx, err = proto.Marshal(&vm.MessageTx{
-			Data: ethBytes,
-			To:   to.MarshalPB(),
-		})
-		require.NoError(t, err)
-
-	case migrationId:
+	case types.TxID_MIGRATION:
 		migrationTx, err := proto.Marshal(&vm.MigrationTx{
 			ID: 1,
 		})
@@ -214,6 +203,18 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
+
+	case types.TxID_ETHEREUM:
+		ethBytes, err := ethTxBytes(sequence, to, origBytes)
+		require.NoError(t, err)
+		messageTx, err = proto.Marshal(&vm.MessageTx{
+			Data: ethBytes,
+			To:   to.MarshalPB(),
+		})
+		require.NoError(t, err)
+
+	default:
+		require.FailNow(t, "invalid tx ID")
 	}
 
 	tx, err := proto.Marshal(&loomchain.Transaction{

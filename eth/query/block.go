@@ -11,21 +11,14 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-)
-
-const (
-	deployId uint32 = iota + 1
-	callId
-	migrationId
-	ethId
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 var (
@@ -163,88 +156,86 @@ func GetTxObjectFromBlockResult(
 	txObj.From = eth.EncAddress(msg.From)
 
 	var input []byte
-	switch txTx.Id {
-	case deployId:
-		{
-			var deployTx vm.DeployTx
-			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
+	switch ltypes.TxID(txTx.Id) {
+	case ltypes.TxID_DEPLOY:
+		var deployTx vm.DeployTx
+		if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
+			return eth.GetEmptyTxObject(), nil, err
+		}
+		input = deployTx.Code
+		if deployTx.VmType == vm.VMType_EVM {
+			var resp vm.DeployResponse
+			if err := proto.Unmarshal(txResultData, &resp); err != nil {
 				return eth.GetEmptyTxObject(), nil, err
 			}
-			input = deployTx.Code
-			if deployTx.VmType == vm.VMType_EVM {
-				var resp vm.DeployResponse
-				if err := proto.Unmarshal(txResultData, &resp); err != nil {
-					return eth.GetEmptyTxObject(), nil, err
-				}
 
-				var respData vm.DeployResponseData
-				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
-					return eth.GetEmptyTxObject(), nil, err
-				}
-				contractAddress = eth.EncPtrAddress(resp.Contract)
-				if len(respData.TxHash) > 0 {
-					// Check duplicate EVM tx hash before using it
-					if !evmAuxStore.IsDupEVMTxHash(respData.TxHash) {
-						txObj.Hash = eth.EncBytes(respData.TxHash)
-					}
-				}
-			}
-			if deployTx.Value != nil {
-				txObj.Value = eth.EncBigInt(*deployTx.Value.Value.Int)
-			}
-		}
-	case callId:
-		{
-			var callTx vm.CallTx
-			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
+			var respData vm.DeployResponseData
+			if err := proto.Unmarshal(resp.Output, &respData); err != nil {
 				return eth.GetEmptyTxObject(), nil, err
 			}
-			input = callTx.Input
-			to := eth.EncAddress(msg.To)
-			txObj.To = &to
-			if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
+			contractAddress = eth.EncPtrAddress(resp.Contract)
+			if len(respData.TxHash) > 0 {
 				// Check duplicate EVM tx hash before using it
-				if !evmAuxStore.IsDupEVMTxHash(txResultData) {
-					txObj.Hash = eth.EncBytes(txResultData)
-				}
-			}
-			if callTx.Value != nil {
-				txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
-			}
-		}
-	case ethId:
-		{
-			var ethTx etypes.Transaction
-			if err := rlp.DecodeBytes(msg.Data, &ethTx); err != nil {
-				return eth.GetEmptyTxObject(), nil, err
-			}
-			if ethTx.To() != nil {
-				to := eth.EncAddress(msg.To)
-				txObj.To = &to
-				if len(txResultData) > 0 {
-					txObj.Hash = eth.EncBytes(txResultData)
-				}
-			} else {
-				var resp vm.DeployResponse
-				if err := proto.Unmarshal(txResultData, &resp); err != nil {
-					return eth.GetEmptyTxObject(), nil, err
-				}
-				var respData vm.DeployResponseData
-				if err := proto.Unmarshal(resp.Output, &respData); err != nil {
-					return eth.GetEmptyTxObject(), nil, err
-				}
-				contractAddress = eth.EncPtrAddress(resp.Contract)
-				if len(respData.TxHash) > 0 {
+				if !evmAuxStore.IsDupEVMTxHash(respData.TxHash) {
 					txObj.Hash = eth.EncBytes(respData.TxHash)
 				}
 			}
-			txObj.Value = eth.EncBigInt(*ethTx.Value())
-			input = ethTx.Data()
 		}
-	case migrationId:
+		if deployTx.Value != nil {
+			txObj.Value = eth.EncBigInt(*deployTx.Value.Value.Int)
+		}
+
+	case ltypes.TxID_CALL:
+		var callTx vm.CallTx
+		if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
+			return eth.GetEmptyTxObject(), nil, err
+		}
+		input = callTx.Input
+		to := eth.EncAddress(msg.To)
+		txObj.To = &to
+		if callTx.VmType == vm.VMType_EVM && len(txResultData) > 0 {
+			// Check duplicate EVM tx hash before using it
+			if !evmAuxStore.IsDupEVMTxHash(txResultData) {
+				txObj.Hash = eth.EncBytes(txResultData)
+			}
+		}
+		if callTx.Value != nil {
+			txObj.Value = eth.EncBigInt(*callTx.Value.Value.Int)
+		}
+
+	case ltypes.TxID_MIGRATION:
 		to := eth.EncAddress(msg.To)
 		txObj.To = &to
 		input = msg.Data
+
+	case ltypes.TxID_ETHEREUM:
+		var ethTx etypes.Transaction
+		if err := rlp.DecodeBytes(msg.Data, &ethTx); err != nil {
+			return eth.GetEmptyTxObject(), nil, err
+		}
+		if ethTx.To() != nil {
+			to := eth.EncAddress(msg.To)
+			txObj.To = &to
+			if len(txResultData) > 0 {
+				txObj.Hash = eth.EncBytes(txResultData)
+			}
+		} else {
+			var resp vm.DeployResponse
+			if err := proto.Unmarshal(txResultData, &resp); err != nil {
+				return eth.GetEmptyTxObject(), nil, err
+			}
+			var respData vm.DeployResponseData
+			if err := proto.Unmarshal(resp.Output, &respData); err != nil {
+				return eth.GetEmptyTxObject(), nil, err
+			}
+			contractAddress = eth.EncPtrAddress(resp.Contract)
+			if len(respData.TxHash) > 0 {
+				txObj.Hash = eth.EncBytes(respData.TxHash)
+			}
+		}
+		txObj.Value = eth.EncBigInt(*ethTx.Value())
+		input = ethTx.Data()
+
 	default:
 		return eth.GetEmptyTxObject(), nil, fmt.Errorf("unrecognised tx type %v", txTx.Id)
 	}

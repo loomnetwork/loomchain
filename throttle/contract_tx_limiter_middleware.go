@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
@@ -166,37 +167,31 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		}
 
 		var msg vm.MessageTx
-		switch tx.Id {
-		case callId:
-			{
-				if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-					return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-				}
-				var msgTx vm.CallTx
-				if err := proto.Unmarshal(msg.Data, &msgTx); err != nil {
-					return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
-				}
-				if msgTx.VmType != vm.VMType_EVM {
-					return next(state, txBytes, isCheckTx)
-				}
+		switch ltypes.TxID(tx.Id) {
+		case ltypes.TxID_CALL:
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 			}
-		case deployId:
-			return next(state, txBytes, isCheckTx)
-		case ethId:
-			{
-				if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-					return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-				}
-				isDeploy, err := isEthDeploy(msg.Data)
-				if err != nil {
-					return res, err
-				}
-				if isDeploy {
-					return next(state, txBytes, isCheckTx)
-				}
+			var msgTx vm.CallTx
+			if err := proto.Unmarshal(msg.Data, &msgTx); err != nil {
+				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 			}
-		case migrationId:
-			return next(state, txBytes, isCheckTx)
+			if msgTx.VmType != vm.VMType_EVM {
+				return next(state, txBytes, isCheckTx)
+			}
+
+		case ltypes.TxID_ETHEREUM:
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+			}
+			isDeploy, err := isEthDeploy(msg.Data)
+			if err != nil {
+				return res, err
+			}
+			if isDeploy {
+				return next(state, txBytes, isCheckTx)
+			}
+
 		default:
 			return next(state, txBytes, isCheckTx)
 		}

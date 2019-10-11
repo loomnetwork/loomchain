@@ -26,8 +26,6 @@ const (
 	EthereumSignedTxType SignedTxType = "eth"
 	TronSignedTxType     SignedTxType = "tron"
 	BinanceSignedTxType  SignedTxType = "binance"
-
-	ethID = uint32(4)
 )
 
 // AccountType is used to specify which address should be used on-chain to identify a tx sender.
@@ -41,13 +39,6 @@ const (
 	// address before being passed through to contracts.
 	MappedAccountType
 )
-
-var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
-	LoomSignedTxType:     verifyEd25519,
-	EthereumSignedTxType: VerifySolidity66Byte,
-	TronSignedTxType:     verifyTron,
-	BinanceSignedTxType:  verifyBinance,
-}
 
 // Recovers the signer address from a signed tx.
 type originRecoveryFunc func(chainID string, tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
@@ -80,11 +71,6 @@ func NewMultiChainSignatureTxMiddleware(
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return r, errors.Wrap(err, "failed to unmarshal Transaction")
 		}
-		if tx.Id == ethID || signedTx.Signature == nil {
-			if !state.FeatureEnabled(features.EthTxFeature, false) {
-				return r, errors.New("ethereum transactions feature not enabled")
-			}
-		}
 
 		var msg vm.MessageTx
 		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
@@ -102,8 +88,8 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("unknown chain ID %s", msgSender.ChainID)
 		}
 
-		recoverOrigin, found := originRecoveryFuncs[chain.TxType]
-		if !found {
+		recoverOrigin := getOriginRecoveryFunc(state, types.TxID(tx.Id), chain.TxType)
+		if recoverOrigin == nil {
 			return r, fmt.Errorf("recovery function for Tx type %v not found", chain.TxType)
 		}
 
@@ -158,6 +144,23 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("Invalid account type %v for chain ID %s", chain.AccountType, msgSender.ChainID)
 		}
 	})
+}
+
+func getOriginRecoveryFunc(state loomchain.State, txID types.TxID, txType SignedTxType) originRecoveryFunc {
+	switch txType {
+	case LoomSignedTxType:
+		return verifyEd25519
+	case EthereumSignedTxType:
+		if (txID == types.TxID_ETHEREUM) && state.FeatureEnabled(features.EthTxFeature, false) {
+			return VerifyWrappedEthTx
+		}
+		return verifySolidity66Byte
+	case TronSignedTxType:
+		return verifyTron
+	case BinanceSignedTxType:
+		return verifyBinance
+	}
+	return nil
 }
 
 func getMappedAccountAddress(

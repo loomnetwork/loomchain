@@ -18,8 +18,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-const ethTxID = 4
-
 type TendermintPRCFunc struct {
 	eth.HttpRPCFunc
 	chainID     string
@@ -116,7 +114,7 @@ func ethereumToTendermintTx(chainID string, txBytes []byte) (types.Tx, error) {
 	}.MarshalPB()
 
 	txTx := &ltypes.Transaction{
-		Id: ethTxID,
+		Id: uint32(ltypes.TxID_ETHEREUM),
 	}
 	txTx.Data, err = proto.Marshal(msg)
 	if err != nil {

@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	deployId  uint32  = iota  +1
+	deployId uint32 = iota + 1
 	callId
 	migrationId
 	ethId
@@ -111,8 +111,7 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, origin loom.Address, isDeployTx bool) (*common.BigUInt, error) {
 	// TODO: maybe should only count karma from active sources
 	if isDeployTx {
-		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY )
-	} else {
-		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
+		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY)
 	}
+	return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
 }

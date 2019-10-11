@@ -6,6 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -35,11 +36,11 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
 				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 			}
-			
+
 			var info string
 			var data []byte
-			switch tx.Id {
-			case callId: {
+			switch types.TxID(tx.Id) {
+			case types.TxID_CALL:
 				var callTx vm.CallTx
 				if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
 					return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
@@ -49,8 +50,8 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 				} else {
 					info = utils.CallPlugin
 				}
-			}
-			case deployId:	{
+
+			case types.TxID_DEPLOY:
 				var deployTx vm.DeployTx
 				if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
 					return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
@@ -64,9 +65,9 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 					// Always use same contract address,
 					// Might want to change that later.
 					Contract: contract.MarshalPB(),
-				})					
-			}
-			case ethId: {
+				})
+
+			case types.TxID_ETHEREUM:
 				isDeploy, err := isEthDeploy(msg.Data)
 				if err != nil {
 					return res, err
@@ -82,11 +83,6 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 					info = utils.CallEVM
 				}
 			}
-			case migrationId: 
-			default:
-				err = errors.Errorf("unrecognised tx id %v", tx.Id)
-			}
-
 			return loomchain.TxHandlerResult{Data: data, Info: info}, err
 		},
 		false,

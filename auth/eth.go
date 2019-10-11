@@ -16,10 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func VerifySolidity66Byte(chainID string, tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, error) {
-	if tx.Signature == nil {
-		return verifyEthTx(chainID, tx)
-	}
+func verifySolidity66Byte(chainID string, tx SignedTx, allowSigTypes []evmcompat.SignatureType) ([]byte, error) {
 	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(sha3.SoliditySHA3(tx.Inner), tx.Signature, allowSigTypes)
 	if err != nil {
 		return nil, errors.Wrap(err, "verify solidity key")
@@ -44,19 +41,23 @@ func verifyBinance(chainID string, tx SignedTx, allowSigTypes []evmcompat.Signat
 	return addr.Bytes(), nil
 }
 
-func verifyEthTx(chainID string, signedTx SignedTx) ([]byte, error) {
+func VerifyWrappedEthTx(chainID string, signedTx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
+	if len(signedTx.Signature) != 0 {
+		return nil, errors.New("unexpected signature in SignedTx")
+	}
+
 	var nonceTx auth.NonceTx
 	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
 		return nil, err
 	}
 
-	var txTx types.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &txTx); err != nil {
+	var loomTx types.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &loomTx); err != nil {
 		return nil, err
 	}
 
 	var msgTx vm.MessageTx
-	if err := proto.Unmarshal(txTx.Data, &msgTx); err != nil {
+	if err := proto.Unmarshal(loomTx.Data, &msgTx); err != nil {
 		return nil, err
 	}
 
