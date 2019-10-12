@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -20,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// EthTxHandler handles signed Ethereum txs that are wrapped inside SignedTx
 type EthTxHandler struct {
 	*vm.Manager
 	CreateRegistry factory.RegistryFactoryFunc
@@ -37,8 +37,7 @@ func (h *EthTxHandler) ProcessTx(
 	}
 
 	var msg vm.MessageTx
-	err := proto.Unmarshal(txBytes, &msg)
-	if err != nil {
+	if err := proto.Unmarshal(txBytes, &msg); err != nil {
 		return r, err
 	}
 
@@ -49,54 +48,62 @@ func (h *EthTxHandler) ProcessTx(
 		return r, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
 	}
 
-	vmInstance, err := h.Manager.InitVM(vm.VMType_EVM, state)
-	if err != nil {
-		return r, err
-	}
-
+	// TODO: move the marshalling & validation above this line into middleware
 	var ethTx etypes.Transaction
 	if err := rlp.DecodeBytes(msg.Data, &ethTx); err != nil {
 		return r, err
 	}
 
-	value := &loom.BigUInt{Int: ethTx.Value()}
-	if !common.IsPositive(*value) && !common.IsZero(*value) {
-		return r, errors.Errorf("value %v must be non negative", value)
-	}
+	// Set r.Info at the earliest opportunity so it can be used by the middleware to figure out how
+	// to handle the tx even when the handler doesn't successfully process the tx.
 	if ethTx.To() == nil {
-		retCreate, addr, errCreate := vmInstance.Create(origin, ethTx.Data(), value)
+		r.Info = utils.DeployEvm
+	} else {
+		r.Info = utils.CallEVM
+	}
 
-		response, errMarshal := proto.Marshal(&vm.DeployResponse{
+	if ethTx.Value().Sign() == -1 {
+		return r, errors.New("tx value can't be negative")
+	}
+
+	// Only do basic validation in CheckTx, don't execute the actual EVM deploy/call
+	if isCheckTx {
+		return r, nil
+	}
+
+	vmInstance, err := h.Manager.InitVM(vm.VMType_EVM, state)
+	if err != nil {
+		return r, err
+	}
+
+	if ethTx.To() == nil { // deploy
+		retCreate, addr, err := vmInstance.Create(origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()))
+		if err != nil {
+			return r, errors.Wrap(err, "failed to create contract")
+		}
+
+		response, err := proto.Marshal(&vm.DeployResponse{
 			Contract: &types.Address{
 				ChainId: addr.ChainID,
 				Local:   addr.Local,
 			},
 			Output: retCreate,
 		})
-		if errMarshal != nil {
-			if errCreate != nil {
-				return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
-			} else {
-				return r, errors.Wrapf(errMarshal, "[DeployTxHandler] Error deploying contract on marshaling error")
-			}
+		if err != nil {
+			return r, errors.Wrap(err, "failed to marshal deploy response")
 		}
-		r.Data = append(r.Data, response...)
-		if errCreate != nil {
-			return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
-		}
+		r.Data = response
 
 		reg := h.CreateRegistry(state)
-		_ = reg.Register("", addr, caller)
-
-		r.Info = utils.DeployEvm
-		return r, nil
-	} else {
-		to := loom.UnmarshalAddressPB(msg.To)
-		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), value)
-		if err != nil {
-			return r, err
+		if err := reg.Register("", addr, caller); err != nil {
+			return r, errors.Wrap(err, "failed to register contract")
 		}
-		r.Info = utils.CallEVM
-		return r, err
+	} else { // call
+		to := loom.UnmarshalAddressPB(msg.To)
+		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()))
+		if err != nil {
+			return r, errors.Wrap(err, "contract call failed")
+		}
 	}
+	return r, nil
 }
