@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/gogo/protobuf/proto"
+	"github.com/gorilla/websocket"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
@@ -1140,7 +1139,7 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTra
 	if err != nil {
 		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
 	}
-	cfg := debug.DecTraceConfig(*config)
+	cfg := debug.DecTraceConfig(config)
 	memApp, err := s.InMemoryApp(blockNumber, s.BlockStore)
 	if err != nil {
 		return nil, err

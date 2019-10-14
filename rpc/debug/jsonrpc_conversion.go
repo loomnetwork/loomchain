@@ -19,8 +19,16 @@ type JsonLogConfig struct {
 	DisableStack   bool `json:"disableStack,omitempty"`
 }
 
-func DecTraceConfig(jcfg JsonTraceConfig) eth.TraceConfig {
+func DecTraceConfig(jcfg *JsonTraceConfig) eth.TraceConfig {
 	var logConfig *vm.LogConfig
+	if jcfg == nil {
+		return eth.TraceConfig{
+			LogConfig: logConfig,
+			Tracer:    nil,
+			Timeout:   nil,
+			Reexec:    nil,
+		}
+	}
 	if jcfg.LogConfig != nil {
 		logConfig = &vm.LogConfig{
 			DisableMemory:  jcfg.LogConfig.DisableMemory,

@@ -35,6 +35,7 @@ func TraceTransaction(
 	switch tracer := tracer.(type) {
 	case *vm.StructLogger:
 		return &ethapi.ExecutionResult{
+			Gas:         5,
 			Failed:      err == nil,
 			ReturnValue: fmt.Sprintf("%x", result),
 			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),

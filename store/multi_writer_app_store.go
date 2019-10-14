@@ -360,5 +360,10 @@ func (m *MultiWriterAppStore) VersionExists(version int64) bool {
 }
 
 func (m *MultiWriterAppStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
-	return m.appStore.RetrieveVersion(version)
+	reader, err := newMultiWriterVersionReader(*m, version)
+	if err != nil {
+		return nil, err
+	}
+	splitStore := newSplitStore(reader, NewMemStore())
+	return splitStore, nil
 }

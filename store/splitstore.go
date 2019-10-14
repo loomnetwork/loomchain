@@ -20,34 +20,34 @@ func newSplitStore(full KVReader, empty VersionedKVStore) VersionedKVStore {
 }
 
 func (ss splitStore) Get(key []byte) []byte {
-	if ss.KVReader.Has(key) {
+	if ss.VersionedKVStore.Has(key) {
 		return ss.KVReader.Get(key)
 	}
 	if ss.deleted[string(key)] {
 		return nil
 	}
-	return ss.VersionedKVStore.Get(key)
+	return ss.KVReader.Get(key)
 }
 
 func (ss splitStore) Range(prefix []byte) plugin.RangeData {
-	resultRange := ss.KVReader.Range(prefix)
-	diskRange := ss.VersionedKVStore.Range(prefix)
-	for _, re := range diskRange {
+	readerRange := ss.KVReader.Range(prefix)
+	updateRange := ss.VersionedKVStore.Range(prefix)
+	for _, re := range updateRange {
 		if !ss.KVReader.Has(re.Key) && !ss.deleted[string(re.Key)] {
-			resultRange = append(resultRange, re)
+			readerRange = append(readerRange, re)
 		}
 	}
-	return resultRange
+	return readerRange
 }
 
 func (ss splitStore) Has(key []byte) bool {
-	if ss.KVReader.Has(key) {
+	if ss.VersionedKVStore.Has(key) {
 		return true
 	}
 	if ss.deleted[string(key)] {
 		return false
 	}
-	return ss.VersionedKVStore.Has(key)
+	return ss.KVReader.Has(key)
 }
 
 func (ss splitStore) Set(key, value []byte) {
@@ -67,7 +67,7 @@ func (ss splitStore) Version() int64 {
 	return 0
 }
 func (ss splitStore) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, errors.New("not implemented")
+	return nil, 0, nil
 }
 
 func (ss splitStore) Prune() error {

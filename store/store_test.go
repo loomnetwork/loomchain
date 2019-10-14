@@ -255,7 +255,7 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 	}
 	actual := s.Range(prefixes[0])
 	require.Len(actual, len(expected), ts.StoreName)
-	if ts.StoreName != "MemStore" {
+	if ts.StoreName != "MemStore" && ts.StoreName != "SplitStore" {
 		for i := range expected {
 			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
@@ -279,7 +279,7 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 	require.Len(actual, len(expected), ts.StoreName)
 
 	// TODO: MemStore keys should be iterated in ascending order
-	if ts.StoreName != "MemStore" {
+	if ts.StoreName != "MemStore" && ts.StoreName != "SplitStore" {
 		for i := range expected {
 			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
@@ -297,7 +297,7 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 	}
 	actual = s.Range(prefixes[2])
 	require.Len(actual, len(expected), ts.StoreName)
-	if ts.StoreName != "MemStore" {
+	if ts.StoreName != "MemStore" && ts.StoreName != "SplitStore" {
 		for i := range expected {
 			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
@@ -435,6 +435,26 @@ func (ts *MemStoreTestSuite) SetupTest() {
 
 func (ts *MemStoreTestSuite) SetupSuite() {
 	ts.StoreName = "MemStore"
+	ts.supportsSnapshots = false
+}
+
+func TestSplitStoreTestSuite(t *testing.T) {
+	suite.Run(t, &SplitStoreTestSuite{})
+}
+
+type SplitStoreTestSuite struct {
+	KVReader
+	VersionedKVStore
+	StoreTestSuite
+}
+
+// runs before each test in this suite
+func (ts *SplitStoreTestSuite) SetupTest() {
+	ts.store = newSplitStore(NewMemStore(), NewMemStore())
+}
+
+func (ts *SplitStoreTestSuite) SetupSuite() {
+	ts.StoreName = "SplitStore"
 	ts.supportsSnapshots = false
 }
 
