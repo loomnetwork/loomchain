@@ -3,7 +3,6 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -24,7 +23,7 @@ import (
 type SendRawTransactionPRCFunc struct {
 	eth.HttpRPCFunc
 	chainID     string
-	ethChainID  *big.Int
+	ethSigner   etypes.Signer
 	broadcastTx func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 }
 
@@ -36,7 +35,7 @@ func NewSendRawTransactionRPCFunc(chainID string, broadcastTx func(tx types.Tx) 
 	}
 	return &SendRawTransactionPRCFunc{
 		chainID:     chainID,
-		ethChainID:  ethChainID,
+		ethSigner:   etypes.NewEIP155Signer(ethChainID),
 		broadcastTx: broadcastTx,
 	}
 }
@@ -108,8 +107,7 @@ func (t *SendRawTransactionPRCFunc) ethereumToTendermintTx(txBytes []byte) (type
 		}.MarshalPB()
 	}
 
-	ethSigner := etypes.NewEIP155Signer(t.ethChainID)
-	ethFrom, err := etypes.Sender(ethSigner, &tx)
+	ethFrom, err := etypes.Sender(t.ethSigner, &tx)
 	if err != nil {
 		return nil, err
 	}
