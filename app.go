@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -657,7 +658,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 
 	_, err = a.TxHandler.ProcessTx(state, txBytes, true)
 	if err != nil {
-		log.Error("CheckTx", "tx", ttypes.Tx(txBytes).Hash(), "err", err)
+		log.Error("CheckTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
 
@@ -705,7 +706,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(storeTx, txBytes, false)
 	if err != nil {
-		log.Error("DeliverTx", "tx", ttypes.Tx(txBytes).Hash(), "err", err)
+		log.Error("DeliverTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
@@ -796,7 +797,7 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 	}
 
 	if txErr != nil {
-		log.Error("DeliverTx", "tx", ttypes.Tx(txBytes).Hash(), "err", txErr)
+		log.Error("DeliverTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", txErr)
 		// FIXME: Really shouldn't be using r.Data if txErr != nil, but need to refactor TxHandler.ProcessTx
 		//        so it only returns r with the correct status code & log fields.
 		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
