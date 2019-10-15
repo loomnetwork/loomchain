@@ -209,8 +209,6 @@ func testMsgSender(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm 
 func deploySolContract(t *testing.T, caller loom.Address, filename string, vm lvm.VM) (abi.ABI, loom.Address) {
 	bytetext, err := ioutil.ReadFile("testdata/" + filename + ".bin")
 	require.NoError(t, err, "reading "+filename+".bin")
-	str := string(bytetext)
-	_ = str
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
 

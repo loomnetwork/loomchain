@@ -48,7 +48,8 @@ contract('LoomNativeApi', async (accounts) => {
 
         testApi = await TestLoomNativeApi.deployed();
         testHash = web3js.utils.sha3(msg);
-        sig = await wallet.signMessage(testHash).then(result => ethers.utils.splitSignature(result));
+        const msgSig = await wallet.signMessage(testHash);
+        sig = ethers.utils.splitSignature(msgSig);
     });
 
     it('map loom account', async () => {
