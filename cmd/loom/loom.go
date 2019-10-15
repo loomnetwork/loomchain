@@ -926,8 +926,6 @@ func loadApp(
 			return tx.VmType == vm.VMType_EVM
 		case 3:
 			return false
-		case 4:
-			return true
 		default:
 			return false
 		}
