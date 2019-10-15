@@ -5,17 +5,17 @@ import (
 	"math"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/pkg/errors"
-
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 )
 
 const karmaMiddlewareThrottleKey = "ThrottleTxMiddleWare"
@@ -63,8 +63,8 @@ func GetKarmaMiddleWare(
 		}
 
 		var isDeployTx bool
-		switch tx.Id {
-		case callId: {
+		switch types.TxID(tx.Id) {
+		case types.TxID_CALL:
 			isDeployTx = false
 			var tx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &tx); err != nil {
@@ -79,10 +79,11 @@ func GetKarmaMiddleWare(
 					return res, fmt.Errorf("contract %s is not active", loom.UnmarshalAddressPB(msg.To).String())
 				}
 			}
-		}
-		case deployId:
+
+		case types.TxID_DEPLOY:
 			isDeployTx = true
-		case ethId: {
+
+		case types.TxID_ETHEREUM:
 			isDeployTx, err = isEthDeploy(msg.Data)
 			if err != nil {
 				return res, err
@@ -96,11 +97,9 @@ func GetKarmaMiddleWare(
 					return res, fmt.Errorf("contract %s is not active", loom.UnmarshalAddressPB(msg.To).String())
 				}
 			}
-		}
-		case migrationId:
-			return res, errors.Errorf("tx id %v cannot be used this way", tx.Id)
+
 		default:
-			return res, errors.Errorf("unrecognised tx id %v", tx.Id)
+			return next(state, txBytes, isCheckTx)
 		}
 
 		// Oracle is not effected by karma restrictions

@@ -96,12 +96,12 @@ func NewDeployerWhitelistMiddleware(
 		case types.TxID_DEPLOY:
 			var msg vm.MessageTx
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+				return res, errors.Wrap(err, "failed to unmarshal MessageTx")
 			}
 
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return res, errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
+				return res, errors.Wrap(err, "failed to unmarshal DeployTx")
 			}
 
 			if deployTx.VmType == vm.VMType_PLUGIN {
@@ -141,7 +141,7 @@ func NewDeployerWhitelistMiddleware(
 
 			var msg vm.MessageTx
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+				return res, errors.Wrap(err, "failed to unmarshal MessageTx")
 			}
 			isDeploy, err := isEthDeploy(msg.Data)
 			if err != nil {

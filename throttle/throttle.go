@@ -19,13 +19,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 )
 
-const (
-	deployId uint32 = iota + 1
-	callId
-	migrationId
-	ethId
-)
-
 type Throttle struct {
 	maxCallCount         int64
 	sessionDuration      int64

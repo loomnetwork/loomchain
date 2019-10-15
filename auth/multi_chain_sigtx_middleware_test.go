@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
@@ -31,7 +32,6 @@ import (
 )
 
 const (
-	callId             = uint32(2)
 	sequence           = uint64(4)
 	defaultLoomChainId = "default"
 )
@@ -460,7 +460,7 @@ func mockNonceTx(t *testing.T, from loom.Address, sequence uint64) []byte {
 	})
 	require.NoError(t, err)
 	tx, err := proto.Marshal(&loomchain.Transaction{
-		Id:   callId,
+		Id:   uint32(types.TxID_CALL),
 		Data: messageTx,
 	})
 	require.Nil(t, err)

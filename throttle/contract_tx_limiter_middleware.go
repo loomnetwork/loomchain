@@ -172,11 +172,11 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
 				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 			}
-			var msgTx vm.CallTx
-			if err := proto.Unmarshal(msg.Data, &msgTx); err != nil {
+			var callTx vm.CallTx
+			if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
 				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 			}
-			if msgTx.VmType != vm.VMType_EVM {
+			if callTx.VmType != vm.VMType_EVM {
 				return next(state, txBytes, isCheckTx)
 			}
 
