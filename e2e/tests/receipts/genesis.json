@@ -115,7 +115,7 @@
                         "status": "WAITING"
                     },
                     {
-                        "name": "EthTxFeature",
+                        "name": "tx:eth",
                         "status": "WAITING"
                     }
                 ]
