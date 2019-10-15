@@ -45,6 +45,7 @@ func TestQueryChain(t *testing.T) {
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler = receiptHandler
+	blockStore := store.NewMockBlockStore()
 
 	require.NoError(t, err)
 	state := common.MockState(0)
@@ -57,9 +58,13 @@ func TestQueryChain(t *testing.T) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, []byte{})
+	evmTxHash, err := writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
+
+	tx := mockSignedTx(t, callId, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(4, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(4, evmTxHash, [][]byte{tx}))
 
 	protoBlock, err := GetPendingBlock(4, true, receiptHandler)
 	require.NoError(t, err)
@@ -77,13 +82,15 @@ func TestQueryChain(t *testing.T) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
+
 	state20 := common.MockStateAt(state, 20)
-	_, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil, []byte{})
+	evmTxHash, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
-
-	blockStore := store.NewMockBlockStore()
+	tx = mockSignedTx(t, callId, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(20, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(20, evmTxHash, [][]byte{tx}))
 
 	state30 := common.MockStateAt(state, uint64(30))
 	result, err := DeprecatedQueryChain(allFilter, blockStore, state30, receiptHandler, evmAuxStore)

@@ -8,7 +8,7 @@
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_newBlockFilter","params":[],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "excludes"
-  Expected = [
+  Excluded = [
                 '"result": "0x0',
                 '"result": null'
              ]
@@ -22,7 +22,7 @@
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_newPendingTransactionFilter","params":[],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "excludes"
-  Expected = [
+  Excluded = [
                 '"result": "0x0',
                 '"result": null'
              ]
@@ -37,7 +37,7 @@
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_newFilter","params":[{}],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "excludes"
-  Expected = [
+  Excluded = [
                 '"result": "0x0',
                 '"result": null'
              ]
