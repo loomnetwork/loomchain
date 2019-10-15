@@ -3,6 +3,7 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -23,18 +24,24 @@ import (
 type SendRawTransactionPRCFunc struct {
 	eth.HttpRPCFunc
 	chainID     string
+	ethChainID  *big.Int
 	broadcastTx func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 }
 
 // Tendermint handlers need parameters translated.
-// Only one method supported.
 func NewSendRawTransactionRPCFunc(chainID string, broadcastTx func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)) eth.RPCFunc {
+	ethChainID, err := evmcompat.ToEthereumChainID(chainID)
+	if err != nil {
+		panic(err)
+	}
 	return &SendRawTransactionPRCFunc{
 		chainID:     chainID,
+		ethChainID:  ethChainID,
 		broadcastTx: broadcastTx,
 	}
 }
 
+// UnmarshalParamsAndCall implements RPCFunc
 func (t *SendRawTransactionPRCFunc) UnmarshalParamsAndCall(
 	input eth.JsonRpcRequest, conn *websocket.Conn,
 ) (json.RawMessage, *eth.Error) {
@@ -59,7 +66,7 @@ func (t *SendRawTransactionPRCFunc) UnmarshalParamsAndCall(
 		)
 	}
 
-	tmTx, err := ethereumToTendermintTx(t.chainID, txBytes)
+	tmTx, err := t.ethereumToTendermintTx(txBytes)
 	if err != nil {
 		return nil, eth.NewError(
 			eth.EcServer, fmt.Sprintf("failed to wrap eth tx: %v", err), "",
@@ -86,7 +93,7 @@ func (t *SendRawTransactionPRCFunc) UnmarshalParamsAndCall(
 }
 
 // Wraps a raw Ethereum tx in a Loom SignedTx
-func ethereumToTendermintTx(chainID string, txBytes []byte) (types.Tx, error) {
+func (t *SendRawTransactionPRCFunc) ethereumToTendermintTx(txBytes []byte) (types.Tx, error) {
 	msg := &vm.MessageTx{}
 	msg.Data = txBytes
 	var tx etypes.Transaction
@@ -96,16 +103,12 @@ func ethereumToTendermintTx(chainID string, txBytes []byte) (types.Tx, error) {
 
 	if tx.To() != nil {
 		msg.To = loom.Address{
-			ChainID: chainID,
+			ChainID: t.chainID,
 			Local:   tx.To().Bytes(),
 		}.MarshalPB()
 	}
 
-	ethChainID, err := evmcompat.ToEthereumChainID(chainID)
-	if err != nil {
-		return nil, err
-	}
-	ethSigner := etypes.NewEIP155Signer(ethChainID)
+	ethSigner := etypes.NewEIP155Signer(t.ethChainID)
 	ethFrom, err := etypes.Sender(ethSigner, &tx)
 	if err != nil {
 		return nil, err
