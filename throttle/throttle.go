@@ -68,7 +68,9 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter
 	return t.callLimiterPool[address]
 }
 
-func (t *Throttle) getLimiterContext(ctx context.Context, nonce uint64, limit int64, txId uint32, key string) (limiter.Context, error) {
+func (t *Throttle) getLimiterContext(
+	ctx context.Context, nonce uint64, limit int64, txId uint32, key string,
+) (limiter.Context, error) {
 	address := auth.Origin(ctx).String()
 	if address == t.lastAddress && nonce == t.lastNonce && t.lastId == txId {
 		return t.lastLimiterContext, nil
@@ -82,7 +84,9 @@ func (t *Throttle) getLimiterContext(ctx context.Context, nonce uint64, limit in
 	}
 }
 
-func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.Address, limit int64, txId uint32, key string) error {
+func (t *Throttle) runThrottle(
+	state loomchain.State, nonce uint64, origin loom.Address, limit int64, txId uint32, key string,
+) error {
 	limitCtx, err := t.getLimiterContext(state.Context(), nonce, limit, txId, key)
 	if err != nil {
 		return errors.Wrap(err, "deploy limiter context")
@@ -101,7 +105,9 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 	return nil
 }
 
-func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, origin loom.Address, isDeployTx bool) (*common.BigUInt, error) {
+func (t *Throttle) getKarmaForTransaction(
+	karmaContractCtx contractpb.Context, origin loom.Address, isDeployTx bool,
+) (*common.BigUInt, error) {
 	// TODO: maybe should only count karma from active sources
 	if isDeployTx {
 		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY)

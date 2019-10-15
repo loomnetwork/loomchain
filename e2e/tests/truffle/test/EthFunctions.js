@@ -190,20 +190,7 @@ contract('MyToken', async (accounts) => {
     }
     
     const payload = await web3js.eth.accounts.signTransaction(txParams, ethPrivateKey);
-    /*
-    return new Promise((resolve, reject) => {
-      web3js.eth.sendSignedTransaction(result.rawTransaction)
-      .on('transactionHash', txHash => {
-        console.log('rawTx Hash: ' + txHash)
-      })
-      .on('receipt', receipt => {
-        console.log('receipt: ' + receipt)
-        resolve()
-      })
-      .on('error', console.error)
-    })
-    */
-    result = await web3js.eth.sendSignedTransaction(payload.rawTransaction)
-    assert.equal(result.status, true, 'tx submitted successfully')
+    result = await web3js.eth.sendSignedTransaction(payload.rawTransaction);
+    assert.equal(result.status, true, 'tx submitted successfully');
   });
 });
