@@ -10,13 +10,17 @@ contract TestLoomNativeApi {
     }
 
     // LoomApi library
-    address constant LoomPrecompilesStartIndex = 0x0000000000000000000000000000000000000020;//0x20;
+    address constant LoomPrecompilesStartIndex = 0x0000000000000000000000000000000000000020;
     address constant MapToLoomAddress = 0x0000000000000000000000000000000000000021;
     address constant MapToAddress = 0x0000000000000000000000000000000000000022;
 
-    function MappedAccount(string memory from, address addr) public view returns (address) {
-        bytes memory fromB = bytes(from);
+    // Calls MapToLoomAddress precompiled EVM function.this.
+    // Returns the loom address mapped to the input local addr and fromChainId..
+    function MappedAccount(string memory fromChainId, address addr) public view returns (address) {
+        bytes memory fromB = bytes(fromChainId);
         bytes memory input = new bytes(fromB.length + 20);
+        // Encode from chain id and local address into bytes object for passing to precompied function
+        // [<addr - 20 bytes>, <from chain id, rest of array>]"
         for (uint i = 0; i < 20; i++) {
             input[i] = byte(uint8(uint(addr) / (2**(8*(19 - i)))));
         }
@@ -26,11 +30,17 @@ contract TestLoomNativeApi {
         return address(callPFAssembly(MapToLoomAddress, input, 0x14));
     }
 
-    function MappedAccount(string memory from, address addr, string memory to) public view returns (address) {
-        bytes memory fromB = bytes(from);
+    // Calls MapToAddress precompiled EVM function.this.
+    // Returns the address with toChainId mapped to the input local addr and fromChainId.
+    function MappedAccount(string memory fromChainId, address addr, string memory toChainId) public view returns (address) {
+        // restrict from chain id to length 256 so as to hold length in one byte.
+        bytes memory fromB = bytes(fromChainId);
         require(fromB.length < 256, "chain id too long");
-        bytes memory toB = bytes(to);
+        bytes memory toB = bytes(toChainId);
         require(toB.length < 256, "chain id too long");
+
+        // Encode from and to chain ids and local address into bytes object for passing to precompied function
+        // [<addr - 20 bytes>, <length of from chain id, 1 byte>, <from chain id>, <to chain id, rest of array>]"
         bytes memory input = new bytes(fromB.length + toB.length + 21);
         for (uint i = 0; i < 20; i++) {
             input[i] = byte(uint8(uint(addr) / (2**(8*(19 - i)))));
@@ -45,10 +55,11 @@ contract TestLoomNativeApi {
         return address(callPFAssembly(MapToAddress, input, 0x14));
     }
 
-    function callPFAssembly(address _addr, bytes memory _input, uint256 outSize) public view returns (bytes20)
-    {
+    // Call precompiled EVM function at address _addr.
+    // Pass though _input as input parameter.
+    function callPFAssembly(address _addr, bytes memory _input, uint256 outSize) view internal returns (bytes20)    {
         uint256 inSize = _input.length*4+1;
-        uint256 inLenght = _input.length;
+        uint256 inLength = _input.length;
         bytes20 rtv;
         assembly{
             let start := add(_input, 0x20)
@@ -58,7 +69,7 @@ contract TestLoomNativeApi {
             gas,
             _addr,
             start,
-            inLenght,
+            inLength,
             p,
             outSize
             )) {
@@ -68,5 +79,4 @@ contract TestLoomNativeApi {
         }
         return rtv;
     }
-
 }
