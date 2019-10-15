@@ -46,6 +46,8 @@ library LoomNativeApi {
         return address(callPFAssembly(MapToAddress, input, 0x14));
     }
 
+    // Call precompiled EVM function at address _addr.
+    // Pass though _input as input parameter.
     function callPFAssembly(address _addr, bytes memory _input, uint256 outSize) view internal returns (bytes20)    {
         uint256 inSize = _input.length*4+1;
         uint256 inLength = _input.length;
