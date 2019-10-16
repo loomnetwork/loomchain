@@ -295,6 +295,7 @@ func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight)
 	if err != nil {
 		return resp, err
 	}
+
 	bytes, err := s.queryEvm(caller, contract, data)
 	return eth.EncBytes(bytes), err
 }
