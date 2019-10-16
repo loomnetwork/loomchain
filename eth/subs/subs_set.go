@@ -59,7 +59,7 @@ func (s *EthSubscriptionSet) EmitEvent(data types.EventData) error {
 	if err != nil {
 		return errors.Wrapf(err, "marshaling event %v", data)
 	}
-	s.logsHub.Publish(pubsub.NewMessage(string(ethMsg), eth.EncEvent(data)))
+	s.logsHub.Publish(pubsub.NewMessage(string(ethMsg), eth.EncSubscriptionEvent(data)))
 	return nil
 }
 
