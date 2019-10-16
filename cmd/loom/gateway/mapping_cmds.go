@@ -290,11 +290,30 @@ func newMapAccountsCommand() *cobra.Command {
 					Local:   crypto.PubkeyToAddress(ethOwnerKey.PublicKey).Bytes(),
 				}
 
+				_, err = getNonce(mapper, localOwnerAddr)
+				if err != nil {
+					return fmt.Errorf("GetNonce Error %v", err)
+				}
+
 				hash := ssha.SoliditySHA3(
-					[]string{"address", "address"},
+					[]string{"address", "address", "string"},
 					localOwnerAddr.Local.String(),
 					foreignOwnerAddr.Local.String(),
+					// ssha.Uint64(nonce),
+					ssha.String(foreignOwnerAddr.ChainID),
 				)
+				fmt.Printf("H1: %+v\n", hash)
+				hash1 := ssha.SoliditySHA3(
+					ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
+					ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
+					// ssha.Uint64(nonce),
+					ssha.String(foreignOwnerAddr.ChainID),
+				)
+				fmt.Printf("H2: %+v\n", hash1)
+				// fmt.Println("localOWN chainID", localOwnerAddr.Local.String())
+				// fmt.Println("foreign  chainID", foreignOwnerAddr.Local.String())
+				// fmt.Println("localOWN chainID", localOwnerAddr.ChainID)
+				fmt.Println("mapper sign with foreign  chainID", foreignOwnerAddr.ChainID)
 
 				sign, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
 				if err != nil {
@@ -309,6 +328,7 @@ func newMapAccountsCommand() *cobra.Command {
 
 				ethAddressStr = crypto.PubkeyToAddress(ethOwnerKey.PublicKey).String()
 			} else {
+				fmt.Println("PASS 4")
 				addr, err := loom.LocalAddressFromHexString(ethAddressStr)
 				if err != nil {
 					return errors.Wrap(err, "invalid ethAddressStr")
@@ -317,11 +337,17 @@ func newMapAccountsCommand() *cobra.Command {
 					ChainID: "eth",
 					Local:   addr,
 				}
+				nonce, err := getNonce(mapper, localOwnerAddr)
+				if err != nil {
+					return fmt.Errorf("GetNonce Error %v", err)
+				}
 
 				hash := ssha.SoliditySHA3(
-					[]string{"address", "address"},
+					[]string{"address", "address", "uint64", "string"},
 					localOwnerAddr.Local.String(),
 					foreignOwnerAddr.Local.String(),
+					ssha.Uint64(nonce),
+					ssha.String(foreignOwnerAddr.ChainID),
 				)
 
 				sign, err := getSignatureInteractive(hash, evmcompat.SignatureType_GETH)
@@ -358,7 +384,7 @@ func newMapAccountsCommand() *cobra.Command {
 					return nil
 				}
 			}
-
+			fmt.Println("BEFORE CALL ADDIDENTITY")
 			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
 
 			if err == nil {
@@ -373,6 +399,47 @@ func newMapAccountsCommand() *cobra.Command {
 	cmdFlags.BoolVar(&interactive, "interactive", false, "Make the mapping of an account interactive by requiring the signature to be provided by the user instead of signing inside the client.")
 	return cmd
 }
+
+// func GetNonceAddressMapperCmd() *cobra.Command {
+// 	var flags cli.ContractCallFlags
+// 	cmd := &cobra.Command{
+// 		Use:   "get-nonce",
+// 		Short: "get-account-nonce",
+// 		RunE: func(cmd *cobra.Command, args []string) error {
+// 			resp := &amtypes.AddressMapperGetNonceRequest{}
+// 			err := cli.StaticCallContractWithFlags(
+// 				&flags, Addre, "ListReferrers", &dposv3.ListReferrersRequest{}, &resp,
+// 			)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			type maxLength struct {
+// 				Name    int
+// 				Address int
+// 			}
+// 			ml := maxLength{Name: 20, Address: 50}
+
+// 			for _, r := range resp.Referrers {
+// 				if ml.Name < len(r.Name) {
+// 					ml.Name = len(r.Name)
+// 				}
+// 			}
+
+// 			fmt.Printf("%-*s | %-*s \n", ml.Name, "referrer name", ml.Address, "address")
+// 			fmt.Printf(strings.Repeat("-", ml.Name+ml.Address+4) + "\n")
+// 			for _, r := range resp.Referrers {
+// 				fmt.Printf(
+// 					"%-*s | %-*s "+"\n",
+// 					ml.Name, r.Name, ml.Address, loom.UnmarshalAddressPB(r.GetReferrerAddress()).String(),
+// 				)
+// 			}
+
+// 			return nil
+// 		},
+// 	}
+// 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+// 	return cmd
+// }
 
 const ListContractMappingCmdExample = `
 loom gateway list-contract-mappings
@@ -603,6 +670,20 @@ func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Addre
 		return loom.Address{}, err
 	}
 	return loom.UnmarshalAddressPB(resp.To), nil
+}
+
+func getNonce(mapper *client.Contract, account loom.Address) (uint64, error) {
+	req := &amtypes.AddressMapperGetNonceRequest{
+		Address: account.MarshalPB(),
+	}
+	resp := &amtypes.AddressMapperGetNonceResponse{}
+	_, err := mapper.StaticCall("GetNonce", req, account, resp)
+	if err != nil {
+		return 0, err
+	}
+	fmt.Printf("getNonce Resp %+v\n", resp)
+	fmt.Printf("getNonce Resp %d\n", resp.Nonce)
+	return resp.Nonce, nil
 }
 
 func getDAppChainClient() *client.DAppChainRPCClient {

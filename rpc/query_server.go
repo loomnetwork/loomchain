@@ -208,8 +208,10 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
+	fmt.Printf("queryplugin caller %s, %+v\n", caller.ChainID, caller.Local.String())
 	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
+		fmt.Println("queryPlugin")
 		return nil, errors.Wrap(err, "failed to resolve account address")
 	}
 
