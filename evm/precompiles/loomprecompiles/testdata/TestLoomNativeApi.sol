@@ -19,8 +19,8 @@ contract TestLoomNativeApi {
         // restrict from chain id to length 256 so as to hold length in one byte.
         bytes memory fromB = bytes(fromChainId);
         require(fromB.length < 256, "chain id too long");
-
-        return address(callPFAssembly(MapToAddress, packInput(addr, fromB, bytes(0)), addressLength));
+        bytes memory empty;
+        return address(callPFAssembly(MapToAddress, packInput(addr, fromB, empty), addressLength));
     }
 
     // Calls MapToAddress precompiled EVM function.this.
@@ -38,7 +38,7 @@ contract TestLoomNativeApi {
     // Encode from and to chain ids and local address into bytes object for passing to pre-complied function
     // [<addr - 20 bytes>, <length of from chain id, 1 byte>, <from chain id>, <optional to chain id, rest of array>]
     function packInput(address addr, bytes memory fromChainId,  bytes memory toChainId) pure internal returns (bytes memory) {
-        bytes memory input = new bytes(fromChainId.length + toB.length + 21);
+        bytes memory input = new bytes(fromChainId.length + toChainId.length + 21);
 
         //convert address to bytes
         for (uint i = 0; i < 20; i++) {
