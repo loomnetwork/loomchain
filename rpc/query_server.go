@@ -277,9 +277,14 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
-	caller, err := s.getEthAccount(query.From)
-	if err != nil {
-		return resp, err
+	var caller loom.Address
+	if len(query.From) > 0 {
+		caller, err = s.getEthAccount(query.From)
+		if err != nil {
+			return resp, err
+		}
+	} else {
+		caller = loom.RootAddress(s.ChainID)
 	}
 
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
