@@ -277,16 +277,11 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
-	var caller loom.Address
-	// TODO: This is wrong, the caller chain ID should be assumed to be "eth:"
-	if len(query.From) > 0 {
-		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
-		if err != nil {
-			return resp, err
-		}
-	} else {
-		caller = loom.RootAddress(s.ChainID)
+	caller, err := s.getEthAccount(query.From)
+	if err != nil {
+		return resp, err
 	}
+
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
 		return resp, err
@@ -1009,6 +1004,11 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 // The input address is assumed to be an Ethereum account address, so it'll be mapped to a local
 // account, and the transaction count returned will be for that local account.
 func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+	resolvedAddr, err := s.getEthAccount(address)
+	if err != nil {
+		return eth.Quantity("0x0"), errors.Wrap(err, "failed to resolve account address")
+	}
+
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -1019,19 +1019,6 @@ func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHe
 
 	if height != uint64(snapshot.Block().Height) {
 		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
-	}
-
-	addrBytes, err := eth.DecDataToBytes(address)
-	if err != nil {
-		return eth.Quantity("0x0"), err
-	}
-	addr := loom.Address{
-		ChainID: "eth",
-		Local:   addrBytes,
-	}
-	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
-	if err != nil {
-		return eth.Quantity("0x0"), errors.Wrap(err, "failed to resolve account address")
 	}
 
 	return eth.EncUint(auth.Nonce(snapshot, resolvedAddr)), nil
@@ -1131,6 +1118,21 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 		height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, hash)
 		return uint64(height), err
 	}
+}
+
+func (s *QueryServer) getEthAccount(address eth.Data) (loom.Address, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	addrBytes, err := eth.DecDataToBytes(address)
+	if err != nil {
+		return loom.Address{}, err
+	}
+	addr := loom.Address{
+		ChainID: "eth",
+		Local:   addrBytes,
+	}
+	return auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
 }
 
 func getReceiptByTendermintHash(
