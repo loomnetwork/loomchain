@@ -42,17 +42,23 @@ func CreateFnConsensusReactor(
 	cachedDBProvider node.DBProvider,
 	reactorConfig *fnConsensus.ReactorConfigParsable,
 ) (*fnConsensus.FnConsensusReactor, error) {
-	fnConsensusDB, err := cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
-	if err != nil {
-		return nil, err
+	fnConsensusReactor := &fnConsensus.FnConsensusReactor{}
+	var fnConsensusDB, tmStateDB dbm.DB
+	var err error
+
+	if cachedDBProvider != nil {
+		fnConsensusDB, err = cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
+		if err != nil {
+			return nil, err
+		}
+
+		tmStateDB, err = cachedDBProvider(&node.DBContext{ID: "state", Config: cfg})
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	tmStateDB, err := cachedDBProvider(&node.DBContext{ID: "state", Config: cfg})
-	if err != nil {
-		return nil, err
-	}
-
-	fnConsensusReactor, err := fnConsensus.NewFnConsensusReactor(
+	fnConsensusReactor, err = fnConsensus.NewFnConsensusReactor(
 		chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB, reactorConfig,
 	)
 	if err != nil {
@@ -407,7 +413,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		}
 
 		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
-			dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
+			nil, b.OverrideCfg.FnConsensusReactorConfig)
 		if err != nil {
 			return err
 		}

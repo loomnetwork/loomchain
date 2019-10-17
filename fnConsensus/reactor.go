@@ -313,6 +313,12 @@ func (f *FnConsensusReactor) getValidatorSet() *types.ValidatorSet {
 func (f *FnConsensusReactor) initRoutine() {
 	var currentState state.State
 
+	if !f.cfg.IsValidator {
+		go f.voteRoutine()
+		go f.commitRoutine()
+		return
+	}
+
 	// Wait till state is populated
 	for currentState = state.LoadState(f.tmStateDB); currentState.IsEmpty(); currentState = state.LoadState(f.tmStateDB) {
 		f.Logger.Error("TM state is empty. Cant start progress loop, retrying in some time...")
