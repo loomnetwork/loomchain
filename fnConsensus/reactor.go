@@ -983,14 +983,14 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte) {
 	switch chID {
 	case FnVoteSetChannel:
-		if f.cfg.IsValidator == false {
-			f.forwardVoteSet(msgBytes)
+		if !f.cfg.IsValidator {
+			f.forwardVoteSet(sender, msgBytes)
 		} else {
 			f.handleVoteSetChannelMessage(sender, msgBytes)
 		}
 	case FnMajChannel:
-		if f.cfg.IsValidator == false {
-			f.forwardMaj23VoteSet(msgBytes)
+		if !f.cfg.IsValidator {
+			f.forwardMaj23VoteSet(sender, msgBytes)
 		} else {
 			f.handleMaj23VoteSetChannel(sender, msgBytes)
 		}
@@ -999,7 +999,7 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 	}
 }
 
-func (f *FnConsensusReactor) forwardMaj23VoteSet(msgBytes []byte) {
+func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byte) {
 	// check if this node part of validator, if not broadcast the msg
 	remoteVoteSet := &FnVoteSet{}
 	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
@@ -1010,12 +1010,13 @@ func (f *FnConsensusReactor) forwardMaj23VoteSet(msgBytes []byte) {
 		return
 	}
 
-	f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+	broadCastException := sender.ID()
+	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
 
 	return
 }
 
-func (f *FnConsensusReactor) forwardVoteSet(msgBytes []byte) {
+func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
 	// check if this node part of validator, if not broadcast the msg
 	remoteVoteSet := &FnVoteSet{}
 	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
@@ -1026,7 +1027,8 @@ func (f *FnConsensusReactor) forwardVoteSet(msgBytes []byte) {
 		return
 	}
 
-	f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+	broadCastException := sender.ID()
+	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
 
 	return
 }
