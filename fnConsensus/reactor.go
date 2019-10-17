@@ -749,10 +749,6 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	if f.cfg.SignerEnabled {
-		f.forwardMaj23VoteSet(msgBytes)
-	}
-
 	// We might have recently changed validator set, so maybe this voteset is valid with
 	// previousValidatorSet and not current. We dont need to validate the proposer, as it might be
 	// outdated in our case.
@@ -850,10 +846,6 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 			"err", err, "method", voteSetMsgHandlerMethodID,
 		)
 		return
-	}
-
-	if f.cfg.SignerEnabled {
-		f.forwardVoteSet(msgBytes)
 	}
 
 	fnID := remoteVoteSet.GetFnID()
@@ -991,9 +983,17 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte) {
 	switch chID {
 	case FnVoteSetChannel:
-		f.handleVoteSetChannelMessage(sender, msgBytes)
+		if f.cfg.IsValidator == false {
+			f.forwardVoteSet(msgBytes)
+		} else {
+			f.handleVoteSetChannelMessage(sender, msgBytes)
+		}
 	case FnMajChannel:
-		f.handleMaj23VoteSetChannel(sender, msgBytes)
+		if f.cfg.IsValidator == false {
+			f.forwardMaj23VoteSet(msgBytes)
+		} else {
+			f.handleMaj23VoteSetChannel(sender, msgBytes)
+		}
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
@@ -1001,16 +1001,32 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 
 func (f *FnConsensusReactor) forwardMaj23VoteSet(msgBytes []byte) {
 	// check if this node part of validator, if not broadcast the msg
-	if f.cfg.IsValidator == false {
-		f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+	remoteVoteSet := &FnVoteSet{}
+	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", voteSetMsgHandlerMethodID,
+		)
+		return
 	}
+
+	f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+
 	return
 }
 
 func (f *FnConsensusReactor) forwardVoteSet(msgBytes []byte) {
 	// check if this node part of validator, if not broadcast the msg
-	if f.cfg.IsValidator == false {
-		f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+	remoteVoteSet := &FnVoteSet{}
+	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", voteSetMsgHandlerMethodID,
+		)
+		return
 	}
+
+	f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+
 	return
 }

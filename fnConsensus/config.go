@@ -66,6 +66,5 @@ func DefaultReactorConfigParsable() *ReactorConfigParsable {
 type ReactorConfig struct {
 	FnVoteSigningThreshold SigningThreshold
 	OverrideValidators     []*OverrideValidator
-	SignerEnabled          bool
 	IsValidator            bool
 }
