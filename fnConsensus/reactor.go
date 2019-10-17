@@ -1000,7 +1000,6 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 }
 
 func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byte) {
-	// check if this node part of validator, if not broadcast the msg
 	remoteVoteSet := &FnVoteSet{}
 	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
 		f.Logger.Error(
@@ -1017,7 +1016,6 @@ func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byt
 }
 
 func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
-	// check if this node part of validator, if not broadcast the msg
 	remoteVoteSet := &FnVoteSet{}
 	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
 		f.Logger.Error(
