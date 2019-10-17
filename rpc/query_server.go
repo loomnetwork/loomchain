@@ -157,10 +157,12 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 		Local:   localContractAddr,
 	}
 
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 	if vmType == lvm.VMType_PLUGIN {
-		return s.queryPlugin(callerAddr, contractAddr, query)
+		return s.queryPlugin(snapshot, callerAddr, contractAddr, query)
 	} else {
-		return s.queryEvm(callerAddr, contractAddr, query)
+		return s.queryEvm(snapshot, callerAddr, contractAddr, query)
 	}
 }
 
@@ -204,19 +206,16 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 	return &envInfo, err
 }
 
-func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+func (s *QueryServer) queryPlugin(state loomchain.State, caller, contract loom.Address, query []byte) ([]byte, error) {
+	callerAddr, err := auth.ResolveAccountAddress(caller, state, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve account address")
 	}
 
 	vm := lcp.NewPluginVM(
 		s.Loader,
-		snapshot,
-		s.CreateRegistry(snapshot),
+		state,
+		s.CreateRegistry(state),
 		nil,
 		log.Default,
 		s.NewABMFactory,
@@ -245,11 +244,8 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 	return resp.Body, nil
 }
 
-func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+func (s *QueryServer) queryEvm(state loomchain.State, caller, contract loom.Address, query []byte) ([]byte, error) {
+	callerAddr, err := auth.ResolveAccountAddress(caller, state, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve account address")
 	}
@@ -258,8 +254,8 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 	if s.NewABMFactory != nil {
 		pvm := lcp.NewPluginVM(
 			s.Loader,
-			snapshot,
-			s.CreateRegistry(snapshot),
+			state,
+			s.CreateRegistry(state),
 			nil,
 			log.Default,
 			s.NewABMFactory,
@@ -271,13 +267,15 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false)
+	vm := levm.NewLoomVm(state, nil, nil, createABM, false)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
 	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
 	var caller loom.Address
 	if len(query.From) > 0 {
 		caller, err = s.getEthAccount(snapshot, query.From)
@@ -287,7 +285,6 @@ func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight)
 	} else {
 		caller = loom.RootAddress(s.ChainID)
 	}
-	snapshot.Release()
 
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
@@ -297,7 +294,7 @@ func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight)
 	if err != nil {
 		return resp, err
 	}
-	bytes, err := s.queryEvm(caller, contract, data)
+	bytes, err := s.queryEvm(snapshot, caller, contract, data)
 	return eth.EncBytes(bytes), err
 }
 
