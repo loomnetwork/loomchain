@@ -221,7 +221,7 @@ func (s *EvmStore) Commit(version int64) []byte {
 
 	// Only commit Patricia tree every N blocks
 	if flushInterval == 0 || version%flushInterval == 0 {
-		if len(currentRoot) > 0 && !bytes.Equal(defaultRoot, currentRoot) {
+		if !bytes.Equal(defaultRoot, currentRoot) && !bytes.Equal(currentRoot, s.lastSavedRoot) {
 			if err := s.trieDB.Commit(gcommon.BytesToHash(currentRoot), false); err != nil {
 				panic(err)
 			}
@@ -231,7 +231,7 @@ func (s *EvmStore) Commit(version int64) []byte {
 		}
 
 		// We have to save default root
-		if bytes.Equal(defaultRoot, currentRoot) {
+		if bytes.Equal(defaultRoot, currentRoot) && !bytes.Equal(currentRoot, s.lastSavedRoot) {
 			s.Set(evmRootKey(version), currentRoot)
 		}
 	}
