@@ -84,7 +84,7 @@ func TestMigration(t *testing.T) {
 
 	err = dposv2Contract.ProcessRequestBatch(contractpb.WrapPluginContext(dposv2Ctx.WithSender(addr1)), &dposv2.RequestBatch{
 		Batch: []*dposv2.BatchRequest{
-			&dposv2.BatchRequest{
+			{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&dposv2.WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
