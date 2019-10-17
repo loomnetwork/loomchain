@@ -1016,16 +1016,16 @@ func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHe
 
 	resolvedAddr, err := s.getEthAccount(snapshot, address)
 	if err != nil {
-		return eth.Quantity("0x0"), err
+		return eth.ZeroedQuantity, err
 	}
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
-		return eth.Quantity("0x0"), err
+		return eth.ZeroedQuantity, err
 	}
 
 	if height != uint64(snapshot.Block().Height) {
-		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
+		return eth.ZeroedQuantity, errors.New("transaction count only available for the latest block")
 	}
 
 	return eth.EncUint(auth.Nonce(snapshot, resolvedAddr)), nil
