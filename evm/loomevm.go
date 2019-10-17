@@ -18,6 +18,7 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts"
@@ -106,7 +107,12 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 		nil,
 	)
 	receiptHandler := receiptHandlerProvider.Writer()
-	return NewLoomVm(state, nil, eventHandler, receiptHandler, nil, debug), nil
+	evmDB, err := cdb.LoadDB("memdb", "", "", 256, 4, false)
+	if err != nil {
+		panic(err)
+	}
+	evmStore := store.NewEvmStore(evmDB, 100, 0)
+	return NewLoomVm(state, evmStore, eventHandler, receiptHandler, nil, debug), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.

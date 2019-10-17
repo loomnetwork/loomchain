@@ -43,9 +43,6 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 		panic(err)
 	}
 	evmStore := store.NewEvmStore(evmDB, 100, 0)
-	if err := evmStore.LoadVersion(0); err != nil {
-		panic(err)
-	}
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state,
