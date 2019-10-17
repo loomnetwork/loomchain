@@ -5,8 +5,9 @@ package address_mapper
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
@@ -69,8 +70,8 @@ func nonceKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte(NoncePrefix), addr.Bytes())
 }
 
-func multiChainAddressKey(addr loom.Address, targetChainID string, sequence uint64) []byte {
-	return util.PrefixKey([]byte(AddressPrefix), addr.Bytes(), []byte(targetChainID), UintToBytesBigEndian(sequence))
+func multiChainAddressKey(addr loom.Address, targetChainID string, sequence uint8) []byte {
+	return util.PrefixKey([]byte(AddressPrefix), addr.Bytes(), []byte(targetChainID), []byte{sequence})
 }
 
 func multiChainMappingRangePrefix(addr loom.Address, targetChainID string) []byte {
@@ -127,20 +128,20 @@ func addIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) er
 		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_BINANCE)
 	}
 
-	fromNonce, err := getNonce(ctx, from)
-	if err != nil {
-		return errors.Wrapf(err, "get nonce fail for address %s", from.Local.String())
-	}
-	toNonce, err := getNonce(ctx, to)
-	if err != nil {
-		return errors.Wrapf(err, "get nonce fail for address %s", to.Local.String())
-	}
 	callerAddr := ctx.Message().Sender
 	if callerAddr.Compare(from) == 0 {
+		fromNonce, err := getNonce(ctx, from)
+		if err != nil {
+			return errors.Wrapf(err, "get nonce fail for address %s", from.Local.String())
+		}
 		if err := verifySig(from, to, to.ChainID, req.Signature, allowedSigTypes, fromNonce); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
 	} else if callerAddr.Compare(to) == 0 {
+		toNonce, err := getNonce(ctx, to)
+		if err != nil {
+			return errors.Wrapf(err, "get nonce fail for address %s", to.Local.String())
+		}
 		if err := verifySig(from, to, from.ChainID, req.Signature, allowedSigTypes, toNonce); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
@@ -152,6 +153,8 @@ func addIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) er
 	var mapping AddressMapping
 	mappingRange := ctx.Range(addressKey(from))
 	for _, m := range mappingRange {
+		fmt.Println("from Key : ", m.Key)
+		fmt.Println("from Val : ", m.Value)
 		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
 			return err
 		}
@@ -160,7 +163,23 @@ func addIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) er
 		}
 	}
 
-	err = ctx.Set(multiChainAddressKey(from, req.To.ChainId, fromNonce), &AddressMapping{
+	// var rangedata plugin.RangeData
+	sequenceRange := ctx.Range(multiChainMappingRangePrefix(from, from.ChainID))
+	for _, s := range sequenceRange {
+		fmt.Println("from Key : ", s.Key)
+		fmt.Println("from Val : ", s.Value)
+	}
+	fmt.Println("SEQ")
+	sequenceRange = ctx.Range(multiChainMappingRangePrefix(to, to.ChainID))
+	for _, s := range sequenceRange {
+		fmt.Println("to   Key : ", s.Key)
+		fmt.Println("to   Val : ", s.Value)
+	}
+
+	r1 := rand.New(rand.NewSource(time.Now().UnixNano()))
+	a := r1.Intn(255)
+	b := r1.Intn(255)
+	err := ctx.Set(multiChainAddressKey(from, req.To.ChainId, uint8(a)), &AddressMapping{
 		From: req.From,
 		To:   req.To,
 	})
@@ -168,7 +187,7 @@ func addIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) er
 		return err
 	}
 
-	err = ctx.Set(multiChainAddressKey(to, req.From.ChainId, toNonce), &AddressMapping{
+	err = ctx.Set(multiChainAddressKey(to, req.From.ChainId, uint8(b)), &AddressMapping{
 		From: req.To,
 		To:   req.From,
 	})
@@ -493,12 +512,6 @@ func MultiChainSignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey,
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})
-
-func UintToBytesBigEndian(height uint64) []byte {
-	heightB := make([]byte, 8)
-	binary.BigEndian.PutUint64(heightB, height)
-	return heightB
-}
 
 func getNonce(ctx contract.StaticContext, addr loom.Address) (uint64, error) {
 	var nonce Nonce
