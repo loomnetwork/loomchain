@@ -29,6 +29,7 @@ func NewGatewayCommand() *cobra.Command {
 		newUpdateMainnetGatewayAddressCommand(),
 		newUpdateMainnetHotWalletAddressCommand(),
 		newSetWithdrawLimitCommand(),
+		newGetPendingDepositedUserHotWalletCommand(),
 	)
 	return cmd
 }

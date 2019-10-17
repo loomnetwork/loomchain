@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -609,4 +610,47 @@ func getDAppChainClient() *client.DAppChainRPCClient {
 	writeURI := gatewayCmdFlags.URI + "/rpc"
 	readURI := gatewayCmdFlags.URI + "/query"
 	return client.NewDAppChainRPCClient(gatewayCmdFlags.ChainID, writeURI, readURI)
+}
+
+const ListPendingDepositedUserHotWallet = `
+loom gateway list-deposited-user-hot-wallet
+`
+
+func newGetPendingDepositedUserHotWalletCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "list-deposited-user-hot-wallet",
+		Short:   "List all user hot-wallets that has balance",
+		Example: ListPendingDepositedUserHotWallet,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayGetUserHotWalletRequest{}
+			resp := &tgtypes.TransferGatewayListPendingUserHotWalletDepositedResponse{}
+
+			_, err = gateway.StaticCall("ListPendingUserHotWalletDeposited", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.ListPendingUserHotWalletDeposited")
+			}
+			out, err := formatJSON(resp)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile("deposited_user_hot_wallet.json", []byte(out), 0664); err != nil {
+				return fmt.Errorf("Unable to write output file: %v", err)
+			}
+
+			fmt.Println("Exported to deposited_user_hot_wallet.json")
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	return cmd
 }
