@@ -749,11 +749,8 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	if f.cfg.FnConcensusSignerCfg.Enabled {
-		// check if this node part of validator, if not broadcast the msg
-		if f.cfg.FnConcensusSignerCfg.Validator == false {
-			f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
-		}
+	if f.cfg.SignerEnabled {
+		f.forwardMaj23VoteSet(msgBytes)
 	}
 
 	// We might have recently changed validator set, so maybe this voteset is valid with
@@ -855,11 +852,8 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		return
 	}
 
-	if f.cfg.FnConcensusSignerCfg.Enabled {
-		// check if this node part of validator, if not broadcast the msg
-		if f.cfg.FnConcensusSignerCfg.Validator == false {
-			f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
-		}
+	if f.cfg.SignerEnabled {
+		f.forwardVoteSet(msgBytes)
 	}
 
 	fnID := remoteVoteSet.GetFnID()
@@ -1003,4 +997,20 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
+}
+
+func (f *FnConsensusReactor) forwardMaj23VoteSet(msgBytes []byte) {
+	// check if this node part of validator, if not broadcast the msg
+	if f.cfg.IsValidator == false {
+		f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+	}
+	return
+}
+
+func (f *FnConsensusReactor) forwardVoteSet(msgBytes []byte) {
+	// check if this node part of validator, if not broadcast the msg
+	if f.cfg.IsValidator == false {
+		f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+	}
+	return
 }
