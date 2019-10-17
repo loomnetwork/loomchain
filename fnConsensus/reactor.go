@@ -749,6 +749,13 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
+	if f.cfg.FnConcensusSignerCfg.Enabled {
+		// check if this node part of validator, if not broadcast the msg
+		if f.cfg.FnConcensusSignerCfg.Validator == false {
+			f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+		}
+	}
+
 	// We might have recently changed validator set, so maybe this voteset is valid with
 	// previousValidatorSet and not current. We dont need to validate the proposer, as it might be
 	// outdated in our case.
@@ -846,6 +853,13 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 			"err", err, "method", voteSetMsgHandlerMethodID,
 		)
 		return
+	}
+
+	if f.cfg.FnConcensusSignerCfg.Enabled {
+		// check if this node part of validator, if not broadcast the msg
+		if f.cfg.FnConcensusSignerCfg.Validator == false {
+			f.broadcastMsgSync(FnVoteSetChannel, nil, msgBytes)
+		}
 	}
 
 	fnID := remoteVoteSet.GetFnID()

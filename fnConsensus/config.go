@@ -18,6 +18,11 @@ type OverrideValidator struct {
 	VotingPower int64
 }
 
+type FnConcensusSigner struct {
+	Enabled   bool
+	Validator bool
+}
+
 type ReactorConfigParsable struct {
 	OverrideValidators     []*OverrideValidatorParsable
 	FnVoteSigningThreshold SigningThreshold
@@ -66,4 +71,5 @@ func DefaultReactorConfigParsable() *ReactorConfigParsable {
 type ReactorConfig struct {
 	FnVoteSigningThreshold SigningThreshold
 	OverrideValidators     []*OverrideValidator
+	FnConcensusSignerCfg   FnConcensusSigner
 }
