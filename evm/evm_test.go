@@ -209,17 +209,11 @@ func TestGlobals(t *testing.T) {
 	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
 	abiGP, gPAddr := deploySolContract(t, caller, "GlobalProperties", vm)
 
-	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testNow(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testBlockTimeStamp(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testBlockNumber(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testTxOrigin(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testMsgSender(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testMsgValue(t, abiGP, caller, gPAddr, vm)
 }
 
