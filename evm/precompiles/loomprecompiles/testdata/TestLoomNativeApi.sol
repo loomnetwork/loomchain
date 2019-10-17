@@ -10,7 +10,7 @@ contract TestLoomNativeApi {
     }
 
     // LoomApi library
-    address constant MapToAddress = 0x0000000000000000000000000000000000000022;
+    address constant MapToAddress = 0x0000000000000000000000000000000000000021;
     uint constant addressLength = 0x14;
 
     // Calls MapToLoomAddress precompiled EVM function.this.

@@ -31,7 +31,7 @@ func (ma *mapToAddress) RequiredGas(input []byte) uint64 {
 // Input encodes from and to chain ids and local address into a byte array
 // [<addr - 20 bytes>, <length of from chain id, 1 byte>, <from chain id>, <optional to chain id, rest of array>]
 func (ma *mapToAddress) Run(input []byte) ([]byte, error) {
-	if len(input) < 23 || uint(len(input)) < 22+uint(input[20]) {
+	if len(input) < 21 || uint(len(input)) < 21+uint(input[20]) {
 		return nil, errors.Errorf("mapBetweenAccounts input too short %x", input)
 	}
 

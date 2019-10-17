@@ -1,7 +1,7 @@
 pragma solidity >=0.4.21;
 
 library LoomNativeApi {
-    address constant MapToAddress = 0x0000000000000000000000000000000000000022;
+    address constant MapToAddress = 0x0000000000000000000000000000000000000021;
     uint constant addressLength = 0x14;
 
     // Calls MapToLoomAddress precompiled EVM function.this.
@@ -10,8 +10,8 @@ library LoomNativeApi {
         // restrict from chain id to length 256 so as to hold length in one byte.
         bytes memory fromB = bytes(fromChainId);
         require(fromB.length < 256, "chain id too long");
-
-        return address(callPFAssembly(MapToAddress, packInput(addr, fromB, bytes(0)), addressLength));
+        bytes memory empty;
+        return address(callPFAssembly(MapToAddress, packInput(addr, fromB, empty), addressLength));
     }
 
     // Calls MapToAddress precompiled EVM function.this.
@@ -29,7 +29,7 @@ library LoomNativeApi {
     // Encode from and to chain ids and local address into bytes object for passing to pre-complied function
     // [<addr - 20 bytes>, <length of from chain id, 1 byte>, <from chain id>, <optional to chain id, rest of array>]
     function packInput(address addr, bytes memory fromChainId,  bytes memory toChainId) pure internal returns (bytes memory) {
-        bytes memory input = new bytes(fromChainId.length + toB.length + 21);
+        bytes memory input = new bytes(fromChainId.length + toChainId.length + 21);
 
         //convert address to bytes
         for (uint i = 0; i < 20; i++) {
