@@ -187,13 +187,6 @@ func EncEvent(log types.EventData) JsonLog {
 	return jLog
 }
 
-func EncSubscriptionEvent(log types.EventData) JsonLog {
-	jLog := EncEvent(log)
-	jLog.BlockTime = EncInt(log.BlockTime)
-
-	return jLog
-}
-
 func EncLogs(logs []*types.EthFilterLog) []JsonLog {
 
 	jLogs := make([]JsonLog, 0, len(logs))
