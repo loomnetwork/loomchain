@@ -277,15 +277,17 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
+	snapshot := s.StateProvider.ReadOnlyState()
 	var caller loom.Address
 	if len(query.From) > 0 {
-		caller, err = s.getEthAccount(query.From)
+		caller, err = s.getEthAccount(snapshot, query.From)
 		if err != nil {
 			return resp, err
 		}
 	} else {
 		caller = loom.RootAddress(s.ChainID)
 	}
+	snapshot.Release()
 
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
@@ -1009,13 +1011,13 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 // The input address is assumed to be an Ethereum account address, so it'll be mapped to a local
 // account, and the transaction count returned will be for that local account.
 func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
-	resolvedAddr, err := s.getEthAccount(address)
-	if err != nil {
-		return eth.Quantity("0x0"), errors.Wrap(err, "failed to resolve account address")
-	}
-
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
+
+	resolvedAddr, err := s.getEthAccount(snapshot, address)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
@@ -1125,10 +1127,7 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	}
 }
 
-func (s *QueryServer) getEthAccount(address eth.Data) (loom.Address, error) {
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
+func (s *QueryServer) getEthAccount(state loomchain.State, address eth.Data) (loom.Address, error) {
 	addrBytes, err := eth.DecDataToBytes(address)
 	if err != nil {
 		return loom.Address{}, err
@@ -1137,7 +1136,11 @@ func (s *QueryServer) getEthAccount(address eth.Data) (loom.Address, error) {
 		ChainID: "eth",
 		Local:   addrBytes,
 	}
-	return auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	ethAddr, err := auth.ResolveAccountAddress(addr, state, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return loom.Address{}, errors.Wrap(err, "failed to resolve account address")
+	}
+	return ethAddr, nil
 }
 
 func getReceiptByTendermintHash(
