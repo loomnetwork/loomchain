@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -60,7 +59,6 @@ type StoreState struct {
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
 	config          *cctypes.Config
-	trieDB          *trie.Database
 }
 
 var _ = State(&StoreState{})

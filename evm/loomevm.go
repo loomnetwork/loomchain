@@ -81,9 +81,6 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	if err != nil {
 		return root, err
 	}
-	// if err := levm.sdb.Database().TrieDB().Commit(root, false); err != nil {
-	// 	return root, err
-	// }
 	if err := levm.db.Put(rootKey, root[:]); err != nil {
 		return root, err
 	}
