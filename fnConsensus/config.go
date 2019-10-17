@@ -21,6 +21,7 @@ type OverrideValidator struct {
 type ReactorConfigParsable struct {
 	OverrideValidators     []*OverrideValidatorParsable
 	FnVoteSigningThreshold SigningThreshold
+	IsValidator            bool
 }
 
 func (r *ReactorConfigParsable) Parse() (*ReactorConfig, error) {

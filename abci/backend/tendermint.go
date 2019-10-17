@@ -403,16 +403,19 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			return err
 		}
 
-		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
-			dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
-		if err != nil {
-			return err
-		}
+		reactorConfig := b.OverrideCfg.FnConsensusReactorConfig
+		if reactorConfig.IsValidator {
+			fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
+				dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
+			if err != nil {
+				return err
+			}
 
-		reactorRegistrationRequests = append(reactorRegistrationRequests, &node.ReactorRegistrationRequest{
-			Name:    "FNCONSENSUS",
-			Reactor: fnConsensusReactor,
-		})
+			reactorRegistrationRequests = append(reactorRegistrationRequests, &node.ReactorRegistrationRequest{
+				Name:    "FNCONSENSUS",
+				Reactor: fnConsensusReactor,
+			})
+		}
 	}
 
 	if b.SocketPath != "" {
