@@ -21,6 +21,7 @@ type Data string
 type BlockHeight string
 
 const (
+	NoData             Data     = "0x"
 	ZeroedQuantity     Quantity = "0x0"
 	ZeroedData         Data     = "0x0"
 	ZeroedData8Bytes   Data     = "0x0000000000000000"
@@ -103,7 +104,7 @@ type JsonTxCallObject struct {
 	GasPrice Quantity `json:"gasPrice,omitempty"`
 	Value    Quantity `json:"value,omitempty"`
 	Data     Data     `json:"data,omitempty"`
-	Nonce    Quantity `json:"nonce.omitempty"`
+	Nonce    Quantity `json:"nonce,omitempty"`
 }
 
 type JsonFilter struct {
@@ -166,11 +167,12 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 }
 
 func EncEvent(log types.EventData) JsonLog {
-	data := ZeroedData64bytes
+	data := NoData
 	if len(log.EncodedBody) > 0 {
 		data = EncBytes(log.EncodedBody)
 	}
 
+	// TODO: Copy log.BlockTime
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),
@@ -227,9 +229,6 @@ func EncBigInt(value big.Int) Quantity {
 // Hex
 func EncBytes(value []byte) Data {
 	bytesStr := "0x" + hex.EncodeToString(value)
-	if bytesStr == "0x" {
-		bytesStr = "0x0"
-	}
 	return Data(strings.ToLower(bytesStr))
 }
 

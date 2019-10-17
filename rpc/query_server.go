@@ -278,6 +278,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
 	var caller loom.Address
+	// TODO: This is wrong, the caller chain ID should be assumed to be "eth:"
 	if len(query.From) > 0 {
 		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
 		if err != nil {
@@ -744,14 +745,13 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		return nil, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
+		// TODO: Log the error, this fallback should be happening very rarely so we should probably
+		//       setup an alert to detect when this happens.
 		// if the receipt is not found, create it from TxObj
-		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash, s.EvmAuxStore)
+		resp, err := getReceiptByTendermintHash(s.BlockStore, r, txHash, s.EvmAuxStore)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
 				// return nil response if cannot find hash
@@ -761,7 +761,6 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		}
 		return resp, nil
 	}
-	snapshot.Release()
 
 	height := int64(txReceipt.BlockNumber)
 	blockResult, err := s.BlockStore.GetBlockByHeight(&height)
@@ -774,15 +773,26 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 			txReceipt.TransactionIndex, len(blockResult.Block.Data.Txs),
 		)
 	}
+	// TODO: We've got a receipt at this point, the only thing it's missing is the block timestamp in
+	//       the event logs (which can be obtained from blockResult), loading the tx result at this
+	//       point seems like a waste of time.
 	txResults, err := s.BlockStore.GetTxResult(blockResult.Block.Data.Txs[txReceipt.TransactionIndex].Hash())
 	if err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "not found") {
-			// return nil response if cannot find hash
-			return nil, nil
+			blockResults, err := s.BlockStore.GetBlockResults(&height)
+			if err != nil ||
+				blockResults == nil ||
+				len(blockResults.Results.DeliverTx) <= int(txReceipt.TransactionIndex) ||
+				blockResults.Results.DeliverTx[txReceipt.TransactionIndex] == nil {
+				return nil, nil
+			}
+			return completeReceipt(
+				blockResults.Results.DeliverTx[txReceipt.TransactionIndex], blockResult, &txReceipt,
+			), nil
 		}
 		return nil, err
 	}
-	return completeReceipt(txResults, blockResult, &txReceipt), nil
+	return completeReceipt(&txResults.TxResult, blockResult, &txReceipt), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblocktransactioncountbyhash
@@ -847,12 +857,10 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 		return resp, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	r := s.ReceiptHandlerProvider.Reader()
-	txObj, err := query.GetTxByHash(snapshot, s.BlockStore, txHash, r, s.EvmAuxStore)
+	txObj, err := query.GetTxByHash(s.BlockStore, txHash, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore)
 	if err != nil {
+		// TODO: Should call r.GetReceipt instead of query.GetTxByHash so we don't have to use this
+		//       flimsy error cause checking.
 		if errors.Cause(err) != common.ErrTxReceiptNotFound {
 			return resp, err
 		}
@@ -997,7 +1005,10 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 	return true, nil
 }
 
-func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+// EthGetTransactionCount implements https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactioncount
+// The input address is assumed to be an Ethereum account address, so it'll be mapped to a local
+// account, and the transaction count returned will be for that local account.
+func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -1009,16 +1020,21 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	if height != uint64(snapshot.Block().Height) {
 		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
 	}
-	address, err := eth.DecDataToAddress(s.ChainID, local)
+
+	addrBytes, err := eth.DecDataToBytes(address)
 	if err != nil {
 		return eth.Quantity("0x0"), err
 	}
-	nonce, err := s.Nonce("", address.String())
+	addr := loom.Address{
+		ChainID: "eth",
+		Local:   addrBytes,
+	}
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
-		return eth.Quantity("0x0"), errors.Wrap(err, "requesting transaction count")
+		return eth.Quantity("0x0"), errors.Wrap(err, "failed to resolve account address")
 	}
 
-	return eth.EncUint(nonce), nil
+	return eth.EncUint(auth.Nonce(snapshot, resolvedAddr)), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getbalance
@@ -1118,7 +1134,7 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 }
 
 func getReceiptByTendermintHash(
-	state loomchain.State, blockStore store.BlockStore,
+	blockStore store.BlockStore,
 	rh loomchain.ReadReceiptHandler, hash []byte, evmAuxStore *evmaux.EvmAuxStore,
 ) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
@@ -1156,23 +1172,25 @@ func getReceiptByTendermintHash(
 
 		return &jsonReceipt, nil
 	}
-	return completeReceipt(txResults, blockResult, &txReceipt), nil
+	return completeReceipt(&txResults.TxResult, blockResult, &txReceipt), nil
 }
 
-func completeReceipt(txResults *ctypes.ResultTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt) *eth.JsonTxReceipt {
+func completeReceipt(
+	txResult *abci.ResponseDeliverTx, blockResult *ctypes.ResultBlock, txReceipt *types.EvmTxReceipt,
+) *eth.JsonTxReceipt {
 	if len(txReceipt.Logs) > 0 {
 		timestamp := blockResult.Block.Header.Time.Unix()
 		for i := 0; i < len(txReceipt.Logs); i++ {
 			txReceipt.Logs[i].BlockTime = timestamp
 		}
 	}
-	if txResults.TxResult.Code == abci.CodeTypeOK {
+	if txResult.Code == abci.CodeTypeOK {
 		txReceipt.Status = StatusTxSuccess
 	} else {
 		txReceipt.Status = StatusTxFail
 	}
 	jsonReceipt := eth.EncTxReceipt(*txReceipt)
-	if txResults.TxResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
+	if txResult.Info == utils.CallEVM && (jsonReceipt.To == nil || len(*jsonReceipt.To) == 0) {
 		jsonReceipt.To = jsonReceipt.ContractAddress
 		jsonReceipt.ContractAddress = nil
 	}

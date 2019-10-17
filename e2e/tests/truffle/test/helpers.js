@@ -1,5 +1,6 @@
 const rp = require('request-promise')
 const keccak256 = require('js-sha3').keccak256
+const web3 = require('web3')
 
 async function assertRevert(promise) {
   try {
@@ -43,7 +44,28 @@ async function waitForXBlocks(nodeAddr, block) {
   return
 }
 
-async function getNonce(nodeAddr, account) {
+function getEventSignature(contract, eventName) {
+  const eventJsonInterface = web3.utils._.find(
+    contract._jsonInterface,
+    o => o.name === eventName && o.type === 'event',
+  )
+  return eventJsonInterface.signature
+}
+
+/**
+ * Returns the JSON interface of the given contract method.
+ * @param {web3.eth.Contract} contract Contract instance
+ * @param {string} funcName Contract method name
+ */
+function getContractFuncInterface(contract, funcName) {
+  const jsonInterface = web3.utils._.find(
+    contract._jsonInterface,
+    o => o.name === funcName && o.type === 'function',
+  )
+  return jsonInterface
+}
+
+async function ethGetTransactionCount(nodeAddr, account) {
   const ethUrl = `http://${nodeAddr}/eth`
   var options = {
       method: 'POST',
@@ -103,5 +125,6 @@ function getLoomEvmTxHash(ethTx, fromAddr) {
 }
 
 module.exports = {
-  assertRevert, delay, waitForXBlocks, getNonce, getStorageAt, getLatestBlock, getLoomEvmTxHash
+  assertRevert, delay, waitForXBlocks, ethGetTransactionCount, getStorageAt, 
+  getLatestBlock, getLoomEvmTxHash, getEventSignature, getContractFuncInterface
 }

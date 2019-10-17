@@ -8,24 +8,22 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/rpc/eth"
-	"github.com/loomnetwork/loomchain/store"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-
-	"github.com/loomnetwork/loomchain/receipts/common"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	types1 "github.com/loomnetwork/go-loom/types"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	ttypes "github.com/tendermint/tendermint/types"
 )
 
@@ -45,6 +43,7 @@ func TestQueryChain(t *testing.T) {
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 	var writer loomchain.WriteReceiptHandler = receiptHandler
+	blockStore := store.NewMockBlockStore()
 
 	require.NoError(t, err)
 	state := common.MockState(0)
@@ -57,9 +56,13 @@ func TestQueryChain(t *testing.T) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, []byte{})
+	evmTxHash, err := writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
+
+	tx := mockSignedTx(t, ltypes.TxID_CALL, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(4, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(4, evmTxHash, [][]byte{tx}))
 
 	protoBlock, err := GetPendingBlock(4, true, receiptHandler)
 	require.NoError(t, err)
@@ -77,13 +80,15 @@ func TestQueryChain(t *testing.T) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
+
 	state20 := common.MockStateAt(state, 20)
-	_, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil, []byte{})
+	evmTxHash, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(20))
-
-	blockStore := store.NewMockBlockStore()
+	tx = mockSignedTx(t, ltypes.TxID_CALL, loom.Address{}, loom.Address{}, evmTxHash)
+	blockStore.SetBlockResults(store.MockBlockResults(20, [][]byte{evmTxHash}))
+	blockStore.SetBlock(store.MockBlock(20, evmTxHash, [][]byte{tx}))
 
 	state30 := common.MockStateAt(state, uint64(30))
 	result, err := DeprecatedQueryChain(allFilter, blockStore, state30, receiptHandler, evmAuxStore)
@@ -102,11 +107,11 @@ func TestQueryChain(t *testing.T) {
 }
 
 func TestMatchFilters(t *testing.T) {
-	addr3 := &types1.Address{
+	addr3 := &ltypes.Address{
 		ChainId: "defult",
 		Local:   []byte("test3333"),
 	}
-	addr4 := &types1.Address{
+	addr4 := &ltypes.Address{
 		ChainId: "defult",
 		Local:   []byte("test4444"),
 	}
@@ -248,8 +253,8 @@ func TestDupEvmTxHash(t *testing.T) {
 		VmType: vm.VMType_EVM,
 	})
 
-	signedDeployTxBytes := mockSignedTx(t, deployId, to, from, deployTx)
-	signedCallTxBytes := mockSignedTx(t, callId, to, from, callTx)
+	signedDeployTxBytes := mockSignedTx(t, ltypes.TxID_DEPLOY, to, from, deployTx)
+	signedCallTxBytes := mockSignedTx(t, ltypes.TxID_CALL, to, from, callTx)
 
 	blockResultDeployTx := &ctypes.ResultBlock{
 		BlockMeta: &ttypes.BlockMeta{
@@ -313,15 +318,15 @@ func TestDupEvmTxHash(t *testing.T) {
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash4)))
 }
 
-func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, data []byte) []byte {
+func mockSignedTx(t *testing.T, id ltypes.TxID, to loom.Address, from loom.Address, data []byte) []byte {
 	var mgsData []byte
 	var err error
-	if id == deployId {
+	if id == ltypes.TxID_DEPLOY {
 		mgsData, err = proto.Marshal(&vm.DeployTx{
 			VmType: vm.VMType_EVM,
 		})
 		require.NoError(t, err)
-	} else if id == callId {
+	} else if id == ltypes.TxID_CALL {
 		mgsData, err = proto.Marshal(&vm.CallTx{
 			VmType: vm.VMType_EVM,
 		})
@@ -337,7 +342,7 @@ func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, d
 
 	txTx, err := proto.Marshal(&loomchain.Transaction{
 		Data: messageTx,
-		Id:   id,
+		Id:   uint32(id),
 	})
 	require.NoError(t, err)
 

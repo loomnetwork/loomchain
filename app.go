@@ -3,6 +3,8 @@ package loomchain
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -37,6 +39,7 @@ type ReadOnlyState interface {
 	FeatureEnabled(string, bool) bool
 	Config() *cctypes.Config
 	EnabledFeatures() []string
+	GetMinBuildNumber() uint64
 }
 
 type State interface {
@@ -46,6 +49,7 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
+	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
 }
 
@@ -139,6 +143,7 @@ func (s *StoreState) Context() context.Context {
 
 const (
 	featurePrefix = "feature"
+	MinBuildKey   = "minbuild"
 )
 
 func featureKey(featureName string) []byte {
@@ -153,6 +158,7 @@ func (s *StoreState) EnabledFeatures() []string {
 			enabledFeatures = append(enabledFeatures, string(m.Key))
 		}
 	}
+
 	return enabledFeatures
 }
 
@@ -175,9 +181,24 @@ func (s *StoreState) SetFeature(name string, val bool) {
 	s.store.Set(featureKey(name), data)
 }
 
+// SetMinBuildNumber sets the minimum build number all nodes must be running.
+func (s *StoreState) SetMinBuildNumber(minBuild uint64) {
+	buildBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(buildBytes, minBuild)
+	s.store.Set([]byte(MinBuildKey), buildBytes)
+}
+
+// GetMinBuildNumber returns the minimum build number all nodes must be running.
+func (s *StoreState) GetMinBuildNumber() uint64 {
+	buildBytes := s.store.Get([]byte(MinBuildKey))
+	if len(buildBytes) == 0 {
+		return 0
+	}
+	return binary.BigEndian.Uint64(buildBytes)
+}
+
 // ChangeConfigSetting updates the value of the given on-chain config setting.
-// If an error occurs while trying to update the config the change is rolled back, if the rollback
-// itself fails this function will panic.
+// If an error occurs while trying to update the config the change is discarded.
 func (s *StoreState) ChangeConfigSetting(name, value string) error {
 	cfg, err := store.LoadOnChainConfig(s.store)
 	if err != nil {
@@ -637,7 +658,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 
 	_, err = a.TxHandler.ProcessTx(state, txBytes, true)
 	if err != nil {
-		log.Error("CheckTx", "tx", ttypes.Tx(txBytes).Hash(), "err", err)
+		log.Error("CheckTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
 
@@ -685,7 +706,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(storeTx, txBytes, false)
 	if err != nil {
-		log.Error("DeliverTx", "tx", ttypes.Tx(txBytes).Hash(), "err", err)
+		log.Error("DeliverTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
@@ -776,7 +797,7 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 	}
 
 	if txErr != nil {
-		log.Error("DeliverTx", "tx", ttypes.Tx(txBytes).Hash(), "err", txErr)
+		log.Error("DeliverTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", txErr)
 		// FIXME: Really shouldn't be using r.Data if txErr != nil, but need to refactor TxHandler.ProcessTx
 		//        so it only returns r with the correct status code & log fields.
 		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
