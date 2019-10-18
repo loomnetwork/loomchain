@@ -736,6 +736,7 @@ FnConsensus:
         VotingPower: {{ $v.VotingPower }}
       {{- end}}
     FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
+    IsValidator: {{.FnConsensus.Reactor.IsValidator}}
   {{- end}}
   Enabled: {{.FnConsensus.Enabled}}
 {{end}}

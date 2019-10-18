@@ -402,20 +402,30 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	reactorRegistrationRequests := make([]*node.ReactorRegistrationRequest, 0)
 
 	dbProvider := node.DefaultDBProvider
-
+	var fnConsensusReactor *fnConsensus.FnConsensusReactor
 	if b.FnRegistry != nil {
 		reactorConfig := b.OverrideCfg.FnConsensusReactorConfig
+
+		fnConsensusReactor, err = CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
+			nil, b.OverrideCfg.FnConsensusReactorConfig)
+
+		if err != nil {
+			return err
+		}
+
 		if reactorConfig.IsValidator {
 			dbProvider, err = CreateNewCachedDBProvider(cfg)
 			if err != nil {
 				return err
 			}
-		}
 
-		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
-			nil, b.OverrideCfg.FnConsensusReactorConfig)
-		if err != nil {
-			return err
+			fnConsensusReactor, err = CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
+				dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
+
+			if err != nil {
+				return err
+			}
+
 		}
 
 		reactorRegistrationRequests = append(reactorRegistrationRequests, &node.ReactorRegistrationRequest{

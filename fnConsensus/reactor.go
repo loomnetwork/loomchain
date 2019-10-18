@@ -156,6 +156,11 @@ func (f *FnConsensusReactor) String() string {
 // OnStart implements BaseReactor by loading the previously persisted reactor state from fnConsensus.db,
 // loading the current validator set, and starting the vote & commit go-routines.
 func (f *FnConsensusReactor) OnStart() error {
+
+	if !f.cfg.IsValidator {
+		return nil
+	}
+
 	reactorState, err := loadReactorState(f.db)
 	if err != nil {
 		return err
@@ -312,12 +317,6 @@ func (f *FnConsensusReactor) getValidatorSet() *types.ValidatorSet {
 
 func (f *FnConsensusReactor) initRoutine() {
 	var currentState state.State
-
-	if !f.cfg.IsValidator {
-		go f.voteRoutine()
-		go f.commitRoutine()
-		return
-	}
 
 	// Wait till state is populated
 	for currentState = state.LoadState(f.tmStateDB); currentState.IsEmpty(); currentState = state.LoadState(f.tmStateDB) {
@@ -1017,8 +1016,6 @@ func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byt
 
 	broadCastException := sender.ID()
 	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
-
-	return
 }
 
 func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
@@ -1033,6 +1030,4 @@ func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
 
 	broadCastException := sender.ID()
 	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
-
-	return
 }
