@@ -147,8 +147,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	}
 	evmStore := store.NewEvmStore(evmDB, 100, 0)
 
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	vm = vm.WithEvmStore(evmStore)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil).WithEvmStore(evmStore)
 	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)
 
 	// Deploy contracts
