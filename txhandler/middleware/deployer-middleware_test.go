@@ -1,3 +1,5 @@
+// +build evm
+
 package middleware
 
 import (
@@ -12,6 +14,8 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/loomnetwork/loomchain/auth/keys"
+	"github.com/loomnetwork/go-loom/types"
+	loomAuth "github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
@@ -27,10 +31,12 @@ var (
 func TestDeployerWhitelistMiddleware(t *testing.T) {
 	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(features.DeployerWhitelistFeature, true)
+	state.SetFeature(features.EthTxFeature, true)
 
-	txSignedPlugin := mockSignedTx(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
-	txSignedEVM := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
-	txSignedMigration := mockSignedTx(t, uint64(3), migrationId, vm.VMType_EVM, contract)
+	txSignedPlugin := mockSignedTx(t, uint64(1), types.TxID_DEPLOY, vm.VMType_PLUGIN, contract)
+	txSignedEVM := mockSignedTx(t, uint64(2), types.TxID_DEPLOY, vm.VMType_EVM, contract)
+	txSignedEth := mockSignedTx(t, uint64(2), types.TxID_ETHEREUM, vm.VMType_EVM, loom.Address{})
+	txSignedMigration := mockSignedTx(t, uint64(3), types.TxID_MIGRATION, vm.VMType_EVM, contract)
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	dwAddr := fakeCtx.CreateContract(dw.Contract)
@@ -57,6 +63,8 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	// unauthorized deployer (DeployTx EVM)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, guestCtx)
 	require.Equal(t, ErrNotAuthorized, err)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEth, guestCtx)
+	require.Equal(t, ErrNotAuthorized, err)
 	// unauthorized deployer (MigrationTx)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, guestCtx)
 	require.Equal(t, ErrNotAuthorized, err)
@@ -65,6 +73,8 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedPlugin, ownerCtx)
 	require.NoError(t, err)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, ownerCtx)
+	require.NoError(t, err)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEth, ownerCtx)
 	require.NoError(t, err)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, ownerCtx)
 	require.NoError(t, err)

@@ -1119,7 +1119,6 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
-
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1142,14 +1141,9 @@ func initQueryService(
 		Subs:    *app.EventHandler.SubscriptionSet(),
 		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
-	// query service
-	var qsvc rpc.QueryService
-	{
-		qsvc = qs
-		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
-	}
+	var qsvc rpc.QueryService = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qs)
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
+	err = rpc.RPCServer(qsvc, chainID, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
 	if err != nil {
 		return err
 	}

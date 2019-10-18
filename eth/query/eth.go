@@ -147,7 +147,12 @@ func GetPendingBlockLogs(
 	return logsBlock, nil
 }
 
-func getTxHashLogs(blockStore store.BlockStore, txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
+func getTxHashLogs(
+	blockStore store.BlockStore,
+	txReceipt ptypes.EvmTxReceipt,
+	filter eth.EthBlockFilter,
+	txHash []byte,
+) ([]*ptypes.EthFilterLog, error) {
 	var blockLogs []*ptypes.EthFilterLog
 
 	// Timestamp added here rather than being stored in the event itself so

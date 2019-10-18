@@ -23,7 +23,7 @@
               '"result": {',
                 '"hash": "0x',
                 '"parentHash": "0x',
-                '"logsBloom": "0x0',
+                '"logsBloom": "0x',
                 '"timestamp": "0x',
               '"jsonrpc": "2.0"',
               '"id": 83'
@@ -47,7 +47,7 @@
               '"result": {',
                 '"hash": "0x',
                 '"parentHash": "0x',
-                '"logsBloom": "0x0"',
+                '"logsBloom": "0x"',
                 '"timestamp": "0x',
               '"jsonrpc": "2.0"',
               '"id": 83'
@@ -59,7 +59,7 @@
   Expected = [
                 '"result": {',
                 '"number": "0x1',
-                '"parentHash": "0x0"',
+                '"parentHash": "0x"',
                 '"timestamp": "',
                 '"jsonrpc": "2.0"',
                 '"id": 83'

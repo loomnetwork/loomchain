@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	gltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
@@ -34,8 +35,9 @@ import (
 )
 
 const (
+	sequence           = uint64(4)
 	callId             = uint32(2)
-	seq                = uint64(4)
+	seq                = uint64(4) // todo
 	defaultLoomChainId = "default"
 )
 
@@ -218,7 +220,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
 
 	// tx using address mapping from eth account. Gives error.
-	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
+	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{PrivateKey: ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
@@ -278,7 +280,6 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 	require.NoError(t, am.Init(amCtx, &address_mapper.InitRequest{}))
 
 	// generate eth key
-	// ethKey, err := crypto.GenerateKey()
 	privKey, err := crypto.HexToECDSA(ethPrivateKey)
 	require.NoError(t, err)
 	signer := auth.NewBinanceSigner(crypto.FromECDSA(privKey))
@@ -365,7 +366,7 @@ func TestChainIdVerification(t *testing.T) {
 	// to contracts will be eth:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
 	// Don't try this in production.
-	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
+	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{PrivateKey: ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -373,7 +374,7 @@ func TestChainIdVerification(t *testing.T) {
 	// to contracts will be tron:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
 	// Don't try this in production.
-	txSigned = mockSignedTx(t, "tron", &auth.TronSigner{ethKey})
+	txSigned = mockSignedTx(t, "tron", &auth.TronSigner{PrivateKey: ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -466,7 +467,7 @@ func mockNonceTx(t *testing.T, from loom.Address, sequence uint64) []byte {
 	})
 	require.NoError(t, err)
 	tx, err := proto.Marshal(&gltypes.Transaction{
-		Id:   callId,
+		Id:   uint32(types.TxID_CALL),
 		Data: messageTx,
 	})
 	require.Nil(t, err)
