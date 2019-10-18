@@ -406,13 +406,6 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	if b.FnRegistry != nil {
 		reactorConfig := b.OverrideCfg.FnConsensusReactorConfig
 
-		fnConsensusReactor, err = CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
-			nil, b.OverrideCfg.FnConsensusReactorConfig)
-
-		if err != nil {
-			return err
-		}
-
 		if reactorConfig.IsValidator {
 			dbProvider, err = CreateNewCachedDBProvider(cfg)
 			if err != nil {
@@ -421,6 +414,15 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 
 			fnConsensusReactor, err = CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
 				dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
+
+			if err != nil {
+				return err
+			}
+
+		} else {
+
+			fnConsensusReactor, err = CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
+				nil, b.OverrideCfg.FnConsensusReactorConfig)
 
 			if err != nil {
 				return err
