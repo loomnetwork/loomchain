@@ -64,6 +64,7 @@ contract('MyToken', async (accounts) => {
     assert.equal(1, receipt.logs.length, "number of logs");
     assert.equal(4, receipt.logs[0].topics.length, "number of topics in log");
     assert.equal(tokenContract.address.toLowerCase(), receipt.logs[0].address.toLowerCase(), "log address");
+    assert.equal(true, receipt.logs[0].blockTime.length >3)
   });
 
   it('eth_getTransactionByHash', async () => {
