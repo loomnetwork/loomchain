@@ -17,8 +17,10 @@ import (
 )
 
 func GetTxByHash(
-	state loomchain.ReadOnlyState, blockStore store.BlockStore, txHash []byte,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
+	blockStore store.BlockStore,
+	txHash []byte,
+	readReceipts loomchain.ReadReceiptHandler,
+	evmAuxStore *evmaux.EvmAuxStore,
 ) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
@@ -41,12 +43,14 @@ func GetTxByBlockAndIndex(
 	}
 
 	if len(blockResult.Block.Data.Txs) <= int(index) {
-		return eth.GetEmptyTxObject(), errors.Errorf("tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
+		return eth.GetEmptyTxObject(), errors.Errorf(
+			"tx index out of bounds (%v >= %v)", index, len(blockResult.Block.Data.Txs))
 	}
 
 	txResult, err := blockStore.GetTxResult(blockResult.Block.Data.Txs[index].Hash())
 	if err != nil {
-		return eth.GetEmptyTxObject(), errors.Wrapf(err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
+		return eth.GetEmptyTxObject(), errors.Wrapf(
+			err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
 	}
 
 	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index), evmAuxStore)
@@ -58,7 +62,9 @@ func GetTxByBlockAndIndex(
 	return txObj, nil
 }
 
-func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetTxByHash(
+	state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler,
+) ([]byte, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading receipt")

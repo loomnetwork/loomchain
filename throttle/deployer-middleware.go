@@ -4,6 +4,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
@@ -86,25 +87,21 @@ func NewDeployerWhitelistMiddleware(
 			return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 		}
 
-		var tx loomchain.Transaction
+		var tx types.Transaction
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		if tx.Id != deployId && tx.Id != migrationId {
-			return next(state, txBytes, isCheckTx)
-		}
+		switch types.TxID(tx.Id) {
+		case types.TxID_DEPLOY:
+			var msg vm.MessageTx
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrap(err, "failed to unmarshal MessageTx")
+			}
 
-		var msg vm.MessageTx
-		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-		}
-
-		// Process deployTx, checking for permission to deploy contract
-		if tx.Id == deployId {
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return res, errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
+				return res, errors.Wrap(err, "failed to unmarshal DeployTx")
 			}
 
 			if deployTx.VmType == vm.VMType_PLUGIN {
@@ -127,14 +124,38 @@ func NewDeployerWhitelistMiddleware(
 				}
 			}
 
-		} else if tx.Id == migrationId {
-			// Process migrationTx, checking for permission to migrate contract
+		case types.TxID_MIGRATION:
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, err
 			}
 			if err := isAllowedToMigrate(ctx, origin); err != nil {
+				return res, err
+			}
+
+		case types.TxID_ETHEREUM:
+			if !state.FeatureEnabled(features.EthTxFeature, false) {
+				break
+			}
+
+			var msg vm.MessageTx
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrap(err, "failed to unmarshal MessageTx")
+			}
+			isDeploy, err := isEthDeploy(msg.Data)
+			if err != nil {
+				return res, err
+			}
+			if !isDeploy {
+				break
+			}
+			origin := auth.Origin(state.Context())
+			ctx, err := createDeployerWhitelistCtx(state)
+			if err != nil {
+				return res, err
+			}
+			if err := isAllowedToDeployEVM(ctx, origin); err != nil {
 				return res, err
 			}
 		}
