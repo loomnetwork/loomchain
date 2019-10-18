@@ -55,6 +55,7 @@ func (r *ReactorConfigParsable) Parse() (*ReactorConfig, error) {
 		}
 	}
 
+	reactorConfig.IsValidator = r.IsValidator
 	return reactorConfig, nil
 }
 
