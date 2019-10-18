@@ -46,7 +46,7 @@ contract('EventTestContract', async (accounts) => {
         });
         newValueSetEventTopic = getEventSignature(contract,"NewValueSet")
         anotherValueSetEventTopic = getEventSignature(contract,"AnotherValueSet")
-
+        
         web3eth = new Web3(new Web3.providers.WebsocketProvider(`ws://${nodeAddr}/eth`));
     })
 
@@ -147,18 +147,18 @@ contract('EventTestContract', async (accounts) => {
             var anotherValueSetCount = 0
             // Test loom
             contract.events.allEvents({
-                topics: [
-                    newValueSetEventTopic,
-                ]
-            })
+                    topics: [
+                        newValueSetEventTopic,
+                    ]
+                })
                 .on('data', (event) => {
                     newValueSetCount++
                 })
             contract.events.allEvents({
-                topics: [
-                    anotherValueSetEventTopic,
-                ]
-            })
+                    topics: [
+                        anotherValueSetEventTopic,
+                    ]
+                })
                 .on('data', (event) => {
                     anotherValueSetCount++
                 })
@@ -201,18 +201,18 @@ contract('EventTestContract', async (accounts) => {
             var anotherValueSetCount2 = 0
             // Test loom
             contract.events.allEvents({
-                topics: [
-                    newValueSetEventTopic,
-                ]
-            })
+                    topics: [
+                        newValueSetEventTopic,
+                    ]
+                })
                 .on('data', (event) => {
                     newValueSetCount2++
                 })
             contract.events.allEvents({
-                topics: [
-                    anotherValueSetEventTopic,
-                ]
-            })
+                    topics: [
+                        anotherValueSetEventTopic,
+                    ]
+                })
                 .on('data', (event) => {
                     anotherValueSetCount2++
                 })
