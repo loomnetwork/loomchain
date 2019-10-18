@@ -156,7 +156,6 @@ func (f *FnConsensusReactor) String() string {
 // OnStart implements BaseReactor by loading the previously persisted reactor state from fnConsensus.db,
 // loading the current validator set, and starting the vote & commit go-routines.
 func (f *FnConsensusReactor) OnStart() error {
-
 	if !f.cfg.IsValidator {
 		return nil
 	}

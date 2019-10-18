@@ -46,7 +46,7 @@ func CreateFnConsensusReactor(
 	var fnConsensusDB, tmStateDB dbm.DB
 	var err error
 
-	if cachedDBProvider != nil {
+	if reactorConfig.IsValidator {
 		fnConsensusDB, err = cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
 		if err != nil {
 			return nil, err
@@ -417,23 +417,19 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			if err != nil {
 				return err
 			}
-
 		} else {
-
 			fnConsensusReactor, err = CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
 				nil, b.OverrideCfg.FnConsensusReactorConfig)
 
 			if err != nil {
 				return err
 			}
-
 		}
 
 		reactorRegistrationRequests = append(reactorRegistrationRequests, &node.ReactorRegistrationRequest{
 			Name:    "FNCONSENSUS",
 			Reactor: fnConsensusReactor,
 		})
-
 	}
 
 	if b.SocketPath != "" {

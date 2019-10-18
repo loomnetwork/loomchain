@@ -5,7 +5,6 @@ import dbm "github.com/tendermint/tendermint/libs/db"
 const reactorStateKey = "fnConsensusReactor:state"
 
 func loadReactorState(db dbm.DB) (*ReactorState, error) {
-	
 	rectorStateBytes := db.Get([]byte(reactorStateKey))
 	if rectorStateBytes == nil {
 		return NewReactorState(), nil
