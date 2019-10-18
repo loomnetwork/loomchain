@@ -95,6 +95,10 @@
                         "status": "WAITING"
                     },
                     {
+                        "name": "loom-api:1",
+                        "status": "WAITING"
+                    },
+                    {
                         "name": "receipts:v3.4",
                         "status": "WAITING"
                     },
