@@ -152,9 +152,8 @@ type Metrics struct {
 }
 
 type FnConsensusConfig struct {
-	Enabled     bool
-	Reactor     *fnConsensus.ReactorConfigParsable
-	IsValidator bool
+	Enabled bool
+	Reactor *fnConsensus.ReactorConfigParsable
 }
 
 func DefaultFnConsensusConfig() *FnConsensusConfig {

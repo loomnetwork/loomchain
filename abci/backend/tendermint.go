@@ -405,7 +405,6 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	var fnConsensusReactor *fnConsensus.FnConsensusReactor
 	if b.FnRegistry != nil {
 		reactorConfig := b.OverrideCfg.FnConsensusReactorConfig
-
 		if reactorConfig.IsValidator {
 			dbProvider, err = CreateNewCachedDBProvider(cfg)
 			if err != nil {
