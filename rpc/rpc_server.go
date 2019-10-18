@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"net/http"
+	"net/http/pprof"
 	"net/url"
 	"strings"
 
@@ -38,7 +39,7 @@ func init() {
 // RPCServer starts up HTTP servers that handle client requests.
 func RPCServer(
 	qsvc QueryService, chainID string, logger log.TMLogger, bus *QueryEventBus, bindAddr string,
-	enableUnsafeRPC bool, unsafeRPCBindAddress string,
+	enableUnsafeRPC bool, unsafeRPCBindAddress string, pprofEnabled bool,
 ) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	hub := newHub()
@@ -68,6 +69,19 @@ func RPCServer(
 	)
 	if err != nil {
 		return err
+	}
+
+	// setup debug route
+	if pprofEnabled {
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+		mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		mux.Handle("/debug/pprof/block", pprof.Handler("block"))
 	}
 
 	//TODO TM 0.26.0 has cors builtin, should we reuse it?

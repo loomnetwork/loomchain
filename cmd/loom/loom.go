@@ -1286,7 +1286,7 @@ func initQueryService(
 	}
 	var qsvc rpc.QueryService = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qs)
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, chainID, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
+	err = rpc.RPCServer(qsvc, chainID, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress, cfg.Debug.PprofEnabled)
 	if err != nil {
 		return err
 	}

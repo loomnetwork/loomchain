@@ -143,6 +143,12 @@ type Config struct {
 	EVMDebugEnabled bool
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
+
+	Debug *DebugConfig
+}
+
+type DebugConfig struct {
+	PprofEnabled bool
 }
 
 type Metrics struct {
@@ -222,6 +228,12 @@ func DefaultMetrics() *Metrics {
 		BlockIndexStore: false,
 		EventHandling:   true,
 		Database:        true,
+	}
+}
+
+func DefaultDebug() *DebugConfig {
+	return &DebugConfig{
+		PprofEnabled: false,
 	}
 }
 
@@ -407,6 +419,7 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.BlockIndexStore = blockindex.DefaultBlockIndexStoreConfig()
 	cfg.Metrics = DefaultMetrics()
+	cfg.Debug = DefaultDebug()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig(cfg.RPCProxyPort)
 	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
@@ -569,6 +582,9 @@ Metrics:
   BlockIndexStore: {{ .Metrics.BlockIndexStore }} 
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
+Debug:
+  # Enable pprof http server runtime data
+  PprofEnabled: {{ .Debug.PprofEnabled }}
 
 #
 # ChainConfig
