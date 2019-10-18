@@ -147,7 +147,7 @@ func NewMultiChainSignatureTxMiddleware(
 	})
 }
 
-func getOriginRecoveryFunc(state loomchain.State, txID types.TxID, txType SignedTxType) originRecoveryFunc {
+func getOriginRecoveryFunc(state appstate.State, txID types.TxID, txType SignedTxType) originRecoveryFunc {
 	switch txType {
 	case LoomSignedTxType:
 		return verifyEd25519

@@ -3,7 +3,6 @@ package loomchain
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"time"

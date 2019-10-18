@@ -18,7 +18,6 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	appstate "github.com/loomnetwork/loomchain/state"
-	"github.com/loomnetwork/loomchain"
 )
 
 const (

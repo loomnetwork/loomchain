@@ -1126,7 +1126,7 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	}
 }
 
-func (s *QueryServer) getEthAccount(state loomchain.State, address eth.Data) (loom.Address, error) {
+func (s *QueryServer) getEthAccount(state appstate.State, address eth.Data) (loom.Address, error) {
 	addrBytes, err := eth.DecDataToBytes(address)
 	if err != nil {
 		return loom.Address{}, err

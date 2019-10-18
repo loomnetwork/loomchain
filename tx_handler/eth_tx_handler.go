@@ -10,13 +10,15 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry/factory"
+	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 // EthTxHandler handles signed Ethereum txs that are wrapped inside SignedTx
@@ -26,7 +28,7 @@ type EthTxHandler struct {
 }
 
 func (h *EthTxHandler) ProcessTx(
-	state loomchain.State,
+	state appstate.State,
 	txBytes []byte,
 	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
