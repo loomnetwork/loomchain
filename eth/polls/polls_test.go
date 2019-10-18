@@ -92,11 +92,11 @@ func TestLogPoll(t *testing.T) {
 }
 
 func TestTxPoll(t *testing.T) {
-	testLegacyTxPoll(t, handler.ReceiptHandlerLevelDb)
-	testTxPoll(t, handler.ReceiptHandlerLevelDb)
+	testLegacyTxPoll(t)
+	testTxPoll(t)
 }
 
-func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+func testLegacyTxPoll(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
@@ -135,7 +135,7 @@ func testLegacyTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NoError(t, receiptHandler.Close())
 }
 
-func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+func testTxPoll(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()

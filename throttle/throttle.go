@@ -7,16 +7,18 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/ulule/limiter"
+	"github.com/ulule/limiter/drivers/store/memory"
+
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/ulule/limiter"
-	"github.com/ulule/limiter/drivers/store/memory"
 
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain"
 )
 
 const (
@@ -74,7 +76,9 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter
 	return t.callLimiterPool[address]
 }
 
-func (t *Throttle) getLimiterContext(ctx context.Context, nonce uint64, limit int64, txId uint32, key string) (limiter.Context, error) {
+func (t *Throttle) getLimiterContext(
+	ctx context.Context, nonce uint64, limit int64, txId uint32, key string,
+) (limiter.Context, error) {
 	address := auth.Origin(ctx).String()
 	if address == t.lastAddress && nonce == t.lastNonce && t.lastId == txId {
 		return t.lastLimiterContext, nil
@@ -88,7 +92,9 @@ func (t *Throttle) getLimiterContext(ctx context.Context, nonce uint64, limit in
 	}
 }
 
-func (t *Throttle) runThrottle(state appstate.State, nonce uint64, origin loom.Address, limit int64, txId uint32, key string) error {
+func (t *Throttle) runThrottle(
+	state appstate.State, nonce uint64, origin loom.Address, limit int64, txId uint32, key string,
+) error {
 	limitCtx, err := t.getLimiterContext(state.Context(), nonce, limit, txId, key)
 	if err != nil {
 		return errors.Wrap(err, "deploy limiter context")
@@ -107,13 +113,12 @@ func (t *Throttle) runThrottle(state appstate.State, nonce uint64, origin loom.A
 	return nil
 }
 
-func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, origin loom.Address, txId uint32) (*common.BigUInt, error) {
+func (t *Throttle) getKarmaForTransaction(
+	karmaContractCtx contractpb.Context, origin loom.Address, isDeployTx bool,
+) (*common.BigUInt, error) {
 	// TODO: maybe should only count karma from active sources
-	if txId == deployId {
+	if isDeployTx {
 		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY)
-	} else if txId == callId {
-		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
-	} else {
-		return nil, errors.Errorf("unknown transaction id %d", txId)
 	}
+	return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
 }

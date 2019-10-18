@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	appstate "github.com/loomnetwork/loomchain/state"
@@ -27,7 +28,7 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 			return res, errors.Wrapf(err, "unmarshal tx %v", txBytes)
 		}
 
-		if tx.Id != deployId {
+		if types.TxID(tx.Id) != types.TxID_DEPLOY {
 			return next(state, txBytes, isCheckTx)
 		}
 

@@ -41,14 +41,8 @@ const (
 	MappedAccountType
 )
 
-var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
-	LoomSignedTxType:     verifyEd25519,
-	EthereumSignedTxType: verifySolidity66Byte,
-	TronSignedTxType:     verifyTron,
-	BinanceSignedTxType:  verifyBinance,
-}
-
-type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
+// Recovers the signer address from a signed tx.
+type originRecoveryFunc func(chainID string, tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
 
 // NewMultiChainSignatureTxMiddleware returns tx signing middleware that supports a set of chain
 // specific signing algos.
@@ -95,12 +89,14 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("unknown chain ID %s", msgSender.ChainID)
 		}
 
-		recoverOrigin, found := originRecoveryFuncs[chain.TxType]
-		if !found {
+		recoverOrigin := getOriginRecoveryFunc(state, types.TxID(tx.Id), chain.TxType)
+		if recoverOrigin == nil {
 			return r, fmt.Errorf("recovery function for Tx type %v not found", chain.TxType)
 		}
 
-		recoveredAddr, err := recoverOrigin(signedTx, getAllowedSignatureTypes(state, msgSender.ChainID))
+		recoveredAddr, err := recoverOrigin(
+			state.Block().ChainID, signedTx, getAllowedSignatureTypes(state, msgSender.ChainID),
+		)
 		if err != nil {
 			return r, errors.Wrapf(err, "failed to recover origin (tx type %v, chain ID %s)",
 				chain.TxType, msgSender.ChainID,
@@ -151,6 +147,23 @@ func NewMultiChainSignatureTxMiddleware(
 	})
 }
 
+func getOriginRecoveryFunc(state loomchain.State, txID types.TxID, txType SignedTxType) originRecoveryFunc {
+	switch txType {
+	case LoomSignedTxType:
+		return verifyEd25519
+	case EthereumSignedTxType:
+		if (txID == types.TxID_ETHEREUM) && state.FeatureEnabled(features.EthTxFeature, false) {
+			return VerifyWrappedEthTx
+		}
+		return verifySolidity66Byte
+	case TronSignedTxType:
+		return verifyTron
+	case BinanceSignedTxType:
+		return verifyBinance
+	}
+	return nil
+}
+
 func getMappedAccountAddress(
 	state appstate.State,
 	addr loom.Address,
@@ -178,7 +191,7 @@ func getMappedAccountAddress(
 	return mappedAddr, nil
 }
 
-func verifyEd25519(tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
+func verifyEd25519(chainID string, tx SignedTx, _ []evmcompat.SignatureType) ([]byte, error) {
 	if len(tx.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid public key length")
 	}
