@@ -108,7 +108,6 @@ func TestMapAccount(t *testing.T) {
 		To:        altCaller.MarshalPB(),
 		Signature: sig,
 	}))
-
 	abiPc, pcAddr := deploySolContract(t, caller, "TestLoomNativeApi", evmVm)
 
 	signer := &auth.EthSigner66Byte{PrivateKey: privateKey}
