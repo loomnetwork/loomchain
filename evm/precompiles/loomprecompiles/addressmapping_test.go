@@ -56,6 +56,7 @@ func TestMapAccount(t *testing.T) {
 	manager := vm.NewManager()
 	manager.Register(vm.VMType_EVM, loomVmFactory(manager))
 	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
+	require.NoError(t, err)
 	reg := createRegistry(mockState)
 
 	loader := lplugin.NewStaticLoader(address_mapper.Contract)
@@ -133,6 +134,7 @@ func TestMapToLoomAccount(t *testing.T) {
 	manager := vm.NewManager()
 	manager.Register(vm.VMType_EVM, loomVmFactory(manager))
 	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
+	require.NoError(t, err)
 	reg := createRegistry(mockState)
 
 	loader := lplugin.NewStaticLoader(address_mapper.Contract)
@@ -184,7 +186,6 @@ func TestMapToLoomAccount(t *testing.T) {
 		To:        caller.MarshalPB(),
 		Signature: sig,
 	}))
-
 	abiPc, pcAddr := deploySolContract(t, caller, "TestLoomNativeApi", evmVm)
 
 	signer := &auth.EthSigner66Byte{PrivateKey: privateKey}
