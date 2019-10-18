@@ -68,7 +68,7 @@ func TestJsonRpcHandler(t *testing.T) {
 
 func testHttpJsonHandler(t *testing.T) {
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, nil)
+	handler := MakeEthQueryServiceHandler(testlog, nil, createDefaultEthRoutes(qs, "default"))
 
 	for _, test := range tests {
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
@@ -82,7 +82,7 @@ func testHttpJsonHandler(t *testing.T) {
 
 func testBatchHttpJsonHandler(t *testing.T) {
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, nil)
+	handler := MakeEthQueryServiceHandler(testlog, nil, createDefaultEthRoutes(qs, "default"))
 
 	blockPayload := "["
 	first := true
@@ -119,7 +119,7 @@ func testEthSubscribeEthUnSubscribe(t *testing.T) {
 		AuthCfg:          auth.DefaultConfig(),
 		EthSubscriptions: eventHandler.EthSubscriptionSet(),
 	}
-	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
+	handler := MakeEthQueryServiceHandler(testlog, hub, createDefaultEthRoutes(qs, "default"))
 
 	dialer := wstest.NewDialer(handler)
 	conn, _, err := dialer.Dial("ws://localhost/eth", nil)
@@ -146,7 +146,8 @@ func testMultipleWebsocketConnections(t *testing.T) {
 	hub := newHub()
 	go hub.run()
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
+	handler := MakeEthQueryServiceHandler(testlog, hub, createDefaultEthRoutes(qs, "default"))
+
 	conns := []*websocket.Conn{}
 	for _, test := range tests {
 		dialer := wstest.NewDialer(handler)
@@ -182,7 +183,7 @@ func testSingleWebsocketConnections(t *testing.T) {
 	hub := newHub()
 	go hub.run()
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
+	handler := MakeEthQueryServiceHandler(testlog, hub, createDefaultEthRoutes(qs, "default"))
 	dialer := wstest.NewDialer(handler)
 	conn, _, err := dialer.Dial("ws://localhost/eth", nil)
 	writeMutex := &sync.Mutex{}

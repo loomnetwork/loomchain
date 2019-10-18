@@ -26,7 +26,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 512
+	maxMessageSize = 16384
 )
 
 var (
@@ -72,6 +72,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 				err,
 				websocket.CloseGoingAway,
 				websocket.CloseAbnormalClosure,
+				websocket.CloseNoStatusReceived,
 			) {
 				logger.Error("Failed to read from closed WebSocket", "err", err)
 			} else {
@@ -120,7 +121,9 @@ func (c *Client) writePump(logger log.TMLogger) {
 		case message, ok := <-c.send:
 			if !ok {
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					logger.Error("Failed to write close message to WebSocket", "err", err)
+					if err != websocket.ErrCloseSent {
+						logger.Error("Failed to write close message to WebSocket", "err", err)
+					}
 				}
 				return
 			}
