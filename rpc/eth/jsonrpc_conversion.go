@@ -151,7 +151,6 @@ func TxObjToReceipt(txObj JsonTxObject, contractAddr *Data) JsonTxReceipt {
 }
 
 func EncEvents(logs []*types.EventData) []JsonLog {
-
 	jLogs := make([]JsonLog, 0, len(logs))
 	for i, log := range logs {
 		jLog := EncEvent(*log)
@@ -189,15 +188,14 @@ func EncEvent(log types.EventData) JsonLog {
 }
 
 func EncLogs(logs []*types.EthFilterLog) []JsonLog {
-
 	jLogs := make([]JsonLog, 0, len(logs))
 	for _, log := range logs {
-		jLogs = append(jLogs, EncLog(*log))
+		jLogs = append(jLogs, encLog(*log))
 	}
 	return jLogs
 }
 
-func EncLog(log types.EthFilterLog) JsonLog {
+func encLog(log types.EthFilterLog) JsonLog {
 	jLog := JsonLog{
 		Removed:          log.Removed,
 		LogIndex:         EncInt(log.LogIndex),
