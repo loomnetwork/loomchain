@@ -420,7 +420,7 @@ func newRunCommand() *cobra.Command {
 			}
 
 			// If this node is a validator, start gateway reactors, else we skip it.
-			if cfg.FnConsensus.IsValidator && fnRegistry != nil {
+			if cfg.FnConsensus.Reactor.IsValidator && fnRegistry != nil {
 				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
 					return err
 				}
