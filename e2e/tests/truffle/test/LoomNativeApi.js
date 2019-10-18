@@ -11,7 +11,7 @@ const {
 
 contract('LoomNativeApi', async (accounts) => {
     let web3js, wallet, loomAddress;
-    let testApi, testHash, sig;
+    let testApi, testHash, sig, splitSig;
     const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim();
     const msg = '0x8CbaC5e4d803bE2A3A5cd3DbE7174504c6DD0c1C';
 
@@ -47,18 +47,19 @@ contract('LoomNativeApi', async (accounts) => {
         await addressMapper.addIdentityMappingAsync(from, loomAddress,  new EthersSigner(wallet));
 
         testApi = await TestLoomNativeApi.deployed();
-        testHash = web3js.utils.sha3(msg);
-        const msgSig = await wallet.signMessage(testHash);
-        sig = ethers.utils.splitSignature(msgSig);
+
+        sig = await wallet.signMessage(msg);
+        testHash = ethers.utils.hashMessage(msg);
+        splitSig = ethers.utils.splitSignature(sig);
     });
 
     it('map loom account', async () => {
-        const mappedAddress = await testApi.TestMappedLoomAccount.call('eth', testHash, sig.v, sig.r, sig.s);
+        const mappedAddress = await testApi.TestMappedLoomAccount.call('eth', testHash, splitSig.v, splitSig.r, splitSig.s);
         assert.equal(loomAddress.local.toString().toLowerCase(), mappedAddress.toLowerCase());
     });
 
     it('map any account', async () => {
-      const mappedAddress = await testApi.TestMappedAccount.call('eth', testHash, sig.v, sig.r, sig.s, 'default');
+      const mappedAddress = await testApi.TestMappedAccount.call('eth', testHash, splitSig.v, splitSig.r, splitSig.s, 'default');
       assert.equal(loomAddress.local.toString().toLowerCase(), mappedAddress.toLowerCase());
     })
 });
