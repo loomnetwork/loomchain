@@ -727,6 +727,7 @@ EvmStore:
 #
 {{- if .FnConsensus}}
 FnConsensus:
+  Enabled: {{ .FnConsensus.Enabled }}
   {{- if .FnConsensus.Reactor }}
   Reactor:
     OverrideValidators:
@@ -734,10 +735,10 @@ FnConsensus:
       - Address: {{ $v.Address }}
         VotingPower: {{ $v.VotingPower }}
       {{- end}}
-    FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
-    IsValidator: {{.FnConsensus.Reactor.IsValidator}}
+	FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
+	# Set to false to make the node forward messages without tracking consensus state
+	IsValidator: {{ .FnConsensus.Reactor.IsValidator }}
   {{- end}}
-  Enabled: {{.FnConsensus.Enabled}}
 {{end}}
 #
 # EventDispatcher

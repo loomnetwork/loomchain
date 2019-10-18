@@ -1008,7 +1008,7 @@ func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byt
 	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
 		f.Logger.Error(
 			"FnConsensusReactor: Invalid Data passed, ignoring...",
-			"err", err, "method", voteSetMsgHandlerMethodID,
+			"err", err, "method", maj23MsgHandlerMethodID,
 		)
 		return
 	}
