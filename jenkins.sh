@@ -21,6 +21,8 @@ export CGO_LDFLAGS="-L/usr/local/lib/ -L/usr/lib/x86_64-linux-gnu/ -lsnappy"
 #elif [[ "$OSTYPE" == "darwin"* ]]; then #osx
 fi
 
+go version
+
 cd $LOOM_SRC
 make clean
 make get_lint
