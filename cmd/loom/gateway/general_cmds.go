@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/hex"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"time"
@@ -873,6 +874,137 @@ func newUpdateMainnetHotWalletAddressCommand() *cobra.Command {
 			return err
 		},
 	}
+	return cmd
+}
+
+const ListPendingDepositedUserHotWallet = `
+loom gateway list-deposited-user-hot-wallet
+`
+
+func newGetPendingDepositedUserHotWalletCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "list-deposited-user-hot-wallet",
+		Short:   "List all user hot-wallets that has balance",
+		Example: ListPendingDepositedUserHotWallet,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayGetUserHotWalletRequest{}
+			resp := &tgtypes.TransferGatewayListPendingUserHotWalletDepositedResponse{}
+
+			_, err = gateway.StaticCall("ListPendingUserHotWalletDeposited", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.ListPendingUserHotWalletDeposited")
+			}
+			out, err := formatJSON(resp)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile("deposited_user_hot_wallet.json", []byte(out), 0664); err != nil {
+				return fmt.Errorf("Unable to write output file: %v", err)
+			}
+
+			fmt.Println("Exported to deposited_user_hot_wallet.json")
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	return cmd
+}
+
+const ListUserHotWalletAllowedToken = `
+loom gateway list-user-hot-wallet-allowed-token
+`
+
+func newGetUserHotWalletAllowedTokenCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "list-user-hot-wallet-allowed-token",
+		Short:   "List all user hot-wallets allowed token",
+		Example: ListUserHotWalletAllowedToken,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayListUserHotWalletAllowedTokenRequest{}
+			resp := &tgtypes.TransferGatewayListUserHotWalletAllowedTokenResponse{}
+
+			_, err = gateway.StaticCall("ListUserHotWalletAllowedToken", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.ListUserHotWalletAllowedToken")
+			}
+
+			out, err := formatJSON(resp)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile("user_hot_wallet_allowed_token.json", []byte(out), 0664); err != nil {
+				return fmt.Errorf("Unable to write output file: %v", err)
+			}
+
+			fmt.Println("Exported to user_hot_wallet_allowed_token.json")
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	return cmd
+}
+
+const ListUserHotWallet = `
+loom gateway list-user-hot-wallet
+`
+
+func newGetUserHotWalletCommand() *cobra.Command {
+	var gatewayType string
+	cmd := &cobra.Command{
+		Use:     "list-user-hot-wallet",
+		Short:   "List all user hot-wallets",
+		Example: ListUserHotWallet,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(gatewayType)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+			req := &tgtypes.TransferGatewayListUserHotWalletRequest{}
+			resp := &tgtypes.TransferGatewayListUserHotWalletResponse{}
+
+			_, err = gateway.StaticCall("ListUserHotWallet", req, gatewayAddr, resp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call gateway.ListUserHotWallet")
+			}
+
+			out, err := formatJSON(resp)
+			if err != nil {
+				return err
+			}
+
+			if err := ioutil.WriteFile("user_hot_wallet.json", []byte(out), 0664); err != nil {
+				return fmt.Errorf("Unable to write output file: %v", err)
+			}
+
+			fmt.Println("Exported to user_hot_wallet.json")
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
 	return cmd
 }
 
