@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func isEthDeploy(txBytes []byte) (bool, error) {
+func IsEthDeploy(txBytes []byte) (bool, error) {
 	var tx types.Transaction
 	if err := rlp.DecodeBytes(txBytes, &tx); err != nil {
 		return false, errors.Wrap(err, "decoding ethereum transaction")

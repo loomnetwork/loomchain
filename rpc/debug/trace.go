@@ -3,25 +3,23 @@
 package debug
 
 import (
-	"fmt"
-
-	"github.com/ethereum/go-ethereum/core/vm"
+	//"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/eth/ethapi"
-	"github.com/ethereum/go-ethereum/eth/tracers"
-	"github.com/pkg/errors"
+	//"github.com/ethereum/go-ethereum/eth/ethapi"
+	//"github.com/ethereum/go-ethereum/eth/tracers"
+	//"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/loomnetwork/loomchain/txhandler/middleware"
 )
 
 func TraceTransaction(
-	app middleware.InMemoryApp,
+	//app middleware.InMemoryApp,
 	blockstore store.BlockStore,
 	blockNumber, txIndex int64,
 	config eth.TraceConfig,
 ) (interface{}, error) {
-	if err := app.RunUpTo(blockNumber, txIndex); err != nil {
+	return nil, nil
+	/*if err := app.RunUpTo(blockNumber, txIndex); err != nil {
 		return nil, err
 	}
 
@@ -45,5 +43,5 @@ func TraceTransaction(
 	default:
 		return nil, errors.New(fmt.Sprintf("bad tracer type %T", tracer))
 	}
-
+	*/
 }

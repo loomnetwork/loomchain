@@ -1,6 +1,6 @@
 // +build evm
 
-package throttle
+package middleware
 
 import (
 	"context"

@@ -9,9 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/auth/keys"
-	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	"github.com/loomnetwork/loomchain/eth/utils"

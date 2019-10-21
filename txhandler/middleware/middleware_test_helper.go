@@ -1,4 +1,4 @@
-package throttle
+package middleware
 
 import (
 	"context"
@@ -9,8 +9,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 
-	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	appstate "github.com/loomnetwork/loomchain/state"

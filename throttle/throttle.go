@@ -27,7 +27,7 @@ const (
 )
 
 type Throttle struct {
-	maxCallCount         int64
+	MaxCallCount         int64
 	sessionDuration      int64
 	callLimiterPool      map[string]*limiter.Limiter
 	deployLimiterPool    map[string]*limiter.Limiter
@@ -44,7 +44,7 @@ func NewThrottle(
 	maxCallCount int64,
 ) *Throttle {
 	return &Throttle{
-		maxCallCount:         maxCallCount,
+		MaxCallCount:         maxCallCount,
 		sessionDuration:      sessionDuration,
 		callLimiterPool:      make(map[string]*limiter.Limiter),
 		deployLimiterPool:    make(map[string]*limiter.Limiter),
@@ -52,7 +52,7 @@ func NewThrottle(
 	}
 }
 
-func (t *Throttle) getNewLimiter(ctx context.Context, limit int64) *limiter.Limiter {
+func (t *Throttle) GetNewLimiter(ctx context.Context, limit int64) *limiter.Limiter {
 	rate := limiter.Rate{
 		Period: time.Duration(t.sessionDuration) * time.Second,
 		Limit:  limit,
@@ -65,11 +65,11 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter
 	address := keys.Origin(ctx).String()
 	_, ok := t.callLimiterPool[address]
 	if !ok {
-		t.callLimiterPool[address] = t.getNewLimiter(ctx, limit)
+		t.callLimiterPool[address] = t.GetNewLimiter(ctx, limit)
 	}
 	if t.callLimiterPool[address].Rate.Limit != limit {
 		delete(t.callLimiterPool, address)
-		t.callLimiterPool[address] = t.getNewLimiter(ctx, limit)
+		t.callLimiterPool[address] = t.GetNewLimiter(ctx, limit)
 	}
 
 	return t.callLimiterPool[address]
@@ -91,7 +91,7 @@ func (t *Throttle) getLimiterContext(
 	}
 }
 
-func (t *Throttle) runThrottle(
+func (t *Throttle) RunThrottle(
 	state appstate.State, nonce uint64, origin loom.Address, limit int64, txId uint32, key string,
 ) error {
 	limitCtx, err := t.getLimiterContext(state.Context(), nonce, limit, txId, key)
@@ -112,7 +112,7 @@ func (t *Throttle) runThrottle(
 	return nil
 }
 
-func (t *Throttle) getKarmaForTransaction(
+func (t *Throttle) GetKarmaForTransaction(
 	karmaContractCtx contractpb.Context, origin loom.Address, isDeployTx bool,
 ) (*common.BigUInt, error) {
 	// TODO: maybe should only count karma from active sources

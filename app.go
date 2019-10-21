@@ -10,7 +10,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
-	"github.com/pkg/errors"
+	//"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	ttypes "github.com/tendermint/tendermint/types"
@@ -19,7 +19,6 @@ import (
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/txhandler"
-	"github.com/loomnetwork/loomchain/txhandler/middleware"
 
 	"github.com/loomnetwork/loomchain/log"
 	appstate "github.com/loomnetwork/loomchain/state"
@@ -608,6 +607,7 @@ func (a *Application) ReadOnlyState() appstate.State {
 	)
 }
 
+/*
 func (a *Application) InMemoryApp(blockNumber uint64, blockstore store.BlockStore) (middleware.InMemoryApp, error) {
 	startVersion := int64(blockNumber) - 1
 	if startVersion < 0 {
@@ -634,3 +634,4 @@ func (a *Application) InMemoryApp(blockNumber uint64, blockstore store.BlockStor
 		a.TxHandlerFactory,
 	), nil
 }
+*/

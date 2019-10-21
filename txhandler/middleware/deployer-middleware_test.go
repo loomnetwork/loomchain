@@ -13,9 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/go-loom/types"
-	loomAuth "github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"

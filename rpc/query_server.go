@@ -63,7 +63,7 @@ const (
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() appstate.State
-	InMemoryApp(uint64, store.BlockStore) (middleware.InMemoryApp, error)
+	//InMemoryApp(uint64, store.BlockStore) (middleware.InMemoryApp, error)
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -1119,24 +1119,26 @@ func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 }
 
 func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error) {
-	receipt, err := s.EthGetTransactionReceipt(hash)
-	if err != nil || receipt == nil {
-		return nil, errors.Wrap(err, "cant find transaction matching hash")
-	}
-	blockNumber, err := eth.DecQuantityToUint(receipt.BlockNumber)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cant parse block number %v", receipt.BlockNumber)
-	}
-	txIndex, err := eth.DecQuantityToUint(receipt.TransactionIndex)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
-	}
-	cfg := debug.DecTraceConfig(config)
-	memApp, err := s.InMemoryApp(blockNumber, s.BlockStore)
-	if err != nil {
-		return nil, err
-	}
-	return debug.TraceTransaction(memApp, s.BlockStore, int64(blockNumber), int64(txIndex), cfg)
+	return nil, nil
+	/*
+		receipt, err := s.EthGetTransactionReceipt(hash)
+		if err != nil || receipt == nil {
+			return nil, errors.Wrap(err, "cant find transaction matching hash")
+		}
+		blockNumber, err := eth.DecQuantityToUint(receipt.BlockNumber)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cant parse block number %v", receipt.BlockNumber)
+		}
+		txIndex, err := eth.DecQuantityToUint(receipt.TransactionIndex)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
+		}
+		cfg := debug.DecTraceConfig(config)
+		memApp, err := s.InMemoryApp(blockNumber, s.BlockStore)
+		if err != nil {
+			return nil, err
+		}
+		return debug.TraceTransaction(memApp, s.BlockStore, int64(blockNumber), int64(txIndex), cfg)*/
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {

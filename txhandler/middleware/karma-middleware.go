@@ -1,4 +1,4 @@
-package throttle
+package middleware
 
 import (
 	"fmt"
@@ -13,12 +13,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/auth/keys"
-	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -31,7 +29,7 @@ func GetKarmaMiddleWare(
 	sessionDuration int64,
 	createKarmaContractCtx func(state appstate.State) (contractpb.Context, error),
 ) txhandler.TxMiddlewareFunc {
-	th := NewThrottle(sessionDuration, maxCallCount)
+	th := throttle.NewThrottle(sessionDuration, maxCallCount)
 	return txhandler.TxMiddlewareFunc(func(
 		state appstate.State,
 		txBytes []byte,
@@ -89,7 +87,7 @@ func GetKarmaMiddleWare(
 			isDeployTx = true
 
 		case types.TxID_ETHEREUM:
-			isDeployTx, err = isEthDeploy(msg.Data)
+			isDeployTx, err = throttle.IsEthDeploy(msg.Data)
 			if err != nil {
 				return res, err
 			}
@@ -129,7 +127,7 @@ func GetKarmaMiddleWare(
 			return r, nil
 		}
 
-		originKarma, err := th.getKarmaForTransaction(ctx, origin, isDeployTx)
+		originKarma, err := th.GetKarmaForTransaction(ctx, origin, isDeployTx)
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}
@@ -160,11 +158,11 @@ func GetKarmaMiddleWare(
 			if maxCallCount <= 0 {
 				return res, errors.Errorf("max call count %d non positive", maxCallCount)
 			}
-			callCount := th.maxCallCount + originKarmaTotal
-			if originKarmaTotal > math.MaxInt64-th.maxCallCount {
+			callCount := th.MaxCallCount + originKarmaTotal
+			if originKarmaTotal > math.MaxInt64-th.MaxCallCount {
 				callCount = math.MaxInt64
 			}
-			err := th.runThrottle(state, nonceTx.Sequence, origin, callCount, tx.Id, karmaMiddlewareThrottleKey)
+			err := th.RunThrottle(state, nonceTx.Sequence, origin, callCount, tx.Id, karmaMiddlewareThrottleKey)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}

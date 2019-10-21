@@ -9,9 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/auth/keys"
-	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"

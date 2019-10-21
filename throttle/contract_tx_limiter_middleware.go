@@ -185,7 +185,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
 				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 			}
-			isDeploy, err := isEthDeploy(msg.Data)
+			isDeploy, err := IsEthDeploy(msg.Data)
 			if err != nil {
 				return res, err
 			}
