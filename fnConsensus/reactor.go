@@ -1014,7 +1014,7 @@ func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byt
 	}
 
 	broadCastException := sender.ID()
-	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
+	f.broadcastMsgSync(FnMajChannel, &broadCastException, msgBytes)
 }
 
 func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
