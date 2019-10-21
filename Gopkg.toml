@@ -62,7 +62,7 @@ ignored = [
 [[override]]
   name = "github.com/tendermint/tendermint"
   source = "https://github.com/loomnetwork/tendermint.git"
-  branch = "validate-params-number"
+  branch = "loomchain"
   
 [[constraint]]
   name = "github.com/gomodule/redigo"

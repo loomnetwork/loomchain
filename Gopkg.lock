@@ -309,8 +309,8 @@
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
-  branch = "validate-params-number"
-  digest = "1:9dc16a978719cd569bd6f77c278e46342bc7b0bb2e6812f3132aaaa37c4b57bb"
+  branch = "loomchain"
+  digest = "1:96675ec2dcbe61921ba645e53c4b8cbe025ea2257bddf451a4c5826a0f325769"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -363,7 +363,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "7544c6b591f1bf432d83960aa92b373cd88852a5"
+  revision = "f32154d54e306c8a381b74062862f734d863e101"
   source = "https://github.com/loomnetwork/tendermint.git"
 
 [[projects]]
