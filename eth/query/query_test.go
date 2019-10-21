@@ -27,14 +27,14 @@ import (
 	ttypes "github.com/tendermint/tendermint/types"
 )
 
-const (
-	allFilter = "{\"fromBlock\":\"earliest\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
-)
-
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
+
+func getFilter(fromBlock, toBlock string) string {
+	return "{\"fromBlock\":\"" + fromBlock + "\",\"toBlock\":\"" + toBlock + "\",\"address\":\"\",\"topics\":[]}"
+}
 
 func TestQueryChain(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
@@ -91,17 +91,21 @@ func TestQueryChain(t *testing.T) {
 	blockStore.SetBlock(store.MockBlock(20, evmTxHash, [][]byte{tx}))
 
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := DeprecatedQueryChain(allFilter, blockStore, state30, receiptHandler, evmAuxStore)
-	require.NoError(t, err, "error query chain, filter is %s", allFilter)
+	result, err := DeprecatedQueryChain(getFilter("1", "20"), blockStore, state30, receiptHandler, evmAuxStore)
+	require.NoError(t, err, "error query chain, filter is %s", getFilter("1", "20"))
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
 
-	ethFilter, err := utils.UnmarshalEthFilter([]byte(allFilter))
+	ethFilter1, err := utils.UnmarshalEthFilter([]byte(getFilter("10", "30")))
 	require.NoError(t, err)
-	filterLogs, err := QueryChain(blockStore, state30, ethFilter, receiptHandler, evmAuxStore)
-	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
-	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
+	ethFilter2, err := utils.UnmarshalEthFilter([]byte(getFilter("1", "10")))
+	require.NoError(t, err)
+	filterLogs1, err := QueryChain(blockStore, state30, ethFilter1, receiptHandler, evmAuxStore)
+	require.NoError(t, err, "error query chain, filter is %s", ethFilter1)
+	filterLogs2, err := QueryChain(blockStore, state30, ethFilter2, receiptHandler, evmAuxStore)
+	require.NoError(t, err, "error query chain, filter is %s", ethFilter2)
+	require.Equal(t, 2, len(filterLogs1)+len(filterLogs2), "wrong number of logs returned")
 
 	require.NoError(t, receiptHandler.Close())
 }
