@@ -8,12 +8,13 @@ import (
 	//"github.com/ethereum/go-ethereum/eth/ethapi"
 	//"github.com/ethereum/go-ethereum/eth/tracers"
 	//"github.com/pkg/errors"
-
 	"github.com/loomnetwork/loomchain/store"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 func TraceTransaction(
 	//app middleware.InMemoryApp,
+	app abci.Application,
 	blockstore store.BlockStore,
 	blockNumber, txIndex int64,
 	config eth.TraceConfig,

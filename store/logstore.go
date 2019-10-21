@@ -126,8 +126,8 @@ func (s *LogStore) Prune() error {
 	return s.store.Prune()
 }
 
-func (s *LogStore) GetSnapshot() Snapshot {
-	return s.store.GetSnapshot()
+func (s *LogStore) GetSnapshot(version int64) Snapshot {
+	return s.store.GetSnapshot(version)
 }
 
 func (s *LogStore) VersionExists(version int64) bool {

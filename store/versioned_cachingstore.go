@@ -371,9 +371,9 @@ func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
 	return hash, version, err
 }
 
-func (c *versionedCachingStore) GetSnapshot() Snapshot {
+func (c *versionedCachingStore) GetSnapshot(version int64) Snapshot {
 	return newVersionedCachingStoreSnapshot(
-		c.VersionedKVStore.GetSnapshot(),
+		c.VersionedKVStore.GetSnapshot(version),
 		c.cache, c.version-1, c.logger,
 	)
 }

@@ -600,7 +600,7 @@ func (a *Application) ReadOnlyState() appstate.State {
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return appstate.NewStoreStateSnapshot(
 		nil,
-		a.Store.GetSnapshot(),
+		a.Store.GetSnapshot(0),
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,

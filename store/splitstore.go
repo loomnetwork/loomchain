@@ -73,6 +73,6 @@ func (ss splitStore) SaveVersion() ([]byte, int64, error) {
 func (ss splitStore) Prune() error {
 	return errors.New("not implemented")
 }
-func (ss splitStore) GetSnapshot() Snapshot {
+func (ss splitStore) GetSnapshot(version int64) Snapshot {
 	return nil
 }

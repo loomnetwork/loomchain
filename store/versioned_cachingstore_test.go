@@ -66,7 +66,7 @@ func (m *MockStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
 	panic("not implemented")
 }
 
-func (m *MockStore) GetSnapshot() Snapshot {
+func (m *MockStore) GetSnapshot(version int64) Snapshot {
 	snapshotStore := make(map[string][]byte)
 	for k, v := range m.storage {
 		snapshotStore[k] = v
@@ -106,7 +106,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	mockStore.Set(key2, []byte("value2"))
 	mockStore.Set(key3, []byte("value3"))
 
-	snapshotv0 := cachingStore.GetSnapshot()
+	snapshotv0 := cachingStore.GetSnapshot(0)
 
 	// cachingStoreSnapshot will cache key1 in memory as version 0
 	cachedValue := snapshotv0.Get(key1)
@@ -122,7 +122,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	// save data into version 1
 	cachingStore.Set(key2, []byte("newvalue2"))
 	cachingStore.Set(key3, []byte("newvalue3"))
-	snapshotv1 := cachingStore.GetSnapshot()
+	snapshotv1 := cachingStore.GetSnapshot(0)
 	cachedValue = snapshotv1.Get(key2)
 	assert.Equal(t, "newvalue2", string(cachedValue), "snapshotv1 should get correct value")
 	cachedValue = snapshotv1.Get(key1)
@@ -144,7 +144,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	// save to bump up version
 	_, version, _ = cachingStore.SaveVersion()
 	assert.Equal(t, int64(2), version, "version must be updated to 2")
-	snapshotv2 := cachingStore.GetSnapshot()
+	snapshotv2 := cachingStore.GetSnapshot(0)
 	cachedValue = snapshotv2.Get(key1)
 	assert.Equal(t, "value1", string(cachedValue), "snapshotv2 should get the value from cache")
 	cachedValue = snapshotv2.Get(key2)

@@ -53,7 +53,7 @@ type VersionedKVStore interface {
 	SaveVersion() ([]byte, int64, error)
 	// Delete old version of the store
 	Prune() error
-	GetSnapshot() Snapshot
+	GetSnapshot(version int64) Snapshot
 	VersionExists(int64) bool
 	RetrieveVersion(int64) (VersionedKVStore, error)
 }

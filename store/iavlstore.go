@@ -209,7 +209,7 @@ func (s *IAVLStore) Prune() error {
 	return nil
 }
 
-func (s *IAVLStore) GetSnapshot() Snapshot {
+func (s *IAVLStore) GetSnapshot(version int64) Snapshot {
 	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
 	return &iavlStoreSnapshot{
 		IAVLStore: s,

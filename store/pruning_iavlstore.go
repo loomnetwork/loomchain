@@ -177,7 +177,7 @@ func (s *PruningIAVLStore) Prune() error {
 	return nil
 }
 
-func (s *PruningIAVLStore) GetSnapshot() Snapshot {
+func (s *PruningIAVLStore) GetSnapshot(version int64) Snapshot {
 	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
 	return &pruningIAVLStoreSnapshot{
 		PruningIAVLStore: s,

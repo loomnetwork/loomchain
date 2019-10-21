@@ -256,7 +256,7 @@ func (s *MultiWriterAppStore) Prune() error {
 	return s.appStore.Prune()
 }
 
-func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
+func (s *MultiWriterAppStore) GetSnapshot(version int64) Snapshot {
 	defer func(begin time.Time) {
 		getSnapshotDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())

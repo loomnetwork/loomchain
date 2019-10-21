@@ -112,7 +112,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShot() {
 	store.Set(vmPrefixKey("abcde"), []byte("vvvvvvvvv"))
 	store.Set([]byte("abcd"), []byte("asdfasdf"))
 
-	snapshot := store.GetSnapshot()
+	snapshot := store.GetSnapshot(0)
 	require.Equal([]byte("hello"), snapshot.Get(vmPrefixKey("abcd")))
 	require.Equal([]byte("NewData"), snapshot.Get([]byte("abcd")))
 	require.Equal([]byte("world"), snapshot.Get(vmPrefixKey("abcde")))
@@ -120,7 +120,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShot() {
 	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
-	snapshot = store.GetSnapshot()
+	snapshot = store.GetSnapshot(0)
 	require.Equal([]byte("asdfasdf"), snapshot.Get([]byte("abcd")))
 	require.Equal([]byte("hellooooooo"), snapshot.Get(vmPrefixKey("abcd")))
 	require.Equal([]byte("vvvvvvvvv"), snapshot.Get(vmPrefixKey("abcde")))
@@ -143,7 +143,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotFlushInter
 	store.Set([]byte("test2"), []byte("test2v2"))
 
 	// this snapshot is from memory
-	snapshotv1 := store.GetSnapshot()
+	snapshotv1 := store.GetSnapshot(0)
 	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
@@ -152,7 +152,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotFlushInter
 	require.NoError(err)
 
 	// get snapshotv2
-	snapshotv2 := store.GetSnapshot()
+	snapshotv2 := store.GetSnapshot(0)
 	require.Equal([]byte("test1v2"), snapshotv2.Get([]byte("test1")))
 	require.Equal([]byte("test2v2"), snapshotv2.Get([]byte("test2")))
 
@@ -176,13 +176,13 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 	store.Set([]byte("uuuu"), []byte("SSSSSSSSSSSSS"))
 	store.Set([]byte("sssss"), []byte("NewData"))
 
-	snapshot := store.GetSnapshot()
+	snapshot := store.GetSnapshot(0)
 	rangeData := snapshot.Range(vmPrefix)
 	require.Equal(0, len(rangeData))
 	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
-	snapshot = store.GetSnapshot()
+	snapshot = store.GetSnapshot(0)
 	rangeData = snapshot.Range(vmPrefix)
 	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
@@ -194,7 +194,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 	store.Delete(vmPrefixKey("abcd"))
 	store.Delete([]byte("ssssvvv"))
 
-	snapshot = store.GetSnapshot()
+	snapshot = store.GetSnapshot(0)
 	rangeData = snapshot.Range(vmPrefix)
 	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
 	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
@@ -205,7 +205,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
-	snapshot = store.GetSnapshot()
+	snapshot = store.GetSnapshot(0)
 	rangeData = snapshot.Range(vmPrefix)
 	require.Equal(3+1, len(rangeData))                       // +1 for evm root stored by EVM store
 	require.Equal(0, len(snapshot.Get(vmPrefixKey("abcd")))) // has been deleted

@@ -348,7 +348,7 @@ func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
 					if snap != nil {
 						snap.Release()
 					}
-					snap = ts.store.GetSnapshot()
+					snap = ts.store.GetSnapshot(0)
 				}
 				snap.Get([]byte(fmt.Sprintf("key/%d", i)))
 			}
@@ -395,7 +395,7 @@ func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
 	// but this store doesn't have real snapshots so the snapshot is expected to contain the same
 	// unsaved state as the store itself...
 	func() {
-		snap := ts.store.GetSnapshot()
+		snap := ts.store.GetSnapshot(0)
 		defer snap.Release()
 
 		ts.VerifyRange(snap, prefixes, entries)
@@ -405,7 +405,7 @@ func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
 
 	// snapshot should see all the data that was saved to disk
 	func() {
-		snap := ts.store.GetSnapshot()
+		snap := ts.store.GetSnapshot(0)
 		defer snap.Release()
 
 		ts.VerifyRange(snap, prefixes, entries)
