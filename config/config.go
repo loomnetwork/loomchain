@@ -723,9 +723,9 @@ EvmStore:
 {{end}}
 
 # 
-#  FnConsensus reactor on/off switch + config
+# FnConsensus reactor on/off switch + config
 #
-{{- if .FnConsensus}}
+{{- if .FnConsensus }}
 FnConsensus:
   Enabled: {{ .FnConsensus.Enabled }}
   {{- if .FnConsensus.Reactor }}
@@ -735,13 +735,14 @@ FnConsensus:
     FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
     {{- if .FnConsensus.Reactor.OverrideValidators }}
     OverrideValidators:
-      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators}}
+      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators }}
       - Address: {{ $v.Address }}
         VotingPower: {{ $v.VotingPower }}
-	  {{- end}}
-	{{- end}}
-  {{- end}}
-{{end}}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
 #
 # EventDispatcher
 #
