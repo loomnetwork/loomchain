@@ -36,14 +36,6 @@ const (
 
 // Recovers the signer address from a signed tx.
 type originRecoveryFunc func(chainID string, tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
-var originRecoveryFuncs = map[keys.SignedTxType]originRecoveryFunc{
-	keys.LoomSignedTxType:     verifyEd25519,
-	keys.EthereumSignedTxType: verifySolidity66Byte,
-	keys.TronSignedTxType:     verifyTron,
-	keys.BinanceSignedTxType:  verifyBinance,
-}
-
-type originRecoveryFunc func(tx SignedTx, allowedSigTypes []evmcompat.SignatureType) ([]byte, error)
 
 // NewMultiChainSignatureTxMiddleware returns tx signing middleware that supports a set of chain
 // specific signing algos.
@@ -148,18 +140,18 @@ func NewMultiChainSignatureTxMiddleware(
 	})
 }
 
-func getOriginRecoveryFunc(state appstate.State, txID types.TxID, txType SignedTxType) originRecoveryFunc {
+func getOriginRecoveryFunc(state appstate.State, txID types.TxID, txType keys.SignedTxType) originRecoveryFunc {
 	switch txType {
-	case LoomSignedTxType:
+	case keys.LoomSignedTxType:
 		return verifyEd25519
-	case EthereumSignedTxType:
+	case keys.EthereumSignedTxType:
 		if (txID == types.TxID_ETHEREUM) && state.FeatureEnabled(features.EthTxFeature, false) {
 			return VerifyWrappedEthTx
 		}
 		return verifySolidity66Byte
-	case TronSignedTxType:
+	case keys.TronSignedTxType:
 		return verifyTron
-	case BinanceSignedTxType:
+	case keys.BinanceSignedTxType:
 		return verifyBinance
 	}
 	return nil

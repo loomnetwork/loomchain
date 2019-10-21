@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -145,16 +146,16 @@ func loadTierMap(ctx contractpb.StaticContext) (map[udwtypes.TierID]udwtypes.Tie
 // sent to an EVM contract within a pre-configured block range.
 func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 	createUserDeployerWhitelistCtx func(state appstate.State) (contractpb.Context, error),
-) loomchain.TxMiddlewareFunc {
+) txhandler.TxMiddlewareFunc {
 	txl := &contractTxLimiter{
 		contractStatsMap: make(map[string]*contractStats),
 	}
-	return loomchain.TxMiddlewareFunc(func(
+	return txhandler.TxMiddlewareFunc(func(
 		state appstate.State,
 		txBytes []byte,
-		next loomchain.TxHandlerFunc,
+		next txhandler.TxHandlerFunc,
 		isCheckTx bool,
-	) (res loomchain.TxHandlerResult, err error) {
+	) (res txhandler.TxHandlerResult, err error) {
 		if !isCheckTx {
 			return next(state, txBytes, isCheckTx)
 		}
@@ -251,7 +252,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		}
 
 		if txl.isAccountLimitReached(contractAddr, state.Block().Height) {
-			return loomchain.TxHandlerResult{}, ErrTxLimitReached
+			return txhandler.TxHandlerResult{}, ErrTxLimitReached
 		}
 		txl.updateState(contractAddr, state.Block().Height)
 
