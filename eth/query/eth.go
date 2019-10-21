@@ -19,6 +19,13 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
+var (
+	// Limit block range to 20 blocks for now 
+	// TODO: there should not be any limit according to Ethereum eth_getLogs
+	// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
+	maxRange := uint64(20)
+)
+
 func QueryChain(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
@@ -30,6 +37,14 @@ func QueryChain(
 	end, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.ToBlock))
 	if err != nil {
 		return nil, err
+	}
+
+	if end < start {
+		return nil, fmt.Errorf("toBlock must be equal or greater than fromBlock")
+	}
+
+	if end-start > maxRange {
+		return nil, fmt.Errorf("range exceeded, maximum range: %v", maxRange)
 	}
 
 	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
@@ -50,6 +65,14 @@ func DeprecatedQueryChain(
 	end, err := utils.DeprecatedBlockNumber(string(ethFilter.ToBlock), uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
+	}
+
+	if end < start {
+		return nil, fmt.Errorf("toBlock must be equal or greater than fromBlock")
+	}
+
+	if end-start > maxRange {
+		return nil, fmt.Errorf("range exceeded, maximum range: %v", maxRange)
 	}
 
 	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
