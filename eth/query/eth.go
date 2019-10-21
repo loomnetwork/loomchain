@@ -20,10 +20,10 @@ import (
 )
 
 var (
-	// Limit block range to 20 blocks for now 
+	// Limit block range to 20 blocks for now
 	// TODO: there should not be any limit according to Ethereum eth_getLogs
 	// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
-	maxRange := uint64(20)
+	maxRange = uint64(20)
 )
 
 func QueryChain(
