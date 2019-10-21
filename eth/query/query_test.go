@@ -35,7 +35,6 @@ var (
 func getFilter(fromBlock, toBlock string) string {
 	return "{\"fromBlock\":\"" + fromBlock + "\",\"toBlock\":\"" + toBlock + "\",\"address\":\"\",\"topics\":[]}"
 }
-
 func TestQueryChain(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
