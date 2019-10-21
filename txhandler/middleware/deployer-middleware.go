@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -152,14 +153,14 @@ func NewDeployerWhitelistMiddleware(
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
 				return res, errors.Wrap(err, "failed to unmarshal MessageTx")
 			}
-			isDeploy, err := isEthDeploy(msg.Data)
+			isDeploy, err := throttle.IsEthDeploy(msg.Data)
 			if err != nil {
 				return res, err
 			}
 			if !isDeploy {
 				break
 			}
-			origin := auth.Origin(state.Context())
+			origin := keys.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, err

@@ -45,7 +45,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	"github.com/loomnetwork/loomchain/txhandler/middleware"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
@@ -272,7 +271,7 @@ func (s *QueryServer) queryEvm(state appstate.State, caller, contract loom.Addre
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(state, nil, nil, createABM, false, nil)
+	vm := levm.NewLoomVm(state, nil, createABM, false, nil)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 

@@ -5,20 +5,18 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	ltypes "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain/auth"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -31,24 +29,6 @@ var (
 	tierMapLoadLatency         metrics.Histogram
 	contractTierMapLoadLatency metrics.Histogram
 )
-
-func init() {
-	fieldKeys := []string{"method", "error"}
-	tierMapLoadLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace:  "loomchain",
-		Subsystem:  "contract_tx_limiter_middleware",
-		Name:       "tier_map_load_latency",
-		Help:       "Total time taken for Tier Map to Load in seconds.",
-		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-	}, fieldKeys)
-	contractTierMapLoadLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace:  "loomchain",
-		Subsystem:  "contract_tx_limiter_middleware",
-		Name:       "contract_tier_map_load_latency",
-		Help:       "Total time taken for Contract Tier Map to Load in seconds.",
-		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-	}, fieldKeys)
-}
 
 type ContractTxLimiterConfig struct {
 	// Enables the middleware
@@ -163,7 +143,7 @@ func NewContractTxLimiterMiddleware(cfg *ContractTxLimiterConfig,
 		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
 			return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
 		}
-		var tx loomchain.Transaction
+		var tx ltypes.Transaction
 		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}

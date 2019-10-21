@@ -12,6 +12,7 @@ import (
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -70,7 +71,7 @@ func throttleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.St
 				})
 
 			case types.TxID_ETHEREUM:
-				isDeploy, err := isEthDeploy(msg.Data)
+				isDeploy, err := throttle.IsEthDeploy(msg.Data)
 				if err != nil {
 					return res, err
 				}

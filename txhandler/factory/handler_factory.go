@@ -97,7 +97,7 @@ func txMiddleWare(
 	))
 
 	if cfg.Karma.Enabled {
-		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
+		txMiddleWare = append(txMiddleWare, middleware.GetKarmaMiddleWare(
 			cfg.Karma.Enabled,
 			cfg.Karma.MaxCallCount,
 			cfg.Karma.SessionDuration,
