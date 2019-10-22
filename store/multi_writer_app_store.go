@@ -274,9 +274,8 @@ type multiWriterStoreSnapshot struct {
 }
 
 func newMultiWriterStoreSnapshot(store MultiWriterAppStore, version int64) *multiWriterStoreSnapshot {
-	evmStore := NewEvmStore(store.evmStore.evmDB, 100)
 	return &multiWriterStoreSnapshot{
-		evmDbSnapshot:    evmStore,
+		evmDbSnapshot:    NewEvmStore(store.evmStore.evmDB, 100),
 		appStoreSnapshot: store.appStore.GetSnapshot(version),
 	}
 }
@@ -300,7 +299,6 @@ func (s *multiWriterStoreSnapshot) Get(key []byte) []byte {
 	return val
 }
 
-// Range iterates in-order over the keys in the store prefixed by the given prefix.
 func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 	if len(prefix) == 0 {
 		panic(errors.New("Range over nil prefix not implemented"))
@@ -310,57 +308,4 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 		return s.evmDbSnapshot.Range(prefix)
 	}
 	return s.appStoreSnapshot.Range(prefix)
-	/*
-		// Seems to repeat code in //func (s *EvmStore) Range(prefix []byte) plugin.RangeData ????
-		ret := make(plugin.RangeData, 0)
-
-		if bytes.Equal(prefix, vmPrefix) || util.HasPrefix(prefix, vmPrefix) {
-			it := s.evmDbSnapshot.NewIterator(prefix, prefixRangeEnd(prefix))
-			defer it.Close()
-
-			for ; it.Valid(); it.Next() {
-				key := it.Key()
-				if util.HasPrefix(key, prefix) {
-					var err error
-					key, err = util.UnprefixKey(key, prefix)
-					if err != nil {
-						panic(err)
-					}
-
-					ret = append(ret, &plugin.RangeEntry{
-						Key:   key,
-						Value: it.Value(),
-					})
-				}
-			}
-			return ret
-		}
-
-		// Otherwise iterate over the IAVL tree
-		keys, values, _, err := s.appStoreTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
-		if err != nil {
-			log.Error("failed to get range", "prefix", string(prefix), "err", err)
-			return ret
-		}
-
-		for i, k := range keys {
-			// Tree range gives all keys that has prefix but it does not check zero byte
-			// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
-			if util.HasPrefix(k, prefix) {
-				k, err = util.UnprefixKey(k, prefix)
-				if err != nil {
-					panic(err)
-				}
-			} else { // Skip this key as it does not have the prefix
-				continue
-			}
-
-			ret = append(ret, &plugin.RangeEntry{
-				Key:   k,
-				Value: values[i],
-			})
-		}
-
-		return ret
-	*/
 }

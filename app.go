@@ -611,17 +611,17 @@ func (a *Application) ReadOnlyState() appstate.State {
 	)
 }
 
-func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.BlockStore) (replay.ReplayApplication, error) {
-	startVersion := int64(blockNumber) - 1
+func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.BlockStore) (replay.ReplayApplication, int64, error) {
+	startVersion := int64(blockNumber)
 	if startVersion < 0 {
-		return nil, errors.Errorf("invalid block number %d", blockNumber)
+		return nil, 0, errors.Errorf("invalid block number %d", blockNumber)
 	}
 	var snapshot store.Snapshot
-	for ; snapshot != nil || startVersion > 0; snapshot = a.Store.GetSnapshot(startVersion) {
+	for ; snapshot == nil && startVersion > 0; snapshot = a.Store.GetSnapshot(startVersion) {
 		startVersion--
 	}
 	if startVersion == 0 {
-		return nil, errors.Errorf("no saved version for height %d", blockNumber)
+		return nil, 0, errors.Errorf("no saved version for height %d", blockNumber)
 	}
 
 	startStore := store.NewSplitStore(snapshot, store.NewMemStore())
@@ -634,5 +634,5 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 		a.GetValidatorSet,
 		a.config,
 		a.TxHandlerFactory,
-	), nil
+	), startVersion, nil
 }
