@@ -788,7 +788,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	needToRemoveFnID := false
+	needToExcludeSender := false
 
 	if remoteMajVoteSet.Nonce < currentNonce {
 		needToBroadcast = false
@@ -811,7 +811,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		// our current vote set is clearly outdated, and should be removed.
 		delete(f.state.CurrentVoteSets, remoteFnID)
 
-		needToRemoveFnID = true
+		needToExcludeSender = true
 		// NOTE: f.safeSubmitMultiSignedMessage is not invoked here presumably because it was already
 		// invoked by the peers that we got the remote voteset from.
 	}
@@ -837,7 +837,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	if needToRemoveFnID {
+	if needToExcludeSender {
 		broadCastException := sender.ID()
 		f.broadcastMsgSync(FnMajChannel, &broadCastException, marshalledBytes)
 	} else {
