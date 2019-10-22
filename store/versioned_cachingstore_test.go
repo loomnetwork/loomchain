@@ -58,14 +58,6 @@ func (m *MockStore) Prune() error {
 	return nil
 }
 
-func (m *MockStore) VersionExists(version int64) bool {
-	panic("not implemented")
-}
-
-func (m *MockStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
-	panic("not implemented")
-}
-
 func (m *MockStore) GetSnapshot(version int64) Snapshot {
 	snapshotStore := make(map[string][]byte)
 	for k, v := range m.storage {

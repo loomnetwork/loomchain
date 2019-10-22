@@ -210,23 +210,20 @@ func (s *IAVLStore) Prune() error {
 }
 
 func (s *IAVLStore) GetSnapshot(version int64) Snapshot {
-	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
-	return &iavlStoreSnapshot{
-		IAVLStore: s,
+	if version == 0 {
+		// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+		return &iavlStoreSnapshot{
+			IAVLStore: s,
+		}
 	}
-}
-
-func (s *IAVLStore) VersionExists(version int64) bool {
-	return s.tree.VersionExists(version)
-}
-
-func (s *IAVLStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
-	reader, err := newIAVLVersionReader(*s, version)
-	if err != nil {
-		return nil, err
+	if s.tree.VersionExists(version) {
+		reader, err := newIAVLVersionReader(*s, version)
+		if err != nil {
+			return nil
+		}
+		return reader
 	}
-	splitStore := newSplitStore(reader, NewMemStore())
-	return splitStore, nil
+	return nil
 }
 
 // NewIAVLStore creates a new IAVLStore.

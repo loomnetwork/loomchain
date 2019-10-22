@@ -450,7 +450,7 @@ type SplitStoreTestSuite struct {
 
 // runs before each test in this suite
 func (ts *SplitStoreTestSuite) SetupTest() {
-	ts.store = newSplitStore(NewMemStore(), NewMemStore())
+	ts.store = NewSplitStore(NewMemStore(), NewMemStore())
 }
 
 func (ts *SplitStoreTestSuite) SetupSuite() {

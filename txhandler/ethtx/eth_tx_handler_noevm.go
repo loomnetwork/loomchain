@@ -1,6 +1,6 @@
 // +build !evm
 
-package tx_handler
+package ethtx
 
 import (
 	"github.com/loomnetwork/loomchain"

@@ -11,7 +11,7 @@ type splitStore struct {
 	deleted map[string]bool
 }
 
-func newSplitStore(full KVReader, empty VersionedKVStore) VersionedKVStore {
+func NewSplitStore(full KVReader, empty VersionedKVStore) VersionedKVStore {
 	return &splitStore{
 		KVReader:         full,
 		VersionedKVStore: empty,

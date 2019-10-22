@@ -11,12 +11,11 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/db"
-	"github.com/loomnetwork/loomchain/features"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
+
+	"github.com/loomnetwork/loomchain/features"
 )
 
 var (
@@ -119,7 +118,9 @@ func NewMultiWriterAppStore(
 		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
 	}
 
-	store.setLastSavedTreeToVersion(appStore.Version())
+	if err := store.setLastSavedTreeToVersion(appStore.Version()); err != nil {
+		return nil, err
+	}
 	return store, nil
 }
 
@@ -260,40 +261,42 @@ func (s *MultiWriterAppStore) GetSnapshot(version int64) Snapshot {
 	defer func(begin time.Time) {
 		getSnapshotDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
-	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
-	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree)
+
+	if version == 0 {
+		version = (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree)).Version()
+	}
+	return newMultiWriterStoreSnapshot(*s, version)
 }
 
 type multiWriterStoreSnapshot struct {
-	evmDbSnapshot db.Snapshot
-	appStoreTree  *iavl.ImmutableTree
+	evmDbSnapshot    KVReader
+	appStoreSnapshot Snapshot
 }
 
-func newMultiWriterStoreSnapshot(evmDbSnapshot db.Snapshot, appStoreTree *iavl.ImmutableTree) *multiWriterStoreSnapshot {
+func newMultiWriterStoreSnapshot(store MultiWriterAppStore, version int64) *multiWriterStoreSnapshot {
+	evmStore := NewEvmStore(store.evmStore.evmDB, 100)
 	return &multiWriterStoreSnapshot{
-		evmDbSnapshot: evmDbSnapshot,
-		appStoreTree:  appStoreTree,
+		evmDbSnapshot:    evmStore,
+		appStoreSnapshot: store.appStore.GetSnapshot(version),
 	}
 }
 
 func (s *multiWriterStoreSnapshot) Release() {
-	s.evmDbSnapshot.Release()
-	s.appStoreTree = nil
+	s.appStoreSnapshot.Release()
 }
 
 func (s *multiWriterStoreSnapshot) Has(key []byte) bool {
 	if util.HasPrefix(key, vmPrefix) {
 		return s.evmDbSnapshot.Has(key)
 	}
-	return s.appStoreTree.Has(key)
+	return s.appStoreSnapshot.Has(key)
 }
 
 func (s *multiWriterStoreSnapshot) Get(key []byte) []byte {
 	if util.HasPrefix(key, vmPrefix) {
 		return s.evmDbSnapshot.Get(key)
 	}
-	_, val := s.appStoreTree.Get(key)
+	val := s.appStoreSnapshot.Get(key)
 	return val
 }
 
@@ -303,67 +306,61 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 		panic(errors.New("Range over nil prefix not implemented"))
 	}
 
-	ret := make(plugin.RangeData, 0)
-
 	if bytes.Equal(prefix, vmPrefix) || util.HasPrefix(prefix, vmPrefix) {
-		it := s.evmDbSnapshot.NewIterator(prefix, prefixRangeEnd(prefix))
-		defer it.Close()
+		return s.evmDbSnapshot.Range(prefix)
+	}
+	return s.appStoreSnapshot.Range(prefix)
+	/*
+		// Seems to repeat code in //func (s *EvmStore) Range(prefix []byte) plugin.RangeData ????
+		ret := make(plugin.RangeData, 0)
 
-		for ; it.Valid(); it.Next() {
-			key := it.Key()
-			if util.HasPrefix(key, prefix) {
-				var err error
-				key, err = util.UnprefixKey(key, prefix)
+		if bytes.Equal(prefix, vmPrefix) || util.HasPrefix(prefix, vmPrefix) {
+			it := s.evmDbSnapshot.NewIterator(prefix, prefixRangeEnd(prefix))
+			defer it.Close()
+
+			for ; it.Valid(); it.Next() {
+				key := it.Key()
+				if util.HasPrefix(key, prefix) {
+					var err error
+					key, err = util.UnprefixKey(key, prefix)
+					if err != nil {
+						panic(err)
+					}
+
+					ret = append(ret, &plugin.RangeEntry{
+						Key:   key,
+						Value: it.Value(),
+					})
+				}
+			}
+			return ret
+		}
+
+		// Otherwise iterate over the IAVL tree
+		keys, values, _, err := s.appStoreTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+		if err != nil {
+			log.Error("failed to get range", "prefix", string(prefix), "err", err)
+			return ret
+		}
+
+		for i, k := range keys {
+			// Tree range gives all keys that has prefix but it does not check zero byte
+			// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
+			if util.HasPrefix(k, prefix) {
+				k, err = util.UnprefixKey(k, prefix)
 				if err != nil {
 					panic(err)
 				}
-
-				ret = append(ret, &plugin.RangeEntry{
-					Key:   key,
-					Value: it.Value(),
-				})
+			} else { // Skip this key as it does not have the prefix
+				continue
 			}
-		}
-		return ret
-	}
 
-	// Otherwise iterate over the IAVL tree
-	keys, values, _, err := s.appStoreTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
-	if err != nil {
-		log.Error("failed to get range", "prefix", string(prefix), "err", err)
-		return ret
-	}
-
-	for i, k := range keys {
-		// Tree range gives all keys that has prefix but it does not check zero byte
-		// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
-		if util.HasPrefix(k, prefix) {
-			k, err = util.UnprefixKey(k, prefix)
-			if err != nil {
-				panic(err)
-			}
-		} else { // Skip this key as it does not have the prefix
-			continue
+			ret = append(ret, &plugin.RangeEntry{
+				Key:   k,
+				Value: values[i],
+			})
 		}
 
-		ret = append(ret, &plugin.RangeEntry{
-			Key:   k,
-			Value: values[i],
-		})
-	}
-
-	return ret
-}
-
-func (m *MultiWriterAppStore) VersionExists(version int64) bool {
-	return m.appStore.VersionExists(version)
-}
-
-func (m *MultiWriterAppStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
-	reader, err := newMultiWriterVersionReader(*m, version)
-	if err != nil {
-		return nil, err
-	}
-	splitStore := newSplitStore(reader, NewMemStore())
-	return splitStore, nil
+		return ret
+	*/
 }

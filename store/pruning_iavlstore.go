@@ -269,11 +269,3 @@ type pruningIAVLStoreSnapshot struct {
 func (s *pruningIAVLStoreSnapshot) Release() {
 	// noop
 }
-
-func (m *PruningIAVLStore) VersionExists(version int64) bool {
-	return m.store.VersionExists(version)
-}
-
-func (m *PruningIAVLStore) RetrieveVersion(version int64) (VersionedKVStore, error) {
-	return m.store.RetrieveVersion(version)
-}

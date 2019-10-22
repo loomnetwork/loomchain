@@ -1,6 +1,6 @@
 // +build evm
 
-package tx_handler
+package ethtx
 
 import (
 	"fmt"
@@ -12,12 +12,12 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	appstate "github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -31,8 +31,8 @@ func (h *EthTxHandler) ProcessTx(
 	state appstate.State,
 	txBytes []byte,
 	isCheckTx bool,
-) (loomchain.TxHandlerResult, error) {
-	var r loomchain.TxHandlerResult
+) (txhandler.TxHandlerResult, error) {
+	var r txhandler.TxHandlerResult
 
 	if !state.FeatureEnabled(features.EthTxFeature, false) {
 		return r, errors.New("ethereum transactions feature not enabled")
@@ -43,7 +43,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, err
 	}
 
-	origin := auth.Origin(state.Context())
+	origin := keys.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 
 	if caller.Compare(origin) != 0 {

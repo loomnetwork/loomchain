@@ -10,6 +10,8 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+	"github.com/pkg/errors"
+
 	//"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -18,6 +20,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/replay"
 	"github.com/loomnetwork/loomchain/txhandler"
 
 	"github.com/loomnetwork/loomchain/log"
@@ -595,6 +598,7 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
+
 func (a *Application) ReadOnlyState() appstate.State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
@@ -607,23 +611,21 @@ func (a *Application) ReadOnlyState() appstate.State {
 	)
 }
 
-/*
-func (a *Application) InMemoryApp(blockNumber uint64, blockstore store.BlockStore) (middleware.InMemoryApp, error) {
+func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.BlockStore) (replay.ReplayApplication, error) {
 	startVersion := int64(blockNumber) - 1
 	if startVersion < 0 {
 		return nil, errors.Errorf("invalid block number %d", blockNumber)
 	}
-	for ; !a.Store.VersionExists(startVersion) || startVersion <= int64(0); startVersion-- {
+	var snapshot store.Snapshot
+	for ; snapshot != nil || startVersion > 0; snapshot = a.Store.GetSnapshot(startVersion) {
+		startVersion--
 	}
 	if startVersion == 0 {
 		return nil, errors.Errorf("no saved version for height %d", blockNumber)
 	}
-	startStore, err := a.Store.RetrieveVersion(startVersion)
-	if err != nil {
-		return nil, err
-	}
 
-	return middleware.NewInMemoryApp(
+	startStore := store.NewSplitStore(snapshot, store.NewMemStore())
+	return replay.NewReplayApplication(
 		startVersion,
 		blockstore,
 		startStore,
@@ -634,4 +636,3 @@ func (a *Application) InMemoryApp(blockNumber uint64, blockstore store.BlockStor
 		a.TxHandlerFactory,
 	), nil
 }
-*/

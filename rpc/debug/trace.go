@@ -3,39 +3,45 @@
 package debug
 
 import (
-	//"github.com/ethereum/go-ethereum/core/vm"
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	//"github.com/ethereum/go-ethereum/eth/ethapi"
-	//"github.com/ethereum/go-ethereum/eth/tracers"
-	//"github.com/pkg/errors"
-	"github.com/loomnetwork/loomchain/store"
+	"github.com/pkg/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	"github.com/ethereum/go-ethereum/eth/ethapi"
+	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/loomnetwork/loomchain/replay"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 func TraceTransaction(
-	//app middleware.InMemoryApp,
-	app abci.Application,
+	app replay.ReplayApplication,
 	blockstore store.BlockStore,
-	blockNumber, txIndex int64,
+	startBlockNumber, targetBlockNumber, txIndex int64,
 	config eth.TraceConfig,
 ) (interface{}, error) {
-	return nil, nil
-	/*if err := app.RunUpTo(blockNumber, txIndex); err != nil {
+	if err := runUpTo(app, blockstore, startBlockNumber, targetBlockNumber, txIndex); err != nil {
 		return nil, err
 	}
 
-	block, err := blockstore.GetBlockByHeight(&blockNumber)
+	block, err := blockstore.GetBlockByHeight(&targetBlockNumber)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting block information at height %v", blockNumber)
+		return nil, errors.Wrapf(err, "getting block information at height %v", targetBlockNumber)
 	}
-
-	result, tracer, err := app.TraceProcessTx(block.Block.Data.Txs[txIndex], config)
+	tracer, err := createTracer(config)
+	if err != nil {
+		return nil, err
+	}
+	app.SetTracer(tracer)
+	result := app.DeliverTx(block.Block.Data.Txs[txIndex])
 
 	switch tracer := tracer.(type) {
 	case *vm.StructLogger:
 		return &ethapi.ExecutionResult{
 			Gas:         5,
-			Failed:      err == nil,
+			Failed:      result.Code != abci.CodeTypeOK,
 			ReturnValue: fmt.Sprintf("%x", result),
 			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
 		}, nil
@@ -44,5 +50,36 @@ func TraceTransaction(
 	default:
 		return nil, errors.New(fmt.Sprintf("bad tracer type %T", tracer))
 	}
-	*/
+}
+
+func runUpTo(app abci.Application, blockstore store.BlockStore, startHeight, height, index int64) error {
+	for h := startHeight; h <= height; h++ {
+		_ = app.BeginBlock(abci.RequestBeginBlock{})
+
+		block, err := blockstore.GetBlockByHeight(&h)
+		if err != nil {
+			return errors.Wrapf(err, "getting block information at height %v", h)
+		}
+		for i := 0; i < len(block.Block.Data.Txs); i++ {
+			if h != height || i != int(index) {
+				_ = app.DeliverTx(block.Block.Data.Txs[i])
+			} else {
+				return nil
+			}
+		}
+
+		_ = app.EndBlock(abci.RequestEndBlock{})
+	}
+	return errors.Errorf("cannot find transaction at height %d index %d", height, index)
+}
+
+func createTracer(traceCfg eth.TraceConfig) (vm.Tracer, error) {
+	if traceCfg.Tracer == nil || len(*traceCfg.Tracer) == 0 {
+		return vm.NewStructLogger(traceCfg.LogConfig), nil
+	}
+	tracer, err := tracers.New(*traceCfg.Tracer)
+	if err != nil {
+		return nil, err
+	}
+	return tracer, nil
 }
