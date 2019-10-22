@@ -419,7 +419,8 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if fnRegistry != nil {
+			// If this node is meant to be a custom reactor validator start the gateway reactors.
+			if cfg.FnConsensus.Reactor.IsValidator && fnRegistry != nil {
 				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
 					return err
 				}

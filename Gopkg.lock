@@ -310,7 +310,7 @@
 
 [[projects]]
   branch = "loomchain"
-  digest = "1:dd101ab4dc08ffc08bcf9c0cd52b93a44e121edbf1c5cfbabdac62dc6469f73c"
+  digest = "1:96675ec2dcbe61921ba645e53c4b8cbe025ea2257bddf451a4c5826a0f325769"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -363,7 +363,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "62d42c27fdaca37f3f76ac8bcc107e6f661c1de7"
+  revision = "f32154d54e306c8a381b74062862f734d863e101"
   source = "https://github.com/loomnetwork/tendermint.git"
 
 [[projects]]
