@@ -24,6 +24,17 @@ func DefaultEvmStoreConfig() *EvmStoreConfig {
 	}
 }
 
+type EvmConfig struct {
+	// MaxBlockLimit defines the maximum number of blocks that can be queried in a request
+	MaxBlockLimit int64
+}
+
+func DefaultEvmConfig() *EvmConfig {
+	return &EvmConfig{
+		MaxBlockLimit: 20,
+	}
+}
+
 // Clone returns a deep clone of the config.
 func (cfg *EvmStoreConfig) Clone() *EvmStoreConfig {
 	if cfg == nil {

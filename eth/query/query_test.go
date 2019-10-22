@@ -90,7 +90,7 @@ func TestQueryChain(t *testing.T) {
 	blockStore.SetBlock(store.MockBlock(20, evmTxHash, [][]byte{tx}))
 
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := DeprecatedQueryChain(getFilter("1", "20"), blockStore, state30, receiptHandler, evmAuxStore)
+	result, err := DeprecatedQueryChain(getFilter("1", "20"), blockStore, state30, receiptHandler, evmAuxStore, 100000)
 	require.NoError(t, err, "error query chain, filter is %s", getFilter("1", "20"))
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
@@ -100,9 +100,9 @@ func TestQueryChain(t *testing.T) {
 	require.NoError(t, err)
 	ethFilter2, err := utils.UnmarshalEthFilter([]byte(getFilter("1", "10")))
 	require.NoError(t, err)
-	filterLogs1, err := QueryChain(blockStore, state30, ethFilter1, receiptHandler, evmAuxStore)
+	filterLogs1, err := QueryChain(blockStore, state30, ethFilter1, receiptHandler, evmAuxStore, 100000)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter1)
-	filterLogs2, err := QueryChain(blockStore, state30, ethFilter2, receiptHandler, evmAuxStore)
+	filterLogs2, err := QueryChain(blockStore, state30, ethFilter2, receiptHandler, evmAuxStore, 100000)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter2)
 	require.Equal(t, 2, len(filterLogs1)+len(filterLogs2), "wrong number of logs returned")
 

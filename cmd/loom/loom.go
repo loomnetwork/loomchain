@@ -1279,6 +1279,7 @@ func initQueryService(
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
+		EvmCfg:                 cfg.Evm,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

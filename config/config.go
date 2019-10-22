@@ -143,6 +143,8 @@ type Config struct {
 	EVMDebugEnabled bool
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
+
+	Evm *evm.EvmConfig
 }
 
 type Metrics struct {
@@ -416,6 +418,7 @@ func DefaultConfig() *Config {
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
+	cfg.Evm = evm.DefaultEvmConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -720,6 +723,15 @@ EvmStore:
   CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
   # NumCachedRoots defines a number of in-memory cached EVM roots
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
+{{end}}
+
+{{if .Evm -}}
+#
+# Evm
+#
+Evm:
+  # MaxBlockLimit defines the maximum number of block range in one request
+  MaxBlockLimit: {{.Evm.MaxBlockLimit}}
 {{end}}
 
 # 

@@ -11,8 +11,10 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-func DeprecatedQueryChain(_ string, _ store.BlockStore, _ loomchain.ReadOnlyState,
-	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore) ([]byte, error) {
+func DeprecatedQueryChain(
+	_ string, _ store.BlockStore, _ loomchain.ReadOnlyState,
+	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore, _ int64,
+) ([]byte, error) {
 	return nil, nil
 }
 
@@ -65,8 +67,8 @@ func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64, _ *evmaux.EvmAuxStore
 }
 
 func QueryChain(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler,
-	_ *evmaux.EvmAuxStore,
+	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter,
+	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore, _ int64,
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }
