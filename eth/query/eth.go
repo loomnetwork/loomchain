@@ -19,13 +19,6 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-var (
-	// Limit block range to 20 blocks for now
-	// TODO: there should not be any limit according to Ethereum eth_getLogs
-	// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
-	maxRange = uint64(20)
-)
-
 func QueryChain(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore, blockLimit int64,

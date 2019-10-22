@@ -25,7 +25,7 @@ func DefaultEvmStoreConfig() *EvmStoreConfig {
 }
 
 type EvmConfig struct {
-	// MaxBlockLimit defines the maximum number of blocks that can be queried in a request
+	// MaxBlockLimit defines the maximum number of block range in one request
 	MaxBlockLimit int64
 }
 
