@@ -36,7 +36,7 @@ func QueryChain(
 	}
 
 	if end-start > uint64(blockLimit) {
-		return nil, fmt.Errorf("range exceeded, maximum range: %v, fromBlock: %d, toBlock: %d", maxRange, start, end)
+		return nil, fmt.Errorf("range exceeded, maximum range: %v, fromBlock: %d, toBlock: %d", blockLimit, start, end)
 	}
 
 	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
@@ -65,7 +65,7 @@ func DeprecatedQueryChain(
 	}
 
 	if end-start > uint64(blockLimit) {
-		return nil, fmt.Errorf("range exceeded, maximum range: %v, fromBlock: %d, toBlock: %d", maxRange, start, end)
+		return nil, fmt.Errorf("range exceeded, maximum range: %v, fromBlock: %d, toBlock: %d", blockLimit, start, end)
 	}
 
 	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
