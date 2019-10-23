@@ -709,9 +709,10 @@ func (s *QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err e
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
-func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
+func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp *eth.JsonBlockObject, err error) {
 	if block == "0x0" {
-		return eth.GetBlockZero(), nil
+		b := eth.GetBlockZero()
+		return &b, nil
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
@@ -719,7 +720,12 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
-		return resp, err
+		return nil, err
+	}
+
+	// Ethereum nodes seem to return null for a block that doesn't exist yet, so emulate them
+	if block == "pending" || height > uint64(snapshot.Block().Height) {
+		return nil, nil
 	}
 
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
@@ -727,14 +733,14 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	//       block store.
 	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if block == "0x1" && blockResult.ParentHash == "0x0" {
 		blockResult.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
 	}
 
-	return blockResult, err
+	return &blockResult, err
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
