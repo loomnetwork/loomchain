@@ -141,6 +141,8 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
+	// Set to true to disable minimum required build number check on node startup
+	SkipMinBuildCheck bool
 }
 
 type Metrics struct {
@@ -388,6 +390,7 @@ func DefaultConfig() *Config {
 		CallEnabled:            true,
 		DPOSVersion:            3,
 		AllowNamedEvmContracts: false,
+		SkipMinBuildCheck:      false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -720,21 +723,26 @@ EvmStore:
 {{end}}
 
 # 
-#  FnConsensus reactor on/off switch + config
+# FnConsensus reactor on/off switch + config
 #
-{{- if .FnConsensus}}
+{{- if .FnConsensus }}
 FnConsensus:
+  Enabled: {{ .FnConsensus.Enabled }}
   {{- if .FnConsensus.Reactor }}
   Reactor:
+    # Set to false to make the node forward messages without tracking consensus state
+    IsValidator: {{ .FnConsensus.Reactor.IsValidator }}
+    FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
+    {{- if .FnConsensus.Reactor.OverrideValidators }}
     OverrideValidators:
-      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators}}
+      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators }}
       - Address: {{ $v.Address }}
         VotingPower: {{ $v.VotingPower }}
-      {{- end}}
-    FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
-  {{- end}}
-  Enabled: {{.FnConsensus.Enabled}}
-{{end}}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
 #
 # EventDispatcher
 #
@@ -766,5 +774,6 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
-
+# Set to true to disable minimum required build number check on node startup
+SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
 ` + transferGatewayLoomYamlTemplate

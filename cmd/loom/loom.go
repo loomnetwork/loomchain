@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -418,7 +419,8 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if fnRegistry != nil {
+			// If this node is meant to be a custom reactor validator start the gateway reactors.
+			if cfg.FnConsensus.Reactor.IsValidator && fnRegistry != nil {
 				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
 					return err
 				}
@@ -730,6 +732,19 @@ func loadApp(
 		return nil, err
 	}
 
+	if !cfg.SkipMinBuildCheck {
+		if buildBytes := appStore.Get([]byte(loomchain.MinBuildKey)); len(buildBytes) > 0 {
+			minimumBuild := binary.BigEndian.Uint64(buildBytes)
+			currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse loomchain build number")
+			}
+			if currentBuild < minimumBuild {
+				return nil, fmt.Errorf("build %d is too old, upgrade to build %d or later", currentBuild, minimumBuild)
+			}
+		}
+	}
+
 	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
 	switch cfg.EventDispatcher.Dispatcher {
@@ -834,6 +849,11 @@ func loadApp(
 		Manager: vmManager,
 	}
 
+	ethTxHandler := &tx_handler.EthTxHandler{
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
+	}
+
 	migrationTxHandler := &tx_handler.MigrationTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
@@ -915,11 +935,13 @@ func loadApp(
 	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
 	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
+	router.HandleDeliverTx(4, loomchain.GeneratePassthroughRouteHandler(ethTxHandler))
 
 	// TODO: Write this in more elegant way
 	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
 	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
+	router.HandleCheckTx(4, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, ethTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
@@ -1241,7 +1263,6 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
-
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1264,14 +1285,9 @@ func initQueryService(
 		Subs:    *app.EventHandler.SubscriptionSet(),
 		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
-	// query service
-	var qsvc rpc.QueryService
-	{
-		qsvc = qs
-		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
-	}
+	var qsvc rpc.QueryService = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qs)
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
+	err = rpc.RPCServer(qsvc, chainID, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
 	if err != nil {
 		return err
 	}

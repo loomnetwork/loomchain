@@ -389,8 +389,9 @@ func checkAppHash(nodes map[string]*node.Node) error {
 }
 
 func (e *engineCmd) waitForClusterToStart() error {
-	maxRetries := 5
+	maxRetries := 4
 	readyNodes := map[string]bool{}
+	time.Sleep(1 * time.Second)
 	for i := 0; i < maxRetries; i++ {
 		for nodeID, nodeCfg := range e.conf.Nodes {
 			if !readyNodes[nodeID] {
@@ -404,7 +405,7 @@ func (e *engineCmd) waitForClusterToStart() error {
 		if len(readyNodes) == len(e.conf.Nodes) {
 			break
 		}
-		time.Sleep(time.Duration(i+1) * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 	if len(readyNodes) != len(e.conf.Nodes) {
 		return fmt.Errorf("%d/%d nodes are running", len(readyNodes), len(e.conf.Nodes))
@@ -435,7 +436,7 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			}
 		}
 	case "excludes":
-		var excludeds []string
+		var excludes []string
 		for _, excluded := range n.Excluded {
 			t, err := template.New("excluded").Parse(excluded)
 			if err != nil {
@@ -446,10 +447,10 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 			if err != nil {
 				return err
 			}
-			excludeds = append(excludeds, buf.String())
+			excludes = append(excludes, buf.String())
 		}
 
-		for _, excluded := range excludeds {
+		for _, excluded := range excludes {
 			if strings.Contains(string(out), excluded) {
 				return fmt.Errorf("❌ expect output to exclude '%s' got '%s'", excluded, string(out))
 			}
