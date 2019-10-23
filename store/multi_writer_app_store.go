@@ -18,6 +18,10 @@ import (
 	"github.com/loomnetwork/loomchain/features"
 )
 
+const (
+	evmCacheRoots = 100
+)
+
 var (
 	// This is the same prefix as vmPrefix in evm/loomevm.go
 	// We have to do this to avoid cyclic dependency
@@ -265,7 +269,8 @@ func (s *MultiWriterAppStore) GetSnapshot(version int64) Snapshot {
 	if version == 0 {
 		version = (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree)).Version()
 	}
-	return newMultiWriterStoreSnapshot(*s, version)
+	snapshot, _ := newMultiWriterStoreSnapshot(*s, version)
+	return snapshot
 }
 
 type multiWriterStoreSnapshot struct {
@@ -273,11 +278,15 @@ type multiWriterStoreSnapshot struct {
 	appStoreSnapshot Snapshot
 }
 
-func newMultiWriterStoreSnapshot(store MultiWriterAppStore, version int64) *multiWriterStoreSnapshot {
-	return &multiWriterStoreSnapshot{
-		evmDbSnapshot:    NewEvmStore(store.evmStore.evmDB, 100),
-		appStoreSnapshot: store.appStore.GetSnapshot(version),
+func newMultiWriterStoreSnapshot(store MultiWriterAppStore, version int64) (*multiWriterStoreSnapshot, error) {
+	evmStore := NewEvmStore(store.evmStore.evmDB, evmCacheRoots)
+	if err := evmStore.LoadVersion(version); err != nil {
+		return nil, err
 	}
+	return &multiWriterStoreSnapshot{
+		evmDbSnapshot:    evmStore,
+		appStoreSnapshot: store.appStore.GetSnapshot(version),
+	}, nil
 }
 
 func (s *multiWriterStoreSnapshot) Release() {

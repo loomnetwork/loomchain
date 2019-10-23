@@ -625,14 +625,18 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 	}
 
 	startStore := store.NewSplitStore(snapshot, store.NewMemStore())
-	return replay.NewReplayApplication(
+	newApp, err := replay.NewReplayApplication(
 		startVersion,
 		blockstore,
 		startStore,
-		a.TxHandler,
 		a.ReceiptsVersion,
 		a.GetValidatorSet,
 		a.config,
 		a.TxHandlerFactory,
-	), startVersion, nil
+		nil,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	return newApp, startVersion, nil
 }

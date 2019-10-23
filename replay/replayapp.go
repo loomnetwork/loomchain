@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
 	ttypes "github.com/tendermint/tendermint/types"
 
@@ -16,7 +17,7 @@ import (
 
 type ReplayApplication interface {
 	abci.Application
-	SetTracer(vm.Tracer)
+	SetTracer(vm.Tracer) error
 }
 
 var _ abci.Application = (*replayApplication)(nil)
@@ -26,38 +27,47 @@ type replayApplication struct {
 	height           int64
 	blockstore       store.BlockStore
 	store            store.VersionedKVStore
-	txHandler        txhandler.TxHandler
 	receiptsVersion  int32
 	getValidatorSet  state.GetValidatorSet
 	config           *chainconfig.Config
-	txHandlerFactory txhandler.TxHandlerFactory
 	tracer           vm.Tracer
+	txHandlerFactory txhandler.TxHandlerFactory
+	txHandler        txhandler.TxHandler
 }
 
 func NewReplayApplication(
 	height int64,
 	blockstore store.BlockStore,
 	store store.VersionedKVStore,
-	txHandler txhandler.TxHandler,
 	receiptsVersion int32,
 	getValidatorSet state.GetValidatorSet,
 	config *chainconfig.Config,
 	txHandlerFactory txhandler.TxHandlerFactory,
-) *replayApplication {
-	return &replayApplication{
+	tracer vm.Tracer,
+) (*replayApplication, error) {
+	app := &replayApplication{
 		height:           height,
 		blockstore:       blockstore,
 		store:            store,
-		txHandler:        txHandler,
 		receiptsVersion:  receiptsVersion,
 		getValidatorSet:  getValidatorSet,
 		config:           config,
 		txHandlerFactory: txHandlerFactory,
 	}
+	if err := app.SetTracer(tracer); err != nil {
+		return nil, err
+	}
+	return app, nil
 }
 
-func (a *replayApplication) SetTracer(tracer vm.Tracer) {
+func (a *replayApplication) SetTracer(tracer vm.Tracer) error {
+	newTxHandle, err := a.txHandlerFactory.TxHandler(tracer, false)
+	if err != nil {
+		return errors.Wrap(err, "making transaction handle")
+	}
 	a.tracer = tracer
+	a.txHandler = newTxHandle
+	return nil
 }
 
 func (a *replayApplication) DeliverTx(tx []byte) abci.ResponseDeliverTx {
@@ -74,12 +84,8 @@ func (a *replayApplication) DeliverTx(tx []byte) abci.ResponseDeliverTx {
 		blockHeaderFromHeader(resultBlock.BlockMeta.Header),
 		a.getValidatorSet,
 	).WithOnChainConfig(a.config)
-	txHandle, err := a.txHandlerFactory.TxHandler(a.tracer, false)
-	if err != nil {
-		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
-	}
 
-	r, err := txHandle.ProcessTx(storeState, tx, false)
+	r, err := a.txHandler.ProcessTx(storeState, tx, false)
 	if err != nil {
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}

@@ -34,7 +34,9 @@ func TraceTransaction(
 	if err != nil {
 		return nil, err
 	}
-	app.SetTracer(tracer)
+	if err := app.SetTracer(tracer); err != nil {
+		return nil, err
+	}
 	result := app.DeliverTx(block.Block.Data.Txs[txIndex])
 
 	switch tracer := tracer.(type) {

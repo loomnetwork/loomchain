@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -210,20 +211,11 @@ func (s *IAVLStore) Prune() error {
 }
 
 func (s *IAVLStore) GetSnapshot(version int64) Snapshot {
-	if version == 0 {
-		// This isn't an actual snapshot obviously, and never will be, but lets pretend...
-		return &iavlStoreSnapshot{
-			IAVLStore: s,
-		}
+	snapshot, err := newIavlStoreSnapshot(*s, version)
+	if err != nil {
+		panic(err) // todo maybe add error return to Snapshot
 	}
-	if s.tree.VersionExists(version) {
-		reader, err := newIAVLVersionReader(*s, version)
-		if err != nil {
-			return nil
-		}
-		return reader
-	}
-	return nil
+	return snapshot
 }
 
 // NewIAVLStore creates a new IAVLStore.
@@ -259,9 +251,38 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*
 }
 
 type iavlStoreSnapshot struct {
-	*IAVLStore
+	*iavl.ImmutableTree
 }
 
-func (s *iavlStoreSnapshot) Release() {
-	// noop
+func newIavlStoreSnapshot(store IAVLStore, version int64) (Snapshot, error) {
+	if version == 0 {
+		version = store.Version()
+	}
+	immutableTree, err := store.tree.GetImmutable(version)
+	if err != nil {
+		return nil, err
+	}
+	return &iavlStoreSnapshot{
+		immutableTree,
+	}, nil
 }
+
+func (s *iavlStoreSnapshot) Get(key []byte) []byte {
+	_, value := s.ImmutableTree.Get(key)
+	return value
+}
+
+func (s *iavlStoreSnapshot) Range(prefix []byte) plugin.RangeData {
+	var data plugin.RangeData
+	prefix = append(prefix, 0)
+	s.ImmutableTree.IterateRangeInclusive(prefix, nil, true, func(key []byte, value []byte, _ int64) bool {
+		if 0 != bytes.Compare(prefix, key[:len(prefix)]) {
+			return true
+		}
+		data = append(data, &plugin.RangeEntry{key, value})
+		return false
+	})
+	return data
+}
+
+func (s *iavlStoreSnapshot) Release() {}
