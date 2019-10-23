@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const LoomTruffleProvider = require('loom-truffle-provider')
+const HDWalletProvider = require("@truffle/hdwallet-provider")
 
 module.exports = {
   networks: {
@@ -18,6 +19,21 @@ module.exports = {
         const provider = new LoomTruffleProvider(chainId, writeUrl, readUrl, privateKey)
         provider.createExtraAccountsFromMnemonic("gravity top burden flip student usage spell purchase hundred improve check genre", 10)
         return provider
+      },
+      network_id: '*',
+      skipDryRun: true,
+    },
+    hdwallet: {
+      provider: function() {
+        if (!process.env.CLUSTER_DIR) {
+          throw new Error('CLUSTER_DIR env var not defined')
+        }
+        const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
+        console.log(`Using node at ${nodeAddr} for Truffle`)
+        const mnemonic = fs.readFileSync(path.join(__dirname, 'eth_mnemonic'), 'utf-8').trim()
+        // NOTE: This provider uses Eth accounts, so a mapping to a Loom account must already for
+        // any account used with this provider.
+        return new HDWalletProvider(mnemonic, `http://${nodeAddr}/eth`)
       },
       network_id: '*',
       skipDryRun: true,
