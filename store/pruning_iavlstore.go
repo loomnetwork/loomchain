@@ -178,10 +178,7 @@ func (s *PruningIAVLStore) Prune() error {
 }
 
 func (s *PruningIAVLStore) GetSnapshot(version int64) Snapshot {
-	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
-	return &pruningIAVLStoreSnapshot{
-		PruningIAVLStore: s,
-	}
+	return s.store.GetSnapshot(version)
 }
 
 func (s *PruningIAVLStore) prune() error {
