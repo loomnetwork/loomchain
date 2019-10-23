@@ -10,7 +10,7 @@ const ethers = require('ethers').ethers
 
 const NonceTestContract = artifacts.require('NonceTestContract')
 
-contract('NonceTestContract', async (accounts) => {
+contract.skip('NonceTestContract', async (accounts) => {
     let contract, from, nodeAddr
 
     beforeEach(async () => {

@@ -8,7 +8,7 @@ const {
     LocalAddress, CryptoUtils, Contracts, Address
 } = require('loom-js');
 
-contract('SampleGoContract', async () => {
+contract.skip('SampleGoContract', async () => {
     const privateKey = CryptoUtils.generatePrivateKey();
     const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey);
     let client, web3js;

@@ -3,7 +3,7 @@ const Web3 = require('web3')
 
 const MyToken = artifacts.require('MyToken')
 
-contract('MyToken', async (accounts) => {
+contract.skip('MyToken', async (accounts) => {
     let web3js
     let alice, bob, dan, trudy, eve
 

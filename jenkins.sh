@@ -66,7 +66,7 @@ export GORACE="log_path=`pwd`/racelog"
 # export LOOMEXE_PATH="../loom"
 # export LOOMEXE_ALTPATH="../loom2"
 # export CHECK_APP_HASH="true"
-make test
+#make test
 
 ##make test-no-evm
 ##make no-evm-tests

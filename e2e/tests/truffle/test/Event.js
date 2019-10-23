@@ -14,7 +14,7 @@ const {
 
 const EventTestContract = artifacts.require('EventTestContract')
 
-contract('EventTestContract', async (accounts) => {
+contract.skip('EventTestContract', async (accounts) => {
     let contract, from, nodeAddr, contractAddress, web3eth, newValueSetEventTopic, anotherValueSetEventTopic
     beforeEach(async () => {
         nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()

@@ -6,7 +6,7 @@ const StoreTestContract = artifacts.require('StoreTestContract');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
-contract('StoreTestContract', async (accounts) => {
+contract.skip('StoreTestContract', async (accounts) => {
   let web3js, ethUrl, nodeAddr
 
   beforeEach(async () => {
