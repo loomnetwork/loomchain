@@ -31,7 +31,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/evm"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
@@ -131,7 +130,7 @@ type QueryServer struct {
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
-	EvmCfg     *evm.EvmConfig
+	Web3Cfg    *eth.Web3Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -608,7 +607,7 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	defer snapshot.Release()
 
 	return query.DeprecatedQueryChain(
-		filter, s.BlockStore, snapshot, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore, s.EvmCfg.MaxBlockLimit,
+		filter, s.BlockStore, snapshot, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore, s.Web3Cfg.MaxBlockLimit,
 	)
 }
 
@@ -930,7 +929,7 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
 	logs, err := query.QueryChain(
-		s.BlockStore, snapshot, ethFilter, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore, s.EvmCfg.MaxBlockLimit,
+		s.BlockStore, snapshot, ethFilter, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore, s.Web3Cfg.MaxBlockLimit,
 	)
 	if err != nil {
 		return resp, err

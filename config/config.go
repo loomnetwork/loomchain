@@ -18,6 +18,7 @@ import (
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
@@ -144,7 +145,7 @@ type Config struct {
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
 
-	Evm *evm.EvmConfig
+	Web3 *eth.Web3Config
 }
 
 type Metrics struct {
@@ -418,7 +419,7 @@ func DefaultConfig() *Config {
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
-	cfg.Evm = evm.DefaultEvmConfig()
+	cfg.Web3 = eth.DefaultWeb3Config()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -725,13 +726,13 @@ EvmStore:
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
 {{end}}
 
-{{if .Evm -}}
+{{if .Web3 -}}
 #
-# Evm
+# Web3
 #
-Evm:
+Web3:
   # MaxBlockLimit defines the maximum number of block range in one request
-  MaxBlockLimit: {{.Evm.MaxBlockLimit}}
+  MaxBlockLimit: {{.Web3.MaxBlockLimit}}
 {{end}}
 
 # 
