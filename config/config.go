@@ -697,7 +697,7 @@ AppStore:
   # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
   SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
-  # If true CachingKVStore will be enabled
+  # Enables caching of the mutable app store in tx handlers & middleware.
   CachingEnabled: {{ .AppStore.CachingEnabled }}
 {{if .EventStore -}}
 #
