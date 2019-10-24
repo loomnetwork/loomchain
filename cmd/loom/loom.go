@@ -660,6 +660,10 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
+		appStore, err = store.NewCachingKVStore(appStore)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
