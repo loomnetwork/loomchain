@@ -1022,6 +1022,13 @@ func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHe
 		return eth.ZeroedQuantity, err
 	}
 
+	// Currently loom nodes don't expose pending state to clients, but various web3 libs may call
+	// eth_getTransactionCount with "pending" so to make them work we just return the latest nonce
+	// based on the last committed block.
+	if block == "pending" {
+		block = "latest"
+	}
+
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
 		return eth.ZeroedQuantity, err

@@ -124,8 +124,10 @@ func (t *SendRawTransactionPRCFunc) ethereumToTendermintTx(txBytes []byte) (type
 		return nil, err
 	}
 
+	// The first nonce for a SignedTx must be 1, but on Ethereum the first nonce must be zero,
+	// need to account for this difference to maintain compatibility with the Web3 libs & clients.
 	nonceTx := &auth.NonceTx{
-		Sequence: tx.Nonce(),
+		Sequence: tx.Nonce() + 1,
 	}
 	nonceTx.Inner, err = proto.Marshal(txTx)
 	if err != nil {
