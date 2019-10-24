@@ -731,8 +731,8 @@ EvmStore:
 # Web3
 #
 Web3:
-  # MaxBlockLimit defines the maximum number of block range in one request
-  MaxBlockLimit: {{.Web3.MaxBlockLimit}}
+  # GetLogsMaxBlockRange defines the maximum number of block range in one request
+  GetLogsMaxBlockRange: {{.Web3.GetLogsMaxBlockRange}}
 {{end}}
 
 # 
