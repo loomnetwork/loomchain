@@ -20,6 +20,8 @@ type AppStoreConfig struct {
 	// If set to zero every version will be written to disk unless overridden via the on-chain config.
 	// If set to -1 every version will always be written to disk, regardless of the on-chain config.
 	IAVLFlushInterval int64
+	// If true CachingKVStore will be enabled
+	CachingEnabled bool
 }
 
 func DefaultConfig() *AppStoreConfig {
@@ -31,6 +33,7 @@ func DefaultConfig() *AppStoreConfig {
 		PruneBatchSize:     50,
 		SaveEVMStateToIAVL: false,
 		IAVLFlushInterval:  0, // allow override via on-chain config
+		CachingEnabled:     false,
 	}
 }
 
