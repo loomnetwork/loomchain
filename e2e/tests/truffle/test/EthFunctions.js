@@ -28,8 +28,15 @@ contract('MyToken', async (accounts) => {
 
     alice = accounts[1];
     bob = accounts[2];
-    aliceLoomAddr = await getMappedAccount(nodeAddr, loomCallerAddr, alice)
-    bobLoomAddr = await getMappedAccount(nodeAddr, loomCallerAddr, bob)
+
+    // When using the Truffle HDWallet provider the accounts have Ethereum addresses
+    if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+      aliceLoomAddr = await getMappedAccount(nodeAddr, loomCallerAddr, alice)
+      bobLoomAddr = await getMappedAccount(nodeAddr, loomCallerAddr, bob)
+    } else { // when using Loom Truffle provider the accounts have DAppChain addresses
+      aliceLoomAddr = alice
+      bobLoomAddr = bob
+    }
   });
 
   it('eth_blockNumber', async () => {
@@ -61,7 +68,10 @@ contract('MyToken', async (accounts) => {
   it('eth_getTransactionReceipt', async () => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(101, { from: alice });
-    assert.equal(result.receipt.contractAddress, null, "contract address on receipt should be null");
+    if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+      // NOTE: This is a bug in EvmTxReceipt (/query) that's been fixed in EthGetTransactionReceipt (/eth)
+      assert.equal(result.receipt.contractAddress, null, "contract address on receipt should be null");
+    }
 
     const receipt = await web3js.eth.getTransactionReceipt(result.tx);
     assert.equal(receipt.contractAddress, null, "contract address from deploy tx and receipt");
@@ -168,18 +178,18 @@ contract('MyToken', async (accounts) => {
     const privKey = CryptoUtils.generatePrivateKey();
     const pubKey = CryptoUtils.publicKeyFromPrivateKey(privKey);
     client.txMiddleware = createDefaultTxMiddleware(client, privKey);
-    // Create a mapping between Alice's DAppChain account & Ethereum account, this is necessary in
+    // Create a mapping between a new DAppChain account & Ethereum account, this is necessary in
     // order to match the signer address that will be recovered from the Ethereum tx to a DAppChain
     // account, without this mapping the Ethereum tx will be rejected.
-    const aliceLoomAddr = new Address(client.chainId, LocalAddress.fromPublicKey(pubKey));
-    const addressMapper = await Contracts.AddressMapper.createAsync(client, aliceLoomAddr);
-    const ethPrivateKey = '0xe331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109';
-    const aliceEthWallet = new ethers.Wallet(ethPrivateKey);
-    const aliceEthAddr = await aliceEthWallet.getAddress();
+    const loomAddr = new Address(client.chainId, LocalAddress.fromPublicKey(pubKey));
+    const addressMapper = await Contracts.AddressMapper.createAsync(client, loomAddr);
+    const ethAccount = web3js.eth.accounts.create();
+    const ethWallet = new ethers.Wallet(ethAccount.privateKey);
+    const ethAddr = await ethWallet.getAddress();
     await addressMapper.addIdentityMappingAsync(
-      aliceLoomAddr,
-      new Address('eth', LocalAddress.fromHexString(aliceEthAddr)),
-      new EthersSigner(aliceEthWallet)
+      loomAddr,
+      new Address('eth', LocalAddress.fromHexString(ethAddr)),
+      new EthersSigner(ethWallet)
     );
     client.disconnect();
 
@@ -188,7 +198,7 @@ contract('MyToken', async (accounts) => {
     const mintTokenInterface = getContractFuncInterface(
       new web3js.eth.Contract(MyToken._json.abi, tokenContract.address), 'mintToken'
     )
-    const txCount = await web3js.eth.getTransactionCount(aliceEthAddr)
+    const txCount = await web3js.eth.getTransactionCount(ethAddr)
     const txParams = {
       nonce: ethers.utils.hexlify(txCount),
       gasPrice: '0x0', // gas price is always 0
@@ -198,7 +208,7 @@ contract('MyToken', async (accounts) => {
       data: web3js.eth.abi.encodeFunctionCall(mintTokenInterface, ['150']) // mintToken(150)
     }
     
-    const payload = await web3js.eth.accounts.signTransaction(txParams, ethPrivateKey);
+    const payload = await web3js.eth.accounts.signTransaction(txParams, ethAccount.privateKey);
     result = await web3js.eth.sendSignedTransaction(payload.rawTransaction);
     assert.equal(result.status, true, 'tx submitted successfully');
   });
