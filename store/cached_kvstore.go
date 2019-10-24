@@ -101,7 +101,12 @@ func (s *CachingKVStore) Has(key []byte) bool {
 	_, err := s.cache.Get(string(key))
 	if err != nil {
 		kvCacheMisses.With("cache_operation", "has").Add(1)
-		return s.VersionedKVStore.Has(key)
+		val := s.VersionedKVStore.Get(key)
+		has := len(val) > 0
+		if has {
+			s.cache.Set(string(key), val)
+		}
+		return has
 	}
 	kvCacheHits.With("cache_operation", "has").Add(1)
 	return true
@@ -111,7 +116,9 @@ func (s *CachingKVStore) Get(key []byte) []byte {
 	val, err := s.cache.Get(string(key))
 	if err != nil {
 		kvCacheMisses.With("cache_operation", "get").Add(1)
-		return s.VersionedKVStore.Get(key)
+		val = s.VersionedKVStore.Get(key)
+		s.cache.Set(string(key), val)
+		return val
 	}
 	kvCacheHits.With("cache_operation", "get").Add(1)
 	return val
