@@ -12,6 +12,7 @@ trap cleanup EXIT
 bash ../cluster.sh --init --dir $TEST_DIR --start
 
 cd ../truffle
-yarn run gen:eth-key
+# wait for all built-in contracts to be deployed...
+sleep 1
 CLUSTER_DIR=$TEST_DIR/cluster yarn run map-accounts
 CLUSTER_DIR=$TEST_DIR/cluster yarn test

@@ -6,7 +6,6 @@
     "deploy:reset": "./node_modules/.bin/truffle deploy --reset --network local",
     "deploy": "./node_modules/.bin/truffle deploy --network local",
     "test": "./node_modules/.bin/truffle test --network hdwallet --verbose-rpc",
-    "gen:eth-key": "node ./scripts/gen-eth-key.js eth",
     "map-accounts": "node ./scripts/map-accounts.js"
   },
   "dependencies": {
@@ -21,7 +20,7 @@
     "openzeppelin-solidity": "2.3.0",
     "request-promise": "^4.2.4",
     "truffle": "5.0.31",
-    "web3": "1.0.0-beta.36"
+    "web3": "1.2.1"
   },
   "devDependencies": {}
 }

@@ -1,8 +1,10 @@
 const Web3 = require('web3')
 const fs = require('fs')
 const path = require('path')
+const bip39 = require('bip39')
+const hdkey = require('ethereumjs-wallet/hdkey')
 const {
-    Client, NonceTxMiddleware, SignedTxMiddleware, Address, LocalAddress, CryptoUtils, LoomProvider,
+    Client, NonceTxMiddleware, SignedTxMiddleware, Address, LocalAddress, CryptoUtils,
     Contracts
 } = require('loom-js')
 // TODO: fix this export in loom-js
@@ -27,52 +29,98 @@ async function mapAccounts({ client, signer, ethAddress, loomAddress }) {
     console.log(`Mapped ${loomAccountAddr} to ${ethAccountAddr}`)
   }
 
+async function generateEthAccounts(numAccounts, mnemonic) {
+    if (!mnemonic) {
+        mnemonic = bip39.generateMnemonic()
+    }
+
+    console.log('using mnemonic: ' + mnemonic)
+
+    const seed = await bip39.mnemonicToSeed(mnemonic)
+    const hdWallet = hdkey.fromMasterSeed(seed)
+    const hdPath = "m/44'/60'/0'/0/"
+
+    const wallets = []
+    for (let i = 0; i < numAccounts; i++) {
+        wallets.push(hdWallet.derivePath(hdPath + i.toString()).getWallet())
+    }
+    fs.writeFileSync(path.join(__dirname, `../eth_mnemonic`), mnemonic)
+    return wallets
+}
+
+function generateLoomAccounts(numAccounts) {
+    const accounts = []
+    for (let i = 0; i < numAccounts; i++) {
+        const privKey = CryptoUtils.generatePrivateKey();
+        const pubKey = CryptoUtils.publicKeyFromPrivateKey(privKey);
+        accounts.push({
+            privateKey: privKey,
+            publicKey: pubKey,
+            address: LocalAddress.fromPublicKey(pubKey).toString()
+        })
+    }
+    return accounts
+}
+
 async function main() {
     if (!process.env.CLUSTER_DIR) {
         throw new Error('CLUSTER_DIR env var not defined')
     }
     const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
+    const mnemonic = process.argv[2] // can be passed in as the first parameter to the script
+    const numAccounts = 5
 
-    let mapped = false
+    let errored = false
     let client
     try {
-        const ethPrivateKey = fs.readFileSync(path.join(__dirname, '../eth_private_key'), 'utf-8')
         const web3js = new Web3(`http://${nodeAddr}/eth`)
-        const ethAccount = web3js.eth.accounts.privateKeyToAccount('0x' + ethPrivateKey)
-        web3js.eth.accounts.wallet.add(ethAccount)
-        
+        //web3js.eth.accounts.wallet.add(ethAccount)
         const loomPrivateKeyStr = fs.readFileSync(path.join(__dirname, '../private_key'), 'utf-8')
         const loomPrivateKey = CryptoUtils.B64ToUint8Array(loomPrivateKeyStr)
         const loomPublicKey = CryptoUtils.publicKeyFromPrivateKey(loomPrivateKey)
+        const loomAccounts = [{
+            privateKey: loomPrivateKey,
+            publicKey: loomPublicKey,
+            address: LocalAddress.fromPublicKey(loomPublicKey).toString()
+        }]
+        
         const client = new Client(
             'default',
             `ws://${nodeAddr}/websocket`,
             `ws://${nodeAddr}/queryws`
         )
-        client.txMiddleware = [
-            new NonceTxMiddleware(loomPublicKey, client),
-            new SignedTxMiddleware(loomPrivateKey)
-        ]
+        
         client.on('error', msg => {
             console.error('Loom connection error', msg)
         })
  
-        const signer = new OfflineWeb3Signer(web3js, ethAccount)
-        await mapAccounts({
-            client,
-            signer,
-            ethAddress: ethAccount.address,
-            loomAddress: LocalAddress.fromPublicKey(loomPublicKey).toString()
-        })
-        mapped = true
+        loomAccounts.push(...generateLoomAccounts(numAccounts))
+        const ethAccounts = await generateEthAccounts(numAccounts + 1, mnemonic)
+        for (let i = 0; i < numAccounts + 1; i++) {
+            client.txMiddleware = [
+                new NonceTxMiddleware(loomAccounts[i].publicKey, client),
+                new SignedTxMiddleware(loomAccounts[i].privateKey)
+            ]
+            const ethAccount = web3js.eth.accounts.privateKeyToAccount(
+                '0x' + ethAccounts[i].getPrivateKey().toString('hex')
+            )
+            const signer = new OfflineWeb3Signer(web3js, ethAccount)
+            await mapAccounts({
+                client,
+                signer,
+                ethAddress: ethAccount.address,
+                loomAddress: loomAccounts[i].address
+            })
+        }
     } catch (err) {
       console.error(err)
+      errored = true
     } finally {
       if (client) {
         client.disconnect()
       }
     }
-    process.exit(mapped ? 0 : 1)
+    process.exit(errored ? 1 : 0)
 }
 
 main()
