@@ -660,7 +660,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		if err != nil {
 			return nil, err
 		}
-		if cfg.AppStore.CachingEanbled {
+		if cfg.AppStore.CachingEnabled {
 			appStore, err = store.NewCachingKVStore(appStore)
 			if err != nil {
 				return nil, err
