@@ -20,7 +20,7 @@ type AppStoreConfig struct {
 	// If set to zero every version will be written to disk unless overridden via the on-chain config.
 	// If set to -1 every version will always be written to disk, regardless of the on-chain config.
 	IAVLFlushInterval int64
-	// If true CachingKVStore will be enabled
+	// Enables caching of the mutable app store in tx handlers & middleware.
 	CachingEnabled bool
 }
 

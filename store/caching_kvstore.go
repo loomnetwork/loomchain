@@ -22,7 +22,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "cache_hit",
-			Help:      "Number of cache hits for CachingKVStore.Get/Has",
+			Help:      "Number of cache hits in CachingKVStore.Get/Has",
 		}, []string{"cache_operation"})
 
 	kvCacheMisses = kitprometheus.NewCounterFrom(
@@ -30,15 +30,19 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "cache_miss",
-			Help:      "Number of cache miss for CachingKVStore.Get/Has",
+			Help:      "Number of cache misses in CachingKVStore.Get/Has",
 		}, []string{"cache_operation"})
 }
 
+// CachingKVStore wraps a VersionedKVStore in a BigCache.
+// Set & Delete write through the cache, Get & Has read from the cache.
+// Range is not cached at the moment to keep the implementation simple.
 type CachingKVStore struct {
 	VersionedKVStore
 	cache *bigcache.BigCache
 }
 
+// NewCachingKVStore returns a new CachingKVStore instance that wraps the given store.
 func NewCachingKVStore(store VersionedKVStore) (VersionedKVStore, error) {
 	config := bigcache.Config{
 		// number of shards (must be a power of 2)
