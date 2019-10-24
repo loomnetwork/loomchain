@@ -1,7 +1,7 @@
 package eth
 
 type Web3Config struct {
-	// MaxBlockLimit defines the maximum number of block range in one request
+	// GetLogsMaxBlockRange defines the maximum number of block range in one request
 	GetLogsMaxBlockRange int64
 }
 
