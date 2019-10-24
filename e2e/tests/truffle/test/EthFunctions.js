@@ -160,13 +160,13 @@ contract('MyToken', async (accounts) => {
     await gasContract.set(setAttemp.first,{from:alice})
 
     contract = new web3js.eth.Contract(GasEstimateTestContract._json.abi, gasContract.address, {alice});
-    let actual = await contract.methods.get().call({from:bob.toString()});
+    let actual = await contract.methods.get().call();
     assert.equal(actual,setAttemp.first,"[GasEstimateTestContract] ....")
     const gasEst = await contract.methods.set(setAttemp.second).estimateGas();
     assert.equal(gasEst,6487, "[GasEstimateTestContract] pass transaction gas estimate");
 
     await waitForXBlocks(nodeAddr, 2)
-    actual = await contract.methods.get().call({from:bob.toString()});
+    actual = await contract.methods.get().call();
     assert.equal(actual,setAttemp.first,"[GasEstimateTestContract] state must not change on estimateGas call")
   
     await gasContract.set(setAttemp.second,{from:bob})
