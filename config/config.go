@@ -728,10 +728,10 @@ EvmStore:
 
 {{if .Web3 -}}
 #
-# Web3
+# Configuration of Web3 JSON-RPC methods served on the /eth endpoint.
 #
 Web3:
-  # GetLogsMaxBlockRange defines the maximum number of block range in one request
+  # Specifies the maximum number of blocks eth_getLogs will query per request
   GetLogsMaxBlockRange: {{.Web3.GetLogsMaxBlockRange}}
 {{end}}
 

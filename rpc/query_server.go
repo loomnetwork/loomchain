@@ -607,7 +607,8 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	defer snapshot.Release()
 
 	return query.DeprecatedQueryChain(
-		filter, s.BlockStore, snapshot, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore, s.Web3Cfg.GetLogsMaxBlockRange,
+		filter, s.BlockStore, snapshot, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		s.Web3Cfg.GetLogsMaxBlockRange,
 	)
 }
 
@@ -929,7 +930,8 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
 	logs, err := query.QueryChain(
-		s.BlockStore, snapshot, ethFilter, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore, s.Web3Cfg.GetLogsMaxBlockRange,
+		s.BlockStore, snapshot, ethFilter, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		s.Web3Cfg.GetLogsMaxBlockRange,
 	)
 	if err != nil {
 		return resp, err
