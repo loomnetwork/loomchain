@@ -419,7 +419,8 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if fnRegistry != nil {
+			// If this node is meant to be a custom reactor validator start the gateway reactors.
+			if cfg.FnConsensus.Reactor.IsValidator && fnRegistry != nil {
 				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
 					return err
 				}
@@ -1279,6 +1280,7 @@ func initQueryService(
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
+		Web3Cfg:                cfg.Web3,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

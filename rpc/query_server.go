@@ -130,6 +130,7 @@ type QueryServer struct {
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
+	Web3Cfg    *eth.Web3Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -157,10 +158,12 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 		Local:   localContractAddr,
 	}
 
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
 	if vmType == lvm.VMType_PLUGIN {
-		return s.queryPlugin(callerAddr, contractAddr, query)
+		return s.queryPlugin(snapshot, callerAddr, contractAddr, query)
 	} else {
-		return s.queryEvm(callerAddr, contractAddr, query)
+		return s.queryEvm(snapshot, callerAddr, contractAddr, query)
 	}
 }
 
@@ -204,12 +207,8 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 	return &envInfo, err
 }
 
-func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	fmt.Printf("queryplugin caller %s, %+v\n", caller.ChainID, caller.Local.String())
-	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+func (s *QueryServer) queryPlugin(state loomchain.State, caller, contract loom.Address, query []byte) ([]byte, error) {
+	callerAddr, err := auth.ResolveAccountAddress(caller, state, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
 		fmt.Println("queryPlugin")
 		return nil, errors.Wrap(err, "failed to resolve account address")
@@ -217,8 +216,8 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 
 	vm := lcp.NewPluginVM(
 		s.Loader,
-		snapshot,
-		s.CreateRegistry(snapshot),
+		state,
+		s.CreateRegistry(state),
 		nil,
 		log.Default,
 		s.NewABMFactory,
@@ -247,11 +246,8 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 	return resp.Body, nil
 }
 
-func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+func (s *QueryServer) queryEvm(state loomchain.State, caller, contract loom.Address, query []byte) ([]byte, error) {
+	callerAddr, err := auth.ResolveAccountAddress(caller, state, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve account address")
 	}
@@ -260,8 +256,8 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 	if s.NewABMFactory != nil {
 		pvm := lcp.NewPluginVM(
 			s.Loader,
-			snapshot,
-			s.CreateRegistry(snapshot),
+			state,
+			s.CreateRegistry(state),
 			nil,
 			log.Default,
 			s.NewABMFactory,
@@ -273,22 +269,26 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false)
+	vm := levm.NewLoomVm(state, nil, nil, createABM, false)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
 	var caller loom.Address
 	// TODO: This is wrong, the caller chain ID should be assumed to be "eth:"
 	if len(query.From) > 0 {
-		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
+		caller, err = s.getEthAccount(snapshot, query.From)
 		if err != nil {
 			return resp, err
 		}
 	} else {
 		caller = loom.RootAddress(s.ChainID)
 	}
+
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
 		return resp, err
@@ -297,7 +297,7 @@ func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight)
 	if err != nil {
 		return resp, err
 	}
-	bytes, err := s.queryEvm(caller, contract, data)
+	bytes, err := s.queryEvm(snapshot, caller, contract, data)
 	return eth.EncBytes(bytes), err
 }
 
@@ -610,6 +610,7 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 
 	return query.DeprecatedQueryChain(
 		filter, s.BlockStore, snapshot, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		s.Web3Cfg.GetLogsMaxBlockRange,
 	)
 }
 
@@ -932,6 +933,7 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	//       block store.
 	logs, err := query.QueryChain(
 		s.BlockStore, snapshot, ethFilter, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		s.Web3Cfg.GetLogsMaxBlockRange,
 	)
 	if err != nil {
 		return resp, err
@@ -1014,26 +1016,18 @@ func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHe
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
+	resolvedAddr, err := s.getEthAccount(snapshot, address)
+	if err != nil {
+		return eth.ZeroedQuantity, err
+	}
+
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
-		return eth.Quantity("0x0"), err
+		return eth.ZeroedQuantity, err
 	}
 
 	if height != uint64(snapshot.Block().Height) {
-		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
-	}
-
-	addrBytes, err := eth.DecDataToBytes(address)
-	if err != nil {
-		return eth.Quantity("0x0"), err
-	}
-	addr := loom.Address{
-		ChainID: "eth",
-		Local:   addrBytes,
-	}
-	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
-	if err != nil {
-		return eth.Quantity("0x0"), errors.Wrap(err, "failed to resolve account address")
+		return eth.ZeroedQuantity, errors.New("transaction count only available for the latest block")
 	}
 
 	return eth.EncUint(auth.Nonce(snapshot, resolvedAddr)), nil
@@ -1133,6 +1127,22 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 		height, err := query.GetBlockHeightFromHash(s.BlockStore, snapshot, hash)
 		return uint64(height), err
 	}
+}
+
+func (s *QueryServer) getEthAccount(state loomchain.State, address eth.Data) (loom.Address, error) {
+	addrBytes, err := eth.DecDataToBytes(address)
+	if err != nil {
+		return loom.Address{}, err
+	}
+	addr := loom.Address{
+		ChainID: "eth",
+		Local:   addrBytes,
+	}
+	ethAddr, err := auth.ResolveAccountAddress(addr, state, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return loom.Address{}, errors.Wrap(err, "failed to resolve account address")
+	}
+	return ethAddr, nil
 }
 
 func getReceiptByTendermintHash(

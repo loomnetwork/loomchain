@@ -2,35 +2,31 @@ package backend
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"time"
 
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/fnConsensus"
-
+	"github.com/loomnetwork/loomchain/log"
 	pv "github.com/loomnetwork/loomchain/privval"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	abci_server "github.com/tendermint/tendermint/abci/server"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	tmcmn "github.com/tendermint/tendermint/libs/common"
+	dbm "github.com/tendermint/tendermint/libs/db"
+	tmLog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-
-	dbm "github.com/tendermint/tendermint/libs/db"
-
-	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
-	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/log"
-	abci_server "github.com/tendermint/tendermint/abci/server"
-	tmcmn "github.com/tendermint/tendermint/libs/common"
-
-	tmLog "github.com/tendermint/tendermint/libs/log"
 )
 
 func CreateFnConsensusReactor(
@@ -42,21 +38,28 @@ func CreateFnConsensusReactor(
 	cachedDBProvider node.DBProvider,
 	reactorConfig *fnConsensus.ReactorConfigParsable,
 ) (*fnConsensus.FnConsensusReactor, error) {
-	fnConsensusDB, err := cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
-	if err != nil {
-		return nil, err
+	var fnConsensusDB, tmStateDB dbm.DB
+	var err error
+
+	// Non-validators just forward messages, they don't need to read nor write any persistent state
+	if reactorConfig.IsValidator {
+		fnConsensusDB, err = cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
+		if err != nil {
+			return nil, err
+		}
+
+		tmStateDB, err = cachedDBProvider(&node.DBContext{ID: "state", Config: cfg})
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	tmStateDB, err := cachedDBProvider(&node.DBContext{ID: "state", Config: cfg})
-	if err != nil {
-		return nil, err
-	}
-
-	fnConsensusReactor, err := fnConsensus.NewFnConsensusReactor(
+	var fnConsensusReactor *fnConsensus.FnConsensusReactor
+	fnConsensusReactor, err = fnConsensus.NewFnConsensusReactor(
 		chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB, reactorConfig,
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create fnConsensus reactor")
 	}
 
 	fnConsensusReactor.SetLogger(logger.With("module", "FnConsensus"))
@@ -396,15 +399,21 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	reactorRegistrationRequests := make([]*node.ReactorRegistrationRequest, 0)
 
 	dbProvider := node.DefaultDBProvider
-
+	var fnConsensusReactor *fnConsensus.FnConsensusReactor
 	if b.FnRegistry != nil {
-		dbProvider, err = CreateNewCachedDBProvider(cfg)
-		if err != nil {
-			return err
+		reactorConfig := b.OverrideCfg.FnConsensusReactorConfig
+		if reactorConfig.IsValidator {
+			dbProvider, err = CreateNewCachedDBProvider(cfg)
+			if err != nil {
+				return err
+			}
 		}
 
-		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
-			dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
+		fnConsensusReactor, err = CreateFnConsensusReactor(
+			b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger, dbProvider,
+			b.OverrideCfg.FnConsensusReactorConfig,
+		)
+
 		if err != nil {
 			return err
 		}

@@ -6,7 +6,7 @@ const {
   createDefaultTxMiddleware, Client, Address, LocalAddress, CryptoUtils, Contracts, EthersSigner
 } = require('loom-js')
 const ethers = require('ethers').ethers
-const { getContractFuncInterface,waitForXBlocks } = require('./helpers')
+const { getContractFuncInterface, getLatestBlock, waitForXBlocks } = require('./helpers')
 const MyToken = artifacts.require('MyToken');
 
 // web3 functions called using truffle objects use the loomProvider
@@ -18,7 +18,7 @@ contract('MyToken', async (accounts) => {
     if (!process.env.CLUSTER_DIR) {
       throw new Error('CLUSTER_DIR env var not defined');
     }
-    let nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8');
+    nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8');
     web3js = new Web3(new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`));
 
     alice = accounts[1];
@@ -36,15 +36,22 @@ contract('MyToken', async (accounts) => {
       await tokenContract.mintToken(98, { from: alice });
       await tokenContract.mintToken(99, { from: bob });
 
+      const curBlock = await getLatestBlock(nodeAddr)
+      const maxBlock = 20
+
       const myTokenLogs = await web3js.eth.getPastLogs({
-          address: tokenContract.address
+          address: tokenContract.address,
+          fromBlock: curBlock - maxBlock,
+          toBlock: curBlock,
       });
       for (let i=0 ; i<myTokenLogs.length ; i++) {
           assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address.toLowerCase(), "log address and contract address")
       }
 
       const aliceLogs = await web3js.eth.getPastLogs({
-          topics: [null, null, web3js.utils.padLeft(alice, 64), null]
+          topics: [null, null, web3js.utils.padLeft(alice, 64), null],
+          fromBlock: curBlock - maxBlock,
+          toBlock: curBlock,
       });
       for (let i=0 ; i<aliceLogs.length ; i++) {
           assert.equal(aliceLogs[i].topics[2], web3js.utils.padLeft(alice, 64), "log address topic and caller")
