@@ -210,7 +210,6 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 func (s *QueryServer) queryPlugin(state loomchain.State, caller, contract loom.Address, query []byte) ([]byte, error) {
 	callerAddr, err := auth.ResolveAccountAddress(caller, state, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
-		fmt.Println("queryPlugin")
 		return nil, errors.Wrap(err, "failed to resolve account address")
 	}
 
