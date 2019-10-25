@@ -5,10 +5,13 @@ package eth
 type Web3Config struct {
 	// GetLogsMaxBlockRange specifies the maximum number of blocks eth_getLogs will query per request
 	GetLogsMaxBlockRange uint64
+	// PollLogsMaxBlockRange specifies the maximum number of blocks eth_getFilterChanges will query per request
+	PollLogsMaxBlockRange uint64
 }
 
 func DefaultWeb3Config() *Web3Config {
 	return &Web3Config{
-		GetLogsMaxBlockRange: 20,
+		GetLogsMaxBlockRange:  20,
+		PollLogsMaxBlockRange: 20,
 	}
 }
