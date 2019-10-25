@@ -21,7 +21,7 @@ import (
 
 func QueryChain(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore, maxBlockRange uint64,
 ) ([]*ptypes.EthFilterLog, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
 	if err != nil {
@@ -31,14 +31,22 @@ func QueryChain(
 	if err != nil {
 		return nil, err
 	}
+	if end < start {
+		return nil, errors.New("invalid block range")
+	}
+
+	if end-start > maxBlockRange {
+		return nil, fmt.Errorf("max allowed block range (%d) exceeded", maxBlockRange)
+	}
 
 	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
 }
 
 func DeprecatedQueryChain(
 	query string, blockStore store.BlockStore, state loomchain.ReadOnlyState,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore,
+	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore, maxBlockRange uint64,
 ) ([]byte, error) {
+
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err
@@ -50,6 +58,14 @@ func DeprecatedQueryChain(
 	end, err := utils.DeprecatedBlockNumber(string(ethFilter.ToBlock), uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
+	}
+
+	if end < start {
+		return nil, errors.New("invalid block range")
+	}
+
+	if end-start > maxBlockRange {
+		return nil, fmt.Errorf("max allowed block range (%d) exceeded", maxBlockRange)
 	}
 
 	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)

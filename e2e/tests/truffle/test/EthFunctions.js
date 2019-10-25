@@ -6,8 +6,7 @@ const {
   createDefaultTxMiddleware, Client, Address, LocalAddress, CryptoUtils, Contracts, EthersSigner
 } = require('loom-js')
 const ethers = require('ethers').ethers
-const { getContractFuncInterface ,waitForXBlocks } = require('./helpers')
-
+const { getContractFuncInterface, getLatestBlock ,waitForXBlocks } = require('./helpers')
 const MyToken = artifacts.require('MyToken');
 const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
 const MyCoin = artifacts.require('MyCoin');
@@ -39,15 +38,22 @@ contract('MyToken', async (accounts) => {
       await tokenContract.mintToken(98, { from: alice });
       await tokenContract.mintToken(99, { from: bob });
 
+      const curBlock = await getLatestBlock(nodeAddr)
+      const maxBlock = 20
+
       const myTokenLogs = await web3js.eth.getPastLogs({
-          address: tokenContract.address
+          address: tokenContract.address,
+          fromBlock: curBlock - maxBlock,
+          toBlock: curBlock,
       });
       for (let i=0 ; i<myTokenLogs.length ; i++) {
           assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address.toLowerCase(), "log address and contract address")
       }
 
       const aliceLogs = await web3js.eth.getPastLogs({
-          topics: [null, null, web3js.utils.padLeft(alice, 64), null]
+          topics: [null, null, web3js.utils.padLeft(alice, 64), null],
+          fromBlock: curBlock - maxBlock,
+          toBlock: curBlock,
       });
       for (let i=0 ; i<aliceLogs.length ; i++) {
           assert.equal(aliceLogs[i].topics[2], web3js.utils.padLeft(alice, 64), "log address topic and caller")
