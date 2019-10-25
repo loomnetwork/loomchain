@@ -290,17 +290,10 @@ func newMapAccountsCommand() *cobra.Command {
 					Local:   crypto.PubkeyToAddress(ethOwnerKey.PublicKey).Bytes(),
 				}
 
-				nonce, err := getNonce(mapper, localOwnerAddr)
-				if err != nil {
-					return fmt.Errorf("GetNonce Error %v", err)
-				}
-
 				hash := ssha.SoliditySHA3(
-					[]string{"address", "address", "uint64", "string"},
+					[]string{"address", "address"},
 					localOwnerAddr.Local.String(),
 					foreignOwnerAddr.Local.String(),
-					nonce,
-					ssha.String(foreignOwnerAddr.ChainID),
 				)
 
 				sign, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
@@ -324,17 +317,11 @@ func newMapAccountsCommand() *cobra.Command {
 					ChainID: "eth",
 					Local:   addr,
 				}
-				nonce, err := getNonce(mapper, localOwnerAddr)
-				if err != nil {
-					return fmt.Errorf("GetNonce Error %v", err)
-				}
 
 				hash := ssha.SoliditySHA3(
-					[]string{"address", "address", "uint64", "string"},
+					[]string{"address", "address"},
 					localOwnerAddr.Local.String(),
 					foreignOwnerAddr.Local.String(),
-					nonce,
-					ssha.String(foreignOwnerAddr.ChainID),
 				)
 
 				sign, err := getSignatureInteractive(hash, evmcompat.SignatureType_GETH)
