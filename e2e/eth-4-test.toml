@@ -41,8 +41,8 @@
                   '"id": 83',
                   '"error": {',
                   '"code": -32000',
-                  '"message": "Server error"',
-                  '"data": "loom error: requested block height 16 exceeds pending block height',
+                  '"message": "loom error: requested block height 16 exceeds pending block height',
+                  '"data": ""',
              ]
 
 [[TestCases]]
