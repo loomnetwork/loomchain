@@ -237,7 +237,7 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 
 func (m InstrumentingMiddleware) EthGetBlockByNumber(
 	number eth.BlockHeight, full bool,
-) (resp eth.JsonBlockObject, err error) {
+) (resp *eth.JsonBlockObject, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetBlockByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

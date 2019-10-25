@@ -109,7 +109,7 @@ func handleMessage(body []byte, funcMap map[string]eth.RPCFunc, conn *websocket.
 		outBytes, err = json.MarshalIndent(outputList[0], "", "  ")
 	}
 	if err != nil {
-		return nil, eth.NewErrorf(eth.EcServer, "Server error", "error  marshalling result %v", err)
+		return nil, eth.NewError(eth.EcServer, fmt.Sprintf("error marshalling output: %v", err), "")
 	}
 
 	return outBytes, nil

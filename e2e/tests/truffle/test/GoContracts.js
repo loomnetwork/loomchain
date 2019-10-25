@@ -10,6 +10,11 @@ const {
 } = require('loom-js');
 
 contract('SampleGoContract', async () => {
+    // This test is not provider dependent so just run it with Loom Truffle provider
+    if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+        return
+    }
+
     const privateKey = CryptoUtils.generatePrivateKey();
     const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey);
     let client, web3js;

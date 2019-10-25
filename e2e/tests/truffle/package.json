@@ -5,19 +5,25 @@
     "truffle": "./node_modules/.bin/truffle",
     "deploy:reset": "./node_modules/.bin/truffle deploy --reset --network local",
     "deploy": "./node_modules/.bin/truffle deploy --network local",
-    "test": "./node_modules/.bin/truffle test --network local --verbose-rpc"
+    "test": "./node_modules/.bin/truffle test --network local",
+    "test:local-v": "./node_modules/.bin/truffle test --network local --verbose-rpc",
+    "test:hdwallet": "./node_modules/.bin/truffle test --network hdwallet",
+    "test:hdwallet-v": "./node_modules/.bin/truffle test --network hdwallet --verbose-rpc",
+    "map-accounts": "node ./scripts/map-accounts.js"
   },
   "dependencies": {
+    "@truffle/hdwallet-provider": "^1.0.22",
+    "bip39": "^3.0.2",
     "bn.js": "^4.11.8",
     "ethereumjs-tx": "^2.1.1",
-    "ethereumjs-wallet": "^0.6.2",
+    "ethereumjs-wallet": "^0.6.3",
     "js-sha3": "^0.8.0",
     "loom-js": "1.59.1",
     "loom-truffle-provider": "0.13.0",
     "openzeppelin-solidity": "2.3.0",
     "request-promise": "^4.2.4",
     "truffle": "5.0.31",
-    "web3": "1.0.0-beta.36"
+    "web3": "1.2.1"
   },
   "devDependencies": {}
 }
