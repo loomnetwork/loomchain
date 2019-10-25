@@ -108,6 +108,9 @@ const (
 	// Enables checking of minimum required build number on node startup.
 	ChainCfgVersion1_4 = "chaincfg:v1.4"
 
+	// Enables the EthTxHandler for processing signed RLP endoed Ethereum txs.
+	EthTxFeature = "tx:eth"
+
 	// Forces the MultiWriterAppStore to write EVM state only to evm.db, otherwise it'll write EVM
 	// state to both evm.db & app.db.
 	EvmDBFeature = "db:evm"

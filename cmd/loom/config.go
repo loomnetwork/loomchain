@@ -241,6 +241,10 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 					Status: chainconfig.FeatureWaiting,
 				},
 				&cctypes.Feature{
+					Name:   features.EthTxFeature,
+					Status: chainconfig.FeatureWaiting,
+				},
+				&cctypes.Feature{
 					Name:   features.CheckTxValueFeature,
 					Status: chainconfig.FeatureWaiting,
 				},

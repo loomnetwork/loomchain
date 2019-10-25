@@ -280,6 +280,7 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
 	var caller loom.Address
+	// TODO: This is wrong, the caller chain ID should be assumed to be "eth:"
 	if len(query.From) > 0 {
 		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
 		if err != nil {
@@ -746,16 +747,13 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		return nil, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
 	r := s.ReceiptHandlerProvider.Reader()
 	txReceipt, err := r.GetReceipt(txHash)
 	if err != nil {
 		// TODO: Log the error, this fallback should be happening very rarely so we should probably
 		//       setup an alert to detect when this happens.
 		// if the receipt is not found, create it from TxObj
-		resp, err := getReceiptByTendermintHash(snapshot, s.BlockStore, r, txHash, s.EvmAuxStore)
+		resp, err := getReceiptByTendermintHash(s.BlockStore, r, txHash, s.EvmAuxStore)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
 				// return nil response if cannot find hash
@@ -765,7 +763,6 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		}
 		return resp, nil
 	}
-	snapshot.Release()
 
 	height := int64(txReceipt.BlockNumber)
 	blockResult, err := s.BlockStore.GetBlockByHeight(&height)
@@ -862,11 +859,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 		return resp, err
 	}
 
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
-	r := s.ReceiptHandlerProvider.Reader()
-	txObj, err := query.GetTxByHash(snapshot, s.BlockStore, txHash, r, s.EvmAuxStore)
+	txObj, err := query.GetTxByHash(s.BlockStore, txHash, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore)
 	if err != nil {
 		// TODO: Should call r.GetReceipt instead of query.GetTxByHash so we don't have to use this
 		//       flimsy error cause checking.
@@ -1014,7 +1007,10 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 	return true, nil
 }
 
-func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+// EthGetTransactionCount implements https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactioncount
+// The input address is assumed to be an Ethereum account address, so it'll be mapped to a local
+// account, and the transaction count returned will be for that local account.
+func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -1026,16 +1022,21 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	if height != uint64(snapshot.Block().Height) {
 		return eth.Quantity("0x0"), errors.New("transaction count only available for the latest block")
 	}
-	address, err := eth.DecDataToAddress(s.ChainID, local)
+
+	addrBytes, err := eth.DecDataToBytes(address)
 	if err != nil {
 		return eth.Quantity("0x0"), err
 	}
-	nonce, err := s.Nonce("", address.String())
+	addr := loom.Address{
+		ChainID: "eth",
+		Local:   addrBytes,
+	}
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
-		return eth.Quantity("0x0"), errors.Wrap(err, "requesting transaction count")
+		return eth.Quantity("0x0"), errors.Wrap(err, "failed to resolve account address")
 	}
 
-	return eth.EncUint(nonce), nil
+	return eth.EncUint(auth.Nonce(snapshot, resolvedAddr)), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getbalance
@@ -1135,7 +1136,7 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 }
 
 func getReceiptByTendermintHash(
-	state loomchain.State, blockStore store.BlockStore,
+	blockStore store.BlockStore,
 	rh loomchain.ReadReceiptHandler, hash []byte, evmAuxStore *evmaux.EvmAuxStore,
 ) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)

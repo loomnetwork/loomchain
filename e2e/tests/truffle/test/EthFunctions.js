@@ -2,12 +2,17 @@
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
+const {
+  createDefaultTxMiddleware, Client, Address, LocalAddress, CryptoUtils, Contracts, EthersSigner
+} = require('loom-js')
+const ethers = require('ethers').ethers
+const { getContractFuncInterface,waitForXBlocks } = require('./helpers')
 const MyToken = artifacts.require('MyToken');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
 contract('MyToken', async (accounts) => {
-  let web3js;
+  let web3js, nodeAddr;
 
   beforeEach(async () => {
     if (!process.env.CLUSTER_DIR) {
@@ -144,5 +149,47 @@ contract('MyToken', async (accounts) => {
     assert.equal(ethOwner.toLowerCase(), web3js.utils.padLeft(owner, 64).toLowerCase(), "result using tokenContract and eth.call");
   });
 
-});
+  it('eth_sendRawTransaction', async () => {
+    // Map Alice's Eth account to a DAppChain account
+    const client = new Client('default', `ws://${nodeAddr}/websocket`, `ws://${nodeAddr}/queryws`);
+    client.on('error', msg => {
+        console.error('Error on connect to client', msg);
+        console.warn('Please verify if loom cluster is running');
+    });
+    const privKey = CryptoUtils.generatePrivateKey();
+    const pubKey = CryptoUtils.publicKeyFromPrivateKey(privKey);
+    client.txMiddleware = createDefaultTxMiddleware(client, privKey);
+    // Create a mapping between Alice's DAppChain account & Ethereum account, this is necessary in
+    // order to match the signer address that will be recovered from the Ethereum tx to a DAppChain
+    // account, without this mapping the Ethereum tx will be rejected.
+    const aliceLoomAddr = new Address(client.chainId, LocalAddress.fromPublicKey(pubKey));
+    const addressMapper = await Contracts.AddressMapper.createAsync(client, aliceLoomAddr);
+    const ethPrivateKey = '0xe331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109';
+    const aliceEthWallet = new ethers.Wallet(ethPrivateKey);
+    const aliceEthAddr = await aliceEthWallet.getAddress();
+    await addressMapper.addIdentityMappingAsync(
+      aliceLoomAddr,
+      new Address('eth', LocalAddress.fromHexString(aliceEthAddr)),
+      new EthersSigner(aliceEthWallet)
+    );
+    client.disconnect();
 
+    // Encode & send the raw Eth tx
+    const tokenContract = await MyToken.deployed();
+    const mintTokenInterface = getContractFuncInterface(
+      new web3js.eth.Contract(MyToken._json.abi, tokenContract.address), 'mintToken'
+    )
+    const txParams = {
+      nonce: '0x2', // identity mapping tx used nonce 1, so this tx must have nonce 2
+      gasPrice: '0x0', // gas price is always 0
+      gasLimit: '0xFFFFFFFFFFFFFFFF', // gas limit right now is max.Uint64
+      to: tokenContract.address,
+      value: '0x0',
+      data: web3js.eth.abi.encodeFunctionCall(mintTokenInterface, ['150']) // mintToken(150)
+    }
+    
+    const payload = await web3js.eth.accounts.signTransaction(txParams, ethPrivateKey);
+    result = await web3js.eth.sendSignedTransaction(payload.rawTransaction);
+    assert.equal(result.status, true, 'tx submitted successfully');
+  });
+});
