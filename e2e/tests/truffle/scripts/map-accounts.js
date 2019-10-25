@@ -62,6 +62,11 @@ function generateLoomAccounts(numAccounts) {
     return accounts
 }
 
+/**
+ * Generates a bunch of Loom & Ethereum private keys and maps the corresponding accounts via the
+ * first node of the cluster found at the location specified by the CLUSTER_DIR env var.
+ * The first account has a fixed Loom private key (found in the private_key file in the parent dir).
+ */
 async function main() {
     if (!process.env.CLUSTER_DIR) {
         throw new Error('CLUSTER_DIR env var not defined')
