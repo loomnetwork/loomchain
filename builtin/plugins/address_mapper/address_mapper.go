@@ -6,8 +6,6 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
@@ -106,6 +104,7 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 	return addLegacyIdentityMapping(ctx, req)
 }
 
+// Only use in multi-chain mapping
 func addIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) error {
 	from := loom.UnmarshalAddressPB(req.From)
 	to := loom.UnmarshalAddressPB(req.To)
@@ -153,8 +152,6 @@ func addIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) er
 	var mapping AddressMapping
 	mappingRange := ctx.Range(addressKey(from))
 	for _, m := range mappingRange {
-		fmt.Println("from Key : ", m.Key)
-		fmt.Println("from Val : ", m.Value)
 		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
 			return err
 		}
@@ -163,50 +160,65 @@ func addIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) er
 		}
 	}
 
-	// var rangedata plugin.RangeData
-	sequenceRange := ctx.Range(multiChainMappingRangePrefix(from, from.ChainID))
-	for _, s := range sequenceRange {
-		fmt.Println("from Key : ", s.Key)
-		fmt.Println("from Val : ", s.Value)
-	}
-	fmt.Println("SEQ")
-	sequenceRange = ctx.Range(multiChainMappingRangePrefix(to, to.ChainID))
-	for _, s := range sequenceRange {
-		fmt.Println("to   Key : ", s.Key)
-		fmt.Println("to   Val : ", s.Value)
-	}
-
-	r1 := rand.New(rand.NewSource(time.Now().UnixNano()))
-	a := r1.Intn(255)
-	b := r1.Intn(255)
-	err := ctx.Set(multiChainAddressKey(from, req.To.ChainId, uint8(a)), &AddressMapping{
-		From: req.From,
-		To:   req.To,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = ctx.Set(multiChainAddressKey(to, req.From.ChainId, uint8(b)), &AddressMapping{
-		From: req.To,
-		To:   req.From,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Only increase nonce for DAppChain account
 	for _, c := range SupportedChainID {
-		if to.ChainID == c {
+		if to.ChainID == c { // defalut chain is from
+			var latestSequence uint8
+			fromSequenceRange := ctx.Range(multiChainMappingRangePrefix(from, to.ChainID))
+			for _, s := range fromSequenceRange {
+				if s.Key[0] > latestSequence {
+					latestSequence = s.Key[0]
+				}
+			}
+
+			err := ctx.Set(multiChainAddressKey(from, req.To.ChainId, latestSequence+1), &AddressMapping{
+				From: req.From,
+				To:   req.To,
+			})
+			if err != nil {
+				return err
+			}
+
+			err = ctx.Set(multiChainAddressKey(to, req.To.ChainId, uint8(0)), &AddressMapping{
+				From: req.To,
+				To:   req.From,
+			})
+			if err != nil {
+				return err
+			}
+
 			err = incrementNonce(ctx, from)
 			if err != nil {
 				return err
 			}
+			break
 		} else if from.ChainID == c {
+			toSequenceRange := ctx.Range(multiChainMappingRangePrefix(to, from.ChainID))
+			var latestSequence uint8
+			for _, s := range toSequenceRange {
+				if s.Key[0] > latestSequence {
+					latestSequence = s.Key[0]
+				}
+			}
+			err := ctx.Set(multiChainAddressKey(to, req.From.ChainId, latestSequence+1), &AddressMapping{
+				From: req.To,
+				To:   req.From,
+			})
+			if err != nil {
+				return err
+			}
+
+			err = ctx.Set(multiChainAddressKey(from, req.To.ChainId, uint8(0)), &AddressMapping{
+				From: req.From,
+				To:   req.To,
+			})
+			if err != nil {
+				return err
+			}
 			err = incrementNonce(ctx, to)
 			if err != nil {
 				return err
 			}
+			break
 		}
 	}
 	return nil
