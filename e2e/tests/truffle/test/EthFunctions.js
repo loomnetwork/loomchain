@@ -10,11 +10,12 @@ const { getContractFuncInterface ,waitForXBlocks } = require('./helpers')
 
 const MyToken = artifacts.require('MyToken');
 const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
+const MyCoin = artifacts.require('MyCoin');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
 contract('MyToken', async (accounts) => {
-  let web3js, nodeAddr;
+  let web3js, nodeAddr, aliceEthAddr;
 
   beforeEach(async () => {
     if (!process.env.CLUSTER_DIR) {
@@ -174,6 +175,56 @@ contract('MyToken', async (accounts) => {
     assert.equal(actual,setAttemp.second);
   });
 
+  it('MyCoin Contract eth_estimateGas', async ()=>{
+    const mycoinContract = await MyCoin.deployed();
+    contract = new web3js.eth.Contract(MyCoin._json.abi,mycoinContract.address,{alice});
+    let actual = await contract.methods.balanceOf(mycoinContract.address).call();
+    assert.equal(actual,0,"balance not correct")
+    actual = await contract.methods.balanceOf(alice).call();
+    assert.equal(actual,0,"balance not correct")
+    actual = await contract.methods.totalSupply().call();
+    assert.equal(actual,10**27,"totalsupply not correct")
+    
+    await mycoinContract.easyTransferTo(alice,10000);
+    actual = await contract.methods.balanceOf(alice).call();
+    assert.equal(actual,10000,"alice balance not correct")
+    actual = await contract.methods.balanceOf(bob).call();
+    assert.equal(actual,0,"bob balance not correct")
+  
+    await mycoinContract.approveForTransfer(alice,10000)
+    let estGas = await contract.methods.transferFrom(alice,bob,5000).estimateGas();
+    assert.equal(estGas,28353, "[MyCoinContract] transferFrom gas estimate");
+    await mycoinContract.transferFrom(alice,bob,5000);
+    actual = await contract.methods.balanceOf(alice).call();
+    assert.equal(actual,5000,"alice balance not correct")
+    actual = await contract.methods.balanceOf(bob).call();
+    assert.equal(actual,5000,"bob balance not correct")
+
+    await mycoinContract.approveForTransfer(bob,6000)
+
+    estGas = await contract.methods.transferFrom(bob,alice,5000).estimateGas();
+    assert.equal(estGas,13353, "[MyCoinContract] transferFrom gas estimate");
+    await mycoinContract.transferFrom(bob,alice,5000);
+  
+    actual = await contract.methods.balanceOf(alice).call();
+    assert.equal(actual,10000,"alice balance not correct")
+    actual = await contract.methods.balanceOf(bob).call();
+    assert.equal(actual,0,"bob balance not correct")
+
+    let result = await contract.methods.getUint().call();
+    assert.equal(result,0,"Global uint incorrect")
+    estGas = await contract.methods.payToSet(100).estimateGas({from:alice,value:"100"});
+    assert.equal(estGas,21532, "[MyCoinContract] payToSet gas estimate");
+    result = await contract.methods.getUint().call();
+    assert.equal(result,0,"Global uint incorrect")
+    
+    await mycoinContract.payToSet(100,{from:alice,value:"0"})
+    result = await contract.methods.getUint().call();
+    assert.equal(result,100,"Global uint incorrect")
+    
+  });
+  
+
   it('eth_sendRawTransaction', async () => {
     // Map Alice's Eth account to a DAppChain account
     const client = new Client('default', `ws://${nodeAddr}/websocket`, `ws://${nodeAddr}/queryws`);
@@ -217,4 +268,5 @@ contract('MyToken', async (accounts) => {
     result = await web3js.eth.sendSignedTransaction(payload.rawTransaction);
     assert.equal(result.status, true, 'tx submitted successfully');
   });
+
 });

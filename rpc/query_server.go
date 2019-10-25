@@ -1120,7 +1120,24 @@ func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.Block
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	vm := levm.NewLoomVm(snapshot, nil, nil, nil, true)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	if s.NewABMFactory != nil {
+		pvm := lcp.NewPluginVM(
+			s.Loader,
+			snapshot,
+			s.CreateRegistry(snapshot),
+			nil,
+			log.Default,
+			s.NewABMFactory,
+			nil,
+			nil,
+		)
+		createABM, err = s.NewABMFactory(pvm)
+		if err != nil {
+			return resp, err
+		}
+	}
+	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false)
 	gasUsed, err := vm.EstimateGas(caller, contract, data, nil)
 	if err != nil {
 		return resp, errors.Wrapf(err, "failed to call eth_estimateGas")
