@@ -11,6 +11,9 @@ function cleanup {
 trap cleanup EXIT
 bash ../cluster.sh --init --dir $TEST_DIR --start
 
+echo $OSTYPE
+echo $NODE_NAME
+
 cd ../truffle
 # wait for all built-in contracts to be deployed to the test cluster...
 sleep 1
