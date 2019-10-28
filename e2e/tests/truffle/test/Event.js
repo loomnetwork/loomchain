@@ -15,6 +15,11 @@ const {
 const EventTestContract = artifacts.require('EventTestContract')
 
 contract('EventTestContract', async (accounts) => {
+    // This test is not provider dependent so just run it with Loom Truffle provider
+    if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+        return
+    }
+
     let contract, from, nodeAddr, contractAddress, web3eth, newValueSetEventTopic, anotherValueSetEventTopic
     beforeEach(async () => {
         nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()

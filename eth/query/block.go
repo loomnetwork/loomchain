@@ -153,6 +153,9 @@ func GetTxObjectFromBlockResult(
 	if err := proto.Unmarshal(txTx.Data, &msg); err != nil {
 		return eth.GetEmptyTxObject(), nil, err
 	}
+	// TODO: For EVM txs if this is a foreign address map it to a local address because the EVM tx
+	//       receipt will have the local address, so the receipt & tx should have matching caller
+	//       addresses.
 	txObj.From = eth.EncAddress(msg.From)
 
 	var input []byte
