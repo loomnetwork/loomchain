@@ -225,7 +225,7 @@ func (s *MultiWriterAppStore) pruneOldEVMKeys() error {
 	}
 
 	maxKeysToPrune := cfg.GetAppStore().GetNumEvmKeysToPrune()
-	pruneInterval := cfg.GetAppStore().GetPruneEvmKeysInterval()
+	pruneInterval := cfg.GetAppStore().GetPruneEvmKeysInterval() // Prune old EVM Keys every N blocks
 	if maxKeysToPrune > 0 && (pruneInterval == 0 || s.Version()%int64(pruneInterval) == 0) {
 		entriesToPrune := s.appStore.RangeWithLimit(vmPrefix, int(maxKeysToPrune))
 		for _, entry := range entriesToPrune {
