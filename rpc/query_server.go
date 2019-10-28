@@ -278,7 +278,6 @@ func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight)
 	defer snapshot.Release()
 
 	var caller loom.Address
-	// TODO: This is wrong, the caller chain ID should be assumed to be "eth:"
 	if len(query.From) > 0 {
 		caller, err = s.getEthAccount(snapshot, query.From)
 		if err != nil {

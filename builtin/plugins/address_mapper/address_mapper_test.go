@@ -139,12 +139,6 @@ func (s *AddressMapperTestSuite) TestAddressMapperHasIdentityMapping() {
 	})
 	r.NoError(err)
 	s.Equal(true, hasMappingResponse.HasMapping)
-
-	// r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
-	// 	From:      s.validEthAddr.MarshalPB(),
-	// 	To:        s.validDAppAddr.MarshalPB(),
-	// 	Signature: sig,
-	// }))
 }
 
 func (s *AddressMapperTestSuite) TestAddressMapperAddSameIdentityMapping() {

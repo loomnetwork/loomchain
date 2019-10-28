@@ -6,7 +6,7 @@ const {
   createDefaultTxMiddleware, Client, Address, LocalAddress, CryptoUtils, Contracts, EthersSigner
 } = require('loom-js')
 const ethers = require('ethers').ethers
-const { getContractFuncInterface, getLatestBlock, getMappedAccount ,waitForXBlocks } = require('./helpers')
+const { getContractFuncInterface, getLatestBlock, getMappedAccount } = require('./helpers')
 const MyToken = artifacts.require('MyToken');
 
 // web3 functions called using truffle objects use the loomProvider
