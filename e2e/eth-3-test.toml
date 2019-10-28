@@ -73,8 +73,8 @@
                   '"id": 83',
                   '"error": {',
                   '"code": -32000',
-                  '"message": "Server error"',
-                  '"data": "loom error: parse block height: strconv.ParseUint: parsing \"nonsese\": invalid syntax"',
+                  '"message": "loom error: parse block height',
+                  '"data": ""',
               ]
 
 [[TestCases]]

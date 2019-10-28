@@ -1,6 +1,7 @@
 const rp = require('request-promise')
 const keccak256 = require('js-sha3').keccak256
 const web3 = require('web3')
+const { Client, Contracts, createJSONRPCClient, Address } = require('loom-js')
 
 async function assertRevert(promise) {
   try {
@@ -111,6 +112,22 @@ async function getLatestBlock(nodeAddr) {
   return currentBlock = Number(res.result.sync_info.latest_block_height)
 }
 
+async function getMappedAccount(nodeAddr, callerLocalAddr, addrToMap) {
+  const client = new Client(
+    'default',
+    createJSONRPCClient({ protocols: [{ url: `http://${nodeAddr}/rpc` }] }),
+    createJSONRPCClient({ protocols: [{ url: `http://${nodeAddr}/query` }] })
+  )
+
+  client.on('error', msg => {
+    console.error('Loom connection error', msg)
+  })
+  const callerAddr = Address.fromString(`${client.chainId}:${callerLocalAddr}`)
+  const mapperContract = await Contracts.AddressMapper.createAsync(client, callerAddr)
+  const mapping = await mapperContract.getMappingAsync(Address.fromString(`eth:${addrToMap}`))
+  return mapping.to.local.toString()
+}
+
 /**
  * Generates a hash for an EVM tx that will be executed by a Loom node.
  * This hash can be used to lookup the corresponding tx receipt.
@@ -126,5 +143,6 @@ function getLoomEvmTxHash(ethTx, fromAddr) {
 
 module.exports = {
   assertRevert, delay, waitForXBlocks, ethGetTransactionCount, getStorageAt, 
-  getLatestBlock, getLoomEvmTxHash, getEventSignature, getContractFuncInterface
+  getLatestBlock, getLoomEvmTxHash, getEventSignature, getContractFuncInterface,
+  getMappedAccount
 }

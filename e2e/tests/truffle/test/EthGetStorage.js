@@ -7,6 +7,11 @@ const StoreTestContract = artifacts.require('StoreTestContract');
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
 contract('StoreTestContract', async (accounts) => {
+  // This test is not provider dependent so just run it with Loom Truffle provider
+  if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+    return
+  }
+
   let web3js, ethUrl, nodeAddr
 
   beforeEach(async () => {

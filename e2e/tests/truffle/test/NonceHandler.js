@@ -11,6 +11,11 @@ const ethers = require('ethers').ethers
 const NonceTestContract = artifacts.require('NonceTestContract')
 
 contract('NonceTestContract', async (accounts) => {
+    // This test is not provider dependent so just run it with Loom Truffle provider
+    if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+        return
+    }
+
     let contract, from, nodeAddr
 
     beforeEach(async () => {
