@@ -106,11 +106,11 @@ func (s *EthSubscriptions) LegacyAddLogPoll(filter string, height uint64) (strin
 }
 
 func (s *EthSubscriptions) AddBlockPoll(height uint64) string {
-	return s.Add(NewEthBlockPoll(height, s.evmAuxStore, s.blockStore), height)
+	return s.Add(NewEthBlockPoll(height, s.evmAuxStore, s.blockStore, s.maxBlockRange), height)
 }
 
 func (s *EthSubscriptions) AddTxPoll(height uint64) string {
-	return s.Add(NewEthTxPoll(height, s.evmAuxStore, s.blockStore), height)
+	return s.Add(NewEthTxPoll(height, s.evmAuxStore, s.blockStore, s.maxBlockRange), height)
 }
 
 func (s *EthSubscriptions) AllLogs(

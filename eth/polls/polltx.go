@@ -17,14 +17,16 @@ type EthTxPoll struct {
 	lastBlockRead uint64
 	evmAuxStore   *evmaux.EvmAuxStore
 	blockStore    store.BlockStore
+	maxBlockRange uint64
 }
 
-func NewEthTxPoll(height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore) *EthTxPoll {
+func NewEthTxPoll(height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore, maxBlockRange uint64) *EthTxPoll {
 	p := &EthTxPoll{
 		startBlock:    height,
 		lastBlockRead: height,
 		evmAuxStore:   evmAuxStore,
 		blockStore:    blockStore,
+		maxBlockRange: maxBlockRange,
 	}
 	return p
 }
@@ -34,6 +36,9 @@ func (p *EthTxPoll) Poll(
 ) (EthPoll, interface{}, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
+	}
+	if uint64(state.Block().Height)-p.lastBlockRead > p.maxBlockRange {
+		p.lastBlockRead = uint64(state.Block().Height) - p.maxBlockRange
 	}
 	lastBlock, results, err := getTxHashes(state, p.lastBlockRead, readReceipt, p.evmAuxStore)
 	if err != nil {
@@ -46,7 +51,7 @@ func (p *EthTxPoll) Poll(
 func (p *EthTxPoll) AllLogs(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
-	_, results, err := getTxHashes(state, p.startBlock, readReceipts, p.evmAuxStore)
+	_, results, err := getTxHashes(state, uint64(state.Block().Height)-p.maxBlockRange, readReceipts, p.evmAuxStore)
 	return eth.EncBytesArray(results), err
 }
 
@@ -73,7 +78,9 @@ func (p *EthTxPoll) LegacyPoll(
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
-
+	if uint64(state.Block().Height)-p.lastBlockRead > p.maxBlockRange {
+		p.lastBlockRead = uint64(state.Block().Height) - p.maxBlockRange
+	}
 	var txHashes [][]byte
 	for height := p.lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
 		txHashList, err := p.evmAuxStore.GetTxHashList(height)

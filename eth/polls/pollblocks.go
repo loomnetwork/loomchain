@@ -12,20 +12,23 @@ import (
 )
 
 type EthBlockPoll struct {
-	startBlock  uint64
-	lastBlock   uint64
-	evmAuxStore *evmaux.EvmAuxStore
-	blockStore  store.BlockStore
+	startBlock    uint64
+	lastBlock     uint64
+	evmAuxStore   *evmaux.EvmAuxStore
+	blockStore    store.BlockStore
+	maxBlockRange uint64
 }
 
-func NewEthBlockPoll(height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore) *EthBlockPoll {
+func NewEthBlockPoll(
+	height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore, maxBlockRange uint64,
+) *EthBlockPoll {
 	p := &EthBlockPoll{
-		startBlock:  height,
-		lastBlock:   height,
-		evmAuxStore: evmAuxStore,
-		blockStore:  blockStore,
+		startBlock:    height,
+		lastBlock:     height,
+		evmAuxStore:   evmAuxStore,
+		blockStore:    blockStore,
+		maxBlockRange: maxBlockRange,
 	}
-
 	return p
 }
 
@@ -34,6 +37,9 @@ func (p *EthBlockPoll) Poll(
 ) (EthPoll, interface{}, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
+	}
+	if uint64(state.Block().Height)-p.lastBlock > p.maxBlockRange {
+		p.lastBlock = uint64(state.Block().Height) - p.maxBlockRange
 	}
 	lastBlock, results, err := getBlockHashes(p.blockStore, state, p.lastBlock)
 	if err != nil {
@@ -46,7 +52,7 @@ func (p *EthBlockPoll) Poll(
 func (p *EthBlockPoll) AllLogs(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
-	_, results, err := getBlockHashes(p.blockStore, state, p.startBlock)
+	_, results, err := getBlockHashes(p.blockStore, state, uint64(state.Block().Height)-p.maxBlockRange)
 	return eth.EncBytesArray(results), err
 }
 
@@ -75,7 +81,9 @@ func (p *EthBlockPoll) LegacyPoll(state loomchain.ReadOnlyState, id string,
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
-
+	if uint64(state.Block().Height)-p.lastBlock > p.maxBlockRange {
+		p.lastBlock = uint64(state.Block().Height) - p.maxBlockRange
+	}
 	result, err := p.blockStore.GetBlockRangeByHeight(int64(p.lastBlock+1), state.Block().Height)
 	if err != nil {
 		return p, nil, err
