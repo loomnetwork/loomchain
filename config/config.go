@@ -734,7 +734,7 @@ Web3:
   # Specifies the maximum number of blocks eth_getLogs will query per request
   GetLogsMaxBlockRange: {{.Web3.GetLogsMaxBlockRange}}
   # Specifies the maximum number of blocks eth_getFilterChanges will query per request
-  PollLogsMaxBlockRange: {{.Web3.PollLogsMaxBlockRange}}
+  GetFilterChangesMaxBlockRange: {{.Web3.GetFilterChangesMaxBlockRange}}
 {{end}}
 
 # 

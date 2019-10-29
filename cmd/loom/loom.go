@@ -1270,7 +1270,7 @@ func initQueryService(
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
 		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
-		EthPolls:               *polls.NewEthSubscriptions(app.EvmAuxStore, blockstore, cfg.Web3.PollLogsMaxBlockRange),
+		EthPolls:               *polls.NewEthSubscriptions(app.EvmAuxStore, blockstore, cfg.Web3.GetFilterChangesMaxBlockRange),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,

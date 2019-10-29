@@ -56,15 +56,15 @@ func (p *EthLogPoll) Poll(
 		return p, nil, errors.New("Filter FromBlock is greater than ToBlock")
 	}
 
-	if end-start > p.maxBlockRange {
-		return p, nil, fmt.Errorf("max allowed block range (%d) exceeded", p.maxBlockRange)
-	}
-
 	if start <= p.lastBlockRead {
 		start = p.lastBlockRead + 1
 		if start > end {
 			return p, nil, nil
 		}
+	}
+
+	if end-start > p.maxBlockRange {
+		return p, nil, fmt.Errorf("max allowed block range (%d) exceeded", p.maxBlockRange)
 	}
 
 	eventLogs, err := query.GetBlockLogRange(
@@ -98,7 +98,7 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
 	}
 
 	if end-start > p.maxBlockRange {
-		return nil, fmt.Errorf("max allowed block range (%d) exceeded", p.maxBlockRange)
+		start = end - p.maxBlockRange
 	}
 
 	eventLogs, err := query.GetBlockLogRange(
