@@ -614,8 +614,6 @@ func getNonce(mapper *client.Contract, account loom.Address) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Printf("getNonce Resp %+v\n", resp)
-	fmt.Printf("getNonce Resp %d\n", resp.Nonce)
 	return resp.Nonce, nil
 }
 

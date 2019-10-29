@@ -350,7 +350,7 @@ func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingR
 	addr := loom.UnmarshalAddressPB(req.From)
 	if !isMultiChain {
 		if err := ctx.Get(addressKey(addr), &mapping); err != nil {
-			return nil, errors.Wrapf(err, "[Address Mapper] failed to get mapped address %v", addr)
+			return nil, errors.Wrapf(err, "[Address Mapper] failed to map address %v", addr)
 		}
 	} else {
 		mappingRange := ctx.Range(addressKey(addr))
