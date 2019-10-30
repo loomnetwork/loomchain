@@ -818,18 +818,6 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 		txHash: receiptTxHash,
 	})
 
-	// FIXME: Really shouldn't be sending out events until the whole block is committed because
-	//        the state changes from the tx won't be visible to queries until after Application.Commit()
-	// if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-	// 	log.Error("Emit Tx Event error", "err", err)
-	// }
-
-	// if len(receiptTxHash) > 0 {
-	// 	if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
-	// 		log.Error("failed to emit tx event to subscribers", "err", err)
-	// 	}
-	// }
-
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
