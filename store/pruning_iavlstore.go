@@ -177,8 +177,16 @@ func (s *PruningIAVLStore) Prune() error {
 	return nil
 }
 
-func (s *PruningIAVLStore) GetSnapshot(version int64) Snapshot {
-	return s.store.GetSnapshot(version)
+func (s *PruningIAVLStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (s *PruningIAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	return s.store.GetSnapshotAt(version)
 }
 
 func (s *PruningIAVLStore) prune() error {

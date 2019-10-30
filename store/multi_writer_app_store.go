@@ -15,6 +15,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
 
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/features"
 )
 
@@ -261,50 +262,62 @@ func (s *MultiWriterAppStore) Prune() error {
 	return s.appStore.Prune()
 }
 
-func (s *MultiWriterAppStore) GetSnapshot(version int64) Snapshot {
+func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (s *MultiWriterAppStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	defer func(begin time.Time) {
 		getSnapshotDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	var err error
+	var appStoreTree *iavl.ImmutableTree
 	if version == 0 {
-		version = (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree)).Version()
+		appStoreTree = (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
+	} else {
+		appStoreTree, err = s.appStore.tree.GetImmutable(version)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load immutable tree for version %v", version)
+		}
 	}
-	snapshot, _ := newMultiWriterStoreSnapshot(*s, version)
-	return snapshot
+	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
+	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree), nil
 }
 
 type multiWriterStoreSnapshot struct {
-	evmDbSnapshot    KVReader
-	appStoreSnapshot Snapshot
+	evmDbSnapshot db.Snapshot
+	appStoreTree  *iavl.ImmutableTree
 }
 
-func newMultiWriterStoreSnapshot(store MultiWriterAppStore, version int64) (*multiWriterStoreSnapshot, error) {
-	evmStore := NewEvmStore(store.evmStore.evmDB, evmCacheRoots)
-	if err := evmStore.LoadVersion(version); err != nil {
-		return nil, err
-	}
+func newMultiWriterStoreSnapshot(evmDbSnapshot db.Snapshot, appStoreTree *iavl.ImmutableTree) *multiWriterStoreSnapshot {
 	return &multiWriterStoreSnapshot{
-		evmDbSnapshot:    evmStore,
-		appStoreSnapshot: store.appStore.GetSnapshot(version),
-	}, nil
+		evmDbSnapshot: evmDbSnapshot,
+		appStoreTree:  appStoreTree,
+	}
 }
 
 func (s *multiWriterStoreSnapshot) Release() {
-	s.appStoreSnapshot.Release()
+	s.evmDbSnapshot.Release()
+	s.appStoreTree = nil
 }
 
 func (s *multiWriterStoreSnapshot) Has(key []byte) bool {
 	if util.HasPrefix(key, vmPrefix) {
 		return s.evmDbSnapshot.Has(key)
 	}
-	return s.appStoreSnapshot.Has(key)
+	return s.appStoreTree.Has(key)
 }
 
 func (s *multiWriterStoreSnapshot) Get(key []byte) []byte {
 	if util.HasPrefix(key, vmPrefix) {
 		return s.evmDbSnapshot.Get(key)
 	}
-	val := s.appStoreSnapshot.Get(key)
+	_, val := s.appStoreTree.Get(key)
 	return val
 }
 
@@ -313,8 +326,24 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 		panic(errors.New("Range over nil prefix not implemented"))
 	}
 
+	var data plugin.RangeData
 	if bytes.Equal(prefix, vmPrefix) || util.HasPrefix(prefix, vmPrefix) {
-		return s.evmDbSnapshot.Range(prefix)
+		for iter := s.evmDbSnapshot.NewIterator(prefix, nil); iter.Valid(); iter.Next() {
+			if 0 != bytes.Compare(prefix, iter.Key()[:len(prefix)]) {
+				break
+			}
+			data = append(data, &plugin.RangeEntry{iter.Key(), iter.Value()})
+		}
+	} else {
+		prefix = append(prefix, 0)
+		s.appStoreTree.IterateRangeInclusive(prefix, nil, true, func(key []byte, value []byte, _ int64) bool {
+			if 0 != bytes.Compare(prefix, key[:len(prefix)]) {
+				return true
+			}
+			data = append(data, &plugin.RangeEntry{key, value})
+			return false
+		})
 	}
-	return s.appStoreSnapshot.Range(prefix)
+
+	return data
 }

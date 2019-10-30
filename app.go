@@ -604,7 +604,7 @@ func (a *Application) ReadOnlyState() appstate.State {
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return appstate.NewStoreStateSnapshot(
 		nil,
-		a.Store.GetSnapshot(0),
+		a.Store.GetSnapshot(),
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
@@ -617,8 +617,8 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 		return nil, 0, errors.Errorf("invalid block number %d", blockNumber)
 	}
 	var snapshot store.Snapshot
-	for ; snapshot == nil && startVersion > 0; snapshot = a.Store.GetSnapshot(startVersion) {
-		startVersion--
+	for err := error(nil); (snapshot == nil || err != nil) && startVersion > 0; startVersion-- {
+		snapshot, err = a.Store.GetSnapshotAt(startVersion)
 	}
 	if startVersion == 0 {
 		return nil, 0, errors.Errorf("no saved version for height %d", blockNumber)

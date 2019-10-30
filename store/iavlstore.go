@@ -210,12 +210,16 @@ func (s *IAVLStore) Prune() error {
 	return nil
 }
 
-func (s *IAVLStore) GetSnapshot(version int64) Snapshot {
-	snapshot, err := newIavlStoreSnapshot(*s, version)
+func (s *IAVLStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
 	if err != nil {
-		panic(err) // todo maybe add error return to Snapshot
+		panic(err)
 	}
 	return snapshot
+}
+
+func (s *IAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	return newIavlStoreSnapshot(*s, version)
 }
 
 // NewIAVLStore creates a new IAVLStore.

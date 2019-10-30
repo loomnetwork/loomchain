@@ -370,14 +370,22 @@ func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
 	return hash, version, err
 }
 
-func (c *versionedCachingStore) GetSnapshot(version int64) Snapshot {
+func (s *versionedCachingStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	if version == 0 {
 		return newVersionedCachingStoreSnapshot(
-			c.VersionedKVStore.GetSnapshot(version),
+			c.VersionedKVStore.GetSnapshot(),
 			c.cache, c.version-1, c.logger,
-		)
+		), nil
 	} else {
-		return c.VersionedKVStore.GetSnapshot(version)
+		return c.VersionedKVStore.GetSnapshotAt(version)
 	}
 }
 

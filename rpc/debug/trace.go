@@ -71,6 +71,7 @@ func runUpTo(app abci.Application, blockstore store.BlockStore, startHeight, hei
 		}
 
 		_ = app.EndBlock(abci.RequestEndBlock{})
+		_ = app.Commit()
 	}
 	return errors.Errorf("cannot find transaction at height %d index %d", height, index)
 }

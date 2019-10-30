@@ -126,6 +126,14 @@ func (s *LogStore) Prune() error {
 	return s.store.Prune()
 }
 
-func (s *LogStore) GetSnapshot(version int64) Snapshot {
-	return s.store.GetSnapshot(version)
+func (s *LogStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (s *LogStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	return s.store.GetSnapshotAt(version)
 }
