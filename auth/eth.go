@@ -72,10 +72,13 @@ func VerifyWrappedEthTx(chainID string, signedTx SignedTx, _ []evmcompat.Signatu
 			ethTx.To().String(), msgTx.To.String(),
 		)
 	}
-	if ethTx.Nonce() != nonceTx.Sequence {
+
+	// Ethereum tx nonce is 0-based, SignedTx nonce is 1-based, the difference is accounted for in
+	// SendRawTransactionPRCFunc
+	if (ethTx.Nonce() + 1) != nonceTx.Sequence {
 		return nil, errors.Errorf(
 			"EthereumTx.Nonce (%d) doesn't match NonceTx.Sequence (%d)",
-			ethTx.Nonce(), nonceTx.Sequence,
+			ethTx.Nonce()+1, nonceTx.Sequence,
 		)
 	}
 

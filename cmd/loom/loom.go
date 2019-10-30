@@ -1285,6 +1285,7 @@ func initQueryService(
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 		EvmStore:               app.EvmStore,
+		Web3Cfg:                cfg.Web3,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

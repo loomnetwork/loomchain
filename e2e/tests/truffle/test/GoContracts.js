@@ -1,3 +1,4 @@
+const { getLatestBlock } = require('./helpers')
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
@@ -9,12 +10,17 @@ const {
 } = require('loom-js');
 
 contract('SampleGoContract', async () => {
+    // This test is not provider dependent so just run it with Loom Truffle provider
+    if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+        return
+    }
+
     const privateKey = CryptoUtils.generatePrivateKey();
     const publicKey = CryptoUtils.publicKeyFromPrivateKey(privateKey);
     let client, web3js;
+    const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim();
 
     beforeEach(async () => {
-        const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim();
         const chainID = 'default';
         const writeUrl = `ws://${nodeAddr}/websocket`;
         const readUrl = `ws://${nodeAddr}/queryws`;
@@ -52,8 +58,14 @@ contract('SampleGoContract', async () => {
             innerEmitterValue,
             outerEmitterValue,
         );
+
+        const curBlock = await getLatestBlock(nodeAddr)
+        const maxBlockLimit = 20
+
         const goContractLogs = await web3js.eth.getPastLogs({
             address: innerEmitter.address,
+            fromBlock: curBlock-maxBlockLimit,
+            toBlock: curBlock,
         });
 
         const receipt = await web3js.eth.getTransactionReceipt(goContractLogs[0].transactionHash);

@@ -31,7 +31,7 @@ type QueryService interface {
 	QueryEnv() (*config.EnvInfo, error)
 	// New JSON web3 methods
 	EthBlockNumber() (eth.Quantity, error)
-	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
+	EthGetBlockByNumber(block eth.BlockHeight, full bool) (*eth.JsonBlockObject, error)
 	EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error)
 	EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceipt, error)
 	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
