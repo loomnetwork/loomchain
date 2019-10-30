@@ -39,7 +39,7 @@ func (p *EthTxPoll) Poll(
 	}
 	toBlock := uint64(state.Block().Height)
 	if toBlock-p.lastBlockRead > p.maxBlockRange {
-		toBlock = toBlock - p.maxBlockRange
+		toBlock = p.lastBlockRead + p.maxBlockRange
 	}
 	lastBlock, results, err := getTxHashes(toBlock, p.lastBlockRead, readReceipt, p.evmAuxStore)
 	if err != nil {
@@ -49,6 +49,7 @@ func (p *EthTxPoll) Poll(
 	return p, eth.EncBytesArray(results), nil
 }
 
+// AllLogs pull txs from last N blocks limited by p.maxBlockRange
 func (p *EthTxPoll) AllLogs(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
@@ -86,7 +87,7 @@ func (p *EthTxPoll) LegacyPoll(
 	}
 	toBlock := uint64(state.Block().Height)
 	if toBlock-p.lastBlockRead > p.maxBlockRange {
-		toBlock = toBlock - p.maxBlockRange
+		toBlock = p.lastBlockRead + p.maxBlockRange
 	}
 	var txHashes [][]byte
 	for height := p.lastBlockRead + 1; height < toBlock; height++ {
