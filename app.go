@@ -341,6 +341,11 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
 type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
+type CommittedTx struct {
+	result TxHandlerResult
+	txHash []byte
+}
+
 type Application struct {
 	lastBlockHeader abci.Header
 	curBlockHeader  abci.Header
@@ -363,6 +368,7 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
+	committedTxs                []CommittedTx
 }
 
 var _ abci.Application = &Application{}
@@ -807,17 +813,22 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 	storeTx.Commit()
 
+	a.committedTxs = append(a.committedTxs, CommittedTx{
+		result: r,
+		txHash: receiptTxHash,
+	})
+
 	// FIXME: Really shouldn't be sending out events until the whole block is committed because
 	//        the state changes from the tx won't be visible to queries until after Application.Commit()
-	if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-		log.Error("Emit Tx Event error", "err", err)
-	}
+	// if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+	// 	log.Error("Emit Tx Event error", "err", err)
+	// }
 
-	if len(receiptTxHash) > 0 {
-		if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
-			log.Error("failed to emit tx event to subscribers", "err", err)
-		}
-	}
+	// if len(receiptTxHash) > 0 {
+	// 	if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+	// 		log.Error("failed to emit tx event to subscribers", "err", err)
+	// 	}
+	// }
 
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
@@ -843,7 +854,18 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 	a.childTxRefs = nil
 
-	go func(height int64, blockHeader abci.Header) {
+	go func(height int64, blockHeader abci.Header, committedTxs []CommittedTx) {
+		for _, tx := range committedTxs {
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(tx.result.Data, tx.result.Info); err != nil {
+				log.Error("Emit Tx Event error", "err", err)
+			}
+
+			if len(tx.txHash) > 0 {
+				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(tx.txHash); err != nil {
+					log.Error("failed to emit tx event to subscribers", "err", err)
+				}
+			}
+		}
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
 			log.Error("Emit Block Event error", "err", err)
 		}
@@ -853,7 +875,8 @@ func (a *Application) Commit() abci.ResponseCommit {
 		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
 			log.Error("Emit Block Event error", "err", err)
 		}
-	}(height, a.curBlockHeader)
+	}(height, a.curBlockHeader, a.committedTxs)
+	a.committedTxs = nil
 	a.lastBlockHeader = a.curBlockHeader
 
 	if err := a.Store.Prune(); err != nil {
