@@ -39,7 +39,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
-	"github.com/loomnetwork/loomchain/replay"
 	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	appstate "github.com/loomnetwork/loomchain/state"
@@ -63,7 +62,7 @@ const (
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() appstate.State
-	ReplayApplication(uint64, store.BlockStore) (replay.ReplayApplication, int64, error)
+	ReplayApplication(uint64, store.BlockStore) (*loomchain.Application, int64, error)
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -1136,7 +1135,7 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTra
 	if err != nil {
 		return nil, err
 	}
-	return debug.TraceTransaction(replayApp, s.BlockStore, startBlockNumber, int64(blockNumber), int64(txIndex), cfg)
+	return debug.TraceTransaction(*replayApp, s.BlockStore, startBlockNumber, int64(blockNumber), int64(txIndex), cfg)
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {

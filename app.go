@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/pkg/errors"
 
-	//"github.com/pkg/errors"
+	// "github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	ttypes "github.com/tendermint/tendermint/types"
@@ -20,7 +22,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
-	"github.com/loomnetwork/loomchain/replay"
 	"github.com/loomnetwork/loomchain/txhandler"
 
 	"github.com/loomnetwork/loomchain/log"
@@ -550,9 +551,11 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	height := a.curBlockHeader.GetHeight()
 
-	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
-		// TODO: consider panic instead
-		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
+	if a.EvmAuxStore != nil {
+		if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
+			// TODO: consider panic instead
+			log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
+		}
 	}
 	a.childTxRefs = nil
 
@@ -611,7 +614,7 @@ func (a *Application) ReadOnlyState() appstate.State {
 	)
 }
 
-func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.BlockStore) (replay.ReplayApplication, int64, error) {
+func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.BlockStore) (*Application, int64, error) {
 	startVersion := int64(blockNumber)
 	if startVersion < 0 {
 		return nil, 0, errors.Errorf("invalid block number %d", blockNumber)
@@ -624,19 +627,38 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 		return nil, 0, errors.Errorf("no saved version for height %d", blockNumber)
 	}
 
-	startStore := store.NewSplitStore(snapshot, store.NewMemStore())
-	newApp, err := replay.NewReplayApplication(
-		startVersion,
-		blockstore,
-		startStore,
-		a.ReceiptsVersion,
-		a.GetValidatorSet,
-		a.config,
-		a.TxHandlerFactory,
-		nil,
-	)
+	txHandle, err := a.TxHandlerFactory.TxHandler(nil, false)
 	if err != nil {
 		return nil, 0, err
 	}
+	newApp := &Application{
+		Store: store.NewSplitStore(snapshot, store.NewMemStore()),
+		Init: func(state appstate.State) error {
+			panic("init should not be called")
+		},
+		TxHandler:                   txHandle,
+		TxHandlerFactory:            a.TxHandlerFactory,
+		BlockIndexStore:             nil,
+		EventHandler:                nil,
+		ReceiptHandlerProvider:      nil,
+		CreateValidatorManager:      nil,
+		CreateChainConfigManager:    nil,
+		CreateContractUpkeepHandler: nil,
+		EventStore:                  nil,
+		GetValidatorSet: func(state appstate.State) (loom.ValidatorSet, error) {
+			return loom.NewValidatorSet(), nil
+		},
+		EvmAuxStore:     nil,
+		ReceiptsVersion: a.ReceiptsVersion,
+	}
 	return newApp, startVersion, nil
+}
+
+func (a *Application) SetTracer(tracer vm.Tracer, metrics bool) error {
+	newTxHandle, err := a.TxHandlerFactory.TxHandler(tracer, metrics)
+	if err != nil {
+		return errors.Wrap(err, "making transaction handle")
+	}
+	a.TxHandler = newTxHandle
+	return nil
 }
