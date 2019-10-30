@@ -10,8 +10,6 @@ const {
 } = require('loom-js');
 
 const TxHashTestContract = artifacts.require('TxHashTestContract');
-const NonceTestContract = artifacts.require('NonceTestContract');
-const SimpleStore = artifacts.require('SimpleStore');
 
 // Requires receipts:v3.3 to be enabled, and receipts:v3.4 not to be, but the new tx hash algo needs
 // more review & testing before we can release it so skipping this test for now.
@@ -44,10 +42,6 @@ contract('TxHashTestContract', async (accounts) => {
         web3 = new Web3(loomProvider);
         web3js = new Web3(new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`));
 
-
-        //nonceTestContract = await SimpleStore.deployed();
-        //nonceContract = new web3.eth.Contract(SimpleStore._json.abi, nonceTestContract.address, {from});
-
         txHashTestContract = await TxHashTestContract.deployed();
         contract = new web3.eth.Contract(TxHashTestContract._json.abi, txHashTestContract.address, {from});
     });
@@ -55,51 +49,43 @@ contract('TxHashTestContract', async (accounts) => {
     it('Test debug_traceTransaction', async () => {
         console.log("piers contract.methods|", contract.methods);
         console.log("piers contract.method.set|", contract.methods.set);
-
-       // console.log("piers nonceTestContract.methods|", nonceTestContract.methods);
-       // console.log("piers nonceTestContract.methods.setValue|", nonceTestContract.methods.setValue);
-       // console.log("piers nonceTestContract.methods.setValue|", nonceTestContract.methods.setValue(uint256));
         try {
-/*
-            const nonceTxResult = await nonceTestContract.methods.set(1111).send();
-            console.log("piers nonceTxResult txResult.tx|", nonceTxResult.tx);
-            console.log("piers nonceTestContract txResult.transactionHash|", nonceTxResult.transactionHash);
-            await web3js.currentProvider.send({
-                method: "debug_traceTransaction",
-                params: [nonceTxResult.transactionHash],
-                jsonrpc: "2.0",
-                id: new Date().getTime()
-            }, function (error, result) {
-                console.log("piers!!!!!!!!!nonceTxResult debug_traceTransaction sendResult|", result, "error", error)
-                console.log("piersn onceTxResult  failed|", result.failed);
-                console.log("piers nonceTxResult structLogs|", result.structLogs);
-                //assert.equal(true, result === result);
-                assert.equal(false, result.failed)
-            });
-*/
-            const txResult = await contract.methods.set(1111).send();
-            console.log("piers txResult.tx|", txResult.tx);
-            console.log("piers txResult.transactionHash|", txResult.transactionHash);
 
-            await web3js.currentProvider.send({
+            const txResult = await contract.methods.set(1111).send();
+            //console.log("piers txResult.tx|", txResult.tx);
+           // console.log("piers txResult.transactionHash|", txResult.transactionHash);
+
+            const receipt = await web3js.eth.getTransactionReceipt(txResult.transactionHash);
+            console.log("piers receipt|", receipt);
+
+            let blockNumber = await web3js.eth.getBlockNumber();
+
+            console.log("blocknumerb before", blockNumber);
+            //let bn = blockNumber;
+            //while ( bn <= blockNumber+3) {
+            //    //await contract.methods.set(1111).send();
+              //  bn = await web3js.eth.getBlockNumber();
+                //console.log("Inloop bn", bn);
+            //}
+            await waitForXBlocks(nodeAddr, 5)
+            blockNumber = await web3js.eth.getBlockNumber();
+            console.log("blocknumerb after", blockNumber);
+
+            const waitResult = await web3js.currentProvider.send({
                 method: "debug_traceTransaction",
                 params: [txResult.transactionHash,{"disableStorage":true,"disableMemory":false,"disableStack":false,"fullStorage":false}],
                 jsonrpc: "2.0",
                 id: new Date().getTime()
             }, function (error, result) {
                 console.log("piers!!!!!!!!! debug_traceTransaction sendResult|", result, "error", error)
-                console.log("piers failed|", result.failed);
-                console.log("piers structLogs|", result.structLogs);
+                console.log("piers failed|", result.result.failed);
+                console.log("piers structLogs|", result.result.structLogs);
                 //assert.equal(true, result === result);
-                assert.equal(undefined, result.failed)
+                //assert.equal(undefined, result.failed)
+                assert.equal(true, false);
+                //let aaa = result.doesnotexist.doesnotexist;
             });
-            //console.log("sendResult3", sendResult3);
-
-            //const doSomething = async () => {
-            //    await sleep2(2000)
-            //    //do stuff
-            //};
-            //console.log("after sleep")
+            console.log("waitResult", waitResult);
 
             const sendResult = await web3js.currentProvider.send({
                 method: "eth_blockNumber",
@@ -111,15 +97,9 @@ contract('TxHashTestContract', async (accounts) => {
             });
             //console.log("sendResult", sendResult);
 
+            await waitForXBlocks(nodeAddr, 5)
 
-            const receipt = await web3js.eth.getTransactionReceipt(txResult.transactionHash);
-            //const receipt = await web3js.eth.getTransactionReceipt(txResult.tx);
-            console.log("piers receipt|", receipt);
-
-            //sleep(1000000)
-
-
-
+            //sleep1(100000000)
         } catch(err) {
             console.log("caught error", err);
         }
