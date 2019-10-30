@@ -733,8 +733,8 @@ EvmStore:
 Web3:
   # Specifies the maximum number of blocks eth_getLogs will query per request
   GetLogsMaxBlockRange: {{.Web3.GetLogsMaxBlockRange}}
-  # Specifies the maximum number of blocks eth_getFilterChanges will query per request
-  GetFilterChangesMaxBlockRange: {{.Web3.GetFilterChangesMaxBlockRange}}
+  # Specifies the maximum number of blocks eth_getFilterChanges and eth_getFilterLogs will query per request
+  GetFilterMaxBlockRange: {{.Web3.GetFilterMaxBlockRange}}
 {{end}}
 
 # 
