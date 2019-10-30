@@ -2,20 +2,21 @@ package store
 
 import (
 	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/pkg/errors"
 )
 
 type splitStore struct {
 	KVReader
 	VersionedKVStore
 	deleted map[string]bool
+	version int64
 }
 
-func NewSplitStore(full KVReader, empty VersionedKVStore) VersionedKVStore {
+func NewSplitStore(full KVReader, empty VersionedKVStore, version int64) VersionedKVStore {
 	return &splitStore{
 		KVReader:         full,
 		VersionedKVStore: empty,
 		deleted:          make(map[string]bool),
+		version:          version,
 	}
 }
 
@@ -64,24 +65,27 @@ func (ss splitStore) Hash() []byte {
 	return nil
 }
 func (ss splitStore) Version() int64 {
-	return 0
+	return ss.version
 }
 func (ss splitStore) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, nil
+	ss.version++
+	return nil, ss.version, nil
 }
 
 func (ss splitStore) Prune() error {
-	return errors.New("not implemented")
+	panic("should not be called")
 }
 
-func (s *splitStore) GetSnapshot() Snapshot {
-	snapshot, err := s.GetSnapshotAt(0)
-	if err != nil {
-		panic(err)
-	}
-	return snapshot
+func (ss *splitStore) GetSnapshot() Snapshot {
+	return splitStoreSnapShot{*ss}
 }
 
 func (ss splitStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	return nil, nil
+	panic("should not be called")
 }
+
+type splitStoreSnapShot struct {
+	splitStore
+}
+
+func (ss splitStoreSnapShot) Release() {}
