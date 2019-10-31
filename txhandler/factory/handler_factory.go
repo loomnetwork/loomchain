@@ -46,6 +46,16 @@ type txHandleFactory struct {
 	createRegistry factory.RegistryFactoryFunc
 }
 
+func (f txHandleFactory) Copy(newStore store.VersionedKVStore) txhandler.TxHandlerFactory {
+	return txHandleFactory{
+		cfg:            f.cfg,
+		vmManager:      f.vmManager,
+		chainID:        f.chainID,
+		store:          newStore,
+		createRegistry: f.createRegistry,
+	}
+}
+
 func (f txHandleFactory) TxHandler(tracer ethvm.Tracer, metrics bool) (txhandler.TxHandler, error) {
 	vmManager := createVmManager(f.vmManager, tracer)
 	nonceTxHandler := auth.NewNonceHandler()

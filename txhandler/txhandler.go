@@ -6,6 +6,7 @@ import (
 	"github.com/tendermint/tendermint/libs/common"
 
 	"github.com/loomnetwork/loomchain/state"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type TxHandler interface {
@@ -29,4 +30,5 @@ func (f TxHandlerFunc) ProcessTx(s state.State, txBytes []byte, isCheckTx bool) 
 
 type TxHandlerFactory interface {
 	TxHandler(tracer vm.Tracer, metrics bool) (TxHandler, error)
+	Copy(newStore store.VersionedKVStore) TxHandlerFactory
 }

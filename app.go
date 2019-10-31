@@ -635,17 +635,19 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 		return nil, 0, errors.Errorf("no saved version for height %d", blockNumber)
 	}
 
-	txHandle, err := a.TxHandlerFactory.TxHandler(nil, false)
+	splitStore := store.NewSplitStore(snapshot, store.NewMemStore(), startVersion-1)
+	factory := a.TxHandlerFactory.Copy(splitStore)
+	txHandle, err := factory.TxHandler(nil, false)
 	if err != nil {
 		return nil, 0, err
 	}
 	newApp := &Application{
-		Store: store.NewSplitStore(snapshot, store.NewMemStore(), startVersion-1),
+		Store: splitStore,
 		Init: func(state appstate.State) error {
 			panic("init should not be called")
 		},
 		TxHandler:                   txHandle,
-		TxHandlerFactory:            a.TxHandlerFactory,
+		TxHandlerFactory:            factory,
 		BlockIndexStore:             nil,
 		EventHandler:                nil,
 		ReceiptHandlerProvider:      nil,
@@ -656,6 +658,7 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 		GetValidatorSet:             a.GetValidatorSet,
 		EvmAuxStore:                 nil,
 		ReceiptsVersion:             a.ReceiptsVersion,
+		config:                      a.config,
 	}
 	return newApp, startVersion, nil
 }
