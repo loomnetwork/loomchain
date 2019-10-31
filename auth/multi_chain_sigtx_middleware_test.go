@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	sequence           = uint64(4)
 	callId             = uint32(2)
 	seq                = uint64(4) // todo
 	defaultLoomChainId = "default"
