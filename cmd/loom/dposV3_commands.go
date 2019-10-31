@@ -11,6 +11,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/spf13/cobra"
 )
@@ -998,6 +999,49 @@ func ListAllDelegationsCmdV3() *cobra.Command {
 	return cmd
 }
 
+const sumAllDelegationsCmdExample = `
+loom dpos3 sum-all-delegations -u http://localhost:12345
+`
+
+func SumAllDelegationsCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "sum-all-delegations",
+		Short:   "display the results of summary delegations for all candidates",
+		Example: sumAllDelegationsCmdExample,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv3.ListAllDelegationsResponse
+			err := cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "ListAllDelegations",
+				&dposv3.ListAllDelegationsRequest{}, &resp,
+			)
+			if err != nil {
+				return err
+			}
+			delegationList := map[string]*common.BigUInt{}
+			for _, candidateDelegations := range resp.ListResponses {
+				for _, delegation := range candidateDelegations.Delegations {
+					addr := loom.Address{ChainID: "default", Local: delegation.Delegator.Local}
+					if _, ok := delegationList[addr.String()]; !ok {
+						delegationList[addr.String()] = common.BigZero()
+					}
+					calAmount := common.BigZero()
+					currentAmount := delegationList[addr.String()]
+					delegationList[addr.String()] = calAmount.Add(currentAmount, &delegation.Amount.Value)
+				}
+			}
+			divider := int64(1000000000000000000)
+			for addr, total := range delegationList {
+				fmt.Println(addr, total.Div(total, loom.NewBigUIntFromInt(divider)).String())
+			}
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 // Oracle Commands for setting parameters
 
 const registerReferrerCmdExample = `
@@ -1367,6 +1411,7 @@ func NewDPOSV3Command() *cobra.Command {
 		ListValidatorsCmdV3(),
 		ListDelegationsCmdV3(),
 		ListAllDelegationsCmdV3(),
+		SumAllDelegationsCmdV3(),
 		ListReferrersCmdV3(),
 		UnregisterCandidateCmdV3(),
 		UpdateCandidateInfoCmdV3(),
