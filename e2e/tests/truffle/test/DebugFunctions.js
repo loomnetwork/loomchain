@@ -53,7 +53,5 @@ contract('debug_traceTransaction', async (accounts) => {
                 assert.equal(StructLogsLength, result.result.structLogs.length);
             });
             await waitForXBlocks(nodeAddr, 1)
-
     })
-
 });

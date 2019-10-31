@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
@@ -9,11 +8,12 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tendermint/libs/db"
+
+	"github.com/loomnetwork/loomchain/log"
 )
 
 var (
@@ -211,15 +211,17 @@ func (s *IAVLStore) Prune() error {
 }
 
 func (s *IAVLStore) GetSnapshot() Snapshot {
-	snapshot, err := s.GetSnapshotAt(0)
-	if err != nil {
-		panic(err)
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &iavlStoreSnapshot{
+		IAVLStore: s,
 	}
-	return snapshot
 }
 
 func (s *IAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	return newIavlStoreSnapshot(*s, version)
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &iavlStoreSnapshot{
+		IAVLStore: s,
+	}, nil
 }
 
 // NewIAVLStore creates a new IAVLStore.
@@ -255,38 +257,9 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion, flushInterval int64) (*
 }
 
 type iavlStoreSnapshot struct {
-	*iavl.ImmutableTree
+	*IAVLStore
 }
 
-func newIavlStoreSnapshot(store IAVLStore, version int64) (Snapshot, error) {
-	if version == 0 {
-		version = store.Version()
-	}
-	immutableTree, err := store.tree.GetImmutable(version)
-	if err != nil {
-		return nil, err
-	}
-	return &iavlStoreSnapshot{
-		immutableTree,
-	}, nil
+func (s *iavlStoreSnapshot) Release() {
+	// noop
 }
-
-func (s *iavlStoreSnapshot) Get(key []byte) []byte {
-	_, value := s.ImmutableTree.Get(key)
-	return value
-}
-
-func (s *iavlStoreSnapshot) Range(prefix []byte) plugin.RangeData {
-	var data plugin.RangeData
-	prefix = append(prefix, 0)
-	s.ImmutableTree.IterateRangeInclusive(prefix, nil, true, func(key []byte, value []byte, _ int64) bool {
-		if len(key) < len(prefix) || 0 != bytes.Compare(prefix, key[:len(prefix)]) {
-			return true
-		}
-		data = append(data, &plugin.RangeEntry{key, value})
-		return false
-	})
-	return data
-}
-
-func (s *iavlStoreSnapshot) Release() {}
