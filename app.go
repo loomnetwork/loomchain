@@ -623,7 +623,7 @@ func (a *Application) ReadOnlyState() appstate.State {
 }
 
 func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.BlockStore) (*Application, int64, error) {
-	startVersion := int64(blockNumber)
+	startVersion := int64(blockNumber) - 1
 	if startVersion < 0 {
 		return nil, 0, errors.Errorf("invalid block number %d", blockNumber)
 	}
