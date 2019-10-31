@@ -23,8 +23,14 @@ func TraceTransaction(
 	blockstore store.BlockStore,
 	startBlockNumber, targetBlockNumber, txIndex int64,
 	config eth.TraceConfig,
-) (interface{}, error) {
-	if err := runUpTo(app, blockstore, startBlockNumber, targetBlockNumber, txIndex); err != nil {
+) (trace interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Errorf("loomchain panicked %v", r)
+		}
+	}()
+
+	if err := runUpTo(&app, blockstore, startBlockNumber, targetBlockNumber, txIndex); err != nil {
 		return nil, err
 	}
 
@@ -56,7 +62,7 @@ func TraceTransaction(
 	}
 }
 
-func runUpTo(app loomchain.Application, blockstore store.BlockStore, startHeight, height, index int64) error {
+func runUpTo(app *loomchain.Application, blockstore store.BlockStore, startHeight, height, index int64) error {
 	for h := startHeight; h <= height; h++ {
 		resultBlock, err := blockstore.GetBlockByHeight(&h)
 		if err != nil {

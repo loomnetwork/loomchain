@@ -20,7 +20,7 @@ func NewSplitStore(full KVReader, empty VersionedKVStore, version int64) Version
 	}
 }
 
-func (ss splitStore) Get(key []byte) []byte {
+func (ss *splitStore) Get(key []byte) []byte {
 	if ss.VersionedKVStore.Has(key) {
 		return ss.KVReader.Get(key)
 	}
@@ -30,7 +30,7 @@ func (ss splitStore) Get(key []byte) []byte {
 	return ss.KVReader.Get(key)
 }
 
-func (ss splitStore) Range(prefix []byte) plugin.RangeData {
+func (ss *splitStore) Range(prefix []byte) plugin.RangeData {
 	readerRange := ss.KVReader.Range(prefix)
 	updateRange := ss.VersionedKVStore.Range(prefix)
 	for _, re := range updateRange {
@@ -41,7 +41,7 @@ func (ss splitStore) Range(prefix []byte) plugin.RangeData {
 	return readerRange
 }
 
-func (ss splitStore) Has(key []byte) bool {
+func (ss *splitStore) Has(key []byte) bool {
 	if ss.VersionedKVStore.Has(key) {
 		return true
 	}
@@ -51,36 +51,36 @@ func (ss splitStore) Has(key []byte) bool {
 	return ss.KVReader.Has(key)
 }
 
-func (ss splitStore) Set(key, value []byte) {
+func (ss *splitStore) Set(key, value []byte) {
 	ss.VersionedKVStore.Set(key, value)
 	ss.deleted[string(key)] = false
 }
 
-func (ss splitStore) Delete(key []byte) {
+func (ss *splitStore) Delete(key []byte) {
 	ss.VersionedKVStore.Delete(key)
 	ss.deleted[string(key)] = true
 }
 
-func (ss splitStore) Hash() []byte {
+func (ss *splitStore) Hash() []byte {
 	return nil
 }
-func (ss splitStore) Version() int64 {
+func (ss *splitStore) Version() int64 {
 	return ss.version
 }
-func (ss splitStore) SaveVersion() ([]byte, int64, error) {
+func (ss *splitStore) SaveVersion() ([]byte, int64, error) {
 	ss.version++
 	return nil, ss.version, nil
 }
 
-func (ss splitStore) Prune() error {
-	panic("should not be called")
+func (ss *splitStore) Prune() error {
+	return nil
 }
 
 func (ss *splitStore) GetSnapshot() Snapshot {
-	return splitStoreSnapShot{*ss}
+	return &splitStoreSnapShot{*ss}
 }
 
-func (ss splitStore) GetSnapshotAt(version int64) (Snapshot, error) {
+func (ss *splitStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	panic("should not be called")
 }
 
@@ -88,4 +88,4 @@ type splitStoreSnapShot struct {
 	splitStore
 }
 
-func (ss splitStoreSnapShot) Release() {}
+func (ss *splitStoreSnapShot) Release() {}

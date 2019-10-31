@@ -291,13 +291,16 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 
 	// TODO: receiptHandler.CommitBlock() should be moved to Application.Commit()
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	receiptHandler := a.ReceiptHandlerProvider.Store()
-	if err := receiptHandler.CommitBlock(a.height()); err != nil {
-		storeTx.Rollback()
-		// TODO: maybe panic instead?
-		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
-	} else {
-		storeTx.Commit()
+
+	if a.ReceiptHandlerProvider != nil {
+		receiptHandler := a.ReceiptHandlerProvider.Store()
+		if err := receiptHandler.CommitBlock(a.height()); err != nil {
+			storeTx.Rollback()
+			// TODO: maybe panic instead?
+			log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
+		} else {
+			storeTx.Commit()
+		}
 	}
 
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
@@ -486,16 +489,17 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 		a.curBlockHash,
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
-
-	receiptHandler := a.ReceiptHandlerProvider.Store()
-	defer receiptHandler.DiscardCurrentReceipt()
-	defer a.EventHandler.Rollback()
+	if a.ReceiptHandlerProvider != nil {
+		//receiptHandler := a.ReceiptHandlerProvider.Store()
+		defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
+		defer a.EventHandler.Rollback()
+	}
 
 	r, txErr := a.TxHandler.ProcessTx(state, txBytes, false)
 
 	// Store the receipt even if the tx itself failed
 	var receiptTxHash []byte
-	if a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
+	if a.ReceiptHandlerProvider != nil && a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
 		receiptTxHash = a.ReceiptHandlerProvider.Reader().GetCurrentReceipt().TxHash
 		txHash := ttypes.Tx(txBytes).Hash()
 		// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
@@ -506,7 +510,7 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 				ChildTxHash:  receiptTxHash,
 			})
 		}
-		receiptHandler.CommitCurrentReceipt()
+		a.ReceiptHandlerProvider.Store().CommitCurrentReceipt()
 	}
 
 	if txErr != nil {
@@ -517,13 +521,15 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 		return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: txErr.Error()}
 	}
 
-	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 	storeTx.Commit()
 
-	// FIXME: Really shouldn't be sending out events until the whole block is committed because
-	//        the state changes from the tx won't be visible to queries until after Application.Commit()
-	if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-		log.Error("Emit Tx Event error", "err", err)
+	if a.EventHandler != nil {
+		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+		// FIXME: Really shouldn't be sending out events until the whole block is committed because
+		//        the state changes from the tx won't be visible to queries until after Application.Commit()
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+			log.Error("Emit Tx Event error", "err", err)
+		}
 	}
 
 	if len(receiptTxHash) > 0 {
@@ -558,17 +564,20 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 	a.childTxRefs = nil
 
-	go func(height int64, blockHeader abci.Header) {
-		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-	}(height, a.curBlockHeader)
+	if a.EventHandler != nil {
+		go func(height int64, blockHeader abci.Header) {
+			if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
+				log.Error("Emit Block Event error", "err", err)
+			}
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+				log.Error("Emit Block Event error", "err", err)
+			}
+			if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+				log.Error("Emit Block Event error", "err", err)
+			}
+		}(height, a.curBlockHeader)
+	}
+
 	a.lastBlockHeader = a.curBlockHeader
 
 	if err := a.Store.Prune(); err != nil {
