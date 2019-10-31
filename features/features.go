@@ -133,4 +133,7 @@ const (
 
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"
+
+	// Enable signature sorting
+	SignatureSortingFeature = "tg:sortsigs"
 )
