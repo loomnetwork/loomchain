@@ -20,6 +20,9 @@ else
     sleep 1
 fi
 
+# Run solidity linter
+yarn lint
+
 # Run Truffle tests using Truffle HDWallet provider & /eth endpoint
 CLUSTER_DIR=$TEST_DIR/cluster yarn run map-accounts
 CLUSTER_DIR=$TEST_DIR/cluster \

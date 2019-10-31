@@ -15,7 +15,6 @@ contract MyCoin is ERC20 {
     uint globalUint = 0;
     constructor() public {
         _mint(msg.sender, INITIAL_SUPPLY * (10 ** uint256(decimals)));
-        
     }
 
     function easyTransferTo(address recipient,uint256 amount) public {
@@ -35,13 +34,13 @@ contract MyCoin is ERC20 {
     event NewValueSet(uint _value);
 
     function payToSet(uint num) external payable{
-     require(msg.value >= setFee);
-     globalUint = num;
+        require(msg.value >= setFee,"value sent must greater than or equal to setFee");
+        globalUint = num;
         emit NewValueSet(num);
-  }
+    }
 
-  function getUint() public view returns (uint ){
-      return globalUint;
-  }
+    function getUint() public view returns (uint){
+        return globalUint;
+    }
 
 }
