@@ -151,6 +151,7 @@ func TxObjToReceipt(txObj JsonTxObject, contractAddr *Data) JsonTxReceipt {
 }
 
 func EncEvents(logs []*types.EventData) []JsonLog {
+
 	jLogs := make([]JsonLog, 0, len(logs))
 	for i, log := range logs {
 		jLog := EncEvent(*log)
@@ -171,6 +172,7 @@ func EncEvent(log types.EventData) JsonLog {
 		data = EncBytes(log.EncodedBody)
 	}
 
+	// TODO: Copy log.BlockTime
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),
@@ -178,7 +180,6 @@ func EncEvent(log types.EventData) JsonLog {
 		Data:             data,
 		TransactionIndex: EncInt(int64(log.TransactionIndex)),
 		BlockHash:        EncBytes(log.BlockHash),
-		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
@@ -188,14 +189,15 @@ func EncEvent(log types.EventData) JsonLog {
 }
 
 func EncLogs(logs []*types.EthFilterLog) []JsonLog {
+
 	jLogs := make([]JsonLog, 0, len(logs))
 	for _, log := range logs {
-		jLogs = append(jLogs, encLog(*log))
+		jLogs = append(jLogs, EncLog(*log))
 	}
 	return jLogs
 }
 
-func encLog(log types.EthFilterLog) JsonLog {
+func EncLog(log types.EthFilterLog) JsonLog {
 	jLog := JsonLog{
 		Removed:          log.Removed,
 		LogIndex:         EncInt(log.LogIndex),
@@ -205,7 +207,6 @@ func encLog(log types.EthFilterLog) JsonLog {
 		BlockNumber:      EncInt(log.BlockNumber),
 		Address:          EncBytes(log.Address),
 		Data:             EncBytes(log.Data),
-		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(string(topic)))
