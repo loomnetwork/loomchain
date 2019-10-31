@@ -337,7 +337,7 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 	} else {
 		prefix = append(prefix, 0)
 		s.appStoreTree.IterateRangeInclusive(prefix, nil, true, func(key []byte, value []byte, _ int64) bool {
-			if 0 != bytes.Compare(prefix, key[:len(prefix)]) {
+			if len(key) < len(prefix) || 0 != bytes.Compare(prefix, key[:len(prefix)]) {
 				return true
 			}
 			data = append(data, &plugin.RangeEntry{key, value})

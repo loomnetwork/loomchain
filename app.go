@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/pkg/errors"
 
@@ -211,7 +210,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
-	log.Info("piers bock hash and height", "height", block.Height, "hash", string(req.Hash))
+
 	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
 		upkeepState := appstate.NewStoreState(
@@ -636,22 +635,18 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 		Init: func(state appstate.State) error {
 			panic("init should not be called")
 		},
-		TxHandler:              txHandle,
-		TxHandlerFactory:       a.TxHandlerFactory,
-		BlockIndexStore:        nil,
-		EventHandler:           nil,
-		ReceiptHandlerProvider: nil,
-		CreateValidatorManager: func(state appstate.State) (ValidatorsManager, error) {
-			return nil, registry.ErrNotFound
-		},
+		TxHandler:                   txHandle,
+		TxHandlerFactory:            a.TxHandlerFactory,
+		BlockIndexStore:             nil,
+		EventHandler:                nil,
+		ReceiptHandlerProvider:      nil,
+		CreateValidatorManager:      a.CreateValidatorManager,
 		CreateChainConfigManager:    a.CreateChainConfigManager,
 		CreateContractUpkeepHandler: a.CreateContractUpkeepHandler,
 		EventStore:                  nil,
-		GetValidatorSet: func(state appstate.State) (loom.ValidatorSet, error) {
-			return loom.NewValidatorSet(), nil
-		},
-		EvmAuxStore:     nil,
-		ReceiptsVersion: a.ReceiptsVersion,
+		GetValidatorSet:             a.GetValidatorSet,
+		EvmAuxStore:                 nil,
+		ReceiptsVersion:             a.ReceiptsVersion,
 	}
 	return newApp, startVersion, nil
 }
