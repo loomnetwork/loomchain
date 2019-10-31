@@ -52,6 +52,9 @@ type Config struct {
 	// AppHash changes. Defaults to true.
 	CreateEmptyBlocks bool
 
+	// MempoolWalDir sets directory path of mempool.wal. If empty, mempool.wal is disabled
+	MempoolWalDir string
+
 	// Network
 	RPCListenAddress     string
 	RPCProxyPort         int32
@@ -377,6 +380,7 @@ func DefaultConfig() *Config {
 		UnsafeRPCEnabled:           false,
 		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
 		CreateEmptyBlocks:          true,
+		MempoolWalDir:              "data/mempool.wal",
 		ContractLoaders:            []string{"static"},
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
