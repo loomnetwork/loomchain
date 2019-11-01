@@ -52,6 +52,9 @@ type Config struct {
 	// AppHash changes. Defaults to true.
 	CreateEmptyBlocks bool
 
+	// Enable mempool.wal
+	MempoolWalEnabled bool
+
 	// Network
 	RPCListenAddress     string
 	RPCProxyPort         int32
@@ -377,6 +380,7 @@ func DefaultConfig() *Config {
 		UnsafeRPCEnabled:           false,
 		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
 		CreateEmptyBlocks:          true,
+		MempoolWalEnabled:          false,
 		ContractLoaders:            []string{"static"},
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
@@ -515,6 +519,7 @@ EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
+MempoolWalEnabled: {{ .MempoolWalEnabled }}
 #
 # Network
 #

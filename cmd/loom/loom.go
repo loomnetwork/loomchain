@@ -1216,6 +1216,7 @@ func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsens
 		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
 		HsmConfig:                cfg.HsmConfig,
 		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
+		MempoolWalEnabled:        cfg.MempoolWalEnabled,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
