@@ -227,12 +227,13 @@ func (s *EvmStore) Commit(version int64) []byte {
 			}
 			ethDB := NewLoomEthDB(s, nil)
 			s.trieDB = trie.NewDatabase(ethDB)
-			s.Set(evmRootKey(version), currentRoot)
 		}
 
-		// We have to save default root
-		if bytes.Equal(defaultRoot, currentRoot) && !bytes.Equal(currentRoot, s.lastSavedRoot) {
+		// We don't commit empty root but we need to save default root ([]byte{1}) as a placeholder of empty root
+		// So the node won't get EVM root mismatch during the EVM root checking
+		if !bytes.Equal(currentRoot, s.lastSavedRoot) {
 			s.Set(evmRootKey(version), currentRoot)
+			s.lastSavedRoot = currentRoot
 		}
 	}
 
@@ -248,7 +249,6 @@ func (s *EvmStore) Commit(version int64) []byte {
 	}
 	batch.Write()
 	s.cache = make(map[string]cacheItem)
-	s.lastSavedRoot = currentRoot
 	s.version = version
 	return currentRoot
 }
