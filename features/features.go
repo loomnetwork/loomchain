@@ -20,6 +20,9 @@ const (
 	// invalid withdrawal receipts.
 	TGVersion1_2 = "tg:1.2"
 
+	// Enable
+	TGSortMutliSigFeature = "tg:sortsigs"
+
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
 
@@ -133,7 +136,4 @@ const (
 
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"
-
-	// Enable signature sorting
-	SignatureSortingFeature = "tg:sortsigs"
 )
