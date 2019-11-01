@@ -58,14 +58,15 @@ GAMECHAIN_GIT_SHA = `cd ${GAMECHAIN_DIR} && git rev-parse --verify HEAD`
 BTCD_GIT_SHA = `cd ${BTCD_DIR} && git rev-parse --verify ${BTCD_GIT_REV}`
 
 GOFLAGS_BASE = \
-	-X $(PKG).Build=$(BUILD_NUMBER) \
+	-X $(PKG).Build=1329 \
 	-X $(PKG).GitSHA=$(GIT_SHA) \
 	-X $(PKG).GoLoomGitSHA=$(GO_LOOM_GIT_SHA) \
 	-X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) \
 	-X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA) \
 	-X $(PKG).BtcdGitSHA=$(BTCD_GIT_SHA)
 GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
-GOFLAGS_GAMECHAIN_BASE = -X $(PKG_BATTLEGROUND).BuildDate=$(BUILD_DATE) -X $(PKG_BATTLEGROUND).BuildGitSha=$(GAMECHAIN_GIT_SHA) -X $(PKG_BATTLEGROUND).BuildNumber=$(BUILD_NUMBER)
+GOFLAGS_GAMECHAIN_BASE = -X $(PKG_BATTLEGROUND).BuildDate=$(BUILD_DATE) -X $(PKG_BATTLEGROUND).BuildGitSha=$(GAMECHAIN_GIT_SHA) -X $(PKG_BATTLEGROUND).BuildNumber=1329
+
 GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_GATEWAY = -tags "evm gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=gateway"
 GOFLAGS_BASECHAIN = -tags "evm basechain gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=basechain"
