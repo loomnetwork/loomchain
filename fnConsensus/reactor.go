@@ -329,8 +329,10 @@ func (f *FnConsensusReactor) initRoutine() {
 		return
 	}
 
-	go f.voteRoutine()
-	go f.commitRoutine()
+	if f.cfg.IsValidator {
+		go f.voteRoutine()
+		go f.commitRoutine()
+	}
 }
 
 func (f *FnConsensusReactor) commitRoutine() {
