@@ -317,10 +317,13 @@ func (f *FnConsensusReactor) getValidatorSet() *types.ValidatorSet {
 func (f *FnConsensusReactor) initRoutine() {
 	var currentState state.State
 
-	// Wait till state is populated
-	for currentState = state.LoadState(f.tmStateDB); currentState.IsEmpty(); currentState = state.LoadState(f.tmStateDB) {
-		f.Logger.Error("TM state is empty. Cant start progress loop, retrying in some time...")
-		time.Sleep(progressLoopStartDelay)
+	// if overrideValidator specified, we don't need to load current state.
+	if len(f.cfg.OverrideValidators) == 0 {
+		// Wait till state is populated
+		for currentState = state.LoadState(f.tmStateDB); currentState.IsEmpty(); currentState = state.LoadState(f.tmStateDB) {
+			f.Logger.Error("TM state is empty. Cant start progress loop, retrying in some time...")
+			time.Sleep(progressLoopStartDelay)
+		}
 	}
 
 	if err := f.initValidatorSet(currentState); err != nil {
