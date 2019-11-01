@@ -1,6 +1,6 @@
 // +build evm
 
-package throttle
+package middleware
 
 import (
 	"testing"
@@ -11,16 +11,18 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/features"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -103,7 +105,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
 	txSignedEVM1 := mockSignedTx(t, uint64(1), types.TxID_CALL, vm.VMType_EVM, contractAddr)
-	cfg := DefaultContractTxLimiterConfig()
+	cfg := config.DefaultContractTxLimiterConfig()
 	contractTxLimiterMiddleware := NewContractTxLimiterMiddleware(cfg,
 		func(_ appstate.State) (contractpb.Context, error) {
 			return contractpb.WrapPluginContext(udwContext), nil

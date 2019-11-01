@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/migrations"
 	appstate "github.com/loomnetwork/loomchain/state"
@@ -24,7 +24,7 @@ func TestMigrationTxHandler(t *testing.T) {
 	state := appstate.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil, nil)
 	state.SetFeature(features.MigrationTxFeature, true)
 
-	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 	s := state.WithContext(ctx)
 
 	migrationTx1 := mockMessageTx(t, uint32(1), origin, origin, []byte{})

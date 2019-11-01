@@ -357,7 +357,7 @@ func mockSignedTx(t *testing.T, id ltypes.TxID, to loom.Address, from loom.Addre
 	})
 	require.NoError(t, err)
 
-	txTx, err := proto.Marshal(&loomchain.Transaction{
+	txTx, err := proto.Marshal(&ltypes.Transaction{
 		Data: messageTx,
 		Id:   uint32(id),
 	})

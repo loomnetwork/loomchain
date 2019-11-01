@@ -13,19 +13,20 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
+	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
+
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 type queryableContract struct {
@@ -102,16 +103,8 @@ func (s *stateProvider) ReadOnlyState() state.State {
 	)
 }
 
-func (s *stateProvider) InMemoryApp() state.State {
-	return state.NewStoreState(
-		nil,
-		store.NewMemStore(),
-		abci.Header{
-			ChainID: s.ChainID,
-		},
-		nil,
-		nil,
-	)
+func (s *stateProvider) ReplayApplication(uint64, store.BlockStore) (*loomchain.Application, int64, error) {
+	return nil, 0, fmt.Errorf("Not implimented")
 }
 
 var testlog llog.TMLogger
@@ -136,7 +129,7 @@ func testQueryServerContractQuery(t *testing.T) {
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
-		AuthCfg:        auth.DefaultConfig(),
+		AuthCfg:        keys.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -191,7 +184,7 @@ func testQueryServerNonce(t *testing.T) {
 			ChainID: "default",
 		},
 		BlockStore: store.NewMockBlockStore(),
-		AuthCfg:    auth.DefaultConfig(),
+		AuthCfg:    keys.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -260,7 +253,7 @@ func testQueryMetric(t *testing.T) {
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
-		AuthCfg:        auth.DefaultConfig(),
+		AuthCfg:        keys.DefaultConfig(),
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{

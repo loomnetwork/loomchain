@@ -62,14 +62,16 @@ func (ss *splitStore) Delete(key []byte) {
 }
 
 func (ss *splitStore) Hash() []byte {
-	return nil
+	return []byte{}
 }
+
 func (ss *splitStore) Version() int64 {
 	return ss.version
 }
+
 func (ss *splitStore) SaveVersion() ([]byte, int64, error) {
 	ss.version++
-	return nil, ss.version, nil
+	return ss.Hash(), ss.version, nil
 }
 
 func (ss *splitStore) Prune() error {

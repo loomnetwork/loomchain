@@ -9,18 +9,18 @@ import (
 
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/rpc/eth"
-	"github.com/loomnetwork/loomchain/vm"
 	appstate "github.com/loomnetwork/loomchain/state"
-
-	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/vm"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 )
 
@@ -397,7 +397,7 @@ func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, d
 	})
 	require.NoError(t, err)
 
-	txTx, err := proto.Marshal(&loomchain.Transaction{
+	txTx, err := proto.Marshal(&ltypes.Transaction{
 		Data: messageTx,
 		Id:   id,
 	})

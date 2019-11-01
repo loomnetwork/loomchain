@@ -1,6 +1,6 @@
 // +build evm
 
-package throttle
+package middleware
 
 import (
 	"context"
@@ -20,16 +20,16 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	loomAuth "github.com/loomnetwork/loomchain/auth"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"golang.org/x/crypto/ed25519"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/loomnetwork/loomchain/txhandler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"golang.org/x/crypto/ed25519"
 )
 
 const (
@@ -82,7 +82,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	// This can also be done on init, but more concise this way
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
-	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
@@ -97,7 +97,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
 		txSigned := mockSignedTx(t, uint64(i), types.TxID_DEPLOY, vm.VMType_PLUGIN, contract)
-		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+		_, err := ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= deployKarma.Value.Int64() {
 			require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
 		txSigned := mockSignedTx(t, uint64(i), types.TxID_ETHEREUM, vm.VMType_EVM, loom.Address{})
-		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+		_, err := ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= deployKarma.Value.Int64() {
 			require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	// This can also be done on init, but more concise this way
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
-	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
@@ -148,7 +148,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	for i := int64(1); i <= maxCallCount*2+callKarma.Value.Int64(); i++ {
 		txSigned := mockSignedTx(t, uint64(i), types.TxID_CALL, vm.VMType_PLUGIN, contract)
-		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+		_, err := ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= maxCallCount+callKarma.Value.Int64() {
 			require.NoError(t, err)
@@ -218,7 +218,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id types.TxID, vmType vm.VMType
 		require.FailNow(t, "invalid tx ID")
 	}
 
-	tx, err := proto.Marshal(&txhandler.Transaction{
+	tx, err := proto.Marshal(&types.Transaction{
 		Id:   uint32(id),
 		Data: messageTx,
 	})

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry/factory"
@@ -116,7 +116,7 @@ func testEthSubscribeEthUnSubscribe(t *testing.T) {
 		Loader:           loader,
 		CreateRegistry:   createRegistry,
 		BlockStore:       store.NewMockBlockStore(),
-		AuthCfg:          auth.DefaultConfig(),
+		AuthCfg:          keys.DefaultConfig(),
 		EthSubscriptions: eventHandler.EthSubscriptionSet(),
 	}
 	handler := MakeEthQueryServiceHandler(testlog, hub, createDefaultEthRoutes(qs, "default"))

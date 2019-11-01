@@ -21,7 +21,7 @@ var (
 	contract = loom.MustParseAddress("chain:0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
 )
 
-func throttleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.State, tx auth.SignedTx, ctx context.Context) (txhandler.TxHandlerResult, error) {
+func ThrottleMiddlewareHandler(ttm txhandler.TxMiddlewareFunc, state appstate.State, tx auth.SignedTx, ctx context.Context) (txhandler.TxHandlerResult, error) {
 	return ttm.ProcessTx(
 		state.WithContext(ctx),
 		tx.Inner,

@@ -12,11 +12,12 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/txhandler"
+	"github.com/loomnetwork/loomchain/txhandler/middleware"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -32,19 +33,19 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	require.NoError(t, err)
 
 	vmManager := vm.NewManager()
-	router := loomchain.NewTxRouter()
-	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(&vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry}))
-	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(&vm.CallTxHandler{Manager: vmManager}))
+	router := middleware.NewTxRouter()
+	router.HandleDeliverTx(1, middleware.GeneratePassthroughRouteHandler(&vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry}))
+	router.HandleDeliverTx(2, middleware.GeneratePassthroughRouteHandler(&vm.CallTxHandler{Manager: vmManager}))
 
 	kvStore := store.NewMemStore()
 	state := appstate.NewStoreState(nil, kvStore, abci.Header{ChainID: "default"}, nil, nil)
 
-	txMiddleWare := []loomchain.TxMiddleware{
+	txMiddleWare := []txhandler.TxMiddleware{
 		auth.SignatureTxMiddleware,
 		auth.NewNonceHandler().TxMiddleware(kvStore),
 	}
 
-	rootHandler := loomchain.MiddlewareTxHandler(txMiddleWare, router, nil)
+	rootHandler := txhandler.MiddlewareTxHandler(txMiddleWare, router, nil)
 	signer := lauth.NewEd25519Signer(alicePrivKey)
 	caller := loom.Address{
 		ChainID: "default",

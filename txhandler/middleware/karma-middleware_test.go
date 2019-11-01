@@ -11,14 +11,15 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+
+	"github.com/loomnetwork/loomchain/auth/keys"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
 	appstate "github.com/loomnetwork/loomchain/state"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -56,7 +57,7 @@ func TestKarmaMiddleWare(t *testing.T) {
 	// This can also be done on init, but more concise this way
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStatesDeploy))
 
-	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
@@ -69,23 +70,23 @@ func TestKarmaMiddleWare(t *testing.T) {
 
 	// call fails as contract is not deployed
 	txSigned := mockSignedTx(t, uint64(1), types.TxID_CALL, vm.VMType_EVM, contract)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 	txSigned = mockSignedTx(t, uint64(1), types.TxID_ETHEREUM, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
 	// deploy contract
 	txSigned = mockSignedTx(t, uint64(2), types.TxID_DEPLOY, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
 	// call now works
 	txSigned = mockSignedTx(t, uint64(3), types.TxID_CALL, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 	txSigned = mockSignedTx(t, uint64(1), types.TxID_ETHEREUM, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
 	// deactivate contract
@@ -95,10 +96,10 @@ func TestKarmaMiddleWare(t *testing.T) {
 
 	// call now fails
 	txSigned = mockSignedTx(t, uint64(4), types.TxID_CALL, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 	txSigned = mockSignedTx(t, uint64(1), types.TxID_ETHEREUM, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 }
 
@@ -124,7 +125,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStatesDeploy))
 
-	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), keys.ContextKeyOrigin, origin)
 
 	tmx := GetKarmaMiddleWare(
 		true,
@@ -137,7 +138,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	// deploy contract
 	txSigned := mockSignedTx(t, uint64(2), types.TxID_DEPLOY, vm.VMType_EVM, contract)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
 	require.NoError(t, karma.SetConfig(contractContext, &ktypes.KarmaConfig{
@@ -146,6 +147,6 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	// deploy contract
 	txSigned = mockSignedTx(t, uint64(2), types.TxID_DEPLOY, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = ThrottleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 }
