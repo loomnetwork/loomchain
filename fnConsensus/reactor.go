@@ -1004,31 +1004,3 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
 }
-
-func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byte) {
-	remoteVoteSet := &FnVoteSet{}
-	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
-		f.Logger.Error(
-			"FnConsensusReactor: Invalid Data passed, ignoring...",
-			"err", err, "method", maj23MsgHandlerMethodID,
-		)
-		return
-	}
-
-	broadCastException := sender.ID()
-	f.broadcastMsgSync(FnMajChannel, &broadCastException, msgBytes)
-}
-
-func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
-	remoteVoteSet := &FnVoteSet{}
-	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
-		f.Logger.Error(
-			"FnConsensusReactor: Invalid Data passed, ignoring...",
-			"err", err, "method", voteSetMsgHandlerMethodID,
-		)
-		return
-	}
-
-	broadCastException := sender.ID()
-	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
-}
