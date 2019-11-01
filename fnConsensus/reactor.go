@@ -816,12 +816,15 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		// invoked by the peers that we got the remote voteset from.
 	}
 
-	if err := saveReactorState(f.db, f.state, true); err != nil {
-		f.Logger.Error(
-			"FnConsensusReactor: unable to save reactor state",
-			"err", err, "method", maj23MsgHandlerMethodID,
-		)
-		return
+	// only validators save reactor state
+	if f.cfg.IsValidator {
+		if err := saveReactorState(f.db, f.state, true); err != nil {
+			f.Logger.Error(
+				"FnConsensusReactor: unable to save reactor state",
+				"err", err, "method", maj23MsgHandlerMethodID,
+			)
+			return
+		}
 	}
 
 	if !needToBroadcast {
@@ -993,17 +996,10 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte) {
 	switch chID {
 	case FnVoteSetChannel:
-		if !f.cfg.IsValidator {
-			f.forwardVoteSet(sender, msgBytes)
-		} else {
-			f.handleVoteSetChannelMessage(sender, msgBytes)
-		}
+		f.handleVoteSetChannelMessage(sender, msgBytes)
+
 	case FnMajChannel:
-		if !f.cfg.IsValidator {
-			f.forwardMaj23VoteSet(sender, msgBytes)
-		} else {
-			f.handleMaj23VoteSetChannel(sender, msgBytes)
-		}
+		f.handleMaj23VoteSetChannel(sender, msgBytes)
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
