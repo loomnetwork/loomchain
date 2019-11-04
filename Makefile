@@ -31,11 +31,9 @@ BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
-#TG_GIT_REV = config
-TG_GIT_REV = HEAD
+TG_GIT_REV = config
 # loomnetwork/go-ethereum loomchain branch
-#ETHEREUM_GIT_REV = ethapi
-ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
+ETHEREUM_GIT_REV = ethapi
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
