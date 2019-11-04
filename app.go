@@ -843,6 +843,15 @@ func (a *Application) Commit() abci.ResponseCommit {
 	a.childTxRefs = nil
 
 	go func(height int64, blockHeader abci.Header, committedTxs []CommittedTx) {
+		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
+		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
 		for _, tx := range committedTxs {
 			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(tx.result.Data, tx.result.Info); err != nil {
 				log.Error("Emit Tx Event error", "err", err)
@@ -853,15 +862,6 @@ func (a *Application) Commit() abci.ResponseCommit {
 					log.Error("failed to emit tx event to subscribers", "err", err)
 				}
 			}
-		}
-		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", "err", err)
 		}
 	}(height, a.curBlockHeader, a.committedTxs)
 	a.committedTxs = nil
