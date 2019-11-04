@@ -146,11 +146,9 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		panic(err)
 	}
 	evmStore := store.NewEvmStore(evmDB, 100, 0)
-	version := state.Block().Height
-	evmSnapshot := evmStore.GetSnapshot(version).(*store.EvmStoreSnapshot)
 
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil).WithEVMState(evmSnapshot)
-	evm := levm.NewLoomVm(state, evmSnapshot, nil, nil, nil, false)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil).WithEVMState(evmStore)
+	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
