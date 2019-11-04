@@ -133,6 +133,7 @@ type QueryServer struct {
 	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
 	EventStore store.EventStore
+	Web3Cfg    *config.Web3Config
 	AuthCfg    *keys.Config
 }
 
@@ -611,6 +612,7 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 
 	return query.DeprecatedQueryChain(
 		filter, s.BlockStore, snapshot, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		s.Web3Cfg.GetLogsMaxBlockRange,
 	)
 }
 
@@ -933,6 +935,7 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	//       block store.
 	logs, err := query.QueryChain(
 		s.BlockStore, snapshot, ethFilter, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		s.Web3Cfg.GetLogsMaxBlockRange,
 	)
 	if err != nil {
 		return resp, err

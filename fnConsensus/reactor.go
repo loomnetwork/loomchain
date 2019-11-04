@@ -156,6 +156,10 @@ func (f *FnConsensusReactor) String() string {
 // OnStart implements BaseReactor by loading the previously persisted reactor state from fnConsensus.db,
 // loading the current validator set, and starting the vote & commit go-routines.
 func (f *FnConsensusReactor) OnStart() error {
+	if !f.cfg.IsValidator {
+		return nil
+	}
+
 	reactorState, err := loadReactorState(f.db)
 	if err != nil {
 		return err
@@ -784,6 +788,8 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
+	needToExcludeSender := false
+
 	if remoteMajVoteSet.Nonce < currentNonce {
 		needToBroadcast = false
 		if remoteMajVoteSet.Nonce == currentNonce-1 {
@@ -805,6 +811,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		// our current vote set is clearly outdated, and should be removed.
 		delete(f.state.CurrentVoteSets, remoteFnID)
 
+		needToExcludeSender = true
 		// NOTE: f.safeSubmitMultiSignedMessage is not invoked here presumably because it was already
 		// invoked by the peers that we got the remote voteset from.
 	}
@@ -830,9 +837,12 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	// TODO: If remote nonce is greater or equal to ours then we end up sending the remote voteset back
-	//       to the peer that sent it to us, we should we exclude that peer from the broadcast instead.
-	f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
+	if needToExcludeSender {
+		broadCastException := sender.ID()
+		f.broadcastMsgSync(FnMajChannel, &broadCastException, marshalledBytes)
+	} else {
+		f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
+	}
 }
 
 func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgBytes []byte) {
@@ -983,10 +993,46 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte) {
 	switch chID {
 	case FnVoteSetChannel:
-		f.handleVoteSetChannelMessage(sender, msgBytes)
+		if !f.cfg.IsValidator {
+			f.forwardVoteSet(sender, msgBytes)
+		} else {
+			f.handleVoteSetChannelMessage(sender, msgBytes)
+		}
 	case FnMajChannel:
-		f.handleMaj23VoteSetChannel(sender, msgBytes)
+		if !f.cfg.IsValidator {
+			f.forwardMaj23VoteSet(sender, msgBytes)
+		} else {
+			f.handleMaj23VoteSetChannel(sender, msgBytes)
+		}
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
+}
+
+func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byte) {
+	remoteVoteSet := &FnVoteSet{}
+	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", maj23MsgHandlerMethodID,
+		)
+		return
+	}
+
+	broadCastException := sender.ID()
+	f.broadcastMsgSync(FnMajChannel, &broadCastException, msgBytes)
+}
+
+func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
+	remoteVoteSet := &FnVoteSet{}
+	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", voteSetMsgHandlerMethodID,
+		)
+		return
+	}
+
+	broadCastException := sender.ID()
+	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
 }

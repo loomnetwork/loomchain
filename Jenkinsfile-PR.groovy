@@ -44,7 +44,7 @@ builders['linux'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux", "${ghprbActualCommit}");
+        // setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux", "${ghprbActualCommit}");
 
         stage ('Build - Linux') {
           nodejs('v10.16.3 (LTS)') {
@@ -58,7 +58,7 @@ builders['linux'] = {
         throw e
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux", "${ghprbActualCommit}");
+          // setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux", "${ghprbActualCommit}");
           sh '''
             cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
             find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz -T -
@@ -66,9 +66,9 @@ builders['linux'] = {
             mv ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz /tmp/test-data
           '''
         }
-        else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux", "${ghprbActualCommit}");
-        }
+        // else if (currentBuild.currentResult == 'SUCCESS') {
+        //  setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux", "${ghprbActualCommit}");
+        // }
       }
     }
   }
