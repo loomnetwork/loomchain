@@ -17,6 +17,7 @@ import (
 )
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
+
 type ReadOnlyState interface {
 	store.KVReader
 	Validators() []*loom.Validator
