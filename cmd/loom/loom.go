@@ -814,7 +814,7 @@ func loadApp(
 			newABMFactory,
 			receiptHandlerProvider.Writer(),
 			receiptHandlerProvider.Reader(),
-		).WithEvmStore(evmStore), nil
+		).WithEVMState(evmStore), nil
 	})
 
 	if evm.EVMEnabled {

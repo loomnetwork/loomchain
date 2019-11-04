@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/trie"
+
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -51,6 +53,16 @@ type State interface {
 	SetFeature(string, bool)
 	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
+}
+
+type ReadOnlyEVMState interface {
+	store.KVReader
+	TrieDB() *trie.Database
+}
+
+type EVMState interface {
+	ReadOnlyEVMState
+	store.KVWriter
 }
 
 type StoreState struct {
