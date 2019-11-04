@@ -20,7 +20,6 @@ import (
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
-	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 
@@ -144,7 +143,7 @@ type Config struct {
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
 
-	Web3 *eth.Web3Config
+	Web3 *Web3Config
 }
 
 type Metrics struct {
@@ -210,6 +209,17 @@ type DeployerWhitelistConfig struct {
 
 type UserDeployerWhitelistConfig struct {
 	ContractEnabled bool
+}
+
+type Web3Config struct {
+	// GetLogsMaxBlockRange specifies the maximum number of blocks eth_getLogs will query per request
+	GetLogsMaxBlockRange uint64
+}
+
+func DefaultWeb3Config() *Web3Config {
+	return &Web3Config{
+		GetLogsMaxBlockRange: 20,
+	}
 }
 
 func DefaultDBBackendConfig() *DBBackendConfig {
