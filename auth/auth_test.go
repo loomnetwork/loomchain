@@ -20,10 +20,6 @@ import (
 	"github.com/loomnetwork/loomchain/txhandler"
 )
 
-var nonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
-
-var nonceTxPostNonceMiddleware = txhandler.PostCommitMiddlewareFunc(nonceTxHandler.IncNonce)
-
 func TestSignatureTxMiddleware(t *testing.T) {
 	origBytes := []byte("hello")
 	_, privKey, err := ed25519.GenerateKey(nil)
