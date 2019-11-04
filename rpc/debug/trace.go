@@ -38,7 +38,6 @@ func TraceTransaction(
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting block information at height %v", targetBlockNumber)
 	}
-
 	tracer, err := createTracer(config)
 	if err != nil {
 		return nil, err
