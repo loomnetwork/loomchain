@@ -266,11 +266,3 @@ func (s *PruningIAVLStore) loopWithInterval(step func() error, interval time.Dur
 		time.Sleep(interval)
 	}
 }
-
-type pruningIAVLStoreSnapshot struct {
-	*PruningIAVLStore
-}
-
-func (s *pruningIAVLStoreSnapshot) Release() {
-	// noop
-}

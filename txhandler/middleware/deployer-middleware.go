@@ -20,9 +20,7 @@ import (
 )
 
 const (
-	deployId    = uint32(1)
-	callId      = uint32(2)
-	migrationId = uint32(3)
+	callId = uint32(2)
 )
 
 var (

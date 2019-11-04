@@ -121,7 +121,7 @@ func (m *StaticLoader) LoadContract(name string, blockHeight int64) (plugin.Cont
 }
 
 func (m *StaticLoader) findOverride(name string, blockHeight int64) plugin.Contract {
-	if overrides, _ := m.overrides[name]; overrides != nil {
+	if overrides := m.overrides[name]; overrides != nil {
 		for i := len(overrides) - 1; i >= 0; i-- {
 			if blockHeight >= overrides[i].BlockHeight {
 				return overrides[i].Contract

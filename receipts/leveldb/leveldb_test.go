@@ -2,15 +2,15 @@ package leveldb
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/stretchr/testify/require"
+
 	"github.com/loomnetwork/loomchain/receipts/common"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -171,19 +171,6 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	handler.ClearData()
 	_, err = os.Stat(evmaux.EvmAuxDBName)
 	require.Error(t, err)
-}
-
-//nolint:deadcode
-func dumpDbEntries(evmAuxStore *evmaux.EvmAuxStore) error {
-	fmt.Println("\nDumping leveldb")
-	db := evmAuxStore.DB()
-	iter := db.NewIterator(nil, nil)
-	defer iter.Release()
-	for iter.Next() {
-		fmt.Printf("key %s\t\tvalue %s", iter.Key(), iter.Value())
-	}
-	fmt.Println()
-	return iter.Error()
 }
 
 func countDbEntries(evmAuxStore *evmaux.EvmAuxStore) (uint64, error) {

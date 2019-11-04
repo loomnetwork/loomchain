@@ -19,10 +19,6 @@ import (
 	"github.com/loomnetwork/loomchain/features"
 )
 
-const (
-	evmCacheRoots = 100
-)
-
 var (
 	// This is the same prefix as vmPrefix in evm/loomevm.go
 	// We have to do this to avoid cyclic dependency

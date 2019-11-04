@@ -20,12 +20,6 @@ import (
 	appstate "github.com/loomnetwork/loomchain/state"
 )
 
-const (
-	deployId    = uint32(1)
-	callId      = uint32(2)
-	migrationId = uint32(3)
-)
-
 type Throttle struct {
 	MaxCallCount         int64
 	sessionDuration      int64

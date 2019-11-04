@@ -490,14 +490,6 @@ func contractInfoCommand() *cobra.Command {
 	return cmd
 }
 
-//nolint:deadcode
-func recovery() {
-	if r := recover(); r != nil {
-		log.Error("caught RPC proxy exception, exiting", r)
-		os.Exit(1)
-	}
-}
-
 func startFeatureAutoEnabler(
 	chainID string, cfg *config.ChainConfigConfig, nodeSigner glAuth.Signer, node backend.Backend,
 	logger *loom.Logger,
@@ -1048,16 +1040,6 @@ func getContractCtx(pluginName string, vmManager vm.Manager) func(state appstate
 			return nil, err
 		}
 		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), false)
-	}
-}
-
-func getContractStaticCtx(pluginName string, vmManager vm.Manager) func(state appstate.State) (contractpb.StaticContext, error) {
-	return func(state appstate.State) (contractpb.StaticContext, error) {
-		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-		if err != nil {
-			return nil, err
-		}
-		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), true)
 	}
 }
 

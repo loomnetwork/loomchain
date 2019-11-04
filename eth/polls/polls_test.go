@@ -30,9 +30,8 @@ var (
 )
 
 const (
-	deployId    = uint32(1)
-	callId      = uint32(2)
-	migrationTx = uint32(3)
+	deployId = uint32(1)
+	callId   = uint32(2)
 )
 
 func TestLogPoll(t *testing.T) {
