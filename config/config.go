@@ -149,6 +149,20 @@ type Config struct {
 	SkipMinBuildCheck bool
 
 	Web3 *eth.Web3Config
+
+	GoEthereum *GoEthereumConfig
+}
+
+type GoEthereumConfig struct {
+	EnableStateObjectDirtyStorageKeysSorting bool
+	EnableTrieDatabasePreimageKeysSorting    bool
+}
+
+func DefaultGoEthereumConfig() *GoEthereumConfig {
+	return &GoEthereumConfig{
+		EnableStateObjectDirtyStorageKeysSorting: true,
+		EnableTrieDatabasePreimageKeysSorting:    true,
+	}
 }
 
 type Metrics struct {
@@ -424,6 +438,7 @@ func DefaultConfig() *Config {
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 	cfg.Web3 = eth.DefaultWeb3Config()
+	cfg.GoEthereum = DefaultGoEthereumConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -738,6 +753,17 @@ EvmStore:
 Web3:
   # Specifies the maximum number of blocks eth_getLogs will query per request
   GetLogsMaxBlockRange: {{.Web3.GetLogsMaxBlockRange}}
+{{end}}
+
+{{if .GoEthereum -}}
+#
+# Configuration of Go-Ethereum 
+#
+GoEthereum:
+  # Enable sorting StateObjectDirtyStorage keys before updating and setting state
+  EnableStateObjectDirtyStorageKeysSorting: {{.GoEthereum.EnableStateObjectDirtyStorageKeysSorting}}
+  # Enable sorting TrieDatabasePreimage keys before committing trie database
+  EnableTrieDatabasePreimageKeysSorting: {{.GoEthereum.EnableTrieDatabasePreimageKeysSorting}}
 {{end}}
 
 # 

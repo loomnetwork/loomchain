@@ -40,6 +40,8 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -334,6 +336,9 @@ func newRunCommand() *cobra.Command {
 	var appHeight int64
 
 	cfg, err := common.ParseConfig()
+
+	state.EnableStateObjectDirtyStorageKeysSorting = cfg.GoEthereum.EnableStateObjectDirtyStorageKeysSorting
+	trie.EnableTrieDatabasePreimageKeysSorting = cfg.GoEthereum.EnableTrieDatabasePreimageKeysSorting
 
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
