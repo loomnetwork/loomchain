@@ -13,6 +13,7 @@ module.exports = {
   networks: {
     local: {
       provider: function() {
+        console.log("piers in local provider function")
         const chainId = 'default'
         const writeUrl = `http://${nodeAddr}/rpc`
         const readUrl = `http://${nodeAddr}/query`
@@ -26,6 +27,7 @@ module.exports = {
     },
     hdwallet: {
       provider: function() {
+        console.log("piers in hdwallet provider function")
         const mnemonic = fs.readFileSync(path.join(__dirname, 'eth_mnemonic'), 'utf-8').trim()
         // NOTE: This provider uses Eth accounts, so a mapping to a Loom account must already for
         // any account used with this provider.
