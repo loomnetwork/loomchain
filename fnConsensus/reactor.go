@@ -12,6 +12,9 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
+	ssha "github.com/miguelmota/go-solidity-sha3"
+
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/p2p"
@@ -26,6 +29,9 @@ const (
 	AllSigningThreshold   SigningThreshold = "All"
 )
 
+const SignatureSize = 65
+const WithdrawHashSize = 32
+
 // MethodIDs for tracing purpose
 const (
 	initValidatorSetMethodID  = "initValidatorSet"
@@ -33,6 +39,7 @@ const (
 	commitMethodID            = "commit"
 	maj23MsgHandlerMethodID   = "handleMaj23Msg"
 	voteSetMsgHandlerMethodID = "handleVoteSetMsg"
+	signRandomMethodID        = "signRandomMsg"
 )
 
 const (
@@ -44,6 +51,9 @@ const (
 	FnVoteSetChannel = byte(0x50)
 	// FnMajChannel is used to gossip votesets that have reached 2/3+ majority
 	FnMajChannel = byte(0x51)
+
+	// RandomSignChannel
+	FnRandomChannel = byte(0x52)
 
 	// MaxMsgSize is the max number of bytes that can sent on a P2P channel
 	MaxMsgSize = 2 * 1000 * 1024 // 2MB
@@ -78,6 +88,9 @@ type FnConsensusReactor struct {
 	staticValidators *types.ValidatorSet // overrides the TM validator set if not nil
 
 	cfg *ReactorConfig
+
+	// This could be different for every validator
+	mainnetPrivKey lcrypto.PrivateKey
 }
 
 var (
@@ -1004,9 +1017,43 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 		} else {
 			f.handleMaj23VoteSetChannel(sender, msgBytes)
 		}
+	case FnRandomChannel:
+		f.signRandomNumber(sender, msgBytes)
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
+}
+
+func (f *FnConsensusReactor) signRandomNumber(sender p2p.Peer, msgBytes []byte) {
+	f.stateMtx.Lock()
+	defer f.stateMtx.Unlock()
+
+	// load first seed from config if there's no seed exists
+	if f.state.RandomNumberWithSigs.seed == 0 {
+		f.state.RandomNumberWithSigs.seed = f.cfg.RandomSeed
+	}
+	combinedSignature := make([]byte, 4*SignatureSize)
+
+	// sign
+	hash := ssha.SoliditySHA3([]string{"uint64"}, f.state.RandomNumberWithSigs.seed)
+
+	sig, err := lcrypto.SoliditySign(hash, f.mainnetPrivKey)
+	if err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: signRandomNumber",
+			"err", err, "method", signRandomMethodID,
+		)
+		return
+	}
+	copy(combinedSignature[(SignatureSize):], sig)
+
+	// if maj23 save state
+	f.commit(signRandomMethodID)
+
+	// then broadcast
+	broadCastException := sender.ID()
+	f.broadcastMsgSync(FnMajChannel, &broadCastException, msgBytes)
+
 }
 
 func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byte) {
