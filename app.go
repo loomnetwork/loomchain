@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/loomnetwork/go-loom/config"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
@@ -341,6 +342,15 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
 type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
+type ContractProviderManager interface {
+	Set(string, contractpb.Context)
+	Get(string) contractpb.Context
+	GetFn(string) ContractProviderFactoryFunc
+	GetAll() []string
+}
+
+type ContractProviderFactoryFunc func(state State) (contractpb.Context, error)
+
 type Application struct {
 	lastBlockHeader abci.Header
 	curBlockHeader  abci.Header
@@ -363,6 +373,8 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
+	ContractProviders           map[string]ContractProviderFactoryFunc
+	ContractProviderManager     ContractProviderManager
 }
 
 var _ abci.Application = &Application{}
@@ -558,6 +570,18 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		if numConfigChanges > 0 {
 			// invalidate cached config so it's reloaded next time it's accessed
 			a.config = nil
+		}
+	}
+
+	// FnConsensus
+	if a.ContractProviderManager != nil {
+		for _, key := range a.ContractProviderManager.GetAll() {
+			fn := a.ContractProviderManager.GetFn(key)
+			ctx, err := fn(state)
+			if err != nil {
+				panic(err)
+			}
+			a.ContractProviderManager.Set(key, ctx)
 		}
 	}
 

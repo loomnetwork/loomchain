@@ -421,7 +421,7 @@ func newRunCommand() *cobra.Command {
 
 			// If this node is meant to be a custom reactor validator start the gateway reactors.
 			if cfg.FnConsensus.Reactor.IsValidator && fnRegistry != nil {
-				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
+				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner, app); err != nil {
 					return err
 				}
 			}
@@ -1045,6 +1045,30 @@ func loadApp(
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
+	contractProviders := make(map[string]loomchain.ContractProviderFactoryFunc)
+	if cfg.TransferGateway.ContractEnabled {
+		contractProvider := func(state loomchain.State) (contractpb.Context, error) {
+			ctxFactory := getContractCtx("gateway", vmManager)
+			gatewayCtx, err := ctxFactory(state)
+			if err != nil {
+				return nil, err
+			}
+			return gatewayCtx, nil
+		}
+		contractProviders["gateway"] = contractProvider
+	}
+	if cfg.LoomCoinTransferGateway.ContractEnabled {
+		contractProvider := func(state loomchain.State) (contractpb.Context, error) {
+			ctxFactory := getContractCtx("loomcoin-gateway", vmManager)
+			gatewayCtx, err := ctxFactory(state)
+			if err != nil {
+				return nil, err
+			}
+			return gatewayCtx, nil
+		}
+		contractProviders["loomcoin-gateway"] = contractProvider
+	}
+
 	nonceTxHandler := auth.NewNonceHandler()
 	txMiddleWare = append(txMiddleWare, nonceTxHandler.TxMiddleware(appStore))
 
@@ -1134,6 +1158,7 @@ func loadApp(
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
+		ContractProviders:           contractProviders,
 	}, nil
 }
 

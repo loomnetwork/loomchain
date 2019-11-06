@@ -8,6 +8,7 @@ import (
 
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/fnConsensus"
 	"github.com/loomnetwork/loomchain/log"
@@ -26,16 +27,17 @@ func startGatewayReactors(
 	fnRegistry fnConsensus.FnRegistry,
 	cfg *config.Config,
 	nodeSigner glAuth.Signer,
+	app *loomchain.Application,
 ) error {
-	if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
+	if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner, app); err != nil {
 		return err
 	}
 
-	if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
+	if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner, app); err != nil {
 		return err
 	}
 
-	if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner); err != nil {
+	if err := startTronGatewayFn(chainID, fnRegistry, cfg.TronTransferGateway, nodeSigner, app); err != nil {
 		return err
 	}
 
@@ -64,6 +66,7 @@ func startGatewayFn(
 	fnRegistry fnConsensus.FnRegistry,
 	cfg *tgateway.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
+	app *loomchain.Application,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
@@ -73,11 +76,13 @@ func startGatewayFn(
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
 
-	checkQueryService(GatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, cfg, nodeSigner)
+	// checkQueryService(GatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, cfg, nodeSigner, app)
 	if err != nil {
 		return err
 	}
+
+	app.ContractProviderManager = batchSignWithdrawalFn
 
 	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
 }
@@ -87,6 +92,7 @@ func startLoomCoinGatewayFn(
 	fnRegistry fnConsensus.FnRegistry,
 	cfg *tgateway.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
+	app *loomchain.Application,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
@@ -96,8 +102,8 @@ func startLoomCoinGatewayFn(
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
 
-	checkQueryService(LoomGatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
+	// checkQueryService(LoomGatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner, app)
 	if err != nil {
 		return err
 	}
@@ -109,6 +115,7 @@ func startTronGatewayFn(chainID string,
 	fnRegistry fnConsensus.FnRegistry,
 	cfg *tgateway.TransferGatewayConfig,
 	nodeSigner glAuth.Signer,
+	app *loomchain.Application,
 ) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
@@ -118,8 +125,8 @@ func startTronGatewayFn(chainID string,
 		return fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
 
-	checkQueryService(TronGatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner)
+	// checkQueryService(TronGatewayName, chainID, cfg.DAppChainReadURI, cfg.DAppChainWriteURI)
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, cfg, nodeSigner, app)
 	if err != nil {
 		return err
 	}
