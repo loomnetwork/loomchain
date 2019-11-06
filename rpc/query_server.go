@@ -270,7 +270,7 @@ func (s *QueryServer) queryEvm(state loomchain.State, caller, contract loom.Addr
 		}
 	}
 	version := state.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version).(*store.EvmStoreSnapshot)
+	evmSnapshot := s.EvmStore.GetSnapshot(version)
 	vm := levm.NewLoomVm(state, evmSnapshot, nil, nil, createABM, false)
 	return vm.StaticCall(callerAddr, contract, query)
 }
@@ -317,7 +317,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	defer snapshot.Release()
 
 	version := snapshot.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version).(*store.EvmStoreSnapshot)
+	evmSnapshot := s.EvmStore.GetSnapshot(version)
 	vm := levm.NewLoomVm(snapshot, evmSnapshot, nil, nil, nil, false)
 	return vm.GetCode(contractAddr)
 }
@@ -333,7 +333,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	defer snapshot.Release()
 
 	version := snapshot.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version).(*store.EvmStoreSnapshot)
+	evmSnapshot := s.EvmStore.GetSnapshot(version)
 	evm := levm.NewLoomVm(snapshot, evmSnapshot, nil, nil, nil, false)
 	code, err := evm.GetCode(addr)
 	if err != nil {
@@ -1110,7 +1110,7 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 	}
 
 	version := snapshot.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version).(*store.EvmStoreSnapshot)
+	evmSnapshot := s.EvmStore.GetSnapshot(version)
 	evm := levm.NewLoomVm(snapshot, evmSnapshot, nil, nil, nil, false)
 	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
 	if err != nil {
