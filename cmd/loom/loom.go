@@ -839,31 +839,6 @@ func loadApp(
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
-	//deployTxHandler := &vm.DeployTxHandler{
-	//	Manager:                vmManager,
-	//	CreateRegistry:         createRegistry,
-	//	AllowNamedEVMContracts: cfg.AllowNamedEvmContracts,
-	//}
-
-	//callTxHandler := &vm.CallTxHandler{
-	//	Manager: vmManager,
-	//}
-
-	//ethTxHandler := &tx_handler.EthTxHandler{
-	//	Manager:        vmManager,
-	//	CreateRegistry: createRegistry,
-	//}
-
-	//migrationTxHandler := &tx_handler.MigrationTxHandler{
-	//	Manager:        vmManager,
-	//	CreateRegistry: createRegistry,
-	//	Migrations: map[int32]tx_handler.MigrationFunc{
-	//		1: migrations.DPOSv3Migration,
-	//		2: migrations.GatewayMigration,
-	//		3: migrations.GatewayMigration,
-	//	},
-	//}
-
 	gen, err := config.ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
@@ -897,106 +872,7 @@ func loadApp(
 		return nil
 	}
 
-	//router := loomchain.NewTxRouter()
-	/*
-		isEvmTx := func(txID uint32, state loomchain.State, txBytes []byte, isCheckTx bool) bool {
-			var msg vm.MessageTx
-			err := proto.Unmarshal(txBytes, &msg)
-			if err != nil {
-				return false
-			}
-
-			switch txID {
-			case 1:
-				var tx vm.DeployTx
-				err = proto.Unmarshal(msg.Data, &tx)
-				if err != nil {
-					// In case of error, let's give safest response,
-					// let's TxHandler down the line, handle it.
-					return false
-				}
-				return tx.VmType == vm.VMType_EVM
-			case 2:
-				var tx vm.CallTx
-				err = proto.Unmarshal(msg.Data, &tx)
-				if err != nil {
-					// In case of error, let's give safest response,
-					// let's TxHandler down the line, handle it.
-					return false
-				}
-				return tx.VmType == vm.VMType_EVM
-			case 3:
-				return false
-			default:
-				return false
-			}
-		}
-
-		router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
-		router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
-		router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
-		router.HandleDeliverTx(4, loomchain.GeneratePassthroughRouteHandler(ethTxHandler))
-
-		// TODO: Write this in more elegant way
-		router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
-		router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
-		router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
-		router.HandleCheckTx(4, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, ethTxHandler))
-	*/
-	//txMiddleWare := []loomchain.TxMiddleware{
-	//	loomchain.LogTxMiddleware,
-	//	loomchain.RecoveryTxMiddleware,
-	//}
-
-	//postCommitMiddlewares := []loomchain.PostCommitMiddleware{
-	//	loomchain.LogPostCommitMiddleware,
-	//}
-
-	//txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
-	//	cfg.Auth,
-	//	getContractStaticCtx("addressmapper", vmManager),
-	//))
-
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
-
-	//if cfg.Karma.Enabled {
-	//	txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
-	//		cfg.Karma.Enabled,
-	//		cfg.Karma.MaxCallCount,
-	//		cfg.Karma.SessionDuration,
-	//		createKarmaContractCtx,
-	//	))
-	//}
-
-	//if cfg.TxLimiter.Enabled {
-	//	txMiddleWare = append(txMiddleWare, throttle.NewTxLimiterMiddleware(cfg.TxLimiter))
-	//}
-
-	//if cfg.ContractTxLimiter.Enabled {
-	//	contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
-	//	txMiddleWare = append(
-	//		txMiddleWare, throttle.NewContractTxLimiterMiddleware(cfg.ContractTxLimiter, contextFactory),
-	//	)
-	//}
-
-	//if cfg.DeployerWhitelist.ContractEnabled {
-	//	contextFactory := getContractCtx("deployerwhitelist", vmManager)
-	//	dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	txMiddleWare = append(txMiddleWare, dwMiddleware)
-
-	//}
-
-	//if cfg.UserDeployerWhitelist.ContractEnabled {
-	//	contextFactory := getContractCtx("user-deployer-whitelist", vmManager)
-	//	evmDeployRecorderMiddleware, err := throttle.NewEVMDeployRecorderPostCommitMiddleware(contextFactory)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	postCommitMiddlewares = append(postCommitMiddlewares, evmDeployRecorderMiddleware)
-	//}
 
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
 		// TODO: This setting should be part of the config stored within the Karma contract itself,
@@ -1044,19 +920,6 @@ func loadApp(
 		// if DPOS contract is not deployed, get validators from genesis file
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
-
-	//nonceTxHandler := auth.NewNonceHandler()
-	//txMiddleWare = append(txMiddleWare, nonceTxHandler.TxMiddleware(appStore))
-
-	//if cfg.GoContractDeployerWhitelist.Enabled {
-	//	goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
-	//	if err != nil {
-	//		return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
-	//	}
-	//	txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(goDeployers))
-	//}
-
-	//txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
@@ -1111,10 +974,6 @@ func loadApp(
 			return nil, err
 		}
 	}
-
-	// We need to make sure nonce post commit middleware is last
-	// as it doesn't pass control to other middlewares after it.
-	//postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
 	txHandlerFactory := factory.NewTxHandlerFactory(*cfg, vmManager, chainID, appStore, createRegistry)
 	chainTxHandler, err := txHandlerFactory.TxHandler(nil, true)

@@ -3,6 +3,7 @@
 package evm
 
 import (
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/loomnetwork/loomchain"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
@@ -15,7 +16,7 @@ var (
 const EVMEnabled = false
 
 func NewLoomVm(
-	_ state.State,
+	_ loomchain.State,
 	_ loomchain.WriteReceiptHandler,
 	_ AccountBalanceManagerFactoryFunc,
 	_ bool,
