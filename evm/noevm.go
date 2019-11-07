@@ -16,7 +16,6 @@ const EVMEnabled = false
 
 func NewLoomVm(
 	loomState loomchain.State,
-	evmState loomchain.EVMState,
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,

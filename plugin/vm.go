@@ -36,7 +36,6 @@ var (
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
-	EvmState     loomchain.EVMState
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
@@ -69,11 +68,6 @@ func NewPluginVM(
 }
 
 var _ vm.VM = &PluginVM{}
-
-func (vm *PluginVM) WithEVMState(evmState loomchain.EVMState) *PluginVM {
-	vm.EvmState = evmState
-	return vm
-}
 
 func (vm *PluginVM) CreateContractContext(
 	caller,
@@ -202,7 +196,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EvmState, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -216,7 +210,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 		}
 	}
 
-	evm := levm.NewLoomVm(vm.State, vm.EvmState, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 

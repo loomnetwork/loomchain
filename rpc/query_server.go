@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/core/state"
+
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
@@ -132,6 +134,7 @@ type QueryServer struct {
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
 	Web3Cfg    *eth.Web3Config
+	EVMState   *state.StateDB
 }
 
 var _ QueryService = &QueryServer{}
@@ -269,9 +272,8 @@ func (s *QueryServer) queryEvm(state loomchain.State, caller, contract loom.Addr
 			return nil, err
 		}
 	}
-	version := state.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version)
-	vm := levm.NewLoomVm(state, evmSnapshot, nil, nil, createABM, false)
+
+	vm := levm.NewLoomVm(state, nil, nil, createABM, false)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
@@ -316,9 +318,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	version := snapshot.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version)
-	vm := levm.NewLoomVm(snapshot, evmSnapshot, nil, nil, nil, false)
+	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
 	return vm.GetCode(contractAddr)
 }
 
@@ -332,9 +332,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	version := snapshot.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version)
-	evm := levm.NewLoomVm(snapshot, evmSnapshot, nil, nil, nil, false)
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
 	code, err := evm.GetCode(addr)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting evm code for %v", address)
@@ -1109,9 +1107,7 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 		return "", errors.Wrapf(err, "unable to get storage at height %v", block)
 	}
 
-	version := snapshot.Block().Height
-	evmSnapshot := s.EvmStore.GetSnapshot(version)
-	evm := levm.NewLoomVm(snapshot, evmSnapshot, nil, nil, nil, false)
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
 	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get EVM storage at %v", address.Local.String())

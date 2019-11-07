@@ -816,7 +816,7 @@ func loadApp(
 			newABMFactory,
 			receiptHandlerProvider.Writer(),
 			receiptHandlerProvider.Reader(),
-		).WithEVMState(evmStore), nil
+		), nil
 	})
 
 	var evmState *state.StateDB
@@ -840,7 +840,7 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, evmStore, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 
 		ethDB := store.NewLoomEthDB(evmStore, nil)
@@ -1299,6 +1299,7 @@ func initQueryService(
 		EvmAuxStore:            app.EvmAuxStore,
 		EvmStore:               app.EvmStore,
 		Web3Cfg:                cfg.Web3,
+		EVMState:               app.EVMState,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

@@ -19,7 +19,6 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
-	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	levm "github.com/loomnetwork/loomchain/evm"
@@ -141,14 +140,9 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	evmDB, err := cdb.LoadDB("memdb", "", "", 256, 4, false)
-	if err != nil {
-		panic(err)
-	}
-	evmStore := store.NewEvmStore(evmDB, 100, 0)
 
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil).WithEVMState(evmStore)
-	evm := levm.NewLoomVm(state, evmStore, nil, nil, nil, false)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
+	evm := levm.NewLoomVm(state, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")

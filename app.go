@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/trie"
-
+	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 
-	gstate "github.com/ethereum/go-ethereum/core/state"
+	gcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
@@ -55,16 +54,6 @@ type State interface {
 	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
 	EVMState() *gstate.StateDB
-}
-
-type ReadOnlyEVMState interface {
-	store.KVReader
-	TrieDB() *trie.Database
-}
-
-type EVMState interface {
-	ReadOnlyEVMState
-	store.KVWriter
 }
 
 type StoreState struct {
@@ -168,11 +157,6 @@ func (s *StoreState) EVMState() *gstate.StateDB {
 const (
 	featurePrefix = "feature"
 	MinBuildKey   = "minbuild"
-)
-
-var (
-	vmPrefix  = []byte("vm")
-	vmRootKey = util.PrefixKey(vmPrefix, []byte("vmroot"))
 )
 
 func featureKey(featureName string) []byte {
@@ -870,7 +854,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
-	a.EvmStore.Set(vmRootKey, evmStateRoot[:])
+	a.EvmStore.SetVMRootKey(evmStateRoot[:])
 
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
@@ -926,6 +910,14 @@ func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
 func (a *Application) ReadOnlyState() State {
+	root := a.EvmStore.GetVMRootKey()
+	ethDB := store.NewLoomEthDB(a.EvmStore.GetSnapshot(a.lastBlockHeader.Height), nil)
+	stateDB := gstate.NewDatabase(ethDB)
+	stateDB.SetTrieDB(a.EVMState.Database().TrieDB())
+	snapshotEVMState, err := gstate.New(gcommon.BytesToHash(root), stateDB)
+	if err != nil {
+		panic(err)
+	}
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
@@ -934,5 +926,5 @@ func (a *Application) ReadOnlyState() State {
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-	).WithEVMState(a.EVMState)
+	).WithEVMState(snapshotEVMState)
 }
