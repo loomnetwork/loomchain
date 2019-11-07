@@ -52,40 +52,20 @@ func NewLoomEvm(
 	loomState loomchain.State, evmState loomchain.EVMState, accountBalanceManager AccountBalanceManager,
 	logContext *store.EthDBLogContext, debug bool,
 ) (*LoomEvm, error) {
-	p := new(LoomEvm)
-	ethDB := store.NewLoomEthDB(evmState, logContext)
-	p.db = ethDB
-	oldRoot, err := p.db.Get(rootKey)
-	if err != nil {
-		return nil, err
-	}
-	stateDB := state.NewDatabase(ethDB)
-	stateDB.SetTrieDB(evmState.TrieDB())
-
+	p := &LoomEvm{}
 	var abm *evmAccountBalanceManager
+	var err error
 	if accountBalanceManager != nil {
 		abm = newEVMAccountBalanceManager(accountBalanceManager, loomState.Block().ChainID)
-		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), stateDB)
+		p.sdb, err = newLoomStateDB(abm, loomState.EVMState())
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		p.sdb, err = state.New(common.BytesToHash(oldRoot), stateDB)
+		p.sdb = loomState.EVMState()
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	p.Evm = NewEvm(p.sdb, loomState, abm, debug)
 	return p, nil
-}
-
-func (levm LoomEvm) Commit() (common.Hash, error) {
-	root, err := levm.sdb.Commit(true)
-	if err != nil {
-		return root, err
-	}
-	if err := levm.db.Put(rootKey, root[:]); err != nil {
-		return root, err
-	}
-	return root, err
 }
 
 func (levm LoomEvm) RawDump() []byte {
@@ -156,9 +136,6 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		return nil, loom.Address{}, err
 	}
 	bytecode, addr, err := levm.Create(caller, code, value)
-	if err == nil {
-		_, err = levm.Commit()
-	}
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
@@ -214,10 +191,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err != nil {
 		return nil, err
 	}
-	_, err = levm.Call(caller, addr, input, value)
-	if err == nil {
-		_, err = levm.Commit()
-	}
+	levm.Call(caller, addr, input, value)
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {

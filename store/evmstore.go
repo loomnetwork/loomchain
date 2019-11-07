@@ -225,8 +225,6 @@ func (s *EvmStore) Commit(version int64) []byte {
 			if err := s.trieDB.Commit(gcommon.BytesToHash(currentRoot), false); err != nil {
 				panic(err)
 			}
-			ethDB := NewLoomEthDB(s, nil)
-			s.trieDB = trie.NewDatabase(ethDB)
 		}
 
 		// We don't commit empty root but we need to save default root ([]byte{1}) as a placeholder of empty root
