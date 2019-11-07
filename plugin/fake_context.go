@@ -6,6 +6,8 @@ import (
 	"context"
 	"time"
 
+	gcommon "github.com/ethereum/go-ethereum/common"
+	gstate "github.com/ethereum/go-ethereum/core/state"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
@@ -20,7 +22,6 @@ import (
 type FakeContextWithEVM struct {
 	*plugin.FakeContext
 	State                    loomchain.State
-	EvmStore                 *store.EvmStore
 	useAccountBalanceManager bool
 }
 
@@ -43,10 +44,15 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 		panic(err)
 	}
 	evmStore := store.NewEvmStore(evmDB, 100, 0)
+	ethDB := store.NewLoomEthDB(evmStore, nil)
+	evmRoot, _ := evmStore.Version()
+	stateDB := gstate.NewDatabase(ethDB)
+	stateDB.SetTrieDB(evmStore.TrieDB())
+	evmState, _ := gstate.New(gcommon.BytesToHash(evmRoot), stateDB)
+
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
-		State:       state,
-		EvmStore:    evmStore,
+		State:       state.WithEVMState(evmState),
 	}
 }
 
@@ -55,7 +61,6 @@ func (c *FakeContextWithEVM) WithValidators(validators []*types.Validator) *Fake
 		FakeContext:              c.FakeContext.WithValidators(validators),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
-		EvmStore:                 c.EvmStore,
 	}
 }
 
@@ -64,7 +69,6 @@ func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWith
 		FakeContext:              c.FakeContext.WithBlock(header),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
-		EvmStore:                 c.EvmStore,
 	}
 }
 
@@ -73,7 +77,6 @@ func (c *FakeContextWithEVM) WithSender(caller loom.Address) *FakeContextWithEVM
 		FakeContext:              c.FakeContext.WithSender(caller),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
-		EvmStore:                 c.EvmStore,
 	}
 }
 
@@ -82,7 +85,6 @@ func (c *FakeContextWithEVM) WithAddress(addr loom.Address) *FakeContextWithEVM 
 		FakeContext:              c.FakeContext.WithAddress(addr),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
-		EvmStore:                 c.EvmStore,
 	}
 }
 
@@ -92,7 +94,6 @@ func (c *FakeContextWithEVM) WithFeature(name string, value bool) *FakeContextWi
 		FakeContext:              c.FakeContext,
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
-		EvmStore:                 c.EvmStore,
 	}
 }
 
@@ -101,7 +102,6 @@ func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContext
 		FakeContext:              c.FakeContext,
 		State:                    c.State,
 		useAccountBalanceManager: enable,
-		EvmStore:                 c.EvmStore,
 	}
 }
 
