@@ -1,3 +1,5 @@
+// +build evm
+
 package fnConsensus
 
 import (
@@ -7,13 +9,13 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	lcrypto "github.com/loomnetwork/go-loom/crypto"
-	ssha "github.com/miguelmota/go-solidity-sha3"
+	"github.com/loomnetwork/go-loom/crypto"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -90,7 +92,7 @@ type FnConsensusReactor struct {
 	cfg *ReactorConfig
 
 	// This could be different for every validator
-	mainnetPrivKey lcrypto.PrivateKey
+	mainnetPrivKey crypto.PrivateKey
 }
 
 var (
@@ -197,6 +199,12 @@ func (f *FnConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 		},
 		{
 			ID:                  FnVoteSetChannel,
+			Priority:            25,
+			SendQueueCapacity:   100,
+			RecvMessageCapacity: MaxMsgSize,
+		},
+		{
+			ID:                  FnRandomChannel,
 			Priority:            25,
 			SendQueueCapacity:   100,
 			RecvMessageCapacity: MaxMsgSize,
@@ -439,9 +447,12 @@ OUTER_LOOP:
 			// one validator will do the random
 			validators := currentValidators.Validators
 			validator := validators[0]
+			f.Logger.Info("FnConsensusReactor:", "f.myAddress()", string(f.myAddress()), "validator.Address.Bytes()", string(validator.Address.Bytes()))
 			if bytes.Compare(f.myAddress(), validator.Address.Bytes()) == 0 {
 				randnum := rand.Uint64()
 				f.state.RandomNumberWithSigs.seed = randnum
+				f.Logger.Info("FnConsensusReactor:", "f.state.RandomNumberWithSigs.seed:", f.state.RandomNumberWithSigs.seed)
+				f.broadcastMsgSync(FnRandomChannel, nil, []byte{})
 			}
 
 			f.stateMtx.Unlock()
@@ -1036,32 +1047,45 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 func (f *FnConsensusReactor) signRandomNumber(sender p2p.Peer, msgBytes []byte) {
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
+	fnID := signRandomMethodID
+
+	f.Logger.Info("FnConsensusReactor: signRandomNumber", "f.state.RandomNumberWithSigs.seed", f.state.RandomNumberWithSigs.seed)
 
 	// load first seed from config if there's no seed exists
 	if f.state.RandomNumberWithSigs.seed == 0 {
 		f.state.RandomNumberWithSigs.seed = f.cfg.RandomSeed
 	}
-	combinedSignature := make([]byte, 4*SignatureSize)
+	combinedSignature := make([]byte, 3*SignatureSize)
 
-	// sign
-	hash := ssha.SoliditySHA3([]string{"uint64"}, f.state.RandomNumberWithSigs.seed)
+	seed := f.state.RandomNumberWithSigs.seed
+	b := []byte(strconv.FormatUint(seed, 10))
 
-	sig, err := lcrypto.SoliditySign(hash, f.mainnetPrivKey)
+	hash, err := calculateMessageHash(b)
 	if err != nil {
 		f.Logger.Error(
-			"FnConsensusReactor: signRandomNumber",
-			"err", err, "method", signRandomMethodID,
+			"FnConsensusReactor: unable to calculate message hash",
+			"fnID", fnID, "err", err, "method", voteMethodID,
 		)
 		return
 	}
-	copy(combinedSignature[(SignatureSize):], sig)
+
+	sigBytes, err := f.privValidator.Sign(hash)
+	if err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: signRandomNumber fail to sign",
+			"err", err, "f.state.RandomNumberWithSigs.seed", f.state.RandomNumberWithSigs.seed,
+		)
+		return
+	}
+
+	copy(combinedSignature[(SignatureSize):], sigBytes)
 	f.state.RandomNumberWithSigs.sig = combinedSignature
 	// if maj23 save state
-	f.commit(signRandomMethodID)
+	// f.commit(signRandomMethodID)
 
 	// then broadcast
 	broadCastException := sender.ID()
-	f.broadcastMsgSync(FnMajChannel, &broadCastException, msgBytes)
+	f.broadcastMsgSync(FnRandomChannel, &broadCastException, msgBytes)
 
 }
 
