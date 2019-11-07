@@ -435,6 +435,15 @@ OUTER_LOOP:
 				}
 				fnsEligibleForVoting = append(fnsEligibleForVoting, fnID)
 			}
+
+			// one validator will do the random
+			validators := currentValidators.Validators
+			validator := validators[0]
+			if bytes.Compare(f.myAddress(), validator.Address.Bytes()) == 0 {
+				randnum := rand.Uint64()
+				f.state.RandomNumberWithSigs.seed = randnum
+			}
+
 			f.stateMtx.Unlock()
 
 			for _, fnID := range fnsEligibleForVoting {
