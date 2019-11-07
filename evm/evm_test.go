@@ -23,6 +23,9 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	gcommon "github.com/ethereum/go-ethereum/common"
+	gstate "github.com/ethereum/go-ethereum/core/state"
 )
 
 const (
@@ -40,7 +43,17 @@ func mockState() loomchain.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
 	header.Time = blockTime
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil).WithEVMState(mockEVMState())
+}
+
+func mockEVMState() *gstate.StateDB {
+	ethDB := store.NewLoomEthDB(store.NewMemStore(), nil)
+	stateDB := gstate.NewDatabase(ethDB)
+	evmState, err := gstate.New(gcommon.BytesToHash(nil), stateDB)
+	if err != nil {
+		panic(err)
+	}
+	return evmState
 }
 
 func TestProcessDeployTx(t *testing.T) {

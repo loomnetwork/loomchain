@@ -1,3 +1,4 @@
 AppStore:
-  Version: 1
+  Version: 3
+DPOSVersion: 2
 CreateEmptyBlocks: false

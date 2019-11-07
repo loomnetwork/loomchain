@@ -12,6 +12,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	gcommon "github.com/ethereum/go-ethereum/common"
+	gstate "github.com/ethereum/go-ethereum/core/state"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	loom_plugin "github.com/loomnetwork/go-loom/plugin"
@@ -122,6 +124,16 @@ func (c *VMTestContract) CheckQueryCaller(ctx contract.StaticContext, args *test
 	return &testdata.StaticCallResult{}, nil
 }
 
+func mockEVMState() *gstate.StateDB {
+	ethDB := store.NewLoomEthDB(store.NewMemStore(), nil)
+	stateDB := gstate.NewDatabase(ethDB)
+	evmState, err := gstate.New(gcommon.BytesToHash(nil), stateDB)
+	if err != nil {
+		panic(err)
+	}
+	return evmState
+}
+
 func TestPluginVMContractContextCaller(t *testing.T) {
 
 	fc1 := &VMTestContract{t: t, Name: "fakecontract1"}
@@ -137,7 +149,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil).WithEVMState(mockEVMState())
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 

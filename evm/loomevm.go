@@ -182,7 +182,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err != nil {
 		return nil, err
 	}
-	levm.Call(caller, addr, input, value)
+	_, err = levm.Call(caller, addr, input, value)
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
