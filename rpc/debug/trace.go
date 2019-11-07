@@ -33,7 +33,6 @@ func TraceTransaction(
 	if err := runUpTo(&app, blockstore, startBlockNumber, targetBlockNumber, txIndex); err != nil {
 		return nil, err
 	}
-
 	block, err := blockstore.GetBlockByHeight(&targetBlockNumber)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting block information at height %v", targetBlockNumber)
