@@ -1055,7 +1055,7 @@ func (f *FnConsensusReactor) signRandomNumber(sender p2p.Peer, msgBytes []byte) 
 		return
 	}
 	copy(combinedSignature[(SignatureSize):], sig)
-
+	f.state.RandomNumberWithSigs.sig = combinedSignature
 	// if maj23 save state
 	f.commit(signRandomMethodID)
 
