@@ -17,6 +17,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 var (
@@ -322,24 +323,54 @@ func (s *multiWriterStoreSnapshot) Range(prefix []byte) plugin.RangeData {
 		panic(errors.New("Range over nil prefix not implemented"))
 	}
 
-	var data plugin.RangeData
+	ret := make(plugin.RangeData, 0)
+
 	if bytes.Equal(prefix, vmPrefix) || util.HasPrefix(prefix, vmPrefix) {
-		for iter := s.evmDbSnapshot.NewIterator(prefix, nil); iter.Valid(); iter.Next() {
-			if 0 != bytes.Compare(prefix, iter.Key()[:len(prefix)]) {
-				break
+		it := s.evmDbSnapshot.NewIterator(prefix, prefixRangeEnd(prefix))
+		defer it.Close()
+
+		for ; it.Valid(); it.Next() {
+			key := it.Key()
+			if util.HasPrefix(key, prefix) {
+				var err error
+				key, err = util.UnprefixKey(key, prefix)
+				if err != nil {
+					panic(err)
+				}
+
+				ret = append(ret, &plugin.RangeEntry{
+					Key:   key,
+					Value: it.Value(),
+				})
 			}
-			data = append(data, &plugin.RangeEntry{iter.Key(), iter.Value()})
 		}
-	} else {
-		prefix = append(prefix, 0)
-		s.appStoreTree.IterateRangeInclusive(prefix, nil, true, func(key []byte, value []byte, _ int64) bool {
-			if len(key) < len(prefix) || 0 != bytes.Compare(prefix, key[:len(prefix)]) {
-				return true
+		return ret
+	}
+
+	// Otherwise iterate over the IAVL tree
+	keys, values, _, err := s.appStoreTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	if err != nil {
+		log.Error("failed to get range", "prefix", string(prefix), "err", err)
+		return ret
+	}
+
+	for i, k := range keys {
+		// Tree range gives all keys that has prefix but it does not check zero byte
+		// after the prefix. So we have to check zero byte after prefix using util.HasPrefix
+		if util.HasPrefix(k, prefix) {
+			k, err = util.UnprefixKey(k, prefix)
+			if err != nil {
+				panic(err)
 			}
-			data = append(data, &plugin.RangeEntry{key, value})
-			return false
+		} else { // Skip this key as it does not have the prefix
+			continue
+		}
+
+		ret = append(ret, &plugin.RangeEntry{
+			Key:   k,
+			Value: values[i],
 		})
 	}
 
-	return data
+	return ret
 }
