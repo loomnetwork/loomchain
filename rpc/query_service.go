@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -64,6 +65,9 @@ type QueryService interface {
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
+
+	// debug transactions.
+	DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -188,6 +192,7 @@ func createDefaultEthRoutes(svc QueryService, chainID string) map[string]eth.RPC
 	routes["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
 	routes["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
 	routes["eth_sendRawTransaction"] = NewSendRawTransactionRPCFunc(chainID, rpccore.BroadcastTxSync)
+	routes["debug_traceTransaction"] = eth.NewRPCFunc(svc.DebugTraceTransaction, "hash,config")
 	return routes
 }
 

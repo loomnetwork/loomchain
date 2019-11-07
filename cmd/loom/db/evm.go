@@ -108,7 +108,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false, nil)
 			if err != nil {
 				return err
 			}
@@ -221,7 +221,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false, nil)
 			if err != nil {
 				return err
 			}

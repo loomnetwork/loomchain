@@ -15,10 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/loomnetwork/go-loom"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/log"
@@ -147,7 +147,9 @@ type Evm struct {
 	gasLimit        uint64
 }
 
-func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
+func NewEvm(
+	sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool, tracer vm.Tracer,
+) (*Evm, error) {
 	p := new(Evm)
 	p.sdb = sdb
 	p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
@@ -157,7 +159,11 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 
 	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(features.EvmConstantinopleFeature, false))
 
-	p.vmConfig = defaultVmConfig(debug)
+	var err error
+	p.vmConfig, err = createVmConfig(debug, tracer)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating vm.Config")
+	}
 	p.validateTxValue = lstate.FeatureEnabled(features.CheckTxValueFeature, false)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
@@ -180,7 +186,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 			abm.Transfer(from, to, amount)
 		}
 	}
-	return p
+	return p, nil
 }
 
 func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
@@ -334,4 +340,35 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 		// table.
 		//JumpTable: [256]operation,
 	}
+}
+
+func createVmConfig(evmDebuggingEnabled bool, tracer vm.Tracer) (vm.Config, error) {
+	if evmDebuggingEnabled {
+		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
+	}
+
+	if tracer == nil {
+		logCfg := vm.LogConfig{
+			DisableMemory:  true, // disable memory capture
+			DisableStack:   true, // disable stack capture
+			DisableStorage: true, // disable storage capture
+			Limit:          0,    // maximum length of output, but zero means unlimited
+		}
+		tracer = vm.NewStructLogger(&logCfg)
+	}
+	return vm.Config{
+		// Debug enabled debugging Interpreter options
+		Debug: evmDebuggingEnabled || (tracer != nil),
+		// Tracer is the op code logger
+		Tracer: tracer,
+		// NoRecursion disabled Interpreter call, callcode,
+		// delegate call and create.
+		NoRecursion: false,
+		// Enable recording of SHA3/keccak preimages
+		EnablePreimageRecording: true, //TODO: make this optional, [MGC] I don't think we need to keep this
+		// JumpTable contains the EVM instruction table. This
+		// may be left uninitialised and will be set to the default
+		// table.
+		//JumpTable: [256]operation,
+	}, nil
 }

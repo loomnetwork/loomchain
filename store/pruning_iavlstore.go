@@ -178,10 +178,11 @@ func (s *PruningIAVLStore) Prune() error {
 }
 
 func (s *PruningIAVLStore) GetSnapshot() Snapshot {
-	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
-	return &pruningIAVLStoreSnapshot{
-		PruningIAVLStore: s,
-	}
+	return s.GetSnapshot()
+}
+
+func (s *PruningIAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	return s.store.GetSnapshotAt(version)
 }
 
 func (s *PruningIAVLStore) prune() error {
@@ -260,12 +261,4 @@ func (s *PruningIAVLStore) loopWithInterval(step func() error, interval time.Dur
 		}
 		time.Sleep(interval)
 	}
-}
-
-type pruningIAVLStoreSnapshot struct {
-	*PruningIAVLStore
-}
-
-func (s *pruningIAVLStoreSnapshot) Release() {
-	// noop
 }

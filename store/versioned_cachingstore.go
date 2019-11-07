@@ -12,7 +12,6 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -371,11 +370,23 @@ func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
 	return hash, version, err
 }
 
-func (c *versionedCachingStore) GetSnapshot() Snapshot {
-	return newVersionedCachingStoreSnapshot(
-		c.VersionedKVStore.GetSnapshot(),
-		c.cache, c.version-1, c.logger,
-	)
+func (s *versionedCachingStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	if version == 0 {
+		return newVersionedCachingStoreSnapshot(
+			c.VersionedKVStore.GetSnapshot(),
+			c.cache, c.version-1, c.logger,
+		), nil
+	} else {
+		return c.VersionedKVStore.GetSnapshotAt(version)
+	}
 }
 
 // CachingStoreSnapshot is a read-only CachingStore with specified version
@@ -394,14 +405,6 @@ func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache *versionedBigCach
 		version:  version,
 		logger:   logger,
 	}
-}
-
-func (c *versionedCachingStoreSnapshot) Delete(key []byte) {
-	panic("[versionedCachingStoreSnapshot] Delete() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
-	panic("[versionedCachingStoreSnapshot] Set() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
@@ -487,14 +490,6 @@ func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 	}
 
 	return data
-}
-
-func (c *versionedCachingStoreSnapshot) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, errors.New("[VersionedCachingStoreSnapshot] SaveVersion() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Prune() error {
-	return errors.New("[VersionedCachingStoreSnapshot] Prune() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Release() {

@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
@@ -20,14 +23,15 @@ import (
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/store"
-	blockindex "github.com/loomnetwork/loomchain/store/block_index"
-	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 	ttypes "github.com/tendermint/tendermint/types"
+
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/store"
+	blockindex "github.com/loomnetwork/loomchain/store/block_index"
+	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 )
 
 type ReadOnlyState interface {
@@ -302,6 +306,11 @@ type TxHandler interface {
 	ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 }
 
+type TxHandlerFactory interface {
+	TxHandler(tracer vm.Tracer, metrics bool) (TxHandler, error)
+	Copy(newStore store.VersionedKVStore) TxHandlerFactory
+}
+
 type TxHandlerFunc func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 
 type TxHandlerResult struct {
@@ -348,6 +357,7 @@ type Application struct {
 	Store           store.VersionedKVStore
 	Init            func(State) error
 	TxHandler
+	TxHandlerFactory
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
@@ -577,17 +587,19 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	// TODO: receiptHandler.CommitBlock() should be moved to Application.Commit()
-	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	receiptHandler := a.ReceiptHandlerProvider.Store()
-	if err := receiptHandler.CommitBlock(a.height()); err != nil {
-		storeTx.Rollback()
-		// TODO: maybe panic instead?
-		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
-	} else {
-		storeTx.Commit()
+	if a.ReceiptHandlerProvider != nil {
+		storeTx := store.WrapAtomic(a.Store).BeginTx()
+		receiptHandler := a.ReceiptHandlerProvider.Store()
+		if err := receiptHandler.CommitBlock(a.height()); err != nil {
+			storeTx.Rollback()
+			// TODO: maybe panic instead?
+			log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
+		} else {
+			storeTx.Commit()
+		}
 	}
 
-	storeTx = store.WrapAtomic(a.Store).BeginTx()
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -774,15 +786,18 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
-	receiptHandler := a.ReceiptHandlerProvider.Store()
-	defer receiptHandler.DiscardCurrentReceipt()
-	defer a.EventHandler.Rollback()
+	if a.ReceiptHandlerProvider != nil {
+		defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
+	}
+	if a.EventHandler != nil {
+		defer a.EventHandler.Rollback()
+	}
 
 	r, txErr := a.TxHandler.ProcessTx(state, txBytes, false)
 
 	// Store the receipt even if the tx itself failed
 	var receiptTxHash []byte
-	if a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
+	if a.ReceiptHandlerProvider != nil && a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
 		receiptTxHash = a.ReceiptHandlerProvider.Reader().GetCurrentReceipt().TxHash
 		txHash := ttypes.Tx(txBytes).Hash()
 		// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
@@ -793,7 +808,7 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 				ChildTxHash:  receiptTxHash,
 			})
 		}
-		receiptHandler.CommitCurrentReceipt()
+		a.ReceiptHandlerProvider.Store().CommitCurrentReceipt()
 	}
 
 	if txErr != nil {
@@ -804,13 +819,15 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 		return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: txErr.Error()}
 	}
 
-	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
 	storeTx.Commit()
 
-	// FIXME: Really shouldn't be sending out events until the whole block is committed because
-	//        the state changes from the tx won't be visible to queries until after Application.Commit()
-	if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
-		log.Error("Emit Tx Event error", "err", err)
+	if a.EventHandler != nil {
+		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+		// FIXME: Really shouldn't be sending out events until the whole block is committed because
+		//        the state changes from the tx won't be visible to queries until after Application.Commit()
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
+			log.Error("Emit Tx Event error", "err", err)
+		}
 	}
 
 	if len(receiptTxHash) > 0 {
@@ -837,23 +854,28 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	height := a.curBlockHeader.GetHeight()
 
-	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
-		// TODO: consider panic instead
-		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
+	if a.EvmAuxStore != nil {
+		if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
+			// TODO: consider panic instead
+			log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
+		}
 	}
 	a.childTxRefs = nil
 
-	go func(height int64, blockHeader abci.Header) {
-		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", "err", err)
-		}
-	}(height, a.curBlockHeader)
+	if a.EventHandler != nil {
+		go func(height int64, blockHeader abci.Header) {
+			if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
+				log.Error("Emit Block Event error", "err", err)
+			}
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+				log.Error("Emit Block Event error", "err", err)
+			}
+			if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+				log.Error("Emit Block Event error", "err", err)
+			}
+		}(height, a.curBlockHeader)
+	}
+
 	a.lastBlockHeader = a.curBlockHeader
 
 	if err := a.Store.Prune(); err != nil {
@@ -885,6 +907,7 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
+
 func (a *Application) ReadOnlyState() State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
@@ -895,4 +918,54 @@ func (a *Application) ReadOnlyState() State {
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
 	)
+}
+
+func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.BlockStore) (*Application, int64, error) {
+	startVersion := int64(blockNumber) - 1
+	if startVersion < 0 {
+		return nil, 0, errors.Errorf("invalid block number %d", blockNumber)
+	}
+	var snapshot store.Snapshot
+	for err := error(nil); (snapshot == nil || err != nil) && startVersion > 0; startVersion-- {
+		snapshot, err = a.Store.GetSnapshotAt(startVersion)
+	}
+	if startVersion == 0 {
+		return nil, 0, errors.Errorf("no saved version for height %d", blockNumber)
+	}
+
+	splitStore := store.NewSplitStore(snapshot, store.NewMemStore(), startVersion-1)
+	factory := a.TxHandlerFactory.Copy(splitStore)
+	txHandle, err := factory.TxHandler(nil, false)
+	if err != nil {
+		return nil, 0, err
+	}
+	newApp := &Application{
+		Store: splitStore,
+		Init: func(state State) error {
+			panic("init should not be called")
+		},
+		TxHandler:                   txHandle,
+		TxHandlerFactory:            factory,
+		BlockIndexStore:             nil,
+		EventHandler:                nil,
+		ReceiptHandlerProvider:      nil,
+		CreateValidatorManager:      a.CreateValidatorManager,
+		CreateChainConfigManager:    a.CreateChainConfigManager,
+		CreateContractUpkeepHandler: a.CreateContractUpkeepHandler,
+		EventStore:                  nil,
+		GetValidatorSet:             a.GetValidatorSet,
+		EvmAuxStore:                 nil,
+		ReceiptsVersion:             a.ReceiptsVersion,
+		config:                      a.config,
+	}
+	return newApp, startVersion, nil
+}
+
+func (a *Application) SetTracer(tracer vm.Tracer, metrics bool) error {
+	newTxHandle, err := a.TxHandlerFactory.TxHandler(tracer, metrics)
+	if err != nil {
+		return errors.Wrap(err, "making transaction handle")
+	}
+	a.TxHandler = newTxHandle
+	return nil
 }

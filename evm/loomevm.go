@@ -53,8 +53,11 @@ type LoomEvm struct {
 
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
-	loomState loomchain.State, accountBalanceManager AccountBalanceManager,
-	logContext *ethdbLogContext, debug bool,
+	loomState loomchain.State,
+	accountBalanceManager AccountBalanceManager,
+	logContext *ethdbLogContext,
+	debug bool,
+	tracer ethvm.Tracer,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
 	p.db = NewLoomEthdb(loomState, logContext)
@@ -74,7 +77,10 @@ func NewLoomEvm(
 		return nil, err
 	}
 
-	p.Evm = NewEvm(p.sdb, loomState, abm, debug)
+	p.Evm, err = NewEvm(p.sdb, loomState, abm, debug, tracer)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating tracer")
+	}
 	return p, nil
 }
 
@@ -111,7 +117,7 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 		nil,
 	)
 	receiptHandler := receiptHandlerProvider.Writer()
-	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
+	return NewLoomVm(state, receiptHandler, nil, debug, nil), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
@@ -121,20 +127,22 @@ type LoomVm struct {
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
+	tracer         ethvm.Tracer
 }
 
 func NewLoomVm(
 	loomState loomchain.State,
-	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
+	tracer ethvm.Tracer,
 ) vm.VM {
 	return &LoomVm{
 		state:          loomState,
 		receiptHandler: receiptHandler,
 		createABM:      createABM,
 		debug:          debug,
+		tracer:         tracer,
 	}
 }
 
@@ -151,7 +159,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		contractAddr: loom.Address{},
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug, lvm.tracer)
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
@@ -214,7 +222,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		contractAddr: addr,
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +270,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(true), nil, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(true), nil, lvm.debug, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +278,7 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +286,7 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 }
 
 func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}
