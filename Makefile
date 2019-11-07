@@ -33,7 +33,7 @@ GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
 TG_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
-ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
+ETHEREUM_GIT_REV = ethapi
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
@@ -44,7 +44,7 @@ BTCD_GIT_REV = 7d2daa5bfef28c5e282571bc06416516936115ee
 # google.golang.org/genproto seems to be pulled in by the grpc package.
 GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 # Specifies the loomnetwork/binance-tgoracle branch/revision to use.
-BINANCE_TG_GIT_REV = HEAD
+BINANCE_TG_GIT_REV = debugeth
 # Lock down certusone/yubihsm-go revision
 YUBIHSM_REV = 892fb9b370f3cbb486fc1f53d4a1d89e9f552af0
 
