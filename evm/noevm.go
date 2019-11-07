@@ -3,7 +3,6 @@
 package evm
 
 import (
-	"github.com/ethereum/go-ethereum/eth"
 	"github.com/loomnetwork/loomchain"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
