@@ -20,7 +20,7 @@ func NewLoomVm(
 	_ loomchain.WriteReceiptHandler,
 	_ AccountBalanceManagerFactoryFunc,
 	_ bool,
-	_ *eth.TraceConfig,
+	_ interface{},
 ) lvm.VM {
 	return nil
 }
