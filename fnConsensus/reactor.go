@@ -15,7 +15,6 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom/crypto"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -90,9 +89,6 @@ type FnConsensusReactor struct {
 	staticValidators *types.ValidatorSet // overrides the TM validator set if not nil
 
 	cfg *ReactorConfig
-
-	// This could be different for every validator
-	mainnetPrivKey crypto.PrivateKey
 }
 
 var (
