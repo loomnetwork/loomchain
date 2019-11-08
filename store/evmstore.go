@@ -322,16 +322,12 @@ func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapsho
 		Snapshot: snapshot,
 		rootHash: rootHash,
 	}
-	ethDB := NewLoomEthDB(evmSnapshot, nil)
-	// This should be read only database
-	evmSnapshot.trieDB = trie.NewDatabase(ethDB)
 	return evmSnapshot
 }
 
 type EvmStoreSnapshot struct {
 	db.Snapshot
 	rootHash []byte
-	trieDB   *trie.Database
 }
 
 func (s *EvmStoreSnapshot) Get(key []byte) []byte {
@@ -348,22 +344,6 @@ func (s *EvmStoreSnapshot) Has(key []byte) bool {
 		return true
 	}
 	return s.Snapshot.Has(key)
-}
-
-func (s *EvmStoreSnapshot) TrieDB() *trie.Database {
-	return s.trieDB
-}
-
-func (s *EvmStoreSnapshot) Delete(key []byte) {
-	panic("EvmStoreSnapshot does not implement delete")
-}
-
-func (s *EvmStoreSnapshot) Set(key, val []byte) {
-	panic("EvmStoreSnapshot does not implement set")
-}
-
-func (s *EvmStoreSnapshot) Range(key []byte) plugin.RangeData {
-	panic("EvmStoreSnapshot does not implement range")
 }
 
 func remove(keys []string, key string) []string {
