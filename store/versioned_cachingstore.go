@@ -385,7 +385,10 @@ func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
 			c.cache, c.version-1, c.logger,
 		), nil
 	} else {
-		return c.VersionedKVStore.GetSnapshotAt(version)
+		return newVersionedCachingStoreSnapshot(
+			c.VersionedKVStore.GetSnapshot(),
+			c.cache, version, c.logger,
+		), nil
 	}
 }
 
