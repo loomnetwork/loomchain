@@ -1303,30 +1303,7 @@ func (c *DPOS) TimeUntilElection(
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListValidators", "request", req)
 
-	validators, err := ValidatorList(ctx)
-	if err != nil {
-		return nil, logStaticDposError(ctx, err, req.String())
-	}
-
-	chainID := ctx.Block().ChainID
-
-	displayStatistics := make([]*ValidatorStatistic, 0)
-	for _, validator := range validators {
-		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
-
-		// get validator statistics
-		stat, _ := GetStatistic(ctx, address)
-		if stat == nil {
-			stat = &ValidatorStatistic{
-				Address: address.MarshalPB(),
-			}
-		}
-		displayStatistics = append(displayStatistics, stat)
-	}
-
-	return &ListValidatorsResponse{
-		Statistics: displayStatistics,
-	}, nil
+	return listValidators(ctx, req)
 }
 
 func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
@@ -1341,37 +1318,7 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListDelegations", "request", req)
 
-	if req.Candidate == nil {
-		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
-	}
-
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	total := common.BigZero()
-	candidateDelegations := make([]*Delegation, 0)
-	for _, d := range delegations {
-		if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(req.Candidate)) != 0 {
-			continue
-		}
-
-		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-		if err == contract.ErrNotFound {
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-
-		candidateDelegations = append(candidateDelegations, delegation)
-		total = total.Add(total, &delegation.Amount.Value)
-	}
-
-	return &ListDelegationsResponse{
-		Delegations:     candidateDelegations,
-		DelegationTotal: &types.BigUInt{Value: *total},
-	}, nil
+	return listDelegations(ctx, req)
 }
 
 func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
@@ -2657,4 +2604,93 @@ func Initialize(ctx contract.Context, initState *InitializationState) error {
 	}
 
 	return nil
+}
+
+func listDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+	if req.Candidate == nil {
+		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
+	}
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := common.BigZero()
+	candidateDelegations := make([]*Delegation, 0)
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(req.Candidate)) != 0 {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		candidateDelegations = append(candidateDelegations, delegation)
+		total = total.Add(total, &delegation.Amount.Value)
+	}
+
+	return &ListDelegationsResponse{
+		Delegations:     candidateDelegations,
+		DelegationTotal: &types.BigUInt{Value: *total},
+	}, nil
+}
+
+func listValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	chainID := ctx.Block().ChainID
+
+	displayStatistics := make([]*ValidatorStatistic, 0)
+	for _, validator := range validators {
+		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+
+		// get validator statistics
+		stat, _ := GetStatistic(ctx, address)
+		if stat == nil {
+			stat = &ValidatorStatistic{
+				Address: address.MarshalPB(),
+			}
+		}
+		displayStatistics = append(displayStatistics, stat)
+	}
+
+	return &ListValidatorsResponse{
+		Statistics: displayStatistics,
+	}, nil
+}
+
+func TotalStaked(ctx contract.StaticContext) (*types.BigUInt, error) {
+	candidates, err := LoadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	totalStaked := &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)}
+	for _, candidate := range candidates {
+		response, err := listDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
+		if err != nil {
+			return nil, err
+		}
+		totalStaked.Value.Add(&totalStaked.Value, &response.DelegationTotal.Value)
+	}
+
+	response, err := listValidators(ctx, &ListValidatorsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	for _, statistic := range response.Statistics {
+		if statistic.WhitelistAmount != nil {
+			totalStaked.Value.Add(&totalStaked.Value, &statistic.WhitelistAmount.Value)
+		}
+	}
+
+	return totalStaked, nil
 }

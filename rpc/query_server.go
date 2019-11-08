@@ -6,10 +6,12 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
+	gtypes "github.com/loomnetwork/go-loom/types"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
@@ -25,6 +27,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -128,9 +131,15 @@ type QueryServer struct {
 	store.BlockStore
 	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
-	EventStore store.EventStore
-	AuthCfg    *auth.Config
-	Web3Cfg    *eth.Web3Config
+	EventStore        store.EventStore
+	AuthCfg           *auth.Config
+	Web3Cfg           *eth.Web3Config
+	totalStakedAmount *totalStakedAmount
+}
+
+type totalStakedAmount struct {
+	createAt time.Time
+	amount   gtypes.BigUInt
 }
 
 var _ QueryService = &QueryServer{}
@@ -341,6 +350,11 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 		return eth.Data(goGetCode), nil
 	}
 	return eth.EncBytes(code), nil
+}
+
+// Attempts to construct the context of the DPOSv3 contract.
+func (s *QueryServer) createDposV3Ctx(state loomchain.State) (contractpb.StaticContext, error) {
+	return s.createStaticContractCtx(state, "dposV3")
 }
 
 // Attempts to construct the context of the Address Mapper contract.
@@ -597,6 +611,35 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 		CreatorAddress:  rec.Owner,
 	}
 	return k, nil
+}
+
+func (s *QueryServer) DposTotalStaked() (*types.DposTotalStakedResponse, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	if s.totalStakedAmount != nil {
+		if time.Since(s.totalStakedAmount.createAt) <= time.Minute {
+			return &types.DposTotalStakedResponse{
+				TotalStaked: &s.totalStakedAmount.amount,
+			}, nil
+		}
+	}
+
+	dposCtx, err := s.createDposV3Ctx(snapshot)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := dposv3.TotalStaked(dposCtx)
+	if err != nil {
+		return nil, err
+	}
+	s.totalStakedAmount = &totalStakedAmount{
+		createAt: time.Now(),
+		amount:   *resp,
+	}
+
+	return &types.DposTotalStakedResponse{
+		TotalStaked: resp,
+	}, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
