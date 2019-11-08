@@ -41,7 +41,7 @@ const (
 	commitMethodID            = "commit"
 	maj23MsgHandlerMethodID   = "handleMaj23Msg"
 	voteSetMsgHandlerMethodID = "handleVoteSetMsg"
-	signRandomMethodID        = "signRandomMsg"
+	signRandomID              = "signRandomMsg"
 )
 
 const (
@@ -392,6 +392,7 @@ OUTER_LOOP:
 
 			for _, fnID := range fnsEligibleForCommit {
 				f.commit(fnID)
+				f.commitRand()
 			}
 		}
 	}
@@ -452,7 +453,7 @@ OUTER_LOOP:
 				randnum := rand.Uint64()
 				f.state.RandomNumberWithSigs.seed = randnum
 				f.Logger.Info("FnConsensusReactor:", "f.state.RandomNumberWithSigs.seed:", f.state.RandomNumberWithSigs.seed)
-				f.broadcastMsgSync(FnRandomChannel, nil, []byte{})
+
 			}
 
 			f.stateMtx.Unlock()
@@ -460,6 +461,7 @@ OUTER_LOOP:
 			for _, fnID := range fnsEligibleForVoting {
 				fn := f.fnRegistry.Get(fnID)
 				f.vote(fnID, fn, currentValidators, ownValidatorIndex)
+				f.voteRand(fn, currentValidators, f.state.RandomNumberWithSigs.seed)
 			}
 		}
 	}
@@ -570,6 +572,62 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	// to receive any votesets from anyone else because both handleVoteSetChannelMessage and
 	// handleMaj23VoteSetChannel must acquire the f.state lock before they can do anything of substance.
 	f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytes)
+}
+
+func (f *FnConsensusReactor) voteRand(fn Fn, currentValidators *types.ValidatorSet, validatorIndex int, seedNum uint64) {
+	fnID := signRandomID
+	// get the message and signature somehow
+	message := seedNum
+	signature := []byte{"wdjawlkdjalkdjlkasjcl"}
+
+	hash, err := calculateMessageHash(message)
+	if err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: unable to calculate message hash",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
+		return
+	}
+
+	executionRequest, err := NewFnExecutionRequest(fnID, f.fnRegistry)
+	if err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: unable to create Fn execution request",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
+		return
+	}
+
+	executionResponse := NewFnExecutionResponse(&FnIndividualExecutionResponse{
+		Hash:            hash,
+		OracleSignature: signature, // TODO: reactor shouldn't know anything about oracles
+	}, validatorIndex, currentValidators)
+
+	f.stateMtx.Lock()
+	defer f.stateMtx.Unlock()
+
+	f.state.Messages[fnID] = Message{
+		Payload: message,
+		Hash:    hash,
+	}
+
+	currentNonce, ok := f.state.CurrentNonces[fnID]
+	if !ok {
+		currentNonce = 1
+	}
+
+	if err := saveReactorState(f.db, f.state, true); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: unable to save state",
+			"fnID", fnID, "err", err, "method", voteMethodID,
+		)
+		return
+	}
+
+	// NOTE: f.state is still locked at this point, so until the broadcast is complete we won't be able
+	// to receive any votesets from anyone else because both handleVoteSetChannelMessage and
+	// handleMaj23VoteSetChannel must acquire the f.state lock before they can do anything of substance.
+	f.broadcastMsgSync(FnVoteSetChannel, nil, []byte{})
 }
 
 // Checks if the signing threshold has been reached (2/3+ majority usually) in the current voteset,
@@ -687,6 +745,126 @@ func (f *FnConsensusReactor) commit(fnID string) {
 		nonceGauge.With("fnID", fnID).Set(float64(f.state.CurrentNonces[fnID]))
 		f.state.PreviousValidatorSet = currentValidators
 		f.state.PreviousMajVoteSets[fnID] = currentVoteSet
+		delete(f.state.CurrentVoteSets, fnID)
+	}
+
+	if err := saveReactorState(f.db, f.state, true); err != nil {
+		f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "err", err, "method", commitMethodID)
+		return
+	}
+}
+
+func (f *FnConsensusReactor) commitRand() {
+	fnID := signRandomID
+	fn := f.fnRegistry.Get(fnID)
+	if fn == nil {
+		f.Logger.Error(
+			"FnConsensusReactor: fn is nil while trying to access it in commit routine, ignoring...",
+			"method", commitMethodID,
+		)
+		return
+	}
+
+	currentValidators := f.getValidatorSet()
+	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
+
+	f.stateMtx.Lock()
+	defer f.stateMtx.Unlock()
+
+	currentVoteSet := f.state.CurrentVoteSets[fnID]
+	currentNonce := f.state.CurrentNonces[fnID]
+
+	if err := currentVoteSet.IsValid(f.chainID, currentValidators, f.fnRegistry); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid VoteSet found",
+			"VoteSet", currentVoteSet, "err", err, "method", commitMethodID)
+
+		delete(f.state.CurrentVoteSets, fnID)
+
+		if err := saveReactorState(f.db, f.state, true); err != nil {
+			f.Logger.Error(
+				"FnConsensusReactor: unable to save state",
+				"fnID", fnID, "err", err, "method", commitMethodID,
+			)
+			return
+		}
+		return
+	}
+
+	if !currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
+		f.Logger.Info(
+			"No consensus achieved",
+			"fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload,
+			"Response", currentVoteSet.Payload.Response, "method", commitMethodID,
+		)
+
+		previousConvergedVoteSet := f.state.PreviousMajVoteSets[fnID]
+		if previousConvergedVoteSet != nil {
+			marshalledBytesOfPreviousVoteSet, err := previousConvergedVoteSet.Marshal()
+			if err != nil {
+				f.Logger.Error(
+					"unable to marshal PreviousMajVoteSet",
+					"err", err, "fnID", fnID, "method", commitMethodID,
+				)
+				return
+			}
+
+			marshalledBytesOfCurrentVoteSet, err := currentVoteSet.Marshal()
+			if err != nil {
+				f.Logger.Error(
+					"unable to marshal Current Vote set",
+					"err", err, "fnID", fnID, "method", commitMethodID,
+				)
+				return
+			}
+
+			// Propagate your last Maj23, to remedy any issue
+			f.broadcastMsgSync(FnMajChannel, nil, marshalledBytesOfPreviousVoteSet)
+
+			time.Sleep(voteSetPropogationDelay)
+
+			// Propagate your current voteSet, to get newly joined node to sign it
+			f.broadcastMsgSync(FnVoteSetChannel, nil, marshalledBytesOfCurrentVoteSet)
+		}
+	} else {
+		if areWeValidator {
+			majExecutionResponse := currentVoteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
+			if majExecutionResponse != nil {
+				f.Logger.Info(
+					"Maj-consensus achieved",
+					"fnID", fnID, "VoteSet", currentVoteSet, "Payload", currentVoteSet.Payload,
+					"Response", currentVoteSet.Payload.Response, "method", commitMethodID,
+				)
+				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
+				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
+				// The consensus result only needs to be sent to the cluster by a single validator,
+				// that validator is chosen in a round-robin fashion every voting round.
+				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
+					if !bytes.Equal(f.state.Messages[fnID].Hash, majExecutionResponse.Hash) {
+						f.Logger.Error(
+							"FnConsensusReactor: message hash mismatch",
+							"fnID", fnID, "method", commitMethodID, "nonce", currentNonce,
+							"validator", ownValidatorIndex,
+						)
+						return
+					}
+					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
+					f.safeSubmitMultiSignedMessage(
+						fnID,
+						fn,
+						safeCopyBytes(f.state.Messages[fnID].Payload),
+						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
+					)
+				}
+			}
+		}
+
+		f.state.CurrentNonces[fnID]++
+		nonceGauge.With("fnID", fnID).Set(float64(f.state.CurrentNonces[fnID]))
+		f.state.PreviousValidatorSet = currentValidators
+		f.state.PreviousMajVoteSets[fnID] = currentVoteSet
+		// need to write to a smart contract to keep history of seed with signatures + rotate to the next validator sets
+
 		delete(f.state.CurrentVoteSets, fnID)
 	}
 
