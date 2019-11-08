@@ -911,10 +911,7 @@ func (a *Application) height() int64 {
 }
 func (a *Application) ReadOnlyState() State {
 	root := a.EvmStore.GetVMRootKey()
-	ethDB := store.NewLoomEthDB(a.EvmStore.GetSnapshot(a.lastBlockHeader.Height), nil)
-	stateDB := gstate.NewDatabase(ethDB)
-	stateDB.SetTrieDB(a.EVMState.Database().TrieDB())
-	snapshotEVMState, err := gstate.New(gcommon.BytesToHash(root), stateDB)
+	snapshotEVMState, err := gstate.New(gcommon.BytesToHash(root), a.EVMState.Database())
 	if err != nil {
 		panic(err)
 	}

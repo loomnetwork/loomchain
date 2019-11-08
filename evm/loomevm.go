@@ -36,6 +36,7 @@ type StateDB interface {
 	ethvm.StateDB
 	Database() state.Database
 	Logs() []*types.Log
+	ResetLogs()
 	Commit(bool) (common.Hash, error)
 }
 
@@ -135,6 +136,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 			events = lvm.receiptHandler.GetEventsFromLogs(
 				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
 			)
+			levm.sdb.ResetLogs()
 		}
 
 		if !lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_4, false) {
@@ -191,6 +193,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 			events = lvm.receiptHandler.GetEventsFromLogs(
 				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
 			)
+			levm.sdb.ResetLogs()
 		}
 
 		if !lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_4, false) {
