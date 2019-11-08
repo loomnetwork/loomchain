@@ -53,9 +53,6 @@ const (
 	// FnMajChannel is used to gossip votesets that have reached 2/3+ majority
 	FnMajChannel = byte(0x51)
 
-	// RandomSignChannel
-	FnRandomChannel = byte(0x52)
-
 	// MaxMsgSize is the max number of bytes that can sent on a P2P channel
 	MaxMsgSize = 2 * 1000 * 1024 // 2MB
 
