@@ -114,9 +114,10 @@ const (
 
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
-
 	// Enables Coin v1.2 to validate fields in request of Coin and ETH Coin contract
 	CoinVersion1_2Feature = "coin:v1.2"
+	// Enables minting & burning via Binance Gateway
+	CoinVersion1_3Feature = "coin:v1.3"
 
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
