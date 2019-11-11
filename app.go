@@ -855,6 +855,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		panic(err)
 	}
 	a.EvmStore.SetVMRootKey(evmStateRoot[:])
+	a.EVMState.Reset(evmStateRoot)
 
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
