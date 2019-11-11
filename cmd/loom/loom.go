@@ -17,6 +17,7 @@ import (
 	"time"
 
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -978,8 +979,19 @@ func loadApp(
 
 	tracer := ethvm.Tracer(nil)
 	if cfg.EVMTracer.Enabled {
-		// todo should we force cfg.EVMTracer.Debug to be true here
-		tracer, err = debug.CreateTracer(cfg.EVMTracer.TraceConfig)
+		traceCfg := eth.TraceConfig{
+			Tracer: &cfg.EVMTracer.Tracer,
+		}
+		if len(cfg.EVMTracer.Tracer) == 0 {
+			traceCfg.LogConfig = &ethvm.LogConfig{
+				DisableMemory:  cfg.EVMTracer.DisableMemory,
+				DisableStack:   cfg.EVMTracer.DisableStack,
+				DisableStorage: cfg.EVMTracer.DisableStorage,
+				Debug:          true,
+				Limit:          cfg.EVMTracer.Limit,
+			}
+		}
+		tracer, err = debug.CreateTracer(traceCfg)
 		if err != nil {
 			return nil, errors.Wrapf(err, "creating tracer from %v", cfg.EVMTracer)
 		}

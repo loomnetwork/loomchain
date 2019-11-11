@@ -1,5 +1,3 @@
-// +build evm
-
 package config
 
 import (
@@ -12,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 
-	etheth "github.com/ethereum/go-ethereum/eth"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -174,8 +171,12 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 }
 
 type EVMTracer struct {
-	etheth.TraceConfig
-	Enabled bool // enable tracer
+	Enabled        bool   // enable tracer
+	Tracer         string //enable JavaScript-based transaction tracing,
+	DisableMemory  bool   // disable memory capture
+	DisableStack   bool   // disable stack capture
+	DisableStorage bool   // disable storage capture
+	Limit          int    // maximum length of output, but zero means unlimited
 }
 
 func DefaultEvmTraceConfig() *EVMTracer {
@@ -807,20 +808,11 @@ PluginsDir: "{{ .PluginsDir }}"
 {{- if .EVMTracer }}
 EVMTracer: 
   Enabled: {{ .EVMTracer.Enabled }}
-  {{- if .EVMTracer.Tracer }}
-  Tracer: "{{ .EVMTracer.Tracer }}" //enable JavaScript-based transaction tracing LogConfig is ignored if not empty
-  {{- end}}
-  {{- if .EVMTracer.Timeout }}
-  Timeout: "{{ .EVMTracer.Timeout }}" //Not used
-  {{- end}}
-  {{- if .EVMTracer.LogConfig }}
-  LogConfig:
-    DisableMemory: {{ .EVMTracer.LogConfig.DisableMemory }} // disable memory capture
-    DisableStack: {{ .EVMTracer.LogConfig.DisableStack }} // disable stack capture
-    DisableStorage: {{ .EVMTracer.LogConfig.DisableStorage }} // disable storage capture
-    Debug: {{ .EVMTracer.LogConfig.Debug }} // print output during capture end. set to true to have an effect
-    Limit: {{ .EVMTracer.LogConfig.Debug }} // maximum length of output, but zero means unlimited
-  {{- end}}
+  Tracer: "{{ .EVMTracer.Tracer }}" 
+  DisableMemory: {{ .EVMTracer.DisableMemory }} 
+  DisableStack: {{ .EVMTracer.DisableStack }} 
+  DisableStorage: {{ .EVMTracer.DisableStorage }} 
+  Limit: {{ .EVMTracer.Limit }} 
 {{- end}}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup

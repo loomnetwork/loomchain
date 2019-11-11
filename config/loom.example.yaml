@@ -85,12 +85,11 @@ DPOSv2OracleConfig:
 
 EVMTracer:
   Enabled: true
-  Timeout: "79"
-  LogConfig:
-    DisableMemory: true
-    DisableStack: false
-    DisableStorage: ture
-    Limit: 1000
+  Tracer: ""
+  DisableMemory: true
+  DisableStack: false
+  DisableStorage: true
+  Limit: 1000
 
 EventDispatcher:
   Dispatcher: log
