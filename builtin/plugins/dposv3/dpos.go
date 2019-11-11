@@ -2712,7 +2712,7 @@ func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*t
 			totalStaked.Value.Add(&totalStaked.Value, &delegation.Amount.Value)
 		}
 	}
-	// Sum all whitelist amounts of validators expect bootstrap validators
+	// Sum all whitelist amounts of validators except bootstrap validators
 	for _, candidate := range candidates {
 		if statistic, ok := statistics[candidate.Address.String()]; ok {
 			if statistic.WhitelistAmount != nil {
