@@ -2685,18 +2685,35 @@ func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*t
 		}
 	}
 
+	candidateList := map[string]bool{}
 	candidates, err := LoadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate := range candidates {
+		candidateList[candidate.Address.String()] = true
+	}
+
+	delegationList, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	totalStaked := &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)}
-	for _, candidate := range candidates {
-		response, err := listDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
-		if err != nil {
-			return nil, err
+	// Sum all delegations
+	for _, d := range delegationList {
+		if _, ok := candidateList[d.Validator.String()]; ok {
+			delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+			if err == contract.ErrNotFound {
+				continue
+			} else if err != nil {
+				return nil, err
+			}
+			totalStaked.Value.Add(&totalStaked.Value, &delegation.Amount.Value)
 		}
-		totalStaked.Value.Add(&totalStaked.Value, &response.DelegationTotal.Value)
+	}
+	// Sum all whitelist amounts of validators expect bootstrap validators
+	for _, candidate := range candidates {
 		if statistic, ok := statistics[candidate.Address.String()]; ok {
 			if statistic.WhitelistAmount != nil {
 				totalStaked.Value.Add(&totalStaked.Value, &statistic.WhitelistAmount.Value)
