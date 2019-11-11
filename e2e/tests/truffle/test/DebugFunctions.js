@@ -46,7 +46,7 @@ contract('debug_traceTransaction', async (accounts) => {
         const txResult = await contract.methods.set(1111).send();
         await web3js.currentProvider.send({
             method: "debug_traceTransaction",
-            params: [txResult.transactionHash,{"disableStorage":true,"disableMemory":false,"disableStack":false,"fullStorage":false}],
+            params: [txResult.transactionHash,{"disableStorage":true,"disableMemory":false,"disableStack":false}],
             jsonrpc: "2.0",
             id: new Date().getTime()
         }, function (error, result) {
