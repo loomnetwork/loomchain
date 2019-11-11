@@ -166,6 +166,10 @@ type (
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
 )
 
+type DPOSTotalStaked struct {
+	TotalStaked *types.BigUInt
+}
+
 type DPOS struct {
 }
 

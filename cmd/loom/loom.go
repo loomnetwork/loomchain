@@ -1265,11 +1265,6 @@ func initQueryService(
 		return err
 	}
 
-	bootstrapNodes := map[string]bool{}
-	for _, bootstrapNode := range cfg.BootstrapNodes {
-		bootstrapNodes[strings.ToLower(bootstrapNode)] = true
-	}
-
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1288,7 +1283,7 @@ func initQueryService(
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 		Web3Cfg:                cfg.Web3,
-		BootstrapNodes:         bootstrapNodes,
+		DPOSCfg:                cfg.DPOS,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

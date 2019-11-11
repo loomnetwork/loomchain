@@ -14,6 +14,7 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
@@ -63,7 +64,7 @@ type QueryService interface {
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
-	DposTotalStaked() (*types.DposTotalStakedResponse, error)
+	DPOSTotalStaked() (*dposv3.DPOSTotalStaked, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -131,7 +132,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
 	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
-	routes["dpos_total_staked"] = rpcserver.NewRPCFunc(svc.DposTotalStaked, "")
+	routes["dpos_total_staked"] = rpcserver.NewRPCFunc(svc.DPOSTotalStaked, "")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)

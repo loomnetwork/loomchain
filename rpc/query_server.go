@@ -135,7 +135,7 @@ type QueryServer struct {
 	AuthCfg           *auth.Config
 	Web3Cfg           *eth.Web3Config
 	totalStakedAmount *totalStakedAmount
-	BootstrapNodes    map[string]bool
+	DPOSCfg           *dposv3.DPOSConfig
 }
 
 type totalStakedAmount struct {
@@ -351,11 +351,6 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 		return eth.Data(goGetCode), nil
 	}
 	return eth.EncBytes(code), nil
-}
-
-// Attempts to construct the context of the DPOSv3 contract.
-func (s *QueryServer) createDposV3Ctx(state loomchain.State) (contractpb.StaticContext, error) {
-	return s.createStaticContractCtx(state, "dposV3")
 }
 
 // Attempts to construct the context of the Address Mapper contract.
@@ -614,22 +609,21 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 	return k, nil
 }
 
-func (s *QueryServer) DposTotalStaked() (*types.DposTotalStakedResponse, error) {
+func (s *QueryServer) DPOSTotalStaked() (*dposv3.DPOSTotalStaked, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 	if s.totalStakedAmount != nil {
-		if time.Since(s.totalStakedAmount.createAt) <= time.Minute {
-			return &types.DposTotalStakedResponse{
+		if time.Since(s.totalStakedAmount.createAt) <= time.Second*time.Duration(s.DPOSCfg.TotalStakedCacheDuration) {
+			return &dposv3.DPOSTotalStaked{
 				TotalStaked: &s.totalStakedAmount.amount,
 			}, nil
 		}
 	}
-
-	dposCtx, err := s.createDposV3Ctx(snapshot)
+	dposCtx, err := s.createStaticContractCtx(snapshot, "dposV3")
 	if err != nil {
 		return nil, err
 	}
-	resp, err := dposv3.TotalStaked(dposCtx, s.BootstrapNodes)
+	resp, err := dposv3.TotalStaked(dposCtx, s.DPOSCfg.BootstrapNodesList())
 	if err != nil {
 		return nil, err
 	}
@@ -637,8 +631,7 @@ func (s *QueryServer) DposTotalStaked() (*types.DposTotalStakedResponse, error) 
 		createAt: time.Now(),
 		amount:   *resp,
 	}
-
-	return &types.DposTotalStakedResponse{
+	return &dposv3.DPOSTotalStaked{
 		TotalStaked: resp,
 	}, nil
 }

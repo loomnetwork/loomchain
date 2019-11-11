@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
@@ -150,7 +151,7 @@ type Config struct {
 
 	Web3 *eth.Web3Config
 
-	BootstrapNodes []string
+	DPOS *dposv3.DPOSConfig
 }
 
 type Metrics struct {
@@ -274,17 +275,6 @@ func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
 func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
 	return &UserDeployerWhitelistConfig{
 		ContractEnabled: true,
-	}
-}
-
-func DefaultBootstrapNodes() []string {
-	return []string{
-		"default:0x0e99fc16e32e568971908f2ce54b967a42663a26",
-		"default:0xac3211caecc45940a6d2ba006ca465a647d8464f",
-		"default:0x69c48768dbac492908161be787b7a5658192df35",
-		"default:0x2a3a7c850586d4f80a12ac1952f88b1b69ef48e1",
-		"default:0x4a1b8b15e50ce63cc6f65603ea79be09206cae70",
-		"default:0x0ce7b61c97a6d5083356f115288f9266553e191e",
 	}
 }
 
@@ -437,7 +427,7 @@ func DefaultConfig() *Config {
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 	cfg.Web3 = eth.DefaultWeb3Config()
-	cfg.BootstrapNodes = DefaultBootstrapNodes()
+	cfg.DPOS = dposv3.DefaultDPOSConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -802,10 +792,18 @@ DBName: "{{ .DBName }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
 
-BootstrapNodes:
-  {{- range .BootstrapNodes}}
+{{if .DPOS -}}
+#
+# Configuration of DPOSv3
+#
+DPOS:
+  # Specifies addresses of bootstrap nodes
+  BootstrapNodes:
+  {{- range .DPOS.BootstrapNodes}}
     - "{{. -}}"
   {{- end}}
+  TotalStakedCacheDuration: {{ .DPOS.TotalStakedCacheDuration }}
+{{end}}
 
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
