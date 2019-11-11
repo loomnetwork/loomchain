@@ -135,6 +135,7 @@ type QueryServer struct {
 	AuthCfg           *auth.Config
 	Web3Cfg           *eth.Web3Config
 	totalStakedAmount *totalStakedAmount
+	BootstrapNodes    map[string]bool
 }
 
 type totalStakedAmount struct {
@@ -628,7 +629,7 @@ func (s *QueryServer) DposTotalStaked() (*types.DposTotalStakedResponse, error) 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := dposv3.TotalStaked(dposCtx)
+	resp, err := dposv3.TotalStaked(dposCtx, s.BootstrapNodes)
 	if err != nil {
 		return nil, err
 	}

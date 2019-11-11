@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -2667,7 +2668,19 @@ func listValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*Li
 	}, nil
 }
 
-func TotalStaked(ctx contract.StaticContext) (*types.BigUInt, error) {
+func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*types.BigUInt, error) {
+	response, err := listValidators(ctx, &ListValidatorsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	statistics := map[string]*ValidatorStatistic{}
+	for _, statistic := range response.Statistics {
+		nodeAddr := loom.UnmarshalAddressPB(statistic.Address)
+		if _, ok := bootstrapNodes[strings.ToLower(nodeAddr.String())]; !ok {
+			statistics[statistic.Address.String()] = statistic
+		}
+	}
+
 	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, err
@@ -2680,17 +2693,11 @@ func TotalStaked(ctx contract.StaticContext) (*types.BigUInt, error) {
 			return nil, err
 		}
 		totalStaked.Value.Add(&totalStaked.Value, &response.DelegationTotal.Value)
-	}
-
-	response, err := listValidators(ctx, &ListValidatorsRequest{})
-	if err != nil {
-		return nil, err
-	}
-	for _, statistic := range response.Statistics {
-		if statistic.WhitelistAmount != nil {
-			totalStaked.Value.Add(&totalStaked.Value, &statistic.WhitelistAmount.Value)
+		if statistic, ok := statistics[candidate.Address.String()]; ok {
+			if statistic.WhitelistAmount != nil {
+				totalStaked.Value.Add(&totalStaked.Value, &statistic.WhitelistAmount.Value)
+			}
 		}
 	}
-
 	return totalStaked, nil
 }
