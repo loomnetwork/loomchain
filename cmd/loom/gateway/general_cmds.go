@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	gethtype "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
@@ -30,7 +31,9 @@ import (
 	am "github.com/loomnetwork/go-loom/client/address_mapper"
 	"github.com/loomnetwork/go-loom/client/dposv3"
 	gw "github.com/loomnetwork/go-loom/client/gateway"
+	gwv2 "github.com/loomnetwork/go-loom/client/gateway_v2"
 	"github.com/loomnetwork/go-loom/client/native_coin"
+	vmc "github.com/loomnetwork/go-loom/client/validator_manager"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -375,13 +378,17 @@ func newGetOraclesCommand() *cobra.Command {
 }
 
 func newWithdrawFundsToMainnetCommand() *cobra.Command {
+	var mainnetLoomAddress, mainnetGatewayAddress, ethereumUri string
 	var onlyRewards bool
+	var gatewayVersion int
 	cmd := &cobra.Command{
 		Use:     "withdraw-funds",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
 		Example: withdrawFundsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-
+			if gatewayVersion != 1 && gatewayVersion != 2 {
+				return errors.New("invalid Ethereum Gateway version")
+			}
 			/**
 			 * 1 Check dappchain balance before
 			 * 2. Claim rewards on dappchain
@@ -393,9 +400,6 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			 * 8. Create unsigned transaction and print it. GG:)
 			 */
 
-			mainnetLoomAddress := "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
-			mainnetGatewayAddress := "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570"
-			ethereumUri := "https://mainnet.infura.io/"
 			privateKeyPath := gatewayCmdFlags.PrivKeyPath
 			hsmPath := gatewayCmdFlags.HSMConfigPath
 			algo := gatewayCmdFlags.Algo
@@ -442,9 +446,18 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			mainnetGateway, err := gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
-			if err != nil {
-				return err
+			var mainnetGateway *gw.MainnetGatewayClient
+			var mainnetGatewayV2 *gwv2.MainnetGatewayClient
+			if gatewayVersion == 2 {
+				mainnetGatewayV2, err = gwv2.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
+				if err != nil {
+					return err
+				}
+			} else {
+				mainnetGateway, err = gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Prompt the user to withdraw from a specific account:
@@ -580,10 +593,30 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			fmt.Println("Oracle Sig", hex.EncodeToString(receipt.OracleSignature))
 
 			sig := receipt.OracleSignature
+			var tx *gethtype.Transaction
+			if gatewayVersion == 2 {
+				vmcAddr, err := mainnetGatewayV2.Vmc()
+				if err != nil {
+					return err
+				}
+				validatorsManager, err := vmc.ConnectToMainnetVMCClient(ethClient, vmcAddr.Hex())
+				if err != nil {
+					return err
+				}
+				validatorAddresses, err := validatorsManager.GetValidators()
+				if err != nil {
+					return err
+				}
 
-			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
-			if err != nil {
-				return err
+				tx, err = mainnetGatewayV2.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, common.HexToAddress(mainnetLoomAddress), sig, validatorAddresses)
+				if err != nil {
+					return err
+				}
+			} else {
+				tx, err = mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
+				if err != nil {
+					return err
+				}
 			}
 
 			fmt.Println("\nPlease go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
@@ -597,7 +630,11 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
+	cmdFlags.StringVar(&mainnetLoomAddress, "mainnet-loom-address", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "Mainnet LOOM token contract address in hex format")
+	cmdFlags.StringVar(&mainnetGatewayAddress, "mainnet-gateway-address", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "Mainnet Gateway contract address in hex format")
+	cmdFlags.StringVar(&ethereumUri, "ethereum-uri", "https://mainnet.infura.io/", "Ethereum URI")
+	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards to Ethereum, otherwise the entire LOOM balance of the user will be withdrawn")
+	cmdFlags.IntVar(&gatewayVersion, "gateway-version", 0, "Version of Ethereum Gateway from which funds will be withdrawn")
 	return cmd
 }
 
