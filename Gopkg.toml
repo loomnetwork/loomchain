@@ -97,6 +97,11 @@ ignored = [
 [[constraint]]
   name = "github.com/btcsuite/btcutil"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"
+
+[[constraint]]
+  name = "github.com/tyler-smith/go-bip39"
+  branch = "master"
+  
   
 [prune]
   go-tests = true
