@@ -25,6 +25,7 @@ BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
 PROMETHEUS_PROCFS_DIR=$(GOPATH)/src/github.com/prometheus/procfs
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
+HDWALLET_DIR = $(GOPATH)/src/github.com/miguelmota/go-ethereum-hdwallet
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
@@ -196,11 +197,13 @@ $(TRANSFER_GATEWAY_DIR):
 $(BINANCE_TGORACLE_DIR):
 	git clone -q git@github.com:loomnetwork/binance-tgoracle.git $@
 	cd $(BINANCE_TGORACLE_DIR) && git checkout master && git pull && git checkout $(BINANCE_TG_GIT_REV)
+$(HDWALLET_DIR):
+	git clone -q https://github.com/miguelmota/go-ethereum-hdwallet.git $@
 
 validators-tool: $(TRANSFER_GATEWAY_DIR)
 	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
 
-deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
+deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR) $(HDWALLET_DIR)
 	# Temp workaround for https://github.com/prometheus/procfs/issues/221
 	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
 	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
