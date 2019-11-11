@@ -821,7 +821,7 @@ PluginsDir: "{{ .PluginsDir }}"
 
 {{if .DPOS -}}
 #
-# Configuration of DPOSv3
+# Configuration of DPOSv3 JSON-RPC methods served on /query endpoint.
 #
 DPOS:
   # Specifies addresses of bootstrap nodes

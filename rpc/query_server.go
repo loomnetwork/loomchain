@@ -627,16 +627,16 @@ func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := dposv3.TotalStaked(dposCtx, s.DPOSCfg.BootstrapNodesList())
+	total, err := dposv3.TotalStaked(dposCtx, s.DPOSCfg.BootstrapNodesList())
 	if err != nil {
 		return nil, err
 	}
 	s.totalStakedAmount = &totalStakedAmount{
 		createAt: time.Now(),
-		amount:   *resp,
+		amount:   *total,
 	}
 	return &DPOSTotalStakedResponse{
-		TotalStaked: resp,
+		TotalStaked: total,
 	}, nil
 }
 

@@ -1302,9 +1302,13 @@ func (c *DPOS) TimeUntilElection(
 }
 
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListValidators", "request", req)
-
-	return listValidators(ctx, req)
+	displayStatistics, err := getValidatorStatistics(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &ListValidatorsResponse{
+		Statistics: displayStatistics,
+	}, nil
 }
 
 func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
@@ -1317,9 +1321,37 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 }
 
 func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListDelegations", "request", req)
+	if req.Candidate == nil {
+		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
+	}
 
-	return listDelegations(ctx, req)
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := common.BigZero()
+	candidateDelegations := make([]*Delegation, 0)
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(req.Candidate)) != 0 {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		candidateDelegations = append(candidateDelegations, delegation)
+		total = total.Add(total, &delegation.Amount.Value)
+	}
+
+	return &ListDelegationsResponse{
+		Delegations:     candidateDelegations,
+		DelegationTotal: &types.BigUInt{Value: *total},
+	}, nil
 }
 
 func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
@@ -2607,44 +2639,10 @@ func Initialize(ctx contract.Context, initState *InitializationState) error {
 	return nil
 }
 
-func listDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
-	if req.Candidate == nil {
-		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
-	}
-
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	total := common.BigZero()
-	candidateDelegations := make([]*Delegation, 0)
-	for _, d := range delegations {
-		if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(req.Candidate)) != 0 {
-			continue
-		}
-
-		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-		if err == contract.ErrNotFound {
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-
-		candidateDelegations = append(candidateDelegations, delegation)
-		total = total.Add(total, &delegation.Amount.Value)
-	}
-
-	return &ListDelegationsResponse{
-		Delegations:     candidateDelegations,
-		DelegationTotal: &types.BigUInt{Value: *total},
-	}, nil
-}
-
-func listValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
+func getValidatorStatistics(ctx contract.StaticContext) ([]*ValidatorStatistic, error) {
 	validators, err := ValidatorList(ctx)
 	if err != nil {
-		return nil, logStaticDposError(ctx, err, req.String())
+		return nil, logStaticDposError(ctx, err, "")
 	}
 
 	chainID := ctx.Block().ChainID
@@ -2663,18 +2661,16 @@ func listValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*Li
 		displayStatistics = append(displayStatistics, stat)
 	}
 
-	return &ListValidatorsResponse{
-		Statistics: displayStatistics,
-	}, nil
+	return displayStatistics, nil
 }
 
 func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*types.BigUInt, error) {
-	response, err := listValidators(ctx, &ListValidatorsRequest{})
+	validatorStats, err := getValidatorStatistics(ctx)
 	if err != nil {
 		return nil, err
 	}
 	statistics := map[string]*ValidatorStatistic{}
-	for _, statistic := range response.Statistics {
+	for _, statistic := range validatorStats {
 		nodeAddr := loom.UnmarshalAddressPB(statistic.Address)
 		if _, ok := bootstrapNodes[strings.ToLower(nodeAddr.String())]; !ok {
 			statistics[statistic.Address.String()] = statistic
