@@ -1,3 +1,5 @@
+// +build evm
+
 package factory
 
 import (
@@ -80,7 +82,8 @@ func createVmManager(vmManager *vm.Manager, tracer ethvm.Tracer) vm.Manager {
 	managerWithTracer := vm.NewManager()
 	managerWithTracer.Register(vm.VMType_EVM, func(_state loomchain.State) (vm.VM, error) {
 		var createABM evm.AccountBalanceManagerFactoryFunc
-		return evm.NewLoomVm(_state, nil, createABM, false, tracer), nil
+		lvm := evm.NewLoomVm(_state, nil, createABM)
+		return lvm.WithTracer(tracer), nil
 	})
 	return *managerWithTracer
 }

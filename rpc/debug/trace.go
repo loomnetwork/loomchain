@@ -38,7 +38,7 @@ func TraceTransaction(
 		return nil, errors.Wrapf(err, "getting block information at height %v", targetBlockNumber)
 	}
 
-	tracer, err := createTracer(config)
+	tracer, err := CreateTracer(config)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func TraceTransaction(
 	switch tracer := tracer.(type) {
 	case *vm.StructLogger:
 		return &ethapi.ExecutionResult{
-			Gas:         5,
+			Gas:         0,
 			Failed:      result.Code != abci.CodeTypeOK,
 			ReturnValue: fmt.Sprintf("%x", result),
 			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
@@ -105,7 +105,7 @@ func requestEndBlock(height int64) abci.RequestEndBlock {
 	}
 }
 
-func createTracer(traceCfg eth.TraceConfig) (vm.Tracer, error) {
+func CreateTracer(traceCfg eth.TraceConfig) (vm.Tracer, error) {
 	if traceCfg.Tracer == nil || len(*traceCfg.Tracer) == 0 {
 		return vm.NewStructLogger(traceCfg.LogConfig), nil
 	}

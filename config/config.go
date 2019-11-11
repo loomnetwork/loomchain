@@ -1,3 +1,5 @@
+// +build evm
+
 package config
 
 import (
@@ -9,6 +11,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	etheth "github.com/ethereum/go-ethereum/eth"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -22,8 +28,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
 
@@ -144,7 +148,7 @@ type Config struct {
 	AllowNamedEvmContracts bool
 
 	// Dragons
-	EVMDebugEnabled bool
+	EVMTracer *EVMTracer
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
 
@@ -166,6 +170,17 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 	return &FnConsensusConfig{
 		Enabled: false,
 		Reactor: fnConsensus.DefaultReactorConfigParsable(),
+	}
+}
+
+type EVMTracer struct {
+	etheth.TraceConfig
+	Enabled bool // enable tracer
+}
+
+func DefaultEvmTraceConfig() *EVMTracer {
+	return &EVMTracer{
+		Enabled: false,
 	}
 }
 
@@ -389,7 +404,6 @@ func DefaultConfig() *Config {
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
-		EVMDebugEnabled:            false,
 		SampleGoContractEnabled:    false,
 
 		Oracle:                 "",
@@ -424,7 +438,7 @@ func DefaultConfig() *Config {
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 	cfg.Web3 = eth.DefaultWeb3Config()
-
+	cfg.EVMTracer = DefaultEvmTraceConfig()
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
 	cfg.Auth = auth.DefaultConfig()
@@ -790,7 +804,24 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
-EVMDebugEnabled: {{ .EVMDebugEnabled }}
+{{- if .EVMTracer }}
+EVMTracer: 
+  Enabled: {{ .EVMTracer.Enabled }}
+  {{- if .EVMTracer.Tracer }}
+  Tracer: "{{ .EVMTracer.Tracer }}" //enable JavaScript-based transaction tracing LogConfig is ignored if not empty
+  {{- end}}
+  {{- if .EVMTracer.Timeout }}
+  Timeout: "{{ .EVMTracer.Timeout }}" //Not used
+  {{- end}}
+  {{- if .EVMTracer.LogConfig }}
+  LogConfig:
+    DisableMemory: {{ .EVMTracer.LogConfig.DisableMemory }} // disable memory capture
+    DisableStack: {{ .EVMTracer.LogConfig.DisableStack }} // disable stack capture
+    DisableStorage: {{ .EVMTracer.LogConfig.DisableStorage }} // disable storage capture
+    Debug: {{ .EVMTracer.LogConfig.Debug }} // print output during capture end. set to true to have an effect
+    Limit: {{ .EVMTracer.LogConfig.Debug }} // maximum length of output, but zero means unlimited
+  {{- end}}
+{{- end}}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}

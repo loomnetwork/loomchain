@@ -16,9 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/push"
-	"github.com/tendermint/tendermint/libs/db"
-
+	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -29,6 +27,8 @@ import (
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/tendermint/tendermint/libs/db"
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -38,6 +38,7 @@ import (
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/tx_handler/factory"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -834,7 +835,7 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled, nil), nil
+			return evm.NewLoomVm(state, receiptHandlerProvider.Writer(), createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -975,8 +976,17 @@ func loadApp(
 		}
 	}
 
+	tracer := ethvm.Tracer(nil)
+	if cfg.EVMTracer.Enabled {
+		// todo should we force cfg.EVMTracer.Debug to be true here
+		tracer, err = debug.CreateTracer(cfg.EVMTracer.TraceConfig)
+		if err != nil {
+			return nil, errors.Wrapf(err, "creating tracer from %v", cfg.EVMTracer)
+		}
+	}
+
 	txHandlerFactory := factory.NewTxHandlerFactory(*cfg, vmManager, chainID, appStore, createRegistry)
-	chainTxHandler, err := txHandlerFactory.TxHandler(nil, true)
+	chainTxHandler, err := txHandlerFactory.TxHandler(tracer, true)
 	if err != nil {
 		return nil, err
 	}
