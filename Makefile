@@ -48,6 +48,7 @@ GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 BINANCE_TG_GIT_REV = HEAD
 # Lock down certusone/yubihsm-go revision
 YUBIHSM_REV = 892fb9b370f3cbb486fc1f53d4a1d89e9f552af0
+HDWALLET_REV = ecdde4803440dba9c0b71d86a80313c6edcf0f37
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -241,6 +242,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR) $(HDWALLET_DIR)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
+	cd $(HDWALLET_DIR) && git checkout $(HDWALLET_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
 
