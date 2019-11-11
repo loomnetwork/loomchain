@@ -1,7 +1,6 @@
 package coin
 
 import (
-	"errors"
 	"math/big"
 	"testing"
 
@@ -612,7 +611,7 @@ func TestNilRequest(t *testing.T) {
 		Owner:  nil,
 		Amount: nil,
 	})
-	require.Equal(t, err, errors.New("owner or amount is nil"))
+	require.EqualError(t, err, "owner or amount is nil")
 
 	balResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
 		Owner: nil,
