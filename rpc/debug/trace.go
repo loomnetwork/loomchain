@@ -3,6 +3,7 @@
 package debug
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -23,6 +24,7 @@ func TraceTransaction(
 	blockstore store.BlockStore,
 	startBlockNumber, targetBlockNumber, txIndex int64,
 	config eth.TraceConfig,
+	txHash []byte,
 ) (trace interface{}, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -46,7 +48,19 @@ func TraceTransaction(
 		return nil, err
 	}
 
+	txResult, err := blockstore.GetTxResult(txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := app.SetTracer(tracer, false); err != nil {
+		return nil, err
+	}
 	result := app.DeliverTx(block.Block.Data.Txs[txIndex])
+	match, err := resultsMatch(txResult.TxResult, result)
+	if !match {
+		return nil, err
+	}
 
 	switch tracer := tracer.(type) {
 	case *vm.StructLogger:
@@ -90,6 +104,22 @@ func runUpTo(app *loomchain.Application, blockstore store.BlockStore, startHeigh
 		_ = app.Commit()
 	}
 	return errors.Errorf("cannot find transaction at height %d index %d", height, index)
+}
+
+func resultsMatch(expected, actual abci.ResponseDeliverTx) (bool, error) {
+	if expected.Code != actual.Code {
+		return false, errors.Errorf("transaction result codes do not match, expected %v got $v", expected.Code, actual.Code)
+	}
+	if 0 == bytes.Compare(expected.Data, actual.Data) {
+		return false, errors.Errorf("transaction result data does not match, expected %v got $v", expected.Data, actual.Data)
+	}
+	if expected.Log != actual.Log {
+		return false, errors.Errorf("transaction logs do not match, expected %v got $v", expected.Log, actual.Log)
+	}
+	if expected.Info != actual.Info {
+		return false, errors.Errorf("transaction info does not match, expected %v got $v", expected.Info, actual.Info)
+	}
+	return true, nil
 }
 
 func requestBeginBlock(resultBlock ctypes.ResultBlock) abci.RequestBeginBlock {

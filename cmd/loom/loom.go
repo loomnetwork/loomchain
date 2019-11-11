@@ -1018,6 +1018,7 @@ func loadApp(
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
+		EVMTracer:                   tracer,
 	}, nil
 }
 

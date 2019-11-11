@@ -373,6 +373,7 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
+	EVMTracer                   vm.Tracer
 }
 
 var _ abci.Application = &Application{}
@@ -706,6 +707,9 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		r = a.deliverTx2(storeTx, txBytes)
 	} else {
 		r = a.deliverTx(storeTx, txBytes)
+	}
+	if a.EVMTracer != nil {
+		log.Debug("evm trace", "trace", a.EVMTracer)
 	}
 
 	txFailed = r.Code != abci.CodeTypeOK
