@@ -802,6 +802,7 @@ DPOS:
   {{- range .DPOS.BootstrapNodes}}
     - "{{. -}}"
   {{- end}}
+  # Time duration in seconds in which TotolStaked is valid  
   TotalStakedCacheDuration: {{ .DPOS.TotalStakedCacheDuration }}
 {{end}}
 
