@@ -135,7 +135,7 @@ type QueryServer struct {
 	AuthCfg           *auth.Config
 	Web3Cfg           *eth.Web3Config
 	totalStakedAmount *totalStakedAmount
-	DPOSCfg           *dposv3.DPOSConfig
+	DPOSCfg           *config.DPOSConfig
 }
 
 type totalStakedAmount struct {
@@ -609,12 +609,16 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 	return k, nil
 }
 
-func (s *QueryServer) DPOSTotalStaked() (*dposv3.DPOSTotalStaked, error) {
+type DPOSTotalStaked struct {
+	TotalStaked *gtypes.BigUInt
+}
+
+func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStaked, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 	if s.totalStakedAmount != nil {
 		if time.Since(s.totalStakedAmount.createAt) <= time.Second*time.Duration(s.DPOSCfg.TotalStakedCacheDuration) {
-			return &dposv3.DPOSTotalStaked{
+			return &DPOSTotalStaked{
 				TotalStaked: &s.totalStakedAmount.amount,
 			}, nil
 		}
@@ -631,7 +635,7 @@ func (s *QueryServer) DPOSTotalStaked() (*dposv3.DPOSTotalStaked, error) {
 		createAt: time.Now(),
 		amount:   *resp,
 	}
-	return &dposv3.DPOSTotalStaked{
+	return &DPOSTotalStaked{
 		TotalStaked: resp,
 	}, nil
 }

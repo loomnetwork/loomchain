@@ -14,7 +14,6 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
@@ -64,7 +63,7 @@ type QueryService interface {
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
-	DPOSTotalStaked() (*dposv3.DPOSTotalStaked, error)
+	DPOSTotalStaked() (*DPOSTotalStaked, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)

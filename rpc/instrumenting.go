@@ -7,7 +7,6 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
@@ -126,7 +125,7 @@ func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *t
 	return
 }
 
-func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *dposv3.DPOSTotalStaked, err error) {
+func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStaked, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DposTotalStaked", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
