@@ -2664,6 +2664,8 @@ func getValidatorStatistics(ctx contract.StaticContext) ([]*ValidatorStatistic, 
 	return displayStatistics, nil
 }
 
+// TotalStaked computes the total amount of LOOM staked on-chain, including whitelisted amounts
+// locked on Ethereum, but excluding any whitelisted amounts on bootstrap nodes.
 func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*types.BigUInt, error) {
 	validatorStats, err := getValidatorStatistics(ctx)
 	if err != nil {
