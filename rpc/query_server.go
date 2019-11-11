@@ -609,16 +609,16 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 	return k, nil
 }
 
-type DPOSTotalStaked struct {
+type DPOSTotalStakedResponse struct {
 	TotalStaked *gtypes.BigUInt
 }
 
-func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStaked, error) {
+func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 	if s.totalStakedAmount != nil {
 		if time.Since(s.totalStakedAmount.createAt) <= time.Second*time.Duration(s.DPOSCfg.TotalStakedCacheDuration) {
-			return &DPOSTotalStaked{
+			return &DPOSTotalStakedResponse{
 				TotalStaked: &s.totalStakedAmount.amount,
 			}, nil
 		}
@@ -635,7 +635,7 @@ func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStaked, error) {
 		createAt: time.Now(),
 		amount:   *resp,
 	}
-	return &DPOSTotalStaked{
+	return &DPOSTotalStakedResponse{
 		TotalStaked: resp,
 	}, nil
 }

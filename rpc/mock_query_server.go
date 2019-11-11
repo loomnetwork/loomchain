@@ -270,7 +270,7 @@ func (m *MockQueryService) GetContractRecord(addr string) (*types.ContractRecord
 	return nil, nil
 }
 
-func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStaked, error) {
+func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	m.MethodsCalled = append([]string{"DposTotalStaked"}, m.MethodsCalled...)
 	return nil, nil
 }

@@ -63,7 +63,7 @@ type QueryService interface {
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
-	DPOSTotalStaked() (*DPOSTotalStaked, error)
+	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)

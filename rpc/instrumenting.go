@@ -125,7 +125,7 @@ func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *t
 	return
 }
 
-func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStaked, err error) {
+func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStakedResponse, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DposTotalStaked", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
