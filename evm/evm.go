@@ -202,7 +202,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 	} else {
 		val = value.Int
 		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
-			return nil, loom.Address{}, errors.Errorf("value %v must be non negative", value)
+			return nil, loom.Address{}, errors.Errorf("value %v must be positive", value)
 		}
 	}
 
@@ -277,7 +277,7 @@ func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.Bi
 	} else {
 		val = value.Int
 		if val.Cmp(common.Big0) < 0 {
-			return 0, errors.Errorf("value %v must be non negetive", value)
+			return 0, errors.Errorf("value %v must be positive", value)
 		}
 	}
 

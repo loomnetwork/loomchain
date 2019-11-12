@@ -190,7 +190,7 @@ func testValue(t *testing.T, state loomchain.State, vm lvm.VM, caller loom.Addre
 	_, _, err = vm.Create(caller, bytecode, loom.NewBigUIntFromInt(value))
 	if checkTxValueFeature && value < 0 {
 		require.Error(t, err)
-		require.Equal(t, err.Error(), fmt.Sprintf("value %v must be non negative", big.NewInt(value)))
+		require.Equal(t, err.Error(), fmt.Sprintf("value %v must be positive", big.NewInt(value)))
 	}
 }
 
