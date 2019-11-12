@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
@@ -149,6 +150,8 @@ type Config struct {
 	SkipMinBuildCheck bool
 
 	Web3 *eth.Web3Config
+
+	DPOS *DPOSConfig
 }
 
 type Metrics struct {
@@ -167,6 +170,33 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 		Enabled: false,
 		Reactor: fnConsensus.DefaultReactorConfigParsable(),
 	}
+}
+
+type DPOSConfig struct {
+	BootstrapNodes           []string
+	TotalStakedCacheDuration int64
+}
+
+func DefaultDPOSConfig() *DPOSConfig {
+	return &DPOSConfig{
+		BootstrapNodes: []string{
+			"default:0x0e99fc16e32e568971908f2ce54b967a42663a26",
+			"default:0xac3211caecc45940a6d2ba006ca465a647d8464f",
+			"default:0x69c48768dbac492908161be787b7a5658192df35",
+			"default:0x2a3a7c850586d4f80a12ac1952f88b1b69ef48e1",
+			"default:0x4a1b8b15e50ce63cc6f65603ea79be09206cae70",
+			"default:0x0ce7b61c97a6d5083356f115288f9266553e191e",
+		},
+		TotalStakedCacheDuration: 60, // 60 seconds
+	}
+}
+
+func (dposCfg *DPOSConfig) BootstrapNodesList() map[string]bool {
+	bootstrapNodesList := map[string]bool{}
+	for _, addr := range dposCfg.BootstrapNodes {
+		bootstrapNodesList[strings.ToLower(addr)] = true
+	}
+	return bootstrapNodesList
 }
 
 type DBBackendConfig struct {
@@ -424,6 +454,7 @@ func DefaultConfig() *Config {
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 	cfg.Web3 = eth.DefaultWeb3Config()
+	cfg.DPOS = DefaultDPOSConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -787,6 +818,21 @@ RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
+
+{{if .DPOS -}}
+#
+# Configuration of DPOSv3 JSON-RPC methods served on /query endpoint.
+#
+DPOS:
+  # Specifies addresses of bootstrap nodes
+  BootstrapNodes:
+  {{- range .DPOS.BootstrapNodes}}
+    - "{{. -}}"
+  {{- end}}
+  # How long (in seconds) the response from the dpos_total_staked RPC method should be cached.
+  TotalStakedCacheDuration: {{ .DPOS.TotalStakedCacheDuration }}
+{{end}}
+
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #

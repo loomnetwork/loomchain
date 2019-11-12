@@ -6,10 +6,12 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
+	gtypes "github.com/loomnetwork/go-loom/types"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
@@ -25,6 +27,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -128,9 +131,16 @@ type QueryServer struct {
 	store.BlockStore
 	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
-	EventStore store.EventStore
-	AuthCfg    *auth.Config
-	Web3Cfg    *eth.Web3Config
+	EventStore        store.EventStore
+	AuthCfg           *auth.Config
+	Web3Cfg           *eth.Web3Config
+	totalStakedAmount *totalStakedAmount
+	DPOSCfg           *config.DPOSConfig
+}
+
+type totalStakedAmount struct {
+	createAt time.Time
+	amount   gtypes.BigUInt
 }
 
 var _ QueryService = &QueryServer{}
@@ -597,6 +607,37 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 		CreatorAddress:  rec.Owner,
 	}
 	return k, nil
+}
+
+type DPOSTotalStakedResponse struct {
+	TotalStaked *gtypes.BigUInt
+}
+
+func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	if s.totalStakedAmount != nil {
+		if time.Since(s.totalStakedAmount.createAt) <= time.Second*time.Duration(s.DPOSCfg.TotalStakedCacheDuration) {
+			return &DPOSTotalStakedResponse{
+				TotalStaked: &s.totalStakedAmount.amount,
+			}, nil
+		}
+	}
+	dposCtx, err := s.createStaticContractCtx(snapshot, "dposV3")
+	if err != nil {
+		return nil, err
+	}
+	total, err := dposv3.TotalStaked(dposCtx, s.DPOSCfg.BootstrapNodesList())
+	if err != nil {
+		return nil, err
+	}
+	s.totalStakedAmount = &totalStakedAmount{
+		createAt: time.Now(),
+		amount:   *total,
+	}
+	return &DPOSTotalStakedResponse{
+		TotalStaked: total,
+	}, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
