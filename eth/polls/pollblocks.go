@@ -42,7 +42,7 @@ func (p *EthBlockPoll) Poll(
 	if toBlock-p.lastBlock > p.maxBlockRange {
 		toBlock = p.lastBlock + p.maxBlockRange
 	}
-	lastBlock, results, err := getBlockHashes(p.blockStore, toBlock, p.lastBlock)
+	lastBlock, results, err := getBlockHashes(p.blockStore, p.lastBlock, toBlock)
 	if err != nil {
 		return p, nil, nil
 	}
@@ -57,15 +57,15 @@ func (p *EthBlockPoll) AllLogs(
 	// Only pull logs from latest height - maxBlockRange
 	toBlock := uint64(state.Block().Height)
 	startBlock := p.startBlock
-	if toBlock-startBlock > p.maxBlockRange {
-		startBlock = toBlock - p.maxBlockRange
+	if toBlock-(startBlock+1) > p.maxBlockRange {
+		startBlock = toBlock - p.maxBlockRange - 1
 	}
-	_, results, err := getBlockHashes(p.blockStore, toBlock, startBlock)
+	_, results, err := getBlockHashes(p.blockStore, startBlock, toBlock)
 	return eth.EncBytesArray(results), err
 }
 
 func getBlockHashes(
-	blockStore store.BlockStore, toBlock, lastBlockRead uint64,
+	blockStore store.BlockStore, lastBlockRead, toBlock uint64,
 ) (uint64, [][]byte, error) {
 	result, err := blockStore.GetBlockRangeByHeight(int64(lastBlockRead+1), int64(toBlock))
 	if err != nil {

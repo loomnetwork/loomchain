@@ -41,7 +41,7 @@ func (p *EthTxPoll) Poll(
 	if toBlock-p.lastBlockRead > p.maxBlockRange {
 		toBlock = p.lastBlockRead + p.maxBlockRange
 	}
-	lastBlock, results, err := getTxHashes(toBlock, p.lastBlockRead, readReceipt, p.evmAuxStore)
+	lastBlock, results, err := getTxHashes(p.lastBlockRead, toBlock, readReceipt, p.evmAuxStore)
 	if err != nil {
 		return p, nil, nil
 	}
@@ -58,11 +58,11 @@ func (p *EthTxPoll) AllLogs(
 	if toBlock-startBlock > p.maxBlockRange {
 		startBlock = toBlock - p.maxBlockRange
 	}
-	_, results, err := getTxHashes(toBlock, startBlock, readReceipts, p.evmAuxStore)
+	_, results, err := getTxHashes(startBlock, toBlock, readReceipts, p.evmAuxStore)
 	return eth.EncBytesArray(results), err
 }
 
-func getTxHashes(toBlock uint64, lastBlockRead uint64,
+func getTxHashes(lastBlockRead, toBlock uint64,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore) (uint64, [][]byte, error) {
 	var txHashes [][]byte
 	for height := lastBlockRead + 1; height < toBlock; height++ {
@@ -90,7 +90,7 @@ func (p *EthTxPoll) LegacyPoll(
 		toBlock = p.lastBlockRead + p.maxBlockRange
 	}
 	var txHashes [][]byte
-	for height := p.lastBlockRead + 1; height < toBlock; height++ {
+	for height := p.lastBlockRead + 1; height <= toBlock; height++ {
 		txHashList, err := p.evmAuxStore.GetTxHashList(height)
 		if err != nil {
 			return p, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
