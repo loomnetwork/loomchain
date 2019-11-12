@@ -19,6 +19,8 @@ const (
 	// Enable additional validation of account & contract chain IDs to make it harder to obtain
 	// invalid withdrawal receipts.
 	TGVersion1_2 = "tg:1.2"
+	// Enable precision adjustment between Loom on BinanceChain and Loom Coin on DappChain
+	TGBinanceChainLoomCoinPrecisionAdjustment = "tg:binance-loomcoin-pa"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
