@@ -842,6 +842,16 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 	a.childTxRefs = nil
 
+	// Update the index before emitting events in case the subscribers attempt to lookup the
+	// block by number as soon as they receive an event.
+	if a.BlockIndexStore != nil {
+		a.BlockIndexStore.SetBlockHashAtHeight(uint64(height), a.curBlockHash)
+	}
+
+	// Update the last block header before emitting events in case the subscribers attempt to access
+	// the latest committed state as soon as they receive an event.
+	a.lastBlockHeader = a.curBlockHeader
+
 	go func(height int64, blockHeader abci.Header, committedTxs []CommittedTx) {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
 			log.Error("Emit Block Event error", "err", err)
@@ -865,14 +875,9 @@ func (a *Application) Commit() abci.ResponseCommit {
 		}
 	}(height, a.curBlockHeader, a.committedTxs)
 	a.committedTxs = nil
-	a.lastBlockHeader = a.curBlockHeader
 
 	if err := a.Store.Prune(); err != nil {
 		log.Error("failed to prune app.db", "err", err)
-	}
-
-	if a.BlockIndexStore != nil {
-		a.BlockIndexStore.SetBlockHashAtHeight(uint64(height), a.curBlockHash)
 	}
 
 	return abci.ResponseCommit{
@@ -896,6 +901,7 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
+
 func (a *Application) ReadOnlyState() State {
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
