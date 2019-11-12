@@ -65,7 +65,7 @@ func (p *EthTxPoll) AllLogs(
 func getTxHashes(lastBlockRead, toBlock uint64,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore) (uint64, [][]byte, error) {
 	var txHashes [][]byte
-	for height := lastBlockRead + 1; height < toBlock; height++ {
+	for height := lastBlockRead + 1; height <= toBlock; height++ {
 		txHashList, err := evmAuxStore.GetTxHashList(height)
 
 		if err != nil {
@@ -99,7 +99,7 @@ func (p *EthTxPoll) LegacyPoll(
 			txHashes = append(txHashes, txHashList...)
 		}
 	}
-	p.lastBlockRead = uint64(state.Block().Height)
+	p.lastBlockRead = toBlock
 
 	blocksMsg := types.EthFilterEnvelope_EthTxHashList{
 		EthTxHashList: &types.EthTxHashList{EthTxHash: txHashes},
