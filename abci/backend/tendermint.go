@@ -145,7 +145,9 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 	}
 	conf.ProxyApp = fmt.Sprintf("tcp://127.0.0.1:%d", b.OverrideCfg.RPCProxyPort)
 	conf.Consensus.CreateEmptyBlocks = b.OverrideCfg.CreateEmptyBlocks
-	conf.Mempool.WalPath = "data/mempool.wal"
+	if b.OverrideCfg.MempoolWalEnabled {
+		conf.Mempool.WalPath = "data/mempool.wal"
+	}
 
 	cfg.EnsureRoot(b.RootPath)
 	return conf, err
@@ -160,6 +162,7 @@ type OverrideConfig struct {
 	RPCProxyPort             int32
 	P2PPort                  int32
 	CreateEmptyBlocks        bool
+	MempoolWalEnabled        bool
 	HsmConfig                *hsmpv.HsmConfig
 	FnConsensusReactorConfig *fnConsensus.ReactorConfigParsable
 }

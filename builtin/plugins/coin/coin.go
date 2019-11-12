@@ -1,7 +1,6 @@
 package coin
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -12,8 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/features"
-
-	errUtil "github.com/pkg/errors"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -106,38 +104,47 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	return ctx.Set(economyKey, econ)
 }
 
-// MintToGateway adds loom coins to the loom coin Gateway contract balance, and updates the total supply.
+// MintToGateway adds LOOM to the Gateway contract balance and updates the total supply.
 func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
 	if ctx.FeatureEnabled(features.CoinVersion1_2Feature, false) && req.Amount == nil {
 		return ErrInvalidRequest
 	}
-	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
-	if err != nil {
-		return errUtil.Wrap(err, "failed to mint Loom coin")
+
+	if err := validateMinter(ctx, ctx.Message().Sender); err != nil {
+		return errors.Wrap(err, "failed to mint LOOM")
 	}
 
-	if ctx.Message().Sender.Compare(gatewayAddr) != 0 {
-		return errors.New("not authorized to mint Loom coin")
-	}
-
-	return mint(ctx, gatewayAddr, &req.Amount.Value)
+	return mint(ctx, ctx.Message().Sender, &req.Amount.Value)
 }
 
+// Burn removes LOOM from the Gateway contract balance and updates the total supply.
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
 	if req.Owner == nil || req.Amount == nil {
 		return errors.New("owner or amount is nil")
 	}
 
-	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
-	if err != nil {
-		return errUtil.Wrap(err, "failed to burn Loom coin")
-	}
-
-	if ctx.Message().Sender.Compare(gatewayAddr) != 0 {
-		return errors.New("not authorized to burn Loom coin")
+	if err := validateMinter(ctx, ctx.Message().Sender); err != nil {
+		return errors.Wrap(err, "failed to burn LOOM")
 	}
 
 	return burn(ctx, loom.UnmarshalAddressPB(req.Owner), &req.Amount.Value)
+}
+
+// Returns nil if the given address is allowed to mint & burn LOOM, and an error otherwise.
+func validateMinter(ctx contract.StaticContext, minter loom.Address) error {
+	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
+	if err == nil && minter.Compare(gatewayAddr) == 0 {
+		return nil
+	}
+
+	if ctx.FeatureEnabled(features.CoinVersion1_3Feature, false) {
+		gatewayAddr, err = ctx.Resolve("binance-gateway")
+		if err == nil && minter.Compare(gatewayAddr) == 0 {
+			return nil
+		}
+	}
+
+	return errors.New("not authorized")
 }
 
 func burn(ctx contract.Context, from loom.Address, amount *loom.BigUInt) error {

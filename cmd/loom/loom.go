@@ -1216,6 +1216,7 @@ func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsens
 		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
 		HsmConfig:                cfg.HsmConfig,
 		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
+		MempoolWalEnabled:        cfg.MempoolWalEnabled,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -1263,6 +1264,7 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1281,6 +1283,7 @@ func initQueryService(
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 		Web3Cfg:                cfg.Web3,
+		DPOSCfg:                cfg.DPOS,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
