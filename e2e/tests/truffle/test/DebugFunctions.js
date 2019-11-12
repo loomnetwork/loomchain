@@ -11,7 +11,6 @@ const TxHashTestContract = artifacts.require('TxHashTestContract');
 
 contract('debug_traceTransaction', async (accounts) => {
     let contract, fromAddr, nodeAddr, txHashTestContract, web3, web3js;
-    const StructLogsLength = 87;
     beforeEach(async () => {
         nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8').trim()
         const chainID = 'default';
@@ -50,7 +49,8 @@ contract('debug_traceTransaction', async (accounts) => {
             jsonrpc: "2.0",
             id: new Date().getTime()
         }, function (error, result) {
-            assert.equal(StructLogsLength, result.result.structLogs.length);
+            assert.equal(null, error, "debug_traceTransaction returned error");
+            assert.equal(true, result.result.structLogs.length > 0, "trace did not return any data");
         });
         await waitForXBlocks(nodeAddr, 1)
     })

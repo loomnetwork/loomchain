@@ -940,16 +940,16 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 
 	splitStore := store.NewSplitStore(snapshot, store.NewMemStore(), startVersion-1)
 	factory := a.TxHandlerFactory.Copy(splitStore)
-	//txHandle, err := factory.TxHandler(nil, false)
-	//if err != nil {
-	//	return nil, 0, err
-	//}
+	txHandle, err := factory.TxHandler(false)
+	if err != nil {
+		return nil, 0, err
+	}
 	newApp := &Application{
 		Store: splitStore,
 		Init: func(state State) error {
 			panic("init should not be called")
 		},
-		//TxHandler:                   txHandle,
+		TxHandler:                   txHandle,
 		TxHandlerFactory:            factory,
 		BlockIndexStore:             nil,
 		EventHandler:                nil,
