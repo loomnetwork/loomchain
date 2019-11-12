@@ -201,6 +201,12 @@ contract('MyToken', async (accounts) => {
 
   it('MyCoin Contract eth_estimateGas', async ()=>{
     const mycoinContract = await MyCoin.deployed();
+    await web3js.eth.estimateGas({
+      from: "0x11f4d0A3c12e86B4b5F39B213F7E19D048276DAe",
+      data: MyCoin._json.bytecode
+  })
+    .then(console.log);
+
     contract = new web3js.eth.Contract(MyCoin._json.abi,mycoinContract.address,{alice});
     let actual = await contract.methods.balanceOf(mycoinContract.address).call();
     assert.equal(actual,0,"balance not correct")

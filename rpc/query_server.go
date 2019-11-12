@@ -1164,10 +1164,8 @@ func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.Block
 		caller = loom.RootAddress(ethChainID)
 	}
 
-	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
-	if err != nil {
-		return resp, err
-	}
+	// Target address can be empty on contract deploy transaction
+	contract, _ := eth.DecDataToAddress(s.ChainID, query.To)
 
 	data, err := eth.DecDataToBytes(query.Data)
 	if err != nil {
