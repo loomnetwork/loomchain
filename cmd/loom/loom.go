@@ -797,6 +797,26 @@ func loadApp(
 
 	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, cfg.EVMPersistentTxReceiptsMax, evmAuxStore)
 
+	tracer := ethvm.Tracer(nil)
+	if cfg.EVMTracer.Enabled {
+		traceCfg := eth.TraceConfig{
+			Tracer: &cfg.EVMTracer.Tracer,
+		}
+		if len(cfg.EVMTracer.Tracer) == 0 {
+			traceCfg.LogConfig = &ethvm.LogConfig{
+				DisableMemory:  cfg.EVMTracer.DisableMemory,
+				DisableStack:   cfg.EVMTracer.DisableStack,
+				DisableStorage: cfg.EVMTracer.DisableStorage,
+				Debug:          true,
+				Limit:          cfg.EVMTracer.Limit,
+			}
+		}
+		tracer, err = debug.CreateTracer(traceCfg)
+		if err != nil {
+			return nil, errors.Wrapf(err, "creating tracer from %v", cfg.EVMTracer)
+		}
+	}
+
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -836,7 +856,8 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, receiptHandlerProvider.Writer(), createABM), nil
+			lvm := evm.NewLoomVm(state, receiptHandlerProvider.Writer(), createABM)
+			return lvm.WithTracer(tracer), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -977,28 +998,8 @@ func loadApp(
 		}
 	}
 
-	tracer := ethvm.Tracer(nil)
-	if cfg.EVMTracer.Enabled {
-		traceCfg := eth.TraceConfig{
-			Tracer: &cfg.EVMTracer.Tracer,
-		}
-		if len(cfg.EVMTracer.Tracer) == 0 {
-			traceCfg.LogConfig = &ethvm.LogConfig{
-				DisableMemory:  cfg.EVMTracer.DisableMemory,
-				DisableStack:   cfg.EVMTracer.DisableStack,
-				DisableStorage: cfg.EVMTracer.DisableStorage,
-				Debug:          true,
-				Limit:          cfg.EVMTracer.Limit,
-			}
-		}
-		tracer, err = debug.CreateTracer(traceCfg)
-		if err != nil {
-			return nil, errors.Wrapf(err, "creating tracer from %v", cfg.EVMTracer)
-		}
-	}
-
 	txHandlerFactory := factory.NewTxHandlerFactory(*cfg, vmManager, chainID, appStore, createRegistry)
-	chainTxHandler, err := txHandlerFactory.TxHandler(tracer, true)
+	chainTxHandler, err := txHandlerFactory.TxHandler(true)
 	if err != nil {
 		return nil, err
 	}

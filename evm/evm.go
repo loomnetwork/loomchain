@@ -136,7 +136,6 @@ func (m *evmAccountBalanceManager) Transfer(from, to common.Address, amount *big
 	m.abm.Transfer(fromAddr, toAddr, loom.NewBigUInt(amount))
 }
 
-// TODO: this shouldn't be exported, rename to wrappedEVM
 type wrappedEVM struct {
 	sdb             vm.StateDB
 	context         vm.Context
@@ -269,7 +268,6 @@ func (e wrappedEVM) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) 
 	return result.Bytes(), nil
 }
 
-// TODO: this doesn't need to be exported, rename to newEVM
 func (e wrappedEVM) newEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
 	return vm.NewEVM(e.context, e.sdb, &e.chainConfig, e.vmConfig)

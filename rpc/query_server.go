@@ -1149,10 +1149,6 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTra
 	if err != nil {
 		return nil, err
 	}
-	txHash, err := eth.DecDataToBytes(receipt.TxHash)
-	if err != nil {
-		return nil, err
-	}
 	return debug.TraceTransaction(
 		*replayApp,
 		s.BlockStore,
@@ -1160,7 +1156,6 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTra
 		int64(blockNumber),
 		int64(txIndex),
 		cfg,
-		txHash,
 	)
 }
 

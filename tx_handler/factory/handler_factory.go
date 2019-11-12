@@ -55,37 +55,39 @@ func (f txHandleFactory) Copy(newStore store.VersionedKVStore) loomchain.TxHandl
 	}
 }
 
-func (f txHandleFactory) TxHandler(tracer ethvm.Tracer, metrics bool) (loomchain.TxHandler, error) {
-	vmManager := createVmManager(f.vmManager, tracer)
+// Creates a handle with an entirely new vmManager with dummy account balance manager factory and receipt handler.
+func (f txHandleFactory) TxHandlerWithTracer(tracer ethvm.Tracer, metrics bool) (loomchain.TxHandler, error) {
+	f.vmManager = createVmManager(tracer)
+	return f.TxHandler(metrics)
+}
+
+func (f txHandleFactory) TxHandler(metrics bool) (loomchain.TxHandler, error) {
 	nonceTxHandler := auth.NewNonceHandler()
 
-	txMiddleware, err := txMiddleWare(f.cfg, vmManager, nonceTxHandler, f.chainID, f.store, metrics)
+	txMiddleware, err := txMiddleWare(f.cfg, *f.vmManager, nonceTxHandler, f.chainID, f.store, metrics)
 	if err != nil {
 		return nil, err
 	}
-	postCommitMiddlewares, err := postCommitMiddleWAre(f.cfg, vmManager, nonceTxHandler)
+	postCommitMiddlewares, err := postCommitMiddleWAre(f.cfg, *f.vmManager, nonceTxHandler)
 	if err != nil {
 		return nil, err
 	}
 
 	return loomchain.MiddlewareTxHandler(
 		txMiddleware,
-		router(f.cfg, vmManager, f.createRegistry),
+		router(f.cfg, *f.vmManager, f.createRegistry),
 		postCommitMiddlewares,
 	), nil
 }
 
-func createVmManager(vmManager *vm.Manager, tracer ethvm.Tracer) vm.Manager {
-	if tracer == nil && vmManager != nil {
-		return *vmManager
-	}
+func createVmManager(tracer ethvm.Tracer) *vm.Manager {
 	managerWithTracer := vm.NewManager()
 	managerWithTracer.Register(vm.VMType_EVM, func(_state loomchain.State) (vm.VM, error) {
 		var createABM evm.AccountBalanceManagerFactoryFunc
 		lvm := evm.NewLoomVm(_state, nil, createABM)
 		return lvm.WithTracer(tracer), nil
 	})
-	return *managerWithTracer
+	return managerWithTracer
 }
 
 func txMiddleWare(

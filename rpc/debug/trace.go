@@ -24,7 +24,6 @@ func TraceTransaction(
 	blockstore store.BlockStore,
 	startBlockNumber, targetBlockNumber, txIndex int64,
 	config eth.TraceConfig,
-	txHash []byte,
 ) (trace interface{}, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -48,7 +47,7 @@ func TraceTransaction(
 		return nil, err
 	}
 
-	txResult, err := blockstore.GetTxResult(txHash)
+	txResult, err := blockstore.GetTxResult(block.Block.Data.Txs[txIndex].Hash())
 	if err != nil {
 		return nil, err
 	}
