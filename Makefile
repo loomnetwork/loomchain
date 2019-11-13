@@ -57,6 +57,9 @@ HASHICORP_GIT_SHA = `cd ${HASHICORP_DIR} && git rev-parse --verify ${HASHICORP_G
 GAMECHAIN_GIT_SHA = `cd ${GAMECHAIN_DIR} && git rev-parse --verify HEAD`
 BTCD_GIT_SHA = `cd ${BTCD_DIR} && git rev-parse --verify ${BTCD_GIT_REV}`
 
+# Temp hack to get the custom build running on asia1
+BUILD_NUMBER=1337
+
 GOFLAGS_BASE = \
 	-X $(PKG).Build=$(BUILD_NUMBER) \
 	-X $(PKG).GitSHA=$(GIT_SHA) \
