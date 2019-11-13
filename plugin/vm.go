@@ -15,12 +15,12 @@ import (
 	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/pkg/errors"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -188,7 +188,7 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 }
 
 func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	/*var createABM levm.AccountBalanceManagerFactoryFunc
+	var createABM levm.AccountBalanceManagerFactoryFunc
 	var err error
 	if vm.newABMFactory != nil {
 		createABM, err = vm.newABMFactory(vm)
@@ -197,22 +197,20 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 		}
 	}
 	evm := levm.NewLoomVm(vm.State, vm.receiptWriter, createABM)
-	return evm.Call(caller, addr, input, value)*/
-	return nil, nil
+	return evm.Call(caller, addr, input, value)
 }
 
 func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
-	//var createABM levm.AccountBalanceManagerFactoryFunc
-	//var err error
-	//if vm.newABMFactory != nil {
-	//	createABM, err = vm.newABMFactory(vm)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
-	//evm := levm.NewLoomVm(vm.State, vm.receiptWriter, createABM)
-	//return evm.StaticCall(caller, addr, input)
-	return nil, nil
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if vm.newABMFactory != nil {
+		createABM, err = vm.newABMFactory(vm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	evm := levm.NewLoomVm(vm.State, vm.receiptWriter, createABM)
+	return evm.StaticCall(caller, addr, input)
 }
 
 func (vm *PluginVM) GetCode(addr loom.Address) ([]byte, error) {
