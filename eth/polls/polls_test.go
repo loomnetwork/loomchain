@@ -168,7 +168,7 @@ func testTxPoll(t *testing.T) {
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
 	require.True(t, ok)
-	require.Equal(t, 5, len(data), "wrong number of logs returned")
+	require.Equal(t, 6, len(data), "wrong number of logs returned")
 
 	state115 := common.MockStateAt(state, uint64(115))
 	result, err = sub.Poll(state115, id, receiptHandler)
@@ -184,7 +184,7 @@ func testTxPoll(t *testing.T) {
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
 	require.True(t, ok)
-	require.Equal(t, 5, len(data), "wrong number of logs returned")
+	require.Equal(t, 4, len(data), "wrong number of logs returned")
 
 	state220 := common.MockStateAt(state, uint64(220))
 
