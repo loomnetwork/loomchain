@@ -271,6 +271,11 @@ func (m *MockQueryService) GetContractRecord(addr string) (*types.ContractRecord
 	return nil, nil
 }
 
+func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
+	m.MethodsCalled = append([]string{"DposTotalStaked"}, m.MethodsCalled...)
+	return nil, nil
+}
+
 // deprecated function
 func (m *MockQueryService) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	m.mutex.Lock()

@@ -1150,6 +1150,7 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1168,6 +1169,7 @@ func initQueryService(
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 		Web3Cfg:                cfg.Web3,
+		DPOSCfg:                cfg.DPOS,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
