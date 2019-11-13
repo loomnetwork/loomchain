@@ -38,6 +38,9 @@ func GetTxByBlockAndIndex(
 	iHeight := int64(height)
 
 	blockResult, err := blockStore.GetBlockByHeight(&iHeight)
+	if err != nil {
+		return eth.GetEmptyTxObject(), errors.Errorf("error getting block for height %v", height)
+	}
 	if blockResult == nil || blockResult.Block == nil {
 		return eth.GetEmptyTxObject(), errors.Errorf("no block results found at height %v", height)
 	}

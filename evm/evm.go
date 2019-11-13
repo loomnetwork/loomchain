@@ -302,32 +302,6 @@ func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 	}
 }
 
-func defaultVmConfig() vm.Config {
-	logCfg := vm.LogConfig{
-		DisableMemory:  true, // disable memory capture
-		DisableStack:   true, // disable stack capture
-		DisableStorage: true, // disable storage capture
-		Limit:          0,    // maximum length of output, but zero means unlimited
-	}
-
-	logger := vm.NewStructLogger(&logCfg)
-	return vm.Config{
-		// Debug enabled debugging Interpreter options
-		Debug: false,
-		// Tracer is the op code logger
-		Tracer: logger,
-		// NoRecursion disabled Interpreter call, callcode,
-		// delegate call and create.
-		NoRecursion: false,
-		// Enable recording of SHA3/keccak preimages
-		EnablePreimageRecording: true, //TODO: make this optional, [MGC] I don't think we need to keep this
-		// JumpTable contains the EVM instruction table. This
-		// may be left uninitialised and will be set to the default
-		// table.
-		//JumpTable: [256]operation,
-	}
-}
-
 func createVmConfig(tracer vm.Tracer) (vm.Config, error) {
 	if tracer == nil {
 		logCfg := vm.LogConfig{

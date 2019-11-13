@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	validNameRE = regexp.MustCompile("^[a-zA-Z0-9\\.\\-]+$")
+	validNameRE = regexp.MustCompile(`^[a-zA-Z0-9\.\-]+$`)
 )
 
 func recordKey(name string) []byte {

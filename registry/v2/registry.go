@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	validNameRE = regexp.MustCompile("^[a-zA-Z0-9\\.\\-]+$")
+	validNameRE = regexp.MustCompile(`^[a-zA-Z0-9\.\-]+$`)
 
 	// Store Keys
 	contractAddrKeyPrefix   = []byte("reg_caddr")
