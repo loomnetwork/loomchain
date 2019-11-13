@@ -197,6 +197,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 		}
 	}
 	evm := levm.NewLoomVm(vm.State, vm.receiptWriter, createABM)
+
 	return evm.Call(caller, addr, input, value)
 }
 
