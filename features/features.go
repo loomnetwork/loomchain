@@ -21,6 +21,8 @@ const (
 	TGVersion1_2 = "tg:v1.2"
 	// Enable token precision adjustment for LOOM deposits & withdrawals via Binance Gateway
 	TGVersion1_3 = "tg:v1.3"
+	// Enable Loomcoin withdrawal fee to Binance chain
+	TGEanableBinanceLoomWithdrawalFee = "tg:binance-chain-loom-token-withdraw-fee"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
