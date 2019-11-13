@@ -4,6 +4,9 @@ set -ex
 
 PKG=github.com/loomnetwork/loomchain
 
+# Temp hack to get custom build to run on asia1
+export BUILD_NUMBER=1337
+
 # setup temp GOPATH
 export GOPATH=/tmp/gopath-$BUILD_TAG
 export
