@@ -110,6 +110,13 @@ func (m *MockQueryService) EthGetStorageAt(address eth.Data, position string, bl
 	return "", nil
 }
 
+func (m *MockQueryService) EthGetStorageSize(address eth.Data, block eth.BlockHeight) (uint64, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"EthGetStorageSize"}, m.MethodsCalled...)
+	return 0, nil
+}
+
 func (m *MockQueryService) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
