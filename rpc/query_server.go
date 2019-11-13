@@ -1151,6 +1151,36 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 	return eth.EncBytes(storage), nil
 }
 
+// EthGetStroageSize returns the number of keys in storage trie of an account
+func (s *QueryServer) EthGetStorageSize(local eth.Data, block eth.BlockHeight) (uint64, error) {
+	address, err := eth.DecDataToAddress(s.ChainID, local)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to decode address parameter %v", local)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	if block == "" {
+		block = "latest"
+	}
+
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return 0, errors.Wrapf(err, "invalid block height %s", block)
+	}
+	if int64(height) != snapshot.Block().Height {
+		return 0, errors.Wrapf(err, "unable to get storage size at height %v", block)
+	}
+
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	storageSize, err := evm.GetStorageSize(address)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to get EVM storage size at %v", address.Local.String())
+	}
+	return storageSize, nil
+}
+
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
 	return eth.Quantity("0x0"), nil
 }

@@ -527,6 +527,17 @@ func (m InstrumentingMiddleware) EthGetStorageAt(address eth.Data, position stri
 	return
 }
 
+func (m InstrumentingMiddleware) EthGetStorageSize(address eth.Data, block eth.BlockHeight) (resp uint64, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetStorageSize", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetStorageSize(address, block)
+	return
+}
+
 func (m InstrumentingMiddleware) EthEstimateGas(query eth.JsonTxCallObject) (resp eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthEstimateGas", "error", fmt.Sprint(err != nil)}

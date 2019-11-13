@@ -221,6 +221,10 @@ func (vm *PluginVM) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) 
 	return []byte{}, nil
 }
 
+func (vm *PluginVM) GetStorageSize(addr loom.Address) (uint64, error) {
+	return 0, nil
+}
+
 // Implements plugin.Context interface (go-loom/plugin/contract.go)
 type contractContext struct {
 	caller  loom.Address

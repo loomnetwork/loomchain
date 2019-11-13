@@ -264,6 +264,15 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 	return result.Bytes(), nil
 }
 
+func (e Evm) GetStorageSize(addr loom.Address) (uint64, error) {
+	numKeys := uint64(0)
+	e.sdb.ForEachStorage(common.BytesToAddress(addr.Local), func(key, value common.Hash) bool {
+		numKeys++
+		return true
+	})
+	return numKeys, nil
+}
+
 // TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
