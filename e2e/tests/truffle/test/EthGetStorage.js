@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
-const { getStorageAt, getLatestBlock } = require('./helpers')
+const { getStorageAt, getLatestBlock, getStorageSize } = require('./helpers')
 const StoreTestContract = artifacts.require('StoreTestContract');
 
 // web3 functions called using truffle objects use the loomProvider
@@ -87,6 +87,14 @@ contract('StoreTestContract', async (accounts) => {
     result = await getStorageAt(ethUrl, storeContract.address, "0x036b6384b5eca791c62761152d0c79bb0604c104a5fb6f4eb0703f3154bb3db1", "")
     result = await web3js.utils.hexToNumber(result)
     assert.equal(result, 9000)
+  });
+
+  it('eth_getStorageSize', async () => {
+    const storeContract = await StoreTestContract.deployed();
+
+    result = await getStorageSize(ethUrl, storeContract.address, "latest")
+    assert.equal(result, 8 ,"Wrong number of keys in the storage trie")
+    
   });
 
 });

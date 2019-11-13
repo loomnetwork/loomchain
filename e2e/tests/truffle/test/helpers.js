@@ -101,6 +101,23 @@ async function getStorageAt(ethUrl,account,position,block){
   return res.result
 }
 
+async function getStorageSize(ethUrl,account,block){
+  var options = {
+    method: 'POST',
+    uri: ethUrl,
+    body: {
+      jsonrpc: '2.0',
+      method: 'eth_getStorageSize',
+      params: [account, block],
+      id: 83,
+    },
+    json: true
+  };
+
+  const res = await rp(options)
+  return res.result
+}
+
 async function getLatestBlock(nodeAddr) {
   const ethUrl = `http://${nodeAddr}/rpc/status`
   var options = {
@@ -144,5 +161,5 @@ function getLoomEvmTxHash(ethTx, fromAddr) {
 module.exports = {
   assertRevert, delay, waitForXBlocks, ethGetTransactionCount, getStorageAt, 
   getLatestBlock, getLoomEvmTxHash, getEventSignature, getContractFuncInterface,
-  getMappedAccount
+  getMappedAccount, getStorageSize,
 }
