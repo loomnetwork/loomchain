@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"runtime"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,8 +27,9 @@ import (
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
 const (
-	EVMEnabled      = true
-	defaultGasLimit = math.MaxUint64
+	EVMEnabled           = true
+	defaultGasLimit      = math.MaxUint64
+	storageKeyCountLimit = 10000
 )
 
 //Metrics
@@ -266,11 +268,26 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 
 func (e Evm) GetStorageSize(addr loom.Address) (uint64, error) {
 	numKeys := uint64(0)
-	e.sdb.ForEachStorage(common.BytesToAddress(addr.Local), func(key, value common.Hash) bool {
-		numKeys++
-		return true
-	})
-	return numKeys, nil
+	done := make(chan bool, 1)
+	// Count the number of keys in the storage trie with limit
+	go func() {
+		e.sdb.ForEachStorage(common.BytesToAddress(addr.Local), func(key, value common.Hash) bool {
+			numKeys++
+			// Limit the number of key iteration so that the response does not take too long
+			if numKeys >= storageKeyCountLimit {
+				done <- false
+				runtime.Goexit()
+			}
+			return true
+		})
+		done <- true
+	}()
+
+	if <-done {
+		return numKeys, nil
+	}
+	return 0, fmt.Errorf("The number of keys exceeded the limit %d", storageKeyCountLimit)
+
 }
 
 // TODO: this doesn't need to be exported, rename to newEVM
