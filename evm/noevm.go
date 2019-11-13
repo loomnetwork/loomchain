@@ -18,8 +18,6 @@ func NewLoomVm(
 	_ loomchain.State,
 	_ loomchain.WriteReceiptHandler,
 	_ AccountBalanceManagerFactoryFunc,
-	_ bool,
-	_ interface{},
 ) lvm.VM {
 	return nil
 }
