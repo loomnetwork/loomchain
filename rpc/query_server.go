@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/tendermint/tendermint/crypto/tmhash"
 
 	"github.com/gogo/protobuf/proto"
 	gtypes "github.com/loomnetwork/go-loom/types"
@@ -1172,6 +1173,7 @@ func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
 }
 
+// https://github.com/ethereum/go-ethereum/wiki/Management-APIs#debug_tracetransaction
 func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error) {
 	receipt, err := s.EthGetTransactionReceipt(hash)
 	if err != nil || receipt == nil {
@@ -1197,6 +1199,51 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTra
 		int64(blockNumber),
 		int64(txIndex),
 		cfg,
+	)
+}
+
+// https://github.com/ethereum/retesteth/wiki/RPC-Methods#debug_storagerangeat
+func (s QueryServer) DebugStorageRangeAt(
+	blockHashOrNumber string, txIndex int, address, begin string, maxResults int,
+) (resp debug.JsonStorageRangeResult, err error) {
+	if address[:2] == "0x" {
+		address = address[:2]
+	}
+	local, err := hex.DecodeString(address)
+	if err != nil {
+		return debug.JsonStorageRangeResult{}, err
+	}
+
+	if blockHashOrNumber[:2] == "0x" {
+		blockHashOrNumber = blockHashOrNumber[:2]
+	}
+	var blockNumber uint64
+	if len(blockHashOrNumber) >= tmhash.Size {
+		hash, err := hex.DecodeString(blockHashOrNumber)
+		if err != nil {
+			return debug.JsonStorageRangeResult{}, err
+		}
+		blockNumber, err = s.getBlockHeightFromHash(hash)
+	} else {
+		blockNumber, err = strconv.ParseUint(blockHashOrNumber, 0, 64)
+	}
+	if err != nil {
+		return debug.JsonStorageRangeResult{}, err
+	}
+
+	replayApp, startBlockNumber, err := s.ReplayApplication(blockNumber, s.BlockStore)
+	if err != nil {
+		return debug.JsonStorageRangeResult{}, err
+	}
+	return debug.StorageRangeAt(
+		*replayApp,
+		s.BlockStore,
+		local,
+		nil,
+		startBlockNumber,
+		int64(blockNumber),
+		int64(txIndex),
+		maxResults,
 	)
 }
 

@@ -19,6 +19,11 @@ type JsonLogConfig struct {
 	DisableStack   bool `json:"disableStack,omitempty"`
 }
 
+type JsonStorageRangeResult struct {
+	eth.StorageRangeResult
+	Complete bool `json:"complete"`
+}
+
 func DecTraceConfig(jcfg *JsonTraceConfig) eth.TraceConfig {
 	var logConfig *vm.LogConfig
 	if jcfg == nil {

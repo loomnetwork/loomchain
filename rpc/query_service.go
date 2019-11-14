@@ -68,6 +68,7 @@ type QueryService interface {
 
 	// debug transactions.
 	DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error)
+	DebugStorageRangeAt(blockHashOrNumber string, txIndex int, address, begin string, maxResults int) (debug.JsonStorageRangeResult, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -194,6 +195,7 @@ func createDefaultEthRoutes(svc QueryService, chainID string) map[string]eth.RPC
 	routes["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
 	routes["eth_sendRawTransaction"] = NewSendRawTransactionRPCFunc(chainID, rpccore.BroadcastTxSync)
 	routes["debug_traceTransaction"] = eth.NewRPCFunc(svc.DebugTraceTransaction, "hash,config")
+	routes["debug_storageRangeAt"] = eth.NewRPCFunc(svc.DebugStorageRangeAt, "blockHashOrNumber,txIndex,address,begin,maxResults")
 	return routes
 }
 

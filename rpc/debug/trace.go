@@ -4,8 +4,11 @@ package debug
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/ethapi"
@@ -16,6 +19,7 @@ import (
 	ttypes "github.com/tendermint/tendermint/types"
 
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -31,12 +35,9 @@ func TraceTransaction(
 		}
 	}()
 
-	if err := runUpTo(&app, blockstore, startBlockNumber, targetBlockNumber, txIndex); err != nil {
-		return nil, err
-	}
-	block, err := blockstore.GetBlockByHeight(&targetBlockNumber)
+	block, err := runTxsTo(&app, blockstore, startBlockNumber, targetBlockNumber, txIndex, false)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting block information at height %v", targetBlockNumber)
+		return nil, err
 	}
 
 	tracer, err := CreateTracer(config)
@@ -77,11 +78,57 @@ func TraceTransaction(
 	}
 }
 
-func runUpTo(app *loomchain.Application, blockstore store.BlockStore, startHeight, height, index int64) error {
+func StorageRangeAt(
+	app loomchain.Application,
+	blockstore store.BlockStore,
+	address, begin []byte,
+	startBlockNumber, targetBlockNumber, txIndex int64,
+	maxResults int,
+) (results JsonStorageRangeResult, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Errorf("loomchain panicked %v", r)
+		}
+	}()
+
+	block, err := runTxsTo(&app, blockstore, startBlockNumber, targetBlockNumber, txIndex, true)
+	if err != nil {
+		return JsonStorageRangeResult{}, err
+	}
+
+	storeState := loomchain.NewStoreState(
+		context.Background(),
+		app.Store,
+		ttypes.TM2PB.Header(&block.Block.Header),
+		block.BlockMeta.BlockID.Hash,
+		app.GetValidatorSet,
+	)
+	ethDb := evm.NewLoomEthdb(storeState, nil)
+	root, err := ethDb.Get(evm.RootKey)
+	if err != nil {
+		return JsonStorageRangeResult{}, err
+	}
+	stateDb, err := state.New(common.BytesToHash(root), state.NewDatabase(ethDb))
+	if err != nil {
+		return JsonStorageRangeResult{}, err
+	}
+	st := stateDb.StorageTrie(common.BytesToAddress(address))
+	result, err := eth.StorageRangeAt(st, begin, maxResults)
+	if err != nil {
+		return JsonStorageRangeResult{}, err
+	}
+
+	return JsonStorageRangeResult{
+		StorageRangeResult: result,
+		Complete:           result.NextKey == nil,
+	}, nil
+}
+
+func runTxsTo(app *loomchain.Application, blockstore store.BlockStore, startHeight, height, index int64, includeEnd bool) (*ctypes.ResultBlock, error) {
 	for h := startHeight; h <= height; h++ {
 		resultBlock, err := blockstore.GetBlockByHeight(&h)
 		if err != nil {
-			return errors.Wrapf(err, "getting block information at height %v", h)
+			return nil, errors.Wrapf(err, "getting block information at height %v", h)
 		}
 
 		_ = app.BeginBlock(requestBeginBlock(*resultBlock))
@@ -95,7 +142,10 @@ func runUpTo(app *loomchain.Application, blockstore store.BlockStore, startHeigh
 				if i != int(index) {
 					_ = app.DeliverTx(resultBlock.Block.Data.Txs[i])
 				} else {
-					return nil
+					if includeEnd {
+						_ = app.DeliverTx(resultBlock.Block.Data.Txs[i])
+					}
+					return resultBlock, nil
 				}
 			}
 		}
@@ -103,7 +153,7 @@ func runUpTo(app *loomchain.Application, blockstore store.BlockStore, startHeigh
 		_ = app.EndBlock(requestEndBlock(h))
 		_ = app.Commit()
 	}
-	return errors.Errorf("cannot find transaction at height %d index %d", height, index)
+	return nil, errors.Errorf("cannot find transaction at height %d index %d", height, index)
 }
 
 func resultsMatch(expected, actual abci.ResponseDeliverTx) (bool, error) {

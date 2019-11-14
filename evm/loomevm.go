@@ -28,7 +28,7 @@ import (
 
 var (
 	vmPrefix = []byte("vm")
-	rootKey  = []byte("vmroot")
+	RootKey  = []byte("vmroot")
 )
 
 type StateDB interface {
@@ -60,7 +60,7 @@ func NewLoomEvm(
 ) (*loomEvmWithState, error) {
 	p := new(loomEvmWithState)
 	p.db = NewLoomEthdb(loomState, logContext)
-	oldRoot, err := p.db.Get(rootKey)
+	oldRoot, err := p.db.Get(RootKey)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (levm loomEvmWithState) Commit() (common.Hash, error) {
 	if err := levm.sdb.Database().TrieDB().Commit(root, false); err != nil {
 		return root, err
 	}
-	if err := levm.db.Put(rootKey, root[:]); err != nil {
+	if err := levm.db.Put(RootKey, root[:]); err != nil {
 		return root, err
 	}
 	return root, err
