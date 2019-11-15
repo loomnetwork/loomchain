@@ -1206,19 +1206,19 @@ func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTra
 func (s QueryServer) DebugStorageRangeAt(
 	blockHashOrNumber string, txIndex int, address, begin string, maxResults int,
 ) (resp debug.JsonStorageRangeResult, err error) {
-	if address[:2] == "0x" {
-		address = address[:2]
+	if len(address) >= 2 && address[:2] != "0x" {
+		address = "0x" + address
 	}
-	local, err := hex.DecodeString(address)
+	local, err := loom.LocalAddressFromHexString(address)
 	if err != nil {
 		return debug.JsonStorageRangeResult{}, err
 	}
 
-	if blockHashOrNumber[:2] == "0x" {
-		blockHashOrNumber = blockHashOrNumber[:2]
-	}
 	var blockNumber uint64
 	if len(blockHashOrNumber) >= tmhash.Size {
+		if address[:2] == "0x" {
+			address = address[2:]
+		}
 		hash, err := hex.DecodeString(blockHashOrNumber)
 		if err != nil {
 			return debug.JsonStorageRangeResult{}, err
