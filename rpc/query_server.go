@@ -1216,8 +1216,8 @@ func (s QueryServer) DebugStorageRangeAt(
 
 	var blockNumber uint64
 	if len(blockHashOrNumber) >= tmhash.Size {
-		if address[:2] == "0x" {
-			address = address[2:]
+		if blockHashOrNumber[:2] == "0x" {
+			blockHashOrNumber = blockHashOrNumber[2:]
 		}
 		hash, err := hex.DecodeString(blockHashOrNumber)
 		if err != nil {

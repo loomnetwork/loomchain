@@ -22,7 +22,7 @@ func NewSplitStore(full KVReader, empty VersionedKVStore, version int64) Version
 
 func (ss *splitStore) Get(key []byte) []byte {
 	if ss.VersionedKVStore.Has(key) {
-		return ss.KVReader.Get(key)
+		return ss.VersionedKVStore.Get(key)
 	}
 	if ss.deleted[string(key)] {
 		return nil

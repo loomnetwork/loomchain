@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/ethapi"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -104,10 +105,8 @@ func StorageRangeAt(
 		app.GetValidatorSet,
 	)
 	ethDb := evm.NewLoomEthdb(storeState, nil)
-	root, err := ethDb.Get(evm.RootKey)
-	if err != nil {
-		return JsonStorageRangeResult{}, err
-	}
+	root := app.Store.Get(util.PrefixKey(evm.VmPrefix, evm.RootKey))
+
 	stateDb, err := state.New(common.BytesToHash(root), state.NewDatabase(ethDb))
 	if err != nil {
 		return JsonStorageRangeResult{}, err

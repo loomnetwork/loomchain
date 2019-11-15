@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	vmPrefix = []byte("vm")
+	VmPrefix = []byte("vm")
 	RootKey  = []byte("vmroot")
 )
 

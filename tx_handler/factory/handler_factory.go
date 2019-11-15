@@ -56,7 +56,7 @@ func (f txHandleFactory) Copy(newStore store.VersionedKVStore) loomchain.TxHandl
 }
 
 // Creates a handle with an entirely new vmManager with dummy account balance manager factory and receipt handler.
-func (f txHandleFactory) TxHandlerWithTracer(tracer ethvm.Tracer, metrics bool) (loomchain.TxHandler, error) {
+func (f txHandleFactory) TxHandlerWithTracerAndDefaultVmManager(tracer ethvm.Tracer, metrics bool) (loomchain.TxHandler, error) {
 	f.vmManager = createVmManager(tracer)
 	return f.TxHandler(metrics)
 }

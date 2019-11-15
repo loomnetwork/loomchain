@@ -308,7 +308,7 @@ type TxHandler interface {
 
 type TxHandlerFactory interface {
 	TxHandler(metrics bool) (TxHandler, error)
-	TxHandlerWithTracer(tracer vm.Tracer, metrics bool) (TxHandler, error)
+	TxHandlerWithTracerAndDefaultVmManager(tracer vm.Tracer, metrics bool) (TxHandler, error)
 	Copy(newStore store.VersionedKVStore) TxHandlerFactory
 }
 
@@ -940,7 +940,8 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 
 	splitStore := store.NewSplitStore(snapshot, store.NewMemStore(), startVersion-1)
 	factory := a.TxHandlerFactory.Copy(splitStore)
-	txHandle, err := factory.TxHandler(false)
+	//txHandle, err := factory.TxHandler(false)
+	txHandle, err := factory.TxHandlerWithTracerAndDefaultVmManager(nil, false)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -969,7 +970,7 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 // This modifies the tx handler to use a tracer.
 // Danger, this looses the receipt handle and account balance manager information
 func (a *Application) SetTracer(tracer vm.Tracer, metrics bool) error {
-	newTxHandle, err := a.TxHandlerFactory.TxHandlerWithTracer(tracer, metrics)
+	newTxHandle, err := a.TxHandlerFactory.TxHandlerWithTracerAndDefaultVmManager(tracer, metrics)
 	if err != nil {
 		return errors.Wrap(err, "making transaction handle")
 	}
