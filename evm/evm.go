@@ -303,17 +303,7 @@ func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 }
 
 func createVmConfig(tracer vm.Tracer) (vm.Config, error) {
-	if tracer == nil {
-		logCfg := vm.LogConfig{
-			DisableMemory:  true, // disable memory capture
-			DisableStack:   true, // disable stack capture
-			DisableStorage: true, // disable storage capture
-			Limit:          0,    // maximum length of output, but zero means unlimited
-		}
-		tracer = vm.NewStructLogger(&logCfg)
-	}
-
-	return vm.Config{
+	vmConfig := vm.Config{
 		// Debug enabled debugging Interpreter options
 		Debug: tracer != nil,
 		// Tracer is the op code logger
@@ -327,5 +317,15 @@ func createVmConfig(tracer vm.Tracer) (vm.Config, error) {
 		// may be left uninitialised and will be set to the default
 		// table.
 		//JumpTable: [256]operation,
-	}, nil
+	}
+	if tracer == nil {
+		logCfg := vm.LogConfig{
+			DisableMemory:  true, // disable memory capture
+			DisableStack:   true, // disable stack capture
+			DisableStorage: true, // disable storage capture
+			Limit:          0,    // maximum length of output, but zero means unlimited
+		}
+		vmConfig.Tracer = vm.NewStructLogger(&logCfg)
+	}
+	return vmConfig, nil
 }

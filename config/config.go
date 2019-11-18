@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -26,7 +27,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/loomnetwork/loomchain/db"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
@@ -174,7 +174,7 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 
 type EVMTracer struct {
 	Enabled        bool   // enable tracer
-	Tracer         string //enable JavaScript-based transaction tracing,
+	Tracer         string // enable JavaScript-based transaction tracing
 	DisableMemory  bool   // disable memory capture
 	DisableStack   bool   // disable stack capture
 	DisableStorage bool   // disable storage capture

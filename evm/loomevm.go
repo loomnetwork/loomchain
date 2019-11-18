@@ -78,7 +78,7 @@ func NewLoomEvm(
 
 	p.wrappedEVM, err = NewEvm(p.sdb, loomState, abm, tracer)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating tracer")
+		return nil, errors.Wrap(err, "failed to create EVM")
 	}
 	return p, nil
 }
