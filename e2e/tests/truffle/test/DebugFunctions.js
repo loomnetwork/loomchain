@@ -42,7 +42,9 @@ contract('debug_traceTransaction', async (accounts) => {
     });
 
     it('Test debug_traceTransaction', async () => {
-        const txResult = await contract.methods.set(1111).send();
+        const setValue = 1111;
+        const txResult = await contract.methods.set(setValue).send();
+        await waitForXBlocks(nodeAddr, 2)
         await web3js.currentProvider.send({
             method: "debug_traceTransaction",
             params: [txResult.transactionHash,{"disableStorage":false,"disableMemory":false,"disableStack":false}],
@@ -51,7 +53,17 @@ contract('debug_traceTransaction', async (accounts) => {
         }, function (error, result) {
             assert.equal(null, error, "debug_traceTransaction returned error");
             assert.equal(true, result.result.structLogs.length > 0, "trace did not return any data");
+          });
+        await web3js.currentProvider.send({
+            method: "debug_storageRangeAt",
+            params: [txResult.blockHash, txResult.transactionIndex, txHashTestContract.address, "", 1000],
+            jsonrpc: "2.0",
+            id: new Date().getTime()
+        }, function (error, result) {
+            assert.equal(1, Object.keys(result.result.storage).length, "count of items returned by debug_storageRangeAt");
+            onlyEntry = result.result.storage[Object.keys(result.result.storage)[0]].value;
+            assert.equal(setValue, Number(onlyEntry), "memory value same as value set");
         });
-        await waitForXBlocks(nodeAddr, 1)
+        await waitForXBlocks(nodeAddr, 2)
     })
 });
