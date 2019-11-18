@@ -8,11 +8,14 @@ import (
 )
 
 var (
-	LogEthDbBatch = true
+	LogEthDbBatch          = true
+	GasUsageTrackerEnabled = false
 )
 
 // EVMEnabled indicates whether or not EVM integration is available
-const EVMEnabled = false
+const (
+	EVMEnabled = false
+)
 
 func NewLoomVm(
 	loomState loomchain.State,
@@ -25,3 +28,5 @@ func NewLoomVm(
 }
 
 func AddLoomPrecompiles() {}
+
+func GetGasUsage(addr string) uint64 { return 0 }

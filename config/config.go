@@ -148,6 +148,8 @@ type Config struct {
 	EVMDebugEnabled bool
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
+	// Enable tracking account/contract gas usage
+	GasUsageTrackerEnabled bool
 
 	Web3 *eth.Web3Config
 
@@ -421,6 +423,7 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 		SampleGoContractEnabled:    false,
+		GasUsageTrackerEnabled:     false,
 
 		Oracle:                 "",
 		DeployEnabled:          true,
@@ -837,6 +840,7 @@ DPOS:
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
+GasUsageTrackerEnabled: {{ .GasUsageTrackerEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}

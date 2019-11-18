@@ -228,6 +228,13 @@ func (m *MockQueryService) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quant
 	return "", nil
 }
 
+func (m *MockQueryService) EthGasUsage(address eth.Data) (eth.Quantity, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"EthGasUsage"}, m.MethodsCalled...)
+	return "", nil
+}
+
 func (m *MockQueryService) EthGasPrice() (eth.Quantity, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()

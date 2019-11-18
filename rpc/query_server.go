@@ -609,6 +609,17 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 	return k, nil
 }
 
+func (s *QueryServer) GetGasUsage(addr string) (uint64, error) {
+	if !levm.GasUsageTrackerEnabled {
+		return 0, errors.New("GasUsageTracker is disabled")
+	}
+	loomAddr, err := loom.ParseAddress(addr)
+	if err != nil {
+		return 0, err
+	}
+	return levm.GetGasUsage(loomAddr.String()), nil
+}
+
 type DPOSTotalStakedResponse struct {
 	TotalStaked *gtypes.BigUInt
 }

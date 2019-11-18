@@ -32,7 +32,7 @@ func (m *Record) Reset()         { *m = Record{} }
 func (m *Record) String() string { return proto.CompactTextString(m) }
 func (*Record) ProtoMessage()    {}
 func (*Record) Descriptor() ([]byte, []int) {
-	return fileDescriptor_registry_8f33b09e6c22f9ce, []int{0}
+	return fileDescriptor_registry_db594c69f58cdc2f, []int{0}
 }
 func (m *Record) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Record.Unmarshal(m, b)
@@ -78,10 +78,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("github.com/loomnetwork/loomchain/registry/registry.proto", fileDescriptor_registry_8f33b09e6c22f9ce)
+	proto.RegisterFile("github.com/loomnetwork/loomchain/registry/registry.proto", fileDescriptor_registry_db594c69f58cdc2f)
 }
 
-var fileDescriptor_registry_8f33b09e6c22f9ce = []byte{
+var fileDescriptor_registry_db594c69f58cdc2f = []byte{
 	// 163 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xb2, 0x48, 0xcf, 0x2c, 0xc9,
 	0x28, 0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0xcf, 0xc9, 0xcf, 0xcf, 0xcd, 0x4b, 0x2d, 0x29, 0xcf,

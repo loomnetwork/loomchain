@@ -125,6 +125,20 @@ func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *t
 	return
 }
 
+func (m InstrumentingMiddleware) GetGasUsage(addr string) (resp uint64, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetContractRecord", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetGasUsage(addr)
+	if err != nil {
+		return 0, err
+	}
+	return
+}
+
 func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStakedResponse, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DposTotalStaked", "error", fmt.Sprint(err != nil)}
