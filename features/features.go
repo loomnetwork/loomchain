@@ -18,7 +18,11 @@ const (
 	TGVersion1_1 = "tg:v1.1"
 	// Enable additional validation of account & contract chain IDs to make it harder to obtain
 	// invalid withdrawal receipts.
-	TGVersion1_2 = "tg:1.2"
+	TGVersion1_2 = "tg:v1.2"
+	// Enable token precision adjustment for LOOM deposits & withdrawals via Binance Gateway
+	TGVersion1_3 = "tg:v1.3"
+	// Enable charging fees (in BNB) for LOOM withdrawals via Binance Gateway contract
+	TGVersion1_4 = "tg:v1.4"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
@@ -114,9 +118,10 @@ const (
 
 	// Enables Coin v1.1 contract (also applies to ETHCoin)
 	CoinVersion1_1Feature = "coin:v1.1"
-
 	// Enables Coin v1.2 to validate fields in request of Coin and ETH Coin contract
 	CoinVersion1_2Feature = "coin:v1.2"
+	// Enables minting & burning via Binance Gateway
+	CoinVersion1_3Feature = "coin:v1.3"
 
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.
