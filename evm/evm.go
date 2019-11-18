@@ -265,10 +265,8 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 }
 
 func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.BigUInt) (uint64, error) {
-	var err error
 	var usedGas uint64
 	origin := common.BytesToAddress(caller.Local)
-	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
 
 	var val *big.Int
@@ -280,12 +278,21 @@ func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.Bi
 			return 0, errors.Errorf("value %v must be positive", value)
 		}
 	}
-
-	_, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
-	if err != nil {
-		return 0, err
+	// Assume that trasaction with empty To field is contract deploy transaction.
+	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
+		_, _, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), input, e.gasLimit, val)
+		if err != nil {
+			return 0, err
+		}
+		usedGas = e.gasLimit - leftOverGas
+	} else {
+		contract := common.BytesToAddress(addr.Local)
+		_, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
+		if err != nil {
+			return 0, err
+		}
+		usedGas = e.gasLimit - leftOverGas
 	}
-	usedGas = e.gasLimit - leftOverGas
 	return usedGas, nil
 }
 

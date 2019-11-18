@@ -1153,27 +1153,30 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_estimateGas
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Quantity, err error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
 	var caller loom.Address
-	const ethChainID = "eth"
 	if len(query.From) > 0 {
-		caller, err = eth.DecDataToAddress(ethChainID, query.From)
+		caller, err = s.getEthAccount(snapshot, query.From)
 		if err != nil {
-			return resp, err
+			caller = loom.RootAddress(s.ChainID)
 		}
 	} else {
-		caller = loom.RootAddress(ethChainID)
+		caller = loom.RootAddress(s.ChainID)
 	}
 
 	// Target address can be empty on contract deploy transaction
-	contract, _ := eth.DecDataToAddress(s.ChainID, query.To)
+	var contract loom.Address
+	contract, err = eth.DecDataToAddress(s.ChainID, query.To)
+	if err != nil {
+		contract = loom.RootAddress(s.ChainID)
+	}
 
 	data, err := eth.DecDataToBytes(query.Data)
 	if err != nil {
 		return resp, err
 	}
-
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
 
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	if s.NewABMFactory != nil {

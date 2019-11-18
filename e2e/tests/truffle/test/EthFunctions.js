@@ -10,6 +10,7 @@ const { getContractFuncInterface, getLatestBlock, getMappedAccount, waitForXBloc
 const MyToken = artifacts.require('MyToken');
 const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
 const MyCoin = artifacts.require('MyCoin');
+const StoreContract = artifacts.require('StoreTestContract');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
@@ -201,12 +202,6 @@ contract('MyToken', async (accounts) => {
 
   it('MyCoin Contract eth_estimateGas', async ()=>{
     const mycoinContract = await MyCoin.deployed();
-    await web3js.eth.estimateGas({
-      from: "0x11f4d0A3c12e86B4b5F39B213F7E19D048276DAe",
-      data: MyCoin._json.bytecode
-  })
-    .then(console.log);
-
     contract = new web3js.eth.Contract(MyCoin._json.abi,mycoinContract.address,{alice});
     let actual = await contract.methods.balanceOf(mycoinContract.address).call();
     assert.equal(actual,0,"balance not correct")
@@ -251,9 +246,19 @@ contract('MyToken', async (accounts) => {
     await mycoinContract.payToSet(100,{from:alice,value:"0"})
     result = await contract.methods.getUint().call();
     assert.equal(result,100,"Global uint incorrect")
-    
-  });
   
+    let deployGas = await web3js.eth.estimateGas({
+      from: bob,
+      data: MyToken._json.bytecode
+    })
+    assert.equal(deployGas,1921891,"Invalid Gas for deploy contract gas estimation")
+
+    deployGas = await web3js.eth.estimateGas({
+    from: bob,
+    data: MyToken._json.bytecode
+    })
+    assert.equal(deployGas,1921891,"Invalid Gas for deploy contract gas estimation")
+  });
 
   it('eth_sendRawTransaction', async () => {
     // Map Alice's Eth account to a DAppChain account
