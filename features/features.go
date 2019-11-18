@@ -18,7 +18,9 @@ const (
 	TGVersion1_1 = "tg:v1.1"
 	// Enable additional validation of account & contract chain IDs to make it harder to obtain
 	// invalid withdrawal receipts.
-	TGVersion1_2 = "tg:1.2"
+	TGVersion1_2 = "tg:v1.2"
+	// Enable token precision adjustment for LOOM deposits & withdrawals via Binance Gateway
+	TGVersion1_3 = "tg:v1.3"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
