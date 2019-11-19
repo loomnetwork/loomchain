@@ -68,7 +68,7 @@ func (f txHandleFactory) TxHandler(metrics bool) (loomchain.TxHandler, error) {
 	if err != nil {
 		return nil, err
 	}
-	postCommitMiddlewares, err := postCommitMiddleWAre(f.cfg, *f.vmManager, nonceTxHandler)
+	postCommitMiddlewares, err := postCommitMiddleware(f.cfg, *f.vmManager, nonceTxHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func router(
 	return router
 }
 
-func postCommitMiddleWAre(
+func postCommitMiddleware(
 	cfg config.Config,
 	vmManager vm.Manager,
 	nonceTxHandler *auth.NonceHandler,

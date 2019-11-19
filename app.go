@@ -956,7 +956,6 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 
 	splitStore := store.NewSplitStore(snapshot, store.NewMemStore(), startVersion-1)
 	factory := a.TxHandlerFactory.Copy(splitStore)
-	//txHandle, err := factory.TxHandler(false)
 	txHandle, err := factory.TxHandlerWithTracerAndDefaultVmManager(nil, false)
 	if err != nil {
 		return nil, 0, err
