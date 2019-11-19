@@ -10,6 +10,7 @@ import (
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	udwtypes "github.com/loomnetwork/go-loom/builtin/types/user_deployer_whitelist"
 	cconfig "github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -285,6 +286,34 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Name:       "deployerwhitelist",
 			Location:   "deployerwhitelist:1.0.0",
 			Init:       dwInit,
+		})
+	}
+
+	if cfg.UserDeployerWhitelist.ContractEnabled {
+		udwInitRequest := udwtypes.InitRequest{
+			Owner: contractOwner,
+			TierInfo: []*udwtypes.TierInfo{
+				&udwtypes.TierInfo{
+					TierID:     0,
+					Fee:        10,
+					Name:       "tier1",
+					BlockRange: 4,
+					MaxTxs:     1,
+				},
+			},
+		}
+
+		udwInit, err := marshalInit(&udwInitRequest)
+		if err != nil {
+			return nil, err
+		}
+
+		contracts = append(contracts, config.ContractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "user-deployer-whitelist",
+			Location:   "user-deployer-whitelist:1.0.0",
+			Init:       udwInit,
 		})
 	}
 

@@ -213,6 +213,19 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 	return evm.StaticCall(caller, addr, input)
 }
 
+func (vm *PluginVM) DestroyEVMContract(addr loom.Address) error {
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if vm.newABMFactory != nil {
+		createABM, err = vm.newABMFactory(vm)
+		if err != nil {
+			return err
+		}
+	}
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
+	return evm.DestroyEVMContract(addr)
+}
+
 func (vm *PluginVM) GetCode(addr loom.Address) ([]byte, error) {
 	return []byte{}, nil
 }
@@ -243,6 +256,10 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	return c.VM.CallEVM(c.address, addr, input, value)
+}
+
+func (c *contractContext) DestroyEVMContract(addr loom.Address) error {
+	return c.VM.DestroyEVMContract(addr)
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {

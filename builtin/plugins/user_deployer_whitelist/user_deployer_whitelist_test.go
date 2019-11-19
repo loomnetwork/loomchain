@@ -145,10 +145,18 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.EqualError(t, ErrDeployerAlreadyExists, err.Error(), "Trying to Add Deployer which Already Exists for User")
 
+	//Trying to Add Duplicate Deployer
+	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
+		&WhitelistUserDeployerRequest{
+			DeployerAddr: addr2.MarshalPB(),
+			TierID:       0,
+		})
+	require.NoError(t, err)
+
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
-	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
+	require.Equal(t, 2, len(getUserDeployersResponse.Deployers))
 
 	// When no contracts attached should return 0 contracts instead of error
 	getDeployedContractsResponse, err := deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
@@ -168,6 +176,29 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
+
+	deployedContract := getDeployedContractsResponse.ContractAddresses[0].ContractAddress
+	// Test destroying contract with unauthorized address
+	err = deployerContract.DestroyDeployedContract(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr2)), &DestroyDeployedContractRequest{
+		ContractAddress: deployedContract,
+	})
+	require.Error(t, err)
+
+	// Test destroying contract with authorized address
+	err = deployerContract.DestroyDeployedContract(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr1)), &DestroyDeployedContractRequest{
+		ContractAddress: deployedContract,
+	})
+	require.NoError(t, err)
+
+	// the number of contract should be 0
+	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
+		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
+		DeployerAddr: addr1.MarshalPB(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(getDeployedContractsResponse.ContractAddresses))
 
 	//Modify Tier Info
 	err = deployerContract.SetTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
@@ -234,7 +265,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
-	require.Equal(t, 2, len(getUserDeployersResponse.Deployers))
+	require.Equal(t, 3, len(getUserDeployersResponse.Deployers))
 	// remove the deployer addr6 by addr3 should execute without error
 	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&udwtypes.RemoveUserDeployerRequest{
@@ -246,7 +277,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
-	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
+	require.Equal(t, 2, len(getUserDeployersResponse.Deployers))
 
 }
 
