@@ -265,7 +265,6 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 }
 
 func (e Evm) SelfDestruct(addr loom.Address) bool {
-	fmt.Println("Loom Address to destroy", addr.String())
 	return e.sdb.Suicide(common.BytesToAddress(addr.Local))
 }
 

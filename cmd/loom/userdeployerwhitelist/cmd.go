@@ -151,9 +151,7 @@ func destroyDeployedContractCmd() *cobra.Command {
 			req := &udwtypes.DestroyDeployedContractsRequest{
 				ContractAddress: contractAddr.MarshalPB(),
 			}
-			err = cli.CallContractWithFlags(&flags, dwContractName, "DestroyDeployedContract", req, nil)
-			fmt.Println(err)
-			return err
+			return cli.CallContractWithFlags(&flags, dwContractName, "DestroyDeployedContract", req, nil)
 		},
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
