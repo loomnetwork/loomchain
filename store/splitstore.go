@@ -33,12 +33,12 @@ func (ss *splitStore) Get(key []byte) []byte {
 func (ss *splitStore) Range(prefix []byte) plugin.RangeData {
 	readerRange := ss.KVReader.Range(prefix)
 	updateRange := ss.VersionedKVStore.Range(prefix)
-	for _, re := range updateRange {
-		if !ss.KVReader.Has(re.Key) && !ss.deleted[string(re.Key)] {
-			readerRange = append(readerRange, re)
+	for _, re := range readerRange {
+		if !ss.VersionedKVStore.Has(re.Key) && !ss.deleted[string(re.Key)] {
+			updateRange = append(updateRange, re)
 		}
 	}
-	return readerRange
+	return updateRange
 }
 
 func (ss *splitStore) Has(key []byte) bool {
