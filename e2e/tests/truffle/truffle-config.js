@@ -25,12 +25,10 @@ module.exports = {
       skipDryRun: true,
     },
     hdwallet: {
-      provider: function() {
-        const mnemonic = fs.readFileSync(path.join(__dirname, 'eth_mnemonic'), 'utf-8').trim()
-        // NOTE: This provider uses Eth accounts, so a mapping to a Loom account must already for
-        // any account used with this provider.
-        return new HDWalletProvider(mnemonic, `http://${nodeAddr}/eth`, 0, 6)
-      },
+      provider: new HDWalletProvider(
+          fs.readFileSync(path.join(__dirname, 'eth_mnemonic'), 'utf-8').trim(),
+          `http://${nodeAddr}/eth`, 0, 6
+      ),
       network_id: '*',
       skipDryRun: true,
     }

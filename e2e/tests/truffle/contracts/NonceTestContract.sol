@@ -14,7 +14,7 @@ contract NonceTestContract {
     return value;
   }
 
-  function err() public {
+  function err() public pure {
     revert("Revert");
   }
 }
