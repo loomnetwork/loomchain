@@ -27,7 +27,9 @@ module.exports = {
     hdwallet: {
       provider: new HDWalletProvider(
           fs.readFileSync(path.join(__dirname, 'eth_mnemonic'), 'utf-8').trim(),
-          `http://${nodeAddr}/eth`, 0, 6
+          `http://${nodeAddr}/eth`,
+          0,
+          6
       ),
       network_id: '*',
       skipDryRun: true,
