@@ -14,6 +14,8 @@ const (
 	TGBinanceContractMappingFeature = "tg:binance-cm"
 	// Enables daily limiting of withdrawal amount
 	TGWithdrawalLimitFeature = "tg:withdrawal-limit"
+	// No longer use TokenWithdrawer field on Withdrawal receipt in the Binance Gateway contract.
+	TGBinanceRemoveTokenWithdrawer = "tg:remove-withdrawer"
 	// Store Mainnet Gateway address in Gateway Go contract
 	TGVersion1_1 = "tg:v1.1"
 	// Enable additional validation of account & contract chain IDs to make it harder to obtain
