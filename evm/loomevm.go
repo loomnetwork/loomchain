@@ -128,7 +128,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		return nil, loom.Address{}, err
 	}
 	bytecode, addr, err := levm.Create(caller, code, value)
-	if err != nil {
+	if err == nil {
 		_, err = levm.sdb.Commit(true)
 	}
 
@@ -188,7 +188,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		return nil, err
 	}
 	_, err = levm.Call(caller, addr, input, value)
-	if err != nil {
+	if err == nil {
 		_, err = levm.sdb.Commit(true)
 	}
 
