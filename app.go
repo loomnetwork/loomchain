@@ -840,7 +840,7 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
-	height := a.curBlockHeader.GetHeight()
+
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
@@ -861,6 +861,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		panic(err)
 	}
 
+	height := a.curBlockHeader.GetHeight()
 	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
 		// TODO: consider panic instead
 		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
