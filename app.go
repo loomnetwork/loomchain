@@ -715,7 +715,9 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	} else {
 		r = a.deliverTx(storeTx, txBytes)
 	}
-
+	if a.EVMTracer != nil {
+		log.Debug("evm trace", "trace", a.EVMTracer)
+	}
 	txFailed = r.Code != abci.CodeTypeOK
 	// TODO: this isn't 100% reliable when txFailed == true
 	isEvmTx = r.Info == utils.CallEVM || r.Info == utils.DeployEvm
