@@ -150,6 +150,9 @@ func runTxsTo(app *loomchain.Application, blockstore store.BlockStore, startHeig
 		}
 
 		_ = app.EndBlock(requestEndBlock(h))
+
+		// todo we should really be matching the app hash returned here with the one that was
+		// stored in the next block, otherwise we can't really know if the replay was successful or not.
 		_ = app.Commit()
 	}
 	return nil, errors.Errorf("cannot find transaction at height %d index %d", height, index)

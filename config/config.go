@@ -145,7 +145,7 @@ type Config struct {
 	AllowNamedEvmContracts bool
 
 	// Dragons
-	EVMTracer *EVMTracer
+	EVMTracer *EVMTracerConfig
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
 
@@ -172,7 +172,7 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 	}
 }
 
-type EVMTracer struct {
+type EVMTracerConfig struct {
 	Enabled        bool   // enable tracer
 	Tracer         string // enable JavaScript-based transaction tracing
 	DisableMemory  bool   // disable memory capture
@@ -181,8 +181,8 @@ type EVMTracer struct {
 	Limit          int    // maximum length of output, but zero means unlimited
 }
 
-func DefaultEvmTraceConfig() *EVMTracer {
-	return &EVMTracer{
+func DefaultEvmTraceConfig() *EVMTracerConfig {
+	return &EVMTracerConfig{
 		Enabled: false,
 	}
 }

@@ -1,6 +1,9 @@
 package store
 
 import (
+	"bytes"
+	"sort"
+
 	"github.com/loomnetwork/go-loom/plugin"
 )
 
@@ -11,10 +14,10 @@ type splitStore struct {
 	version int64
 }
 
-func NewSplitStore(full KVReader, empty VersionedKVStore, version int64) VersionedKVStore {
+func NewSplitStore(history KVReader, version int64) VersionedKVStore {
 	return &splitStore{
-		KVReader:         full,
-		VersionedKVStore: empty,
+		KVReader:         history,
+		VersionedKVStore: NewMemStore(),
 		deleted:          make(map[string]bool),
 		version:          version,
 	}
@@ -33,6 +36,12 @@ func (ss *splitStore) Get(key []byte) []byte {
 func (ss *splitStore) Range(prefix []byte) plugin.RangeData {
 	readerRange := ss.KVReader.Range(prefix)
 	updateRange := ss.VersionedKVStore.Range(prefix)
+
+	// VersionedKVStore comes from a MemStore, hence updateRange is not deterministic
+	sort.Slice(updateRange, func(i, j int) bool {
+		return bytes.Compare(updateRange[i].Key, updateRange[j].Key) < 0
+	})
+
 	for _, re := range readerRange {
 		if !ss.VersionedKVStore.Has(re.Key) && !ss.deleted[string(re.Key)] {
 			updateRange = append(updateRange, re)

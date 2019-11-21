@@ -715,9 +715,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	} else {
 		r = a.deliverTx(storeTx, txBytes)
 	}
-	if a.EVMTracer != nil {
-		log.Debug("evm trace", "trace", a.EVMTracer)
-	}
 
 	txFailed = r.Code != abci.CodeTypeOK
 	// TODO: this isn't 100% reliable when txFailed == true
@@ -954,7 +951,7 @@ func (a *Application) ReplayApplication(blockNumber uint64, blockstore store.Blo
 		return nil, 0, errors.Errorf("no saved version for height %d", blockNumber)
 	}
 
-	splitStore := store.NewSplitStore(snapshot, store.NewMemStore(), startVersion-1)
+	splitStore := store.NewSplitStore(snapshot, startVersion-1)
 	factory := a.TxHandlerFactory.Copy(splitStore)
 	txHandle, err := factory.TxHandlerWithTracerAndDefaultVmManager(nil, false)
 	if err != nil {
