@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 
 	gcommon "github.com/ethereum/go-ethereum/common"
+	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	lru "github.com/hashicorp/golang-lru"
@@ -344,6 +345,14 @@ func (s *EvmStoreSnapshot) Has(key []byte) bool {
 		return true
 	}
 	return s.Snapshot.Has(key)
+}
+
+func (s *EvmStoreSnapshot) StateDB(db gstate.Database) *gstate.StateDB {
+	stateDB, err := gstate.New(gcommon.BytesToHash(s.rootHash), db)
+	if err != nil {
+		panic(err)
+	}
+	return stateDB
 }
 
 func remove(keys []string, key string) []string {

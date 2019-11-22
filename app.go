@@ -15,7 +15,6 @@ import (
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 
-	gcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
@@ -929,11 +928,6 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-	root := a.EvmStore.GetVMRootKey()
-	snapshotEVMState, err := gstate.New(gcommon.BytesToHash(root), a.EVMState.Database())
-	if err != nil {
-		panic(err)
-	}
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
@@ -942,5 +936,5 @@ func (a *Application) ReadOnlyState() State {
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-	).WithEVMState(snapshotEVMState)
+	).WithEVMState(a.EvmStore.GetSnapshot(a.lastBlockHeader.Height).StateDB(a.EVMState.Database()))
 }
