@@ -149,17 +149,16 @@ type Config struct {
 	SkipMinBuildCheck bool
 
 	Web3 *eth.Web3Config
-
-	GoEthereum *GoEthereumConfig
+	Geth *GoEthereumConfig
 }
 
-type GoEthereumConfig struct {
+type GethConfig struct {
 	EnableStateObjectDirtyStorageKeysSorting bool
 	EnableTrieDatabasePreimageKeysSorting    bool
 }
 
-func DefaultGoEthereumConfig() *GoEthereumConfig {
-	return &GoEthereumConfig{
+func DefaultGethConfig() *GethConfig {
+	return &GethConfig{
 		EnableStateObjectDirtyStorageKeysSorting: true,
 		EnableTrieDatabasePreimageKeysSorting:    true,
 	}
@@ -438,7 +437,7 @@ func DefaultConfig() *Config {
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 	cfg.Web3 = eth.DefaultWeb3Config()
-	cfg.GoEthereum = DefaultGoEthereumConfig()
+	cfg.Geth = DefaultGethConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -755,17 +754,6 @@ Web3:
   GetLogsMaxBlockRange: {{.Web3.GetLogsMaxBlockRange}}
 {{end}}
 
-{{if .GoEthereum -}}
-#
-# Configuration of Go-Ethereum 
-#
-GoEthereum:
-  # Enable sorting StateObjectDirtyStorage keys before updating and setting state
-  EnableStateObjectDirtyStorageKeysSorting: {{.GoEthereum.EnableStateObjectDirtyStorageKeysSorting}}
-  # Enable sorting TrieDatabasePreimage keys before committing trie database
-  EnableTrieDatabasePreimageKeysSorting: {{.GoEthereum.EnableTrieDatabasePreimageKeysSorting}}
-{{end}}
-
 # 
 # FnConsensus reactor on/off switch + config
 #
@@ -813,6 +801,7 @@ RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
+
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
@@ -820,4 +809,13 @@ EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
+
+{{if .Geth -}}
+#
+# Internal EVM integration settings
+#
+Geth:
+  EnableStateObjectDirtyStorageKeysSorting: {{.Geth.EnableStateObjectDirtyStorageKeysSorting}}
+  EnableTrieDatabasePreimageKeysSorting: {{.Geth.EnableTrieDatabasePreimageKeysSorting}}
+{{end}}
 ` + transferGatewayLoomYamlTemplate
