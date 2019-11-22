@@ -40,8 +40,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -336,10 +334,6 @@ func newRunCommand() *cobra.Command {
 	var appHeight int64
 
 	cfg, err := common.ParseConfig()
-
-	state.EnableStateObjectDirtyStorageKeysSorting = cfg.Geth.EnableStateObjectDirtyStorageKeysSorting
-	trie.EnableTrieDatabasePreimageKeysSorting = cfg.Geth.EnableTrieDatabasePreimageKeysSorting
-
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
@@ -347,6 +341,7 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			configureGeth(cfg.Geth)
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			logger := log.Default
 			if cfg.PrometheusPushGateway.Enabled {
