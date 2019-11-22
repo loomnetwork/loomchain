@@ -315,6 +315,8 @@ func newGetStateCommand() *cobra.Command {
 				name = LoomGatewayName
 			} else if strings.Compare(args[0], BinanceGatewayName) == 0 {
 				name = BinanceGatewayName
+			} else if strings.Compare(args[0], TronGatewayName) == 0 {
+				name = TronGatewayName
 			} else {
 				return errors.New("Invalid gateway name")
 			}

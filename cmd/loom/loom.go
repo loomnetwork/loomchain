@@ -337,8 +337,8 @@ func newRunCommand() *cobra.Command {
 
 	cfg, err := common.ParseConfig()
 
-	state.EnableStateObjectDirtyStorageKeysSorting = cfg.GoEthereum.EnableStateObjectDirtyStorageKeysSorting
-	trie.EnableTrieDatabasePreimageKeysSorting = cfg.GoEthereum.EnableTrieDatabasePreimageKeysSorting
+	state.EnableStateObjectDirtyStorageKeysSorting = cfg.Geth.EnableStateObjectDirtyStorageKeysSorting
+	trie.EnableTrieDatabasePreimageKeysSorting = cfg.Geth.EnableTrieDatabasePreimageKeysSorting
 
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
@@ -1269,6 +1269,7 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1287,6 +1288,7 @@ func initQueryService(
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 		Web3Cfg:                cfg.Web3,
+		DPOSCfg:                cfg.DPOS,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
