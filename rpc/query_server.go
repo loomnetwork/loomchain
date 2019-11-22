@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/state"
-
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
@@ -132,12 +130,10 @@ type QueryServer struct {
 	RPCListenAddress string
 	store.BlockStore
 	*evmaux.EvmAuxStore
-	*store.EvmStore
 	blockindex.BlockIndexStore
 	EventStore        store.EventStore
 	AuthCfg           *auth.Config
 	Web3Cfg           *eth.Web3Config
-	EVMState          *state.StateDB
 	totalStakedAmount *totalStakedAmount
 	DPOSCfg           *config.DPOSConfig
 }

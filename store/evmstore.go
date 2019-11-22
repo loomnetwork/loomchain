@@ -281,7 +281,7 @@ func (s *EvmStore) TrieDB() *trie.Database {
 
 // GetVMRootKey returns the lastest root of EVM state trie
 func (s *EvmStore) GetVMRootKey() []byte {
-	return s.Get(util.PrefixKey(vmPrefix, rootKey))
+	return s.rootHash
 }
 
 func (s *EvmStore) SetVMRootKey(root []byte) {

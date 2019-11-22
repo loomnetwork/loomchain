@@ -1299,9 +1299,7 @@ func initQueryService(
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
-		EvmStore:               app.EvmStore,
 		Web3Cfg:                cfg.Web3,
-		EVMState:               app.EVMState,
 		DPOSCfg:                cfg.DPOS,
 	}
 	bus := &rpc.QueryEventBus{
