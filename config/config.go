@@ -150,8 +150,20 @@ type Config struct {
 	SkipMinBuildCheck bool
 
 	Web3 *eth.Web3Config
-
+	Geth *GethConfig
 	DPOS *DPOSConfig
+}
+
+type GethConfig struct {
+	EnableStateObjectDirtyStorageKeysSorting bool
+	EnableTrieDatabasePreimageKeysSorting    bool
+}
+
+func DefaultGethConfig() *GethConfig {
+	return &GethConfig{
+		EnableStateObjectDirtyStorageKeysSorting: true,
+		EnableTrieDatabasePreimageKeysSorting:    true,
+	}
 }
 
 type Metrics struct {
@@ -454,6 +466,7 @@ func DefaultConfig() *Config {
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 	cfg.Web3 = eth.DefaultWeb3Config()
+	cfg.Geth = DefaultGethConfig()
 	cfg.DPOS = DefaultDPOSConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
@@ -840,4 +853,13 @@ EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
+
+{{if .Geth -}}
+#
+# Internal EVM integration settings
+#
+Geth:
+  EnableStateObjectDirtyStorageKeysSorting: {{.Geth.EnableStateObjectDirtyStorageKeysSorting}}
+  EnableTrieDatabasePreimageKeysSorting: {{.Geth.EnableTrieDatabasePreimageKeysSorting}}
+{{end}}
 ` + transferGatewayLoomYamlTemplate
