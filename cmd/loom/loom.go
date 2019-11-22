@@ -334,7 +334,6 @@ func newRunCommand() *cobra.Command {
 	var appHeight int64
 
 	cfg, err := common.ParseConfig()
-
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
@@ -344,6 +343,7 @@ func newRunCommand() *cobra.Command {
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			logger := log.Default
+			configureGeth(cfg.Geth)
 			if cfg.PrometheusPushGateway.Enabled {
 				host, err := os.Hostname()
 				if err != nil {
