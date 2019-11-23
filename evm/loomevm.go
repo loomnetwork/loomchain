@@ -129,7 +129,9 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		return nil, loom.Address{}, err
 	}
 	bytecode, addr, err := levm.Create(caller, code, value)
-	levm.sdb.Finalise(true)
+	if err == nil {
+		levm.sdb.Finalise(true)
+	}
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
@@ -187,7 +189,9 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		return nil, err
 	}
 	_, err = levm.Call(caller, addr, input, value)
-	levm.sdb.Finalise(true)
+	if err == nil {
+		levm.sdb.Finalise(true)
+	}
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
