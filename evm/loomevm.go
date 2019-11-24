@@ -127,7 +127,11 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
+	snapshot := lvm.state.EVMState().Snapshot()
 	bytecode, addr, err := levm.Create(caller, code, value)
+	if err != nil {
+		lvm.state.EVMState().RevertToSnapshot(snapshot)
+	}
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
@@ -184,7 +188,11 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err != nil {
 		return nil, err
 	}
+	snapshot := lvm.state.EVMState().Snapshot()
 	_, err = levm.Call(caller, addr, input, value)
+	if err != nil {
+		lvm.state.EVMState().RevertToSnapshot(snapshot)
+	}
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
