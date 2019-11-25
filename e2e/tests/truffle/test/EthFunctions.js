@@ -94,9 +94,8 @@ contract('MyToken', async (accounts) => {
     const txObj = await web3js.eth.getTransaction(result.tx);
 
     assert.equal(txObj.to.toLowerCase(), tokenContract.address.toLowerCase(), "transaction object to address and contract address");
-    assert.equal(txObj.from.toLowerCase(), alice.toLowerCase(), "transaction object from address and caller");
-    // TODO: Need to fix GetTxObjectFromBlockResult so the caller address matches on the receipt & tx
-    //assert.equal(result.receipt.from.toLowerCase(), alice.toLowerCase(), "receipt from and caller");
+    assert.equal(txObj.from.toLowerCase(), result.receipt.from.toLowerCase(), "transaction object from address and caller");
+    assert.equal(result.receipt.from.toLowerCase(), result.receipt.from.toLowerCase(), "receipt from and caller");
   });
 
   it('eth_getCode', async () => {
@@ -117,8 +116,7 @@ contract('MyToken', async (accounts) => {
     assert.equal(txObject.blockNumber, blockByHash.number, "receipt block number and block object number");
 
     assert.equal(blockByHash.transactions.length, 1, "block transaction count");
-    // TODO: the from on the tx should be the local address, not the eth address, just like on the tx receipt
-    assert.equal(blockByHash.transactions[0].from.toLowerCase(), alice.toLowerCase(), "caller and block transaction from");
+    assert.equal(blockByHash.transactions[0].from.toLowerCase(), result.receipt.from.toLowerCase(), "caller and block transaction from");
     assert.equal(blockByHash.transactions[0].to.toLowerCase(), tokenContract.address.toLowerCase(), "token address and block transaction to");
     assert.equal(txObject.blockNumber, blockByHash.transactions[0].blockNumber, "receipt block number and block transaction block bumber");
     assert.equal(txObject.hash.toLowerCase(), blockByHash.transactions[0].hash.toLowerCase(), "receipt tx hash and block transaction hash");
@@ -153,9 +151,7 @@ contract('MyToken', async (accounts) => {
     await tokenContract.mintToken(108, { from: alice });
     const tx1 = await web3js.eth.getTransaction(result.tx, true);
     const tx2 = await web3js.eth.getTransactionFromBlock(tx1.blockHash, 0);
-    
-    // TODO: the from on the tx should be the local address, not the eth address, just like on the tx receipt
-    assert.equal(tx2.from.toLowerCase(), alice.toLowerCase(), "caller and transaction object from");
+    assert.equal(tx2.from.toLowerCase(), result.receipt.from.toLowerCase(), "caller and transaction object from");
     assert.equal(tx2.to.toLowerCase(), tokenContract.address.toLowerCase(), "contract address and transaction object to");
     assert.equal(tx1.blockNumber, tx2.blockNumber, "receipt block number and transaction object block number");
     assert.equal(tx1.hash.toLowerCase(), tx2.hash.toLowerCase(), "transaction hash and transaction object hash");
