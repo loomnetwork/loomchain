@@ -57,12 +57,12 @@ func NewLoomEvm(
 	var err error
 	if accountBalanceManager != nil {
 		abm = newEVMAccountBalanceManager(accountBalanceManager, loomState.Block().ChainID)
-		p.sdb, err = newLoomStateDB(abm, loomState.EVMState())
+		p.sdb, err = newLoomStateDB(abm, loomState.EVMState().StateDB())
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		p.sdb = loomState.EVMState()
+		p.sdb = loomState.EVMState().StateDB()
 	}
 	p.Evm = NewEvm(p.sdb, loomState, abm, debug)
 	return p, nil
@@ -127,20 +127,30 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
-	snapshot := lvm.state.EVMState().Snapshot()
+	stateDB := lvm.state.EVMState().StateDB()
+	lastLogsIndex := len(stateDB.Logs())
+	// evm.Create changes Nonce even though tx fails
+	// To prevent any state change from error tx, create a snapshot and revert EVM state if tx fails
+	snapshot := stateDB.Snapshot()
 	bytecode, addr, err := levm.Create(caller, code, value)
 	if err != nil {
-		lvm.state.EVMState().RevertToSnapshot(snapshot)
+		stateDB.RevertToSnapshot(snapshot)
 	}
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
 		var events []*ptypes.EventData
 		if err == nil {
+			allLogs := levm.sdb.Logs()
+			var addedLogs []*types.Log
+			for index, log := range allLogs {
+				if index >= lastLogsIndex {
+					addedLogs = append(addedLogs, log)
+				}
+			}
 			events = lvm.receiptHandler.GetEventsFromLogs(
-				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
+				addedLogs, lvm.state.Block().Height, caller, addr, code,
 			)
-			levm.sdb.ResetLogs()
 		}
 
 		if !lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_4, false) {
@@ -188,20 +198,29 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err != nil {
 		return nil, err
 	}
-	snapshot := lvm.state.EVMState().Snapshot()
+	stateDB := lvm.state.EVMState().StateDB()
+	lastLogsIndex := len(stateDB.Logs())
+	// To prevent any state change from error tx, create a snapshot and revert EVM state if tx fails
+	snapshot := stateDB.Snapshot()
 	_, err = levm.Call(caller, addr, input, value)
 	if err != nil {
-		lvm.state.EVMState().RevertToSnapshot(snapshot)
+		stateDB.RevertToSnapshot(snapshot)
 	}
 
 	var txHash []byte
 	if lvm.receiptHandler != nil {
 		var events []*ptypes.EventData
 		if err == nil {
+			allLogs := stateDB.Logs()
+			var addedLogs []*types.Log
+			for index, log := range allLogs {
+				if index >= lastLogsIndex {
+					addedLogs = append(addedLogs, log)
+				}
+			}
 			events = lvm.receiptHandler.GetEventsFromLogs(
-				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
+				stateDB.Logs(), lvm.state.Block().Height, caller, addr, input,
 			)
-			levm.sdb.ResetLogs()
 		}
 
 		if !lvm.state.FeatureEnabled(features.EvmTxReceiptsVersion3_4, false) {

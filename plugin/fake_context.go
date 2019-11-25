@@ -48,7 +48,11 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 	evmRoot, _ := evmStore.Version()
 	stateDB := gstate.NewDatabase(ethDB)
 	stateDB.SetTrieDB(evmStore.TrieDB())
-	evmState, _ := gstate.New(gcommon.BytesToHash(evmRoot), stateDB)
+	sdb, err := gstate.New(gcommon.BytesToHash(evmRoot), stateDB)
+	if err != nil {
+		panic(err)
+	}
+	evmState := loomchain.NewEVMState(evmStore, sdb)
 
 	return &FakeContextWithEVM{
 		FakeContext: ctx,

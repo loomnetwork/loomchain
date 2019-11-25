@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	gcommon "github.com/ethereum/go-ethereum/common"
 	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
@@ -52,7 +53,48 @@ type State interface {
 	SetFeature(string, bool)
 	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
-	EVMState() *gstate.StateDB
+	EVMState() *EVMState
+}
+
+type EVMState struct {
+	sdb      *gstate.StateDB
+	evmStore *store.EvmStore
+}
+
+func NewEVMState(evmStore *store.EvmStore, sdb *gstate.StateDB) *EVMState {
+	return &EVMState{
+		evmStore: evmStore,
+		sdb:      sdb,
+	}
+}
+
+func (s *EVMState) Commit() error {
+	evmStateRoot, err := s.sdb.Commit(true)
+	if err != nil {
+		return err
+	}
+	s.evmStore.SetVMRootKey(evmStateRoot[:])
+	s.sdb.Reset(evmStateRoot)
+	return nil
+}
+
+func (s *EVMState) GetSnapshot(version int64) (*EVMState, error) {
+	stateDB, err := gstate.New(gcommon.BytesToHash(s.evmStore.GetRootAt(version)), s.sdb.Database())
+	if err != nil {
+		return nil, err
+	}
+	return &EVMState{sdb: stateDB, evmStore: s.evmStore}, nil
+}
+
+func (s *EVMState) Clone() *EVMState {
+	return &EVMState{
+		evmStore: s.evmStore,
+		sdb:      s.sdb.Copy(),
+	}
+}
+
+func (s *EVMState) StateDB() *gstate.StateDB {
+	return s.sdb
 }
 
 type StoreState struct {
@@ -62,7 +104,7 @@ type StoreState struct {
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
 	config          *cctypes.Config
-	evmState        *gstate.StateDB
+	evmState        *EVMState
 }
 
 var _ = State(&StoreState{})
@@ -104,7 +146,7 @@ func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
 	return s
 }
 
-func (s *StoreState) WithEVMState(evmState *gstate.StateDB) *StoreState {
+func (s *StoreState) WithEVMState(evmState *EVMState) *StoreState {
 	s.evmState = evmState
 	return s
 }
@@ -149,7 +191,7 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-func (s *StoreState) EVMState() *gstate.StateDB {
+func (s *StoreState) EVMState() *EVMState {
 	return s.evmState
 }
 
@@ -383,7 +425,7 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
-	EVMState                    *gstate.StateDB
+	EVMState                    *EVMState
 	committedTxs                []CommittedTx
 }
 
@@ -671,7 +713,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithEVMState(a.EVMState.Copy())
+	).WithOnChainConfig(a.config).WithEVMState(a.EVMState.Clone())
 
 	// Receipts & events generated in CheckTx must be discarded since the app state changes they
 	// reflect aren't persisted.
@@ -848,12 +890,9 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}(time.Now())
 
 	// Commit EVM state
-	evmStateRoot, err := a.EVMState.Commit(true)
-	if err != nil {
+	if err := a.EVMState.Commit(); err != nil {
 		panic(err)
 	}
-	a.EvmStore.SetVMRootKey(evmStateRoot[:])
-	a.EVMState.Reset(evmStateRoot)
 
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
@@ -928,6 +967,10 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
+	evmStateSnapshot, err := a.EVMState.GetSnapshot(a.lastBlockHeader.Height)
+	if err != nil {
+		panic(err)
+	}
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
@@ -936,5 +979,5 @@ func (a *Application) ReadOnlyState() State {
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-	).WithEVMState(a.EvmStore.GetSnapshot(a.lastBlockHeader.Height).StateDB(a.EVMState.Database()))
+	).WithEVMState(evmStateSnapshot)
 }

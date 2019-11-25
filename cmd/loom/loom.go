@@ -819,7 +819,7 @@ func loadApp(
 		), nil
 	})
 
-	var evmState *state.StateDB
+	var evmState *loomchain.EVMState
 	if evm.EVMEnabled {
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
@@ -847,10 +847,11 @@ func loadApp(
 		evmRoot, _ := evmStore.Version()
 		stateDB := state.NewDatabase(ethDB)
 		stateDB.SetTrieDB(evmStore.TrieDB())
-		evmState, err = state.New(gcommon.BytesToHash(evmRoot), stateDB)
+		sdb, err := state.New(gcommon.BytesToHash(evmRoot), stateDB)
 		if err != nil {
 			return nil, err
 		}
+		evmState = loomchain.NewEVMState(evmStore, sdb)
 	}
 	store.LogEthDBBatch = cfg.LogEthDbBatch
 
