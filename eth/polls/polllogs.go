@@ -5,6 +5,7 @@ package polls
 import (
 	"fmt"
 
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/store"
@@ -13,6 +14,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -40,7 +42,11 @@ func NewEthLogPoll(filter string, evmAuxStore *evmaux.EvmAuxStore, blockStore st
 }
 
 func (p *EthLogPoll) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state loomchain.State,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (EthPoll, interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
@@ -63,7 +69,15 @@ func (p *EthLogPoll) Poll(
 	}
 
 	eventLogs, err := query.GetBlockLogRange(
-		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+		p.blockStore,
+		state,
+		start,
+		end,
+		p.filter.EthBlockFilter,
+		readReceipts,
+		p.evmAuxStore,
+		authCfg,
+		createAddressMapperCtx,
 	)
 	if err != nil {
 		return p, nil, err
@@ -75,8 +89,13 @@ func (p *EthLogPoll) Poll(
 	return newLogPoll, eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
-	id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (p *EthLogPoll) AllLogs(
+	state loomchain.State,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+) (interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return nil, err
@@ -90,7 +109,15 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
 	}
 
 	eventLogs, err := query.GetBlockLogRange(
-		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+		p.blockStore,
+		state,
+		start,
+		end,
+		p.filter.EthBlockFilter,
+		readReceipts,
+		p.evmAuxStore,
+		authCfg,
+		createAddressMapperCtx,
 	)
 	if err != nil {
 		return nil, err
@@ -98,8 +125,13 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
 	return eth.EncLogs(eventLogs), nil
 }
 
-func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
-	id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthLogPoll) LegacyPoll(
+	state loomchain.State,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+) (EthPoll, []byte, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
@@ -117,7 +149,15 @@ func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
 		}
 	}
 	eventLogs, err := query.GetBlockLogRange(
-		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
+		p.blockStore,
+		state,
+		start,
+		end,
+		p.filter.EthBlockFilter,
+		readReceipts,
+		p.evmAuxStore,
+		authCfg,
+		createAddressMapperCtx,
 	)
 	if err != nil {
 		return p, nil, err

@@ -9,11 +9,14 @@ import (
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
+	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -27,10 +30,12 @@ var (
 
 func GetBlockByNumber(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	state loomchain.State,
 	height int64,
 	full bool,
 	evmAuxStore *evmaux.EvmAuxStore,
+	authCfg *lauth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
 	if height > state.Block().Height {
@@ -99,7 +104,15 @@ func GetBlockByNumber(
 
 		// TODO: When full is false this code ends up doing a bunch of useless encoding, should refactor
 		//       things a bit.
-		txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResultData, int64(index), evmAuxStore)
+		txObj, _, err := GetTxObjectFromBlockResult(
+			blockResult,
+			txResultData,
+			int64(index),
+			evmAuxStore,
+			state,
+			authCfg,
+			createAddressMapperCtx,
+		)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
 		}
@@ -119,7 +132,13 @@ func GetBlockByNumber(
 }
 
 func GetTxObjectFromBlockResult(
-	blockResult *ctypes.ResultBlock, txResultData []byte, txIndex int64, evmAuxStore *evmaux.EvmAuxStore,
+	blockResult *ctypes.ResultBlock,
+	txResultData []byte,
+	txIndex int64,
+	evmAuxStore *evmaux.EvmAuxStore,
+	state loomchain.State,
+	authCfg *lauth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[txIndex]
 	var contractAddress *eth.Data
@@ -156,7 +175,11 @@ func GetTxObjectFromBlockResult(
 	// TODO: For EVM txs if this is a foreign address map it to a local address because the EVM tx
 	//       receipt will have the local address, so the receipt & tx should have matching caller
 	//       addresses.
-	txObj.From = eth.EncAddress(msg.From)
+	addr, err := lauth.ResolveAccountAddress(loom.UnmarshalAddressPB(msg.From), state, authCfg, createAddressMapperCtx)
+	if err != nil {
+		return eth.GetEmptyTxObject(), nil, err
+	}
+	txObj.From = eth.EncAddress(addr.MarshalPB())
 
 	var input []byte
 	switch ltypes.TxID(txTx.Id) {

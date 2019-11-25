@@ -4,6 +4,7 @@ package query
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 
 	"github.com/pkg/errors"
 
@@ -21,19 +22,33 @@ func GetTxByHash(
 	txHash []byte,
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
+	state loomchain.State,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return eth.GetEmptyTxObject(), errors.Wrap(err, "reading receipt")
 	}
 	return GetTxByBlockAndIndex(
-		blockStore, uint64(txReceipt.BlockNumber),
-		uint64(txReceipt.TransactionIndex), evmAuxStore,
+		blockStore,
+		uint64(txReceipt.BlockNumber),
+		uint64(txReceipt.TransactionIndex),
+		evmAuxStore,
+		state,
+		authCfg,
+		createAddressMapperCtx,
 	)
 }
 
 func GetTxByBlockAndIndex(
-	blockStore store.BlockStore, height, index uint64, evmAuxStore *evmaux.EvmAuxStore,
+	blockStore store.BlockStore,
+	height,
+	index uint64,
+	evmAuxStore *evmaux.EvmAuxStore,
+	state loomchain.State,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (eth.JsonTxObject, error) {
 	iHeight := int64(height)
 
@@ -53,7 +68,15 @@ func GetTxByBlockAndIndex(
 			err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
 	}
 
-	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index), evmAuxStore)
+	txObj, _, err := GetTxObjectFromBlockResult(
+		blockResult,
+		txResult.TxResult.Data,
+		int64(index),
+		evmAuxStore,
+		state,
+		authCfg,
+		createAddressMapperCtx,
+	)
 	if err != nil {
 		return eth.GetEmptyTxObject(), err
 	}

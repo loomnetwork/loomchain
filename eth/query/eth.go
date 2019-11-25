@@ -5,6 +5,8 @@ package query
 import (
 	"fmt"
 
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -20,8 +22,13 @@ import (
 )
 
 func QueryChain(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore, maxBlockRange uint64,
+	blockStore store.BlockStore,
+	state loomchain.State,
+	ethFilter eth.EthFilter,
+	readReceipts loomchain.ReadReceiptHandler,
+	evmAuxStore *evmaux.EvmAuxStore, maxBlockRange uint64,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]*ptypes.EthFilterLog, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, ethFilter.FromBlock)
 	if err != nil {
@@ -39,12 +46,28 @@ func QueryChain(
 		return nil, fmt.Errorf("max allowed block range (%d) exceeded", maxBlockRange)
 	}
 
-	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
+	return GetBlockLogRange(
+		blockStore,
+		state,
+		start,
+		end,
+		ethFilter.EthBlockFilter,
+		readReceipts,
+		evmAuxStore,
+		authCfg,
+		createAddressMapperCtx,
+	)
 }
 
 func DeprecatedQueryChain(
-	query string, blockStore store.BlockStore, state loomchain.ReadOnlyState,
-	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore, maxBlockRange uint64,
+	query string,
+	blockStore store.BlockStore,
+	state loomchain.State,
+	readReceipts loomchain.ReadReceiptHandler,
+	evmAuxStore *evmaux.EvmAuxStore,
+	maxBlockRange uint64,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]byte, error) {
 
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
@@ -68,7 +91,16 @@ func DeprecatedQueryChain(
 		return nil, fmt.Errorf("max allowed block range (%d) exceeded", maxBlockRange)
 	}
 
-	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts, evmAuxStore)
+	eventLogs, err := GetBlockLogRange(
+		blockStore,
+		state,
+		start,
+		end,
+		ethFilter.EthBlockFilter,
+		readReceipts, evmAuxStore,
+		authCfg,
+		createAddressMapperCtx,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -78,11 +110,13 @@ func DeprecatedQueryChain(
 
 func GetBlockLogRange(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	state loomchain.State,
 	from, to uint64,
 	ethFilter eth.EthBlockFilter,
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
 		return nil, fmt.Errorf("from block (%v) greater than to block (%v)", from, to)
@@ -90,7 +124,16 @@ func GetBlockLogRange(
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := getBlockLogs(blockStore, state, ethFilter, height, readReceipts, evmAuxStore)
+		blockLogs, err := getBlockLogs(
+			blockStore,
+			state,
+			ethFilter,
+			height,
+			readReceipts,
+			evmAuxStore,
+			authCfg,
+			createAddressMapperCtx,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -101,17 +144,27 @@ func GetBlockLogRange(
 
 func getBlockLogs(
 	blockStore store.BlockStore,
-	state loomchain.ReadOnlyState,
+	state loomchain.State,
 	ethFilter eth.EthBlockFilter,
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]*ptypes.EthFilterLog, error) {
 
 	bloomFilter := evmAuxStore.GetBloomFilter(height)
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			txObject, err := GetBlockByNumber(blockStore, state, int64(height), false, evmAuxStore)
+			txObject, err := GetBlockByNumber(
+				blockStore,
+				state,
+				int64(height),
+				false,
+				evmAuxStore,
+				authCfg,
+				createAddressMapperCtx,
+			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get block at height %d", height)
 			}

@@ -19,13 +19,26 @@ func DeprecatedQueryChain(
 }
 
 func GetBlockByNumber(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ *evmaux.EvmAuxStore,
-) (eth.JsonBlockObject, error) {
+	_ store.BlockStore,
+	_ loomchain.ReadOnlyState,
+	_ int64,
+	_ bool,
+	_ *evmaux.EvmAuxStore,
+	_ *lauth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
+) (resp eth.JsonBlockObject, err error) {
 	return eth.JsonBlockObject{}, nil
 }
 
 func GetTxObjectFromBlockResult(
-	_ *ctypes.ResultBlock, _ []byte, _ int64, _ *evmaux.EvmAuxStore,
+	_ *ctypes.ResultBlock,
+	_ []byte,
+	_ int64,
+	_ *evmaux.EvmAuxStore,
+	_ loomchain.State,
+	_ *lauth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
+
 ) (eth.JsonTxObject, *eth.Data, error) {
 	return eth.JsonTxObject{}, nil, nil
 }

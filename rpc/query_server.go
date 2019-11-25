@@ -648,8 +648,14 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	defer snapshot.Release()
 
 	return query.DeprecatedQueryChain(
-		filter, s.BlockStore, snapshot, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		filter,
+		s.BlockStore,
+		snapshot,
+		s.ReceiptHandlerProvider.Reader(),
+		s.EvmAuxStore,
 		s.Web3Cfg.GetLogsMaxBlockRange,
+		s.AuthCfg,
+		s.createAddressMapperCtx,
 	)
 }
 
@@ -687,7 +693,13 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	return s.EthPolls.LegacyPoll(snapshot, id, s.ReceiptHandlerProvider.Reader())
+	return s.EthPolls.LegacyPoll(
+		snapshot,
+		id,
+		s.ReceiptHandlerProvider.Reader(),
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 }
 
 // Forget the filter.
@@ -774,7 +786,15 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
+	blockResult, err := query.GetBlockByNumber(
+		s.BlockStore,
+		snapshot,
+		int64(height),
+		full,
+		s.EvmAuxStore,
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -799,7 +819,16 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 		// TODO: Log the error, this fallback should be happening very rarely so we should probably
 		//       setup an alert to detect when this happens.
 		// if the receipt is not found, create it from TxObj
-		resp, err := getReceiptByTendermintHash(s.BlockStore, r, txHash, s.EvmAuxStore)
+		snapshot := s.StateProvider.ReadOnlyState()
+		defer snapshot.Release()
+		resp, err := getReceiptByTendermintHash(
+			s.BlockStore,
+			r, txHash,
+			s.EvmAuxStore,
+			snapshot,
+			s.AuthCfg,
+			s.createAddressMapperCtx,
+		)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
 				// return nil response if cannot find hash
@@ -895,7 +924,15 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
+	return query.GetBlockByNumber(
+		s.BlockStore,
+		snapshot,
+		int64(height),
+		full,
+		s.EvmAuxStore,
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -904,8 +941,17 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 	if err != nil {
 		return resp, err
 	}
-
-	txObj, err := query.GetTxByHash(s.BlockStore, txHash, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore)
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	txObj, err := query.GetTxByHash(
+		s.BlockStore,
+		txHash,
+		s.ReceiptHandlerProvider.Reader(),
+		s.EvmAuxStore,
+		snapshot,
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 	if err != nil {
 		// TODO: Should call r.GetReceipt instead of query.GetTxByHash so we don't have to use this
 		//       flimsy error cause checking.
@@ -913,7 +959,14 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 			return resp, err
 		}
 
-		txObj, err = getTxByTendermintHash(s.BlockStore, txHash, s.EvmAuxStore)
+		txObj, err = getTxByTendermintHash(
+			s.BlockStore,
+			txHash,
+			s.EvmAuxStore,
+			snapshot,
+			s.AuthCfg,
+			s.createAddressMapperCtx,
+		)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to find tx with hash %v", txHash)
 		}
@@ -939,8 +992,17 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 	if err != nil {
 		return txObj, err
 	}
-
-	return query.GetTxByBlockAndIndex(s.BlockStore, uint64(height), txIndex, s.EvmAuxStore)
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	return query.GetTxByBlockAndIndex(
+		s.BlockStore,
+		uint64(height),
+		txIndex,
+		s.EvmAuxStore,
+		snapshot,
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
@@ -960,7 +1022,15 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 	if err != nil {
 		return txObj, err
 	}
-	return query.GetTxByBlockAndIndex(s.BlockStore, height, txIndex, s.EvmAuxStore)
+	return query.GetTxByBlockAndIndex(
+		s.BlockStore,
+		height,
+		txIndex,
+		s.EvmAuxStore,
+		snapshot,
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 }
 
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
@@ -977,8 +1047,14 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
 	logs, err := query.QueryChain(
-		s.BlockStore, snapshot, ethFilter, s.ReceiptHandlerProvider.Reader(), s.EvmAuxStore,
+		s.BlockStore,
+		snapshot,
+		ethFilter,
+		s.ReceiptHandlerProvider.Reader(),
+		s.EvmAuxStore,
 		s.Web3Cfg.GetLogsMaxBlockRange,
+		s.AuthCfg,
+		s.createAddressMapperCtx,
 	)
 	if err != nil {
 		return resp, err
@@ -1014,14 +1090,26 @@ func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) 
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	return s.EthPolls.Poll(snapshot, string(id), s.ReceiptHandlerProvider.Reader())
+	return s.EthPolls.Poll(
+		snapshot,
+		string(id),
+		s.ReceiptHandlerProvider.Reader(),
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
-	return s.EthPolls.AllLogs(snapshot, string(id), s.ReceiptHandlerProvider.Reader())
+	return s.EthPolls.AllLogs(
+		snapshot,
+		string(id),
+		s.ReceiptHandlerProvider.Reader(),
+		s.AuthCfg,
+		s.createAddressMapperCtx,
+	)
 }
 
 // Sets up new filter for polling
@@ -1199,7 +1287,12 @@ func (s *QueryServer) getEthAccount(state loomchain.State, address eth.Data) (lo
 
 func getReceiptByTendermintHash(
 	blockStore store.BlockStore,
-	rh loomchain.ReadReceiptHandler, hash []byte, evmAuxStore *evmaux.EvmAuxStore,
+	rh loomchain.ReadReceiptHandler,
+	hash []byte,
+	evmAuxStore *evmaux.EvmAuxStore,
+	state loomchain.State,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
@@ -1210,7 +1303,13 @@ func getReceiptByTendermintHash(
 		return nil, err
 	}
 	txObj, contractAddr, err := query.GetTxObjectFromBlockResult(
-		blockResult, txResults.TxResult.Data, int64(txResults.Index), evmAuxStore,
+		blockResult,
+		txResults.TxResult.Data,
+		int64(txResults.Index),
+		evmAuxStore,
+		state,
+		authCfg,
+		createAddressMapperCtx,
 	)
 	if err != nil {
 		return nil, err
@@ -1262,7 +1361,12 @@ func completeReceipt(
 }
 
 func getTxByTendermintHash(
-	blockStore store.BlockStore, hash []byte, evmAuxStore *evmaux.EvmAuxStore,
+	blockStore store.BlockStore,
+	hash []byte,
+	evmAuxStore *evmaux.EvmAuxStore,
+	state loomchain.State,
+	authCfg *auth.Config,
+	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
 ) (eth.JsonTxObject, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
@@ -1273,7 +1377,13 @@ func getTxByTendermintHash(
 		return eth.JsonTxObject{}, err
 	}
 	txObj, _, err := query.GetTxObjectFromBlockResult(
-		blockResult, txResults.TxResult.Data, int64(txResults.Index), evmAuxStore,
+		blockResult,
+		txResults.TxResult.Data,
+		int64(txResults.Index),
+		evmAuxStore,
+		state,
+		authCfg,
+		createAddressMapperCtx,
 	)
 	return txObj, err
 }
