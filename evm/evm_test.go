@@ -18,6 +18,7 @@ import (
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -46,14 +47,15 @@ func mockState() loomchain.State {
 	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil).WithEVMState(mockEVMState())
 }
 
-func mockEVMState() *gstate.StateDB {
+func mockEVMState() *loomchain.EVMState {
 	ethDB := store.NewLoomEthDB(store.NewMemStore(), nil)
 	stateDB := gstate.NewDatabase(ethDB)
-	evmState, err := gstate.New(gcommon.BytesToHash(nil), stateDB)
+	sdb, err := gstate.New(gcommon.BytesToHash(nil), stateDB)
 	if err != nil {
 		panic(err)
 	}
-	return evmState
+	memDb, _ := db.LoadMemDB()
+	return loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0), sdb)
 }
 
 func TestProcessDeployTx(t *testing.T) {
