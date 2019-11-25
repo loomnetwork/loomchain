@@ -14,6 +14,8 @@ import (
 func DeprecatedQueryChain(
 	_ string, _ store.BlockStore, _ loomchain.ReadOnlyState,
 	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore, _ uint64,
+	_ *auth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]byte, error) {
 	return nil, nil
 }
@@ -82,6 +84,8 @@ func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64, _ *evmaux.EvmAuxStore
 func QueryChain(
 	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter,
 	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore, _ uint64,
+	_ *auth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }
