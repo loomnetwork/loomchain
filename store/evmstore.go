@@ -286,7 +286,7 @@ func (s *EvmStore) GetVMRootKey() []byte {
 }
 
 func (s *EvmStore) SetVMRootKey(root []byte) {
-	s.Set(util.PrefixKey(vmPrefix, rootKey), root)
+	s.rootHash = root
 }
 
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
@@ -319,11 +319,10 @@ func (s *EvmStore) GetSnapshot(version int64) *EvmStoreSnapshot {
 }
 
 func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
-	evmSnapshot := &EvmStoreSnapshot{
+	return &EvmStoreSnapshot{
 		Snapshot: snapshot,
 		rootHash: rootHash,
 	}
-	return evmSnapshot
 }
 
 type EvmStoreSnapshot struct {

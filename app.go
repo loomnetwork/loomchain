@@ -665,13 +665,15 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	defer storeTx.Rollback()
 
+	snapshot := a.EVMState.Snapshot()
+	defer a.EVMState.RevertToSnapshot(snapshot)
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithEVMState(a.EVMState.Copy())
+	).WithOnChainConfig(a.config).WithEVMState(a.EVMState)
 
 	// Receipts & events generated in CheckTx must be discarded since the app state changes they
 	// reflect aren't persisted.
