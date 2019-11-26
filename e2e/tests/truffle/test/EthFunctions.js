@@ -8,6 +8,7 @@ const {
 const ethers = require('ethers').ethers
 const { getContractFuncInterface, getLatestBlock, getMappedAccount } = require('./helpers')
 const MyToken = artifacts.require('MyToken');
+const { waitForXBlocks } = require('./helpers');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
@@ -92,8 +93,12 @@ contract('MyToken', async (accounts) => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(102, { from: alice });
     const txObj = await web3js.eth.getTransaction(result.tx);
-
+    await waitForXBlocks(nodeAddr, 1)
     assert.equal(txObj.to.toLowerCase(), tokenContract.address.toLowerCase(), "transaction object to address and contract address");
+    //console.log("piers txObj.transactions[0].from",txObj.transactions[0].from)
+    console.log("piers result",result)
+    console.log("piers result.receipt",result.receipt)
+    console.log("piers result.receipt.from",result.receipt.from)
     assert.equal(txObj.from.toLowerCase(), result.receipt.from.toLowerCase(), "transaction object from address and caller");
     assert.equal(result.receipt.from.toLowerCase(), result.receipt.from.toLowerCase(), "receipt from and caller");
   });
@@ -108,7 +113,7 @@ contract('MyToken', async (accounts) => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(103, { from: alice });
     await tokenContract.mintToken(104, { from: alice });
-
+    await waitForXBlocks(nodeAddr, 1)
     const txObject = await web3js.eth.getTransaction(result.tx, true);
     const blockByHash = await web3js.eth.getBlock(txObject.blockHash, true);
 
@@ -116,6 +121,10 @@ contract('MyToken', async (accounts) => {
     assert.equal(txObject.blockNumber, blockByHash.number, "receipt block number and block object number");
 
     assert.equal(blockByHash.transactions.length, 1, "block transaction count");
+    console.log("piers blockByHash.transactions[0].from",blockByHash.transactions[0].from)
+    console.log("piers result",result)
+    console.log("piers result.receipt",result.receipt)
+    console.log("piers result.receipt.from",result.receipt.from)
     assert.equal(blockByHash.transactions[0].from.toLowerCase(), result.receipt.from.toLowerCase(), "caller and block transaction from");
     assert.equal(blockByHash.transactions[0].to.toLowerCase(), tokenContract.address.toLowerCase(), "token address and block transaction to");
     assert.equal(txObject.blockNumber, blockByHash.transactions[0].blockNumber, "receipt block number and block transaction block bumber");
@@ -147,10 +156,15 @@ contract('MyToken', async (accounts) => {
   it('eth_getTransactionByBlockHashAndIndex', async () => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(107, { from: alice });
+    console.log("result bad immediate",result)
+    await waitForXBlocks(nodeAddr, 1)
     // Do second transaction to move to next block
     await tokenContract.mintToken(108, { from: alice });
     const tx1 = await web3js.eth.getTransaction(result.tx, true);
     const tx2 = await web3js.eth.getTransactionFromBlock(tx1.blockHash, 0);
+    console.log("piers tx2.from",tx2.from.toLowerCase())
+    console.log("piers result bad",result)
+    console.log("piers result.receipt.from",result.receipt.from)
     assert.equal(tx2.from.toLowerCase(), result.receipt.from.toLowerCase(), "caller and transaction object from");
     assert.equal(tx2.to.toLowerCase(), tokenContract.address.toLowerCase(), "contract address and transaction object to");
     assert.equal(tx1.blockNumber, tx2.blockNumber, "receipt block number and transaction object block number");
