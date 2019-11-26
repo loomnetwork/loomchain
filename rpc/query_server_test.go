@@ -101,6 +101,18 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 	)
 }
 
+func (s *stateProvider) ReadOnlyStateAt(height int64) (loomchain.State, error) {
+	return loomchain.NewStoreState(
+		nil,
+		store.NewMemStore(),
+		abci.Header{
+			ChainID: s.ChainID,
+		},
+		nil,
+		nil,
+	), nil
+}
+
 var testlog llog.TMLogger
 
 func TestQueryServer(t *testing.T) {

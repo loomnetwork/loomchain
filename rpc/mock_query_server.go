@@ -281,7 +281,7 @@ func (m *MockQueryService) DPOSState(height int64) (*dposv3.State, error) {
 	return nil, nil
 }
 
-func (m *MockQueryService) DPOSListAllDelegations(height int64) (*dposv3.State, error) {
+func (m *MockQueryService) DPOSListAllDelegations(height int64) (*dposv3.ListAllDelegationsResponse, error) {
 	m.MethodsCalled = append([]string{"DPOSState"}, m.MethodsCalled...)
 	return nil, nil
 }

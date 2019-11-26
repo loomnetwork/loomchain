@@ -378,6 +378,16 @@ func (c *versionedCachingStore) GetSnapshot() Snapshot {
 	)
 }
 
+func (c *versionedCachingStore) GetSnapshotAt(height int64) (Snapshot, error) {
+	snapshot, err := c.VersionedKVStore.GetSnapshotAt(height)
+	if err != nil {
+		return nil, err
+	}
+	return newVersionedCachingStoreSnapshot(
+		snapshot, c.cache, height, c.logger,
+	), nil
+}
+
 // CachingStoreSnapshot is a read-only CachingStore with specified version
 type versionedCachingStoreSnapshot struct {
 	Snapshot
