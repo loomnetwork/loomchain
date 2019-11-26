@@ -2085,14 +2085,6 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 	return &GetStateResponse{State: state}, nil
 }
 
-func GetState(ctx contract.StaticContext) (*State, error) {
-	state, err := LoadState(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return state, nil
-}
-
 // *************************
 // ORACLE METHODS
 // *************************

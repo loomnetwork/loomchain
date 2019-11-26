@@ -658,7 +658,7 @@ func (s *QueryServer) DPOSState(height int64) (*dposv3.State, error) {
 	if err != nil {
 		return nil, err
 	}
-	state, err := dposv3.GetState(dposCtx)
+	state, err := dposv3.LoadState(dposCtx)
 	if err != nil {
 		return nil, err
 	}
