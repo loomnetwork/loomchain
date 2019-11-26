@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/pubsub"
@@ -63,7 +64,10 @@ type QueryService interface {
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
+	// DPOS RPC endpoints
 	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
+	DPOSState(height int64) (*dtypes.State, error)
+	DPOSListAllDelegations(height int64) (*dtypes.ListAllDelegationsResponse, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -132,6 +136,8 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
 	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
 	routes["dpos_total_staked"] = rpcserver.NewRPCFunc(svc.DPOSTotalStaked, "")
+	routes["dpos_state"] = rpcserver.NewRPCFunc(svc.DPOSState, "height")
+	routes["dpos_list_all_delegations"] = rpcserver.NewRPCFunc(svc.DPOSListAllDelegations, "height")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)

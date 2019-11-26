@@ -8,6 +8,7 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
@@ -272,6 +273,16 @@ func (m *MockQueryService) GetContractRecord(addr string) (*types.ContractRecord
 
 func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	m.MethodsCalled = append([]string{"DposTotalStaked"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) DPOSState(height int64) (*dposv3.State, error) {
+	m.MethodsCalled = append([]string{"DPOSState"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) DPOSListAllDelegations(height int64) (*dposv3.State, error) {
+	m.MethodsCalled = append([]string{"DPOSState"}, m.MethodsCalled...)
 	return nil, nil
 }
 

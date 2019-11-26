@@ -184,6 +184,13 @@ func (s *PruningIAVLStore) GetSnapshot() Snapshot {
 	}
 }
 
+func (s *PruningIAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &pruningIAVLStoreSnapshot{
+		PruningIAVLStore: s,
+	}, nil
+}
+
 func (s *PruningIAVLStore) prune() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

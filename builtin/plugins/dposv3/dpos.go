@@ -1324,7 +1324,15 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	if req.Candidate == nil {
 		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
 	}
+	return ListDelegations(ctx, req)
+}
 
+func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
+	ctx.Logger().Debug("DPOSv3 ListAllDelegations", "request", req)
+	return ListAllDelegations(ctx)
+}
+
+func ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
@@ -1354,9 +1362,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	}, nil
 }
 
-func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListAllDelegations", "request", req)
-
+func ListAllDelegations(ctx contract.StaticContext) (*ListAllDelegationsResponse, error) {
 	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, err
@@ -1364,7 +1370,7 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 
 	responses := make([]*ListDelegationsResponse, 0)
 	for _, candidate := range candidates {
-		response, err := c.ListDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
+		response, err := ListDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
 		if err != nil {
 			return nil, err
 		}
@@ -2077,6 +2083,14 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 	}
 
 	return &GetStateResponse{State: state}, nil
+}
+
+func GetState(ctx contract.StaticContext) (*State, error) {
+	state, err := LoadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return state, nil
 }
 
 // *************************

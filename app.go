@@ -914,3 +914,19 @@ func (a *Application) ReadOnlyState() State {
 		a.GetValidatorSet,
 	)
 }
+
+func (a *Application) ReadOnlyStateAt(version int64) (State, error) {
+	readOnlySnapshot, err := a.Store.GetSnapshotAt(version)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: the store snapshot should be created atomically, otherwise the block header might
+	//       not match the state... need to figure out why this hasn't spectacularly failed already
+	return NewStoreStateSnapshot(
+		nil,
+		readOnlySnapshot,
+		a.lastBlockHeader,
+		nil, // TODO: last block hash!
+		a.GetValidatorSet,
+	), nil
+}

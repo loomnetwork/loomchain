@@ -270,6 +270,18 @@ func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
 	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree)
 }
 
+func (s *MultiWriterAppStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	defer func(begin time.Time) {
+		getSnapshotDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	appStoreTree, err := s.appStore.tree.GetImmutable(version)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to load immutable tree for version %v", version)
+	}
+	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
+	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree), nil
+}
+
 type multiWriterStoreSnapshot struct {
 	evmDbSnapshot db.Snapshot
 	appStoreTree  *iavl.ImmutableTree
