@@ -149,7 +149,6 @@ contract('MyToken', async (accounts) => {
   it('eth_getTransactionByBlockHashAndIndex', async () => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(107, { from: alice });
-    console.log("result bad immediate",result)
     await waitForXBlocks(nodeAddr, 1)
     // Do second transaction to move to next block
     await tokenContract.mintToken(108, { from: alice });
