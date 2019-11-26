@@ -219,7 +219,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 				}
 			}
 			events = lvm.receiptHandler.GetEventsFromLogs(
-				stateDB.Logs(), lvm.state.Block().Height, caller, addr, input,
+				addedLogs, lvm.state.Block().Height, caller, addr, input,
 			)
 		}
 
