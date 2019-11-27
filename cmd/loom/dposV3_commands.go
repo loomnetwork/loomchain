@@ -1185,6 +1185,43 @@ func SetMaxYearlyRewardCmdV3() *cobra.Command {
 	return cmd
 }
 
+const setBlockRewardPercentageCmdExample = `
+loom dpos3 set-block-reward-percentage 500 --key path/to/private_key
+`
+
+func SetBlockRewardPercentageCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use: "set-block-reward-percentage [block reward percentage]",
+		// nolint:lll
+		Short:   "Set reward percentage of delegation total per year. The percentage is expressed in basis point and must be between 10000 (100%) and 0 (0%)",
+		Example: setMaxYearlyRewardCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			blockRewardPercentage, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			if blockRewardPercentage > 10000 || blockRewardPercentage < 0 {
+				// nolint:lll
+				return errors.New("BlockRewardPercentage is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%)")
+			}
+
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "SetBlockRewardPercentage", &dposv3.SetBlockRewardPercentageRequest{
+					BlockRewardPercentage: blockRewardPercentage,
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 const setRegistrationRequirementCmdExample = `
 loom dpos3 set-registration-requirement 100 --key path/to/private_key
 `
@@ -1387,6 +1424,7 @@ func NewDPOSV3Command() *cobra.Command {
 		SetElectionCycleCmdV3(),
 		SetValidatorCountCmdV3(),
 		SetMaxYearlyRewardCmdV3(),
+		SetBlockRewardPercentageCmdV3(),
 		SetRegistrationRequirementCmdV3(),
 		SetOracleAddressCmdV3(),
 		SetSlashingPercentagesCmdV3(),

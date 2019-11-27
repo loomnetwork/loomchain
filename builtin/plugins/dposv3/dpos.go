@@ -118,6 +118,7 @@ type (
 	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
 	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
+	SetBlockRewardPercentageRequest   = dtypes.SetBlockRewardPercentageRequest
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
 	SetValidatorCountRequest          = dtypes.SetValidatorCountRequest
@@ -1658,7 +1659,12 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
-				distributionTotal := calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
+				var distributionTotal loom.BigUInt
+				if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
+					distributionTotal = calculateRewards2(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
+				} else {
+					distributionTotal = calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
+				}
 
 				// The validator share, equal to validator_fee * total_validotor_reward
 				// is to be split between the referrers and the validator
@@ -1690,7 +1696,12 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						}
 
 						// calculate referrerReward
-						referrerReward := calculateRewards(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
+						var referrerReward loom.BigUInt
+						if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
+							referrerReward = calculateRewards2(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
+						} else {
+							referrerReward = calculateRewards(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
+						}
 						referrerReward = CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, referrerReward)
 						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
 
@@ -1775,6 +1786,36 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
 	// scale the rewards appropriately
 	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
+	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
+		reward.Mul(&reward, &params.MaxYearlyReward.Value)
+		reward.Div(&reward, &yearlyRewardTotal)
+	}
+
+	// When election cycle = 0, estimate block time at 2 sec
+	if cycleSeconds == 0 {
+		cycleSeconds = 2
+	}
+	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
+	reward.Div(&reward, &secondsInYear)
+
+	return reward
+}
+
+// returns a Validator's distributionTotal to record the full
+// reward amount to be distributed to the validator himself, the delegators and
+// the referrers
+func calculateRewards2(delegationTotal loom.BigUInt, params *Params, totalValidatorDelegations loom.BigUInt) loom.BigUInt {
+	cycleSeconds := params.ElectionCycleLength
+	rewardPercentage := blockRewardPercentage
+	if params.BlockRewardPercentage > 0 {
+		rewardPercentage = common.BigUInt{big.NewInt(params.BlockRewardPercentage)}
+	}
+	reward := CalculateFraction(rewardPercentage, delegationTotal)
+
+	// If totalValidator Delegations are high enough to make simple reward
+	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
+	// scale the rewards appropriately
+	yearlyRewardTotal := CalculateFraction(rewardPercentage, totalValidatorDelegations)
 	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
 		reward.Mul(&reward, &params.MaxYearlyReward.Value)
 		reward.Div(&reward, &yearlyRewardTotal)
@@ -2195,6 +2236,28 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 	}
 
 	state.Params.ElectionCycleLength = req.ElectionCycle
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetBlockRewardPercentage(ctx contract.Context, req *SetBlockRewardPercentageRequest) error {
+	if !ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
+		return errors.New("DPOS v3.6 is not enabled")
+	}
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 SetBlockRewardPercentage", "sender", sender, "request", req)
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	state.Params.BlockRewardPercentage = req.BlockRewardPercentage
 
 	return saveState(ctx, state)
 }
