@@ -80,15 +80,15 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 
 func abciHeaderFromBlockHeader(header ttypes.Header) abci.Header {
 	return abci.Header{
-		ChainID:        header.ChainID,
-		Height:         header.Height,
-		Time:           header.Time,
-		NumTxs:         header.NumTxs,
-		AppHash:        header.AppHash,
-		ValidatorsHash: header.ValidatorsHash,
+		ChainID: header.ChainID,
+		Height:  header.Height,
+		Time:    header.Time,
+		NumTxs:  header.NumTxs,
 		LastBlockId: abci.BlockID{
 			Hash: header.LastBlockID.Hash,
 		},
+		ValidatorsHash: header.ValidatorsHash,
+		AppHash:        header.AppHash,
 	}
 }
 
@@ -930,12 +930,14 @@ func (a *Application) ReadOnlyState() State {
 	)
 }
 
+// ReadOnlyStateAt returns the app state as it was at a past block height, or an error if the state
+// couldn't be loaded for that block (likely due to pruning).
 func (a *Application) ReadOnlyStateAt(version int64) (State, error) {
-	readOnlySnapshot, err := a.Store.GetSnapshotAt(version)
+	snapshot, err := a.Store.GetSnapshotAt(version)
 	if err != nil {
 		return nil, err
 	}
-	block, err := a.BlockStore.GetBlockByHeight(&version)
+	blockInfo, err := a.BlockStore.GetBlockByHeight(&version)
 	if err != nil {
 		return nil, err
 	}
@@ -943,9 +945,9 @@ func (a *Application) ReadOnlyStateAt(version int64) (State, error) {
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
 		nil,
-		readOnlySnapshot,
-		abciHeaderFromBlockHeader(block.Block.Header),
-		nil, // TODO: last block hash!
+		snapshot,
+		abciHeaderFromBlockHeader(blockInfo.Block.Header),
+		blockInfo.Block.Hash(),
 		a.GetValidatorSet,
 	), nil
 }
