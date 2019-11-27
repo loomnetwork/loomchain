@@ -682,7 +682,7 @@ func (s *QueryServer) DPOSListAllDelegations(height int64) (*dposv3.ListAllDeleg
 	if err != nil {
 		return nil, err
 	}
-	res, err := dposv3.ListAllDelegations(dposCtx)
+	res, err := dposv3.GetAllDelegations(dposCtx)
 	if err != nil {
 		return nil, err
 	}
