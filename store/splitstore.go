@@ -41,6 +41,7 @@ func (ss *splitStore) Range(prefix []byte) plugin.RangeData {
 			updateRange = append(updateRange, re)
 		}
 	}
+
 	// VersionedKVStore comes from a MemStore, hence updateRange is not deterministic
 	sort.Slice(updateRange, func(i, j int) bool {
 		return bytes.Compare(updateRange[i].Key, updateRange[j].Key) < 0
