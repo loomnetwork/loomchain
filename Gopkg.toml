@@ -94,6 +94,10 @@ ignored = [
   name = "github.com/VictoriaMetrics/fastcache"
   revision = "c90394ca9feafec9b80dd610d1509f71c15811a9"
 
+ [[constraint]]
+   name = "github.com/cespare/xxhash"
+   revision = "d7df74196a9e781ede915320c11c378c1b2f3a1f"
+
 [[constraint]]
   name = "github.com/btcsuite/btcutil"
   revision = "9e5f4b9a998d263e3ce9c56664a7816001ac8000"

@@ -17,6 +17,13 @@
   revision = "c90394ca9feafec9b80dd610d1509f71c15811a9"
 
 [[projects]]
+  digest = "1:f96ba6ecca7ba87b1dddd70ae38cfc4ce5ea844f58d1f728e121d2e29cdfb8a2"
+  name = "github.com/cespare/xxhash"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d7df74196a9e781ede915320c11c378c1b2f3a1f"
+
+[[projects]]
   digest = "1:1d8e1cb71c33a9470bbbae09bfec09db43c6bf358dfcae13cd8807c4e2a9a2bf"
   name = "github.com/btcsuite/btcutil"
   packages = [
@@ -424,6 +431,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/VictoriaMetrics/fastcache",
+    "github.com/cespare/xxhash",
     "github.com/btcsuite/btcutil/base58",
     "github.com/btcsuite/btcutil/bech32",
     "github.com/golang/protobuf/proto",
