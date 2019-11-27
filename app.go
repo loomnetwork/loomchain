@@ -947,7 +947,7 @@ func (a *Application) ReadOnlyStateAt(version int64) (State, error) {
 		nil,
 		snapshot,
 		abciHeaderFromBlockHeader(blockInfo.Block.Header),
-		blockInfo.Block.Hash(),
+		nil,
 		a.GetValidatorSet,
 	), nil
 }
