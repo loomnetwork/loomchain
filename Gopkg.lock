@@ -11,6 +11,15 @@
 
 [[projects]]
   digest = "1:f96ba6ecca7ba87b1dddd70ae38cfc4ce5ea844f58d1f728e121d2e29cdfb8a2"
+  name = "github.com/allegro/bigcache"
+  packages = [
+    ".",
+    "queue",
+  ]
+  revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
+
+[[projects]]
+  digest = "1:f96ba6ecca7ba87b1dddd70ae38cfc4ce5ea844f58d1f728e121d2e29cdfb8a2"
   name = "github.com/VictoriaMetrics/fastcache"
   packages = ["."]
   pruneopts = "UT"
