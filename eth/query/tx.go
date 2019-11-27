@@ -4,8 +4,6 @@ package query
 
 import (
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
-
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/go-loom"
@@ -23,8 +21,7 @@ func GetTxByHash(
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
 	state loomchain.State,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
@@ -36,8 +33,7 @@ func GetTxByHash(
 		uint64(txReceipt.TransactionIndex),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 }
 
@@ -47,8 +43,7 @@ func GetTxByBlockAndIndex(
 	index uint64,
 	evmAuxStore *evmaux.EvmAuxStore,
 	state loomchain.State,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (eth.JsonTxObject, error) {
 	iHeight := int64(height)
 
@@ -74,8 +69,7 @@ func GetTxByBlockAndIndex(
 		int64(index),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return eth.GetEmptyTxObject(), err

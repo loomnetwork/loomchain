@@ -379,6 +379,10 @@ func (s *QueryServer) createStaticContractCtx(state loomchain.State, name string
 	return ctx, nil
 }
 
+func (s *QueryServer) resolveAccountToLocalAddr(state loomchain.State, addr loom.Address) (loom.Address, error) {
+	return auth.ResolveAccountAddress(addr, state, s.AuthCfg, s.createAddressMapperCtx)
+}
+
 // Nonce returns the nonce of the last committed tx sent by the given account.
 // NOTE: Either the key or the account must be provided. The account (if not empty) is used in
 //       preference to the key.
@@ -654,8 +658,7 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 		s.ReceiptHandlerProvider.Reader(),
 		s.EvmAuxStore,
 		s.Web3Cfg.GetLogsMaxBlockRange,
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 }
 
@@ -697,8 +700,7 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 		snapshot,
 		id,
 		s.ReceiptHandlerProvider.Reader(),
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 }
 
@@ -792,8 +794,7 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 		int64(height),
 		full,
 		s.EvmAuxStore,
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return nil, err
@@ -826,8 +827,7 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (*eth.JsonTxReceip
 			r, txHash,
 			s.EvmAuxStore,
 			snapshot,
-			s.AuthCfg,
-			s.createAddressMapperCtx,
+			s.resolveAccountToLocalAddr,
 		)
 		if err != nil {
 			if strings.Contains(errors.Cause(err).Error(), "not found") {
@@ -930,8 +930,7 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 		int64(height),
 		full,
 		s.EvmAuxStore,
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 }
 
@@ -949,8 +948,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 		s.ReceiptHandlerProvider.Reader(),
 		s.EvmAuxStore,
 		snapshot,
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		// TODO: Should call r.GetReceipt instead of query.GetTxByHash so we don't have to use this
@@ -964,8 +962,7 @@ func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObj
 			txHash,
 			s.EvmAuxStore,
 			snapshot,
-			s.AuthCfg,
-			s.createAddressMapperCtx,
+			s.resolveAccountToLocalAddr,
 		)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to find tx with hash %v", txHash)
@@ -1000,8 +997,7 @@ func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(
 		txIndex,
 		s.EvmAuxStore,
 		snapshot,
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 }
 
@@ -1028,8 +1024,7 @@ func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(
 		txIndex,
 		s.EvmAuxStore,
 		snapshot,
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 }
 
@@ -1053,8 +1048,7 @@ func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err
 		s.ReceiptHandlerProvider.Reader(),
 		s.EvmAuxStore,
 		s.Web3Cfg.GetLogsMaxBlockRange,
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return resp, err
@@ -1094,8 +1088,7 @@ func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) 
 		snapshot,
 		string(id),
 		s.ReceiptHandlerProvider.Reader(),
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 }
 
@@ -1107,8 +1100,7 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 		snapshot,
 		string(id),
 		s.ReceiptHandlerProvider.Reader(),
-		s.AuthCfg,
-		s.createAddressMapperCtx,
+		s.resolveAccountToLocalAddr,
 	)
 }
 
@@ -1291,8 +1283,7 @@ func getReceiptByTendermintHash(
 	hash []byte,
 	evmAuxStore *evmaux.EvmAuxStore,
 	state loomchain.State,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (*eth.JsonTxReceipt, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
@@ -1308,8 +1299,7 @@ func getReceiptByTendermintHash(
 		int64(txResults.Index),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return nil, err
@@ -1365,8 +1355,7 @@ func getTxByTendermintHash(
 	hash []byte,
 	evmAuxStore *evmaux.EvmAuxStore,
 	state loomchain.State,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (eth.JsonTxObject, error) {
 	txResults, err := blockStore.GetTxResult(hash)
 	if err != nil {
@@ -1382,8 +1371,7 @@ func getTxByTendermintHash(
 		int64(txResults.Index),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	return txObj, err
 }

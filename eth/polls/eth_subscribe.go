@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom"
 
-	"github.com/loomnetwork/loomchain/auth"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 
 	"github.com/loomnetwork/loomchain/store"
@@ -27,22 +26,19 @@ type EthPoll interface {
 		state loomchain.State,
 		id string,
 		readReceipts loomchain.ReadReceiptHandler,
-		authCfg *auth.Config,
-		createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+		resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 	) (interface{}, error)
 	Poll(
 		state loomchain.State,
 		id string,
 		readReceipts loomchain.ReadReceiptHandler,
-		authCfg *auth.Config,
-		createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+		resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 	) (EthPoll, interface{}, error)
 	LegacyPoll(
 		state loomchain.State,
 		id string,
 		readReceipts loomchain.ReadReceiptHandler,
-		authCfg *auth.Config,
-		createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+		resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 	) (EthPoll, []byte, error)
 }
 
@@ -135,8 +131,7 @@ func (s *EthSubscriptions) AllLogs(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (interface{}, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -144,7 +139,7 @@ func (s *EthSubscriptions) AllLogs(
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		return poll.AllLogs(state, id, readReceipts, authCfg, createAddressMapperCtx)
+		return poll.AllLogs(state, id, readReceipts, resolveAccountToLocalAddr)
 	}
 }
 
@@ -152,8 +147,7 @@ func (s *EthSubscriptions) Poll(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (interface{}, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -162,7 +156,7 @@ func (s *EthSubscriptions) Poll(
 	if !ok {
 		return nil, fmt.Errorf("subscription not found")
 	}
-	newPoll, result, err := poll.Poll(state, id, readReceipts, authCfg, createAddressMapperCtx)
+	newPoll, result, err := poll.Poll(state, id, readReceipts, resolveAccountToLocalAddr)
 	s.polls[id] = newPoll
 
 	s.resetTimestamp(id, uint64(state.Block().Height))
@@ -174,8 +168,7 @@ func (s *EthSubscriptions) LegacyPoll(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) ([]byte, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -184,7 +177,7 @@ func (s *EthSubscriptions) LegacyPoll(
 	if !ok {
 		return nil, fmt.Errorf("subscription not found")
 	}
-	newPoll, result, err := poll.LegacyPoll(state, id, readReceipts, authCfg, createAddressMapperCtx)
+	newPoll, result, err := poll.LegacyPoll(state, id, readReceipts, resolveAccountToLocalAddr)
 	s.polls[id] = newPoll
 
 	s.resetTimestamp(id, uint64(state.Block().Height))

@@ -4,10 +4,10 @@ package polls
 
 import (
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -35,8 +35,7 @@ func (p *EthBlockPoll) Poll(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	_ *auth.Config,
-	_ func(state loomchain.State) (contractpb.StaticContext, error),
+	_ func(loomchain.State, loom.Address) (loom.Address, error),
 
 ) (EthPoll, interface{}, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
@@ -54,8 +53,7 @@ func (p *EthBlockPoll) AllLogs(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	_ *auth.Config,
-	_ func(state loomchain.State) (contractpb.StaticContext, error),
+	_ func(loomchain.State, loom.Address) (loom.Address, error),
 ) (interface{}, error) {
 	_, results, err := getBlockHashes(p.blockStore, state, p.startBlock)
 	return eth.EncBytesArray(results), err
@@ -85,8 +83,7 @@ func (p *EthBlockPoll) LegacyPoll(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	_ *auth.Config,
-	_ func(state loomchain.State) (contractpb.StaticContext, error),
+	_ func(loomchain.State, loom.Address) (loom.Address, error),
 ) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil

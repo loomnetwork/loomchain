@@ -5,7 +5,8 @@ package polls
 import (
 	"fmt"
 
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom"
+
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/store"
@@ -14,7 +15,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
+
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -45,8 +46,7 @@ func (p *EthLogPoll) Poll(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (EthPoll, interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
@@ -76,8 +76,7 @@ func (p *EthLogPoll) Poll(
 		p.filter.EthBlockFilter,
 		readReceipts,
 		p.evmAuxStore,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return p, nil, err
@@ -93,8 +92,7 @@ func (p *EthLogPoll) AllLogs(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
@@ -116,8 +114,7 @@ func (p *EthLogPoll) AllLogs(
 		p.filter.EthBlockFilter,
 		readReceipts,
 		p.evmAuxStore,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return nil, err
@@ -129,8 +126,7 @@ func (p *EthLogPoll) LegacyPoll(
 	state loomchain.State,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (EthPoll, []byte, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
@@ -156,8 +152,7 @@ func (p *EthLogPoll) LegacyPoll(
 		p.filter.EthBlockFilter,
 		readReceipts,
 		p.evmAuxStore,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return p, nil, err

@@ -5,8 +5,7 @@ package query
 import (
 	"fmt"
 
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -27,8 +26,7 @@ func QueryChain(
 	ethFilter eth.EthFilter,
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore, maxBlockRange uint64,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) ([]*ptypes.EthFilterLog, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, ethFilter.FromBlock)
 	if err != nil {
@@ -54,8 +52,7 @@ func QueryChain(
 		ethFilter.EthBlockFilter,
 		readReceipts,
 		evmAuxStore,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 }
 
@@ -66,8 +63,7 @@ func DeprecatedQueryChain(
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
 	maxBlockRange uint64,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) ([]byte, error) {
 
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
@@ -98,8 +94,7 @@ func DeprecatedQueryChain(
 		end,
 		ethFilter.EthBlockFilter,
 		readReceipts, evmAuxStore,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	if err != nil {
 		return nil, err
@@ -115,8 +110,7 @@ func GetBlockLogRange(
 	ethFilter eth.EthBlockFilter,
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
 		return nil, fmt.Errorf("from block (%v) greater than to block (%v)", from, to)
@@ -131,8 +125,7 @@ func GetBlockLogRange(
 			height,
 			readReceipts,
 			evmAuxStore,
-			authCfg,
-			createAddressMapperCtx,
+			resolveAccountToLocalAddr,
 		)
 		if err != nil {
 			return nil, err
@@ -149,8 +142,7 @@ func getBlockLogs(
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
-	authCfg *auth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) ([]*ptypes.EthFilterLog, error) {
 
 	bloomFilter := evmAuxStore.GetBloomFilter(height)
@@ -162,8 +154,7 @@ func getBlockLogs(
 				int64(height),
 				false,
 				evmAuxStore,
-				authCfg,
-				createAddressMapperCtx,
+				resolveAccountToLocalAddr,
 			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get block at height %d", height)

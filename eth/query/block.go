@@ -11,17 +11,16 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+
 	"github.com/loomnetwork/loomchain"
-	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 var (
@@ -34,8 +33,7 @@ func GetBlockByNumber(
 	height int64,
 	full bool,
 	evmAuxStore *evmaux.EvmAuxStore,
-	authCfg *lauth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block available
 	if height > state.Block().Height {
@@ -110,8 +108,7 @@ func GetBlockByNumber(
 			int64(index),
 			evmAuxStore,
 			state,
-			authCfg,
-			createAddressMapperCtx,
+			resolveAccountToLocalAddr,
 		)
 		if err != nil {
 			return resp, errors.Wrapf(err, "failed to decode tx, hash %X", tx.Hash())
@@ -137,8 +134,7 @@ func GetTxObjectFromBlockResult(
 	txIndex int64,
 	evmAuxStore *evmaux.EvmAuxStore,
 	state loomchain.State,
-	authCfg *lauth.Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.StaticContext, error),
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (eth.JsonTxObject, *eth.Data, error) {
 	tx := blockResult.Block.Data.Txs[txIndex]
 	var contractAddress *eth.Data
@@ -173,7 +169,7 @@ func GetTxObjectFromBlockResult(
 		return eth.GetEmptyTxObject(), nil, err
 	}
 
-	addr, err := lauth.ResolveAccountAddress(loom.UnmarshalAddressPB(msg.From), state, authCfg, createAddressMapperCtx)
+	addr, err := resolveAccountToLocalAddr(state, loom.UnmarshalAddressPB(msg.From))
 	if err != nil {
 		return eth.GetEmptyTxObject(), nil, err
 	}
