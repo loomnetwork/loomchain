@@ -91,8 +91,8 @@ ignored = [
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
 
 [[constraint]]
-  name = "github.com/allegro/bigcache"
-  revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
+  name = "github.com/VictoriaMetrics/fastcache"
+  revision = "c90394ca9feafec9b80dd610d1509f71c15811a9"
 
 [[constraint]]
   name = "github.com/btcsuite/btcutil"

@@ -11,13 +11,10 @@
 
 [[projects]]
   digest = "1:f96ba6ecca7ba87b1dddd70ae38cfc4ce5ea844f58d1f728e121d2e29cdfb8a2"
-  name = "github.com/allegro/bigcache"
-  packages = [
-    ".",
-    "queue",
-  ]
+  name = "github.com/VictoriaMetrics/fastcache"
+  packages = ["."]
   pruneopts = "UT"
-  revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
+  revision = "c90394ca9feafec9b80dd610d1509f71c15811a9"
 
 [[projects]]
   digest = "1:1d8e1cb71c33a9470bbbae09bfec09db43c6bf358dfcae13cd8807c4e2a9a2bf"
@@ -426,7 +423,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/BurntSushi/toml",
-    "github.com/allegro/bigcache",
+    "github.com/VictoriaMetrics/fastcache",
     "github.com/btcsuite/btcutil/base58",
     "github.com/btcsuite/btcutil/bech32",
     "github.com/golang/protobuf/proto",

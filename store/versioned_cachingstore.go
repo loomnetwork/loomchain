@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/allegro/bigcache"
+	//"github.com/VictoriaMetrics/fastcache"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
