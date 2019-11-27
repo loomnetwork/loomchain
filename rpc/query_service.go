@@ -136,8 +136,6 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
 	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
 	routes["dpos_total_staked"] = rpcserver.NewRPCFunc(svc.DPOSTotalStaked, "")
-	routes["dpos_state"] = rpcserver.NewRPCFunc(svc.DPOSState, "height")
-	routes["dpos_list_all_delegations"] = rpcserver.NewRPCFunc(svc.DPOSListAllDelegations, "height")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
@@ -217,13 +215,16 @@ func MakeEthQueryServiceHandler(logger log.TMLogger, hub *Hub, routes map[string
 }
 
 // MakeUnsafeQueryServiceHandler returns a http handler for unsafe RPC routes
-func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
+func MakeUnsafeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
 	codec := amino.NewCodec()
 	mux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["dial_seeds"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialSeeds, "seeds")
 	routes["dial_peers"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialPeers, "peers,persistent")
 	routes["unsafe_flush_mempool"] = rpcserver.NewRPCFunc(rpccore.UnsafeFlushMempool, "")
+
+	routes["dpos_state"] = rpcserver.NewRPCFunc(svc.DPOSState, "height")
+	routes["dpos_list_all_delegations"] = rpcserver.NewRPCFunc(svc.DPOSListAllDelegations, "height")
 
 	// profiler API
 	routes["unsafe_start_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStartCPUProfiler, "filename")
