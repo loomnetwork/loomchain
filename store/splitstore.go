@@ -36,17 +36,15 @@ func (ss *splitStore) Get(key []byte) []byte {
 func (ss *splitStore) Range(prefix []byte) plugin.RangeData {
 	readerRange := ss.KVReader.Range(prefix)
 	updateRange := ss.VersionedKVStore.Range(prefix)
-
-	// VersionedKVStore comes from a MemStore, hence updateRange is not deterministic
-	sort.Slice(updateRange, func(i, j int) bool {
-		return bytes.Compare(updateRange[i].Key, updateRange[j].Key) < 0
-	})
-
 	for _, re := range readerRange {
 		if !ss.VersionedKVStore.Has(re.Key) && !ss.deleted[string(re.Key)] {
 			updateRange = append(updateRange, re)
 		}
 	}
+	// VersionedKVStore comes from a MemStore, hence updateRange is not deterministic
+	sort.Slice(updateRange, func(i, j int) bool {
+		return bytes.Compare(updateRange[i].Key, updateRange[j].Key) < 0
+	})
 	return updateRange
 }
 
