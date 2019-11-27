@@ -311,8 +311,8 @@ func createVmConfig(tracer vm.Tracer) (vm.Config, error) {
 		// NoRecursion disabled Interpreter call, callcode,
 		// delegate call and create.
 		NoRecursion: false,
-		// Enable recording of SHA3/keccak preimages
-		EnablePreimageRecording: true, //TODO: make this optional, [MGC] I don't think we need to keep this
+		// Disable recording of SHA3/keccak preimages
+		EnablePreimageRecording: false,
 		// JumpTable contains the EVM instruction table. This
 		// may be left uninitialised and will be set to the default
 		// table.
