@@ -6,8 +6,6 @@ import (
 	"context"
 	"time"
 
-	gcommon "github.com/ethereum/go-ethereum/common"
-	gstate "github.com/ethereum/go-ethereum/core/state"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
@@ -44,16 +42,10 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 		panic(err)
 	}
 	evmStore := store.NewEvmStore(evmDB, 100, 0)
-	ethDB := store.NewLoomEthDB(evmStore, nil)
-	evmRoot, _ := evmStore.Version()
-	stateDB := gstate.NewDatabase(ethDB)
-	stateDB.SetTrieDB(evmStore.TrieDB())
-	sdb, err := gstate.New(gcommon.BytesToHash(evmRoot), stateDB)
+	evmState, err := loomchain.NewEVMState(evmStore)
 	if err != nil {
 		panic(err)
 	}
-	evmState := loomchain.NewEVMState(evmStore, sdb)
-
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state.WithEVMState(evmState),

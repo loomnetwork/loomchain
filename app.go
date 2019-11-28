@@ -6,10 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
-	gcommon "github.com/ethereum/go-ethereum/common"
-	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -54,47 +54,6 @@ type State interface {
 	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
 	EVMState() *EVMState
-}
-
-type EVMState struct {
-	sdb      *gstate.StateDB
-	evmStore *store.EvmStore
-}
-
-func NewEVMState(evmStore *store.EvmStore, sdb *gstate.StateDB) *EVMState {
-	return &EVMState{
-		evmStore: evmStore,
-		sdb:      sdb,
-	}
-}
-
-func (s *EVMState) Commit() error {
-	evmStateRoot, err := s.sdb.Commit(true)
-	if err != nil {
-		return err
-	}
-	s.evmStore.SetVMRootKey(evmStateRoot[:])
-	s.sdb.Reset(evmStateRoot)
-	return nil
-}
-
-func (s *EVMState) GetSnapshot(version int64) (*EVMState, error) {
-	stateDB, err := gstate.New(gcommon.BytesToHash(s.evmStore.GetRootAt(version)), s.sdb.Database())
-	if err != nil {
-		return nil, err
-	}
-	return &EVMState{sdb: stateDB, evmStore: s.evmStore}, nil
-}
-
-func (s *EVMState) Clone() *EVMState {
-	return &EVMState{
-		evmStore: s.evmStore,
-		sdb:      s.sdb.Copy(),
-	}
-}
-
-func (s *EVMState) StateDB() *gstate.StateDB {
-	return s.sdb
 }
 
 type StoreState struct {
@@ -403,7 +362,7 @@ type CommittedTx struct {
 }
 
 type Application struct {
-	lastBlockHeader abci.Header
+	lastBlockHeader unsafe.Pointer
 	curBlockHeader  abci.Header
 	curBlockHash    []byte
 	Store           store.VersionedKVStore
@@ -914,7 +873,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	// Update the last block header before emitting events in case the subscribers attempt to access
 	// the latest committed state as soon as they receive an event.
-	a.lastBlockHeader = a.curBlockHeader
+	atomic.StorePointer(&a.lastBlockHeader, unsafe.Pointer(&a.curBlockHeader))
 
 	go func(height int64, blockHeader abci.Header, committedTxs []CommittedTx) {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
@@ -967,7 +926,8 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-	evmStateSnapshot, err := a.EVMState.GetSnapshot(a.lastBlockHeader.Height)
+	lastBlockHeader := (*abci.Header)(atomic.LoadPointer(&a.lastBlockHeader))
+	evmStateSnapshot, err := a.EVMState.GetSnapshot(lastBlockHeader.Height)
 	if err != nil {
 		panic(err)
 	}
@@ -976,7 +936,7 @@ func (a *Application) ReadOnlyState() State {
 	return NewStoreStateSnapshot(
 		nil,
 		a.Store.GetSnapshot(),
-		a.lastBlockHeader,
+		*lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
 	).WithEVMState(evmStateSnapshot)

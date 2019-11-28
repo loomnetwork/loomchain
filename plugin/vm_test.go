@@ -12,8 +12,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	gcommon "github.com/ethereum/go-ethereum/common"
-	gstate "github.com/ethereum/go-ethereum/core/state"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	loom_plugin "github.com/loomnetwork/go-loom/plugin"
@@ -21,7 +19,6 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	levm "github.com/loomnetwork/loomchain/evm"
@@ -126,14 +123,11 @@ func (c *VMTestContract) CheckQueryCaller(ctx contract.StaticContext, args *test
 }
 
 func mockEVMState() *loomchain.EVMState {
-	ethDB := store.NewLoomEthDB(store.NewMemStore(), nil)
-	stateDB := gstate.NewDatabase(ethDB)
-	sdb, err := gstate.New(gcommon.BytesToHash(nil), stateDB)
+	evmState, err := loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0))
 	if err != nil {
 		panic(err)
 	}
-	memDb, _ := db.LoadMemDB()
-	return loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0), sdb)
+	return evmState
 }
 
 func TestPluginVMContractContextCaller(t *testing.T) {

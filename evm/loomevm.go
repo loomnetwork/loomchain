@@ -36,7 +36,6 @@ type StateDB interface {
 	ethvm.StateDB
 	Database() state.Database
 	Logs() []*types.Log
-	ResetLogs()
 	Commit(bool) (common.Hash, error)
 }
 
@@ -127,7 +126,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
-	stateDB := lvm.state.EVMState().StateDB()
+	stateDB := levm.sdb
 	lastLogsIndex := len(stateDB.Logs())
 	// evm.Create changes Nonce even though tx fails
 	// To prevent any state change from error tx, create a snapshot and revert EVM state if tx fails
@@ -141,12 +140,9 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if lvm.receiptHandler != nil {
 		var events []*ptypes.EventData
 		if err == nil {
-			allLogs := levm.sdb.Logs()
-			var addedLogs []*types.Log
-			for index, log := range allLogs {
-				if index >= lastLogsIndex {
-					addedLogs = append(addedLogs, log)
-				}
+			addedLogs := stateDB.Logs()
+			if len(addedLogs) > 0 {
+				addedLogs = addedLogs[lastLogsIndex:]
 			}
 			events = lvm.receiptHandler.GetEventsFromLogs(
 				addedLogs, lvm.state.Block().Height, caller, addr, code,
@@ -198,7 +194,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err != nil {
 		return nil, err
 	}
-	stateDB := lvm.state.EVMState().StateDB()
+	stateDB := levm.sdb
 	lastLogsIndex := len(stateDB.Logs())
 	// To prevent any state change from error tx, create a snapshot and revert EVM state if tx fails
 	snapshot := stateDB.Snapshot()
@@ -211,12 +207,9 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if lvm.receiptHandler != nil {
 		var events []*ptypes.EventData
 		if err == nil {
-			allLogs := stateDB.Logs()
-			var addedLogs []*types.Log
-			for index, log := range allLogs {
-				if index >= lastLogsIndex {
-					addedLogs = append(addedLogs, log)
-				}
+			addedLogs := stateDB.Logs()
+			if len(addedLogs) > 0 {
+				addedLogs = addedLogs[lastLogsIndex:]
 			}
 			events = lvm.receiptHandler.GetEventsFromLogs(
 				addedLogs, lvm.state.Block().Height, caller, addr, input,

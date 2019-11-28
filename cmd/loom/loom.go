@@ -19,7 +19,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/tendermint/tendermint/libs/db"
 
-	"github.com/ethereum/go-ethereum/core/state"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -41,7 +40,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
-	gcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/loomchain/chainconfig"
 	chaincfgcmd "github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -843,15 +841,10 @@ func loadApp(
 			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 
-		ethDB := store.NewLoomEthDB(evmStore, nil)
-		evmRoot, _ := evmStore.Version()
-		stateDB := state.NewDatabase(ethDB)
-		stateDB.SetTrieDB(evmStore.TrieDB())
-		sdb, err := state.New(gcommon.BytesToHash(evmRoot), stateDB)
+		evmState, err = loomchain.NewEVMState(evmStore)
 		if err != nil {
 			return nil, err
 		}
-		evmState = loomchain.NewEVMState(evmStore, sdb)
 	}
 	store.LogEthDBBatch = cfg.LogEthDbBatch
 

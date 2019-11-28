@@ -18,15 +18,11 @@ import (
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-
-	gcommon "github.com/ethereum/go-ethereum/common"
-	gstate "github.com/ethereum/go-ethereum/core/state"
 )
 
 const (
@@ -48,14 +44,11 @@ func mockState() loomchain.State {
 }
 
 func mockEVMState() *loomchain.EVMState {
-	ethDB := store.NewLoomEthDB(store.NewMemStore(), nil)
-	stateDB := gstate.NewDatabase(ethDB)
-	sdb, err := gstate.New(gcommon.BytesToHash(nil), stateDB)
+	evmState, err := loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0))
 	if err != nil {
 		panic(err)
 	}
-	memDb, _ := db.LoadMemDB()
-	return loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0), sdb)
+	return evmState
 }
 
 func TestProcessDeployTx(t *testing.T) {
