@@ -98,14 +98,6 @@
                     {
                         "name": "evm:constantinople",
                         "status": "WAITING"
-                    },
-                    {
-                        "name": "receipts:v3",
-                        "status": "WAITING"
-                    },
-                    {
-                        "name": "receipts:v3.1",
-                        "status": "WAITING"
                     }
                 ]
             }

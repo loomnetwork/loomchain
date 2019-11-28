@@ -378,13 +378,17 @@ func (c *versionedCachingStore) GetSnapshot() Snapshot {
 	)
 }
 
+// VersionedCachingStore does not work with GetSnapshotAt since it always returns the newest version found
+// before the target height. This is by design because any update from Application.Commit will go through
+// the cache so it assumes that the latest version stored before the target version in the cache is updated.
+// We do this to improve cache hit rate, so the cache is usable by GetSnapshotAt.
 func (c *versionedCachingStore) GetSnapshotAt(height int64) (Snapshot, error) {
 	snapshot, err := c.VersionedKVStore.GetSnapshotAt(height)
 	if err != nil {
 		return nil, err
 	}
 	return newVersionedCachingStoreSnapshot(
-		snapshot, c.cache, height, c.logger,
+		snapshot, nil, height, c.logger,
 	), nil
 }
 
@@ -415,8 +419,14 @@ func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
 }
 
 func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
-	var err error
+	if c.cache == nil {
+		if data := c.Snapshot.Get(key); data != nil {
+			return true
+		}
+		return false
+	}
 
+	var err error
 	defer func(begin time.Time) {
 		hasDuration.With("error",
 			fmt.Sprint(err != nil),
@@ -462,6 +472,10 @@ func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
 }
 
 func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
+	if c.cache == nil {
+		return c.Snapshot.Get(key)
+	}
+
 	var err error
 	defer func(begin time.Time) {
 		getDuration.With("error", fmt.Sprint(err != nil), "isCacheHit",
