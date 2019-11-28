@@ -111,8 +111,7 @@ func init() {
 
 type CachingStoreConfig struct {
 	// 0 = disabled, 1 = bigCache, 2 = fastCache
-	CachingType    int
-	CachingEnabled bool
+	CachingType int
 	// Number of cache shards, value must be a power of two
 	Shards int
 	// Time after we need to evict the key
@@ -132,7 +131,7 @@ type CachingStoreConfig struct {
 
 func DefaultCachingStoreConfig() *CachingStoreConfig {
 	return &CachingStoreConfig{
-		CachingEnabled:            true,
+		CachingType:               0,
 		Shards:                    1024,
 		EvictionTimeInSeconds:     60 * 60,       // 1 hour
 		CleaningIntervalInSeconds: 10,            // Cleaning per 10 second
@@ -183,14 +182,25 @@ func NewVersionedCachingStore(
 
 	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
 
-	versionedBigCache, err := newVersionedBigCache(config, cacheLogger)
+	var cache versionedCache
+	var err error
+	switch config.CachingType {
+	case 0: // disabled
+		return source, nil
+	case 1:
+		cache, err = newVersionedBigCache(config, cacheLogger)
+	case 2:
+		cache, err = newVersionedFastCache(config, cacheLogger)
+	default:
+		return nil, fmt.Errorf("unrecognised cahcing type %v", config.CachingType)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	return &versionedCachingStore{
 		VersionedKVStore: source,
-		cache:            versionedBigCache,
+		cache:            cache,
 		logger:           cacheLogger,
 		version:          version + 1,
 	}, nil
