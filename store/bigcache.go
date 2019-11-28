@@ -15,7 +15,7 @@ type versionedBaseCache struct {
 	keyTable      map[string]KeyVersionTable
 }
 
-func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*bigcache.Config, error) {
+func convertToBigCacheConfig(config CachingStoreConfig, logger *loom.Logger) (*bigcache.Config, error) {
 	if config.MaxKeys == 0 || config.MaxSizeOfValueInBytes == 0 {
 		return nil, fmt.Errorf("[CachingStoreConfig] max keys and/or max size of value cannot be zero")
 	}
@@ -99,7 +99,7 @@ type versionedBigCache struct {
 	cache *bigcache.BigCache
 }
 
-func newVersionedBigCache(config *CachingStoreConfig, cacheLogger *loom.Logger) (*versionedBigCache, error) {
+func newVersionedBigCache(config CachingStoreConfig, cacheLogger *loom.Logger) (*versionedBigCache, error) {
 	bigcacheConfig, err := convertToBigCacheConfig(config, cacheLogger)
 	if err != nil {
 		return nil, err

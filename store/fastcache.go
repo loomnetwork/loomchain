@@ -10,7 +10,7 @@ type versionedFastCache struct {
 	cache *fastcache.Cache
 }
 
-func newVersionedFastCache(config *CachingStoreConfig, cacheLogger *loom.Logger) (*versionedFastCache, error) {
+func newVersionedFastCache(config CachingStoreConfig, cacheLogger *loom.Logger) (*versionedFastCache, error) {
 	versionedCache := &versionedFastCache{
 		versionedBaseCache: versionedBaseCache{
 			cacheLogger: cacheLogger,

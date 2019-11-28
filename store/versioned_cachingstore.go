@@ -11,7 +11,6 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -174,12 +173,8 @@ type versionedCachingStore struct {
 
 // NewVersionedCachingStore wraps the source VersionedKVStore in a cache.
 func NewVersionedCachingStore(
-	source VersionedKVStore, config *CachingStoreConfig, version int64,
+	source VersionedKVStore, config CachingStoreConfig, version int64,
 ) (VersionedKVStore, error) {
-	if config == nil {
-		return nil, fmt.Errorf("[VersionedCachingStore] missing config for caching store")
-	}
-
 	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
 
 	var cache versionedCache
@@ -280,14 +275,6 @@ func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache versionedCache,
 	}
 }
 
-func (c *versionedCachingStoreSnapshot) Delete(key []byte) {
-	panic("[versionedCachingStoreSnapshot] Delete() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
-	panic("[versionedCachingStoreSnapshot] Set() not implemented")
-}
-
 func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
 	var err error
 
@@ -344,41 +331,38 @@ func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 
 	data, err := c.cache.Get(key, c.version)
 
-	if err != nil {
-		cacheMisses.With("store_operation", "get").Add(1)
-		switch err {
-		case bigcache.ErrEntryNotFound:
-			break
-		default:
-			// Since, there is no provision of passing error in the interface
-			// we would directly access source and only log the error
-			cacheErrors.With("cache_operation", "get").Add(1)
-			c.logger.Error(fmt.Sprintf(
-				"[versionedCachingStoreSnapshot] error while getting key: %s from cache, error: %v",
-				string(key), err.Error()))
+	if err != nil || data == nil {
+		if err != nil {
+			cacheMisses.With("store_operation", "get").Add(1)
+			switch err {
+			case bigcache.ErrEntryNotFound:
+				break
+			default:
+				// Since, there is no provision of passing error in the interface
+				// we would directly access source and only log the error
+				cacheErrors.With("cache_operation", "get").Add(1)
+				c.logger.Error(fmt.Sprintf(
+					"[versionedCachingStoreSnapshot] error while getting key: %s from cache, error: %v",
+					string(key), err.Error()))
+			}
+		}
+		snapData := c.Snapshot.Get(key)
+		if data == nil && snapData == nil {
+			return data
 		}
 
-		data = c.Snapshot.Get(key)
-		setErr := c.cache.Set(key, data, c.version)
+		setErr := c.cache.Set(key, snapData, c.version)
 		if setErr != nil {
 			cacheErrors.With("cache_operation", "set").Add(1)
 			c.logger.Error(fmt.Sprintf(
 				"[versionedCachingStoreSnapshot] error while setting key: %s in cache, error: %v",
 				string(key), setErr.Error()))
 		}
-	} else {
-		cacheHits.With("store_operation", "get").Add(1)
+		return snapData
 	}
 
+	cacheHits.With("store_operation", "get").Add(1)
 	return data
-}
-
-func (c *versionedCachingStoreSnapshot) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, errors.New("[VersionedCachingStoreSnapshot] SaveVersion() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Prune() error {
-	return errors.New("[VersionedCachingStoreSnapshot] Prune() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Release() {
