@@ -18,6 +18,7 @@ import (
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -44,6 +45,7 @@ func mockState() loomchain.State {
 }
 
 func mockEVMState() *loomchain.EVMState {
+	memDb, _ := db.LoadMemDB()
 	evmState, err := loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0))
 	if err != nil {
 		panic(err)

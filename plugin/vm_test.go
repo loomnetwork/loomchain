@@ -19,6 +19,7 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	levm "github.com/loomnetwork/loomchain/evm"
@@ -123,6 +124,7 @@ func (c *VMTestContract) CheckQueryCaller(ctx contract.StaticContext, args *test
 }
 
 func mockEVMState() *loomchain.EVMState {
+	memDb, _ := db.LoadMemDB()
 	evmState, err := loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0))
 	if err != nil {
 		panic(err)
