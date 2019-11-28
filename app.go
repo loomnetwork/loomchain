@@ -829,6 +829,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
+
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)

@@ -2685,7 +2685,10 @@ func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*t
 		return nil, err
 	}
 	for _, candidate := range candidates {
-		candidateList[candidate.Address.String()] = true
+		candidateAddr := loom.UnmarshalAddressPB(candidate.Address)
+		if _, ok := bootstrapNodes[strings.ToLower(candidateAddr.String())]; !ok {
+			candidateList[candidate.Address.String()] = true
+		}
 	}
 
 	delegationList, err := loadDelegationList(ctx)
