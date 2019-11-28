@@ -105,8 +105,7 @@ func TestQueryChain(t *testing.T) {
 		receiptHandler,
 		evmAuxStore,
 		100000,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	require.NoError(t, err, "error query chain, filter is %s", getFilter("1", "20"))
 	var logs types.EthFilterLogList
@@ -124,8 +123,7 @@ func TestQueryChain(t *testing.T) {
 		receiptHandler,
 		evmAuxStore,
 		100000,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter1)
 	filterLogs2, err := QueryChain(
@@ -135,8 +133,7 @@ func TestQueryChain(t *testing.T) {
 		receiptHandler,
 		evmAuxStore,
 		100000,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter2)
 	require.Equal(t, 2, len(filterLogs1)+len(filterLogs2), "wrong number of logs returned")
@@ -281,6 +278,9 @@ func TestDupEvmTxHash(t *testing.T) {
 			"eth": lauth.ChainConfig{TxType: "eth", AccountType: 1},
 		},
 	}
+	resolveAccountToLocalAddr := func(state loomchain.State, addr loom.Address) (loom.Address, error) {
+		return lauth.ResolveAccountAddress(addr, state, authCfg, createAddressMapperCtx)
+	}
 	state := common.MockState(1, "default")
 	state.SetFeature(features.AuthSigTxFeaturePrefix+"eth", true)
 	blockTxHash := getRandomTxHash()
@@ -347,8 +347,7 @@ func TestDupEvmTxHash(t *testing.T) {
 		int64(0),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash1)))
@@ -361,8 +360,7 @@ func TestDupEvmTxHash(t *testing.T) {
 		int64(0),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash2)))
@@ -375,8 +373,7 @@ func TestDupEvmTxHash(t *testing.T) {
 		int64(0),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	require.NoError(t, err)
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash3)))
@@ -388,8 +385,7 @@ func TestDupEvmTxHash(t *testing.T) {
 		int64(0),
 		evmAuxStore,
 		state,
-		authCfg,
-		createAddressMapperCtx,
+		resolveAccountToLocalAddr,
 	)
 	require.NoError(t, err)
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash4)))
@@ -434,6 +430,10 @@ func mockSignedTx(t *testing.T, id ltypes.TxID, to loom.Address, from loom.Addre
 	})
 
 	return signedTx
+}
+
+func resolveAccountToLocalAddr(state loomchain.State, addr loom.Address) (loom.Address, error) {
+	return lauth.ResolveAccountAddress(addr, state, authCfg, createAddressMapperCtx)
 }
 
 // Attempts to construct the context of the Address Mapper contract.

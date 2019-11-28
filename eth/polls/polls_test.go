@@ -61,7 +61,7 @@ func TestLogPoll(t *testing.T) {
 	require.NoError(t, err)
 
 	state5 := common.MockStateAt(state, uint64(5))
-	result, err := sub.LegacyPoll(state5, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err := sub.LegacyPoll(state5, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	var envolope types.EthFilterEnvelope
 	var logs *types.EthFilterLogList
@@ -71,7 +71,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, 1, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 	state40 := common.MockStateAt(state, uint64(40))
-	result, err = sub.LegacyPoll(state40, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.LegacyPoll(state40, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -82,7 +82,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.LegacyPoll(state50, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.LegacyPoll(state50, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -90,7 +90,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	_, err = sub.LegacyPoll(state60, id, receiptHandler, authCfg, createAddressMapperCtx)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 	evmAuxStore.ClearData()
@@ -116,7 +116,7 @@ func testLegacyTxPoll(t *testing.T) {
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.LegacyPoll(state27, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err := sub.LegacyPoll(state27, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -125,7 +125,7 @@ func testLegacyTxPoll(t *testing.T) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.LegacyPoll(state50, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.LegacyPoll(state50, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -135,7 +135,7 @@ func testLegacyTxPoll(t *testing.T) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	_, err = sub.LegacyPoll(state60, id, receiptHandler, authCfg, createAddressMapperCtx)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -153,7 +153,7 @@ func testTxPoll(t *testing.T) {
 	id := sub.AddTxPoll(uint64(5))
 
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.Poll(state27, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err := sub.Poll(state27, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok := result.([]eth.Data)
@@ -161,7 +161,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 2, len(data), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.Poll(state50, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.Poll(state50, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -169,7 +169,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 1, len(data), "wrong number of logs returned")
 
 	state105 := common.MockStateAt(state, uint64(105))
-	result, err = sub.Poll(state105, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.Poll(state105, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -177,7 +177,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 5, len(data), "wrong number of logs returned")
 
 	state115 := common.MockStateAt(state, uint64(115))
-	result, err = sub.Poll(state115, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.Poll(state115, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -185,7 +185,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 10, len(data), "wrong number of logs returned")
 
 	state140 := common.MockStateAt(state, uint64(140))
-	result, err = sub.Poll(state140, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.Poll(state140, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -198,7 +198,7 @@ func testTxPoll(t *testing.T) {
 	wg.Add(2)
 	go func(s *EthSubscriptions) {
 		defer wg.Done()
-		result, err = s.Poll(state220, id, receiptHandler, authCfg, createAddressMapperCtx)
+		result, err = s.Poll(state220, id, receiptHandler, resolveAccountToLocalAddr)
 	}(sub)
 	go func(s *EthSubscriptions) {
 		defer wg.Done()
@@ -206,7 +206,7 @@ func testTxPoll(t *testing.T) {
 	}(sub)
 	wg.Wait()
 
-	result, err = sub.Poll(state220, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.Poll(state220, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -234,7 +234,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state5 := common.MockStateAt(state, uint64(5))
 	_ = sub.AddTxPoll(uint64(5))
 
-	result, err := sub.LegacyPoll(state5, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err := sub.LegacyPoll(state5, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -244,7 +244,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state12 := common.MockStateAt(state, uint64(12))
 	_ = sub.AddTxPoll(uint64(12))
 
-	result, err = sub.LegacyPoll(state12, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.LegacyPoll(state12, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -254,7 +254,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.LegacyPoll(state40, id, receiptHandler, authCfg, createAddressMapperCtx)
+	result, err = sub.LegacyPoll(state40, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -417,7 +417,10 @@ func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, d
 	return signedTx
 }
 
-// Attempts to construct the context of the Address Mapper contract.
+func resolveAccountToLocalAddr(state loomchain.State, addr loom.Address) (loom.Address, error) {
+	return auth.ResolveAccountAddress(addr, state, authCfg, createAddressMapperCtx)
+}
+
 func createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
 	return createStaticContractCtx(state, "addressmapper")
 }
