@@ -873,7 +873,8 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	// Update the last block header before emitting events in case the subscribers attempt to access
 	// the latest committed state as soon as they receive an event.
-	atomic.StorePointer(&a.lastBlockHeader, unsafe.Pointer(&a.curBlockHeader))
+	curBlockHeader := a.curBlockHeader
+	atomic.StorePointer(&a.lastBlockHeader, unsafe.Pointer(&curBlockHeader))
 
 	go func(height int64, blockHeader abci.Header, committedTxs []CommittedTx) {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
