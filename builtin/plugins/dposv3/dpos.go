@@ -1660,8 +1660,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
-				var distributionTotal loom.BigUInt
-				distributionTotal = calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
+				distributionTotal := calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
 				if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
 					if state.Params.BlockRewardBonusPercentage != nil {
 						rewardBonus := CalculateFraction(state.Params.BlockRewardBonusPercentage.Value, distributionTotal)
