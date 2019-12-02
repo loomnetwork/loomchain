@@ -9,19 +9,21 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-
-	"github.com/loomnetwork/loomchain/evm"
+	"strings"
 
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/evm"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
@@ -51,6 +53,9 @@ type Config struct {
 	// AppHash changes. Defaults to true.
 	CreateEmptyBlocks bool
 
+	// Enable mempool.wal
+	MempoolWalEnabled bool
+
 	// Network
 	RPCListenAddress     string
 	RPCProxyPort         int32
@@ -71,13 +76,14 @@ type Config struct {
 	TxLimiter                   *throttle.TxLimiterConfig
 	ContractTxLimiter           *throttle.ContractTxLimiterConfig
 	// Logging
-	LogDestination     string
-	ContractLogLevel   string
-	LoomLogLevel       string
-	BlockchainLogLevel string
-	LogStateDB         bool
-	LogEthDbBatch      bool
-	Metrics            *Metrics
+	LogDestination          string
+	ContractLogLevel        string
+	LoomLogLevel            string
+	BlockchainLogLevel      string
+	LogStateDB              bool
+	LogEthDbBatch           bool
+	Metrics                 *Metrics
+	SampleGoContractEnabled bool
 
 	//ChainConfig
 	ChainConfig *ChainConfigConfig
@@ -140,6 +146,24 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
+	// Set to true to disable minimum required build number check on node startup
+	SkipMinBuildCheck bool
+
+	Web3 *eth.Web3Config
+	Geth *GethConfig
+	DPOS *DPOSConfig
+}
+
+type GethConfig struct {
+	EnableStateObjectDirtyStorageKeysSorting bool
+	EnableTrieDatabasePreimageKeysSorting    bool
+}
+
+func DefaultGethConfig() *GethConfig {
+	return &GethConfig{
+		EnableStateObjectDirtyStorageKeysSorting: true,
+		EnableTrieDatabasePreimageKeysSorting:    true,
+	}
 }
 
 type Metrics struct {
@@ -158,6 +182,33 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 		Enabled: false,
 		Reactor: fnConsensus.DefaultReactorConfigParsable(),
 	}
+}
+
+type DPOSConfig struct {
+	BootstrapNodes           []string
+	TotalStakedCacheDuration int64
+}
+
+func DefaultDPOSConfig() *DPOSConfig {
+	return &DPOSConfig{
+		BootstrapNodes: []string{
+			"default:0x0e99fc16e32e568971908f2ce54b967a42663a26",
+			"default:0xac3211caecc45940a6d2ba006ca465a647d8464f",
+			"default:0x69c48768dbac492908161be787b7a5658192df35",
+			"default:0x2a3a7c850586d4f80a12ac1952f88b1b69ef48e1",
+			"default:0x4a1b8b15e50ce63cc6f65603ea79be09206cae70",
+			"default:0x0ce7b61c97a6d5083356f115288f9266553e191e",
+		},
+		TotalStakedCacheDuration: 60, // 60 seconds
+	}
+}
+
+func (dposCfg *DPOSConfig) BootstrapNodesList() map[string]bool {
+	bootstrapNodesList := map[string]bool{}
+	for _, addr := range dposCfg.BootstrapNodes {
+		bootstrapNodesList[strings.ToLower(addr)] = true
+	}
+	return bootstrapNodesList
 }
 
 type DBBackendConfig struct {
@@ -344,9 +395,8 @@ func ReadGenesis(path string) (*Genesis, error) {
 	dec := json.NewDecoder(file)
 
 	var gen Genesis
-	err = dec.Decode(&gen)
-	if err != nil {
-		return nil, err
+	if err := dec.Decode(&gen); err != nil {
+		return nil, errors.Wrap(err, "failed to decode loom genesis file")
 	}
 
 	return &gen, nil
@@ -372,6 +422,7 @@ func DefaultConfig() *Config {
 		UnsafeRPCEnabled:           false,
 		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
 		CreateEmptyBlocks:          true,
+		MempoolWalEnabled:          false,
 		ContractLoaders:            []string{"static"},
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
@@ -381,12 +432,14 @@ func DefaultConfig() *Config {
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
+		SampleGoContractEnabled:    false,
 
 		Oracle:                 "",
 		DeployEnabled:          true,
 		CallEnabled:            true,
 		DPOSVersion:            3,
 		AllowNamedEvmContracts: false,
+		SkipMinBuildCheck:      false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -412,6 +465,9 @@ func DefaultConfig() *Config {
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
+	cfg.Web3 = eth.DefaultWeb3Config()
+	cfg.Geth = DefaultGethConfig()
+	cfg.DPOS = DefaultDPOSConfig()
 
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
@@ -507,6 +563,7 @@ EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
+MempoolWalEnabled: {{ .MempoolWalEnabled }}
 #
 # Network
 #
@@ -596,6 +653,10 @@ DeployerWhitelist:
 #
 UserDeployerWhitelist:
   ContractEnabled: {{ .UserDeployerWhitelist.ContractEnabled }}
+#
+# SampleGoContractEnabled
+#
+SampleGoContractEnabled: {{ .SampleGoContractEnabled }}
 
 #
 # Plasma Cash
@@ -723,22 +784,36 @@ EvmStore:
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
 {{end}}
 
-# 
-#  FnConsensus reactor on/off switch + config
+{{if .Web3 -}}
 #
-{{- if .FnConsensus}}
+# Configuration of Web3 JSON-RPC methods served on the /eth endpoint.
+#
+Web3:
+  # Specifies the maximum number of blocks eth_getLogs will query per request
+  GetLogsMaxBlockRange: {{.Web3.GetLogsMaxBlockRange}}
+{{end}}
+
+# 
+# FnConsensus reactor on/off switch + config
+#
+{{- if .FnConsensus }}
 FnConsensus:
+  Enabled: {{ .FnConsensus.Enabled }}
   {{- if .FnConsensus.Reactor }}
   Reactor:
+    # Set to false to make the node forward messages without tracking consensus state
+    IsValidator: {{ .FnConsensus.Reactor.IsValidator }}
+    FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
+    {{- if .FnConsensus.Reactor.OverrideValidators }}
     OverrideValidators:
-      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators}}
+      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators }}
       - Address: {{ $v.Address }}
         VotingPower: {{ $v.VotingPower }}
-      {{- end}}
-    FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
-  {{- end}}
-  Enabled: {{.FnConsensus.Enabled}}
-{{end}}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
 #
 # EventDispatcher
 #
@@ -765,10 +840,35 @@ RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
+
+{{if .DPOS -}}
+#
+# Configuration of DPOSv3 JSON-RPC methods served on /query endpoint.
+#
+DPOS:
+  # Specifies addresses of bootstrap nodes
+  BootstrapNodes:
+  {{- range .DPOS.BootstrapNodes}}
+    - "{{. -}}"
+  {{- end}}
+  # How long (in seconds) the response from the dpos_total_staked RPC method should be cached.
+  TotalStakedCacheDuration: {{ .DPOS.TotalStakedCacheDuration }}
+{{end}}
+
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
+# Set to true to disable minimum required build number check on node startup
+SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
 
+{{if .Geth -}}
+#
+# Internal EVM integration settings
+#
+Geth:
+  EnableStateObjectDirtyStorageKeysSorting: {{.Geth.EnableStateObjectDirtyStorageKeysSorting}}
+  EnableTrieDatabasePreimageKeysSorting: {{.Geth.EnableTrieDatabasePreimageKeysSorting}}
+{{end}}
 ` + transferGatewayLoomYamlTemplate

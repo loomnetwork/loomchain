@@ -3,16 +3,21 @@ package loomchain
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -22,6 +27,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	ttypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -31,7 +37,9 @@ type ReadOnlyState interface {
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
+	Config() *cctypes.Config
 	EnabledFeatures() []string
+	GetMinBuildNumber() uint64
 }
 
 type State interface {
@@ -41,6 +49,8 @@ type State interface {
 	WithContext(ctx context.Context) State
 	WithPrefix(prefix []byte) State
 	SetFeature(string, bool)
+	SetMinBuildNumber(uint64)
+	ChangeConfigSetting(name, value string) error
 }
 
 type StoreState struct {
@@ -49,6 +59,7 @@ type StoreState struct {
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
+	config          *cctypes.Config
 }
 
 var _ = State(&StoreState{})
@@ -85,8 +96,13 @@ func NewStoreState(
 	}
 }
 
-func (c *StoreState) Range(prefix []byte) plugin.RangeData {
-	return c.store.Range(prefix)
+func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
+	s.config = config
+	return s
+}
+
+func (s *StoreState) Range(prefix []byte) plugin.RangeData {
+	return s.store.Range(prefix)
 }
 
 func (s *StoreState) Get(key []byte) []byte {
@@ -125,8 +141,9 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-var (
+const (
 	featurePrefix = "feature"
+	MinBuildKey   = "minbuild"
 )
 
 func featureKey(featureName string) []byte {
@@ -141,6 +158,7 @@ func (s *StoreState) EnabledFeatures() []string {
 			enabledFeatures = append(enabledFeatures, string(m.Key))
 		}
 	}
+
 	return enabledFeatures
 }
 
@@ -161,6 +179,52 @@ func (s *StoreState) SetFeature(name string, val bool) {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
+}
+
+// SetMinBuildNumber sets the minimum build number all nodes must be running.
+func (s *StoreState) SetMinBuildNumber(minBuild uint64) {
+	buildBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(buildBytes, minBuild)
+	s.store.Set([]byte(MinBuildKey), buildBytes)
+}
+
+// GetMinBuildNumber returns the minimum build number all nodes must be running.
+func (s *StoreState) GetMinBuildNumber() uint64 {
+	buildBytes := s.store.Get([]byte(MinBuildKey))
+	if len(buildBytes) == 0 {
+		return 0
+	}
+	return binary.BigEndian.Uint64(buildBytes)
+}
+
+// ChangeConfigSetting updates the value of the given on-chain config setting.
+// If an error occurs while trying to update the config the change is discarded.
+func (s *StoreState) ChangeConfigSetting(name, value string) error {
+	cfg, err := store.LoadOnChainConfig(s.store)
+	if err != nil {
+		panic(err)
+	}
+	if err := config.SetConfigSetting(cfg, name, value); err != nil {
+		return err
+	}
+	if err := store.SaveOnChainConfig(s.store, cfg); err != nil {
+		return err
+	}
+	// invalidate cached config so it's reloaded next time it's accessed
+	s.config = nil
+	return nil
+}
+
+// Config returns the current on-chain config.
+func (s *StoreState) Config() *cctypes.Config {
+	if s.config == nil {
+		var err error
+		s.config, err = store.LoadOnChainConfig(s.store)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return s.config
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -203,7 +267,10 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(
+	ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte,
+	getValidatorSet GetValidatorSet,
+) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
@@ -265,6 +332,7 @@ type ValidatorsManager interface {
 
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
+	UpdateConfig() (int, error)
 }
 
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
@@ -272,6 +340,11 @@ type GetValidatorSet func(state State) (loom.ValidatorSet, error)
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
 type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
+
+type CommittedTx struct {
+	result TxHandlerResult
+	txHash []byte
+}
 
 type Application struct {
 	lastBlockHeader abci.Header
@@ -292,6 +365,10 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
+	config                      *cctypes.Config
+	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
+	ReceiptsVersion             int32
+	committedTxs                []CommittedTx
 }
 
 var _ abci.Application = &Application{}
@@ -401,6 +478,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 			panic(err)
 		}
 	}
+
 	return abci.ResponseInitChain{}
 }
 
@@ -415,6 +493,14 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 
+	if a.config == nil {
+		var err error
+		a.config, err = store.LoadOnChainConfig(a.Store)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
@@ -426,7 +512,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
-		)
+		).WithOnChainConfig(a.config)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
 			panic(err)
@@ -446,7 +532,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -469,6 +555,16 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
 		}
+
+		numConfigChanges, err := chainConfigManager.UpdateConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		if numConfigChanges > 0 {
+			// invalidate cached config so it's reloaded next time it's accessed
+			a.config = nil
+		}
 	}
 
 	storeTx.Commit()
@@ -486,19 +582,10 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
 
+	// TODO: receiptHandler.CommitBlock() should be moved to Application.Commit()
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-		nil,
-		a.GetValidatorSet,
-	)
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-	if err != nil {
-		panic(err)
-	}
-	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	if err := receiptHandler.CommitBlock(a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
@@ -507,13 +594,13 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
-	state = NewStoreState(
+	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -542,8 +629,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	ok := abci.ResponseCheckTx{Code: abci.CodeTypeOK}
-
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
@@ -558,46 +643,11 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	// only happen on node restarts, and only if the node doesn't receive any txs from it's peers
 	// before a client sends it a tx.
 	if a.curBlockHeader.Height == 0 {
-		return ok
+		return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 	}
 
-	_, err = a.processTx(txBytes, true)
-	if err != nil {
-		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
-		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
-	}
-
-	return ok
-}
-func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
-	var err error
-	isEvmTx := false
-	defer func(begin time.Time) {
-		lvs := []string{
-			"method", "DeliverTx",
-			"error", fmt.Sprint(err != nil),
-			"evm", fmt.Sprintf("%t", isEvmTx),
-		}
-		requestCount.With(lvs[:4]...).Add(1)
-		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	r, err := a.processTx(txBytes, false)
-	if err != nil {
-		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
-	}
-	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-		isEvmTx = true
-	}
-	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
-}
-
-func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	var err error
-	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
-	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
 
 	state := NewStoreState(
 		context.Background(),
@@ -605,42 +655,170 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	)
+	).WithOnChainConfig(a.config)
 
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
+	// Receipts & events generated in CheckTx must be discarded since the app state changes they
+	// reflect aren't persisted.
+	defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
+
+	_, err = a.TxHandler.ProcessTx(state, txBytes, true)
 	if err != nil {
-		panic(err)
+		log.Error("CheckTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
+
+	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
+}
+
+func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
+	var txFailed, isEvmTx bool
+	defer func(begin time.Time) {
+		lvs := []string{
+			"method", "DeliverTx",
+			"error", fmt.Sprint(txFailed),
+			"evm", fmt.Sprint(isEvmTx),
+		}
+		requestCount.With(lvs[:4]...).Add(1)
+		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
+
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	var r abci.ResponseDeliverTx
+
+	if state.FeatureEnabled(features.EvmTxReceiptsVersion3_1, false) {
+		r = a.deliverTx2(storeTx, txBytes)
+	} else {
+		r = a.deliverTx(storeTx, txBytes)
+	}
+
+	txFailed = r.Code != abci.CodeTypeOK
+	// TODO: this isn't 100% reliable when txFailed == true
+	isEvmTx = r.Info == utils.CallEVM || r.Info == utils.DeployEvm
+	return r
+}
+
+// This version of DeliverTx doesn't store the receipts for failed EVM txs.
+func (a *Application) deliverTx(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
+	r, err := a.processTx(storeTx, txBytes, false)
+	if err != nil {
+		log.Error("DeliverTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
+		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+	}
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
+}
+
+func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
-		storeTx.Rollback()
-		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
-		receiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 
 	if !isCheckTx {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			if err != nil {
+		a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+
+		saveEvmTxReceipt := r.Info == utils.CallEVM || r.Info == utils.DeployEvm ||
+			state.FeatureEnabled(features.EvmTxReceiptsVersion3, false) || a.ReceiptsVersion == 3
+
+		if saveEvmTxReceipt {
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info); err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}
-			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
-			if err != nil {
-				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
-			} else {
-				if reader.GetCurrentReceipt() != nil {
-					if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-						log.Error("failed to load receipt", "err", err)
-					}
+
+			reader := a.ReceiptHandlerProvider.Reader()
+			if reader.GetCurrentReceipt() != nil {
+				receiptTxHash := reader.GetCurrentReceipt().TxHash
+				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(receiptTxHash); err != nil {
+					log.Error("failed to emit tx event to subscribers", "err", err)
 				}
+				txHash := ttypes.Tx(txBytes).Hash()
+				// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+				// so that we can use it to lookup relevant events using the TM tx hash.
+				if !bytes.Equal(txHash, receiptTxHash) {
+					a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+						ParentTxHash: txHash,
+						ChildTxHash:  receiptTxHash,
+					})
+				}
+				receiptHandler.CommitCurrentReceipt()
 			}
-			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
 	}
 	return r, nil
+}
+
+// This version of DeliverTx stores the receipts for failed EVM txs.
+func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.ResponseDeliverTx {
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+		a.GetValidatorSet,
+	).WithOnChainConfig(a.config)
+
+	receiptHandler := a.ReceiptHandlerProvider.Store()
+	defer receiptHandler.DiscardCurrentReceipt()
+	defer a.EventHandler.Rollback()
+
+	r, txErr := a.TxHandler.ProcessTx(state, txBytes, false)
+
+	// Store the receipt even if the tx itself failed
+	var receiptTxHash []byte
+	if a.ReceiptHandlerProvider.Reader().GetCurrentReceipt() != nil {
+		receiptTxHash = a.ReceiptHandlerProvider.Reader().GetCurrentReceipt().TxHash
+		txHash := ttypes.Tx(txBytes).Hash()
+		// If a receipt was generated for an EVM tx add a link between the TM tx hash and the EVM tx hash
+		// so that we can use it to lookup relevant events using the TM tx hash.
+		if !bytes.Equal(txHash, receiptTxHash) {
+			a.childTxRefs = append(a.childTxRefs, evmaux.ChildTxRef{
+				ParentTxHash: txHash,
+				ChildTxHash:  receiptTxHash,
+			})
+		}
+		receiptHandler.CommitCurrentReceipt()
+	}
+
+	if txErr != nil {
+		log.Error("DeliverTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", txErr)
+		// FIXME: Really shouldn't be using r.Data if txErr != nil, but need to refactor TxHandler.ProcessTx
+		//        so it only returns r with the correct status code & log fields.
+		// Pass the EVM tx hash (if any) back to Tendermint so it stores it in block results
+		return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: txErr.Error()}
+	}
+
+	a.EventHandler.Commit(uint64(a.curBlockHeader.GetHeight()))
+	storeTx.Commit()
+
+	a.committedTxs = append(a.committedTxs, CommittedTx{
+		result: r,
+		txHash: receiptTxHash,
+	})
+
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
 // Commit commits the current block
@@ -650,15 +828,32 @@ func (a *Application) Commit() abci.ResponseCommit {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		log.Info(fmt.Sprintf("commit took %f seconds-----\n", time.Since(begin).Seconds())) //todo we can remove these once performance comes back to normal state
 	}(time.Now())
+
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
 
 	height := a.curBlockHeader.GetHeight()
-	go func(height int64, blockHeader abci.Header) {
+
+	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
+		// TODO: consider panic instead
+		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
+	}
+	a.childTxRefs = nil
+
+	// Update the index before emitting events in case the subscribers attempt to lookup the
+	// block by number as soon as they receive an event.
+	if a.BlockIndexStore != nil {
+		a.BlockIndexStore.SetBlockHashAtHeight(uint64(height), a.curBlockHash)
+	}
+
+	// Update the last block header before emitting events in case the subscribers attempt to access
+	// the latest committed state as soon as they receive an event.
+	a.lastBlockHeader = a.curBlockHeader
+
+	go func(height int64, blockHeader abci.Header, committedTxs []CommittedTx) {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
 			log.Error("Emit Block Event error", "err", err)
 		}
@@ -668,15 +863,22 @@ func (a *Application) Commit() abci.ResponseCommit {
 		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
 			log.Error("Emit Block Event error", "err", err)
 		}
-	}(height, a.curBlockHeader)
-	a.lastBlockHeader = a.curBlockHeader
+		for _, tx := range committedTxs {
+			if err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(tx.result.Data, tx.result.Info); err != nil {
+				log.Error("Emit Tx Event error", "err", err)
+			}
+
+			if len(tx.txHash) > 0 {
+				if err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(tx.txHash); err != nil {
+					log.Error("failed to emit tx event to subscribers", "err", err)
+				}
+			}
+		}
+	}(height, a.curBlockHeader, a.committedTxs)
+	a.committedTxs = nil
 
 	if err := a.Store.Prune(); err != nil {
 		log.Error("failed to prune app.db", "err", err)
-	}
-
-	if a.BlockIndexStore != nil {
-		a.BlockIndexStore.SetBlockHashAtHeight(uint64(height), a.curBlockHash)
 	}
 
 	return abci.ResponseCommit{

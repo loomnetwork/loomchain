@@ -2,15 +2,18 @@ package dposv3
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/features"
 )
 
 const (
@@ -23,10 +26,15 @@ var (
 	candidatesKey  = []byte("candidates")
 	delegationsKey = []byte("delegation")
 	statisticsKey  = []byte("statistic")
-	referrersKey   = []byte("referrers")
 
-	requestBatchTallyKey = []byte("request_batch_tally")
+	requestBatchTallyKey   = []byte("request_batch_tally")
+	deprecatedReferrersKey = []byte("referrers")
+	referrerPrefix         = []byte("rf")
 )
+
+func referrerKey(referrerName string) []byte {
+	return util.PrefixKey([]byte(referrerPrefix), []byte(referrerName))
+}
 
 func sortValidators(validators []*Validator) []*Validator {
 	sort.Sort(byPubkey(validators))
@@ -403,7 +411,7 @@ func updateCandidateList(ctx contract.Context) error {
 	}
 
 	// Only save CandidateList when it gets updated
-	if ctx.FeatureEnabled(loomchain.DPOSVersion3_2, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3_2, false) {
 		if !candidateUpdated {
 			return nil
 		}
@@ -446,17 +454,46 @@ func LoadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 	return pbcl.Candidates, nil
 }
 
-func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
+func getReferrer(ctx contract.StaticContext, name string) *types.Address {
+	if ctx.FeatureEnabled(features.DPOSVersion3_5, false) {
+		if len(strings.TrimSpace(name)) == 0 {
+			return nil
+		}
+
+		var address types.Address
+		if err := ctx.Get(referrerKey(name), &address); err != nil {
+			return nil
+		}
+		return &address
+	}
+	return deprecatedGetReferrer(ctx, name)
+}
+
+func deprecatedGetReferrer(ctx contract.StaticContext, name string) *types.Address {
 	var address types.Address
-	err := ctx.Get(append(referrersKey, name...), &address)
+	err := ctx.Get(append(deprecatedReferrersKey, name...), &address)
 	if err != nil {
 		return nil
 	}
 	return &address
 }
 
-func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
-	return ctx.Set(append(referrersKey, name...), address)
+func setReferrer(ctx contract.Context, name string, address *types.Address) error {
+	if ctx.FeatureEnabled(features.DPOSVersion3_5, false) {
+		if len(strings.TrimSpace(name)) == 0 {
+			return errors.New("invalid referrer name")
+		}
+
+		return ctx.Set(referrerKey(name), address)
+	}
+	// NOTE: Previous version of the contract ignored the error from SetReferrer so we discard the
+	//       error here to retain compatibility with older builds until v3.5 is enabled.
+	deprecatedSetReferrer(ctx, name, address)
+	return nil
+}
+
+func deprecatedSetReferrer(ctx contract.Context, name string, address *types.Address) error {
+	return ctx.Set(append(deprecatedReferrersKey, name...), address)
 }
 
 func GetLocalCandidateAddressFromTendermintAddress(

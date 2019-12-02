@@ -2,6 +2,7 @@ package eth
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -61,11 +62,11 @@ func (m *HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value
 	return inValues, nil
 }
 
-func (m *HttpRPCFunc) GetResponse(result json.RawMessage, id int64) (*JsonRpcResponse, *Error) {
+func (m *HttpRPCFunc) GetResponse(result json.RawMessage, ID *json.RawMessage) (*JsonRpcResponse, *Error) {
 	return &JsonRpcResponse{
 		Result:  result,
 		Version: "2.0",
-		ID:      id,
+		ID:      ID,
 	}, nil
 }
 
@@ -74,20 +75,20 @@ func (m *HttpRPCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, _ *websocket.
 	if jsonErr != nil {
 		return resp, jsonErr
 	}
-	return m.call(inValues, input.ID)
+	return m.call(inValues)
 }
 
-func (m *HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMessage, jsonErr *Error) {
+func (m *HttpRPCFunc) call(inValues []reflect.Value) (resp json.RawMessage, jsonErr *Error) {
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
-		return resp, NewErrorf(EcServer, "Server error", "loom error: %v", outValues[1].Interface())
+		return resp, NewError(EcServer, fmt.Sprintf("loom error: %v", outValues[1].Interface()), "")
 	}
 
 	value := outValues[0].Interface()
 	outBytes, err := json.Marshal(value)
 	if err != nil {
-		return resp, NewErrorf(EcServer, "Parse response", "json marshall return value %v", value)
+		return resp, NewError(EcServer, fmt.Sprintf("failed to marshal marshall return value: %v", value), "")
 	}
 	return json.RawMessage(outBytes), nil
 }

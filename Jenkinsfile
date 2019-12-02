@@ -36,35 +36,35 @@ builders['linux'] = {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
 
         stage ('Build - Linux') {
-          sh '''
-            ./jenkins.sh
-            cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-            gsutil cp loom-generic gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
-            gsutil cp loom-gateway gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom-gateway
-            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom-cleveldb
-            gsutil cp plasmachain gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/plasmachain
-            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/plasmachain-cleveldb
-            gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
-            gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tgoracle
-            gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loomcoin_tgoracle
-            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tron_tgoracle
-            gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/dposv2_oracle
-            gsutil cp loom-generic gs://private.delegatecall.com/loom/linux/latest/loom
-            gsutil cp loom-gateway gs://private.delegatecall.com/loom/linux/latest/loom-gateway
-            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/linux/latest/loom-cleveldb
-            gsutil cp plasmachain gs://private.delegatecall.com/loom/linux/latest/plasmachain
-            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/linux/latest/plasmachain-cleveldb
-            gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/latest/validators-tool
-            gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/latest/tgoracle
-            gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/latest/loomcoin_tgoracle
-            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/linux/latest/tron_tgoracle
-            gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/latest/dposv2_oracle
-            gsutil cp install.sh gs://private.delegatecall.com/install.sh
-            docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
-            docker tag loomnetwork/loom:latest loomnetwork/loom:${BUILD_NUMBER}
-            docker push loomnetwork/loom:latest
-            docker push loomnetwork/loom:${BUILD_NUMBER}
-          '''
+          nodejs('v10.16.3 (LTS)') {
+            sh '''
+              ./jenkins.sh
+              cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
+              gsutil cp loom-generic gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/loom
+              gsutil cp loom-gateway gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/loom-gateway
+              gsutil cp loom-cleveldb gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/loom-cleveldb
+              gsutil cp basechain gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/basechain
+              gsutil cp basechain-cleveldb gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/basechain-cleveldb
+              gsutil cp e2e/validators-tool gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/validators-tool
+              gsutil cp tgoracle gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/tgoracle
+              gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/loomcoin_tgoracle
+              gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/linux/build-$BUILD_NUMBER/tron_tgoracle
+              gsutil cp loom-generic gs://downloads.loomx.io/loom/linux/latest/loom
+              gsutil cp loom-gateway gs://downloads.loomx.io/loom/linux/latest/loom-gateway
+              gsutil cp loom-cleveldb gs://downloads.loomx.io/loom/linux/latest/loom-cleveldb
+              gsutil cp basechain gs://downloads.loomx.io/loom/linux/latest/basechain
+              gsutil cp basechain-cleveldb gs://downloads.loomx.io/loom/linux/latest/basechain-cleveldb
+              gsutil cp e2e/validators-tool gs://downloads.loomx.io/loom/linux/latest/validators-tool
+              gsutil cp tgoracle gs://downloads.loomx.io/loom/linux/latest/tgoracle
+              gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/linux/latest/loomcoin_tgoracle
+              gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/linux/latest/tron_tgoracle
+              gsutil cp install.sh gs://downloads.loomx.io/install.sh
+              docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
+              docker tag loomnetwork/loom:latest loomnetwork/loom:${BUILD_NUMBER}
+              docker push loomnetwork/loom:latest
+              docker push loomnetwork/loom:${BUILD_NUMBER}
+            '''
+          }
         }
       } catch (e) {
         thisBuild = 'FAILURE'
@@ -114,30 +114,30 @@ builders['osx'] = {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX");
 
         stage ('Build - OSX') {
-          sh '''
-            ./jenkins.sh
-            cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-            gsutil cp loom-generic gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
-            gsutil cp loom-gateway gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom-gateway
-            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom-cleveldb
-            gsutil cp plasmachain gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/plasmachain
-            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/plasmachain-cleveldb
-            gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
-            gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/tgoracle
-            gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loomcoin_tgoracle
-            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/tron_tgoracle
-            gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/dposv2_oracle
-            gsutil cp loom-generic gs://private.delegatecall.com/loom/osx/latest/loom
-            gsutil cp loom-gateway gs://private.delegatecall.com/loom/osx/latest/loom-gateway
-            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/osx/latest/loom-cleveldb
-            gsutil cp plasmachain gs://private.delegatecall.com/loom/osx/latest/plasmachain
-            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/osx/latest/plasmachain-cleveldb
-            gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/latest/validators-tool
-            gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/latest/tgoracle
-            gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/latest/loomcoin_tgoracle
-            gsutil cp tron_tgoracle gs://private.delegatecall.com/loom/osx/latest/tron_tgoracle
-            gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/osx/latest/dposv2_oracle
-          '''
+          nodejs('v10.16.3 (LTS)') {
+            sh '''
+              ./jenkins.sh
+              cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
+              gsutil cp loom-generic gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/loom
+              gsutil cp loom-gateway gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/loom-gateway
+              gsutil cp loom-cleveldb gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/loom-cleveldb
+              gsutil cp basechain gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/basechain
+              gsutil cp basechain-cleveldb gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/basechain-cleveldb
+              gsutil cp e2e/validators-tool gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/validators-tool
+              gsutil cp tgoracle gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/tgoracle
+              gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/loomcoin_tgoracle
+              gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/osx/build-$BUILD_NUMBER/tron_tgoracle
+              gsutil cp loom-generic gs://downloads.loomx.io/loom/osx/latest/loom
+              gsutil cp loom-gateway gs://downloads.loomx.io/loom/osx/latest/loom-gateway
+              gsutil cp loom-cleveldb gs://downloads.loomx.io/loom/osx/latest/loom-cleveldb
+              gsutil cp basechain gs://downloads.loomx.io/loom/osx/latest/basechain
+              gsutil cp basechain-cleveldb gs://downloads.loomx.io/loom/osx/latest/basechain-cleveldb
+              gsutil cp e2e/validators-tool gs://downloads.loomx.io/loom/osx/latest/validators-tool
+              gsutil cp tgoracle gs://downloads.loomx.io/loom/osx/latest/tgoracle
+              gsutil cp loomcoin_tgoracle gs://downloads.loomx.io/loom/osx/latest/loomcoin_tgoracle
+              gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/osx/latest/tron_tgoracle
+            '''
+          }
         }
       } catch (e) {
         thisBuild = 'FAILURE'

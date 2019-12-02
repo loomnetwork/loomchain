@@ -51,6 +51,12 @@ type ReactorState struct {
 	PreviousTimedOutVoteSets map[string]*FnVoteSet // TODO: unused, consider removing
 	PreviousMajVoteSets      map[string]*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
+	Messages                 map[string]Message
+}
+
+type Message struct {
+	Payload []byte
+	Hash    []byte
 }
 
 func NewReactorState() *ReactorState {
@@ -59,6 +65,7 @@ func NewReactorState() *ReactorState {
 		CurrentNonces:            make(map[string]int64),
 		PreviousTimedOutVoteSets: make(map[string]*FnVoteSet),
 		PreviousMajVoteSets:      make(map[string]*FnVoteSet),
+		Messages:                 make(map[string]Message),
 	}
 }
 
@@ -112,6 +119,7 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 	p.PreviousTimedOutVoteSets = make(map[string]*FnVoteSet)
 	p.PreviousMajVoteSets = make(map[string]*FnVoteSet)
 	p.PreviousValidatorSet = reactorStateMarshallable.PreviousValidatorSet
+	p.Messages = make(map[string]Message)
 
 	for _, voteSet := range reactorStateMarshallable.CurrentVoteSets {
 		p.CurrentVoteSets[voteSet.Payload.Request.FnID] = voteSet
@@ -666,28 +674,28 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int) ([]byte, error) {
 	}
 
 	// TODO: Replace this with amino serialization.
-	var seperator = []byte{17, 19, 23, 29}
+	var separator = []byte{17, 19, 23, 29}
 
 	prefix := []byte(fmt.Sprintf(
 		"NONCE:%d|CD:%s|VA:%s|PL:",
 		voteSet.Nonce, voteSet.ChainID, voteSet.ValidatorAddresses[validatorIndex],
 	))
 
-	signBytes := make([]byte, len(prefix)+len(seperator)+len(voteSet.ValidatorsHash)+len(seperator)+len(payloadBytes))
+	signBytes := make([]byte, len(prefix)+len(separator)+len(voteSet.ValidatorsHash)+len(separator)+len(payloadBytes))
 
 	numCopied := 0
 
 	copy(signBytes[numCopied:], prefix)
 	numCopied += len(prefix)
 
-	copy(signBytes[numCopied:], seperator)
-	numCopied += len(seperator)
+	copy(signBytes[numCopied:], separator)
+	numCopied += len(separator)
 
 	copy(signBytes[numCopied:], voteSet.ValidatorsHash)
 	numCopied += len(voteSet.ValidatorsHash)
 
-	copy(signBytes[numCopied:], seperator)
-	numCopied += len(seperator)
+	copy(signBytes[numCopied:], separator)
+	numCopied += len(separator)
 
 	copy(signBytes[numCopied:], payloadBytes)
 

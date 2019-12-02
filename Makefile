@@ -22,6 +22,7 @@ HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
+PROMETHEUS_PROCFS_DIR=$(GOPATH)/src/github.com/prometheus/procfs
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
 
@@ -32,7 +33,7 @@ GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
 TG_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
-ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
+ETHEREUM_GIT_REV = 6128fa1a8c767035d3da6ef0c27ebb7778ce3713
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
@@ -45,7 +46,7 @@ GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 # Specifies the loomnetwork/binance-tgoracle branch/revision to use.
 BINANCE_TG_GIT_REV = HEAD
 # Lock down certusone/yubihsm-go revision
-YUBIHSM_REV = 0299fd5d703d2a576125b414abbe172eaec9f65e
+YUBIHSM_REV = 892fb9b370f3cbb486fc1f53d4a1d89e9f552af0
 
 BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
@@ -67,8 +68,8 @@ GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_BASE = -X $(PKG_BATTLEGROUND).BuildDate=$(BUILD_DATE) -X $(PKG_BATTLEGROUND).BuildGitSha=$(GAMECHAIN_GIT_SHA) -X $(PKG_BATTLEGROUND).BuildNumber=$(BUILD_NUMBER)
 GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_GATEWAY = -tags "evm gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=gateway"
-GOFLAGS_PLASMACHAIN = -tags "evm plasmachain gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=plasmachain"
-GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gateway gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=plasmachain"
+GOFLAGS_BASECHAIN = -tags "evm basechain gateway" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=basechain"
+GOFLAGS_BASECHAIN_CLEVELDB = -tags "evm basechain gateway gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).TransferGatewaySHA=$(TG_GIT_SHA) -X $(PKG).BuildVariant=basechain"
 GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
@@ -77,7 +78,7 @@ WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH
 
 E2E_TESTS_TIMEOUT = 37m
 
-.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle basechain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
@@ -98,22 +99,19 @@ contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/plasma_cash/plugin
 
 tgoracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+	cd $(TRANSFER_GATEWAY_DIR) && make tgoracle
 
 loomcoin_tgoracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+	cd $(TRANSFER_GATEWAY_DIR) && make loomcoin_tgoracle
 
 tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
+	cd $(TRANSFER_GATEWAY_DIR) && make tron_tgoracle
 
 binance_tgoracle: $(BINANCE_TGORACLE_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_BINANCE_TRORACLE)/cmd/$@
+	cd $(BINANCE_TGORACLE_DIR) && make binance_tgoracle
 
 pcoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
-
-dposv2_oracle: $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_GATEWAY) -o $@ $(PKG_TRANSFER_GATEWAY)/cmd/$@
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -136,14 +134,14 @@ gamechain-windows: proto
 loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
-plasmachain: proto $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_PLASMACHAIN) -o $@ $(PKG)/cmd/loom
+basechain: proto $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS_BASECHAIN) -o $@ $(PKG)/cmd/loom
 
-plasmachain-cleveldb: proto c-leveldb $(TRANSFER_GATEWAY_DIR)
-	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
+basechain-cleveldb: proto c-leveldb $(TRANSFER_GATEWAY_DIR)
+	go build $(GOFLAGS_BASECHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
-plasmachain-windows:
-	$(WINDOWS_BUILD_VARS) make plasmachain
+basechain-windows:
+	$(WINDOWS_BUILD_VARS) make basechain
 
 loom-race: proto
 	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
@@ -170,9 +168,7 @@ update_lint:
 	./get_lint.sh
 
 lint:
-	cd $(GOPATH)/bin && chmod +x golangci-lint
-	cd $(GOPATH)/src/github.com/loomnetwork/loomchain
-	@golangci-lint run --build-tags "evm" | tee lintreport
+	$(GOPATH)/bin/golangci-lint run --build-tags="evm gateway" | tee lintreport
 
 linterrors:
 	chmod +x parselintreport.sh
@@ -205,6 +201,10 @@ validators-tool: $(TRANSFER_GATEWAY_DIR)
 	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
+	# Temp workaround for https://github.com/prometheus/procfs/issues/221
+	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
+	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
+
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \

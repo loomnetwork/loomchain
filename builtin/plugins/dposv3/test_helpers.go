@@ -8,7 +8,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/features"
 )
 
 type testDPOSContract struct {
@@ -31,7 +31,7 @@ func deployDPOSContract(
 	})
 
 	// Enable the feature flag which enables the reward rounding fix
-	dposCtx.SetFeature(loomchain.DPOSVersion3_1, true)
+	dposCtx.SetFeature(features.DPOSVersion3_1, true)
 
 	return &testDPOSContract{
 		Contract: dposContract,
@@ -150,6 +150,17 @@ func (dpos *testDPOSContract) RegisterReferrer(ctx *plugin.FakeContext, referrer
 		},
 	)
 	return err
+}
+
+func (dpos *testDPOSContract) ListReferrers(ctx *plugin.FakeContext) ([]*Referrer, error) {
+	resp, err := dpos.Contract.ListReferrers(
+		contract.WrapPluginStaticContext(ctx.WithAddress(dpos.Address)),
+		&ListReferrersRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Referrers, err
 }
 
 func (dpos *testDPOSContract) WhitelistCandidate(ctx *plugin.FakeContext, candidate loom.Address, amount *big.Int, tier LocktimeTier) error {

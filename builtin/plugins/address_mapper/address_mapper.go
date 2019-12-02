@@ -15,7 +15,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/features"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -89,7 +89,7 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 		evmcompat.SignatureType_TREZOR,
 		evmcompat.SignatureType_TRON,
 	}
-	if ctx.FeatureEnabled(loomchain.AddressMapperVersion1_1, false) {
+	if ctx.FeatureEnabled(features.AddressMapperVersion1_1, false) {
 		allowedSigTypes = append(allowedSigTypes, evmcompat.SignatureType_BINANCE)
 	}
 
@@ -211,6 +211,14 @@ func verifySig(from, to loom.Address, chainID string, sig []byte, allowedSigType
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
 
+	sigType := evmcompat.SignatureType(sig[0])
+	if sigType == evmcompat.SignatureType_BINANCE {
+		hash = evmcompat.GenSHA256(
+			ssha.Address(common.BytesToAddress(from.Local)),
+			ssha.Address(common.BytesToAddress(to.Local)),
+		)
+	}
+
 	signerAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig, allowedSigTypes)
 	if err != nil {
 		return err
@@ -232,6 +240,11 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey, sigType e
 
 	if sigType == evmcompat.SignatureType_TRON {
 		hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
+	} else if sigType == evmcompat.SignatureType_BINANCE {
+		hash = evmcompat.GenSHA256(
+			ssha.Address(common.BytesToAddress(from.Local)),
+			ssha.Address(common.BytesToAddress(to.Local)),
+		)
 	}
 
 	return evmcompat.GenerateTypedSig(hash, key, sigType)

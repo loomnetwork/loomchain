@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -35,6 +36,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -45,7 +47,6 @@ import (
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
 	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
-	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	userdeployer "github.com/loomnetwork/loomchain/cmd/loom/userdeployerwhitelist"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
@@ -77,6 +78,7 @@ import (
 
 var (
 	appHeightKey = []byte("appheight")
+	configKey    = []byte("config")
 )
 
 var RootCmd = &cobra.Command{
@@ -274,7 +276,7 @@ func newInitCommand() *cobra.Command {
 func newResetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset",
-		Short: "Reset the app and blockchain state only",
+		Short: "Reset the app and blockchain state, while keeping genesis & config unchanged",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := common.ParseConfig()
 			if err != nil {
@@ -287,14 +289,17 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			err = resetApp(cfg)
-			if err != nil {
-				return err
+			if err := resetApp(cfg); err != nil {
+				return errors.Wrap(err, "failed to reset app state")
+			}
+
+			if err := destroyDB(cfg.EvmStore.DBName, cfg.RootPath()); err != nil {
+				return errors.Wrap(err, "failed to reset evm state")
 			}
 
 			destroyReceiptsDB(cfg)
 			if err := destroyBlockIndexDB(cfg); err != nil {
-				return err
+				return errors.Wrap(err, "failed to reset block index")
 			}
 
 			return nil
@@ -329,7 +334,6 @@ func newRunCommand() *cobra.Command {
 	var appHeight int64
 
 	cfg, err := common.ParseConfig()
-
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
@@ -339,6 +343,7 @@ func newRunCommand() *cobra.Command {
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			logger := log.Default
+			configureGeth(cfg.Geth)
 			if cfg.PrometheusPushGateway.Enabled {
 				host, err := os.Hostname()
 				if err != nil {
@@ -422,8 +427,11 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
-				return err
+			// If this node is meant to be a custom reactor validator start the gateway reactors.
+			if cfg.FnConsensus.Reactor.IsValidator && fnRegistry != nil {
+				if err := startGatewayReactors(chainID, fnRegistry, cfg, nodeSigner); err != nil {
+					return err
+				}
 			}
 
 			if err := startPlasmaOracle(chainID, cfg.PlasmaCash); err != nil {
@@ -590,7 +598,7 @@ func destroyApp(cfg *config.Config) error {
 }
 
 func destroyReceiptsDB(cfg *config.Config) {
-	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
+	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb || cfg.ReceiptsVersion == 3 {
 		receptHandler := leveldb.LevelDbReceipts{}
 		receptHandler.ClearData()
 	}
@@ -671,14 +679,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled &&
-		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
-		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
-		if err != nil {
-			return nil, err
-		}
-		logger.Info("CachingStore enabled")
-	} else if cfg.CachingStoreConfig.CachingEnabled && cfg.AppStore.Version == 3 {
+	if cfg.CachingStoreConfig.CachingEnabled {
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err
@@ -739,6 +740,19 @@ func loadApp(
 		return nil, err
 	}
 
+	if !cfg.SkipMinBuildCheck {
+		if buildBytes := appStore.Get([]byte(loomchain.MinBuildKey)); len(buildBytes) > 0 {
+			minimumBuild := binary.BigEndian.Uint64(buildBytes)
+			currentBuild, err := strconv.ParseUint(loomchain.Build, 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse loomchain build number")
+			}
+			if currentBuild < minimumBuild {
+				return nil, fmt.Errorf("build %d is too old, upgrade to build %d or later", currentBuild, minimumBuild)
+			}
+		}
+	}
+
 	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
 	switch cfg.EventDispatcher.Dispatcher {
@@ -787,19 +801,7 @@ func loadApp(
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-		var receiptVer handler.ReceiptHandlerVersion
-		if v2Feature {
-			receiptVer = handler.ReceiptHandlerLevelDb
-		} else {
-			var err error
-			receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-			if err != nil {
-				return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-			}
-		}
-		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-	}, evmAuxStore)
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, cfg.EVMPersistentTxReceiptsMax, evmAuxStore)
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -808,15 +810,6 @@ func loadApp(
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
-		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-		if err != nil {
-			return nil, err
-		}
 		return plugin.NewPluginVM(
 			loader,
 			state,
@@ -824,8 +817,8 @@ func loadApp(
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			receiptWriter,
-			receiptReader,
+			receiptHandlerProvider.Writer(),
+			receiptHandlerProvider.Reader(),
 		), nil
 	})
 
@@ -833,16 +826,6 @@ func loadApp(
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
-			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
-			if err != nil {
-				return nil, err
-			}
-
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
 					loader,
@@ -851,15 +834,15 @@ func loadApp(
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -874,11 +857,18 @@ func loadApp(
 		Manager: vmManager,
 	}
 
+	ethTxHandler := &tx_handler.EthTxHandler{
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
+	}
+
 	migrationTxHandler := &tx_handler.MigrationTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
 		Migrations: map[int32]tx_handler.MigrationFunc{
 			1: migrations.DPOSv3Migration,
+			2: migrations.GatewayMigration,
+			3: migrations.GatewayMigration,
 		},
 	}
 
@@ -889,6 +879,13 @@ func loadApp(
 
 	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
+		// init config
+		configBytes, err := proto.Marshal(&gen.Config)
+		if err != nil {
+			return err
+		}
+		state.Set(configKey, configBytes)
+
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
@@ -946,11 +943,13 @@ func loadApp(
 	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
 	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
+	router.HandleDeliverTx(4, loomchain.GeneratePassthroughRouteHandler(ethTxHandler))
 
 	// TODO: Write this in more elegant way
 	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
 	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
+	router.HandleCheckTx(4, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, ethTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
@@ -1026,7 +1025,7 @@ func loadApp(
 	}
 
 	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
-		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
 			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
 			dposV3Ctx, err := createDPOSV3Ctx(state)
 			if err != nil {
@@ -1054,7 +1053,8 @@ func loadApp(
 		return loom.NewValidatorSet(b.GenesisValidators()...), nil
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
+	nonceTxHandler := auth.NewNonceHandler()
+	txMiddleWare = append(txMiddleWare, nonceTxHandler.TxMiddleware(appStore))
 
 	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
@@ -1072,7 +1072,7 @@ func loadApp(
 			return nil, err
 		}
 		// DPOSv3 can only be enabled via feature flag or if it's enabled via the loom.yml
-		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(features.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {
 			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
@@ -1122,7 +1122,7 @@ func loadApp(
 
 	// We need to make sure nonce post commit middleware is last
 	// as it doesn't pass control to other middlewares after it.
-	postCommitMiddlewares = append(postCommitMiddlewares, auth.NonceTxPostNonceMiddleware)
+	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
 	return &loomchain.Application{
 		Store: appStore,
@@ -1141,6 +1141,7 @@ func loadApp(
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
+		ReceiptsVersion:             cfg.ReceiptsVersion,
 	}, nil
 }
 
@@ -1223,6 +1224,7 @@ func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsens
 		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
 		HsmConfig:                cfg.HsmConfig,
 		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
+		MempoolWalEnabled:        cfg.MempoolWalEnabled,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -1288,19 +1290,16 @@ func initQueryService(
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
+		Web3Cfg:                cfg.Web3,
+		DPOSCfg:                cfg.DPOS,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
 		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
-	// query service
-	var qsvc rpc.QueryService
-	{
-		qsvc = qs
-		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
-	}
+	var qsvc rpc.QueryService = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qs)
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
+	err = rpc.RPCServer(qsvc, chainID, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
 	if err != nil {
 		return err
 	}

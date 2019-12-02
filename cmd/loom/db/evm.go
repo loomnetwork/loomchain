@@ -10,19 +10,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	gcommon "github.com/ethereum/go-ethereum/common"
+	gstate "github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
-	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -62,21 +63,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 
 			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
 				eventHandler,
-				func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-					var receiptVer handler.ReceiptHandlerVersion
-					if v2Feature {
-						receiptVer = handler.ReceiptHandlerLevelDb
-					} else {
-						var err error
-						receiptVer, err = handler.ReceiptHandlerVersionFromInt(
-							replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion,
-						)
-						if err != nil {
-							return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-						}
-					}
-					return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-				},
+				cfg.EVMPersistentTxReceiptsMax,
 				nil,
 			)
 
@@ -94,19 +81,6 @@ func newDumpEVMStateCommand() *cobra.Command {
 				nil,
 			)
 
-			receiptReader, err := receiptHandlerProvider.ReaderAt(
-				state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-			)
-			if err != nil {
-				return err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(
-				state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-			)
-			if err != nil {
-				return err
-			}
-
 			var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 			if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 				newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -121,8 +95,8 @@ func newDumpEVMStateCommand() *cobra.Command {
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err := newABMFactory(pvm)
 				if err != nil {
@@ -202,21 +176,7 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
 				eventHandler,
-				func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
-					var receiptVer handler.ReceiptHandlerVersion
-					if v2Feature {
-						receiptVer = handler.ReceiptHandlerLevelDb
-					} else {
-						var err error
-						receiptVer, err = handler.ReceiptHandlerVersionFromInt(
-							replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion,
-						)
-						if err != nil {
-							return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
-						}
-					}
-					return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
-				},
+				cfg.EVMPersistentTxReceiptsMax,
 				nil,
 			)
 
@@ -234,19 +194,6 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 				nil,
 			)
 
-			receiptReader, err := receiptHandlerProvider.ReaderAt(
-				state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-			)
-			if err != nil {
-				return err
-			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(
-				state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false),
-			)
-			if err != nil {
-				return err
-			}
-
 			var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 			if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 				newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -261,8 +208,8 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptWriter,
-					receiptReader,
+					receiptHandlerProvider.Writer(),
+					receiptHandlerProvider.Reader(),
 				)
 				createABM, err := newABMFactory(pvm)
 				if err != nil {
@@ -286,7 +233,108 @@ func newDumpEVMStateMultiWriterAppStoreCommand() *cobra.Command {
 
 	cmdFlags := cmd.Flags()
 	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
-	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Dump EVM state as it was the specified app height")
+	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Name of EVM state database")
+	return cmd
+}
+
+func newDumpEVMStateFromEvmDB() *cobra.Command {
+	var appHeight int64
+	var evmDBName string
+	var dumpStorageTrie bool
+	cmd := &cobra.Command{
+		Use:   "evm-dump-3",
+		Short: "Dumps EVM state stored at a specific block height from evm.db",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := common.ParseConfig()
+			if err != nil {
+				return err
+			}
+
+			if appHeight == 0 {
+				appHeight = math.MaxInt64
+			}
+
+			evmDB, err := cdb.LoadDB(
+				"goleveldb", evmDBName,
+				cfg.RootPath(), 256, 4, false,
+			)
+			if err != nil {
+				return err
+			}
+
+			evmStore := store.NewEvmStore(evmDB, 100)
+			if err := evmStore.LoadVersion(appHeight); err != nil {
+				return err
+			}
+			root, version := evmStore.Version()
+			evmRoot := gcommon.BytesToHash(root)
+
+			fmt.Printf("version: %d, root: %x\n", version, root)
+
+			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
+			storeTx := store.WrapAtomic(evmStore).BeginTx()
+			state := loomchain.NewStoreState(
+				context.Background(),
+				storeTx,
+				abci.Header{
+					Height: appHeight,
+				},
+				// it is possible to load the block hash from the TM block store, but probably don't
+				// need it for just dumping the EVM state
+				nil,
+				nil,
+			)
+
+			srcStateDB := gstate.NewDatabase(evm.NewLoomEthdb(state, nil))
+			srcStateDBTrie, err := srcStateDB.OpenTrie(evmRoot)
+			if err != nil {
+				fmt.Printf("cannot open trie, %s\n", evmRoot.Hex())
+				return err
+			}
+			srcTrie, err := trie.New(evmRoot, srcStateDB.TrieDB())
+			if err != nil {
+				return err
+			}
+			srcState, err := gstate.New(evmRoot, srcStateDB)
+			if err != nil {
+				return err
+			}
+
+			it := trie.NewIterator(srcTrie.NodeIterator(nil))
+			for it.Next() {
+				addrBytes := srcStateDBTrie.GetKey(it.Key)
+				addr := gcommon.BytesToAddress(addrBytes)
+				var data gstate.Account
+				if err := rlp.DecodeBytes(it.Value, &data); err != nil {
+					panic(err)
+				}
+
+				fmt.Printf("Account: %s\n", gcommon.Bytes2Hex(addrBytes))
+				fmt.Printf("- Balance: %s\n", data.Balance.String())
+				fmt.Printf("- Nonce: %d\n", data.Nonce)
+				fmt.Printf("- Root: %s\n", gcommon.Bytes2Hex(data.Root[:]))
+				fmt.Printf("- CodeHash: %s\n", gcommon.Bytes2Hex((data.CodeHash)))
+				fmt.Printf("- Code: %x\n", gcommon.Bytes2Hex(srcState.GetCode(addr)))
+				fmt.Printf("- Storage Root: %x\n", srcState.StorageTrie(addr).Hash())
+
+				if dumpStorageTrie {
+					fmt.Println("- Storage Data:")
+					srcState.ForEachStorage(addr, func(key, value gcommon.Hash) bool {
+						fmt.Printf("	%s:%s\n", key.Hex(), value.Hex())
+						return true
+					})
+				}
+
+				fmt.Println("---------------------------------------")
+			}
+			return nil
+		},
+	}
+
+	cmdFlags := cmd.Flags()
+	cmdFlags.Int64Var(&appHeight, "app-height", 0, "Dump EVM state as it was the specified app height")
+	cmdFlags.StringVar(&evmDBName, "evmdb-name", "evm", "Name of EVM state database")
+	cmdFlags.BoolVar(&dumpStorageTrie, "storage-trie", false, "Dump all storage tries of accounts")
 	return cmd
 }
 

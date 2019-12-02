@@ -53,11 +53,8 @@ func newWsSubscriber(hub pubsub.ResetHub, conn *websocket.Conn, id string) *wsSu
 	}
 }
 
-// Close websocket connection
+// Do nothing. Closing websocket connection is done by the handler not here.
 func (s wsSubscriber) Close() {
-	if err := s.conn.Close(); err != nil {
-		log.Error("closing wesocket connection, err", err)
-	}
 }
 
 // Do sets subscriber function that will be called when message arrives

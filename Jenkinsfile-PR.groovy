@@ -1,9 +1,10 @@
-void setBuildStatus(String message, String state, String context) {
+void setBuildStatus(String message, String state, String context, String sha1) {
   step([
       $class: "GitHubCommitStatusSetter",
       reposSource: [$class: "ManuallyEnteredRepositorySource", url: "git@github.com:loomnetwork/loomchain.git"],
       contextSource: [$class: "ManuallyEnteredCommitContextSource", context: context],
       errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
+      commitShaSource: [$class: 'ManuallyEnteredShaSource', sha: sha1],
       statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
   ]);
 }
@@ -21,7 +22,7 @@ builders['linux'] = {
           checkout changelog: true, poll: true, scm:
           [
             $class: 'GitSCM',
-            branches: [[name: 'origin/pull/*/head']],
+            branches: [[name: '${ghprbActualCommit}']],
             doGenerateSubmoduleConfigurations: false,
             extensions: [
               [$class: 'PreBuildMerge',
@@ -43,19 +44,21 @@ builders['linux'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
+        // setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux", "${ghprbActualCommit}");
 
         stage ('Build - Linux') {
-          sh '''
-            ./jenkins.sh
-          '''
+          nodejs('v10.16.3 (LTS)') {
+            sh '''
+              ./jenkins.sh
+            '''
+            }
         }
       } catch (e) {
         thisBuild = 'FAILURE'
         throw e
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux");
+          // setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux", "${ghprbActualCommit}");
           sh '''
             cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
             find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz -T -
@@ -63,9 +66,9 @@ builders['linux'] = {
             mv ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz /tmp/test-data
           '''
         }
-        else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux");
-        }
+        // else if (currentBuild.currentResult == 'SUCCESS') {
+        //  setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux", "${ghprbActualCommit}");
+        // }
       }
     }
   }
@@ -81,7 +84,7 @@ disabled['windows'] = {
           checkout changelog: true, poll: true, scm:
           [
             $class: 'GitSCM',
-            branches: [[name: 'origin/pull/*/head']],
+            branches: [[name: '${ghprbActualCommit}']],
             doGenerateSubmoduleConfigurations: false,
             extensions: [
               [$class: 'PreBuildMerge',
@@ -103,7 +106,7 @@ disabled['windows'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows", "${ghprbActualCommit}");
 
         stage ('Build - Windows') {
           bat '''
@@ -115,17 +118,17 @@ disabled['windows'] = {
         throw e
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows", "${ghprbActualCommit}");
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows", "${ghprbActualCommit}");
         }
       }
     }
   }
 }
 
-builders['osx'] = {
+disabled['osx'] = {
   node('osx-any') {
     timestamps {
       def thisBuild = null
@@ -135,7 +138,7 @@ builders['osx'] = {
           checkout changelog: true, poll: true, scm:
           [
             $class: 'GitSCM',
-            branches: [[name: 'origin/pull/*/head']],
+            branches: [[name: '${ghprbActualCommit}']],
             doGenerateSubmoduleConfigurations: false,
             extensions: [
               [$class: 'PreBuildMerge',
@@ -157,19 +160,21 @@ builders['osx'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX", "${ghprbActualCommit}");
 
         stage ('Build - OSX') {
-          sh '''
-            ./jenkins.sh
-          '''
+          nodejs('v10.16.3 (LTS)') {
+            sh '''
+              ./jenkins.sh
+            '''
+          }
         }
       } catch (e) {
         thisBuild = 'FAILURE'
         throw e
       } finally {
         if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX", "${ghprbActualCommit}");
           sh '''
             cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
             find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz -T -
@@ -178,7 +183,7 @@ builders['osx'] = {
           '''
         }
         else if (currentBuild.currentResult == 'SUCCESS') {
-          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX");
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX", "${ghprbActualCommit}");
         }
       }
     }

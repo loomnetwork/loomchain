@@ -1,6 +1,8 @@
 package fnConsensus
 
 import (
+	"bytes"
+	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -8,13 +10,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
-
-	dbm "github.com/tendermint/tendermint/libs/db"
-
-	"crypto/sha512"
 )
 
 type SigningThreshold string
@@ -78,6 +80,30 @@ type FnConsensusReactor struct {
 	cfg *ReactorConfig
 }
 
+var (
+	submittedMessageCount metrics.Counter
+	nonceGauge            metrics.Gauge
+)
+
+func init() {
+	submittedMessageCount = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: "loomchain",
+			Subsystem: "fnConsensus",
+			Name:      "submitted_message_count",
+			Help:      "Number of messages successfully submitted by the validator (per fnID)",
+		}, []string{"fnID"},
+	)
+	nonceGauge = kitprometheus.NewGaugeFrom(
+		stdprometheus.GaugeOpts{
+			Namespace: "loomchain",
+			Subsystem: "fnConsensus",
+			Name:      "current_nonce",
+			Help:      "Current nonce (per fnID)",
+		}, []string{"fnID"},
+	)
+}
+
 func NewFnConsensusReactor(
 	chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB,
 	parsableConfig *ReactorConfigParsable,
@@ -101,14 +127,15 @@ func NewFnConsensusReactor(
 	return reactor, nil
 }
 
-func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fn Fn, hash []byte, signatures [][]byte) {
+func (f *FnConsensusReactor) safeSubmitMultiSignedMessage(fnID string, fn Fn, message []byte, signatures [][]byte) {
 	defer func() {
 		err := recover()
 		if err != nil {
 			f.Logger.Error("panicked while invoking SubmitMultiSignedMessage", "error", err)
 		}
 	}()
-	fn.SubmitMultiSignedMessage(nil, hash, signatures)
+	fn.SubmitMultiSignedMessage(nil, message, signatures)
+	submittedMessageCount.With("fnID", fnID).Add(1)
 }
 
 // Returns a message and associated signature (which can be anything really).
@@ -122,17 +149,6 @@ func (f *FnConsensusReactor) safeGetMessageAndSignature(fn Fn) ([]byte, []byte, 
 	return fn.GetMessageAndSignature(nil)
 }
 
-// Associates the given hash with a message.
-func (f *FnConsensusReactor) safeMapMessage(fn Fn, hash, message []byte) error {
-	defer func() {
-		err := recover()
-		if err != nil {
-			f.Logger.Error("panicked while invoking MapMessage", "error", err)
-		}
-	}()
-	return fn.MapMessage(nil, hash, message)
-}
-
 func (f *FnConsensusReactor) String() string {
 	return "FnConsensusReactor"
 }
@@ -140,6 +156,10 @@ func (f *FnConsensusReactor) String() string {
 // OnStart implements BaseReactor by loading the previously persisted reactor state from fnConsensus.db,
 // loading the current validator set, and starting the vote & commit go-routines.
 func (f *FnConsensusReactor) OnStart() error {
+	if !f.cfg.IsValidator {
+		return nil
+	}
+
 	reactorState, err := loadReactorState(f.db)
 	if err != nil {
 		return err
@@ -314,6 +334,11 @@ func (f *FnConsensusReactor) initRoutine() {
 }
 
 func (f *FnConsensusReactor) commitRoutine() {
+	defer func() {
+		if r := recover(); r != nil {
+			f.Logger.Error("Recovered in FnConsensusReactor.commitRoutine", "r", r)
+		}
+	}()
 	currentValidators := f.getValidatorSet()
 
 	// Initializing these vars with sane value to calculate initial time
@@ -352,6 +377,12 @@ OUTER_LOOP:
 }
 
 func (f *FnConsensusReactor) voteRoutine() {
+	defer func() {
+		if r := recover(); r != nil {
+			f.Logger.Error("Recovered in FnConsensusReactor.voteRoutine", "r", r)
+		}
+	}()
+
 	currentValidators := f.getValidatorSet()
 
 	// Initializing these vars with sane value to calculate initial time
@@ -421,17 +452,6 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 		return
 	}
 
-	// TODO: The hash & message are copied here because we don't trust the fn object not to modify
-	//       them, but we don't need to store the message from this point on so there doesn't seem
-	//       to be much point in copying it.
-	if err := f.safeMapMessage(fn, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-		f.Logger.Error(
-			"FnConsensusReactor: received error while executing fn.MapMessage",
-			"fnID", fnID, "err", err, "method", voteMethodID,
-		)
-		return
-	}
-
 	executionRequest, err := NewFnExecutionRequest(fnID, f.fnRegistry)
 	if err != nil {
 		f.Logger.Error(
@@ -448,6 +468,11 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
+
+	f.state.Messages[fnID] = Message{
+		Payload: message,
+		Hash:    hash,
+	}
 
 	currentNonce, ok := f.state.CurrentNonces[fnID]
 	if !ok {
@@ -473,9 +498,17 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	// Have we achieved Maj23 already?
 	aggregateExecutionResponse := voteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 	if aggregateExecutionResponse != nil {
+		if !bytes.Equal(f.state.Messages[fnID].Hash, aggregateExecutionResponse.Hash) {
+			f.Logger.Error(
+				"FnConsensusReactor: message hash mismatch",
+				"fnID", fnID, "method", voteMethodID, "nonce", currentNonce, "validator", validatorIndex,
+			)
+			return
+		}
 		f.safeSubmitMultiSignedMessage(
+			fnID,
 			fn,
-			safeCopyBytes(aggregateExecutionResponse.Hash),
+			safeCopyBytes(f.state.Messages[fnID].Payload),
 			safeCopyDoubleArray(aggregateExecutionResponse.OracleSignatures),
 		)
 		return
@@ -598,10 +631,19 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				// The consensus result only needs to be sent to the cluster by a single validator,
 				// that validator is chosen in a round-robin fashion every voting round.
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
+					if !bytes.Equal(f.state.Messages[fnID].Hash, majExecutionResponse.Hash) {
+						f.Logger.Error(
+							"FnConsensusReactor: message hash mismatch",
+							"fnID", fnID, "method", commitMethodID, "nonce", currentNonce,
+							"validator", ownValidatorIndex,
+						)
+						return
+					}
 					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(
+						fnID,
 						fn,
-						safeCopyBytes(majExecutionResponse.Hash),
+						safeCopyBytes(f.state.Messages[fnID].Payload),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures),
 					)
 				}
@@ -609,6 +651,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 		}
 
 		f.state.CurrentNonces[fnID]++
+		nonceGauge.With("fnID", fnID).Set(float64(f.state.CurrentNonces[fnID]))
 		f.state.PreviousValidatorSet = currentValidators
 		f.state.PreviousMajVoteSets[fnID] = currentVoteSet
 		delete(f.state.CurrentVoteSets, fnID)
@@ -745,6 +788,8 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
+	needToExcludeSender := false
+
 	if remoteMajVoteSet.Nonce < currentNonce {
 		needToBroadcast = false
 		if remoteMajVoteSet.Nonce == currentNonce-1 {
@@ -760,11 +805,13 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		f.state.PreviousMajVoteSets[remoteFnID] = remoteMajVoteSet
 		f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
 		f.state.CurrentNonces[remoteFnID] = remoteMajVoteSet.Nonce + 1
+		nonceGauge.With("fnID", remoteFnID).Set(float64(f.state.CurrentNonces[remoteFnID]))
 
 		// If we have found maj23 voteset with a nonce equal or greater than our current nonce,
 		// our current vote set is clearly outdated, and should be removed.
 		delete(f.state.CurrentVoteSets, remoteFnID)
 
+		needToExcludeSender = true
 		// NOTE: f.safeSubmitMultiSignedMessage is not invoked here presumably because it was already
 		// invoked by the peers that we got the remote voteset from.
 	}
@@ -790,9 +837,12 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	// TODO: If remote nonce is greater or equal to ours then we end up sending the remote voteset back
-	//       to the peer that sent it to us, we should we exclude that peer from the broadcast instead.
-	f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
+	if needToExcludeSender {
+		broadCastException := sender.ID()
+		f.broadcastMsgSync(FnMajChannel, &broadCastException, marshalledBytes)
+	} else {
+		f.broadcastMsgSync(FnMajChannel, nil, marshalledBytes)
+	}
 }
 
 func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgBytes []byte) {
@@ -825,6 +875,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 	if !ok {
 		currentNonce = 1
 		f.state.CurrentNonces[fnID] = currentNonce
+		nonceGauge.With("fnID", fnID).Set(float64(currentNonce))
 	}
 	currentVoteSet := f.state.CurrentVoteSets[fnID]
 
@@ -859,6 +910,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		currentVoteSet = remoteVoteSet
 		currentNonce = remoteVoteSet.Nonce
+		nonceGauge.With("fnID", fnID).Set(float64(currentNonce))
 
 		hasOurVoteSetChanged = true
 		didWeContribute = false
@@ -886,14 +938,6 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		if err != nil {
 			f.Logger.Error(
 				"FnConsensusReactor: unable to calculate message hash",
-				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
-			)
-			return
-		}
-
-		if err = f.safeMapMessage(fn, safeCopyBytes(hash), safeCopyBytes(message)); err != nil {
-			f.Logger.Error(
-				"FnConsensusReactor: received error while executing fn.MapMessage",
 				"fnID", fnID, "err", err, "method", voteSetMsgHandlerMethodID,
 			)
 			return
@@ -949,10 +993,46 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte) {
 	switch chID {
 	case FnVoteSetChannel:
-		f.handleVoteSetChannelMessage(sender, msgBytes)
+		if !f.cfg.IsValidator {
+			f.forwardVoteSet(sender, msgBytes)
+		} else {
+			f.handleVoteSetChannelMessage(sender, msgBytes)
+		}
 	case FnMajChannel:
-		f.handleMaj23VoteSetChannel(sender, msgBytes)
+		if !f.cfg.IsValidator {
+			f.forwardMaj23VoteSet(sender, msgBytes)
+		} else {
+			f.handleMaj23VoteSetChannel(sender, msgBytes)
+		}
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
 	}
+}
+
+func (f *FnConsensusReactor) forwardMaj23VoteSet(sender p2p.Peer, msgBytes []byte) {
+	remoteVoteSet := &FnVoteSet{}
+	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", maj23MsgHandlerMethodID,
+		)
+		return
+	}
+
+	broadCastException := sender.ID()
+	f.broadcastMsgSync(FnMajChannel, &broadCastException, msgBytes)
+}
+
+func (f *FnConsensusReactor) forwardVoteSet(sender p2p.Peer, msgBytes []byte) {
+	remoteVoteSet := &FnVoteSet{}
+	if err := remoteVoteSet.Unmarshal(msgBytes); err != nil {
+		f.Logger.Error(
+			"FnConsensusReactor: Invalid Data passed, ignoring...",
+			"err", err, "method", voteSetMsgHandlerMethodID,
+		)
+		return
+	}
+
+	broadCastException := sender.ID()
+	f.broadcastMsgSync(FnVoteSetChannel, &broadCastException, msgBytes)
 }

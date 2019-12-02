@@ -1,7 +1,6 @@
 package coin
 
 import (
-	"errors"
 	"math/big"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/features"
 )
 
 var (
@@ -32,6 +31,20 @@ func (m *mockLoomCoinGateway) Meta() (plugin.Meta, error) {
 }
 
 func (m *mockLoomCoinGateway) DummyMethod(ctx contractpb.Context, req *MintToGatewayRequest) error {
+	return nil
+}
+
+type mockBinanceGateway struct {
+}
+
+func (m *mockBinanceGateway) Meta() (plugin.Meta, error) {
+	return plugin.Meta{
+		Name:    "binance-gateway",
+		Version: "0.1.0",
+	}, nil
+}
+
+func (m *mockBinanceGateway) DummyMethod(ctx contractpb.Context, req *MintToGatewayRequest) error {
 	return nil
 }
 
@@ -74,7 +87,7 @@ func TestTransfer(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 100, int(resp.Balance.Value.Int64()))
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	err = contract.Transfer(contractpb.WrapPluginContext(pctx), &TransferRequest{
 		To:     nil,
 		Amount: nil,
@@ -94,7 +107,7 @@ func sciNot(m, n int64) *loom.BigUInt {
 func TestTransferToSelf(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	// Test using the v1.1 contract, this test will fail if this feature is not enabled
-	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	pctx.SetFeature(features.CoinVersion1_1Feature, true)
 
 	contract := &Coin{}
 	err := contract.Init(
@@ -169,7 +182,7 @@ func TestApprove(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 40, int(allowResp.Amount.Value.Int64()))
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	err = contract.Approve(contractpb.WrapPluginContext(pctx), &ApproveRequest{
 		Spender: nil,
 		Amount:  nil,
@@ -237,7 +250,7 @@ func TestTransferFrom(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	nilResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
 		Owner: nil,
 	})
@@ -250,7 +263,7 @@ func TestTransferFrom(t *testing.T) {
 func TestTransferFromSelf(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	// Test using the v1.1 contract, this test will fail if this feature is not enabled
-	pctx.SetFeature(loomchain.CoinVersion1_1Feature, true)
+	pctx.SetFeature(features.CoinVersion1_1Feature, true)
 
 	contract := &Coin{}
 	err := contract.Init(
@@ -371,7 +384,7 @@ func TestMintToGateway(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, newLoomCoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
 
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	err = contract.MintToGateway(contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)), &MintToGatewayRequest{
 		Amount: nil,
 	})
@@ -447,11 +460,14 @@ func TestBurnAccess(t *testing.T) {
 	contract := &Coin{}
 
 	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+	mockBinanceGatewayContract := contractpb.MakePluginContract(&mockBinanceGateway{})
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
 	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
+	binanceTGAddress := pctx.CreateContract(mockBinanceGatewayContract)
+	pctx.RegisterContract("binance-gateway", binanceTGAddress, binanceTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 
@@ -473,7 +489,7 @@ func TestBurnAccess(t *testing.T) {
 		Amount: &types.BigUInt{
 			Value: *loom.NewBigUIntFromInt(10),
 		},
-	}), "not authorized to burn Loom coin", "only loomcoin gateway can call Burn")
+	}), "failed to burn LOOM: not authorized", "only gateway can call Burn")
 
 	require.Nil(t, contract.Burn(
 		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
@@ -494,17 +510,43 @@ func TestBurnAccess(t *testing.T) {
 			},
 		},
 	), "cant burn coins more than available balance: 0", "only burn coin owned by you")
+
+	require.EqualError(t, contract.Burn(
+		contractpb.WrapPluginContext(pctx.WithSender(binanceTGAddress)),
+		&BurnRequest{
+			Owner: addr1.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		}),
+		"failed to burn LOOM: not authorized",
+		"Binance gateway shouldn't be allowed to burn if coin:v1.3 is disabled",
+	)
+
+	pctx.SetFeature(features.CoinVersion1_3Feature, true)
+	require.Nil(t, contract.Burn(
+		contractpb.WrapPluginContext(pctx.WithSender(binanceTGAddress)),
+		&BurnRequest{
+			Owner: addr1.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		},
+	), "Binance gateway should be allowed to call MintToGateway")
 }
 
 func TestMintToGatewayAccess(t *testing.T) {
 	contract := &Coin{}
 
 	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+	mockBinanceGatewayContract := contractpb.MakePluginContract(&mockBinanceGateway{})
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
 	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
+	binanceTGAddress := pctx.CreateContract(mockBinanceGatewayContract)
+	pctx.RegisterContract("binance-gateway", binanceTGAddress, binanceTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 
@@ -512,7 +554,7 @@ func TestMintToGatewayAccess(t *testing.T) {
 		Amount: &types.BigUInt{
 			Value: *loom.NewBigUIntFromInt(10),
 		},
-	}), "not authorized to mint Loom coin", "only loomcoin gateway can call MintToGateway")
+	}), "failed to mint LOOM: not authorized", "only gateway can call MintToGateway")
 
 	require.Nil(t, contract.MintToGateway(
 		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
@@ -521,13 +563,39 @@ func TestMintToGatewayAccess(t *testing.T) {
 				Value: *loom.NewBigUIntFromInt(10),
 			},
 		},
-	), "loomcoin gateway should be allowed to call MintToGateway")
+	), "LOOM gateway should be allowed to call MintToGateway")
 
+	require.EqualError(t, contract.MintToGateway(ctx, &MintToGatewayRequest{
+		Amount: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(10),
+		},
+	}), "failed to mint LOOM: not authorized", "only gateway can call MintToGateway")
+
+	require.EqualError(t, contract.MintToGateway(
+		contractpb.WrapPluginContext(pctx.WithSender(binanceTGAddress)),
+		&MintToGatewayRequest{
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		}),
+		"failed to mint LOOM: not authorized",
+		"Binance gateway shouldn't be allowed to mint if coin:v1.3 is disabled",
+	)
+
+	pctx.SetFeature(features.CoinVersion1_3Feature, true)
+	require.Nil(t, contract.MintToGateway(
+		contractpb.WrapPluginContext(pctx.WithSender(binanceTGAddress)),
+		&MintToGatewayRequest{
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		},
+	), "Binance gateway should be allowed to call MintToGateway")
 }
 
 func TestNilRequest(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
-	pctx.SetFeature(loomchain.CoinVersion1_2Feature, true)
+	pctx.SetFeature(features.CoinVersion1_2Feature, true)
 	ctx := contractpb.WrapPluginContext(pctx)
 	contract := &Coin{}
 
@@ -543,7 +611,7 @@ func TestNilRequest(t *testing.T) {
 		Owner:  nil,
 		Amount: nil,
 	})
-	require.Equal(t, err, errors.New("owner or amount is nil"))
+	require.EqualError(t, err, "owner or amount is nil")
 
 	balResp, err := contract.BalanceOf(ctx, &BalanceOfRequest{
 		Owner: nil,

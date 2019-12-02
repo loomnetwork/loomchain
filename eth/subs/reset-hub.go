@@ -1,8 +1,9 @@
 package subs
 
 import (
-	"github.com/phonkee/go-pubsub"
 	"sync"
+
+	"github.com/phonkee/go-pubsub"
 )
 
 // hub implements Hub interface
@@ -32,12 +33,9 @@ func (h *ethResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 
 func (h *ethResetHub) closeSubscription(id string) {
 	h.mutex.Lock()
-	if sub, ok := h.clients[id]; ok {
-		sub.Close()
-	}
+	defer h.mutex.Unlock()
 	delete(h.clients, id)
 	delete(h.unsent, id)
-	h.mutex.Unlock()
 }
 
 // Publish publishes message to subscribers
@@ -45,12 +43,9 @@ func (h *ethResetHub) Publish(message pubsub.Message) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 	count := 0
-	for id, sub := range h.clients {
-		if h.unsent[id] {
-			if sub.Match(message.Topic()) {
-				count += sub.Publish(message)
-				h.unsent[id] = false
-			}
+	for _, sub := range h.clients {
+		if sub.Match(message.Topic()) {
+			count += sub.Publish(message)
 		}
 	}
 	return count
@@ -63,8 +58,8 @@ func (h *ethResetHub) Subscribe(_ ...string) pubsub.Subscriber {
 
 func (h *ethResetHub) Reset() {
 	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	for id := range h.unsent {
 		h.unsent[id] = true
 	}
-	h.mutex.Unlock()
 }

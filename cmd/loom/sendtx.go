@@ -45,6 +45,7 @@ func setChainFlags(fs *pflag.FlagSet) {
 
 func newMigrationCommand() *cobra.Command {
 	var Id uint32
+	var inputFilePath string
 	migrationCmd := &cobra.Command{
 		Use:   "migration",
 		Short: "Run a migration",
@@ -53,16 +54,17 @@ func newMigrationCommand() *cobra.Command {
 			if callerChainID == "" {
 				callerChainID = cli.TxFlags.ChainID
 			}
-			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
+			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID, inputFilePath)
 		},
 	}
 	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	migrationCmd.Flags().StringVarP(&inputFilePath, "config", "p", "", "config file")
 	setChainFlags(migrationCmd.Flags())
 	return migrationCmd
 }
 
-func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error {
+func migrationTx(migrationId uint32, privFile, algo, callerChainID string, inputFilePath string) error {
 	clientAddr, signer, err := caller(privFile, "", algo, callerChainID)
 	if err != nil {
 		return errors.Wrapf(err, "initialization failed")
@@ -70,9 +72,17 @@ func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error
 	if signer == nil {
 		return fmt.Errorf("invalid private key")
 	}
+
+	var inputParamsBytes []byte
+	if inputFilePath != "" {
+		inputParamsBytes, err = ioutil.ReadFile(inputFilePath)
+		if err != nil {
+			return errors.Wrap(err, "failed to load migration input parameters file")
+		}
+	}
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.URI+"/rpc", cli.TxFlags.URI+"/query")
 
-	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId)
+	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId, inputParamsBytes)
 	if err != nil {
 		return err
 	}
@@ -193,7 +203,9 @@ func newDeployCommand() *cobra.Command {
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID, valueString string) (loom.Address, []byte, []byte, error) {
+func deployTx(
+	bcFile, privFile, pubFile, name, algo, callerChainID, valueString string,
+) (loom.Address, []byte, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile, algo, callerChainID)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")

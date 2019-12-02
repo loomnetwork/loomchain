@@ -44,6 +44,12 @@ func (eh *fakeEventHandler) Post(height uint64, e *ptypes.EventData) error {
 	return nil
 }
 
+func (eh *fakeEventHandler) Rollback() {
+}
+
+func (eh *fakeEventHandler) Commit(height uint64) {
+}
+
 func (eh *fakeEventHandler) EmitBlockTx(_ uint64, _ time.Time) error {
 	return nil
 }
@@ -200,8 +206,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	receiptHandler, err := handler.NewReceiptHandler(
-		handler.DefaultReceiptStorage,
+	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
 		handler.DefaultMaxReceipts,
 		evmAuxStore,
@@ -209,10 +214,10 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, []byte{})
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	require.NoError(t, receiptHandler.CommitBlock(state, 1))
+	require.NoError(t, receiptHandler.CommitBlock(1))
 
 	state20 := rcommon.MockStateAt(state, 20)
 	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
@@ -222,7 +227,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
 	require.EqualValues(t, 0, bytes.Compare(vmAddr2.Local, receipt.ContractAddress))
 	require.EqualValues(t, int64(1), receipt.BlockNumber)
-	evmAuxStore.Close()
+	require.NoError(t, evmAuxStore.Close())
 }
 
 //This test should handle the case of pending transactions being readable
@@ -231,16 +236,14 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	receiptHandler, err := handler.NewReceiptHandler(
-		handler.ReceiptHandlerLevelDb,
+	receiptHandler := handler.NewReceiptHandler(
 		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
 		handler.DefaultMaxReceipts,
 		evmAuxStore,
 	)
-	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil, []byte{})
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)
@@ -251,7 +254,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
 	require.EqualValues(t, 0, bytes.Compare(vmAddr2.Local, receipt.ContractAddress))
 	require.EqualValues(t, int64(1), receipt.BlockNumber)
-	evmAuxStore.Close()
+	require.NoError(t, evmAuxStore.Close())
 }
 
 func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner loom.Address) (loom.Address, error) {

@@ -134,14 +134,7 @@ func testNormal(t *testing.T) {
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
-	/*
-	for _, entry := range store.Range(nil) {
-		_, value := tree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, entry.Value))
-		_, diskValue := diskTree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, diskValue))
 
-	}*/
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)
@@ -157,17 +150,11 @@ func testFlush(t *testing.T) {
 	require.NoError(t, err)
 	executeBlocks(t, blocks, *store)
 	_, _, err = store.tree.SaveVersion()
-
+	require.NoError(t, err)
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
-	/*
-	for _, entry := range store.Range(nil) {
-		_, value := tree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, entry.Value))
-		_, diskValue := diskTree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, diskValue))
-	}*/
+
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)
@@ -192,13 +179,7 @@ func testMaxVersions(t *testing.T) {
 	diskTree := iavl.NewMutableTree(diskDb, 0)
 	_, err = diskTree.Load()
 	require.NoError(t, err)
-	/*
-	for _, entry := range store.Range(nil) {
-		_, value := tree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, entry.Value))
-		_, diskValue := diskTree.Get(entry.Key)
-		require.Zero(t, bytes.Compare(value, diskValue))
-	}*/
+
 	tree.Iterate(func(key []byte, value []byte) bool {
 		require.Zero(t, bytes.Compare(value, store.Get(key)))
 		_, diskValue := diskTree.Get(key)

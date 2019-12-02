@@ -36,9 +36,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const GatewayName = "gateway"
-const LoomGatewayName = "loomcoin-gateway"
-const BinanceGatewayName = "binance-gateway"
+const (
+	GatewayName        = "gateway"
+	LoomGatewayName    = "loomcoin-gateway"
+	BinanceGatewayName = "binance-gateway"
+	TronGatewayName    = "tron-gateway"
+)
 
 const getOraclesCmdExample = `
 ./loom gateway get-oracles gateway --key path/to/loom_priv.key
@@ -67,6 +70,16 @@ const withdrawFundsCmdExample = `
 
 const setWithdrawFeeCmdExample = `
 ./loom gateway set-withdraw-fee 37500 binance-gateway --key path/to/loom_priv.key
+`
+
+const setWithdrawLimitCmdExample = `
+./loom gateway set-withdrawal-limit gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
+./loom gateway set-withdrawal-limit loomcoin-gateway --total-limit 1000000 --account-limit 500000 --key path/to/loom_priv.key
+./loom gateway set-withdrawal-limit binance-gateway --total-limit 1000000 --account-limit 500000 --decimals 8 --key path/to/loom_priv.key
+`
+
+const updateMainnetAddressCmdExample = `
+./loom gateway update-mainnet-address <mainnet-hex-address> gateway --key path/to/loom_priv.key
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
@@ -302,6 +315,8 @@ func newGetStateCommand() *cobra.Command {
 				name = LoomGatewayName
 			} else if strings.Compare(args[0], BinanceGatewayName) == 0 {
 				name = BinanceGatewayName
+			} else if strings.Compare(args[0], TronGatewayName) == 0 {
+				name = TronGatewayName
 			} else {
 				return errors.New("Invalid gateway name")
 			}
@@ -460,6 +475,9 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 
 				// Need to wait until the rewards delegation is unbonded.
 				timeToElections, err := dpos.TimeUntilElections(id)
+				if err != nil {
+					return err
+				}
 				fmt.Println("Time until elections: ", timeToElections)
 
 				sleepTime := int64(30)
@@ -645,4 +663,224 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+func newSetWithdrawLimitCommand() *cobra.Command {
+	var totalLimit, accountLimit, decimals uint64
+	cmd := &cobra.Command{
+		Use:     "set-withdrawal-limit <gateway>",
+		Short:   "Sets maximum ETH or LOOM amount the gateway should allow users to withdraw per day",
+		Example: setWithdrawLimitCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var name string
+			if len(args) == 0 || strings.EqualFold(args[0], GatewayName) {
+				name = GatewayName
+			} else if strings.EqualFold(args[0], LoomGatewayName) {
+				name = LoomGatewayName
+			} else if strings.EqualFold(args[0], BinanceGatewayName) {
+				name = BinanceGatewayName
+			} else {
+				return fmt.Errorf("withdrawal limits not supported by %s", name)
+			}
+
+			// create amounts with decimals
+			maxTotalAmount := sciNot(int64(totalLimit), int64(decimals))
+			maxPerAccountAmount := sciNot(int64(accountLimit), int64(decimals))
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			// fetch the current limits
+			stateReq := &tgtypes.TransferGatewayStateRequest{}
+			stateResp := &tgtypes.TransferGatewayStateResponse{}
+			if _, err := gateway.StaticCall("GetState", stateReq, gatewayAddr, stateResp); err != nil {
+				return errors.Wrap(err, "failed to fetch current withdrawal limits")
+			}
+
+			req := &tgtypes.TransferGatewaySetMaxWithdrawalLimitRequest{
+				MaxTotalDailyWithdrawalAmount:      &types.BigUInt{Value: *maxTotalAmount},
+				MaxPerAccountDailyWithdrawalAmount: &types.BigUInt{Value: *maxPerAccountAmount},
+			}
+
+			state := stateResp.State
+			// Unless a new non-zero limit was provided keep the existing limit
+			if totalLimit == 0 {
+				req.MaxTotalDailyWithdrawalAmount = state.MaxTotalDailyWithdrawalAmount
+			}
+			if accountLimit == 0 {
+				req.MaxPerAccountDailyWithdrawalAmount = state.MaxPerAccountDailyWithdrawalAmount
+			}
+
+			if _, err = gateway.Call("SetMaxWithdrawalLimit", req, signer, nil); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Uint64Var(
+		&totalLimit, "total-limit", 0,
+		"Max total amount the gateway should allow to be withdrawn per day",
+	)
+	cmd.Flags().Uint64Var(
+		&accountLimit, "account-limit", 0,
+		"Max total amount the gateway should allow to be withdrawn per day by any one account",
+	)
+	cmd.Flags().Uint64Var(
+		&decimals, "decimals", 18,
+		"The number of decimals to append to input amounts",
+	)
+	return cmd
+}
+
+func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update-mainnet-address <mainnet-address> <gateway-name>",
+		Short:   "Update mainnet gateway address. Only callable by current gateway owner",
+		Example: updateMainnetAddressCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var hexAddr string
+			var name string
+			var foreignChainId string
+
+			if len(args) <= 1 || strings.EqualFold(args[1], GatewayName) {
+				name = GatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], LoomGatewayName) {
+				name = LoomGatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], BinanceGatewayName) {
+				name = BinanceGatewayName
+				foreignChainId = "binance"
+			} else if strings.EqualFold(args[1], TronGatewayName) {
+				name = TronGatewayName
+				foreignChainId = "tron"
+			} else {
+				return errors.New("invalid gateway name")
+			}
+
+			if !common.IsHexAddress(args[0]) {
+				hexAddr, err = binanceAddressToHexAddress(args[0])
+				if err != nil {
+					return errors.Wrap(err, "invalid gateway address")
+				}
+			} else {
+				hexAddr = args[0]
+			}
+
+			mainnetAddress, err := loom.ParseAddress(foreignChainId + ":" + hexAddr)
+			if err != nil {
+				return errors.Wrap(err, "invalid gateway address")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayUpdateMainnetGatewayRequest{
+				MainnetGatewayAddress: mainnetAddress.MarshalPB(),
+			}
+
+			_, err = gateway.Call("UpdateMainnetGatewayAddress", req, signer, nil)
+			return err
+		},
+	}
+	return cmd
+}
+
+func newUpdateMainnetHotWalletAddressCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "update-hot-wallet-address <hot-wallet-address> <gateway-name>",
+		Short:   "Update mainnet hot wallet address. Only callable by current gateway owner",
+		Example: updateMainnetAddressCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
+			if err != nil {
+				return err
+			}
+
+			var hexAddr string
+			var name string
+			var foreignChainId string
+
+			if len(args) <= 1 || strings.EqualFold(args[1], GatewayName) {
+				name = GatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], LoomGatewayName) {
+				name = LoomGatewayName
+				foreignChainId = "eth"
+			} else if strings.EqualFold(args[1], BinanceGatewayName) {
+				name = BinanceGatewayName
+				foreignChainId = "binance"
+			} else if strings.EqualFold(args[1], TronGatewayName) {
+				name = TronGatewayName
+				foreignChainId = "tron"
+			} else {
+				return errors.New("invalid gateway name")
+			}
+
+			if !common.IsHexAddress(args[0]) {
+				hexAddr, err = binanceAddressToHexAddress(args[0])
+				if err != nil {
+					return errors.Wrap(err, "invalid gateway address")
+				}
+			} else {
+				hexAddr = args[0]
+			}
+
+			walletAddress, err := loom.ParseAddress(foreignChainId + ":" + hexAddr)
+			if err != nil {
+				return errors.Wrap(err, "invalid gateway address")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayUpdateMainnetHotWalletRequest{
+				MainnetHotWalletAddress: walletAddress.MarshalPB(),
+			}
+
+			_, err = gateway.Call("UpdateMainnetHotWalletAddress", req, signer, nil)
+			return err
+		},
+	}
+	return cmd
+}
+
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
 }

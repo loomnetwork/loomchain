@@ -147,6 +147,7 @@ func formatTokenAmount(amount *big.Int) string {
 	return new(big.Int).Div(amount, divisor).String()
 }
 
+//nolint:gosec
 const queryUnclaimedTokensCmdExample = `
 # Show unclaimed LOOM in the DAppChain Gateway deposited by an Ethereum account
 ./loom gateway unclaimed-tokens loomcoin-gateway 0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2

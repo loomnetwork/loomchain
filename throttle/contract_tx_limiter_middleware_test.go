@@ -1,3 +1,5 @@
+// +build evm
+
 package throttle
 
 import (
@@ -13,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	udw "github.com/loomnetwork/loomchain/builtin/plugins/user_deployer_whitelist"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -20,21 +23,18 @@ import (
 )
 
 var (
-	addr2        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr3        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 	addr4        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c7")
 	addr5        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01c9")
-	addr6        = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e0112")
 	contractAddr = loom.MustParseAddress("default:0x5cecd1f7261e1f4c684e297be3edf03b825e01ab")
 	user         = addr3.MarshalPB()
-	chainID      = "default"
 )
 
 func TestContractTxLimiterMiddleware(t *testing.T) {
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	fakeCtx.SetFeature(loomchain.CoinVersion1_1Feature, true)
-	fakeCtx.SetFeature(loomchain.UserDeployerWhitelistVersion1_1Feature, true)
+	fakeCtx.SetFeature(features.CoinVersion1_1Feature, true)
+	fakeCtx.SetFeature(features.UserDeployerWhitelistVersion1_1Feature, true)
 	udwAddr := fakeCtx.CreateContract(udw.Contract)
 	udwContext := fakeCtx.WithAddress(udwAddr)
 	udwContract := &udw.UserDeployerWhitelist{}
@@ -101,7 +101,7 @@ func TestContractTxLimiterMiddleware(t *testing.T) {
 	// create middleware
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 5}, nil, nil)
 	//EVMTxn
-	txSignedEVM1 := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contractAddr)
+	txSignedEVM1 := mockSignedTx(t, uint64(1), types.TxID_CALL, vm.VMType_EVM, contractAddr)
 	cfg := DefaultContractTxLimiterConfig()
 	contractTxLimiterMiddleware := NewContractTxLimiterMiddleware(cfg,
 		func(state loomchain.State) (contractpb.Context, error) {

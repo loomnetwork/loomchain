@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
+	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -22,17 +23,21 @@ var (
 	// This is the same prefix as vmPrefix in evm/loomevm.go
 	// We have to do this to avoid cyclic dependency
 	vmPrefix = []byte("vm")
-	// This is the same key as rootKey in evm/loomevm.go.
+	// This is the same key as rootKey in evm/loomevm.go
 	rootKey = []byte("vmroot")
+	// This is the same key as featurePrefix in app.go
+	featurePrefix = []byte("feature")
 	// Using the same featurePrefix as in app.go, and the same EvmDBFeature name as in features.go
-	evmDBFeatureKey = util.PrefixKey([]byte("feature"), []byte("db:evm"))
+	evmDBFeatureKey = util.PrefixKey(featurePrefix, []byte(features.EvmDBFeature))
 	// Using the same featurePrefix as in app.go, and the same AppStoreVersion3_1 name as in features.go
-	appStoreVersion3_1 = util.PrefixKey([]byte("feature"), []byte("appstore:v3.1"))
+	appStoreVersion3_1 = util.PrefixKey(featurePrefix, []byte(features.AppStoreVersion3_1))
 	// This is the prefix of versioning Patricia roots
 	evmRootPrefix = []byte("evmroot")
 
-	saveVersionDuration metrics.Histogram
-	getSnapshotDuration metrics.Histogram
+	saveVersionDuration  metrics.Histogram
+	getSnapshotDuration  metrics.Histogram
+	pruneEVMKeysDuration metrics.Histogram
+	pruneEVMKeysCount    metrics.Counter
 )
 
 func init() {
@@ -55,6 +60,25 @@ func init() {
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{},
 	)
+
+	pruneEVMKeysDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace:  "loomchain",
+			Subsystem:  "multi_writer_appstore",
+			Name:       "prune_evm_keys",
+			Help:       "How long purning EVM keys took to execute (in seconds)",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, []string{},
+	)
+
+	pruneEVMKeysCount = kitprometheus.NewCounterFrom(
+		stdprometheus.CounterOpts{
+			Namespace: "loomchain",
+			Subsystem: "multi_writer_appstore",
+			Name:      "num_pruned_evm_keys",
+			Help:      "Number of pruned EVM keys",
+		}, []string{},
+	)
 }
 
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
@@ -66,8 +90,10 @@ type MultiWriterAppStore struct {
 	onlySaveEvmStateToEvmStore bool
 }
 
-// NewMultiWriterAppStore creates a new NewMultiWriterAppStore.
-func NewMultiWriterAppStore(appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool) (*MultiWriterAppStore, error) {
+// NewMultiWriterAppStore creates a new MultiWriterAppStore.
+func NewMultiWriterAppStore(
+	appStore *IAVLStore, evmStore *EvmStore, saveEVMStateToIAVL bool,
+) (*MultiWriterAppStore, error) {
 	store := &MultiWriterAppStore{
 		appStore:                   appStore,
 		evmStore:                   evmStore,
@@ -167,7 +193,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 		// Tie up Patricia tree with IAVL tree.
 		// Do this after the feature flag is enabled so that we can detect
 		// inconsistency in evm.db across the cluster
-		// AppStore 3.1 write EVM root to app.db only if it changes
+		// AppStore 3.1 writes EVM root to app.db only if it changes
 		if bytes.Equal(s.appStore.Get(appStoreVersion3_1), []byte{1}) {
 			oldRoot := s.appStore.Get(rootKey)
 			if !bytes.Equal(oldRoot, currentRoot) {
@@ -177,10 +203,41 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			s.appStore.Set(rootKey, currentRoot)
 		}
 
+		if err := s.pruneOldEVMKeys(); err != nil {
+			return nil, 0, err
+		}
 	}
 	hash, version, err := s.appStore.SaveVersion()
 	s.setLastSavedTreeToVersion(version)
 	return hash, version, err
+}
+
+func (s *MultiWriterAppStore) pruneOldEVMKeys() error {
+	defer func(begin time.Time) {
+		pruneEVMKeysDuration.Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	// TODO: Rather than loading the on-chain config here relevant setting should be passed in as a
+	//       parameter to SaveVersion().
+	cfg, err := LoadOnChainConfig(s.appStore)
+	if err != nil {
+		return err
+	}
+
+	maxKeysToPrune := cfg.GetAppStore().GetNumEvmKeysToPrune()
+	pruneInterval := cfg.GetAppStore().GetPruneEvmKeysInterval()
+	// If pruneInterval is set, then only prune old EVM Keys every N blocks
+	if (pruneInterval != 0) && (s.Version()%int64(pruneInterval) != 0) {
+		maxKeysToPrune = 0
+	}
+	if maxKeysToPrune > 0 {
+		entriesToPrune := s.appStore.RangeWithLimit(vmPrefix, int(maxKeysToPrune))
+		for _, entry := range entriesToPrune {
+			s.appStore.Delete(util.PrefixKey(vmPrefix, entry.Key))
+		}
+		pruneEVMKeysCount.Add(float64(len(entriesToPrune)))
+	}
+	return nil
 }
 
 func (s *MultiWriterAppStore) setLastSavedTreeToVersion(version int64) error {

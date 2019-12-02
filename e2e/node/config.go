@@ -6,12 +6,15 @@ import (
 	"os"
 
 	"github.com/gogo/protobuf/proto"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/pkg/errors"
 )
 
 type genesis struct {
 	Contracts []contractConfig `json:"contracts"`
+	Config    cctypes.Config   `json:"config"`
 }
 
 type contractConfig struct {
@@ -31,9 +34,8 @@ func readGenesis(path string) (*genesis, error) {
 	dec := json.NewDecoder(file)
 
 	var gen genesis
-	err = dec.Decode(&gen)
-	if err != nil {
-		return nil, err
+	if err := dec.Decode(&gen); err != nil {
+		return nil, errors.Wrap(err, "failed to decode loom genesis file")
 	}
 
 	return &gen, nil

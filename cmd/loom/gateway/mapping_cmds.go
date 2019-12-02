@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -375,10 +376,14 @@ func newMapAccountsCommand() *cobra.Command {
 
 const ListContractMappingCmdExample = `
 loom gateway list-contract-mappings
+loom gateway list-contract-mappings --raw
+loom gateway list-contract-mappings --json
 `
 
 func newListContractMappingsCommand() *cobra.Command {
 	var gatewayType string
+	var formatJson bool
+	var formatRaw bool
 	cmd := &cobra.Command{
 		Use:     "list-contract-mappings",
 		Short:   "List all contract mappings",
@@ -397,40 +402,86 @@ func newListContractMappingsCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to call gateway.ListContractMapping")
 			}
-			type maxLength struct {
-				From   int
-				To     int
-				Status int
-			}
-			ml := maxLength{From: 50, To: 50, Status: 9}
-			for _, value := range resp.PendingMappings {
-				if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
-					ml.From = len(loom.UnmarshalAddressPB(value.ForeignContract).String())
+
+			if formatJson {
+				type formattedMapping struct {
+					Local   string `json:"local"`
+					Foreign string `json:"foreign"`
 				}
-				if len(loom.UnmarshalAddressPB(value.LocalContract).String()) > ml.To {
-					ml.To = len(loom.UnmarshalAddressPB(value.LocalContract).String())
+
+				mappingData := struct {
+					Confirmed []formattedMapping `json:"confirmed"`
+					Pending   []formattedMapping `json:"pending"`
+				}{
+					Confirmed: make([]formattedMapping, 0, len(resp.ConfimedMappings)),
+					Pending:   make([]formattedMapping, 0, len(resp.PendingMappings)),
 				}
-			}
-			for _, value := range resp.ConfimedMappings {
-				if len(loom.UnmarshalAddressPB(value.From).String()) > ml.From {
-					ml.From = len(loom.UnmarshalAddressPB(value.From).String())
+				for _, value := range resp.ConfimedMappings {
+					mappingData.Confirmed = append(mappingData.Confirmed, formattedMapping{
+						Local:   loom.UnmarshalAddressPB(value.From).Local.String(),
+						Foreign: loom.UnmarshalAddressPB(value.To).Local.String(),
+					})
 				}
-				if len(loom.UnmarshalAddressPB(value.To).String()) > ml.To {
-					ml.To = len(loom.UnmarshalAddressPB(value.To).String())
+				for _, value := range resp.PendingMappings {
+					mappingData.Pending = append(mappingData.Pending, formattedMapping{
+						Local:   loom.UnmarshalAddressPB(value.LocalContract).Local.String(),
+						Foreign: loom.UnmarshalAddressPB(value.ForeignContract).Local.String(),
+					})
 				}
-			}
-			fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
-			for _, value := range resp.PendingMappings {
-				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
-			}
-			for _, value := range resp.ConfimedMappings {
-				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To, loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
+				bytes, err := json.MarshalIndent(mappingData, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Println(string(bytes))
+				return nil
+			} else if formatRaw {
+				out, err := formatJSON(resp)
+				if err != nil {
+					return err
+				}
+				fmt.Println(out)
+			} else {
+				ml := struct {
+					From   int
+					To     int
+					Status int
+				}{
+					From:   50,
+					To:     50,
+					Status: 9,
+				}
+				for _, value := range resp.PendingMappings {
+					if len(loom.UnmarshalAddressPB(value.ForeignContract).String()) > ml.From {
+						ml.From = len(loom.UnmarshalAddressPB(value.ForeignContract).String())
+					}
+					if len(loom.UnmarshalAddressPB(value.LocalContract).String()) > ml.To {
+						ml.To = len(loom.UnmarshalAddressPB(value.LocalContract).String())
+					}
+				}
+				for _, value := range resp.ConfimedMappings {
+					if len(loom.UnmarshalAddressPB(value.From).String()) > ml.From {
+						ml.From = len(loom.UnmarshalAddressPB(value.From).String())
+					}
+					if len(loom.UnmarshalAddressPB(value.To).String()) > ml.To {
+						ml.To = len(loom.UnmarshalAddressPB(value.To).String())
+					}
+				}
+
+				fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, "From", ml.To, "To", ml.Status, "Status")
+				for _, value := range resp.PendingMappings {
+					fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.ForeignContract).String(), ml.To, loom.UnmarshalAddressPB(value.LocalContract).String(), ml.Status, "PENDING")
+				}
+				for _, value := range resp.ConfimedMappings {
+					fmt.Printf("%-*s | %-*s | %-*s\n", ml.From, loom.UnmarshalAddressPB(value.From).String(), ml.To, loom.UnmarshalAddressPB(value.To).String(), ml.Status, "CONFIRMED")
+				}
 			}
 			return nil
 		},
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&gatewayType, "gateway", "gateway", "Gateway name: gateway, loomcoin-gateway, or tron-gateway")
+	cmdFlags.BoolVar(&formatRaw, "raw", false, "Output raw JSON")
+	cmdFlags.BoolVar(&formatJson, "json", false, "Output prettified JSON")
 	return cmd
 }
 
