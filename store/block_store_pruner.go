@@ -34,7 +34,7 @@ func calcSeenCommitKey(height int64) []byte {
 	return []byte(fmt.Sprintf("SC:%v", height))
 }
 
-type PruningBlockStore struct {
+type BlockStorePruner struct {
 	blockStoreDB       dbm.DB
 	prunedBlockStoreDB dbm.DB
 	*blockchain.BlockStore
@@ -42,10 +42,10 @@ type PruningBlockStore struct {
 	batchSize uint64
 }
 
-func NewPruningBlockStore(blockStoreConfig *BlockStoreConfig) *PruningBlockStore {
+func NewBlockStorePruner(blockStoreConfig *BlockStoreConfig) *BlockStorePruner {
 	blockStoreDB := dbm.NewDB("blockstore", "leveldb", path.Join(blockStoreConfig.ChainDataPath, "data"))
 	prunedBlockStoreDB := dbm.NewDB("pruned_blockstore", "leveldb", path.Join(blockStoreConfig.ChainDataPath, "data"))
-	return &PruningBlockStore{
+	return &BlockStorePruner{
 		blockStoreDB:       blockStoreDB,
 		prunedBlockStoreDB: prunedBlockStoreDB,
 		BlockStore:         blockchain.NewBlockStore(blockStoreDB),
@@ -53,16 +53,16 @@ func NewPruningBlockStore(blockStoreConfig *BlockStoreConfig) *PruningBlockStore
 	}
 }
 
-func (bs *PruningBlockStore) Close() {
+func (bs *BlockStorePruner) Close() {
 	bs.blockStoreDB.Close()
 	bs.prunedBlockStoreDB.Close()
 }
 
-func (bs *PruningBlockStore) Height() int64 {
+func (bs *BlockStorePruner) Height() int64 {
 	return blockchain.LoadBlockStoreStateJSON(bs.blockStoreDB).Height
 }
 
-func (bs *PruningBlockStore) Prune() error {
+func (bs *BlockStorePruner) Prune() error {
 	latestHeight := bs.Height()
 	var targetHeight int64
 	targetHeight = latestHeight - bs.cfg.NumBlocksToRetain
