@@ -362,7 +362,7 @@ type CommittedTx struct {
 }
 
 type Application struct {
-	lastBlockHeader unsafe.Pointer
+	lastBlockHeader unsafe.Pointer // *abci.Header
 	curBlockHeader  abci.Header
 	curBlockHash    []byte
 	Store           store.VersionedKVStore
@@ -840,7 +840,6 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
-
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}

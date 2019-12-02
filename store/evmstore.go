@@ -279,11 +279,6 @@ func (s *EvmStore) TrieDB() *trie.Database {
 	return s.trieDB
 }
 
-// GetVMRootKey returns the lastest root of EVM state trie
-func (s *EvmStore) GetVMRootKey() []byte {
-	return s.rootHash
-}
-
 func (s *EvmStore) SetVMRootKey(root []byte) {
 	s.rootHash = root
 }
@@ -318,15 +313,7 @@ func (s *EvmStore) GetRootAt(version int64) []byte {
 }
 
 func (s *EvmStore) GetSnapshot(version int64) *EvmStoreSnapshot {
-	var targetRoot []byte
-	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
-	val, exist := s.rootCache.Get(version)
-	if exist {
-		targetRoot = val.([]byte)
-	} else {
-		targetRoot, _ = s.getLastSavedRoot(version)
-	}
-	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
+	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), s.GetRootAt(version))
 }
 
 func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
