@@ -1,22 +1,20 @@
 package loomchain
 
 import (
-	gcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	gstate "github.com/ethereum/go-ethereum/core/state"
 	"github.com/loomnetwork/loomchain/store"
 )
 
+// EVMState contains the mutable EVM state.
 type EVMState struct {
-	sdb      *gstate.StateDB
+	sdb      *state.StateDB
 	evmStore *store.EvmStore
 }
 
 func NewEVMState(evmStore *store.EvmStore) (*EVMState, error) {
-	ethDB := store.NewLoomEthDB(evmStore, nil)
-	stateDB := state.NewDatabase(ethDB).WithTrieDB(evmStore.TrieDB())
 	evmRoot, _ := evmStore.Version()
-	sdb, err := state.New(gcommon.BytesToHash(evmRoot), stateDB)
+	sdb, err := state.New(common.BytesToHash(evmRoot), state.NewDatabaseWithTrieDB(evmStore.TrieDB()))
 	if err != nil {
 		return nil, err
 	}
@@ -26,6 +24,7 @@ func NewEVMState(evmStore *store.EvmStore) (*EVMState, error) {
 	}, nil
 }
 
+// Commit writes the state changes that occurred since the previous commit to the underlying store.
 func (s *EVMState) Commit() error {
 	evmStateRoot, err := s.sdb.Commit(true)
 	if err != nil {
@@ -37,8 +36,10 @@ func (s *EVMState) Commit() error {
 	return nil
 }
 
+// GetSnapshot returns the EVMState instance containing the state as it was at the given version.
+// NOTE: Do not call Commit on the returned instance.
 func (s *EVMState) GetSnapshot(version int64) (*EVMState, error) {
-	stateDB, err := gstate.New(gcommon.BytesToHash(s.evmStore.GetRootAt(version)), s.sdb.Database())
+	stateDB, err := state.New(common.BytesToHash(s.evmStore.GetRootAt(version)), s.sdb.Database())
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +53,6 @@ func (s *EVMState) Clone() *EVMState {
 	}
 }
 
-func (s *EVMState) StateDB() *gstate.StateDB {
+func (s *EVMState) StateDB() *state.StateDB {
 	return s.sdb
 }
