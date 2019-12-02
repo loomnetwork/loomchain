@@ -254,10 +254,12 @@ func (s *EvmStore) GetRootAt(version int64) []byte {
 	return targetRoot
 }
 
+// TODO: Get rid of this function. EvmStore does not provide snapshot anymore but EVMState does.
 func (s *EvmStore) GetSnapshot(version int64) *EvmStoreSnapshot {
 	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), s.GetRootAt(version))
 }
 
+// TODO: Get rid of EvmStoreSnapshot. EvmStore does not provide snapshot anymore but EVMState does.
 func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
 	return &EvmStoreSnapshot{
 		Snapshot: snapshot,
