@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/tendermint/tendermint/blockchain"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
@@ -34,42 +35,25 @@ func calcSeenCommitKey(height int64) []byte {
 	return []byte(fmt.Sprintf("SC:%v", height))
 }
 
-type BlockStorePruner struct {
-	blockStoreDB       dbm.DB
-	prunedBlockStoreDB dbm.DB
-	*blockchain.BlockStore
-	cfg       *BlockStoreConfig
-	batchSize uint64
-}
-
-func NewBlockStorePruner(blockStoreConfig *BlockStoreConfig) *BlockStorePruner {
-	blockStoreDB := dbm.NewDB("blockstore", "leveldb", path.Join(blockStoreConfig.ChainDataPath, "data"))
-	prunedBlockStoreDB := dbm.NewDB("pruned_blockstore", "leveldb", path.Join(blockStoreConfig.ChainDataPath, "data"))
-	return &BlockStorePruner{
-		blockStoreDB:       blockStoreDB,
-		prunedBlockStoreDB: prunedBlockStoreDB,
-		BlockStore:         blockchain.NewBlockStore(blockStoreDB),
-		cfg:                blockStoreConfig,
+func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig) error {
+	srcDB, err := dbm.NewGoLevelDBWithOpts("blockstore", srcDBPath, &opt.Options{ReadOnly: true})
+	if err != nil {
+		return err
 	}
-}
+	defer srcDB.Close()
 
-func (bs *BlockStorePruner) Close() {
-	bs.blockStoreDB.Close()
-	bs.prunedBlockStoreDB.Close()
-}
+	srcBlockStore := blockchain.NewBlockStore(srcDB)
 
-func (bs *BlockStorePruner) Height() int64 {
-	return blockchain.LoadBlockStoreStateJSON(bs.blockStoreDB).Height
-}
+	destDB := dbm.NewDB("pruned_blockstore", "leveldb", srcDBPath)
+	defer destDB.Close()
 
-func (bs *BlockStorePruner) Prune() error {
-	latestHeight := bs.Height()
+	latestHeight := blockchain.LoadBlockStoreStateJSON(srcDB).Height
 	var targetHeight int64
-	targetHeight = latestHeight - bs.cfg.NumBlocksToRetain
-	graceBlocks := (bs.cfg.PruneGraceFactor / 100) * bs.cfg.NumBlocksToRetain
+	targetHeight = latestHeight - cfg.NumBlocksToRetain
+	graceBlocks := (cfg.PruneGraceFactor / 100) * cfg.NumBlocksToRetain
 	oldestHeight := int64(-1)
 	// Find the oldest block
-	it := bs.blockStoreDB.Iterator(calcBlockMetaPrefix, prefixRangeEnd(calcBlockMetaPrefix))
+	it := srcDB.Iterator(calcBlockMetaPrefix, prefixRangeEnd(calcBlockMetaPrefix))
 	for ; it.Valid(); it.Next() {
 		oldestBlockMetaKey := it.Key()
 		oldestHeight = getHeightFromKey(oldestBlockMetaKey)
@@ -77,74 +61,76 @@ func (bs *BlockStorePruner) Prune() error {
 	}
 	// Number of blocks to prune is less than grace blocks then skip pruning
 	if ((targetHeight - oldestHeight) + 1) < graceBlocks {
-		bs.blockStoreDB.Close()
-		bs.prunedBlockStoreDB.Close()
 		return nil
 	}
 	// If minimum height is greater than target height, there are no blocks to prune, skip pruning
 	if oldestHeight >= targetHeight {
-		bs.blockStoreDB.Close()
-		bs.prunedBlockStoreDB.Close()
 		return nil
 	}
-	batch := bs.prunedBlockStoreDB.NewBatch()
-	numHeight := int64(0)
+	batch := destDB.NewBatch()
+	numBlocksWritten := int64(0)
 	for height := targetHeight; height <= latestHeight; height++ {
 		log.Info("Copying block at height", "height", height)
 		// skip if block metadata is not found
-		if !bs.blockStoreDB.Has(calcBlockMetaKey(height)) {
+		if !srcDB.Has(calcBlockMetaKey(height)) {
 			log.Info("block is missing at height", "height", height)
 			continue
 		}
 
-		meta := bs.LoadBlockMeta(height)
+		meta := srcBlockStore.LoadBlockMeta(height)
 		for i := 0; i < meta.BlockID.PartsHeader.Total; i++ {
 			blockPartKey := calcBlockPartKey(height, i)
-			batch.Set(blockPartKey, bs.blockStoreDB.Get(blockPartKey))
+			batch.Set(blockPartKey, srcDB.Get(blockPartKey))
 		}
 
 		blockMetaKey := calcBlockMetaKey(height)
 		blockCommitKey := calcBlockCommitKey(height - 1)
 		SeenCommitKey := calcSeenCommitKey(height)
 
-		batch.Set(blockMetaKey, bs.blockStoreDB.Get(blockMetaKey))
-		batch.Set(blockCommitKey, bs.blockStoreDB.Get(blockCommitKey))
-		batch.Set(SeenCommitKey, bs.blockStoreDB.Get(SeenCommitKey))
+		batch.Set(blockMetaKey, srcDB.Get(blockMetaKey))
+		batch.Set(blockCommitKey, srcDB.Get(blockCommitKey))
+		batch.Set(SeenCommitKey, srcDB.Get(SeenCommitKey))
 
-		if numHeight%bs.cfg.BatchSize == 0 {
+		if numBlocksWritten%cfg.BatchSize == 0 {
 			batch.Write()
-			batch = bs.prunedBlockStoreDB.NewBatch()
+			batch = destDB.NewBatch()
 		}
-		numHeight++
+		numBlocksWritten++
 	}
-	batch.Set(blockStoreKey, bs.blockStoreDB.Get(blockStoreKey))
+	batch.Set(blockStoreKey, srcDB.Get(blockStoreKey))
 	batch.WriteSync()
-	bs.blockStoreDB.Close()
-	bs.prunedBlockStoreDB.Close()
+
+	srcDB.Close()
+	destDB.Close()
 
 	// Rename original blockstore to blockstore.db.bak{N}
-	originalBlockStore := path.Join(bs.cfg.ChainDataPath, "data/blockstore.db")
-	backupBlockStore := getAvailableBackupPath(bs.cfg.ChainDataPath)
-	if err := os.Rename(originalBlockStore, backupBlockStore); err != nil {
+	if err := os.Rename(
+		path.Join(srcDBPath, "blockstore.db"),
+		getBackupDBPath(srcDBPath),
+	); err != nil {
 		return err
 	}
 	// Rename pruned blockstore to blockstore.db
-	prunedBlockStore := path.Join(bs.cfg.ChainDataPath, "data/pruned_blockstore.db")
-	blockStore := path.Join(bs.cfg.ChainDataPath, "data/blockstore.db")
-	if err := os.Rename(prunedBlockStore, blockStore); err != nil {
-		return err
-	}
-	return nil
+	return os.Rename(
+		path.Join(srcDBPath, "pruned_blockstore.db"),
+		path.Join(srcDBPath, "blockstore.db"),
+	)
 }
 
-func getAvailableBackupPath(chainDataPath string) string {
+func getBackupDBPath(dbDir string) string {
+	backupPath := path.Join(dbDir, "blockstore.db.bak")
+	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
+		return backupPath
+	}
+
 	for i := 1; i < int(math.MaxInt16); i++ {
-		path := fmt.Sprintf("%s%d", path.Join(chainDataPath, "data/blockstore.db.bak"), i)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return path
+		altPath := fmt.Sprintf("%s%d", backupPath, i)
+		if _, err := os.Stat(altPath); os.IsNotExist(err) {
+			return altPath
 		}
 	}
-	return path.Join(chainDataPath, "data/blockstore.db.bak")
+
+	panic("failed to generate unique name for blockstore.db backup")
 }
 
 func getHeightFromKey(key []byte) int64 {

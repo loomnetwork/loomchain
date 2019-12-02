@@ -357,11 +357,11 @@ func newRunCommand() *cobra.Command {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
 			if cfg.BlockStore.PruneOnStartup {
-				pruner := store.NewBlockStorePruner(cfg.BlockStore)
-				if err = pruner.Prune(); err != nil {
+				if err = store.PruneBlockStore(
+					path.Join(cfg.RootPath(), "chaindata", "data"), cfg.BlockStore,
+				); err != nil {
 					return err
 				}
-				pruner.Close()
 			}
 			var loaders []plugin.Loader
 			for _, loader := range cfg.ContractLoaders {
