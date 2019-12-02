@@ -56,7 +56,6 @@ func getVersionFromEvmRootKey(key []byte) (int64, error) {
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
 	evmDB         db.DBWrapper
-	cache         map[string]cacheItem
 	rootHash      []byte
 	lastSavedRoot []byte
 	rootCache     *lru.Cache
@@ -73,20 +72,12 @@ func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int, flushInterval int64) *E
 	}
 	evmStore := &EvmStore{
 		evmDB:         evmDB,
-		cache:         make(map[string]cacheItem),
 		rootCache:     rootCache,
 		flushInterval: flushInterval,
 	}
 	ethDB := NewLoomEthDB(evmStore, nil)
 	evmStore.trieDB = trie.NewDatabase(ethDB)
 	return evmStore
-}
-
-func (s *EvmStore) setCache(key, val []byte, deleted bool) {
-	s.cache[string(key)] = cacheItem{
-		Value:   val,
-		Deleted: deleted,
-	}
 }
 
 // Range iterates in-order over the keys in the store prefixed by the given prefix.
@@ -107,21 +98,6 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 		if util.HasPrefix([]byte(key), prefix) || len(prefix) == 0 {
 			rangeCache[key] = value
 			rangeCacheKeys = append(rangeCacheKeys, key)
-		}
-	}
-
-	// Update range cache with data in cache
-	for key, c := range s.cache {
-		if util.HasPrefix([]byte(key), prefix) || len(prefix) == 0 {
-			if c.Deleted {
-				rangeCacheKeys = remove(rangeCacheKeys, key)
-				rangeCache[key] = nil
-				continue
-			}
-			if _, ok := rangeCache[key]; !ok {
-				rangeCacheKeys = append(rangeCacheKeys, string(key))
-			}
-			rangeCache[key] = c.Value
 		}
 	}
 
@@ -154,41 +130,19 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 }
 
 func (s *EvmStore) Has(key []byte) bool {
-	// EvmStore always has Patricia root
-	if bytes.Equal(key, rootHashKey) {
-		return true
-	}
-	if item, ok := s.cache[string(key)]; ok {
-		return !item.Deleted
-	}
 	return s.evmDB.Has(key)
 }
 
 func (s *EvmStore) Get(key []byte) []byte {
-	if bytes.Equal(key, rootHashKey) {
-		return s.rootHash
-	}
-
-	if item, ok := s.cache[string(key)]; ok {
-		return item.Value
-	}
 	return s.evmDB.Get(key)
 }
 
 func (s *EvmStore) Delete(key []byte) {
-	if bytes.Equal(key, rootHashKey) {
-		s.rootHash = nil
-	} else {
-		s.setCache(key, nil, true)
-	}
+	s.evmDB.Delete(key)
 }
 
 func (s *EvmStore) Set(key, val []byte) {
-	if bytes.Equal(key, rootHashKey) {
-		s.rootHash = val
-	} else {
-		s.setCache(key, val, false)
-	}
+	s.evmDB.Set(key, val)
 }
 
 func (s *EvmStore) Commit(version int64) []byte {
@@ -236,23 +190,11 @@ func (s *EvmStore) Commit(version int64) []byte {
 	}
 
 	s.rootCache.Add(version, currentRoot)
-
-	batch := s.evmDB.NewBatch()
-	for key, item := range s.cache {
-		if !item.Deleted {
-			batch.Set([]byte(key), item.Value)
-		} else {
-			batch.Delete([]byte(key))
-		}
-	}
-	batch.Write()
-	s.cache = make(map[string]cacheItem)
 	s.version = version
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
-	s.cache = make(map[string]cacheItem)
 	// find the last saved root
 	root, version := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
