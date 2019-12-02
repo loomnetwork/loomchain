@@ -1185,32 +1185,34 @@ func SetMaxYearlyRewardCmdV3() *cobra.Command {
 	return cmd
 }
 
-const setBlockRewardPercentageCmdExample = `
-loom dpos3 set-block-reward-percentage 500 --key path/to/private_key
+const setBlockRewardBonusPercentageCmdExample = `
+loom dpos3 set-block-reward-bonus-percentage 500 --key path/to/private_key
 `
 
-func SetBlockRewardPercentageCmdV3() *cobra.Command {
+func SetBlockRewardBonusPercentageCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use: "set-block-reward-percentage [block reward percentage]",
+		Use: "set-block-reward-bonus-percentage [block reward bonus percentage]",
 		// nolint:lll
-		Short:   "Set reward percentage of delegation total per year. The percentage is expressed in basis point and must be between 10000 (100%) and 0 (0%)",
-		Example: setMaxYearlyRewardCmdExample,
+		Short:   "Set reward bonus percentage of delegation total per year. The percentage is expressed in basis point and must be between 10000 (100%) and 0 (0%)",
+		Example: setBlockRewardBonusPercentageCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			blockRewardPercentage, err := strconv.ParseInt(args[0], 10, 64)
+			blockRewardBonusPercentage, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
 			}
 
-			if blockRewardPercentage > 10000 || blockRewardPercentage < 0 {
+			if blockRewardBonusPercentage > 10000 || blockRewardBonusPercentage < 0 {
 				// nolint:lll
-				return errors.New("BlockRewardPercentage is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%)")
+				return errors.New("BlockRewardBonusPercentage is expressed in basis point (hundredths of a percent) and must be between 10000 (100%) and 0 (0%)")
 			}
 
 			err = cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "SetBlockRewardPercentage", &dposv3.SetBlockRewardPercentageRequest{
-					BlockRewardPercentage: blockRewardPercentage,
+				&flags, DPOSV3ContractName, "SetBlockRewardBonusPercentage", &dposv3.SetBlockRewardBonusPercentageRequest{
+					BlockRewardBonusPercentage: &types.BigUInt{
+						Value: *loom.NewBigUIntFromInt(blockRewardBonusPercentage),
+					},
 				}, nil)
 			if err != nil {
 				return err
@@ -1424,7 +1426,7 @@ func NewDPOSV3Command() *cobra.Command {
 		SetElectionCycleCmdV3(),
 		SetValidatorCountCmdV3(),
 		SetMaxYearlyRewardCmdV3(),
-		SetBlockRewardPercentageCmdV3(),
+		SetBlockRewardBonusPercentageCmdV3(),
 		SetRegistrationRequirementCmdV3(),
 		SetOracleAddressCmdV3(),
 		SetSlashingPercentagesCmdV3(),

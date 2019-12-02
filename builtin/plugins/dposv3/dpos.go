@@ -62,6 +62,7 @@ var (
 	defaultFee                       = uint64(2500) // 25%
 	defaultReferrerFee               = loom.BigUInt{big.NewInt(300)}
 	blockRewardPercentage            = loom.BigUInt{big.NewInt(500)}
+	blockRewardBonusPercentage       = loom.BigUInt{big.NewInt(0)}
 	doubleSignSlashPercentage        = loom.BigUInt{big.NewInt(500)}
 	defaultInactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
 	defaultMaxDowntimePercentage     = loom.BigUInt{big.NewInt(5000)}
@@ -76,72 +77,72 @@ var (
 )
 
 type (
-	InitRequest                       = dtypes.DPOSInitRequest
-	DelegateRequest                   = dtypes.DelegateRequest
-	RedelegateRequest                 = dtypes.RedelegateRequest
-	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequest
-	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequest
-	ChangeWhitelistInfoRequest        = dtypes.ChangeWhitelistInfoRequest
-	DelegationState                   = dtypes.Delegation_DelegationState
-	LocktimeTier                      = dtypes.LocktimeTier
-	UnbondRequest                     = dtypes.UnbondRequest
-	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
-	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
-	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
-	CheckDelegationRequest            = dtypes.CheckDelegationRequest
-	CheckDelegationResponse           = dtypes.CheckDelegationResponse
-	CheckRewardsRequest               = dtypes.CheckRewardsRequest
-	CheckRewardsResponse              = dtypes.CheckRewardsResponse
-	CheckRewardDelegationRequest      = dtypes.CheckRewardDelegationRequest
-	CheckRewardDelegationResponse     = dtypes.CheckRewardDelegationResponse
-	DowntimeRecordRequest             = dtypes.DowntimeRecordRequest
-	DowntimeRecordResponse            = dtypes.DowntimeRecordResponse
-	DowntimeRecord                    = dtypes.DowntimeRecord
-	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
-	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
-	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
-	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
-	SetMinCandidateFeeRequest         = dtypes.SetMinCandidateFeeRequest
-	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
-	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequest
-	ListCandidatesRequest             = dtypes.ListCandidatesRequest
-	ListCandidatesResponse            = dtypes.ListCandidatesResponse
-	ListValidatorsRequest             = dtypes.ListValidatorsRequest
-	ListValidatorsResponse            = dtypes.ListValidatorsResponse
-	ListDelegationsRequest            = dtypes.ListDelegationsRequest
-	ListDelegationsResponse           = dtypes.ListDelegationsResponse
-	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
-	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
-	Referrer                          = dtypes.Referrer
-	ListReferrersRequest              = dtypes.ListReferrersRequest
-	ListReferrersResponse             = dtypes.ListReferrersResponse
-	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
-	SetDowntimePeriodRequest          = dtypes.SetDowntimePeriodRequest
-	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
-	SetBlockRewardPercentageRequest   = dtypes.SetBlockRewardPercentageRequest
-	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
-	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
-	SetValidatorCountRequest          = dtypes.SetValidatorCountRequest
-	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
-	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
-	UnjailRequest                     = dtypes.UnjailRequest
-	SetMaxDowntimePercentageRequest   = dtypes.SetMaxDowntimePercentageRequest
-	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
-	Candidate                         = dtypes.Candidate
-	CandidateStatistic                = dtypes.CandidateStatistic
-	Delegation                        = dtypes.Delegation
-	DelegationIndex                   = dtypes.DelegationIndex
-	ValidatorStatistic                = dtypes.ValidatorStatistic
-	Validator                         = types.Validator
-	State                             = dtypes.State
-	Params                            = dtypes.Params
-	GetStateRequest                   = dtypes.GetStateRequest
-	GetStateResponse                  = dtypes.GetStateResponse
-	InitializationState               = dtypes.InitializationState
-	CheckDelegatorRewardsRequest      = dtypes.CheckDelegatorRewardsRequest
-	CheckDelegatorRewardsResponse     = dtypes.CheckDelegatorRewardsResponse
-	ClaimDelegatorRewardsRequest      = dtypes.ClaimDelegatorRewardsRequest
-	ClaimDelegatorRewardsResponse     = dtypes.ClaimDelegatorRewardsResponse
+	InitRequest                          = dtypes.DPOSInitRequest
+	DelegateRequest                      = dtypes.DelegateRequest
+	RedelegateRequest                    = dtypes.RedelegateRequest
+	WhitelistCandidateRequest            = dtypes.WhitelistCandidateRequest
+	RemoveWhitelistedCandidateRequest    = dtypes.RemoveWhitelistedCandidateRequest
+	ChangeWhitelistInfoRequest           = dtypes.ChangeWhitelistInfoRequest
+	DelegationState                      = dtypes.Delegation_DelegationState
+	LocktimeTier                         = dtypes.LocktimeTier
+	UnbondRequest                        = dtypes.UnbondRequest
+	ConsolidateDelegationsRequest        = dtypes.ConsolidateDelegationsRequest
+	CheckAllDelegationsRequest           = dtypes.CheckAllDelegationsRequest
+	CheckAllDelegationsResponse          = dtypes.CheckAllDelegationsResponse
+	CheckDelegationRequest               = dtypes.CheckDelegationRequest
+	CheckDelegationResponse              = dtypes.CheckDelegationResponse
+	CheckRewardsRequest                  = dtypes.CheckRewardsRequest
+	CheckRewardsResponse                 = dtypes.CheckRewardsResponse
+	CheckRewardDelegationRequest         = dtypes.CheckRewardDelegationRequest
+	CheckRewardDelegationResponse        = dtypes.CheckRewardDelegationResponse
+	DowntimeRecordRequest                = dtypes.DowntimeRecordRequest
+	DowntimeRecordResponse               = dtypes.DowntimeRecordResponse
+	DowntimeRecord                       = dtypes.DowntimeRecord
+	TimeUntilElectionRequest             = dtypes.TimeUntilElectionRequest
+	TimeUntilElectionResponse            = dtypes.TimeUntilElectionResponse
+	RegisterCandidateRequest             = dtypes.RegisterCandidateRequest
+	ChangeCandidateFeeRequest            = dtypes.ChangeCandidateFeeRequest
+	SetMinCandidateFeeRequest            = dtypes.SetMinCandidateFeeRequest
+	UpdateCandidateInfoRequest           = dtypes.UpdateCandidateInfoRequest
+	UnregisterCandidateRequest           = dtypes.UnregisterCandidateRequest
+	ListCandidatesRequest                = dtypes.ListCandidatesRequest
+	ListCandidatesResponse               = dtypes.ListCandidatesResponse
+	ListValidatorsRequest                = dtypes.ListValidatorsRequest
+	ListValidatorsResponse               = dtypes.ListValidatorsResponse
+	ListDelegationsRequest               = dtypes.ListDelegationsRequest
+	ListDelegationsResponse              = dtypes.ListDelegationsResponse
+	ListAllDelegationsRequest            = dtypes.ListAllDelegationsRequest
+	ListAllDelegationsResponse           = dtypes.ListAllDelegationsResponse
+	Referrer                             = dtypes.Referrer
+	ListReferrersRequest                 = dtypes.ListReferrersRequest
+	ListReferrersResponse                = dtypes.ListReferrersResponse
+	RegisterReferrerRequest              = dtypes.RegisterReferrerRequest
+	SetDowntimePeriodRequest             = dtypes.SetDowntimePeriodRequest
+	SetElectionCycleRequest              = dtypes.SetElectionCycleRequest
+	SetBlockRewardBonusPercentageRequest = dtypes.SetBlockRewardBonusPercentageRequest
+	SetMaxYearlyRewardRequest            = dtypes.SetMaxYearlyRewardRequest
+	SetRegistrationRequirementRequest    = dtypes.SetRegistrationRequirementRequest
+	SetValidatorCountRequest             = dtypes.SetValidatorCountRequest
+	SetOracleAddressRequest              = dtypes.SetOracleAddressRequest
+	SetSlashingPercentagesRequest        = dtypes.SetSlashingPercentagesRequest
+	UnjailRequest                        = dtypes.UnjailRequest
+	SetMaxDowntimePercentageRequest      = dtypes.SetMaxDowntimePercentageRequest
+	EnableValidatorJailingRequest        = dtypes.EnableValidatorJailingRequest
+	Candidate                            = dtypes.Candidate
+	CandidateStatistic                   = dtypes.CandidateStatistic
+	Delegation                           = dtypes.Delegation
+	DelegationIndex                      = dtypes.DelegationIndex
+	ValidatorStatistic                   = dtypes.ValidatorStatistic
+	Validator                            = types.Validator
+	State                                = dtypes.State
+	Params                               = dtypes.Params
+	GetStateRequest                      = dtypes.GetStateRequest
+	GetStateResponse                     = dtypes.GetStateResponse
+	InitializationState                  = dtypes.InitializationState
+	CheckDelegatorRewardsRequest         = dtypes.CheckDelegatorRewardsRequest
+	CheckDelegatorRewardsResponse        = dtypes.CheckDelegatorRewardsResponse
+	ClaimDelegatorRewardsRequest         = dtypes.ClaimDelegatorRewardsRequest
+	ClaimDelegatorRewardsResponse        = dtypes.ClaimDelegatorRewardsResponse
 
 	DposElectionEvent               = dtypes.DposElectionEvent
 	DposSlashEvent                  = dtypes.DposSlashEvent
@@ -1660,10 +1661,12 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
 				var distributionTotal loom.BigUInt
+				distributionTotal = calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
 				if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
-					distributionTotal = calculateRewards2(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
-				} else {
-					distributionTotal = calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
+					if state.Params.BlockRewardBonusPercentage != nil {
+						rewardBonus := CalculateFraction(state.Params.BlockRewardBonusPercentage.Value, distributionTotal)
+						distributionTotal = *distributionTotal.Add(&rewardBonus, &distributionTotal)
+					}
 				}
 
 				// The validator share, equal to validator_fee * total_validotor_reward
@@ -1696,11 +1699,12 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						}
 
 						// calculate referrerReward
-						var referrerReward loom.BigUInt
+						referrerReward := calculateRewards(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
 						if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
-							referrerReward = calculateRewards2(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
-						} else {
-							referrerReward = calculateRewards(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
+							if state.Params.BlockRewardBonusPercentage != nil {
+								rewardBonus := CalculateFraction(state.Params.BlockRewardBonusPercentage.Value, referrerReward)
+								referrerReward = *distributionTotal.Add(&rewardBonus, &referrerReward)
+							}
 						}
 						referrerReward = CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, referrerReward)
 						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
@@ -1786,36 +1790,6 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
 	// scale the rewards appropriately
 	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
-	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
-		reward.Mul(&reward, &params.MaxYearlyReward.Value)
-		reward.Div(&reward, &yearlyRewardTotal)
-	}
-
-	// When election cycle = 0, estimate block time at 2 sec
-	if cycleSeconds == 0 {
-		cycleSeconds = 2
-	}
-	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
-	reward.Div(&reward, &secondsInYear)
-
-	return reward
-}
-
-// returns a Validator's distributionTotal to record the full
-// reward amount to be distributed to the validator himself, the delegators and
-// the referrers
-func calculateRewards2(delegationTotal loom.BigUInt, params *Params, totalValidatorDelegations loom.BigUInt) loom.BigUInt {
-	cycleSeconds := params.ElectionCycleLength
-	rewardPercentage := blockRewardPercentage
-	if params.BlockRewardPercentage > 0 {
-		rewardPercentage = common.BigUInt{big.NewInt(params.BlockRewardPercentage)}
-	}
-	reward := CalculateFraction(rewardPercentage, delegationTotal)
-
-	// If totalValidator Delegations are high enough to make simple reward
-	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
-	// scale the rewards appropriately
-	yearlyRewardTotal := CalculateFraction(rewardPercentage, totalValidatorDelegations)
 	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
 		reward.Mul(&reward, &params.MaxYearlyReward.Value)
 		reward.Div(&reward, &yearlyRewardTotal)
@@ -2240,12 +2214,12 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 	return saveState(ctx, state)
 }
 
-func (c *DPOS) SetBlockRewardPercentage(ctx contract.Context, req *SetBlockRewardPercentageRequest) error {
+func (c *DPOS) SetBlockRewardBonusPercentage(ctx contract.Context, req *SetBlockRewardBonusPercentageRequest) error {
 	if !ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
 		return errors.New("DPOS v3.6 is not enabled")
 	}
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 SetBlockRewardPercentage", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOSv3 SetBlockRewardBonusPercentage", "sender", sender, "request", req)
 
 	state, err := LoadState(ctx)
 	if err != nil {
@@ -2257,7 +2231,7 @@ func (c *DPOS) SetBlockRewardPercentage(ctx contract.Context, req *SetBlockRewar
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	state.Params.BlockRewardPercentage = req.BlockRewardPercentage
+	state.Params.BlockRewardBonusPercentage = req.BlockRewardBonusPercentage
 
 	return saveState(ctx, state)
 }
