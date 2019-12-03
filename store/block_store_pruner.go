@@ -57,7 +57,7 @@ func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig, minHeight int64) e
 	latestHeight := blockchain.LoadBlockStoreStateJSON(srcDB).Height
 	var targetHeight int64
 	targetHeight = latestHeight - cfg.NumBlocksToRetain
-	if minHeight > targetHeight {
+	if minHeight < targetHeight {
 		targetHeight = minHeight
 	}
 	graceBlocks := (cfg.PruneGraceFactor / 100) * cfg.NumBlocksToRetain
@@ -109,26 +109,34 @@ func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig, minHeight int64) e
 		}
 		numBlocksWritten++
 	}
+
 	batch.Set(blockStoreKey, srcDB.Get(blockStoreKey))
-	batch.WriteSync()
+
+	if numBlocksWritten > 0 {
+		batch.WriteSync()
+	}
 
 	srcDB.Close()
 	destDB.Close()
 
 	log.Info("[Block Store Pruner] Finished copying blocks", "count", numBlocksWritten)
 
-	// Rename original blockstore to blockstore.db.bak{N}
-	backupPath := getBackupDBPath(srcDBPath)
-	if err := os.Rename(path.Join(srcDBPath, "blockstore.db"), backupPath); err != nil {
-		return err
-	}
-	log.Info("[Block Store Pruner] Backed up block store", "path", backupPath)
+	if numBlocksWritten > 0 {
+		// Rename original blockstore to blockstore.db.bak{N}
+		backupPath := getBackupDBPath(srcDBPath)
+		if err := os.Rename(path.Join(srcDBPath, "blockstore.db"), backupPath); err != nil {
+			return err
+		}
+		log.Info("[Block Store Pruner] Backed up block store", "path", backupPath)
 
-	// Rename pruned blockstore to blockstore.db
-	return os.Rename(
-		path.Join(srcDBPath, "pruned_blockstore.db"),
-		path.Join(srcDBPath, "blockstore.db"),
-	)
+		// Rename pruned blockstore to blockstore.db
+		return os.Rename(
+			path.Join(srcDBPath, "pruned_blockstore.db"),
+			path.Join(srcDBPath, "blockstore.db"),
+		)
+	}
+	// If the new DB is empty just delete it and keep the old one
+	return os.RemoveAll(path.Join(srcDBPath, "pruned_blockstore.db"))
 }
 
 func getBackupDBPath(dbDir string) string {
