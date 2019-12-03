@@ -19,6 +19,7 @@ var (
 	loggerStarted = false
 )
 
+// EthDBLogContext provides additional context when
 type EthDBLogContext struct {
 	blockHeight  int64
 	contractAddr loom.Address
@@ -33,38 +34,32 @@ func NewEthDBLogContext(height int64, contractAddr loom.Address, callerAddr loom
 	}
 }
 
-// implements ethdb.Database
+// LoomEthDB implements ethdb.Database
 type LoomEthDB struct {
-	evmstore   *EvmStore
-	logContext *EthDBLogContext
+	store *EvmStore
 }
 
-func NewLoomEthDB(evmstore *EvmStore, logContext *EthDBLogContext) *LoomEthDB {
+func NewLoomEthDB(evmStore *EvmStore) *LoomEthDB {
 	return &LoomEthDB{
-		evmstore:   evmstore,
-		logContext: logContext,
+		store: evmStore,
 	}
 }
 
 func (s *LoomEthDB) Put(key []byte, value []byte) error {
-	key = util.PrefixKey(vmPrefix, key)
-	s.evmstore.Set(key, value)
+	s.store.Set(util.PrefixKey(vmPrefix, key), value)
 	return nil
 }
 
 func (s *LoomEthDB) Get(key []byte) ([]byte, error) {
-	key = util.PrefixKey(vmPrefix, key)
-	return s.evmstore.Get(key), nil
+	return s.store.Get(util.PrefixKey(vmPrefix, key)), nil
 }
 
 func (s *LoomEthDB) Has(key []byte) (bool, error) {
-	key = util.PrefixKey(vmPrefix, key)
-	return s.evmstore.Has(key), nil
+	return s.store.Has(util.PrefixKey(vmPrefix, key)), nil
 }
 
 func (s *LoomEthDB) Delete(key []byte) error {
-	key = util.PrefixKey(vmPrefix, key)
-	s.evmstore.Delete(key)
+	s.store.Delete(util.PrefixKey(vmPrefix, key))
 	return nil
 }
 
@@ -73,18 +68,15 @@ func (s *LoomEthDB) Close() {
 
 func (s *LoomEthDB) NewBatch() ethdb.Batch {
 	if LogEthDBBatch {
-		return s.NewLogBatch(s.logContext)
-	} else {
-		newBatch := new(batch)
-		newBatch.dbBatch = s.evmstore.NewBatch()
-		newBatch.parentStore = s.evmstore
-		newBatch.size = 0
-		return newBatch
+		return s.NewLogBatch(nil)
+	}
+	return &batch{
+		dbBatch:     s.store.NewBatch(),
+		parentStore: s.store,
 	}
 }
 
 // implements ethdb.Batch
-
 type batch struct {
 	dbBatch     dbm.Batch
 	parentStore *EvmStore
@@ -246,7 +238,7 @@ func (b *LogBatch) Write() error {
 		return bytes.Compare(b.cache[j].key, b.cache[k].key) < 0
 	})
 
-	dbBatch := b.parentStore.evmstore.NewBatch()
+	dbBatch := b.parentStore.store.NewBatch()
 	for _, kv := range b.cache {
 		if kv.value == nil {
 			dbBatch.Delete(util.PrefixKey(vmPrefix, kv.key))

@@ -76,7 +76,7 @@ func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int, flushInterval int64) *E
 		rootCache:     rootCache,
 		flushInterval: flushInterval,
 	}
-	ethDB := NewLoomEthDB(evmStore, nil)
+	ethDB := NewLoomEthDB(evmStore)
 	evmStore.trieDB = trie.NewDatabase(ethDB)
 	return evmStore
 }
