@@ -70,10 +70,7 @@ func (s *LoomEthDB) NewBatch() ethdb.Batch {
 	if LogEthDBBatch {
 		return s.NewLogBatch(nil)
 	}
-	return &batch{
-		dbBatch:     s.store.NewBatch(),
-		parentStore: s.store,
-	}
+	return newBatch(s.store)
 }
 
 // implements ethdb.Batch
@@ -83,9 +80,15 @@ type batch struct {
 	size        int
 }
 
+func newBatch(store *EvmStore) *batch {
+	return &batch{
+		dbBatch:     store.NewBatch(),
+		parentStore: store,
+	}
+}
+
 func (b *batch) Put(key, value []byte) error {
-	key = util.PrefixKey(vmPrefix, key)
-	b.dbBatch.Set(key, value)
+	b.dbBatch.Set(util.PrefixKey(vmPrefix, key), value)
 	b.size += len(value)
 	return nil
 }
@@ -100,13 +103,13 @@ func (b *batch) Write() error {
 }
 
 func (b *batch) Reset() {
+	b.dbBatch.Close()
 	b.dbBatch = b.parentStore.NewBatch()
 	b.size = 0
 }
 
 func (b *batch) Delete(key []byte) error {
-	key = util.PrefixKey(vmPrefix, key)
-	b.dbBatch.Delete(key)
+	b.dbBatch.Delete(util.PrefixKey(vmPrefix, key))
 	return nil
 }
 
