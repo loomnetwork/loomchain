@@ -125,6 +125,20 @@ func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *t
 	return
 }
 
+func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStakedResponse, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DposTotalStaked", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.DPOSTotalStaked()
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
 func (m InstrumentingMiddleware) GetEvmCode(contract string) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmCode", "error", fmt.Sprint(err != nil)}
@@ -237,7 +251,7 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 
 func (m InstrumentingMiddleware) EthGetBlockByNumber(
 	number eth.BlockHeight, full bool,
-) (resp eth.JsonBlockObject, err error) {
+) (resp *eth.JsonBlockObject, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetBlockByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

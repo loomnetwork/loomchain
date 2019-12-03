@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -1301,29 +1302,10 @@ func (c *DPOS) TimeUntilElection(
 }
 
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListValidators", "request", req)
-
-	validators, err := ValidatorList(ctx)
+	displayStatistics, err := getValidatorStatistics(ctx)
 	if err != nil {
-		return nil, logStaticDposError(ctx, err, req.String())
+		return nil, err
 	}
-
-	chainID := ctx.Block().ChainID
-
-	displayStatistics := make([]*ValidatorStatistic, 0)
-	for _, validator := range validators {
-		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
-
-		// get validator statistics
-		stat, _ := GetStatistic(ctx, address)
-		if stat == nil {
-			stat = &ValidatorStatistic{
-				Address: address.MarshalPB(),
-			}
-		}
-		displayStatistics = append(displayStatistics, stat)
-	}
-
 	return &ListValidatorsResponse{
 		Statistics: displayStatistics,
 	}, nil
@@ -1339,8 +1321,6 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 }
 
 func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListDelegations", "request", req)
-
 	if req.Candidate == nil {
 		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
 	}
@@ -2657,4 +2637,85 @@ func Initialize(ctx contract.Context, initState *InitializationState) error {
 	}
 
 	return nil
+}
+
+func getValidatorStatistics(ctx contract.StaticContext) ([]*ValidatorStatistic, error) {
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, "")
+	}
+
+	chainID := ctx.Block().ChainID
+
+	displayStatistics := make([]*ValidatorStatistic, 0)
+	for _, validator := range validators {
+		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+
+		// get validator statistics
+		stat, _ := GetStatistic(ctx, address)
+		if stat == nil {
+			stat = &ValidatorStatistic{
+				Address: address.MarshalPB(),
+			}
+		}
+		displayStatistics = append(displayStatistics, stat)
+	}
+
+	return displayStatistics, nil
+}
+
+// TotalStaked computes the total amount of LOOM staked on-chain, including whitelisted amounts
+// locked on Ethereum, but excluding any whitelisted amounts on bootstrap nodes.
+func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*types.BigUInt, error) {
+	validatorStats, err := getValidatorStatistics(ctx)
+	if err != nil {
+		return nil, err
+	}
+	statistics := map[string]*ValidatorStatistic{}
+	for _, statistic := range validatorStats {
+		nodeAddr := loom.UnmarshalAddressPB(statistic.Address)
+		if _, ok := bootstrapNodes[strings.ToLower(nodeAddr.String())]; !ok {
+			statistics[statistic.Address.String()] = statistic
+		}
+	}
+
+	candidateList := map[string]bool{}
+	candidates, err := LoadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate := range candidates {
+		candidateAddr := loom.UnmarshalAddressPB(candidate.Address)
+		if _, ok := bootstrapNodes[strings.ToLower(candidateAddr.String())]; !ok {
+			candidateList[candidate.Address.String()] = true
+		}
+	}
+
+	delegationList, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	totalStaked := &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)}
+	// Sum all delegations
+	for _, d := range delegationList {
+		if _, ok := candidateList[d.Validator.String()]; ok {
+			delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+			if err == contract.ErrNotFound {
+				continue
+			} else if err != nil {
+				return nil, err
+			}
+			totalStaked.Value.Add(&totalStaked.Value, &delegation.Amount.Value)
+		}
+	}
+	// Sum all whitelist amounts of validators except bootstrap validators
+	for _, candidate := range candidates {
+		if statistic, ok := statistics[candidate.Address.String()]; ok {
+			if statistic.WhitelistAmount != nil {
+				totalStaked.Value.Add(&totalStaked.Value, &statistic.WhitelistAmount.Value)
+			}
+		}
+	}
+	return totalStaked, nil
 }

@@ -6,10 +6,12 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
+	gtypes "github.com/loomnetwork/go-loom/types"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
@@ -25,6 +27,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -128,9 +131,16 @@ type QueryServer struct {
 	store.BlockStore
 	*evmaux.EvmAuxStore
 	blockindex.BlockIndexStore
-	EventStore store.EventStore
-	AuthCfg    *auth.Config
-	Web3Cfg    *eth.Web3Config
+	EventStore        store.EventStore
+	AuthCfg           *auth.Config
+	Web3Cfg           *eth.Web3Config
+	totalStakedAmount *totalStakedAmount
+	DPOSCfg           *config.DPOSConfig
+}
+
+type totalStakedAmount struct {
+	createAt time.Time
+	amount   gtypes.BigUInt
 }
 
 var _ QueryService = &QueryServer{}
@@ -599,6 +609,37 @@ func (s *QueryServer) GetContractRecord(contractAddrStr string) (*types.Contract
 	return k, nil
 }
 
+type DPOSTotalStakedResponse struct {
+	TotalStaked *gtypes.BigUInt
+}
+
+func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+	if s.totalStakedAmount != nil {
+		if time.Since(s.totalStakedAmount.createAt) <= time.Second*time.Duration(s.DPOSCfg.TotalStakedCacheDuration) {
+			return &DPOSTotalStakedResponse{
+				TotalStaked: &s.totalStakedAmount.amount,
+			}, nil
+		}
+	}
+	dposCtx, err := s.createStaticContractCtx(snapshot, "dposV3")
+	if err != nil {
+		return nil, err
+	}
+	total, err := dposv3.TotalStaked(dposCtx, s.DPOSCfg.BootstrapNodesList())
+	if err != nil {
+		return nil, err
+	}
+	s.totalStakedAmount = &totalStakedAmount{
+		createAt: time.Now(),
+		amount:   *total,
+	}
+	return &DPOSTotalStakedResponse{
+		TotalStaked: total,
+	}, nil
+}
+
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
 // Used to support eth_getLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
@@ -711,9 +752,10 @@ func (s *QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err e
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
-func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
+func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp *eth.JsonBlockObject, err error) {
 	if block == "0x0" {
-		return eth.GetBlockZero(), nil
+		b := eth.GetBlockZero()
+		return &b, nil
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
@@ -721,7 +763,12 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
-		return resp, err
+		return nil, err
+	}
+
+	// Ethereum nodes seem to return null for a block that doesn't exist yet, so emulate them
+	if block == "pending" || height > uint64(snapshot.Block().Height) {
+		return nil, nil
 	}
 
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
@@ -729,14 +776,14 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	//       block store.
 	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, s.EvmAuxStore)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if block == "0x1" && blockResult.ParentHash == "0x0" {
 		blockResult.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
 	}
 
-	return blockResult, err
+	return &blockResult, err
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
@@ -1017,6 +1064,13 @@ func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHe
 	resolvedAddr, err := s.getEthAccount(snapshot, address)
 	if err != nil {
 		return eth.ZeroedQuantity, err
+	}
+
+	// Currently loom nodes don't expose pending state to clients, but various web3 libs may call
+	// eth_getTransactionCount with "pending" so to make them work we just return the latest nonce
+	// based on the last committed block.
+	if block == "pending" {
+		block = "latest"
 	}
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)

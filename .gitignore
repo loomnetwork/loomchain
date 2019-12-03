@@ -35,3 +35,6 @@ protoc-gen-gogo
 /e2e/tests/receipts/loom.pid
 /e2e/tests/truffle/node_modules
 /auth/newpk
+/e2e/tests/truffle/eth_account
+/e2e/tests/truffle/eth_private_key
+/e2e/tests/truffle/eth_mnemonic

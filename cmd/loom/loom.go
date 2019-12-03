@@ -334,7 +334,6 @@ func newRunCommand() *cobra.Command {
 	var appHeight int64
 
 	cfg, err := common.ParseConfig()
-
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
@@ -344,6 +343,7 @@ func newRunCommand() *cobra.Command {
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			logger := log.Default
+			configureGeth(cfg.Geth)
 			if cfg.PrometheusPushGateway.Enabled {
 				host, err := os.Hostname()
 				if err != nil {
@@ -1216,6 +1216,7 @@ func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsens
 		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
 		HsmConfig:                cfg.HsmConfig,
 		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
+		MempoolWalEnabled:        cfg.MempoolWalEnabled,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -1263,6 +1264,7 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -1281,6 +1283,7 @@ func initQueryService(
 		AuthCfg:                cfg.Auth,
 		EvmAuxStore:            app.EvmAuxStore,
 		Web3Cfg:                cfg.Web3,
+		DPOSCfg:                cfg.DPOS,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

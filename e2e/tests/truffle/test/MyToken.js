@@ -4,6 +4,12 @@ const Web3 = require('web3')
 const MyToken = artifacts.require('MyToken')
 
 contract('MyToken', async (accounts) => {
+    // This test doesn't really need to run with Truffle HDWallet provider, it doesn't do anything
+    // all that different from EthFunctions.js ... maybe we should eliminate this test entirely.
+    if (process.env.TRUFFLE_PROVIDER === 'hdwallet') {
+        return
+    }
+
     let web3js
     let alice, bob, dan, trudy, eve
 

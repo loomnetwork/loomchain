@@ -23,11 +23,11 @@ func QueryChain(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore, maxBlockRange uint64,
 ) ([]*ptypes.EthFilterLog, error) {
-	start, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
+	start, err := eth.DecBlockHeight(state.Block().Height, ethFilter.FromBlock)
 	if err != nil {
 		return nil, err
 	}
-	end, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.ToBlock))
+	end, err := eth.DecBlockHeight(state.Block().Height, ethFilter.ToBlock)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package eth
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -81,13 +82,13 @@ func (m *HttpRPCFunc) call(inValues []reflect.Value) (resp json.RawMessage, json
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
-		return resp, NewErrorf(EcServer, "Server error", "loom error: %v", outValues[1].Interface())
+		return resp, NewError(EcServer, fmt.Sprintf("loom error: %v", outValues[1].Interface()), "")
 	}
 
 	value := outValues[0].Interface()
 	outBytes, err := json.Marshal(value)
 	if err != nil {
-		return resp, NewErrorf(EcServer, "Parse response", "json marshall return value %v", value)
+		return resp, NewError(EcServer, fmt.Sprintf("failed to marshal marshall return value: %v", value), "")
 	}
 	return json.RawMessage(outBytes), nil
 }

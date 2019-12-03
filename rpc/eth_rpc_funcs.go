@@ -74,10 +74,10 @@ func (t *SendRawTransactionPRCFunc) UnmarshalParamsAndCall(
 
 	r, err := t.broadcastTx(tmTx)
 	if err != nil {
-		return nil, eth.NewErrorf(eth.EcServer, "Server error", "transaction returned error %v", err)
+		return nil, eth.NewError(eth.EcServer, fmt.Sprintf("Transaction returned error: %v", err), "")
 	}
 	if r == nil {
-		return nil, eth.NewError(eth.EcServer, "Server error", "transaction returned nil result")
+		return nil, eth.NewError(eth.EcServer, "Transaction returned no result", "")
 	}
 	if r.Code != 0 {
 		return nil, eth.NewError(eth.EcServer, fmt.Sprintf("CheckTx failed: %s", r.Log), "")
@@ -86,7 +86,7 @@ func (t *SendRawTransactionPRCFunc) UnmarshalParamsAndCall(
 	var result json.RawMessage
 	result, err = json.Marshal(eth.EncBytes(r.Hash))
 	if err != nil {
-		return nil, eth.NewErrorf(eth.EcServer, "Server error", "failed to marshal tx hash: %v", err)
+		return nil, eth.NewError(eth.EcServer, fmt.Sprintf("failed to marshal tx hash: %v", err), "")
 	}
 	return result, nil
 }
@@ -124,8 +124,10 @@ func (t *SendRawTransactionPRCFunc) ethereumToTendermintTx(txBytes []byte) (type
 		return nil, err
 	}
 
+	// The first nonce for a SignedTx must be 1, but on Ethereum the first nonce must be zero,
+	// need to account for this difference to maintain compatibility with the Web3 libs & clients.
 	nonceTx := &auth.NonceTx{
-		Sequence: tx.Nonce(),
+		Sequence: tx.Nonce() + 1,
 	}
 	nonceTx.Inner, err = proto.Marshal(txTx)
 	if err != nil {

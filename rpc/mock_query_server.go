@@ -68,11 +68,11 @@ func (m *MockQueryService) EthBlockNumber() (eth.Quantity, error) {
 	return "", nil
 }
 
-func (m *MockQueryService) EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error) {
+func (m *MockQueryService) EthGetBlockByNumber(block eth.BlockHeight, full bool) (*eth.JsonBlockObject, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"EthGetBlockByNumber"}, m.MethodsCalled...)
-	return eth.JsonBlockObject{}, nil
+	return nil, nil
 }
 
 func (m *MockQueryService) EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error) {
@@ -267,6 +267,11 @@ func (m *MockQueryService) ContractEvents(
 
 func (m *MockQueryService) GetContractRecord(addr string) (*types.ContractRecordResponse, error) {
 	m.MethodsCalled = append([]string{"GetcontractRecord"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
+	m.MethodsCalled = append([]string{"DposTotalStaked"}, m.MethodsCalled...)
 	return nil, nil
 }
 
