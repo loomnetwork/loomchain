@@ -35,7 +35,14 @@ func calcSeenCommitKey(height int64) []byte {
 	return []byte(fmt.Sprintf("SC:%v", height))
 }
 
-func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig) error {
+// PruneBlockStore makes a backup of blockstore.db, and replaces it with a new blockstore.db containing
+// only the most recent blocks. Old blockstore.db backups will not be removed automatically, it's
+// up to the node operator to periodically remove those backups.
+// The source DB path should specify the parent directory within which blockstore.db can be found.
+// The minimum height should specify the oldest block that must be retained in the new blockstore.db,
+// it should be set to match the app height to ensure that the app can start processing blocks from
+// that height.
+func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig, minHeight int64) error {
 	srcDB, err := dbm.NewGoLevelDBWithOpts("blockstore", srcDBPath, &opt.Options{ReadOnly: true})
 	if err != nil {
 		return err
@@ -50,6 +57,9 @@ func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig) error {
 	latestHeight := blockchain.LoadBlockStoreStateJSON(srcDB).Height
 	var targetHeight int64
 	targetHeight = latestHeight - cfg.NumBlocksToRetain
+	if minHeight > targetHeight {
+		targetHeight = minHeight
+	}
 	graceBlocks := (cfg.PruneGraceFactor / 100) * cfg.NumBlocksToRetain
 	oldestHeight := int64(-1)
 	// Find the oldest block
@@ -67,13 +77,15 @@ func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig) error {
 	if oldestHeight >= targetHeight {
 		return nil
 	}
+
+	log.Info("[Block Store Pruner] Copying blocks", "fromHeight", targetHeight, "toHeight", latestHeight)
+
 	batch := destDB.NewBatch()
 	numBlocksWritten := int64(0)
 	for height := targetHeight; height <= latestHeight; height++ {
-		log.Info("Copying block at height", "height", height)
 		// skip if block metadata is not found
 		if !srcDB.Has(calcBlockMetaKey(height)) {
-			log.Info("block is missing at height", "height", height)
+			log.Info("[Block Store Pruner] Missing block", "height", height)
 			continue
 		}
 
@@ -103,13 +115,15 @@ func PruneBlockStore(srcDBPath string, cfg *BlockStoreConfig) error {
 	srcDB.Close()
 	destDB.Close()
 
+	log.Info("[Block Store Pruner] Finished copying blocks", "count", numBlocksWritten)
+
 	// Rename original blockstore to blockstore.db.bak{N}
-	if err := os.Rename(
-		path.Join(srcDBPath, "blockstore.db"),
-		getBackupDBPath(srcDBPath),
-	); err != nil {
+	backupPath := getBackupDBPath(srcDBPath)
+	if err := os.Rename(path.Join(srcDBPath, "blockstore.db"), backupPath); err != nil {
 		return err
 	}
+	log.Info("[Block Store Pruner] Backed up block store", "path", backupPath)
+
 	// Rename pruned blockstore to blockstore.db
 	return os.Rename(
 		path.Join(srcDBPath, "pruned_blockstore.db"),
