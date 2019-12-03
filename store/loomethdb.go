@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"sort"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -77,7 +76,7 @@ func (s *LoomEthDB) NewBatch() ethdb.Batch {
 		return s.NewLogBatch(s.logContext)
 	} else {
 		newBatch := new(batch)
-		newBatch.levelDBbatch = s.evmstore.NewBatch()
+		newBatch.dbBatch = s.evmstore.NewBatch()
 		newBatch.parentStore = s.evmstore
 		newBatch.size = 0
 		return newBatch
@@ -87,14 +86,14 @@ func (s *LoomEthDB) NewBatch() ethdb.Batch {
 // implements ethdb.Batch
 
 type batch struct {
-	levelDBbatch dbm.Batch
-	parentStore  *EvmStore
-	size         int
+	dbBatch     dbm.Batch
+	parentStore *EvmStore
+	size        int
 }
 
 func (b *batch) Put(key, value []byte) error {
 	key = util.PrefixKey(vmPrefix, key)
-	b.levelDBbatch.Set(key, value)
+	b.dbBatch.Set(key, value)
 	b.size += len(value)
 	return nil
 }
@@ -104,18 +103,18 @@ func (b *batch) ValueSize() int {
 }
 
 func (b *batch) Write() error {
-	b.levelDBbatch.WriteSync()
+	b.dbBatch.Write()
 	return nil
 }
 
 func (b *batch) Reset() {
-	b.levelDBbatch = b.parentStore.NewBatch()
+	b.dbBatch = b.parentStore.NewBatch()
 	b.size = 0
 }
 
 func (b *batch) Delete(key []byte) error {
 	key = util.PrefixKey(vmPrefix, key)
-	b.levelDBbatch.Delete(key)
+	b.dbBatch.Delete(key)
 	return nil
 }
 
@@ -142,7 +141,6 @@ type LogBatch struct {
 	size        int
 	params      EthDBLogParams
 	cache       []kvPair
-	lock        sync.RWMutex
 }
 
 const batchHeaderWithContext = `
@@ -184,7 +182,7 @@ func (s *LoomEthDB) NewLogBatch(logContext *EthDBLogContext) ethdb.Batch {
 	if !loggerStarted {
 		file, err := os.Create(b.params.LogFilename)
 		if err != nil {
-			return b
+			panic(err)
 		}
 		logger = *log.New(file, "", b.params.LogFlags)
 		logger.Println("Created ethdb batch logger")
@@ -243,20 +241,21 @@ func (b *LogBatch) Write() error {
 		logger.Println("Write, before : ")
 		b.Dump(&logger)
 	}
-	b.lock.Lock()
+
 	sort.Slice(b.cache, func(j, k int) bool {
 		return bytes.Compare(b.cache[j].key, b.cache[k].key) < 0
 	})
-	levelDBbatch := b.parentStore.evmstore.NewBatch()
+
+	dbBatch := b.parentStore.evmstore.NewBatch()
 	for _, kv := range b.cache {
 		if kv.value == nil {
-			levelDBbatch.Delete(util.PrefixKey(vmPrefix, kv.key))
+			dbBatch.Delete(util.PrefixKey(vmPrefix, kv.key))
 		} else {
-			levelDBbatch.Set(util.PrefixKey(vmPrefix, kv.key), kv.value)
+			dbBatch.Set(util.PrefixKey(vmPrefix, kv.key), kv.value)
 		}
 	}
-	b.lock.Unlock()
-	levelDBbatch.WriteSync()
+	dbBatch.Write()
+
 	if b.params.LogWriteDump {
 		logger.Println("Write, after : ")
 		b.Dump(&logger)
@@ -270,8 +269,6 @@ func (b *LogBatch) Reset() {
 }
 
 func (b *LogBatch) Dump(logger *log.Logger) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
 	logger.Print("\n---- BATCH DUMP ----\n")
 	for i, kv := range b.cache {
 		logger.Printf("IDX %d, KEY %s\n", i, kv.key)
