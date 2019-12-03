@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/util"
 )
 
 var (
@@ -34,33 +35,37 @@ func NewEthDBLogContext(height int64, contractAddr loom.Address, callerAddr loom
 
 // implements ethdb.Database
 type LoomEthDB struct {
-	state      KVStore
+	evmstore   *EvmStore
 	lock       sync.RWMutex
 	logContext *EthDBLogContext
 }
 
-func NewLoomEthDB(evmStore KVStore, logContext *EthDBLogContext) *LoomEthDB {
+func NewLoomEthDB(evmstore *EvmStore, logContext *EthDBLogContext) *LoomEthDB {
 	return &LoomEthDB{
-		state:      PrefixKVStore(vmPrefix, evmStore),
+		evmstore:   evmstore,
 		logContext: logContext,
 	}
 }
 
 func (s *LoomEthDB) Put(key []byte, value []byte) error {
-	s.state.Set(key, value)
+	key = util.PrefixKey(vmPrefix, key)
+	s.evmstore.Set(key, value)
 	return nil
 }
 
 func (s *LoomEthDB) Get(key []byte) ([]byte, error) {
-	return s.state.Get(key), nil
+	key = util.PrefixKey(vmPrefix, key)
+	return s.evmstore.Get(key), nil
 }
 
 func (s *LoomEthDB) Has(key []byte) (bool, error) {
-	return s.state.Has(key), nil
+	key = util.PrefixKey(vmPrefix, key)
+	return s.evmstore.Has(key), nil
 }
 
 func (s *LoomEthDB) Delete(key []byte) error {
-	s.state.Delete(key)
+	key = util.PrefixKey(vmPrefix, key)
+	s.evmstore.Delete(key)
 	return nil
 }
 
@@ -111,13 +116,15 @@ func (b *batch) Write() error {
 		return bytes.Compare(b.cache[j].key, b.cache[k].key) < 0
 	})
 
+	levelDBBatch := b.parentStore.evmstore.NewBatch()
 	for _, kv := range b.cache {
 		if kv.value == nil {
-			b.parentStore.Delete(kv.key)
+			levelDBBatch.Delete(util.PrefixKey(vmPrefix, kv.key))
 		} else {
-			b.parentStore.Put(kv.key, kv.value)
+			levelDBBatch.Set(util.PrefixKey(vmPrefix, kv.key), kv.value)
 		}
 	}
+	levelDBBatch.WriteSync()
 	return nil
 }
 

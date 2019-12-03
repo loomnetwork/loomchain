@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -78,6 +79,10 @@ func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int, flushInterval int64) *E
 	ethDB := NewLoomEthDB(evmStore, nil)
 	evmStore.trieDB = trie.NewDatabase(ethDB)
 	return evmStore
+}
+
+func (s *EvmStore) NewBatch() dbm.Batch {
+	return s.evmDB.NewBatch()
 }
 
 // Range iterates in-order over the keys in the store prefixed by the given prefix.
