@@ -35,81 +35,81 @@ func NewEthBlockPoll(
 func (p *EthBlockPoll) Poll(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (EthPoll, interface{}, error) {
-	if p.lastBlock+1 > uint64(state.Block().Height) {
+	startBlock := p.lastBlock + 1
+	toBlock := uint64(state.Block().Height)
+
+	if startBlock > toBlock {
 		return p, nil, nil
 	}
-	toBlock := uint64(state.Block().Height)
-	if toBlock-p.lastBlock > p.maxBlockRange {
-		toBlock = p.lastBlock + p.maxBlockRange
+
+	if toBlock-startBlock > p.maxBlockRange {
+		toBlock = startBlock + p.maxBlockRange
 	}
-	lastBlock, results, err := getBlockHashes(p.blockStore, p.lastBlock, toBlock)
+
+	lastBlockRead, results, err := getBlockHashes(p.blockStore, startBlock, toBlock)
 	if err != nil {
 		return p, nil, nil
 	}
-	p.lastBlock = lastBlock
+
+	p.lastBlock = lastBlockRead
 	return p, eth.EncBytesArray(results), err
 }
 
-// AllLogs pull logs from last N blocks limited by p.maxBlockRange
+// AllLogs returns logs from the latest maxBlockRange blocks.
 func (p *EthBlockPoll) AllLogs(
 	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
 ) (interface{}, error) {
-	// Only pull logs from latest height - maxBlockRange
+	// NOTE: startBlock & lastBlock should never be modified in this function
 	toBlock := uint64(state.Block().Height)
 	startBlock := p.startBlock
-	if toBlock-(startBlock+1) > p.maxBlockRange {
-		startBlock = toBlock - p.maxBlockRange - 1
+	if toBlock-startBlock > p.maxBlockRange {
+		startBlock = toBlock - p.maxBlockRange
 	}
 	_, results, err := getBlockHashes(p.blockStore, startBlock, toBlock)
 	return eth.EncBytesArray(results), err
 }
 
 func getBlockHashes(
-	blockStore store.BlockStore, lastBlockRead, toBlock uint64,
+	blockStore store.BlockStore, fromBlock, toBlock uint64,
 ) (uint64, [][]byte, error) {
-	result, err := blockStore.GetBlockRangeByHeight(int64(lastBlockRead+1), int64(toBlock))
+	result, err := blockStore.GetBlockRangeByHeight(int64(fromBlock), int64(toBlock))
 	if err != nil {
-		return lastBlockRead, nil, err
+		return 0, nil, err
 	}
 
+	lastBlockRead := int64(fromBlock)
 	var blockHashes [][]byte
 	for _, meta := range result.BlockMetas {
 		if len(meta.BlockID.Hash) > 0 {
 			blockHashes = append(blockHashes, meta.BlockID.Hash)
-			if lastBlockRead < uint64(meta.Header.Height) {
-				lastBlockRead = uint64(meta.Header.Height)
+			if lastBlockRead < meta.Header.Height {
+				lastBlockRead = meta.Header.Height
 			}
 		}
 	}
-	return lastBlockRead, blockHashes, nil
+	return uint64(lastBlockRead), blockHashes, nil
 }
 
-func (p *EthBlockPoll) LegacyPoll(state loomchain.ReadOnlyState, id string,
-	readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
-	if p.lastBlock+1 > uint64(state.Block().Height) {
+func (p *EthBlockPoll) LegacyPoll(
+	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+) (EthPoll, []byte, error) {
+	startBlock := p.lastBlock + 1
+	toBlock := uint64(state.Block().Height)
+
+	if startBlock > toBlock {
 		return p, nil, nil
 	}
-	toBlock := uint64(state.Block().Height)
-	if toBlock-p.lastBlock > p.maxBlockRange {
-		toBlock = p.lastBlock + p.maxBlockRange
+
+	if toBlock-startBlock > p.maxBlockRange {
+		toBlock = startBlock + p.maxBlockRange
 	}
-	result, err := p.blockStore.GetBlockRangeByHeight(int64(p.lastBlock+1), int64(toBlock))
+
+	lastBlockRead, blockHashes, err := getBlockHashes(p.blockStore, startBlock, toBlock)
 	if err != nil {
-		return p, nil, err
+		return p, nil, nil
 	}
 
-	var blockHashes [][]byte
-	lastBlock := p.lastBlock
-	for _, meta := range result.BlockMetas {
-		if len(meta.BlockID.Hash) > 0 {
-			blockHashes = append(blockHashes, meta.BlockID.Hash)
-			if lastBlock < uint64(meta.Header.Height) {
-				lastBlock = uint64(meta.Header.Height)
-			}
-		}
-	}
-
-	p.lastBlock = lastBlock
+	p.lastBlock = lastBlockRead
 	blocksMsg := types.EthFilterEnvelope_EthBlockHashList{
 		EthBlockHashList: &types.EthBlockHashList{EthBlockHash: blockHashes},
 	}
