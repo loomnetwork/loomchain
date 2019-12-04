@@ -132,7 +132,7 @@ type kvPair struct {
 	value []byte
 }
 type LogBatch struct {
-	parentStore *LoomEthDB
+	parentStore *EvmStore
 	size        int
 	params      EthDBLogParams
 	cache       []kvPair
@@ -158,20 +158,21 @@ const batchHeader = `
 `
 
 func (s *LoomEthDB) NewLogBatch(logContext *EthDBLogContext) ethdb.Batch {
-	b := new(LogBatch)
-	b.parentStore = s
-	b.params = EthDBLogParams{
-		LogFilename:        "ethdb-batch.log",
-		LogFlags:           0,
-		LogReset:           true,
-		LogDelete:          true,
-		LogWrite:           true,
-		LogValueSize:       false,
-		LogPutKey:          true,
-		LogPutValue:        false,
-		LogPutDump:         false,
-		LogWriteDump:       true,
-		LogBeforeWriteDump: false,
+	b := &LogBatch{
+		parentStore: s.store,
+		params: EthDBLogParams{
+			LogFilename:        "ethdb-batch.log",
+			LogFlags:           0,
+			LogReset:           true,
+			LogDelete:          true,
+			LogWrite:           true,
+			LogValueSize:       false,
+			LogPutKey:          true,
+			LogPutValue:        false,
+			LogPutDump:         false,
+			LogWriteDump:       true,
+			LogBeforeWriteDump: false,
+		},
 	}
 
 	if !loggerStarted {
@@ -221,11 +222,10 @@ func (b *LogBatch) Put(key, value []byte) error {
 }
 
 func (b *LogBatch) ValueSize() int {
-	size := b.size
 	if b.params.LogValueSize {
-		logger.Println("ValueSize : ", size)
+		logger.Println("ValueSize : ", b.size)
 	}
-	return size
+	return b.size
 }
 
 func (b *LogBatch) Write() error {
@@ -241,7 +241,7 @@ func (b *LogBatch) Write() error {
 		return bytes.Compare(b.cache[j].key, b.cache[k].key) < 0
 	})
 
-	dbBatch := b.parentStore.store.NewBatch()
+	dbBatch := b.parentStore.NewBatch()
 	for _, kv := range b.cache {
 		if kv.value == nil {
 			dbBatch.Delete(util.PrefixKey(vmPrefix, kv.key))
@@ -259,6 +259,9 @@ func (b *LogBatch) Write() error {
 }
 
 func (b *LogBatch) Reset() {
+	if b.params.LogReset {
+		logger.Println("Reset batch")
+	}
 	b.cache = make([]kvPair, 0)
 	b.size = 0
 }
@@ -268,24 +271,4 @@ func (b *LogBatch) Dump(logger *log.Logger) {
 	for i, kv := range b.cache {
 		logger.Printf("IDX %d, KEY %s\n", i, kv.key)
 	}
-}
-
-// sortKeys sorts prefixed keys, it will sort the postfix of the key in ascending lexographical order
-func sortKeys(prefix []byte, kvs []kvPair) []kvPair {
-	var unsorted, sorted []int
-	var tmpKv []kvPair
-	for i, kv := range kvs {
-		if 0 == bytes.Compare(prefix, kv.key[:len(prefix)]) {
-			unsorted = append(unsorted, i)
-			sorted = append(sorted, i)
-		}
-		tmpKv = append(tmpKv, kv)
-	}
-	sort.Slice(sorted, func(j, k int) bool {
-		return bytes.Compare(kvs[sorted[j]].key, kvs[sorted[k]].key) < 0
-	})
-	for index := 0; index < len(sorted); index++ {
-		kvs[unsorted[index]] = tmpKv[sorted[index]]
-	}
-	return kvs
 }
