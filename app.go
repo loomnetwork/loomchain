@@ -847,7 +847,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	// Commit EVM state
+	// Commit EVM state changes to the EvmStore
 	if err := a.EVMState.Commit(); err != nil {
 		panic(err)
 	}

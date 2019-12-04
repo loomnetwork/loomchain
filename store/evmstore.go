@@ -6,9 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/trie"
-
-	gcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	lru "github.com/hashicorp/golang-lru"
@@ -134,6 +133,8 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 	return ret
 }
 
+// TODO: Range/Has/Get/Delete/Set are probably only called from the MultiWriterAppStore which
+//       doesn't need to do so anymore, remove these functions when MultiWriterAppStore is cleaned up.
 func (s *EvmStore) Has(key []byte) bool {
 	return s.evmDB.Has(key)
 }
@@ -180,8 +181,11 @@ func (s *EvmStore) Commit(version int64) []byte {
 
 	// Only commit Patricia tree every N blocks
 	if flushInterval == 0 || version%flushInterval == 0 {
+		// If the root hasn't changed since the last call to Commit that means no new state changes
+		// occurred in the trie DB since then, so we can skip committing.
 		if !bytes.Equal(defaultRoot, currentRoot) && !bytes.Equal(currentRoot, s.lastSavedRoot) {
-			if err := s.trieDB.Commit(gcommon.BytesToHash(currentRoot), false); err != nil {
+			// trie.Database.Commit will call NewBatch (indirectly) to batch writes to evmDB
+			if err := s.trieDB.Commit(common.BytesToHash(currentRoot), false); err != nil {
 				panic(err)
 			}
 		}
@@ -226,7 +230,10 @@ func (s *EvmStore) TrieDB() *trie.Database {
 	return s.trieDB
 }
 
-func (s *EvmStore) SetVMRootKey(root []byte) {
+// SetCurrentRoot sets the current EVM state root, this root must exist in the current trie DB.
+// NOTE: This function must be called prior to each call to Commit.
+// TODO: This is clunky, the root should just be passed into Commit!
+func (s *EvmStore) SetCurrentRoot(root []byte) {
 	s.rootHash = root
 }
 

@@ -30,7 +30,7 @@ func (s *EVMState) Commit() error {
 	if err != nil {
 		return err
 	}
-	s.evmStore.SetVMRootKey(evmStateRoot[:])
+	s.evmStore.SetCurrentRoot(evmStateRoot[:])
 	// Clear out old state data such as logs and cache to free up memory
 	s.sdb.Reset(evmStateRoot)
 	return nil
