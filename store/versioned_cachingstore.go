@@ -372,10 +372,26 @@ func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (c *versionedCachingStore) GetSnapshot() Snapshot {
-	return newVersionedCachingStoreSnapshot(
-		c.VersionedKVStore.GetSnapshot(),
-		c.cache, c.version-1, c.logger,
-	)
+	snapshot, err := c.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	if version == 0 {
+		return newVersionedCachingStoreSnapshot(
+			c.VersionedKVStore.GetSnapshot(),
+			c.cache, c.version-1, c.logger,
+		), nil
+	}
+
+	snapshot, err := c.VersionedKVStore.GetSnapshotAt(version)
+	if err != nil {
+		return nil, err
+	}
+	return newVersionedCachingStoreSnapshot(snapshot, c.cache, version, c.logger), nil
 }
 
 // CachingStoreSnapshot is a read-only CachingStore with specified version

@@ -931,11 +931,14 @@ func (a *Application) ReadOnlyState() State {
 	if err != nil {
 		panic(err)
 	}
-	// TODO: the store snapshot should be created atomically, otherwise the block header might
-	//       not match the state... need to figure out why this hasn't spectacularly failed already
+	appStateSnapshot, err := a.Store.GetSnapshotAt(lastBlockHeader.Height)
+	if err != nil {
+		panic(err)
+	}
+
 	return NewStoreStateSnapshot(
 		nil,
-		a.Store.GetSnapshot(),
+		appStateSnapshot,
 		*lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
