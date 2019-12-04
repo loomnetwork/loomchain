@@ -20,7 +20,7 @@ func DefaultEvmStoreConfig() *EvmStoreConfig {
 		DBBackend:       "goleveldb",
 		CacheSizeMegs:   256,
 		WriteBufferMegs: 4,
-		NumCachedRoots:  100,
+		NumCachedRoots:  500,
 	}
 }
 

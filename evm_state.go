@@ -12,6 +12,7 @@ type EVMState struct {
 	evmStore *store.EvmStore
 }
 
+// NewEVMState returns the EVM state corresponding to the current version of the given store.
 func NewEVMState(evmStore *store.EvmStore) (*EVMState, error) {
 	evmRoot, _ := evmStore.Version()
 	sdb, err := state.New(common.BytesToHash(evmRoot), state.NewDatabaseWithTrieDB(evmStore.TrieDB()))
@@ -43,12 +44,17 @@ func (s *EVMState) GetSnapshot(version int64) (*EVMState, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &EVMState{sdb: stateDB, evmStore: s.evmStore}, nil
+	return &EVMState{
+		evmStore: nil, // this will ensure that Commit() will panic
+		sdb:      stateDB,
+	}, nil
 }
 
+// Clone returns a copy of the EVMState instance.
+// NOTE: Do not call Commit on the returned instance.
 func (s *EVMState) Clone() *EVMState {
 	return &EVMState{
-		evmStore: s.evmStore,
+		evmStore: nil, // this will ensure that Commit() will panic
 		sdb:      s.sdb.Copy(),
 	}
 }

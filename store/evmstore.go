@@ -180,6 +180,8 @@ func (s *EvmStore) Commit(version int64) []byte {
 	}
 
 	// Only commit Patricia tree every N blocks
+	// TODO: What happens to all the roots that don't get committed? Are they just going to accumulate
+	//       in the trie.Database.nodes cache forever?
 	if flushInterval == 0 || version%flushInterval == 0 {
 		// If the root hasn't changed since the last call to Commit that means no new state changes
 		// occurred in the trie DB since then, so we can skip committing.
@@ -254,9 +256,16 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	return nil, 0
 }
 
+// GetRootAt returns the EVM state root corresponding to the given version.
 func (s *EvmStore) GetRootAt(version int64) []byte {
 	var targetRoot []byte
-	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
+	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance.
+	// There's an assumption here that the cache will almost always contain all the in-mem-only
+	// roots that haven't been flushed to disk yet, in the rare case where such a root is evicted
+	// from the cache the last root persisted to disk will be returned instead. This means it's
+	// possible (though highly unlikely) for queries to return stale state (since they rely on
+	// snapshots corresponding to specific versions). This could be fixed by storing the in-mem-only
+	// roots in another map instead of, or in addition to the cache.
 	val, exist := s.rootCache.Get(version)
 	if exist {
 		targetRoot = val.([]byte)
