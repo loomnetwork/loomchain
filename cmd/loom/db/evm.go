@@ -44,7 +44,7 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 				return err
 			}
 
-			evmStore := store.NewEvmStore(evmDB, 100, cfg.AppStore.IAVLFlushInterval)
+			evmStore := store.NewEvmStore(evmDB, 100, -1)
 			if err := evmStore.LoadVersion(appHeight); err != nil {
 				return err
 			}
@@ -132,7 +132,7 @@ func newGetEvmHeightCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			evmStore := store.NewEvmStore(db, 100, 0)
+			evmStore := store.NewEvmStore(db, 100, -1)
 			if err := evmStore.LoadVersion(math.MaxInt64); err != nil {
 				return err
 			}

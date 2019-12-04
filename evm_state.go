@@ -40,13 +40,20 @@ func (s *EVMState) Commit() error {
 // GetSnapshot returns the EVMState instance containing the state as it was at the given version.
 // NOTE: Do not call Commit on the returned instance.
 func (s *EVMState) GetSnapshot(version int64) (*EVMState, error) {
-	stateDB, err := state.New(common.BytesToHash(s.evmStore.GetRootAt(version)), s.sdb.Database())
+	// The cachingDB instance created by state.NewDatabaseWithTrieDB() contains a codeSizeCache which
+	// probably shouldn't be shared between the EVMState instance used by the tx handlers and the
+	// snapshots instances used by the query server. Which is why NewDatabaseWithTrieDB() is used
+	// here instead of s.sdb.Database().
+	sdb, err := state.New(
+		common.BytesToHash(s.evmStore.GetRootAt(version)),
+		state.NewDatabaseWithTrieDB(s.evmStore.TrieDB()),
+	)
 	if err != nil {
 		return nil, err
 	}
 	return &EVMState{
 		evmStore: nil, // this will ensure that Commit() will panic
-		sdb:      stateDB,
+		sdb:      sdb,
 	}, nil
 }
 
