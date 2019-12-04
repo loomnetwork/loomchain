@@ -278,7 +278,6 @@ func (s *QueryServer) queryEvm(state loomchain.State, caller, contract loom.Addr
 			return nil, err
 		}
 	}
-
 	vm := levm.NewLoomVm(state, nil, nil, createABM, false)
 	return vm.StaticCall(callerAddr, contract, query)
 }

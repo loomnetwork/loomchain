@@ -58,6 +58,7 @@ func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller
 	}
 	byteCode := common.FromHex(string(hexByteCode))
 	byteCode, err = hex.DecodeString(string(hexByteCode))
+
 	vm := evm.NewLoomVm(ctx.State, nil, nil, nil, false)
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
