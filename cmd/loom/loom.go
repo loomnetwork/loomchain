@@ -631,24 +631,10 @@ func loadAppStore(
 	var appStore store.VersionedKVStore
 	var evmStore *store.EvmStore
 	if cfg.AppStore.Version == 1 { // TODO: cleanup these hardcoded numbers
-		if cfg.AppStore.PruneInterval > int64(0) {
-			logger.Info("Loading Pruning IAVL Store")
-			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
-				MaxVersions:   cfg.AppStore.MaxVersions,
-				BatchSize:     cfg.AppStore.PruneBatchSize,
-				Interval:      time.Duration(cfg.AppStore.PruneInterval) * time.Second,
-				Logger:        logger,
-				FlushInterval: cfg.AppStore.IAVLFlushInterval,
-			})
-			if err != nil {
-				return nil, nil, err
-			}
-		} else {
-			logger.Info("Loading IAVL Store")
-			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
-			if err != nil {
-				return nil, nil, err
-			}
+		logger.Info("Loading IAVL Store")
+		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
+		if err != nil {
+			return nil, nil, err
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
