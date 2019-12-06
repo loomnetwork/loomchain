@@ -59,24 +59,19 @@ func (m *MockStore) Prune() error {
 }
 
 func (m *MockStore) GetSnapshot() Snapshot {
-	snapshot, err := m.GetSnapshotAt(0)
-	if err != nil {
-		panic(err)
-	}
-	return snapshot
-}
-
-func (m *MockStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	snapshotStore := make(map[string][]byte)
 	for k, v := range m.storage {
 		snapshotStore[k] = v
 	}
-	mstore := &MockStore{
-		storage: snapshotStore,
-	}
 	return &mockStoreSnapshot{
-		MockStore: mstore,
-	}, nil
+		MockStore: &MockStore{
+			storage: snapshotStore,
+		},
+	}
+}
+
+func (m *MockStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	panic("not implemented")
 }
 
 type mockStoreSnapshot struct {
