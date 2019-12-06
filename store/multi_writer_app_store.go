@@ -117,7 +117,7 @@ func NewMultiWriterAppStore(
 			appStoreEvmRoot = defaultRoot
 		}
 	}
-	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
+	evmStoreEvmRoot, version := store.evmStore.GetRootAt(store.appStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
 			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
