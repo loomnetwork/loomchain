@@ -1128,7 +1128,6 @@ func loadApp(
 		EventStore:                  eventStore,
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
-		EvmStore:                    evmStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
 		EVMState:                    evmState,
 	}, nil
