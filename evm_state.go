@@ -1,6 +1,9 @@
 package loomchain
 
 import (
+	"bytes"
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/loomnetwork/loomchain/store"
@@ -38,14 +41,23 @@ func (s *EVMState) Commit() error {
 }
 
 // GetSnapshot returns the EVMState instance containing the state as it was at the given version.
+// The specified root is expected to match the root of the returned state, if the roots don't match
+// an error will be returned.
 // NOTE: Do not call Commit on the returned instance.
-func (s *EVMState) GetSnapshot(version int64) (*EVMState, error) {
+func (s *EVMState) GetSnapshot(version int64, root []byte) (*EVMState, error) {
+	r, v := s.evmStore.GetRootAt(version)
+	if !bytes.Equal(r, root) {
+		return nil, fmt.Errorf(
+			"EVM roots mismatch, expected (%d): %X, actual (%d): %X",
+			version, root, v, r,
+		)
+	}
 	// The cachingDB instance created by state.NewDatabaseWithTrieDB() contains a codeSizeCache which
 	// probably shouldn't be shared between the EVMState instance used by the tx handlers and the
 	// snapshots instances used by the query server. Which is why NewDatabaseWithTrieDB() is used
 	// here instead of s.sdb.Database().
 	sdb, err := state.New(
-		common.BytesToHash(s.evmStore.GetRootAt(version)),
+		common.BytesToHash(r),
 		state.NewDatabaseWithTrieDB(s.evmStore.TrieDB()),
 	)
 	if err != nil {

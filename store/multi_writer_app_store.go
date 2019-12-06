@@ -81,6 +81,15 @@ func init() {
 	)
 }
 
+// GetEVMRootFromAppStore retrieves the current EVM root from the given app store.
+func GetEVMRootFromAppStore(s KVReader) []byte {
+	evmRoot := s.Get(rootKey)
+	if evmRoot == nil {
+		return defaultRoot
+	}
+	return evmRoot
+}
+
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
 // or just the EvmStore, depending on the evmStoreEnabled flag.
 type MultiWriterAppStore struct {

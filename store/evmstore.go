@@ -239,6 +239,9 @@ func (s *EvmStore) SetCurrentRoot(root []byte) {
 	s.rootHash = root
 }
 
+// getLastSavedRoot retrieves the EVM state root from disk that best matches the given version.
+// The roots are not written to disk for every version, they only get written out when they change
+// between versions, and even then depending on the flush interval some roots won't be written to disk.
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	start := util.PrefixKey(vmPrefix, evmRootPrefix)
 	end := prefixRangeEnd(evmRootKey(targetVersion))
@@ -257,8 +260,9 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 }
 
 // GetRootAt returns the EVM state root corresponding to the given version.
-func (s *EvmStore) GetRootAt(version int64) []byte {
-	var targetRoot []byte
+// The second return value is version of the EVM state that corresponds to the returned root,
+// it may be less than the version requested due to the reasons mentioned in getLastSavedRoot.
+func (s *EvmStore) GetRootAt(version int64) ([]byte, int64) {
 	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance.
 	// There's an assumption here that the cache will almost always contain all the in-mem-only
 	// roots that haven't been flushed to disk yet, in the rare case where such a root is evicted
@@ -268,16 +272,15 @@ func (s *EvmStore) GetRootAt(version int64) []byte {
 	// roots in another map instead of, or in addition to the cache.
 	val, exist := s.rootCache.Get(version)
 	if exist {
-		targetRoot = val.([]byte)
-	} else {
-		targetRoot, _ = s.getLastSavedRoot(version)
+		return val.([]byte), version
 	}
-	return targetRoot
+	return s.getLastSavedRoot(version)
 }
 
 // TODO: Get rid of this function. EvmStore does not provide snapshot anymore but EVMState does.
 func (s *EvmStore) GetSnapshot(version int64) *EvmStoreSnapshot {
-	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), s.GetRootAt(version))
+	root, _ := s.GetRootAt(version)
+	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), root)
 }
 
 // TODO: Get rid of EvmStoreSnapshot. EvmStore does not provide snapshot anymore but EVMState does.

@@ -927,13 +927,20 @@ func (a *Application) height() int64 {
 
 func (a *Application) ReadOnlyState() State {
 	lastBlockHeader := (*abci.Header)(atomic.LoadPointer(&a.lastBlockHeader))
-	evmStateSnapshot, err := a.EVMState.GetSnapshot(lastBlockHeader.Height)
-	if err != nil {
-		panic(err)
-	}
 	appStateSnapshot, err := a.Store.GetSnapshotAt(lastBlockHeader.Height)
 	if err != nil {
 		panic(err)
+	}
+
+	var evmStateSnapshot *EVMState
+	if a.EVMState != nil {
+		evmStateSnapshot, err = a.EVMState.GetSnapshot(
+			lastBlockHeader.Height,
+			store.GetEVMRootFromAppStore(appStateSnapshot),
+		)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return NewStoreStateSnapshot(
