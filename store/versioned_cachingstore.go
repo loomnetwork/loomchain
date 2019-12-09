@@ -367,6 +367,11 @@ func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
 		// GetSnapshot() is called it won't return the current unpersisted state of the cache,
 		// but rather the last persisted version.
 		c.version = version + 1
+		if err = c.cache.Set(rootKey, GetEVMRootFromAppStore(c.VersionedKVStore), version); err != nil {
+			// Only log error and dont error out
+			cacheErrors.With("cache_operation", "set").Add(1)
+			c.logger.Error("[VersionedCachingStore] error while caching EVM root", "err", err)
+		}
 	}
 	return hash, version, err
 }
@@ -380,6 +385,8 @@ func (c *versionedCachingStore) GetSnapshot() Snapshot {
 }
 
 func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	// TODO: c.version & c.VersionedKVStore.GetSnapshot() could end up corresponding to different
+	//       versions, need to do this atomically.
 	if version == 0 {
 		return newVersionedCachingStoreSnapshot(
 			c.VersionedKVStore.GetSnapshot(),
@@ -394,7 +401,9 @@ func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	return newVersionedCachingStoreSnapshot(snapshot, c.cache, version, c.logger), nil
 }
 
-// CachingStoreSnapshot is a read-only CachingStore with specified version
+// versionedCachingStoreSnapshot is a read-only CachingStore with specified version.
+// NOTE: versionedCachingStoreSnapshot.Range is not implemented, so the underlying snapshot's Range
+//       implementation will be used instead.
 type versionedCachingStoreSnapshot struct {
 	Snapshot
 	cache   *versionedBigCache
@@ -402,22 +411,15 @@ type versionedCachingStoreSnapshot struct {
 	logger  *loom.Logger
 }
 
-func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache *versionedBigCache,
-	version int64, logger *loom.Logger) *versionedCachingStoreSnapshot {
+func newVersionedCachingStoreSnapshot(
+	snapshot Snapshot, cache *versionedBigCache, version int64, logger *loom.Logger,
+) *versionedCachingStoreSnapshot {
 	return &versionedCachingStoreSnapshot{
 		Snapshot: snapshot,
 		cache:    cache,
 		version:  version,
 		logger:   logger,
 	}
-}
-
-func (c *versionedCachingStoreSnapshot) Delete(key []byte) {
-	panic("[versionedCachingStoreSnapshot] Delete() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
-	panic("[versionedCachingStoreSnapshot] Set() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
@@ -503,14 +505,6 @@ func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 	}
 
 	return data
-}
-
-func (c *versionedCachingStoreSnapshot) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, errors.New("[VersionedCachingStoreSnapshot] SaveVersion() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Prune() error {
-	return errors.New("[VersionedCachingStoreSnapshot] Prune() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Release() {
