@@ -671,7 +671,11 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config).WithEVMState(a.EVMState.Clone())
+	).WithOnChainConfig(a.config)
+
+	if a.EVMState != nil {
+		state = state.WithEVMState(a.EVMState.Clone())
+	}
 
 	// Receipts & events generated in CheckTx must be discarded since the app state changes they
 	// reflect aren't persisted.
