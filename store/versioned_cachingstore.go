@@ -12,7 +12,6 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
