@@ -700,7 +700,12 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 	if err != nil {
 		return nil, err
 	}
-	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots, cfg.AppStore.IAVLFlushInterval)
+	if cfg.AppStore.IAVLFlushInterval != evmStoreCfg.FlushInterval &&
+		cfg.AppStore.IAVLFlushInterval > 0 &&
+		evmStoreCfg.FlushInterval > 0 {
+		return nil, errors.New("invalid config, AppStore.IAVLFlushInterval doesn't match EvmStore.FlushInterval")
+	}
+	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots, evmStoreCfg.FlushInterval)
 	if err := evmStore.LoadVersion(targetVersion); err != nil {
 		return nil, err
 	}
