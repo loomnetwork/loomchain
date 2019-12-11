@@ -30,6 +30,9 @@ func NewEVMState(evmStore *store.EvmStore) (*EVMState, error) {
 
 // Commit writes the state changes that occurred since the previous commit to the underlying store.
 func (s *EVMState) Commit() error {
+	if s.evmStore == nil {
+		panic("EvmStore is nil")
+	}
 	evmStateRoot, err := s.sdb.Commit(true)
 	if err != nil {
 		return err

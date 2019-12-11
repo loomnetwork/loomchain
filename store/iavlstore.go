@@ -217,10 +217,7 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 }
 
 func (s *IAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
-	return &iavlStoreSnapshot{
-		IAVLStore: s,
-	}, nil
+	panic("not implemented")
 }
 
 // NewIAVLStore creates a new IAVLStore.

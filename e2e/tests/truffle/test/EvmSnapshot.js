@@ -74,12 +74,14 @@ contract('TestEvmSnapshot', async (accounts) => {
             }
         );
     })
+
+    // SnapshotTest generates a lot of txs and queries and send them to a contract almost at the same time.
+    // This test ensures that the snapshot does not have a concurrent read/write problem.
     it('SnapshotTest', async () => {
         for (var i = 0; i < 50; i++) {
             contract.methods.set(7777).send().then()
             contract.methods.get().call().then()
         }
-
         for (var i = 0; i < 50; i++) {
             contract.methods.set(8888).send().then()
             contract.methods.get().call().then()
