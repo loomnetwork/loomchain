@@ -420,7 +420,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, err := client.CreateIdentity(ephemKey, signer, "default")
+			id, err := client.CreateIdentity(ephemKey, signer, gatewayCmdFlags.ChainID)
 			if err != nil {
 				return err
 			}
@@ -644,11 +644,10 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards to Ethereum, otherwise the entire LOOM balance of the user will be withdrawn")
-	cmdFlags.IntVar(&gatewayVersion, "gateway-version", 0, "Version of Ethereum Gateway from which funds will be withdrawn")
+	cmdFlags.IntVar(&gatewayVersion, "gateway-version", 1, "Version of Ethereum Gateway from which funds will be withdrawn")
 	cmdFlags.StringVar(&mainnetLoomAddress, "eth-loom-address", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "Address of LOOM token contract on Ethereum")
 	cmdFlags.StringVar(&mainnetGatewayAddress, "eth-gateway-address", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "Address of Gateway contract on Ethereum")
-	// TODO: hardcode a default API key to streamline usage
-	cmdFlags.StringVar(&ethUri, "eth-uri", "https://mainnet.infura.io/", "Ethereum URI")
+	cmdFlags.StringVar(&ethUri, "eth-uri", "https://mainnet.infura.io/v3/1d610d0fd6d04f209812916e0ca86a08", "Ethereum URI")
 	return cmd
 }
 
