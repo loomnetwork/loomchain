@@ -378,19 +378,25 @@ func newGetOraclesCommand() *cobra.Command {
 }
 
 func newWithdrawFundsToMainnetCommand() *cobra.Command {
-	var mainnetLoomAddress, mainnetGatewayAddress, ethereumUri string
 	var onlyRewards bool
+	var mainnetLoomAddress, mainnetGatewayAddress, ethUri string
 	var gatewayVersion int
 	cmd := &cobra.Command{
-		Use:     "withdraw-funds",
-		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
+		Use:   "withdraw-funds",
+		Short: "Withdraw your DPOS rewards to Ethereum",
+		Long: `
+		Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to
+		the DAppChain Gateway, which provides the user with a signature that's used for transferring
+		funds from the Ethereum Gateway to the user's Ethereum account. The user is prompted to make
+		the call by being provided with the full transaction data that needs to be pasted into a browser.
+		`,
 		Example: withdrawFundsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if gatewayVersion != 1 && gatewayVersion != 2 {
 				return errors.New("invalid Ethereum Gateway version")
 			}
 			/**
-			 * 1 Check dappchain balance before
+			 * 1. Check dappchain balance before
 			 * 2. Claim rewards on dappchain
 			 * 3. Check balance aftr (should be bigger)
 			 * 4. Call approve transactino on dappchain
@@ -441,12 +447,12 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			ethClient, err := ethclient.Dial(ethereumUri)
+			ethClient, err := ethclient.Dial(ethUri)
 			if err != nil {
 				return err
 			}
 
-			var mainnetGateway *gw.MainnetGatewayClient
+			var mainnetGatewayV1 *gw.MainnetGatewayClient
 			var mainnetGatewayV2 *gwv2.MainnetGatewayClient
 			if gatewayVersion == 2 {
 				mainnetGatewayV2, err = gwv2.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
@@ -454,7 +460,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 					return err
 				}
 			} else {
-				mainnetGateway, err = gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
+				mainnetGatewayV1, err = gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
 				if err != nil {
 					return err
 				}
@@ -547,14 +553,13 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				} else {
 					amount = balanceAfter
 				}
-				fmt.Println("No pending withdrwal found...")
-				// Approve
+				fmt.Println("No pending withdrawal found, creating a new one...")
 				err = loomcoin.Approve(id, gatewayAddr, amount)
 				if err != nil {
 					return err
 				}
 
-				fmt.Println("Approved deposit on dappchain for ...", amount)
+				fmt.Printf("Approved transfer of %s LOOM to DAppChain Gateway\n", amount.String())
 
 				// Get the loom tokens to the gateway
 				err = gateway.WithdrawLoom(id, amount, common.HexToAddress(mainnetLoomAddress))
@@ -562,7 +567,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 					return err
 				}
 
-				fmt.Println("Withdrawal initiated for...", amount)
+				fmt.Printf("Withdrawal of %s LOOM initiated\n", amount.String())
 			}
 
 			for {
@@ -590,7 +595,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			fmt.Println("Token Contract:", receipt.TokenContract.Local.String())
 			fmt.Println("Token Kind:", receipt.TokenKind)
 			fmt.Println("Token Amount:", receipt.TokenAmount.Value.Int)
-			fmt.Println("Oracle Sig", hex.EncodeToString(receipt.OracleSignature))
+			fmt.Println("Gateway Signature", hex.EncodeToString(receipt.OracleSignature))
 
 			sig := receipt.OracleSignature
 			var tx *gethtype.Transaction
@@ -607,34 +612,43 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-
-				tx, err = mainnetGatewayV2.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, common.HexToAddress(mainnetLoomAddress), sig, validatorAddresses)
+				tx, err = mainnetGatewayV2.UnsignedWithdrawERC20(
+					id, receipt.TokenAmount.Value.Int, common.HexToAddress(mainnetLoomAddress), sig,
+					validatorAddresses,
+				)
 				if err != nil {
 					return err
 				}
 			} else {
-				tx, err = mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
+				tx, err = mainnetGatewayV1.UnsignedWithdrawERC20(
+					id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress),
+				)
 				if err != nil {
 					return err
 				}
 			}
 
-			fmt.Println("\nPlease go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
+			fmt.Println(
+				"\nPlease go to https://www.myetherwallet.com/interface/send-offline and fill the" +
+					"'To Address', 'GasLimit and 'Data' fields with the following values:",
+			)
 			fmt.Println("To Address:", tx.To().String())
 			fmt.Println("Data:", hex.EncodeToString(tx.Data()))
 			fmt.Println("Gas Limit:", tx.Gas())
-			fmt.Println("Sign it with the account", ethAddr.Local.String(), "and it will authorize a LOOM token withdrawal to you.")
-
+			fmt.Printf(
+				"Then sign the transaction with account %s and to authorize a LOOM withdrawal.\n",
+				ethAddr.Local.String(),
+			)
 			return nil
-
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.StringVar(&mainnetLoomAddress, "mainnet-loom-address", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "Mainnet LOOM token contract address in hex format")
-	cmdFlags.StringVar(&mainnetGatewayAddress, "mainnet-gateway-address", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "Mainnet Gateway contract address in hex format")
-	cmdFlags.StringVar(&ethereumUri, "ethereum-uri", "https://mainnet.infura.io/", "Ethereum URI")
 	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards to Ethereum, otherwise the entire LOOM balance of the user will be withdrawn")
 	cmdFlags.IntVar(&gatewayVersion, "gateway-version", 0, "Version of Ethereum Gateway from which funds will be withdrawn")
+	cmdFlags.StringVar(&mainnetLoomAddress, "eth-loom-address", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "Address of LOOM token contract on Ethereum")
+	cmdFlags.StringVar(&mainnetGatewayAddress, "eth-gateway-address", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "Address of Gateway contract on Ethereum")
+	// TODO: hardcode a default API key to streamline usage
+	cmdFlags.StringVar(&ethUri, "eth-uri", "https://mainnet.infura.io/", "Ethereum URI")
 	return cmd
 }
 
