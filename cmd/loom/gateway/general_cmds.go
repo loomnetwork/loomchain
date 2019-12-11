@@ -600,7 +600,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			sig := receipt.OracleSignature
 			var tx *gethtype.Transaction
 			if gatewayVersion == 2 {
-				vmcAddr, err := mainnetGatewayV2.Vmc()
+				vmcAddr, err := mainnetGatewayV2.ValidatorManagerAddress()
 				if err != nil {
 					return err
 				}
