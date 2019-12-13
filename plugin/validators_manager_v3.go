@@ -107,8 +107,9 @@ func (m *ValidatorsManagerV3) EndBlock(req abci.RequestEndBlock) ([]abci.Validat
 		return nil, nil
 	}
 
-	// Skip a botched election on Extdev due to insufficient funds in the DPOS contract
-	if req.Height == 9856178 && m.ctx.Block().ChainID == "extdev-plasma-us1" {
+	// Postpone Extdev election at block 9856178 by 2000 blocks, the original election failed
+	// because the DPOS contract didn't have enough funds to honor a rewards claim.
+	if req.Height >= 9856178 && req.Height < 9858178 && m.ctx.Block().ChainID == "extdev-plasma-us1" {
 		m.ctx.Logger().Info("DPOSv3 EndBlock skipping election", "height", req.Height)
 		return nil, nil
 	}
