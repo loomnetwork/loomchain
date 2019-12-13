@@ -107,6 +107,12 @@ func (m *ValidatorsManagerV3) EndBlock(req abci.RequestEndBlock) ([]abci.Validat
 		return nil, nil
 	}
 
+	// Skip a botched election on Extdev due to insufficient funds in the DPOS contract
+	if req.Height == 9856178 && m.ctx.Block().ChainID == "extdev-plasma-us1" {
+		m.ctx.Logger().Info("DPOSv3 EndBlock skipping election", "height", req.Height)
+		return nil, nil
+	}
+
 	oldValidatorList, err := m.ValidatorList()
 	if err != nil {
 		return nil, err
