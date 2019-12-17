@@ -33,7 +33,7 @@ GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
 TG_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
-ETHEREUM_GIT_REV = in-memory-statedb
+ETHEREUM_GIT_REV = cce1b3f69354033160583e5576169f9b309ee62e
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
