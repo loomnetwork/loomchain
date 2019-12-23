@@ -5,14 +5,12 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/allegro/bigcache"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -29,6 +27,12 @@ var (
 	cacheErrors metrics.Counter
 	cacheMisses metrics.Counter
 )
+
+type versionedCache interface {
+	Get(key []byte, version int64) ([]byte, error)
+	Set(key, val []byte, version int64) error
+	Delete(key []byte, version int64) error
+}
 
 type CachingStoreLogger struct {
 	logger *loom.Logger
@@ -105,7 +109,8 @@ func init() {
 }
 
 type CachingStoreConfig struct {
-	CachingEnabled bool
+	// 0 = disabled, 1 = bigCache, 2 = fastCache
+	CachingType int
 	// Number of cache shards, value must be a power of two
 	Shards int
 	// Time after we need to evict the key
@@ -125,7 +130,7 @@ type CachingStoreConfig struct {
 
 func DefaultCachingStoreConfig() *CachingStoreConfig {
 	return &CachingStoreConfig{
-		CachingEnabled:            true,
+		CachingType:               0,
 		Shards:                    1024,
 		EvictionTimeInSeconds:     60 * 60,       // 1 hour
 		CleaningIntervalInSeconds: 10,            // Cleaning per 10 second
@@ -157,166 +162,40 @@ func unversionedKey(key string) (string, int64, error) {
 	return k[1], n, nil
 }
 
-type versionedBigCache struct {
-	cache         *bigcache.BigCache
-	cacheLogger   *loom.Logger
-	keyTableMutex sync.RWMutex
-	keyTable      map[string]KeyVersionTable
-}
-
-func newVersionedBigCache(config *CachingStoreConfig, cacheLogger *loom.Logger) (*versionedBigCache, error) {
-	bigcacheConfig, err := convertToBigCacheConfig(config, cacheLogger)
-	if err != nil {
-		return nil, err
-	}
-	versionedCache := &versionedBigCache{
-		cacheLogger: cacheLogger,
-		keyTable:    map[string]KeyVersionTable{},
-	}
-
-	// when a key get evicted from BigCache, KeyVersionTable and KeyTable must be updated
-	bigcacheConfig.OnRemove = versionedCache.onRemove
-
-	cache, err := bigcache.NewBigCache(*bigcacheConfig)
-	if err != nil {
-		return nil, err
-	}
-	versionedCache.cache = cache
-	return versionedCache, nil
-}
-
-func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*bigcache.Config, error) {
-	if config.MaxKeys == 0 || config.MaxSizeOfValueInBytes == 0 {
-		return nil, fmt.Errorf("[CachingStoreConfig] max keys and/or max size of value cannot be zero")
-	}
-
-	if config.EvictionTimeInSeconds == 0 {
-		return nil, fmt.Errorf("[CachingStoreConfig] eviction time cannot be zero")
-	}
-
-	if config.Shards == 0 {
-		return nil, fmt.Errorf("[CachingStoreConfig] caching shards cannot be zero")
-	}
-
-	configTemplate := bigcache.DefaultConfig(time.Duration(config.EvictionTimeInSeconds) * time.Second)
-	configTemplate.Shards = config.Shards
-	configTemplate.Verbose = config.Verbose
-	configTemplate.CleanWindow = time.Duration(config.CleaningIntervalInSeconds) * time.Second
-	configTemplate.LifeWindow = time.Duration(config.EvictionTimeInSeconds) * time.Second
-	configTemplate.HardMaxCacheSize = config.MaxKeys * config.MaxSizeOfValueInBytes
-	configTemplate.MaxEntriesInWindow = config.MaxKeys
-	configTemplate.MaxEntrySize = config.MaxSizeOfValueInBytes
-	configTemplate.Verbose = config.Verbose
-	configTemplate.Logger = CachingStoreLogger{logger: logger}
-
-	return &configTemplate, nil
-}
-
-func (c *versionedBigCache) onRemove(key string, entry []byte) {
-	c.keyTableMutex.Lock()
-	defer c.keyTableMutex.Unlock()
-	key, version, err := unversionedKey(key)
-	if err != nil {
-		c.cacheLogger.Error(fmt.Sprintf(
-			"[VersionedBigCache] error while unversioning key: %s, error: %v",
-			string(key), err.Error()))
-	}
-	kvTable, exist := c.keyTable[key]
-	if exist {
-		// remove all previous versions of the key
-		for k, exist := range kvTable {
-			if exist && k <= version {
-				delete(kvTable, version)
-			}
-		}
-		if len(kvTable) == 0 {
-			delete(c.keyTable, key)
-		}
-	}
-}
-
-func (c *versionedBigCache) Delete(key []byte, version int64) error {
-	versionedKey := versionedKey(string(key), version)
-	// delete data in cache if it does exist
-	c.cache.Delete(string(versionedKey))
-	// add key to inidicate that this is the latest version but
-	// the data has been deleted
-	c.addKeyVersion(key, version)
-	return nil
-}
-
-func (c *versionedBigCache) Set(key, val []byte, version int64) error {
-	versionedKey := versionedKey(string(key), version)
-	err := c.cache.Set(string(versionedKey), val)
-	if err != nil {
-		return err
-	}
-	c.addKeyVersion(key, version)
-	return nil
-}
-
-func (c *versionedBigCache) Get(key []byte, version int64) ([]byte, error) {
-	latestVersion := c.getKeyVersion(key, version)
-	versionedKey := versionedKey(string(key), latestVersion)
-	return c.cache.Get(string(versionedKey))
-}
-
-// getKeyVersion returns the latest version number (limited by version argument) of a particular key
-func (c *versionedBigCache) getKeyVersion(key []byte, version int64) int64 {
-	c.keyTableMutex.RLock()
-	defer c.keyTableMutex.RUnlock()
-	kvTable, exist := c.keyTable[string(key)]
-	if !exist {
-		return 0
-	}
-	var latestVersion int64
-	for k, exists := range kvTable {
-		if k > latestVersion && exists && k <= version {
-			latestVersion = k
-		}
-	}
-	return latestVersion
-}
-
-// addKeyVersion adds version number of a key to KeyVersionTable
-func (c *versionedBigCache) addKeyVersion(key []byte, version int64) {
-	c.keyTableMutex.Lock()
-	defer c.keyTableMutex.Unlock()
-	kvTable, exist := c.keyTable[string(key)]
-	if !exist {
-		kvTable = KeyVersionTable{}
-	}
-	kvTable[version] = true
-	c.keyTable[string(key)] = kvTable
-}
-
 // versionedCachingStore wraps a write-through cache around a VersionedKVStore.
 // It is compatible with MultiWriterAppStore only.
 type versionedCachingStore struct {
 	VersionedKVStore
-	cache   *versionedBigCache
+	cache   versionedCache
 	version int64
 	logger  *loom.Logger
 }
 
 // NewVersionedCachingStore wraps the source VersionedKVStore in a cache.
 func NewVersionedCachingStore(
-	source VersionedKVStore, config *CachingStoreConfig, version int64,
+	source VersionedKVStore, config CachingStoreConfig, version int64,
 ) (VersionedKVStore, error) {
-	if config == nil {
-		return nil, fmt.Errorf("[VersionedCachingStore] missing config for caching store")
-	}
-
 	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
 
-	versionedBigCache, err := newVersionedBigCache(config, cacheLogger)
+	var cache versionedCache
+	var err error
+	switch config.CachingType {
+	case 0: // disabled
+		return source, nil
+	case 1:
+		cache, err = newVersionedBigCache(config, cacheLogger)
+	case 2:
+		cache, err = newVersionedFastCache(config, cacheLogger)
+	default:
+		return nil, fmt.Errorf("unrecognised cahcing type %v", config.CachingType)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	return &versionedCachingStore{
 		VersionedKVStore: source,
-		cache:            versionedBigCache,
+		cache:            cache,
 		logger:           cacheLogger,
 		version:          version + 1,
 	}, nil
@@ -381,12 +260,12 @@ func (c *versionedCachingStore) GetSnapshot() Snapshot {
 // CachingStoreSnapshot is a read-only CachingStore with specified version
 type versionedCachingStoreSnapshot struct {
 	Snapshot
-	cache   *versionedBigCache
+	cache   versionedCache
 	version int64
 	logger  *loom.Logger
 }
 
-func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache *versionedBigCache,
+func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache versionedCache,
 	version int64, logger *loom.Logger) *versionedCachingStoreSnapshot {
 	return &versionedCachingStoreSnapshot{
 		Snapshot: snapshot,
@@ -394,14 +273,6 @@ func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache *versionedBigCach
 		version:  version,
 		logger:   logger,
 	}
-}
-
-func (c *versionedCachingStoreSnapshot) Delete(key []byte) {
-	panic("[versionedCachingStoreSnapshot] Delete() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
-	panic("[versionedCachingStoreSnapshot] Set() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
@@ -460,41 +331,38 @@ func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 
 	data, err := c.cache.Get(key, c.version)
 
-	if err != nil {
-		cacheMisses.With("store_operation", "get").Add(1)
-		switch err {
-		case bigcache.ErrEntryNotFound:
-			break
-		default:
-			// Since, there is no provision of passing error in the interface
-			// we would directly access source and only log the error
-			cacheErrors.With("cache_operation", "get").Add(1)
-			c.logger.Error(fmt.Sprintf(
-				"[versionedCachingStoreSnapshot] error while getting key: %s from cache, error: %v",
-				string(key), err.Error()))
+	if err != nil || data == nil {
+		if err != nil {
+			cacheMisses.With("store_operation", "get").Add(1)
+			switch err {
+			case bigcache.ErrEntryNotFound:
+				break
+			default:
+				// Since, there is no provision of passing error in the interface
+				// we would directly access source and only log the error
+				cacheErrors.With("cache_operation", "get").Add(1)
+				c.logger.Error(fmt.Sprintf(
+					"[versionedCachingStoreSnapshot] error while getting key: %s from cache, error: %v",
+					string(key), err.Error()))
+			}
+		}
+		snapData := c.Snapshot.Get(key)
+		if data == nil && snapData == nil {
+			return data
 		}
 
-		data = c.Snapshot.Get(key)
-		setErr := c.cache.Set(key, data, c.version)
+		setErr := c.cache.Set(key, snapData, c.version)
 		if setErr != nil {
 			cacheErrors.With("cache_operation", "set").Add(1)
 			c.logger.Error(fmt.Sprintf(
 				"[versionedCachingStoreSnapshot] error while setting key: %s in cache, error: %v",
 				string(key), setErr.Error()))
 		}
-	} else {
-		cacheHits.With("store_operation", "get").Add(1)
+		return snapData
 	}
 
+	cacheHits.With("store_operation", "get").Add(1)
 	return data
-}
-
-func (c *versionedCachingStoreSnapshot) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, errors.New("[VersionedCachingStoreSnapshot] SaveVersion() not implemented")
-}
-
-func (c *versionedCachingStoreSnapshot) Prune() error {
-	return errors.New("[VersionedCachingStoreSnapshot] Prune() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Release() {

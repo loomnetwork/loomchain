@@ -80,12 +80,17 @@ func (s *mockStoreSnapshot) Release() {
 }
 
 func TestCachingStoreVersion(t *testing.T) {
-	defaultConfig := DefaultCachingStoreConfig()
-	defaultConfig.CachingEnabled = true
+	config := DefaultCachingStoreConfig()
+	config.CachingType = 1
+	testCachingStoreVersion(t, *config)
+	config.CachingType = 2
+	testCachingStoreVersion(t, *config)
+}
 
+func testCachingStoreVersion(t *testing.T, config CachingStoreConfig) {
 	mockStore := NewMockStore()
 
-	versionedStore, err := NewVersionedCachingStore(mockStore, defaultConfig, mockStore.Version())
+	versionedStore, err := NewVersionedCachingStore(mockStore, config, mockStore.Version())
 	cachingStore := versionedStore.(*versionedCachingStore)
 
 	require.NoError(t, err)
@@ -129,8 +134,8 @@ func TestCachingStoreVersion(t *testing.T) {
 	assert.Equal(t, "value3", string(cachedValue), "snapshotv0 should get correct value")
 
 	cacheSnapshot := snapshotv0.(*versionedCachingStoreSnapshot)
-	cacheSnapshot.cache.Delete(key1, 1) // evict a key
-	cachedValue = snapshotv0.Get(key1)  // call an evicted key
+	require.NoError(t, cacheSnapshot.cache.Delete(key1, 1)) // evict a key
+	cachedValue = snapshotv0.Get(key1)                      // call an evicted key
 	assert.Equal(t, "value1", string(cachedValue), "snapshotv1 should get correct value, fetching from underlying snapshot")
 
 	// save to bump up version
@@ -146,7 +151,7 @@ func TestCachingStoreVersion(t *testing.T) {
 
 	// evict data from key table
 	cacheSnapshot = snapshotv1.(*versionedCachingStoreSnapshot)
-	cacheSnapshot.cache.cache.Delete(string(key1)) // evict a key table
+	require.NoError(t, cacheSnapshot.cache.Delete(key1, 1)) // evict a key table
 	cachedValue = snapshotv2.Get(key1)
 	assert.Equal(t, "value1", string(cachedValue), "snapshotv2 should get the value from cache")
 }

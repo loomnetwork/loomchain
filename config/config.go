@@ -682,7 +682,8 @@ BlockIndexStore:
 # Cashing store 
 #
 CachingStoreConfig: 
-  CachingEnabled: {{ .CachingStoreConfig.CachingEnabled }}
+  # 0 = disabled, 1 = bigCache, 2 = fastCache
+  CachingType: {{ .CachingStoreConfig.CachingType }}
   # Number of cache shards, value must be a power of two
   Shards: {{ .CachingStoreConfig.Shards }} 
   # Time after we need to evict the key

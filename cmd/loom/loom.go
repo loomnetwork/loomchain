@@ -671,8 +671,8 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled {
-		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
+	if cfg.CachingStoreConfig != nil {
+		appStore, err = store.NewVersionedCachingStore(appStore, *cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err
 		}
