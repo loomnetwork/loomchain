@@ -1752,12 +1752,17 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 		state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, distributedRewards)
 	}
 
+	plasma0, _ := loom.ParseAddress("default:0x0e99fc16e32e568971908f2ce54b967a42663a26")
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
 	for validator := range newDelegationTotals {
-		delegationResults = append(delegationResults, &DelegationResult{
+		dr := &DelegationResult{
 			ValidatorAddress: loom.MustParseAddress(validator),
 			DelegationTotal:  *newDelegationTotals[validator],
-		})
+		}
+		delegationResults = append(delegationResults, dr)
+		if dr.ValidatorAddress.Compare(plasma0) == 0 {
+			ctx.Logger().Info("plasma-0 delegation result", "total", dr.DelegationTotal.String())
+		}
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
 
