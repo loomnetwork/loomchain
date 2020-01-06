@@ -495,8 +495,6 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 	totalDelegationAmount := common.BigZero()
 	var consolidatedDelegations []*Delegation
 	for _, delegation := range delegations {
-		fmt.Printf("consolidate delegation : %+v\n", delegation)
-		fmt.Println(uint64(ctx.Now().Unix()))
 		if delegation.LockTime > uint64(ctx.Now().Unix()) || delegation.State != BONDED {
 			unconsolidatedDelegationsCount++
 			continue
@@ -529,7 +527,6 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return nil, nil, -1, err
 	}
-	fmt.Println("unconsolidatedDelegationCount,", unconsolidatedDelegationsCount)
 	return delegation, consolidatedDelegations, unconsolidatedDelegationsCount, nil
 }
 
