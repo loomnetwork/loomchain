@@ -569,26 +569,31 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 /// and returns the total amount which will be available to the
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
 	delegator := ctx.Message().Sender
-	candidates, err := LoadCandidateList(ctx)
+	delegations, err := loadDelegationList(ctx)
 	if err != nil {
-		return nil, logStaticDposError(ctx, err, req.String())
+		return nil, err
 	}
-
 	total := big.NewInt(0)
-	chainID := ctx.Block().ChainID
 	var claimedFromValidators []*types.Address
 	var amounts []*types.BigUInt
-	for _, cd := range candidates {
-		candAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(cd.PubKey)}
-		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *candAddress.MarshalPB(), *delegator.MarshalPB())
+	for _, d := range delegations {
+		if loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *d.Validator, *d.Delegator)
+
 		if err == contract.ErrNotFound {
-			// Skip reward delegations that were not found.
 			continue
 		} else if err != nil {
 			return nil, err
 		}
 
-		claimedFromValidators = append(claimedFromValidators, candAddress.MarshalPB())
+		if delegation.State != BONDED {
+			continue
+		}
+
+		claimedFromValidators = append(claimedFromValidators, d.Validator)
 		amounts = append(amounts, delegation.Amount)
 
 		// Set to UNBONDING and UpdateAmount == Amount, to fully unbond it.
