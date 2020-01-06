@@ -596,16 +596,10 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 		claimedFromValidators = append(claimedFromValidators, d.Validator)
 		amounts = append(amounts, delegation.Amount)
 
-		// Set to UNBONDING and UpdateAmount == Amount, to fully unbond it.
-		delegation.State = UNBONDING
-		delegation.UpdateAmount = delegation.Amount
-
-		if err := SetDelegation(ctx, delegation); err != nil {
-			return nil, err
-		}
-
-		err = c.emitDelegatorUnbondsEvent(ctx, delegation)
-		if err != nil {
+		if err = c.Unbond(ctx, &dtypes.UnbondRequest{ValidatorAddress: d.Validator,
+			Amount: delegation.Amount,
+			Index:  delegation.Index,
+		}); err != nil {
 			return nil, err
 		}
 
