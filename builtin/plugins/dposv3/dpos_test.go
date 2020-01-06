@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -1374,14 +1373,11 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	counter := 0
 	// Do a bunch of elections that correspond to 1/12th of a year
 	for i := int64(0); i < yearSeconds/12; i = i + cycleLengthSeconds {
 		require.NoError(t, elect(pctx, dpos.Address))
 		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
-		counter++
 	}
-	fmt.Println(counter)
 
 	candidates, err := dpos.ListCandidates(pctx)
 	require.Nil(t, err)
