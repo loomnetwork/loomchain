@@ -1394,10 +1394,8 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 3, len(validators))
 
-	for i := int64(0); i < 1; i++ {
-		require.NoError(t, elect(pctx, dpos.Address))
-		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
-	}
+	require.NoError(t, elect(pctx, dpos.Address))
+	pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
 
 	rewardFromAddr1Before, err := dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress1), &addr1)
 	require.NoError(t, err)
@@ -1408,10 +1406,9 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	require.True(t, rewardFromAddr2.Amount.Value.Cmp(&rewardFromAddr3.Amount.Value) == 0)
 	require.True(t, rewardFromAddr2.Amount.Value.Cmp(&rewardFromAddr1Before.Amount.Value) == 0)
 
-	for i := int64(0); i < 1; i++ {
-		require.NoError(t, elect(pctx, dpos.Address))
-		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
-	}
+	require.NoError(t, elect(pctx, dpos.Address))
+	pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
+
 	candidates, err = dpos.ListCandidates(pctx)
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(candidates))
