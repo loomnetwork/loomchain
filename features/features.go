@@ -49,7 +49,7 @@ const (
 	DPOSVersion3_4 = "dpos:v3.4"
 	// Fixes prefixing of referrer keys so that ListReferrers method works
 	DPOSVersion3_5 = "dpos:v3.5"
-	// Fixes ClaimRewardsFromAllValidatos to also claim reward from offline validator
+	// Fixes ClaimRewardsFromAllValidators to also claim reward from offline validator
 	DPOSVersion3_6 = "dpos:v3.6"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake

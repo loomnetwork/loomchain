@@ -1463,8 +1463,8 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 		&rewardFromAddr1.Amount.Value, &rewardFromAddr3.Amount.Value)
 
 	require.True(t, totalReward.Cmp(&common.BigUInt{claimedAmt}) == 0)
-	balBeforeAddTotal := balanceBeforeUnbond.Balance.Value.Add(&balanceBeforeUnbond.Balance.Value, totalReward)
-	assert.True(t, balBeforeAddTotal.Cmp(&balanceBeforeUnbond.Balance.Value) == 0)
+	balBeforeUnbondAddTotal := balanceBeforeUnbond.Balance.Value.Add(&balanceBeforeUnbond.Balance.Value, totalReward)
+	assert.True(t, balBeforeUnbondAddTotal.Cmp(&balanceAfterUnbond.Balance.Value) == 0)
 
 }
 
