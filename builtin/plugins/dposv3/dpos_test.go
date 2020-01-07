@@ -1299,6 +1299,8 @@ func TestClaimRewardsFromMultipleValidators(t *testing.T) {
 	assert.True(t, amt.Cmp(big.NewInt(1e18*0.5/1000*3.01)) < 0)
 }
 
+// This test supposed to check that ClaimRewardsFromAllValidators be able to claim
+// rewards from the former validator correctly.
 func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	// Init the coin balances
 	pctx := createCtx()
@@ -1361,7 +1363,7 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	// A user delegates to all validators.
 	// Delegator makes 3 delegations of the same amount to the 3 candidates
 	delegationAmount := loom.BigUInt{big.NewInt(1e18)}
-	tier := uint64(1)
+	tier := uint64(2)
 	for _, addr := range addrs {
 		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 			Spender: dpos.Address.MarshalPB(),
@@ -1399,12 +1401,15 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 
 	rewardFromAddr1Before, err := dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress1), &addr1)
 	require.NoError(t, err)
+	require.True(t, rewardFromAddr1Before.Amount.Value.Cmp(common.BigZero()) > 0)
+
 	rewardFromAddr2, err := dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress1), &addr2)
+	require.True(t, rewardFromAddr2.Amount.Value.Cmp(&rewardFromAddr1Before.Amount.Value) == 0)
 	require.NoError(t, err)
+
 	rewardFromAddr3, err := dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress1), &addr3)
 	require.NoError(t, err)
 	require.True(t, rewardFromAddr2.Amount.Value.Cmp(&rewardFromAddr3.Amount.Value) == 0)
-	require.True(t, rewardFromAddr2.Amount.Value.Cmp(&rewardFromAddr1Before.Amount.Value) == 0)
 
 	require.NoError(t, elect(pctx, dpos.Address))
 	pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
@@ -1417,10 +1422,12 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(validators))
 
+	// Check that delegation reward after addr1 Unregistered from candidate list remain the same.
 	rewardFromAddr1, err := dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress1), &addr1)
 	require.NoError(t, err)
 	require.True(t, rewardFromAddr1.Amount.Value.Cmp(&rewardFromAddr1Before.Amount.Value) == 0)
 
+	// And delegation reward from addr2 & addr3 still increasing.
 	rewardFromAddr2, err = dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress1), &addr2)
 	require.NoError(t, err)
 	rewardFromAddr3, err = dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress1), &addr3)
@@ -1428,9 +1435,11 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	require.True(t, rewardFromAddr2.Amount.Value.Cmp(&rewardFromAddr3.Amount.Value) == 0)
 	require.True(t, rewardFromAddr2.Amount.Value.Cmp(&rewardFromAddr1.Amount.Value) > 0)
 
+	pctx.SetFeature(features.DPOSVersion3_6, true)
+	require.True(t, pctx.FeatureEnabled(features.DPOSVersion3_6, false))
 	// User claims the rewards they expected with 1 call.
 	// They are also able to get the amount that was claimed in the same call
-	amt, err := dpos.ClaimDelegatorRewards(pctx.WithSender(delegatorAddress1))
+	claimedAmt, err := dpos.ClaimDelegatorRewards(pctx.WithSender(delegatorAddress1))
 
 	balanceBeforeUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
 		Owner: delegatorAddress1.MarshalPB(),
@@ -1450,12 +1459,13 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	assert.True(t, balanceAfterUnbond.Balance.Value.Cmp(&balanceBeforeUnbond.Balance.Value) > 0)
 	require.NoError(t, err)
 
-	totalAmt := rewardFromAddr1.Amount.Value.Add(&rewardFromAddr1.Amount.Value, &rewardFromAddr2.Amount.Value).Add(
+	totalReward := rewardFromAddr1.Amount.Value.Add(&rewardFromAddr1.Amount.Value, &rewardFromAddr2.Amount.Value).Add(
 		&rewardFromAddr1.Amount.Value, &rewardFromAddr3.Amount.Value)
 
-	require.True(t, totalAmt.Cmp(&common.BigUInt{amt}) == 0)
-	balAfterSubTotal := balanceAfterUnbond.Balance.Value.Sub(&balanceAfterUnbond.Balance.Value, totalAmt)
-	assert.True(t, balAfterSubTotal.Cmp(&balanceBeforeUnbond.Balance.Value) == 0)
+	require.True(t, totalReward.Cmp(&common.BigUInt{claimedAmt}) == 0)
+	balBeforeAddTotal := balanceBeforeUnbond.Balance.Value.Add(&balanceBeforeUnbond.Balance.Value, totalReward)
+	assert.True(t, balBeforeAddTotal.Cmp(&balanceBeforeUnbond.Balance.Value) == 0)
+
 }
 
 func TestValidatorRewards(t *testing.T) {

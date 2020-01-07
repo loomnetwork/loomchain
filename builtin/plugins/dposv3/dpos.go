@@ -567,38 +567,99 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 /// This unbonds the full amount of the rewards delegation from all validators
 /// and returns the total amount which will be available to the
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
+	if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
+		return c.claimRewardsFromAllValidators2(ctx, req)
+	}
+
+	delegator := ctx.Message().Sender
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	total := big.NewInt(0)
+	chainID := ctx.Block().ChainID
+	var claimedFromValidators []*types.Address
+	var amounts []*types.BigUInt
+	for _, v := range validators {
+		valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
+		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator.MarshalPB())
+		if err == contract.ErrNotFound {
+			// Skip reward delegations that were not found.
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		claimedFromValidators = append(claimedFromValidators, valAddress.MarshalPB())
+		amounts = append(amounts, delegation.Amount)
+
+		// Set to UNBONDING and UpdateAmount == Amount, to fully unbond it.
+		delegation.State = UNBONDING
+		delegation.UpdateAmount = delegation.Amount
+
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return nil, err
+		}
+
+		err = c.emitDelegatorUnbondsEvent(ctx, delegation)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add to the sum
+		total.Add(total, delegation.Amount.Value.Int)
+	}
+
+	amount := &types.BigUInt{Value: *loom.NewBigUInt(total)}
+
+	err = c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), claimedFromValidators, amounts, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ClaimDelegatorRewardsResponse{
+		Amount: amount,
+	}, nil
+}
+
+func (c *DPOS) claimRewardsFromAllValidators2(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
 	delegator := ctx.Message().Sender
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to load delegations")
 	}
 	total := big.NewInt(0)
 	var claimedFromValidators []*types.Address
 	var amounts []*types.BigUInt
 	for _, d := range delegations {
-		if loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
+		if d.Index != REWARD_DELEGATION_INDEX {
 			continue
 		}
-
-		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *d.Validator, *d.Delegator)
-
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *delegator.MarshalPB())
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
 			return nil, err
 		}
 
-		if delegation.State != BONDED {
+		if delegation.State == UNBONDING && delegation.UpdateAmount.Value.Cmp(&delegation.Amount.Value) == 0 {
 			continue
 		}
 
 		claimedFromValidators = append(claimedFromValidators, d.Validator)
 		amounts = append(amounts, delegation.Amount)
 
-		if err = c.Unbond(ctx, &dtypes.UnbondRequest{ValidatorAddress: d.Validator,
-			Amount: delegation.Amount,
-			Index:  delegation.Index,
-		}); err != nil {
+		// Set to UNBONDING and UpdateAmount == Amount, to fully unbond it.
+		delegation.State = UNBONDING
+		delegation.UpdateAmount = delegation.Amount
+
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return nil, err
+		}
+
+		err = c.emitDelegatorUnbondsEvent(ctx, delegation)
+		if err != nil {
 			return nil, err
 		}
 
