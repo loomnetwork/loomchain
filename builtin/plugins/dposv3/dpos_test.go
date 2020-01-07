@@ -1426,11 +1426,29 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	require.True(t, pctx.FeatureEnabled(features.DPOSVersion3_6, false))
 	// User claims the rewards they expected with 1 call.
 	// They are also able to get the amount that was claimed in the same call
-	_, err = dpos.ClaimDelegatorRewards(pctx.WithSender(delegatorAddress1))
+	claimedAmt, err := dpos.ClaimDelegatorRewards(pctx.WithSender(delegatorAddress1))
 	require.NoError(t, err)
+	require.True(t, claimedAmt.Cmp(common.BigZero().Int) > 0)
+
+	balanceBeforeUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
 
 	// execute elections to make funds available in the acc balance
 	require.NoError(t, elect(pctx, dpos.Address))
+
+	balanceAfterUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// balance must increase after delegations unbond
+	assert.True(t, balanceAfterUnbond.Balance.Value.Cmp(&balanceBeforeUnbond.Balance.Value) > 0)
+	require.NoError(t, err)
+
+	balanceDiff := balanceAfterUnbond.Balance.Value.Sub(&balanceAfterUnbond.Balance.Value, &balanceBeforeUnbond.Balance.Value)
+	require.True(t, balanceDiff.Cmp(&common.BigUInt{claimedAmt}) == 0)
 
 	delegationsWithAddr1, amount, _, err = dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr1, &delegatorAddress1)
 	require.NoError(t, err)
