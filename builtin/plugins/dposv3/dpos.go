@@ -639,14 +639,14 @@ func (c *DPOS) claimRewardsFromAllValidators2(ctx contract.Context, req *ClaimDe
 
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *delegator.MarshalPB())
 		if err == contract.ErrNotFound {
-			ctx.Logger().Error("DPOS error", "error", err, "sender", ctx.Message().Sender, "req", req)
+			ctx.Logger().Error("DPOS ClaimRewardsFromAllValidators", "error", err, "delegator", delegator, "req", req)
 			continue
 		} else if err != nil {
 			return nil, errors.Wrap(err, "failed to load delegation")
 		}
 
 		if (delegation.State == UNBONDING && delegation.UpdateAmount.Value.Cmp(&delegation.Amount.Value) == 0) ||
-			delegation.Amount.Value.Cmp(common.BigZero()) == 0 {
+			delegation.Amount.Value.Sign() == 0 {
 			continue
 		}
 

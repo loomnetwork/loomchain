@@ -1428,7 +1428,7 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	// They are also able to get the amount that was claimed in the same call
 	claimedAmt, err := dpos.ClaimDelegatorRewards(pctx.WithSender(delegatorAddress1))
 	require.NoError(t, err)
-	require.True(t, claimedAmt.Cmp(common.BigZero().Int) > 0)
+	require.True(t, claimedAmt.Sign() > 0)
 
 	balanceBeforeUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
 		Owner: delegatorAddress1.MarshalPB(),
