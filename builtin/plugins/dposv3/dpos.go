@@ -537,40 +537,7 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 		return nil, logStaticDposError(ctx, errors.New("CheckRewardsFromAllValidators called with req.Delegator == nil"), req.String())
 	}
 
-	if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
-		return c.checkRewardsFromAllValidators2(ctx, req)
-	}
-
-	delegator := req.Delegator
-	validators, err := ValidatorList(ctx)
-	if err != nil {
-		return nil, logStaticDposError(ctx, err, req.String())
-	}
-
-	total := big.NewInt(0)
-	chainID := ctx.Block().ChainID
-	for _, v := range validators {
-		valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
-		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator)
-		if err == contract.ErrNotFound {
-			// Skip reward delegations that were not found.
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-
-		// Add to the sum
-		total.Add(total, delegation.Amount.Value.Int)
-	}
-
-	amount := loom.NewBigUInt(total)
-	return &CheckDelegatorRewardsResponse{
-		Amount: &types.BigUInt{Value: *amount},
-	}, nil
-}
-
-func (c *DPOS) checkRewardsFromAllValidators2(ctx contract.StaticContext, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
-	delegator := req.Delegator
+	delegator := loom.UnmarshalAddressPB(req.Delegator)
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load delegations")
@@ -579,13 +546,13 @@ func (c *DPOS) checkRewardsFromAllValidators2(ctx contract.StaticContext, req *C
 	total := big.NewInt(0)
 	for _, d := range delegations {
 		if d.Index != REWARD_DELEGATION_INDEX ||
-			loom.UnmarshalAddressPB(d.Delegator).Compare(loom.UnmarshalAddressPB(delegator)) != 0 {
+			loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
 			continue
 		}
 
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
-			ctx.Logger().Error("DPOS CheckRewardsFromAllValidators", "error", err, "delegator", d.Delegator, "req", req)
+			ctx.Logger().Error("DPOS CheckRewardsFromAllValidators", "error", err, "delegator", delegator)
 			continue
 		} else if err != nil {
 			return nil, errors.Wrap(err, "failed to load delegation")
@@ -622,6 +589,7 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator.MarshalPB())
 		if err == contract.ErrNotFound {
 			// Skip reward delegations that were not found.
+			ctx.Logger().Error("DPOS ClaimRewardsFromAllValidators", "error", err, "delegator", delegator)
 			continue
 		} else if err != nil {
 			return nil, errors.Wrap(err, "failed to load delegation")
@@ -675,7 +643,7 @@ func (c *DPOS) claimRewardsFromAllValidators2(ctx contract.Context, req *ClaimDe
 
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *delegator.MarshalPB())
 		if err == contract.ErrNotFound {
-			ctx.Logger().Error("DPOS ClaimRewardsFromAllValidators", "error", err, "delegator", delegator, "req", req)
+			ctx.Logger().Error("DPOS ClaimRewardsFromAllValidators", "error", err, "delegator", delegator)
 			continue
 		} else if err != nil {
 			return nil, errors.Wrap(err, "failed to load delegation")
