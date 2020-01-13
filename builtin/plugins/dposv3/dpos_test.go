@@ -2,6 +2,7 @@ package dposv3
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -1424,6 +1425,10 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 
 	pctx.SetFeature(features.DPOSVersion3_6, true)
 	require.True(t, pctx.FeatureEnabled(features.DPOSVersion3_6, false))
+
+	delegateReward, err := dpos.CheckDelegatorRewards(pctx.WithSender(delegatorAddress1), &delegatorAddress1)
+	require.NoError(t, err)
+
 	// User claims the rewards they expected with 1 call.
 	// They are also able to get the amount that was claimed in the same call
 	claimedAmt, err := dpos.ClaimDelegatorRewards(pctx.WithSender(delegatorAddress1))
@@ -1448,7 +1453,11 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	require.NoError(t, err)
 
 	balanceDiff := balanceAfterUnbond.Balance.Value.Sub(&balanceAfterUnbond.Balance.Value, &balanceBeforeUnbond.Balance.Value)
+	fmt.Printf("BalanceDiff 	%+v \n", balanceDiff)
+	fmt.Printf("claimedAmt 	%+v \n", claimedAmt)
+	fmt.Printf("delegate reward %+v \n", delegateReward)
 	require.True(t, balanceDiff.Cmp(&common.BigUInt{claimedAmt}) == 0)
+	require.True(t, balanceDiff.Cmp(&common.BigUInt{delegateReward}) == 0)
 
 	delegationsWithAddr1, amount, _, err = dpos.CheckDelegation(pctx.WithSender(delegatorAddress1), &addr1, &delegatorAddress1)
 	require.NoError(t, err)
