@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -1453,9 +1452,6 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	require.NoError(t, err)
 
 	balanceDiff := balanceAfterUnbond.Balance.Value.Sub(&balanceAfterUnbond.Balance.Value, &balanceBeforeUnbond.Balance.Value)
-	fmt.Printf("BalanceDiff 	%+v \n", balanceDiff)
-	fmt.Printf("claimedAmt 	%+v \n", claimedAmt)
-	fmt.Printf("delegate reward %+v \n", delegateReward)
 	require.True(t, balanceDiff.Cmp(&common.BigUInt{claimedAmt}) == 0)
 	require.True(t, balanceDiff.Cmp(&common.BigUInt{delegateReward}) == 0)
 

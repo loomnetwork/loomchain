@@ -533,9 +533,14 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 /// Returns the total amount which will be available to the user's balance
 /// if they claim all rewards that are owed to them
 func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
+	if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
+		return c.checkRewardsFromAllValidators2(ctx, req)
+	}
+
 	if req.Delegator == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckRewardsFromAllValidators called with req.Delegator == nil"), req.String())
 	}
+
 	delegator := req.Delegator
 	validators, err := ValidatorList(ctx)
 	if err != nil {
@@ -555,6 +560,37 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 		}
 
 		// Add to the sum
+		total.Add(total, delegation.Amount.Value.Int)
+	}
+
+	amount := loom.NewBigUInt(total)
+	return &CheckDelegatorRewardsResponse{
+		Amount: &types.BigUInt{Value: *amount},
+	}, nil
+}
+
+func (c *DPOS) checkRewardsFromAllValidators2(ctx contract.StaticContext, req *CheckDelegatorRewardsRequest) (*CheckDelegatorRewardsResponse, error) {
+	delegator := req.Delegator
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load delegations")
+	}
+
+	total := big.NewInt(0)
+	for _, d := range delegations {
+		if d.Index != REWARD_DELEGATION_INDEX ||
+			loom.UnmarshalAddressPB(d.Delegator).Compare(loom.UnmarshalAddressPB(delegator)) != 0 {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			ctx.Logger().Error("DPOS CheckRewardsFromAllValidators", "error", err, "delegator", d.Delegator, "req", req)
+			continue
+		} else if err != nil {
+			return nil, errors.Wrap(err, "failed to load delegation")
+		}
+
 		total.Add(total, delegation.Amount.Value.Int)
 	}
 
