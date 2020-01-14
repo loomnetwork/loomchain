@@ -567,8 +567,9 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 	}, nil
 }
 
-/// This unbonds the full amount of the rewards delegation from all validators
-/// and returns the total amount which will be available to the
+/// ClaimRewardsFromAllValidators unbonds the full amount of the rewards delegation from all validators
+/// a delegator has delegated to, and returns the total amount which will be transferred to the
+/// delegator's account after the next election.
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
 	if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
 		return c.claimRewardsFromAllValidators2(ctx, req)
@@ -627,7 +628,9 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 	}, nil
 }
 
-func (c *DPOS) claimRewardsFromAllValidators2(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
+func (c *DPOS) claimRewardsFromAllValidators2(
+	ctx contract.Context, req *ClaimDelegatorRewardsRequest,
+) (*ClaimDelegatorRewardsResponse, error) {
 	delegator := ctx.Message().Sender
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
@@ -649,6 +652,8 @@ func (c *DPOS) claimRewardsFromAllValidators2(ctx contract.Context, req *ClaimDe
 			return nil, errors.Wrap(err, "failed to load delegation")
 		}
 
+		// There's no point unbonding the same delegation more than once during the same election
+		// cycle unless the delegator alters the amount they wish to unbond.
 		if (delegation.State == UNBONDING && delegation.UpdateAmount.Value.Cmp(&delegation.Amount.Value) == 0) ||
 			delegation.Amount.Value.Sign() == 0 {
 			continue
@@ -665,8 +670,7 @@ func (c *DPOS) claimRewardsFromAllValidators2(ctx contract.Context, req *ClaimDe
 			return nil, errors.Wrap(err, "failed to update delegation")
 		}
 
-		err = c.emitDelegatorUnbondsEvent(ctx, delegation)
-		if err != nil {
+		if err := c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {
 			return nil, err
 		}
 
@@ -676,9 +680,12 @@ func (c *DPOS) claimRewardsFromAllValidators2(ctx contract.Context, req *ClaimDe
 
 	amount := &types.BigUInt{Value: *loom.NewBigUInt(total)}
 
-	err = c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), claimedFromValidators, amounts, amount)
-	if err != nil {
-		return nil, err
+	// Don't bother emitting an event if the delegator won't get any rewards.
+	if total.Sign() != 0 {
+		err = c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), claimedFromValidators, amounts, amount)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ClaimDelegatorRewardsResponse{
