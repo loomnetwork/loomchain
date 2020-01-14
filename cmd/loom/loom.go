@@ -1045,6 +1045,8 @@ func loadApp(
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {
 			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+		} else if cfg.OverrideValidators.Height > 0 && cfg.OverrideValidators.Height == state.Block().Height {
+			return plugin.NewOverrideValidatorsManager(cfg.OverrideValidators.Height, cfg.OverrideValidators.Validators)
 		}
 
 		return plugin.NewNoopValidatorsManager(), nil
