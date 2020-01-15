@@ -140,7 +140,7 @@ func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStakedRespons
 	return
 }
 
-func (m InstrumentingMiddleware) DPOSState(height int64) (resp *dposv3.State, err error) {
+func (m InstrumentingMiddleware) DPOSState(height int64) (resp *DPOSStateResponse, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DposTotalStaked", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

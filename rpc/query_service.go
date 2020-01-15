@@ -66,7 +66,7 @@ type QueryService interface {
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
 	// DPOS RPC endpoints
 	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
-	DPOSState(height int64) (*dtypes.State, error)
+	DPOSState(height int64) (*DPOSStateResponse, error)
 	DPOSListAllDelegations(height int64) (*dtypes.ListAllDelegationsResponse, error)
 
 	// deprecated function

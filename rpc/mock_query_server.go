@@ -276,13 +276,13 @@ func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	return nil, nil
 }
 
-func (m *MockQueryService) DPOSState(height int64) (*dposv3.State, error) {
+func (m *MockQueryService) DPOSState(height int64) (*DPOSStateResponse, error) {
 	m.MethodsCalled = append([]string{"DPOSState"}, m.MethodsCalled...)
 	return nil, nil
 }
 
 func (m *MockQueryService) DPOSListAllDelegations(height int64) (*dposv3.ListAllDelegationsResponse, error) {
-	m.MethodsCalled = append([]string{"DPOSState"}, m.MethodsCalled...)
+	m.MethodsCalled = append([]string{"DPOSListAllDelegations"}, m.MethodsCalled...)
 	return nil, nil
 }
 

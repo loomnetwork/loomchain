@@ -641,7 +641,13 @@ func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	}, nil
 }
 
-func (s *QueryServer) DPOSState(height int64) (*dposv3.State, error) {
+type DPOSStateResponse struct {
+	ElectionCycleLength       int64  `json:"election_cycle_length,omitempty"`
+	LastElectionTime          int64  `json:"last_election_time,omitempty"`
+	TotalValidatorDelegations string `json:"total_validator_delegations,omitempty"`
+}
+
+func (s *QueryServer) DPOSState(height int64) (*DPOSStateResponse, error) {
 	var snapshot loomchain.State
 	var err error
 	if height > 0 {
@@ -662,7 +668,11 @@ func (s *QueryServer) DPOSState(height int64) (*dposv3.State, error) {
 	if err != nil {
 		return nil, err
 	}
-	return state, nil
+	return &DPOSStateResponse{
+		ElectionCycleLength:       state.Params.ElectionCycleLength,
+		LastElectionTime:          state.LastElectionTime,
+		TotalValidatorDelegations: state.TotalValidatorDelegations.String(),
+	}, nil
 }
 
 func (s *QueryServer) DPOSListAllDelegations(height int64) (*dposv3.ListAllDelegationsResponse, error) {
