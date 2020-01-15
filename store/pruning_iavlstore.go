@@ -2,7 +2,6 @@ package store
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 
@@ -10,10 +9,11 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	dbm "github.com/tendermint/tendermint/libs/db"
+
+	"github.com/loomnetwork/loomchain/log"
 )
 
 var (
@@ -178,10 +178,11 @@ func (s *PruningIAVLStore) Prune() error {
 }
 
 func (s *PruningIAVLStore) GetSnapshot() Snapshot {
-	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
-	return &pruningIAVLStoreSnapshot{
-		PruningIAVLStore: s,
-	}
+	return s.GetSnapshot()
+}
+
+func (s *PruningIAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	return s.store.GetSnapshotAt(version)
 }
 
 func (s *PruningIAVLStore) prune() error {
@@ -233,24 +234,6 @@ func (s *PruningIAVLStore) deleteVersion(ver int64) error {
 	return err
 }
 
-// runWithRecovery should run in a goroutine, it will ensure the given function keeps on running in
-// a goroutine as long as it doesn't panic due to a runtime error.
-//[MGC] I believe this function shouldn't be used as we should just fail fast if this breaks
-func (s *PruningIAVLStore) runWithRecovery(run func()) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.logger.Error("Recovered from panic in PruningIAVLStore goroutine", "r", r)
-			// Unless it's a runtime error restart the goroutine
-			if _, ok := r.(runtime.Error); !ok {
-				time.Sleep(30 * time.Second)
-				s.logger.Info("Restarting PruningIAVLStore goroutine...\n")
-				go s.runWithRecovery(run)
-			}
-		}
-	}()
-	run()
-}
-
 // loopWithInterval will execute the step function in an endless loop, sleeping for the specified
 // interval at the end of each loop iteration.
 func (s *PruningIAVLStore) loopWithInterval(step func() error, interval time.Duration) {
@@ -260,12 +243,4 @@ func (s *PruningIAVLStore) loopWithInterval(step func() error, interval time.Dur
 		}
 		time.Sleep(interval)
 	}
-}
-
-type pruningIAVLStoreSnapshot struct {
-	*PruningIAVLStore
-}
-
-func (s *pruningIAVLStoreSnapshot) Release() {
-	// noop
 }

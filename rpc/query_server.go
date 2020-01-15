@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/tendermint/tendermint/crypto/tmhash"
 
 	"github.com/gogo/protobuf/proto"
 	gtypes "github.com/loomnetwork/go-loom/types"
@@ -41,6 +42,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry"
 	registryFac "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
@@ -62,6 +64,7 @@ const (
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
+	ReplayApplication(uint64, store.BlockStore) (*loomchain.Application, int64, error)
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -278,7 +281,7 @@ func (s *QueryServer) queryEvm(state loomchain.State, caller, contract loom.Addr
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(state, nil, nil, createABM, false)
+	vm := levm.NewLoomVm(state, nil, createABM)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
@@ -323,7 +326,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	vm := levm.NewLoomVm(snapshot, nil, nil)
 	return vm.GetCode(contractAddr)
 }
 
@@ -337,7 +340,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	evm := levm.NewLoomVm(snapshot, nil, nil)
 	code, err := evm.GetCode(addr)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting evm code for %v", address)
@@ -1143,7 +1146,7 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 		return "", errors.Wrapf(err, "unable to get storage at height %v", block)
 	}
 
-	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false)
+	evm := levm.NewLoomVm(snapshot, nil, nil)
 	storage, err := evm.GetStorageAt(address, ethcommon.HexToHash(position).Bytes())
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get EVM storage at %v", address.Local.String())
@@ -1168,6 +1171,80 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 
 func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
+}
+
+// https://github.com/ethereum/go-ethereum/wiki/Management-APIs#debug_tracetransaction
+func (s *QueryServer) DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error) {
+	receipt, err := s.EthGetTransactionReceipt(hash)
+	if err != nil || receipt == nil {
+		return nil, errors.Wrap(err, "cant find transaction matching hash")
+	}
+	blockNumber, err := eth.DecQuantityToUint(receipt.BlockNumber)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cant parse block number %v", receipt.BlockNumber)
+	}
+	txIndex, err := eth.DecQuantityToUint(receipt.TransactionIndex)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cant parse transaction index %v", receipt.TransactionIndex)
+	}
+	cfg := debug.DecTraceConfig(config)
+	replayApp, startBlockNumber, err := s.ReplayApplication(blockNumber, s.BlockStore)
+	if err != nil {
+		return nil, err
+	}
+	return debug.TraceTransaction(
+		*replayApp,
+		s.BlockStore,
+		startBlockNumber,
+		int64(blockNumber),
+		int64(txIndex),
+		cfg,
+	)
+}
+
+// https://github.com/ethereum/retesteth/wiki/RPC-Methods#debug_storagerangeat
+func (s QueryServer) DebugStorageRangeAt(
+	blockHashOrNumber string, txIndex int, address, begin string, maxResults int,
+) (resp debug.JsonStorageRangeResult, err error) {
+	if len(address) >= 2 && address[:2] != "0x" {
+		address = "0x" + address
+	}
+	local, err := loom.LocalAddressFromHexString(address)
+	if err != nil {
+		return debug.JsonStorageRangeResult{}, err
+	}
+
+	var blockNumber uint64
+	if len(blockHashOrNumber) >= tmhash.Size {
+		if blockHashOrNumber[:2] == "0x" {
+			blockHashOrNumber = blockHashOrNumber[2:]
+		}
+		hash, err := hex.DecodeString(blockHashOrNumber)
+		if err != nil {
+			return debug.JsonStorageRangeResult{}, err
+		}
+		blockNumber, err = s.getBlockHeightFromHash(hash)
+	} else {
+		blockNumber, err = strconv.ParseUint(blockHashOrNumber, 0, 64)
+	}
+	if err != nil {
+		return debug.JsonStorageRangeResult{}, err
+	}
+
+	replayApp, startBlockNumber, err := s.ReplayApplication(blockNumber, s.BlockStore)
+	if err != nil {
+		return debug.JsonStorageRangeResult{}, err
+	}
+	return debug.StorageRangeAt(
+		*replayApp,
+		s.BlockStore,
+		local,
+		nil,
+		startBlockNumber,
+		int64(blockNumber),
+		int64(txIndex),
+		maxResults,
+	)
 }
 
 func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {

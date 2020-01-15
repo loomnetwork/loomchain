@@ -59,6 +59,14 @@ func (m *MockStore) Prune() error {
 }
 
 func (m *MockStore) GetSnapshot() Snapshot {
+	snapshot, err := m.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (m *MockStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	snapshotStore := make(map[string][]byte)
 	for k, v := range m.storage {
 		snapshotStore[k] = v
@@ -68,7 +76,7 @@ func (m *MockStore) GetSnapshot() Snapshot {
 	}
 	return &mockStoreSnapshot{
 		MockStore: mstore,
-	}
+	}, nil
 }
 
 type mockStoreSnapshot struct {

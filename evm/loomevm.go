@@ -27,8 +27,8 @@ import (
 )
 
 var (
-	vmPrefix = []byte("vm")
-	rootKey  = []byte("vmroot")
+	VmPrefix = []byte("vm")
+	RootKey  = []byte("vmroot")
 )
 
 type StateDB interface {
@@ -44,21 +44,23 @@ type ethdbLogContext struct {
 	callerAddr   loom.Address
 }
 
-// TODO: this doesn't need to be exported, rename to loomEvmWithState
-type LoomEvm struct {
-	*Evm
+type loomEvmWithState struct {
+	*wrappedEVM
 	db  ethdb.Database
 	sdb StateDB
 }
 
-// TODO: this doesn't need to be exported, rename to newLoomEvmWithState
+// NewLoomEvm is exported to db.newDumpEVMStateMultiWriterAppStoreCommand.
+// TODO: this doesn't need to be exported, rename to newLoomEvmWithState.
 func NewLoomEvm(
-	loomState loomchain.State, accountBalanceManager AccountBalanceManager,
-	logContext *ethdbLogContext, debug bool,
-) (*LoomEvm, error) {
-	p := new(LoomEvm)
+	loomState loomchain.State,
+	accountBalanceManager AccountBalanceManager,
+	logContext *ethdbLogContext,
+	tracer ethvm.Tracer,
+) (*loomEvmWithState, error) {
+	p := new(loomEvmWithState)
 	p.db = NewLoomEthdb(loomState, logContext)
-	oldRoot, err := p.db.Get(rootKey)
+	oldRoot, err := p.db.Get(RootKey)
 	if err != nil {
 		return nil, err
 	}
@@ -74,11 +76,14 @@ func NewLoomEvm(
 		return nil, err
 	}
 
-	p.Evm = NewEvm(p.sdb, loomState, abm, debug)
+	p.wrappedEVM, err = NewEvm(p.sdb, loomState, abm, tracer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create EVM")
+	}
 	return p, nil
 }
 
-func (levm LoomEvm) Commit() (common.Hash, error) {
+func (levm loomEvmWithState) Commit() (common.Hash, error) {
 	root, err := levm.sdb.Commit(true)
 	if err != nil {
 		return root, err
@@ -86,13 +91,13 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	if err := levm.sdb.Database().TrieDB().Commit(root, false); err != nil {
 		return root, err
 	}
-	if err := levm.db.Put(rootKey, root[:]); err != nil {
+	if err := levm.db.Put(RootKey, root[:]); err != nil {
 		return root, err
 	}
 	return root, err
 }
 
-func (levm LoomEvm) RawDump() []byte {
+func (levm loomEvmWithState) RawDump() []byte {
 	d := levm.sdb.RawDump()
 	output, err := json.MarshalIndent(d, "", "  ")
 	if err != nil {
@@ -102,8 +107,6 @@ func (levm LoomEvm) RawDump() []byte {
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	//TODO , debug bool, We should be able to pass in config
-	debug := false
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
 	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
 		eventHandler,
@@ -111,47 +114,48 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 		nil,
 	)
 	receiptHandler := receiptHandlerProvider.Writer()
-	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
+	return NewLoomVm(state, receiptHandler, nil), nil
 }
 
-// LoomVm implements the loomchain/vm.VM interface using the EVM.
-// TODO: rename to LoomEVM
-type LoomVm struct {
+// LoomEVM implements the loomchain/vm.VM interface using the EVM.
+type LoomEvm struct {
 	state          loomchain.State
 	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
-	debug          bool
+	tracer         ethvm.Tracer
 }
 
 func NewLoomVm(
 	loomState loomchain.State,
-	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
-	debug bool,
-) vm.VM {
-	return &LoomVm{
+) *LoomEvm {
+	return &LoomEvm{
 		state:          loomState,
 		receiptHandler: receiptHandler,
 		createABM:      createABM,
-		debug:          debug,
 	}
 }
 
-func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
+func (lvm LoomEvm) WithTracer(tracer ethvm.Tracer) LoomEvm {
+	lvm.tracer = tracer
+	return lvm
+}
+
+func (lvm LoomEvm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 	if lvm.createABM == nil {
 		return nil
 	}
 	return lvm.createABM(readOnly)
 }
 
-func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+func (lvm LoomEvm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	logContext := &ethdbLogContext{
 		blockHeight:  lvm.state.Block().Height,
 		contractAddr: loom.Address{},
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.tracer)
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
@@ -208,13 +212,13 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	return response, addr, err
 }
 
-func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+func (lvm LoomEvm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	logContext := &ethdbLogContext{
 		blockHeight:  lvm.state.Block().Height,
 		contractAddr: addr,
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}
@@ -261,24 +265,24 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	return txHash, err
 }
 
-func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(true), nil, lvm.debug)
+func (lvm LoomEvm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(true), nil, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}
 	return levm.StaticCall(caller, addr, input)
 }
 
-func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug)
+func (lvm LoomEvm) GetCode(addr loom.Address) ([]byte, error) {
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}
 	return levm.GetCode(addr), nil
 }
 
-func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug)
+func (lvm LoomEvm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.tracer)
 	if err != nil {
 		return nil, err
 	}

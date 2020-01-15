@@ -29,9 +29,8 @@ var (
 )
 
 const (
-	deployId    = uint32(1)
-	callId      = uint32(2)
-	migrationTx = uint32(3)
+	deployId = uint32(1)
+	callId   = uint32(2)
 )
 
 func TestLogPoll(t *testing.T) {
@@ -248,7 +247,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.LegacyPoll(state40, id, receiptHandler)
+	_, err = sub.LegacyPoll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -360,6 +359,7 @@ func TestAddRemove(t *testing.T) {
 		Topics:    nil,
 	}
 	myFilter, err := eth.DecLogFilter(jsonFilter)
+	require.NoError(t, err)
 	id, err := s.AddLogPoll(myFilter, 1)
 	require.NoError(t, err)
 	_, ok := s.polls[id]
@@ -407,6 +407,6 @@ func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, d
 	signedTx, err := proto.Marshal(&auth.SignedTx{
 		Inner: nonceTx,
 	})
-
+	require.NoError(t, err)
 	return signedTx
 }

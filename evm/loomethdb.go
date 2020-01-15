@@ -30,7 +30,7 @@ type LoomEthdb struct {
 
 func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
 	p := new(LoomEthdb)
-	p.state = store.PrefixKVStore(vmPrefix, _state)
+	p.state = store.PrefixKVStore(VmPrefix, _state)
 	p.logContext = logContext
 	return p
 }

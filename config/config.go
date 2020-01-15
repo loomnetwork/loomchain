@@ -11,9 +11,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -23,10 +27,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-
-	"github.com/loomnetwork/loomchain/db"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
@@ -145,7 +145,7 @@ type Config struct {
 	AllowNamedEvmContracts bool
 
 	// Dragons
-	EVMDebugEnabled bool
+	EVMTracer *EVMTracerConfig
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
 
@@ -181,6 +181,21 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 	return &FnConsensusConfig{
 		Enabled: false,
 		Reactor: fnConsensus.DefaultReactorConfigParsable(),
+	}
+}
+
+type EVMTracerConfig struct {
+	Enabled        bool   // enable tracer
+	Tracer         string // enable JavaScript-based transaction tracing
+	DisableMemory  bool   // disable memory capture
+	DisableStack   bool   // disable stack capture
+	DisableStorage bool   // disable storage capture
+	Limit          int    // maximum length of output, but zero means unlimited
+}
+
+func DefaultEvmTraceConfig() *EVMTracerConfig {
+	return &EVMTracerConfig{
+		Enabled: false,
 	}
 }
 
@@ -431,7 +446,6 @@ func DefaultConfig() *Config {
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
-		EVMDebugEnabled:            false,
 		SampleGoContractEnabled:    false,
 
 		Oracle:                 "",
@@ -466,6 +480,7 @@ func DefaultConfig() *Config {
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.EvmStore = evm.DefaultEvmStoreConfig()
 	cfg.Web3 = eth.DefaultWeb3Config()
+	cfg.EVMTracer = DefaultEvmTraceConfig()
 	cfg.Geth = DefaultGethConfig()
 	cfg.DPOS = DefaultDPOSConfig()
 
@@ -849,7 +864,15 @@ DPOS:
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
-EVMDebugEnabled: {{ .EVMDebugEnabled }}
+{{- if .EVMTracer }}
+EVMTracer: 
+  Enabled: {{ .EVMTracer.Enabled }}
+  Tracer: "{{ .EVMTracer.Tracer }}" 
+  DisableMemory: {{ .EVMTracer.DisableMemory }} 
+  DisableStack: {{ .EVMTracer.DisableStack }} 
+  DisableStorage: {{ .EVMTracer.DisableStorage }} 
+  Limit: {{ .EVMTracer.Limit }} 
+{{- end}}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}

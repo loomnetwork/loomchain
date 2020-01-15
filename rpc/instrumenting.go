@@ -7,10 +7,12 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
-	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -581,5 +583,31 @@ func (m InstrumentingMiddleware) EthGetTransactionCount(
 	}(time.Now())
 
 	resp, err = m.next.EthGetTransactionCount(local, block)
+	return
+}
+
+func (m InstrumentingMiddleware) DebugTraceTransaction(
+	hash eth.Data, config *debug.JsonTraceConfig,
+) (resp interface{}, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DebugTraceTransaction", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.DebugTraceTransaction(hash, config)
+	return
+}
+
+func (m InstrumentingMiddleware) DebugStorageRangeAt(
+	blockHashOrNumber string, txIndex int, address, begin string, maxResults int,
+) (resp debug.JsonStorageRangeResult, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DebugTraceTransaction", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.DebugStorageRangeAt(blockHashOrNumber, txIndex, address, begin, maxResults)
 	return
 }

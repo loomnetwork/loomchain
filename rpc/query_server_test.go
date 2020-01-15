@@ -101,6 +101,10 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 	)
 }
 
+func (s *stateProvider) ReplayApplication(uint64, store.BlockStore) (*loomchain.Application, int64, error) {
+	return nil, 0, fmt.Errorf("Not implemented")
+}
+
 var testlog llog.TMLogger
 
 func TestQueryServer(t *testing.T) {

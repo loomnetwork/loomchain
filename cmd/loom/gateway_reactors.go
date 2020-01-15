@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	GatewayName        = "gateway"
-	LoomGatewayName    = "loomcoin-gateway"
-	BinanceGatewayName = "binance-gateway"
-	TronGatewayName    = "tron-gateway"
+	GatewayName     = "gateway"
+	LoomGatewayName = "loomcoin-gateway"
+	TronGatewayName = "tron-gateway"
 )
 
 func startGatewayReactors(

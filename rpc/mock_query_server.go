@@ -4,11 +4,11 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
-	"github.com/loomnetwork/go-loom/plugin/types"
-
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/rpc/debug"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -372,4 +372,20 @@ func (m *MockQueryService) EvmUnSubscribe(id string) (bool, error) {
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"EvmUnSubscribe"}, m.MethodsCalled...)
 	return true, nil
+}
+
+func (m *MockQueryService) DebugTraceTransaction(hash eth.Data, config *debug.JsonTraceConfig) (interface{}, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"DebugTraceTransaction"}, m.MethodsCalled...)
+	return nil, nil
+}
+
+func (m MockQueryService) DebugStorageRangeAt(
+	blockHashOrNumber string, txIndex int, address, begin string, maxResults int,
+) (resp debug.JsonStorageRangeResult, err error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"DebugTraceTransaction"}, m.MethodsCalled...)
+	return debug.JsonStorageRangeResult{}, nil
 }

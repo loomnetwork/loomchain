@@ -83,6 +83,14 @@ DPOSv2OracleConfig:
   #  ReadURI: "tcp://0.0.0.1"
   #  PrivateKeyPath: "tcp://0.0.0.2"
 
+EVMTracer:
+  Enabled: true
+  Tracer: ""
+  DisableMemory: true
+  DisableStack: false
+  DisableStorage: true
+  Limit: 1000
+
 EventDispatcher:
   Dispatcher: log
 

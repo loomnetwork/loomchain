@@ -15,13 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/loomnetwork/go-loom"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/features"
-	"github.com/loomnetwork/loomchain/log"
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
@@ -137,8 +136,7 @@ func (m *evmAccountBalanceManager) Transfer(from, to common.Address, amount *big
 	m.abm.Transfer(fromAddr, toAddr, loom.NewBigUInt(amount))
 }
 
-// TODO: this shouldn't be exported, rename to wrappedEVM
-type Evm struct {
+type wrappedEVM struct {
 	sdb             vm.StateDB
 	context         vm.Context
 	chainConfig     params.ChainConfig
@@ -147,8 +145,10 @@ type Evm struct {
 	gasLimit        uint64
 }
 
-func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
-	p := new(Evm)
+func NewEvm(
+	sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, tracer vm.Tracer,
+) (*wrappedEVM, error) {
+	p := new(wrappedEVM)
 	p.sdb = sdb
 	p.gasLimit = lstate.Config().GetEvm().GetGasLimit()
 	if p.gasLimit == 0 {
@@ -157,7 +157,11 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 
 	p.chainConfig = defaultChainConfig(lstate.FeatureEnabled(features.EvmConstantinopleFeature, false))
 
-	p.vmConfig = defaultVmConfig(debug)
+	var err error
+	p.vmConfig, err = createVmConfig(tracer)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating vm.Config")
+	}
 	p.validateTxValue = lstate.FeatureEnabled(features.CheckTxValueFeature, false)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
@@ -180,10 +184,10 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 			abm.Transfer(from, to, amount)
 		}
 	}
-	return p
+	return p, nil
 }
 
-func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+func (e wrappedEVM) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -194,7 +198,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 
 	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
-	vmenv := e.NewEnv(origin)
+	vmenv := e.newEnv(origin)
 
 	var val *big.Int
 	if value == nil {
@@ -215,7 +219,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 	return runCode, loomAddress, err
 }
 
-func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+func (e wrappedEVM) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -227,7 +231,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := e.NewEnv(origin)
+	vmenv := e.newEnv(origin)
 
 	var val *big.Int
 	if value == nil {
@@ -247,25 +251,24 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 	return ret, err
 }
 
-func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (e wrappedEVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := e.NewEnv(origin)
+	vmenv := e.newEnv(origin)
 	ret, _, err := vmenv.StaticCall(vm.AccountRef(origin), contract, input, e.gasLimit)
 	return ret, err
 }
 
-func (e Evm) GetCode(addr loom.Address) []byte {
+func (e wrappedEVM) GetCode(addr loom.Address) []byte {
 	return e.sdb.GetCode(common.BytesToAddress(addr.Local))
 }
 
-func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
+func (e wrappedEVM) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 	result := e.sdb.GetState(common.BytesToAddress(addr.Local), common.BytesToHash(key))
 	return result.Bytes(), nil
 }
 
-// TODO: this doesn't need to be exported, rename to newEVM
-func (e Evm) NewEnv(origin common.Address) *vm.EVM {
+func (e wrappedEVM) newEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
 	return vm.NewEVM(e.context, e.sdb, &e.chainConfig, e.vmConfig)
 }
@@ -299,31 +302,12 @@ func defaultChainConfig(enableConstantinople bool) params.ChainConfig {
 	}
 }
 
-func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
-	logCfg := vm.LogConfig{
-		DisableMemory:  true, // disable memory capture
-		DisableStack:   true, // disable stack capture
-		DisableStorage: true, // disable storage capture
-		Limit:          0,    // maximum length of output, but zero means unlimited
-	}
-	debug := false
-
-	if evmDebuggingEnabled {
-		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
-		logCfg = vm.LogConfig{
-			DisableMemory:  true, // disable memory capture
-			DisableStack:   true, // disable stack capture
-			DisableStorage: true, // disable storage capture
-			Limit:          0,    // maximum length of output, but zero means unlimited
-		}
-		debug = true
-	}
-	logger := vm.NewStructLogger(&logCfg)
-	return vm.Config{
+func createVmConfig(tracer vm.Tracer) (vm.Config, error) {
+	vmConfig := vm.Config{
 		// Debug enabled debugging Interpreter options
-		Debug: debug,
+		Debug: tracer != nil,
 		// Tracer is the op code logger
-		Tracer: logger,
+		Tracer: tracer,
 		// NoRecursion disabled Interpreter call, callcode,
 		// delegate call and create.
 		NoRecursion: false,
@@ -334,4 +318,14 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 		// table.
 		//JumpTable: [256]operation,
 	}
+	if tracer == nil {
+		logCfg := vm.LogConfig{
+			DisableMemory:  true, // disable memory capture
+			DisableStack:   true, // disable stack capture
+			DisableStorage: true, // disable storage capture
+			Limit:          0,    // maximum length of output, but zero means unlimited
+		}
+		vmConfig.Tracer = vm.NewStructLogger(&logCfg)
+	}
+	return vmConfig, nil
 }

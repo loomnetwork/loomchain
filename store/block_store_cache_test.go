@@ -220,7 +220,13 @@ func TestBlockFetchAtHeight2Q(t *testing.T) {
 	//request for a block for nil height, maximum height data is returned and cached
 	blockstoreData, err = cachedblockStore.GetBlockByHeight(nil)
 	require.NoError(t, err, "Gives maximum height block")
-	require.Equal(t, int64(50), blockstoreData.Block.Height, "Expecting blockstore height 50 as maximum height block is fetched,this is default functionality of corresponding tendermint blockstore API also")
+	require.Equal(
+		t,
+		int64(50),
+		blockstoreData.Block.Height,
+		"Expecting blockstore height 50 as maximum height block is fetched,this is default"+
+			"functionality of corresponding tendermint blockstore API also",
+	)
 
 	//block at maximum height present in cache
 	_, ok = cachedblockStore.TwoQueueCache.Get(height)
@@ -249,7 +255,12 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 
 	//Blocks returned by MockBlockStore are verified for data accuracy
 	for i := minheight; i <= maxheight; i++ {
-		require.Equal(t, int64(i), int64(blockrangeData.BlockMetas[i-1].Header.Height), "Expecting height field in blockMetas equal height supplied to API for accuracy check,Expecting Data from API")
+		require.Equal(
+			t,
+			int64(i),
+			int64(blockrangeData.BlockMetas[i-1].Header.Height),
+			"Expecting height field in blockMetas equal height supplied to API for accuracy check,Expecting Data from API",
+		)
 	}
 
 	//Block infos in above provided height range gets cached resulting in cache hit for each height in height range
@@ -264,7 +275,13 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 
 	//Blocks returned by Cached are verified for data accuracy
 	for i := minheight; i <= maxheight; i++ {
-		require.Equal(t, int64(i), int64(blockrangeData.BlockMetas[i-1].Header.Height), "Expecting Data from Cache,Expecting height field in blockMetas equal height supplied to API for Cache accuracy check")
+		require.Equal(
+			t,
+			int64(i),
+			int64(blockrangeData.BlockMetas[i-1].Header.Height),
+			"Expecting Data from Cache,Expecting height field in blockMetas equal height"+
+				" supplied to API for Cache accuracy check",
+		)
 	}
 
 	//request for blockinfo for height range where max height is greater than maximum height of blockchain, error is returned by Cache, caching occurs till max height of blockchain
