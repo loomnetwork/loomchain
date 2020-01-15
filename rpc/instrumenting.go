@@ -7,6 +7,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
@@ -133,6 +134,34 @@ func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStakedRespons
 	}(time.Now())
 
 	resp, err = m.next.DPOSTotalStaked()
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
+func (m InstrumentingMiddleware) DPOSState(height int64) (resp *DPOSStateResponse, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DposTotalStaked", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.DPOSState(height)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
+func (m InstrumentingMiddleware) DPOSListAllDelegations(height int64) (resp *dposv3.ListAllDelegationsResponse, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DposTotalStaked", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.DPOSListAllDelegations(height)
 	if err != nil {
 		return nil, err
 	}

@@ -1112,6 +1112,11 @@ func loadApp(
 		}
 	}
 
+	blockStore, err := store.NewBlockStore(cfg.BlockStore)
+	if err != nil {
+		return nil, err
+	}
+
 	// We need to make sure nonce post commit middleware is last
 	// as it doesn't pass control to other middlewares after it.
 	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
@@ -1134,6 +1139,7 @@ func loadApp(
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
+		BlockStore:                  blockStore,
 	}, nil
 }
 

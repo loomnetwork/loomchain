@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/pubsub"
@@ -63,7 +64,10 @@ type QueryService interface {
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
+	// DPOS RPC endpoints
 	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
+	DPOSState(height int64) (*DPOSStateResponse, error)
+	DPOSListAllDelegations(height int64) (*dtypes.ListAllDelegationsResponse, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -211,13 +215,16 @@ func MakeEthQueryServiceHandler(logger log.TMLogger, hub *Hub, routes map[string
 }
 
 // MakeUnsafeQueryServiceHandler returns a http handler for unsafe RPC routes
-func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
+func MakeUnsafeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
 	codec := amino.NewCodec()
 	mux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["dial_seeds"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialSeeds, "seeds")
 	routes["dial_peers"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialPeers, "peers,persistent")
 	routes["unsafe_flush_mempool"] = rpcserver.NewRPCFunc(rpccore.UnsafeFlushMempool, "")
+
+	routes["dpos_state"] = rpcserver.NewRPCFunc(svc.DPOSState, "height")
+	routes["dpos_list_all_delegations"] = rpcserver.NewRPCFunc(svc.DPOSListAllDelegations, "height")
 
 	// profiler API
 	routes["unsafe_start_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStartCPUProfiler, "filename")

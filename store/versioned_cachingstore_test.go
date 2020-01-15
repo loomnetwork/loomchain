@@ -71,6 +71,10 @@ func (m *MockStore) GetSnapshot() Snapshot {
 	}
 }
 
+func (m *MockStore) GetSnapshotAt(height int64) (Snapshot, error) {
+	panic("Mockstore does not implement GetSnapshotAt")
+}
+
 type mockStoreSnapshot struct {
 	*MockStore
 }

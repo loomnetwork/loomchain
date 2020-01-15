@@ -1393,11 +1393,24 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	return state.Validators, nil
 }
 
-func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+func (c *DPOS) ListDelegations(
+	ctx contract.StaticContext, req *ListDelegationsRequest,
+) (*ListDelegationsResponse, error) {
 	if req.Candidate == nil {
 		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
 	}
+	return GetCandidateDelegations(ctx, loom.UnmarshalAddressPB(req.Candidate))
+}
 
+func (c *DPOS) ListAllDelegations(
+	ctx contract.StaticContext, req *ListAllDelegationsRequest,
+) (*ListAllDelegationsResponse, error) {
+	ctx.Logger().Debug("DPOSv3 ListAllDelegations", "request", req)
+	return GetAllDelegations(ctx)
+}
+
+// GetCandidateDelegations returns all the current delegations to the given candidate.
+func GetCandidateDelegations(ctx contract.StaticContext, candidate loom.Address) (*ListDelegationsResponse, error) {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
@@ -1406,7 +1419,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	total := common.BigZero()
 	candidateDelegations := make([]*Delegation, 0)
 	for _, d := range delegations {
-		if loom.UnmarshalAddressPB(d.Validator).Compare(loom.UnmarshalAddressPB(req.Candidate)) != 0 {
+		if loom.UnmarshalAddressPB(d.Validator).Compare(candidate) != 0 {
 			continue
 		}
 
@@ -1427,9 +1440,8 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	}, nil
 }
 
-func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListAllDelegations", "request", req)
-
+// GetAllDelegations returns all the current delegations for all candidates.
+func GetAllDelegations(ctx contract.StaticContext) (*ListAllDelegationsResponse, error) {
 	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, err
@@ -1437,7 +1449,7 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 
 	responses := make([]*ListDelegationsResponse, 0)
 	for _, candidate := range candidates {
-		response, err := c.ListDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
+		response, err := GetCandidateDelegations(ctx, loom.UnmarshalAddressPB(candidate.Address))
 		if err != nil {
 			return nil, err
 		}

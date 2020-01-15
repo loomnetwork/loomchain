@@ -216,6 +216,13 @@ func (s *IAVLStore) GetSnapshot() Snapshot {
 	}
 }
 
+func (s *IAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &iavlStoreSnapshot{
+		IAVLStore: s,
+	}, nil
+}
+
 // NewIAVLStore creates a new IAVLStore.
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.

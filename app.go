@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/registry"
+	ttypes "github.com/tendermint/tendermint/types"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -27,7 +28,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
-	ttypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -72,6 +72,20 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 		NumTxs:  int32(header.NumTxs), //TODO this cast doesnt look right
 		LastBlockID: types.BlockID{
 			Hash: header.LastBlockId.Hash,
+		},
+		ValidatorsHash: header.ValidatorsHash,
+		AppHash:        header.AppHash,
+	}
+}
+
+func abciHeaderFromBlockHeader(header ttypes.Header) abci.Header {
+	return abci.Header{
+		ChainID: header.ChainID,
+		Height:  header.Height,
+		Time:    header.Time,
+		NumTxs:  header.NumTxs,
+		LastBlockId: abci.BlockID{
+			Hash: header.LastBlockID.Hash,
 		},
 		ValidatorsHash: header.ValidatorsHash,
 		AppHash:        header.AppHash,
@@ -369,6 +383,7 @@ type Application struct {
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
 	committedTxs                []CommittedTx
+	BlockStore                  store.BlockStore
 }
 
 var _ abci.Application = &Application{}
@@ -913,4 +928,26 @@ func (a *Application) ReadOnlyState() State {
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
 	)
+}
+
+// ReadOnlyStateAt returns the app state as it was at a past block height, or an error if the state
+// couldn't be loaded for that block (likely due to pruning).
+func (a *Application) ReadOnlyStateAt(version int64) (State, error) {
+	snapshot, err := a.Store.GetSnapshotAt(version)
+	if err != nil {
+		return nil, err
+	}
+	blockInfo, err := a.BlockStore.GetBlockByHeight(&version)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: the store snapshot should be created atomically, otherwise the block header might
+	//       not match the state... need to figure out why this hasn't spectacularly failed already
+	return NewStoreStateSnapshot(
+		nil,
+		snapshot,
+		abciHeaderFromBlockHeader(blockInfo.Block.Header),
+		nil,
+		a.GetValidatorSet,
+	), nil
 }

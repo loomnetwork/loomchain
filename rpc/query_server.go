@@ -62,6 +62,7 @@ const (
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
+	ReadOnlyStateAt(version int64) (loomchain.State, error)
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.
@@ -638,6 +639,64 @@ func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	return &DPOSTotalStakedResponse{
 		TotalStaked: total,
 	}, nil
+}
+
+type DPOSStateResponse struct {
+	ElectionCycleLength       int64  `json:"election_cycle_length,omitempty"`
+	LastElectionTime          int64  `json:"last_election_time,omitempty"`
+	TotalValidatorDelegations string `json:"total_validator_delegations,omitempty"`
+}
+
+func (s *QueryServer) DPOSState(height int64) (*DPOSStateResponse, error) {
+	var snapshot loomchain.State
+	var err error
+	if height > 0 {
+		snapshot, err = s.StateProvider.ReadOnlyStateAt(height)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		snapshot = s.StateProvider.ReadOnlyState()
+	}
+
+	defer snapshot.Release()
+	dposCtx, err := s.createStaticContractCtx(snapshot, "dposV3")
+	if err != nil {
+		return nil, err
+	}
+	state, err := dposv3.LoadState(dposCtx)
+	if err != nil {
+		return nil, err
+	}
+	return &DPOSStateResponse{
+		ElectionCycleLength:       state.Params.ElectionCycleLength,
+		LastElectionTime:          state.LastElectionTime,
+		TotalValidatorDelegations: state.TotalValidatorDelegations.Value.Int.String(),
+	}, nil
+}
+
+func (s *QueryServer) DPOSListAllDelegations(height int64) (*dposv3.ListAllDelegationsResponse, error) {
+	var snapshot loomchain.State
+	var err error
+	if height > 0 {
+		snapshot, err = s.StateProvider.ReadOnlyStateAt(height)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		snapshot = s.StateProvider.ReadOnlyState()
+	}
+
+	defer snapshot.Release()
+	dposCtx, err := s.createStaticContractCtx(snapshot, "dposV3")
+	if err != nil {
+		return nil, err
+	}
+	res, err := dposv3.GetAllDelegations(dposCtx)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
