@@ -671,7 +671,7 @@ func (s *QueryServer) DPOSState(height int64) (*DPOSStateResponse, error) {
 	return &DPOSStateResponse{
 		ElectionCycleLength:       state.Params.ElectionCycleLength,
 		LastElectionTime:          state.LastElectionTime,
-		TotalValidatorDelegations: state.TotalValidatorDelegations.String(),
+		TotalValidatorDelegations: state.TotalValidatorDelegations.Value.Int.String(),
 	}, nil
 }
 
