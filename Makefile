@@ -207,7 +207,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# Lock down Prometheus golang client to v1.2.1 (newer versions use a different protobuf version)
 	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang
 	cd $(GOPATH)/src/github.com/prometheus/client_golang && git checkout master && git pull && git checkout v1.2.1 && git rev-parse HEAD
-
+	git clone -q git@github.com:prometheus/client_model $(GOPATH)/src/github.com/prometheus/client_model
+	cd $(GOPATH)/src/github.com/prometheus/client_model && git checkout master && git pull && git checkout 14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016
+	
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -232,6 +234,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/btcsuite/btcd
 
 	cd $(GOPATH)/src/github.com/prometheus/client_golang && git rev-parse HEAD
+	cd $(GOPATH)/src/github.com/prometheus/client_model && git rev-parse HEAD
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
