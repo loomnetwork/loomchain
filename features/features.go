@@ -25,7 +25,7 @@ const (
 	TGVersion1_4 = "tg:v1.4"
 	// Disable setting TokenWithdrawer field on withdrawal receipt in the Binance Gateway contract.
 	TGVersion1_5 = "tg:v1.5"
-	// Letting token contract to be nil for Binance Chain
+	// Disable checking TokenContract address for LOOM withdrawals via Binance Gateway contract
 	TGVersion1_6 = "tg:v1.6"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
