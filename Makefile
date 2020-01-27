@@ -205,7 +205,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
 	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
 	# Lock down Prometheus golang client to v1.2.1 (newer versions use a different protobuf version)
-	git clone -q git@github.com/prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang
+	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang
 	cd $(GOPATH)/src/github.com/prometheus/client_golang && git checkout master && git pull && git checkout v1.2.1
 
 	go get \
