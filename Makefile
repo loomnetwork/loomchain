@@ -33,7 +33,7 @@ GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
 TG_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
-ETHEREUM_GIT_REV = 6128fa1a8c767035d3da6ef0c27ebb7778ce3713
+ETHEREUM_GIT_REV = cce1b3f69354033160583e5576169f9b309ee62e
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
@@ -197,13 +197,15 @@ $(BINANCE_TGORACLE_DIR):
 	git clone -q git@github.com:loomnetwork/binance-tgoracle.git $@
 	cd $(BINANCE_TGORACLE_DIR) && git checkout master && git pull && git checkout $(BINANCE_TG_GIT_REV)
 
-validators-tool: $(TRANSFER_GATEWAY_DIR)
-	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
-
-deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
+$(PROMETHEUS_PROCFS_DIR):
 	# Temp workaround for https://github.com/prometheus/procfs/issues/221
 	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
 	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
+
+validators-tool: $(TRANSFER_GATEWAY_DIR)
+	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
+
+deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR) $(PROMETHEUS_PROCFS_DIR)
 	# Lock down Prometheus golang client to v1.2.1 (newer versions use a different protobuf version)
 	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang
 	cd $(GOPATH)/src/github.com/prometheus/client_golang && git checkout master && git pull && git checkout v1.2.1

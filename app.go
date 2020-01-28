@@ -6,7 +6,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
@@ -51,6 +53,7 @@ type State interface {
 	SetFeature(string, bool)
 	SetMinBuildNumber(uint64)
 	ChangeConfigSetting(name, value string) error
+	EVMState() *EVMState
 }
 
 type StoreState struct {
@@ -60,6 +63,7 @@ type StoreState struct {
 	validators      loom.ValidatorSet
 	getValidatorSet GetValidatorSet
 	config          *cctypes.Config
+	evmState        *EVMState
 }
 
 var _ = State(&StoreState{})
@@ -101,6 +105,11 @@ func (s *StoreState) WithOnChainConfig(config *cctypes.Config) *StoreState {
 	return s
 }
 
+func (s *StoreState) WithEVMState(evmState *EVMState) *StoreState {
+	s.evmState = evmState
+	return s
+}
+
 func (s *StoreState) Range(prefix []byte) plugin.RangeData {
 	return s.store.Range(prefix)
 }
@@ -139,6 +148,10 @@ func (s *StoreState) Block() types.BlockHeader {
 
 func (s *StoreState) Context() context.Context {
 	return s.ctx
+}
+
+func (s *StoreState) EVMState() *EVMState {
+	return s.evmState
 }
 
 const (
@@ -234,6 +247,7 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 		ctx:             ctx,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
+		evmState:        s.evmState,
 	}
 }
 
@@ -244,6 +258,7 @@ func (s *StoreState) WithPrefix(prefix []byte) State {
 		ctx:             s.ctx,
 		validators:      s.validators,
 		getValidatorSet: s.getValidatorSet,
+		evmState:        s.evmState,
 	}
 }
 
@@ -347,7 +362,7 @@ type CommittedTx struct {
 }
 
 type Application struct {
-	lastBlockHeader abci.Header
+	lastBlockHeader unsafe.Pointer // *abci.Header
 	curBlockHeader  abci.Header
 	curBlockHash    []byte
 	Store           store.VersionedKVStore
@@ -368,6 +383,7 @@ type Application struct {
 	config                      *cctypes.Config
 	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
+	EVMState                    *EVMState
 	committedTxs                []CommittedTx
 }
 
@@ -512,7 +528,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 			a.GetValidatorSet,
-		).WithOnChainConfig(a.config)
+		).WithOnChainConfig(a.config).WithEVMState(a.EVMState)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
 			panic(err)
@@ -532,7 +548,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
+	).WithOnChainConfig(a.config).WithEVMState(a.EVMState)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -600,7 +616,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
+	).WithOnChainConfig(a.config).WithEVMState(a.EVMState)
 
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != registry.ErrNotFound {
@@ -657,6 +673,10 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
+	if a.EVMState != nil {
+		state = state.WithEVMState(a.EVMState.Clone())
+	}
+
 	// Receipts & events generated in CheckTx must be discarded since the app state changes they
 	// reflect aren't persisted.
 	defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
@@ -692,7 +712,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
+	).WithOnChainConfig(a.config).WithEVMState(a.EVMState)
 
 	var r abci.ResponseDeliverTx
 
@@ -725,7 +745,7 @@ func (a *Application) processTx(storeTx store.KVStoreTx, txBytes []byte, isCheck
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
+	).WithOnChainConfig(a.config).WithEVMState(a.EVMState)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
@@ -778,7 +798,7 @@ func (a *Application) deliverTx2(storeTx store.KVStoreTx, txBytes []byte) abci.R
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
-	).WithOnChainConfig(a.config)
+	).WithOnChainConfig(a.config).WithEVMState(a.EVMState)
 
 	receiptHandler := a.ReceiptHandlerProvider.Store()
 	defer receiptHandler.DiscardCurrentReceipt()
@@ -830,13 +850,19 @@ func (a *Application) Commit() abci.ResponseCommit {
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	if a.EVMState != nil {
+		// Commit EVM state changes to the EvmStore
+		if err := a.EVMState.Commit(); err != nil {
+			panic(err)
+		}
+	}
+
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
 
 	height := a.curBlockHeader.GetHeight()
-
 	if err := a.EvmAuxStore.SaveChildTxRefs(a.childTxRefs); err != nil {
 		// TODO: consider panic instead
 		log.Error("Failed to save Tendermint -> EVM tx hash refs", "height", height, "err", err)
@@ -851,7 +877,8 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	// Update the last block header before emitting events in case the subscribers attempt to access
 	// the latest committed state as soon as they receive an event.
-	a.lastBlockHeader = a.curBlockHeader
+	curBlockHeader := a.curBlockHeader
+	atomic.StorePointer(&a.lastBlockHeader, unsafe.Pointer(&curBlockHeader))
 
 	go func(height int64, blockHeader abci.Header, committedTxs []CommittedTx) {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
@@ -904,13 +931,28 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-	// TODO: the store snapshot should be created atomically, otherwise the block header might
-	//       not match the state... need to figure out why this hasn't spectacularly failed already
+	lastBlockHeader := (*abci.Header)(atomic.LoadPointer(&a.lastBlockHeader))
+	appStateSnapshot, err := a.Store.GetSnapshotAt(lastBlockHeader.Height)
+	if err != nil {
+		panic(err)
+	}
+
+	var evmStateSnapshot *EVMState
+	if a.EVMState != nil {
+		evmStateSnapshot, err = a.EVMState.GetSnapshot(
+			lastBlockHeader.Height,
+			store.GetEVMRootFromAppStore(appStateSnapshot),
+		)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return NewStoreStateSnapshot(
 		nil,
-		a.Store.GetSnapshot(),
-		a.lastBlockHeader,
+		appStateSnapshot,
+		*lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-	)
+	).WithEVMState(evmStateSnapshot)
 }

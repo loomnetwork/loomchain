@@ -10,7 +10,9 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	cdb "github.com/loomnetwork/loomchain/db"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -35,9 +37,18 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 		},
 	)
 	state := loomchain.NewStoreState(context.Background(), ctx, block, nil, nil)
+	evmDB, err := cdb.LoadDB("memdb", "", "", 256, 4, false)
+	if err != nil {
+		panic(err)
+	}
+	evmStore := store.NewEvmStore(evmDB, 100, 0)
+	evmState, err := loomchain.NewEVMState(evmStore)
+	if err != nil {
+		panic(err)
+	}
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
-		State:       state,
+		State:       state.WithEVMState(evmState),
 	}
 }
 

@@ -81,6 +81,15 @@ func init() {
 	)
 }
 
+// GetEVMRootFromAppStore retrieves the current EVM root from the given app store.
+func GetEVMRootFromAppStore(s KVReader) []byte {
+	evmRoot := s.Get(rootKey)
+	if evmRoot == nil {
+		return defaultRoot
+	}
+	return evmRoot
+}
+
 // MultiWriterAppStore reads & writes keys that have the "vm" prefix via both the IAVLStore and the EvmStore,
 // or just the EvmStore, depending on the evmStoreEnabled flag.
 type MultiWriterAppStore struct {
@@ -108,7 +117,7 @@ func NewMultiWriterAppStore(
 			appStoreEvmRoot = defaultRoot
 		}
 	}
-	evmStoreEvmRoot, version := store.evmStore.getLastSavedRoot(store.appStore.Version())
+	evmStoreEvmRoot, version := store.evmStore.GetRootAt(store.appStore.Version())
 	if !bytes.Equal(appStoreEvmRoot, evmStoreEvmRoot) {
 		return nil, fmt.Errorf("EVM roots mismatch, evm.db(%d): %X, app.db(%d): %X",
 			version, evmStoreEvmRoot, appStore.Version(), appStoreEvmRoot)
@@ -119,7 +128,9 @@ func NewMultiWriterAppStore(
 		store.onlySaveEvmStateToEvmStore = bytes.Equal(store.appStore.Get(evmDBFeatureKey), []byte{1})
 	}
 
-	store.setLastSavedTreeToVersion(appStore.Version())
+	if err := store.setLastSavedTreeToVersion(appStore.Version()); err != nil {
+		return nil, err
+	}
 	return store, nil
 }
 
@@ -262,12 +273,32 @@ func (s *MultiWriterAppStore) Prune() error {
 }
 
 func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
+}
+
+func (s *MultiWriterAppStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	defer func(begin time.Time) {
 		getSnapshotDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	appStoreTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
+
+	var err error
+	var appStoreTree *iavl.ImmutableTree
+	if version == 0 {
+		appStoreTree = (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
+	} else {
+		appStoreTree, err = s.appStore.tree.GetImmutable(version)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to load immutable tree for version %v", version)
+		}
+	}
+	// TODO: It's no longer necessary to acquire a snapshot from the EvmStore since it's now provided
+	//       by the EVMState.
 	evmDbSnapshot := s.evmStore.GetSnapshot(appStoreTree.Version())
-	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree)
+	return newMultiWriterStoreSnapshot(evmDbSnapshot, appStoreTree), nil
 }
 
 type multiWriterStoreSnapshot struct {
