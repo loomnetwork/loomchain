@@ -184,8 +184,6 @@ type StoreTestSuite struct {
 	suite.Suite
 	store     VersionedKVStore
 	StoreName string
-	//nolint:unused,structcheck
-	supportsSnapshots bool
 }
 
 func populateStore(s KVWriter) ([][]byte, []*plugin.RangeEntry) {
@@ -219,8 +217,9 @@ func populateStore(s KVWriter) ([][]byte, []*plugin.RangeEntry) {
 	return prefixes, entries
 }
 
-func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*plugin.RangeEntry) {
-	require := ts.Require()
+func verifyRange(
+	require *require.Assertions, storeName string, s KVReader, prefixes [][]byte, entries []*plugin.RangeEntry,
+) {
 	// TODO: This passed before the last Tendermint upgrade, doesn't anymore, figure out why.
 	/*
 		expected := []*plugin.RangeEntry{
@@ -237,8 +236,8 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 		}
 	*/
 	require.Len(s.Range([]byte("abc123")), 1)
-	require.EqualValues([]byte{}, s.Range([]byte("abc123"))[0].Key, ts.StoreName)
-	require.EqualValues(entries[1].Value, s.Range([]byte("abc123"))[0].Value, ts.StoreName)
+	require.EqualValues([]byte{}, s.Range([]byte("abc123"))[0].Key, storeName)
+	require.EqualValues(entries[1].Value, s.Range([]byte("abc123"))[0].Value, storeName)
 
 	key2, err := util.UnprefixKey(entries[2].Key, prefixes[0])
 	require.NoError(err)
@@ -253,10 +252,10 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 		{key4, entries[4].Value},
 	}
 	actual := s.Range(prefixes[0])
-	require.Len(actual, len(expected), ts.StoreName)
-	if ts.StoreName != "MemStore" {
+	require.Len(actual, len(expected), storeName)
+	if storeName != "MemStore" {
 		for i := range expected {
-			require.EqualValues(expected[i], actual[i], ts.StoreName)
+			require.EqualValues(expected[i], actual[i], storeName)
 		}
 	}
 
@@ -275,12 +274,12 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 		{key8, entries[8].Value},
 	}
 	actual = s.Range(prefixes[1])
-	require.Len(actual, len(expected), ts.StoreName)
+	require.Len(actual, len(expected), storeName)
 
 	// TODO: MemStore keys should be iterated in ascending order
-	if ts.StoreName != "MemStore" {
+	if storeName != "MemStore" {
 		for i := range expected {
-			require.EqualValues(expected[i], actual[i], ts.StoreName)
+			require.EqualValues(expected[i], actual[i], storeName)
 		}
 	}
 
@@ -295,10 +294,10 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 		{key10, entries[10].Value},
 	}
 	actual = s.Range(prefixes[2])
-	require.Len(actual, len(expected), ts.StoreName)
-	if ts.StoreName != "MemStore" {
+	require.Len(actual, len(expected), storeName)
+	if storeName != "MemStore" {
 		for i := range expected {
-			require.EqualValues(expected[i], actual[i], ts.StoreName)
+			require.EqualValues(expected[i], actual[i], storeName)
 		}
 	}
 }
@@ -306,14 +305,13 @@ func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*
 func (ts *StoreTestSuite) TestStoreRange() {
 	require := ts.Require()
 	prefixes, entries := populateStore(ts.store)
-	ts.VerifyRange(ts.store, prefixes, entries)
+	verifyRange(require, ts.StoreName, ts.store, prefixes, entries)
 	_, _, err := ts.store.SaveVersion()
 	require.NoError(err)
-	ts.VerifyRange(ts.store, prefixes, entries)
+	verifyRange(require, ts.StoreName, ts.store, prefixes, entries)
 }
 
-func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
-	require := ts.Require()
+func verifyConcurrentSnapshots(require *require.Assertions, s VersionedKVStore) {
 	// start one writer go-routine and a bunch of reader go-routines
 	var wg sync.WaitGroup
 	numOps := 10000
@@ -324,13 +322,13 @@ func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
 		defer wg.Done()
 
 		for i := 0; i < numOps; i++ {
-			ts.store.Set([]byte(fmt.Sprintf("key/%d", i)), []byte(fmt.Sprintf("value/%d", i)))
+			s.Set([]byte(fmt.Sprintf("key/%d", i)), []byte(fmt.Sprintf("value/%d", i)))
 			if i%10 == 0 {
-				_, _, err := ts.store.SaveVersion()
+				_, _, err := s.SaveVersion()
 				require.NoError(err)
 			}
 		}
-		_, _, err := ts.store.SaveVersion()
+		_, _, err := s.SaveVersion()
 		require.NoError(err)
 	}()
 	wg.Wait()
@@ -347,7 +345,9 @@ func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
 					if snap != nil {
 						snap.Release()
 					}
-					snap = ts.store.GetSnapshot()
+					var err error
+					snap, err = s.GetSnapshotAt(0)
+					require.NoError(err)
 				}
 				snap.Get([]byte(fmt.Sprintf("key/%d", i)))
 			}
@@ -374,7 +374,6 @@ type IAVLStoreTestSuite struct {
 
 func (ts *IAVLStoreTestSuite) SetupSuite() {
 	ts.StoreName = "IAVLStore"
-	ts.supportsSnapshots = true
 }
 
 // runs before each test in this suite
@@ -384,35 +383,6 @@ func (ts *IAVLStoreTestSuite) SetupTest() {
 	db := dbm.NewMemDB()
 	ts.store, err = NewIAVLStore(db, 0, 0, 0)
 	require.NoError(err)
-}
-
-func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
-	prefixes, entries := populateStore(ts.store)
-	ts.VerifyRange(ts.store, prefixes, entries)
-
-	// snapshot shouldn't see data that hasn't been saved to disk,
-	// but this store doesn't have real snapshots so the snapshot is expected to contain the same
-	// unsaved state as the store itself...
-	func() {
-		snap := ts.store.GetSnapshot()
-		defer snap.Release()
-
-		ts.VerifyRange(snap, prefixes, entries)
-	}()
-
-	ts.store.SaveVersion()
-
-	// snapshot should see all the data that was saved to disk
-	func() {
-		snap := ts.store.GetSnapshot()
-		defer snap.Release()
-
-		ts.VerifyRange(snap, prefixes, entries)
-	}()
-}
-
-func (ts *IAVLStoreTestSuite) TestConcurrentSnapshots() {
-	ts.VerifyConcurrentSnapshots()
 }
 
 //
@@ -434,7 +404,6 @@ func (ts *MemStoreTestSuite) SetupTest() {
 
 func (ts *MemStoreTestSuite) SetupSuite() {
 	ts.StoreName = "MemStore"
-	ts.supportsSnapshots = false
 }
 
 func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
