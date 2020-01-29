@@ -76,10 +76,6 @@ func (m *MemStore) Prune() error {
 	return nil
 }
 
-func (m *MemStore) GetSnapshot() Snapshot {
-	panic("not implemented")
-}
-
 func (m *MemStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	panic("not implemented")
 }

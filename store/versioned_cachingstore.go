@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/allegro/bigcache"
@@ -362,35 +363,23 @@ func (c *versionedCachingStore) Set(key, val []byte) {
 func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
 	hash, version, err := c.VersionedKVStore.SaveVersion()
 	if err == nil {
-		// Cache version is always 1 block ahead of KV store version, that way when
-		// GetSnapshot() is called it won't return the current unpersisted state of the cache,
-		// but rather the last persisted version.
-		c.version = version + 1
 		if err = c.cache.Set(rootKey, GetEVMRootFromAppStore(c.VersionedKVStore), version); err != nil {
 			// Only log error and dont error out
 			cacheErrors.With("cache_operation", "set").Add(1)
 			c.logger.Error("[VersionedCachingStore] error while caching EVM root", "err", err)
 		}
+		// Cache version is always 1 block ahead of KV store version, that way when
+		// GetSnapshotAt(0) is called it won't return the current unpersisted state of the cache,
+		// but rather the last persisted version.
+		// GetSnapshotAt may be called concurrently so the version must be updated atomically.
+		atomic.StoreInt64(&c.version, version+1)
 	}
 	return hash, version, err
 }
 
-func (c *versionedCachingStore) GetSnapshot() Snapshot {
-	snapshot, err := c.GetSnapshotAt(0)
-	if err != nil {
-		panic(err)
-	}
-	return snapshot
-}
-
 func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	// TODO: c.version & c.VersionedKVStore.GetSnapshot() could end up corresponding to different
-	//       versions, need to do this atomically.
 	if version == 0 {
-		return newVersionedCachingStoreSnapshot(
-			c.VersionedKVStore.GetSnapshot(),
-			c.cache, c.version-1, c.logger,
-		), nil
+		version = atomic.LoadInt64(&c.version) - 1
 	}
 
 	snapshot, err := c.VersionedKVStore.GetSnapshotAt(version)
