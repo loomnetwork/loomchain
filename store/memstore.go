@@ -68,7 +68,7 @@ func (m *MemStore) Version() int64 {
 	return 1
 }
 
-func (m *MemStore) SaveVersion() ([]byte, int64, error) {
+func (m *MemStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int64, error) {
 	return m.Hash(), m.Version(), nil
 }
 

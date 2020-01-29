@@ -857,7 +857,10 @@ func (a *Application) Commit() abci.ResponseCommit {
 		}
 	}
 
-	appHash, _, err := a.Store.SaveVersion()
+	storeOpts := store.VersionedKVStoreSaveOptions{
+		FlushInterval: int64(a.config.GetAppStore().GetIAVLFlushInterval()),
+	}
+	appHash, _, err := a.Store.SaveVersion(&storeOpts)
 	if err != nil {
 		panic(err)
 	}

@@ -44,12 +44,12 @@ func testOrphans(t *testing.T, store *IAVLStore, diskDb db.DB, flushInterval int
 	store.Set([]byte("k1"), []byte("Fred"))
 	store.Set([]byte("k2"), []byte("John"))
 	for i := 0; i < int(flushInterval-1); i++ {
-		_, _, err := store.SaveVersion()
+		_, _, err := store.SaveVersion(nil)
 		require.NoError(t, err)
 	}
 	store.Set([]byte("k2"), []byte("Bob"))
 	store.Set([]byte("k3"), []byte("Harry"))
-	_, _, err := store.SaveVersion() // save to disk
+	_, _, err := store.SaveVersion(nil) // save to disk
 
 	require.NoError(t, err)
 
@@ -57,13 +57,13 @@ func testOrphans(t *testing.T, store *IAVLStore, diskDb db.DB, flushInterval int
 	store.Set([]byte("k2"), []byte("Sally"))
 	store.Delete([]byte("k3"))
 	for i := 0; i < int(flushInterval)-1; i++ {
-		_, _, err := store.SaveVersion()
+		_, _, err := store.SaveVersion(nil)
 		require.NoError(t, err)
 	}
 
 	store.Set([]byte("k2"), []byte("Jim"))
 	for i := 0; i < 2*int(flushInterval); i++ {
-		_, _, err := store.SaveVersion() // save to disk
+		_, _, err := store.SaveVersion(nil) // save to disk
 		require.NoError(t, err)
 	}
 	lastVersion := 3 * flushInterval
@@ -192,7 +192,7 @@ func testMaxVersions(t *testing.T) {
 func executeBlocks(t require.TestingT, blocks []*iavl.Program, store IAVLStore) {
 	for _, block := range blocks {
 		require.NoError(t, block.Execute(store.tree))
-		_, _, err := store.SaveVersion()
+		_, _, err := store.SaveVersion(nil)
 		require.NoError(t, err)
 		require.NoError(t, store.Prune())
 	}

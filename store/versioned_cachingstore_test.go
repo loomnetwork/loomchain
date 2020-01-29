@@ -32,7 +32,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	cachedValue := snapshotv0.Get(key1)
 	assert.Equal(t, "", string(cachedValue), "snapshot should be empty")
 
-	_, version, _ := versionedStore.SaveVersion()
+	_, version, _ := versionedStore.SaveVersion(nil)
 	assert.Equal(t, int64(1), version, "version must be updated to 1")
 
 	// previously obtained snapshot should still be empty since it shouldn't be affected by changes
@@ -52,7 +52,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	assert.Equal(t, "value1", string(cachedValue), "snapshot should not be affected by changes to the underlying store")
 
 	// save to bump up version
-	_, version, _ = versionedStore.SaveVersion()
+	_, version, _ = versionedStore.SaveVersion(nil)
 	assert.Equal(t, int64(2), version, "version must be updated to 2")
 
 	// existing snapshot should be unaffected by persisted changes to the store
@@ -63,7 +63,7 @@ func TestCachingStoreVersion(t *testing.T) {
 	versionedStore.Set(key2, []byte("newvalue2"))
 	versionedStore.Set(key3, []byte("newvalue3"))
 
-	_, version, _ = versionedStore.SaveVersion()
+	_, version, _ = versionedStore.SaveVersion(nil)
 	assert.Equal(t, int64(3), version, "version must be updated to 3")
 
 	snapshotv2, err := versionedStore.GetSnapshotAt(0)

@@ -151,7 +151,12 @@ func (s *EvmStore) Set(key, val []byte) {
 	s.evmDB.Set(key, val)
 }
 
-func (s *EvmStore) Commit(version int64) []byte {
+// Commit may persist the changes made to the store since the last commit to the underlying DB.
+// The specified version is associated with the current root, which is returned by this function.
+// Whether or not changes are actually flushed to the DB depends on the flush interval, which can
+// be specified when calling NewEvmStore(), and overriden via the flushIntervalOverride parameter
+// when calling Commit() iff the store was created with flushInterval == 0.
+func (s *EvmStore) Commit(version, flushIntervalOverride int64) []byte {
 	defer func(begin time.Time) {
 		commitDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -164,17 +169,8 @@ func (s *EvmStore) Commit(version int64) []byte {
 	}
 
 	flushInterval := s.flushInterval
-
-	// TODO: Rather than loading the on-chain config here the flush interval override should be passed
-	//       in as a parameter to SaveVersion().
 	if flushInterval == 0 {
-		cfg, err := LoadOnChainConfig(s)
-		if err != nil {
-			panic(errors.Wrap(err, "failed to load on-chain config"))
-		}
-		if cfg.GetAppStore().GetIAVLFlushInterval() != 0 {
-			flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
-		}
+		flushInterval = flushIntervalOverride
 	} else if flushInterval == -1 {
 		flushInterval = 0
 	}
@@ -195,7 +191,7 @@ func (s *EvmStore) Commit(version int64) []byte {
 		// We don't commit empty root but we need to save default root ([]byte{1}) as a placeholder of empty root
 		// So the node won't get EVM root mismatch during the EVM root checking
 		if !bytes.Equal(currentRoot, s.lastSavedRoot) {
-			s.Set(evmRootKey(version), currentRoot)
+			s.evmDB.Set(evmRootKey(version), currentRoot)
 			s.lastSavedRoot = currentRoot
 		}
 	}

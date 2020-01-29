@@ -193,13 +193,17 @@ func (s *MultiWriterAppStore) Version() int64 {
 	return s.appStore.Version()
 }
 
-func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
+func (s *MultiWriterAppStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int64, error) {
 	var err error
 	defer func(begin time.Time) {
 		saveVersionDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	currentRoot := s.evmStore.Commit(s.Version() + 1)
+	var flushInterval int64
+	if opts != nil {
+		flushInterval = opts.FlushInterval
+	}
+	currentRoot := s.evmStore.Commit(s.Version()+1, flushInterval)
 	if s.onlySaveEvmStateToEvmStore {
 		// Tie up Patricia tree with IAVL tree.
 		// Do this after the feature flag is enabled so that we can detect
@@ -218,7 +222,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			return nil, 0, err
 		}
 	}
-	hash, version, err := s.appStore.SaveVersion()
+	hash, version, err := s.appStore.SaveVersion(opts)
 	s.setLastSavedTreeToVersion(version)
 	return hash, version, err
 }
