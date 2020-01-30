@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/db"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
@@ -36,30 +37,30 @@ func NewEthDBLogContext(height int64, contractAddr loom.Address, callerAddr loom
 
 // LoomEthDB implements ethdb.Database
 type LoomEthDB struct {
-	store *EvmStore
+	db db.DBWrapper
 }
 
-func NewLoomEthDB(evmStore *EvmStore) *LoomEthDB {
+func NewLoomEthDB(db db.DBWrapper) *LoomEthDB {
 	return &LoomEthDB{
-		store: evmStore,
+		db: db,
 	}
 }
 
 func (s *LoomEthDB) Put(key []byte, value []byte) error {
-	s.store.Set(util.PrefixKey(vmPrefix, key), value)
+	s.db.Set(util.PrefixKey(vmPrefix, key), value)
 	return nil
 }
 
 func (s *LoomEthDB) Get(key []byte) ([]byte, error) {
-	return s.store.Get(util.PrefixKey(vmPrefix, key)), nil
+	return s.db.Get(util.PrefixKey(vmPrefix, key)), nil
 }
 
 func (s *LoomEthDB) Has(key []byte) (bool, error) {
-	return s.store.Has(util.PrefixKey(vmPrefix, key)), nil
+	return s.db.Has(util.PrefixKey(vmPrefix, key)), nil
 }
 
 func (s *LoomEthDB) Delete(key []byte) error {
-	s.store.Delete(util.PrefixKey(vmPrefix, key))
+	s.db.Delete(util.PrefixKey(vmPrefix, key))
 	return nil
 }
 
@@ -70,20 +71,20 @@ func (s *LoomEthDB) NewBatch() ethdb.Batch {
 	if LogEthDBBatch {
 		return s.NewLogBatch(nil)
 	}
-	return newBatch(s.store)
+	return newBatch(s.db)
 }
 
 // implements ethdb.Batch
 type batch struct {
-	dbBatch     dbm.Batch
-	parentStore *EvmStore
-	size        int
+	dbBatch dbm.Batch
+	db      db.DBWrapper
+	size    int
 }
 
-func newBatch(store *EvmStore) *batch {
+func newBatch(db db.DBWrapper) *batch {
 	return &batch{
-		dbBatch:     store.NewBatch(),
-		parentStore: store,
+		dbBatch: db.NewBatch(),
+		db:      db,
 	}
 }
 
@@ -104,7 +105,7 @@ func (b *batch) Write() error {
 
 func (b *batch) Reset() {
 	b.dbBatch.Close()
-	b.dbBatch = b.parentStore.NewBatch()
+	b.dbBatch = b.db.NewBatch()
 	b.size = 0
 }
 
@@ -132,10 +133,10 @@ type kvPair struct {
 	value []byte
 }
 type LogBatch struct {
-	parentStore *EvmStore
-	size        int
-	params      EthDBLogParams
-	cache       []kvPair
+	db     db.DBWrapper
+	size   int
+	params EthDBLogParams
+	cache  []kvPair
 }
 
 const batchHeaderWithContext = `
@@ -159,7 +160,7 @@ const batchHeader = `
 
 func (s *LoomEthDB) NewLogBatch(logContext *EthDBLogContext) ethdb.Batch {
 	b := &LogBatch{
-		parentStore: s.store,
+		db: s.db,
 		params: EthDBLogParams{
 			LogFilename:        "ethdb-batch.log",
 			LogFlags:           0,
@@ -241,7 +242,7 @@ func (b *LogBatch) Write() error {
 		return bytes.Compare(b.cache[j].key, b.cache[k].key) < 0
 	})
 
-	dbBatch := b.parentStore.NewBatch()
+	dbBatch := b.db.NewBatch()
 	for _, kv := range b.cache {
 		if kv.value == nil {
 			dbBatch.Delete(util.PrefixKey(vmPrefix, kv.key))

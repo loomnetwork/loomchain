@@ -24,75 +24,6 @@ func TestMultiWriterAppStoreTestSuite(t *testing.T) {
 	suite.Run(t, new(MultiWriterAppStoreTestSuite))
 }
 
-func (m *MultiWriterAppStoreTestSuite) TestEnableDisableMultiWriterAppStore() {
-	require := m.Require()
-	store, err := mockMultiWriterStore(10, 10)
-	require.NoError(err)
-
-	// vm keys should be written to both the IAVL & EVM store
-	store.Set(evmDBFeatureKey, []byte{})
-	store.Set(vmPrefixKey("abcd"), []byte("hello"))
-	store.Set(vmPrefixKey("abcde"), []byte("world"))
-	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
-	store.Set(vmPrefixKey("aaaa"), []byte("yes"))
-	store.Set([]byte("abcd"), []byte("NewData"))
-
-	rangeData := store.Range(vmPrefix)
-	require.Equal(4, len(rangeData))
-	require.True(store.Has([]byte("abcd")))
-
-	// vm keys should now only be written to the EVM store
-	store.Set(evmDBFeatureKey, []byte{1})
-	store.Set(vmPrefixKey("gg"), []byte("world"))
-	store.Set(vmPrefixKey("dd"), []byte("yes"))
-	store.Set(vmPrefixKey("vv"), []byte("yes"))
-	store.Set([]byte("dcba"), []byte("MoreData"))
-
-	rangeData = store.Range(vmPrefix)
-	require.Equal(7, len(rangeData))
-	require.True(store.Has([]byte("abcd")))
-	require.True(store.Has([]byte("dcba")))
-}
-
-func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreDelete() {
-	require := m.Require()
-	store, err := mockMultiWriterStore(10, 10)
-	require.NoError(err)
-
-	// vm keys should be written to both the IAVL & EVM store
-	store.Set(evmDBFeatureKey, []byte{})
-	store.Set(vmPrefixKey("abcd"), []byte("hello"))
-	store.Set(vmPrefixKey("abcde"), []byte("world"))
-	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
-	store.Set(vmPrefixKey("aaaa"), []byte("yes"))
-	store.Set([]byte("vmroot"), []byte("SSSSSSSSSSSSS"))
-	store.Set([]byte("abcd"), []byte("NewData"))
-
-	store.Delete(vmPrefixKey("abcd"))
-	require.False(store.Has(vmPrefixKey("abcd")))
-
-	rangeData := store.Range(vmPrefix)
-	require.Equal(3, len(rangeData))
-	require.True(store.Has([]byte("vmroot")))
-	require.True(store.Has([]byte("abcd")))
-
-	// vm keys should be written to the EVM store
-	store.Set(evmDBFeatureKey, []byte{1})
-	rangeData = store.Range(vmPrefix)
-	require.Equal(3, len(rangeData))
-	require.Equal([]byte("SSSSSSSSSSSSS"), store.Get([]byte("vmroot")))
-
-	store.Set(vmPrefixKey("gg"), []byte("world"))
-	store.Set(vmPrefixKey("dd"), []byte("yes"))
-	store.Set(vmPrefixKey("vv"), []byte("yes"))
-	store.Delete(vmPrefixKey("vv"))
-	require.False(store.Has(vmPrefixKey("vv")))
-
-	rangeData = store.Range(vmPrefix)
-	require.Equal(5, len(rangeData))
-	require.True(store.Has([]byte("abcd")))
-}
-
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInterval() {
 	require := m.Require()
 	// flush data to disk every 2 blocks
@@ -135,8 +66,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	store, err := mockMultiWriterStore(10, -1)
 	require.NoError(err)
 
-	// vm keys should be written to the EVM store
-	store.Set(evmDBFeatureKey, []byte{1})
+	// all keys (including vm keys) should be written to the IAVL store
 	store.Set(vmPrefixKey("abcd"), []byte("hello"))
 	store.Set(vmPrefixKey("abcde"), []byte("world"))
 	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
@@ -157,7 +87,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	store.Delete(vmPrefixKey("gg"))
 
 	dataRange := store.Range(vmPrefix)
-	require.Equal(6+1, len(dataRange)) // +1 is for the evm root that written by the EVM store itself
+	require.Equal(6, len(dataRange))
 
 	_, version, err = store.SaveVersion(nil)
 	require.Equal(int64(2), version)
@@ -189,7 +119,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	_, evmStoreVer := store.evmStore.Version()
 	require.Equal(version, evmStoreVer)
 
-	newStore, err := NewMultiWriterAppStore(iavlStore, store.evmStore, false)
+	newStore, err := NewMultiWriterAppStore(iavlStore, store.evmStore)
 	require.NoError(err)
 
 	rangeData := iavlStore.Range([]byte("vm"))
@@ -303,7 +233,7 @@ func mockMultiWriterStore(appStoreFlushInterval, evmStoreFlushInterval int64) (*
 	}
 	memDb, _ = db.LoadMemDB()
 	evmStore := NewEvmStore(memDb, 100, evmStoreFlushInterval)
-	multiWriterStore, err := NewMultiWriterAppStore(iavlStore, evmStore, false)
+	multiWriterStore, err := NewMultiWriterAppStore(iavlStore, evmStore)
 	if err != nil {
 		return nil, err
 	}
