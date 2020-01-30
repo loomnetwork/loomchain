@@ -53,7 +53,7 @@ func newDumpEVMStateFromEvmDB() *cobra.Command {
 
 			fmt.Printf("version: %d, root: %x\n", version, root)
 
-			srcStateDB := gstate.NewDatabase(store.NewLoomEthDB(evmStore))
+			srcStateDB := gstate.NewDatabase(store.NewLoomEthDB(evmDB))
 			srcStateDBTrie, err := srcStateDB.OpenTrie(evmRoot)
 			if err != nil {
 				fmt.Printf("cannot open trie, %s\n", evmRoot.Hex())

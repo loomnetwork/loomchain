@@ -646,7 +646,7 @@ func loadAppStore(
 		if err != nil {
 			return nil, nil, err
 		}
-		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
+		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore)
 		if err != nil {
 			return nil, nil, err
 		}

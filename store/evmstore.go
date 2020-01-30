@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
-	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,17 +10,17 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
 	defaultRoot = []byte{1}
 	rootHashKey = util.PrefixKey(vmPrefix, rootKey)
+	// Prefix for versioned Patricia roots
+	evmRootPrefix = []byte("evmroot")
 
 	commitDuration metrics.Histogram
 )
@@ -75,80 +74,9 @@ func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int, flushInterval int64) *E
 		rootCache:     rootCache,
 		flushInterval: flushInterval,
 	}
-	ethDB := NewLoomEthDB(evmStore)
+	ethDB := NewLoomEthDB(evmDB)
 	evmStore.trieDB = trie.NewDatabase(ethDB)
 	return evmStore
-}
-
-func (s *EvmStore) NewBatch() dbm.Batch {
-	return s.evmDB.NewBatch()
-}
-
-// Range iterates in-order over the keys in the store prefixed by the given prefix.
-// TODO (VM): This needs a proper review, other than tests there is no code that really makes use of
-//            this function, only place it's called is from MultiWriterAppStore.Range but only when
-//            iterating over the "vm" prefix - which no code currently does.
-// NOTE: This version of EvmStore supports Range(nil)
-func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
-	rangeCacheKeys := []string{}
-	rangeCache := make(map[string][]byte)
-
-	// Add records from evm.db to range cache
-	iter := s.evmDB.Iterator(prefix, nil)
-	defer iter.Close()
-	for ; iter.Valid(); iter.Next() {
-		key := string(iter.Key())
-		value := iter.Value()
-		if util.HasPrefix([]byte(key), prefix) || len(prefix) == 0 {
-			rangeCache[key] = value
-			rangeCacheKeys = append(rangeCacheKeys, key)
-		}
-	}
-
-	// Make Range return root hash (vmvmroot) from EvmStore.rootHash
-	if _, exist := rangeCache[string(rootHashKey)]; exist {
-		rangeCache[string(rootHashKey)] = s.rootHash
-	}
-
-	ret := make(plugin.RangeData, 0)
-	// Sorting makes RangeData deterministic
-	sort.Strings(rangeCacheKeys)
-	for _, key := range rangeCacheKeys {
-		var unprefixedKey []byte
-		var err error
-		if len(prefix) > 0 {
-			unprefixedKey, err = util.UnprefixKey([]byte(key), prefix)
-			if err != nil {
-				continue
-			}
-		} else {
-			unprefixedKey = []byte(key)
-		}
-		re := &plugin.RangeEntry{
-			Key:   unprefixedKey,
-			Value: rangeCache[key],
-		}
-		ret = append(ret, re)
-	}
-	return ret
-}
-
-// TODO: Range/Has/Get/Delete/Set are probably only called from the MultiWriterAppStore which
-//       doesn't need to do so anymore, remove these functions when MultiWriterAppStore is cleaned up.
-func (s *EvmStore) Has(key []byte) bool {
-	return s.evmDB.Has(key)
-}
-
-func (s *EvmStore) Get(key []byte) []byte {
-	return s.evmDB.Get(key)
-}
-
-func (s *EvmStore) Delete(key []byte) {
-	s.evmDB.Delete(key)
-}
-
-func (s *EvmStore) Set(key, val []byte) {
-	s.evmDB.Set(key, val)
 }
 
 // Commit may persist the changes made to the store since the last commit to the underlying DB.
@@ -273,41 +201,7 @@ func (s *EvmStore) GetRootAt(version int64) ([]byte, int64) {
 	return s.getLastSavedRoot(version)
 }
 
-// TODO: Get rid of this function. EvmStore does not provide snapshot anymore but EVMState does.
-func (s *EvmStore) GetSnapshot(version int64) *EvmStoreSnapshot {
-	root, _ := s.GetRootAt(version)
-	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), root)
-}
-
-// TODO: Get rid of EvmStoreSnapshot. EvmStore does not provide snapshot anymore but EVMState does.
-func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
-	return &EvmStoreSnapshot{
-		Snapshot: snapshot,
-		rootHash: rootHash,
-	}
-}
-
-type EvmStoreSnapshot struct {
-	db.Snapshot
-	rootHash []byte
-}
-
-func (s *EvmStoreSnapshot) Get(key []byte) []byte {
-	if bytes.Equal(key, rootHashKey) {
-		return s.rootHash
-	}
-	return s.Snapshot.Get(key)
-}
-
-func (s *EvmStoreSnapshot) Has(key []byte) bool {
-	// snapshot always has a root hash
-	// nil or empty root hash is considered valid root hash
-	if bytes.Equal(key, rootHashKey) {
-		return true
-	}
-	return s.Snapshot.Has(key)
-}
-
+/*
 func remove(keys []string, key string) []string {
 	for i, value := range keys {
 		if value == key {
@@ -316,3 +210,4 @@ func remove(keys []string, key string) []string {
 	}
 	return keys
 }
+*/
