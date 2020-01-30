@@ -200,14 +200,3 @@ func (s *EvmStore) GetRootAt(version int64) ([]byte, int64) {
 	}
 	return s.getLastSavedRoot(version)
 }
-
-/*
-func remove(keys []string, key string) []string {
-	for i, value := range keys {
-		if value == key {
-			return append(keys[:i], keys[i+1:]...)
-		}
-	}
-	return keys
-}
-*/
