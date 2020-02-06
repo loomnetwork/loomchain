@@ -495,6 +495,140 @@ func TestDelegate(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestUnbondAll(t *testing.T) {
+	pctx := createCtx()
+
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(delegatorAddress2, 2000000000000000000),
+			makeAccount(delegatorAddress3, 1000000000000000000),
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(addr2, 1000000000000000000),
+		},
+	})
+
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount: 21,
+		OracleAddress:  oracleAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// transfer coins to reward fund
+	amount := big.NewInt(1)
+	amount.Mul(amount, big.NewInt(1e18))
+	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.TransferRequest{
+		To:     dpos.Address.MarshalPB(),
+		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
+	})
+	require.Nil(t, err)
+
+	whitelistAmount := big.NewInt(1000000000000)
+	// should fail from non-oracle
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
+	require.Equal(t, errOnlyOracle, err)
+
+	err = dpos.WhitelistCandidate(pctx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	delegationAmount := big.NewInt(100)
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	response, err := coinContract.Allowance(contractpb.WrapPluginContext(coinCtx.WithSender(oracleAddr)), &coin.AllowanceRequest{
+		Owner:   addr1.MarshalPB(),
+		Spender: dpos.Address.MarshalPB(),
+	})
+	require.Nil(t, err)
+	require.True(t, delegationAmount.Cmp(response.Amount.Value.Int) == 0)
+
+	candidates, err := dpos.ListCandidates(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, len(candidates), 1)
+
+	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	// total rewards distribution should equal 0 before elections run
+	totalRewardDistribution, err := dpos.CheckRewards(pctx.WithSender(addr1))
+	require.Nil(t, err)
+	assert.True(t, totalRewardDistribution.Cmp(common.BigZero()) == 0)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// total rewards distribution should equal still be zero after first election
+	totalRewardDistribution, err = dpos.CheckRewards(pctx.WithSender(addr1))
+	require.Nil(t, err)
+	assert.True(t, totalRewardDistribution.Cmp(common.BigZero()) == 0)
+
+	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+
+	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr2)
+	require.Nil(t, err)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, nil, nil)
+	require.Nil(t, err)
+
+	// checking a non-existent delegation should result in an empty (amount = 0)
+	// delegaiton being returned
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &addr2)
+	require.Nil(t, err)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+	})
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	// total rewards distribution should be greater than zero
+	totalRewardDistribution, err = dpos.CheckRewards(pctx.WithSender(addr1))
+	require.Nil(t, err)
+	assert.True(t, common.IsPositive(*totalRewardDistribution))
+
+	pctx.SetFeature(features.DPOSVersion3_7, true)
+	
+	err = dpos.UnbondAll(pctx.WithSender(oracleAddr))
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx.WithSender(addr1), dpos.Address))
+
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
+	require.Nil(t, err)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
+}
+
 func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
 	pctx := createCtx()
 

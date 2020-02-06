@@ -349,6 +349,14 @@ func (dpos *testDPOSContract) Unbond(ctx *plugin.FakeContext, validator *loom.Ad
 	return err
 }
 
+func (dpos *testDPOSContract) UnbondAll(ctx *plugin.FakeContext) error {
+	err := dpos.Contract.UnbondAll(
+		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),
+		&UnbondAllRequest{},
+	)
+	return err
+}
+
 func (dpos *testDPOSContract) CheckDelegatorRewards(ctx *plugin.FakeContext, delegator *loom.Address) (*big.Int, error) {
 	claimResponse, err := dpos.Contract.CheckRewardsFromAllValidators(
 		contract.WrapPluginContext(ctx.WithAddress(dpos.Address)),

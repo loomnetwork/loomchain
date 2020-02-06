@@ -85,6 +85,7 @@ type (
 	DelegationState                   = dtypes.Delegation_DelegationState
 	LocktimeTier                      = dtypes.LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
+	UnbondAllRequest                  = dtypes.UnbondAllRequest
 	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
 	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
@@ -734,6 +735,54 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	}
 
 	return c.emitDelegatorUnbondsEvent(ctx, delegation)
+}
+
+func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
+	if !ctx.FeatureEnabled(features.DPOSVersion3_7, false) {
+		return errors.New("DPOS v3.7 is not enabled")
+	}
+
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3", "UnbondAll", "sender", sender, "request", req)
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	delegationIndexes, err := loadDelegationList(ctx)
+	if err != nil {
+		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
+	}
+
+	for _, di := range delegationIndexes {
+		delegation, err := GetDelegation(ctx, di.Index, *di.Validator, *di.Delegator)
+		if err == contract.ErrNotFound {
+			return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", di.Validator, di.Delegator)), req.String())
+		} else if err != nil {
+			return errors.Wrap(err, "failed to load delegation")
+		}
+
+		if delegation.State != BONDED {
+			return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
+		} else {
+			delegation.State = UNBONDING
+			// Unbonded full amount
+			delegation.UpdateAmount = delegation.Amount
+			SetDelegation(ctx, delegation)
+		}
+
+		if err = c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
