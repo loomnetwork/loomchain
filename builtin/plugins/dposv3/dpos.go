@@ -757,7 +757,7 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 
 	delegationIndexes, err := loadDelegationList(ctx)
 	if err != nil {
-		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
+		return logDposError(ctx, errors.New("Failed to load delegations."), req.String())
 	}
 
 	for _, di := range delegationIndexes {
@@ -768,13 +768,14 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 			return errors.Wrap(err, "failed to load delegation")
 		}
 
-		if delegation.State != BONDED {
-			return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
-		} else {
+		if delegation.State != UNBONDING {
 			delegation.State = UNBONDING
 			// Unbonded full amount
 			delegation.UpdateAmount = delegation.Amount
-			SetDelegation(ctx, delegation)
+
+			if err := SetDelegation(ctx, delegation); err != nil {
+				return err
+			}
 		}
 
 		if err = c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {

@@ -524,8 +524,7 @@ func TestUnbondAll(t *testing.T) {
 	require.Nil(t, err)
 
 	// transfer coins to reward fund
-	amount := big.NewInt(1)
-	amount.Mul(amount, big.NewInt(1e18))
+	amount := big.NewInt(10000)
 	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.TransferRequest{
 		To:     dpos.Address.MarshalPB(),
 		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
@@ -549,13 +548,6 @@ func TestUnbondAll(t *testing.T) {
 		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
 	})
 	require.Nil(t, err)
-
-	response, err := coinContract.Allowance(contractpb.WrapPluginContext(coinCtx.WithSender(oracleAddr)), &coin.AllowanceRequest{
-		Owner:   addr1.MarshalPB(),
-		Spender: dpos.Address.MarshalPB(),
-	})
-	require.Nil(t, err)
-	require.True(t, delegationAmount.Cmp(response.Amount.Value.Int) == 0)
 
 	candidates, err := dpos.ListCandidates(pctx)
 	require.Nil(t, err)
@@ -612,20 +604,19 @@ func TestUnbondAll(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	// total rewards distribution should be greater than zero
-	totalRewardDistribution, err = dpos.CheckRewards(pctx.WithSender(addr1))
-	require.Nil(t, err)
-	assert.True(t, common.IsPositive(*totalRewardDistribution))
-
 	pctx.SetFeature(features.DPOSVersion3_7, true)
-	
-	err = dpos.UnbondAll(pctx.WithSender(oracleAddr))
+
+	err = dpos.Contract.UnbondAll(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(oracleAddr)),
+		&UnbondAllRequest{},
+	)
 	require.Nil(t, err)
 
 	require.NoError(t, elect(pctx.WithSender(addr1), dpos.Address))
 
-	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
+	delegations, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
 	require.Nil(t, err)
+	require.Equal(t, 0, len(delegations))
 	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
 }
 
