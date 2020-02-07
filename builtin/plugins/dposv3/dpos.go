@@ -757,7 +757,7 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 
 	delegationIndexes, err := loadDelegationList(ctx)
 	if err != nil {
-		return logDposError(ctx, errors.New("Failed to load delegations."), req.String())
+		return logDposError(ctx, errors.New("Failed to load delegations"), req.String())
 	}
 
 	for _, di := range delegationIndexes {
