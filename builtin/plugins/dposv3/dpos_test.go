@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -557,7 +556,7 @@ func TestUnbondAll(t *testing.T) {
 
 	candidates, err := dpos.ListCandidates(pctx)
 	require.Nil(t, err)
-	assert.Equal(t, len(candidates), 1)
+	assert.Equal(t, 1, len(candidates))
 
 	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
 	require.Nil(t, err)
@@ -582,18 +581,9 @@ func TestUnbondAll(t *testing.T) {
 	err = dpos.Delegate(pctx.WithSender(delegatorAddress2), &addr1, delegationAmount, &tierThree, nil)
 	require.Nil(t, err)
 
-	ds, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
+	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
 	require.Nil(t, err)
 	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
-	fmt.Printf("delegation  count %+v\n", len(ds))
-	for _, d := range ds {
-		fmt.Println("delegation status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dpos.Address.MarshalPB(),
@@ -609,66 +599,15 @@ func TestUnbondAll(t *testing.T) {
 
 	require.NoError(t, elect(pctx, dpos.Address))
 
-	ds, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
 	require.Nil(t, err)
 	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 1)
-	fmt.Printf("delegation2  count %+v\n", len(ds))
-	// for _, d := range ds {
-	// 	fmt.Println("delegation status ---")
-	// 	fmt.Println("delegator : ", d.Delegator.Local.String())
-	// 	fmt.Println("validator : ", d.Validator.Local.String())
-	// 	fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-	// 	fmt.Println("Index ", d.GetIndex())
-	// 	fmt.Println("State : ", d.GetState())
-	// }
 
 	delegations, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr1)
-	for _, d := range delegations {
-		fmt.Println("--- self delegation status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
 	require.Nil(t, err)
 	require.Equal(t, 3, len(delegations))
 
 	require.NoError(t, elect(pctx.WithSender(addr1), dpos.Address))
-
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
-	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- before unbond delegator1 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
-
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
-	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- before unbond delegator2 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
-
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &addr1)
-	for _, d := range delegations {
-		fmt.Printf("delegation3 status %+v\n", d)
-	}
-	require.Nil(t, err)
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
 
 	pctx.SetFeature(features.DPOSVersion3_7, true)
 
@@ -678,105 +617,32 @@ func TestUnbondAll(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
-	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- after unbond all delegator1 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
+	require.NoError(t, elect(pctx.WithSender(addr1), dpos.Address))
 
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
+	err = dpos.Contract.UnbondAll(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(oracleAddr)),
+		&UnbondAllRequest{},
+	)
 	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- after unbond all delegator2 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
 
 	require.NoError(t, elect(pctx.WithSender(addr1), dpos.Address))
 
 	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
 	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- delegator1 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
+	require.Equal(t, 1, len(delegations))
+	assert.Equal(t, uint64(0), delegations[0].Index)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(50)) < 0) // Ensure that only small delegation amount left.
 
 	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
 	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- delegator2 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
+	require.Equal(t, 1, len(delegations))
+	assert.Equal(t, uint64(0), delegations[0].Index)
+	assert.True(t, delegatedAmount.Cmp(big.NewInt(50)) < 0) // Ensure that only small delegation amount left.
 
 	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &addr1)
-	for _, d := range delegations {
-		fmt.Printf("delegation3 status %+v\n", d)
-	}
 	require.Nil(t, err)
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
-
-	// ---- after second election -----
-	require.NoError(t, elect(pctx.WithSender(addr1), dpos.Address))
-
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
-	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- delegator1 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
-
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
-	require.Nil(t, err)
-	for _, d := range delegations {
-		fmt.Println("--- delegator2 to addr1 status ---")
-		fmt.Println("delegator : ", d.Delegator.Local.String())
-		fmt.Println("validator : ", d.Validator.Local.String())
-		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
-		fmt.Println("Index ", d.GetIndex())
-		fmt.Println("State : ", d.GetState())
-	}
-	// require.Equal(t, 0, len(delegations))
-	// assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
-
-	delegations, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &addr1)
-	for _, d := range delegations {
-		fmt.Printf("delegation3 status %+v\n", d)
-	}
-	require.Nil(t, err)
-	require.Equal(t, 0, len(delegations))
-	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
-
+	require.Equal(t, 1, len(delegations))
+	assert.Equal(t, uint64(0), delegations[0].Index)
 }
 
 func TestRedelegateCreatesNewDelegationWithFullAmount(t *testing.T) {
