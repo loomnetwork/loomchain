@@ -462,9 +462,6 @@ func TestDelegate(t *testing.T) {
 	err = dpos.Unbond(pctx.WithSender(addr1), &addr1, delegationAmount, 2)
 	require.Nil(t, err)
 
-	err = dpos.Unbond(pctx.WithSender(addr1), &addr1, big.NewInt(0), 0)
-	require.Nil(t, err)
-
 	require.NoError(t, elect(pctx, dpos.Address))
 
 	err = dpos.Unbond(pctx.WithSender(addr1), &addr1, big.NewInt(1), 3)

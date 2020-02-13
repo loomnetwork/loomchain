@@ -1280,7 +1280,6 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
-
 	ctx.Logger().Debug("DPOSv3 Elect", "delegationResults", len(delegationResults))
 
 	validatorCount := int(state.Params.ValidatorCount)
@@ -2065,7 +2064,7 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 			}
 			err = coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
 			if err != nil {
-				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegation.Delegator.String(), delegation.UpdateAmount.Value.String())
+				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - Delegate, %v, %s", delegator.String(), req.Amount.Value.String())
 				return nil, logDposError(ctx, err, transferFromErr)
 			}
 		} else if delegation.State == REDELEGATING {
