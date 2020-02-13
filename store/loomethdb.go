@@ -64,7 +64,8 @@ func (s *LoomEthDB) Delete(key []byte) error {
 	return nil
 }
 
-func (s *LoomEthDB) Close() {
+func (s *LoomEthDB) Close() error {
+	return nil
 }
 
 func (s *LoomEthDB) NewBatch() ethdb.Batch {
@@ -74,22 +75,105 @@ func (s *LoomEthDB) NewBatch() ethdb.Batch {
 	return newBatch(s.db)
 }
 
+// The methods below aren't used in loomchain so they're just stubs to satisfy the ethdb.Database interface
+
+// Compact implements ethdb.Compacter
+func (s *LoomEthDB) Compact(start []byte, limit []byte) error {
+	panic("not implemented")
+	return nil
+}
+
+// NewIterator implements ethdb.Iteratee
+func (s *LoomEthDB) NewIterator() ethdb.Iterator {
+	panic("not implemented")
+	return nil
+}
+
+// NewIteratorWithStart implements ethdb.Iteratee
+func (s *LoomEthDB) NewIteratorWithStart(start []byte) ethdb.Iterator {
+	panic("not implemented")
+	return nil
+}
+
+// NewIteratorWithPrefix implements ethdb.Iteratee
+func (s *LoomEthDB) NewIteratorWithPrefix(prefix []byte) ethdb.Iterator {
+	panic("not implemented")
+	return nil
+}
+
+// Stat implements ethdb.Stater
+func (s *LoomEthDB) Stat(property string) (string, error) {
+	panic("not implemented")
+	return "", nil
+}
+
+// HasAncient implements AncientReader
+func (s *LoomEthDB) HasAncient(kind string, number uint64) (bool, error) {
+	panic("not implemented")
+	return false, nil
+}
+
+// Ancient implements AncientReader
+func (s *LoomEthDB) Ancient(kind string, number uint64) ([]byte, error) {
+	panic("not implemented")
+	return nil, nil
+}
+
+// Ancients implements AncientReader
+func (s *LoomEthDB) Ancients() (uint64, error) {
+	panic("not implemented")
+	return 0, nil
+}
+
+// AncientSize implements AncientReader
+func (s *LoomEthDB) AncientSize(kind string) (uint64, error) {
+	panic("not implemented")
+	return 0, nil
+}
+
+// AppendAncient implements AncientWriter
+func (s *LoomEthDB) AppendAncient(number uint64, hash, header, body, receipt, td []byte) error {
+	panic("not implemented")
+	return nil
+}
+
+// TruncateAncients implements AncientWriter
+func (s *LoomEthDB) TruncateAncients(n uint64) error {
+	panic("not implemented")
+	return nil
+}
+
+// Sync implements AncientWriter
+func (s *LoomEthDB) Sync() error {
+	panic("not implemented")
+	return nil
+}
+
+type batchOp struct {
+	isDeleteOp bool
+	key        []byte
+	value      []byte
+}
+
 // implements ethdb.Batch
 type batch struct {
 	dbBatch dbm.Batch
 	db      db.DBWrapper
 	size    int
+	ops     []batchOp
 }
 
 func newBatch(db db.DBWrapper) *batch {
 	return &batch{
 		dbBatch: db.NewBatch(),
 		db:      db,
+		ops:     nil,
 	}
 }
 
 func (b *batch) Put(key, value []byte) error {
 	b.dbBatch.Set(util.PrefixKey(vmPrefix, key), value)
+	b.ops = append(b.ops, batchOp{false, key, value})
 	b.size += len(value)
 	return nil
 }
@@ -107,11 +191,28 @@ func (b *batch) Reset() {
 	b.dbBatch.Close()
 	b.dbBatch = b.db.NewBatch()
 	b.size = 0
+	b.ops = nil
 }
 
 func (b *batch) Delete(key []byte) error {
 	b.dbBatch.Delete(util.PrefixKey(vmPrefix, key))
+	b.ops = append(b.ops, batchOp{true, key, nil})
 	return nil
+}
+
+func (b *batch) Replay(w ethdb.KeyValueWriter) error {
+	var err error
+	for _, op := range b.ops {
+		if err != nil {
+			return err
+		}
+		if op.isDeleteOp {
+			err = w.Delete(op.key)
+		} else {
+			err = w.Put(op.key, op.value)
+		}
+	}
+	return err
 }
 
 type EthDBLogParams struct {
@@ -272,4 +373,19 @@ func (b *LogBatch) Dump(logger *log.Logger) {
 	for i, kv := range b.cache {
 		logger.Printf("IDX %d, KEY %s\n", i, kv.key)
 	}
+}
+
+func (b *LogBatch) Replay(w ethdb.KeyValueWriter) error {
+	var err error
+	for _, kv := range b.cache {
+		if err != nil {
+			return err
+		}
+		if kv.value == nil {
+			err = w.Delete(kv.key)
+		} else {
+			err = w.Put(kv.key, kv.value)
+		}
+	}
+	return err
 }

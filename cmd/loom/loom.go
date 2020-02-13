@@ -343,7 +343,7 @@ func newRunCommand() *cobra.Command {
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			logger := log.Default
-			configureGeth(cfg.Geth)
+
 			if cfg.PrometheusPushGateway.Enabled {
 				host, err := os.Hostname()
 				if err != nil {

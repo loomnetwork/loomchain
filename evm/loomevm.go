@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -25,6 +24,7 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -68,7 +68,7 @@ func NewLoomEvm(
 }
 
 func (levm LoomEvm) RawDump() []byte {
-	d := levm.sdb.RawDump()
+	d := levm.sdb.RawDump(false, false, false)
 	output, err := json.MarshalIndent(d, "", "  ")
 	if err != nil {
 		panic(err)
@@ -270,7 +270,7 @@ func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 }
 
 func getLoomEvmTxHash(ethTxHash []byte, from loom.LocalAddress) []byte {
-	h := sha3.NewKeccak256()
+	h := sha3.NewLegacyKeccak256()
 	h.Write(append(ethTxHash, from...))
 	return h.Sum(nil)
 }

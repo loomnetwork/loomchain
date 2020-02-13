@@ -150,7 +150,7 @@ type Config struct {
 	SkipMinBuildCheck bool
 
 	Web3 *eth.Web3Config
-	Geth *GethConfig
+	Geth *GethConfig // Deprecated
 	DPOS *DPOSConfig
 }
 
@@ -862,12 +862,4 @@ AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
 
-{{if .Geth -}}
-#
-# Internal EVM integration settings
-#
-Geth:
-  EnableStateObjectDirtyStorageKeysSorting: {{.Geth.EnableStateObjectDirtyStorageKeysSorting}}
-  EnableTrieDatabasePreimageKeysSorting: {{.Geth.EnableTrieDatabasePreimageKeysSorting}}
-{{end}}
 ` + transferGatewayLoomYamlTemplate
