@@ -2064,7 +2064,7 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 			}
 			err = coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
 			if err != nil {
-				transferFromErr := fmt.Sprintf("Failed coin TransferFrom - Delegate, %v, %s", delegator.String(), req.Amount.Value.String())
+				transferFromErr := fmt.Sprintf("Failed coin Transfer - distributeDelegatorRewards, %v, %s", delegation.Delegator.String(), delegation.UpdateAmount.Value.String())
 				return nil, logDposError(ctx, err, transferFromErr)
 			}
 		} else if delegation.State == REDELEGATING {
