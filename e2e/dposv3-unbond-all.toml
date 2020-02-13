@@ -9,6 +9,11 @@
   Excluded = ["Error"]
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin transfer dposV3 5000000 -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = ""
 
@@ -79,7 +84,7 @@
   Expected = ["2000000000000000000"]
 
   [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 2}} {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 2}} {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = ["20000000000000000000000"]
 
@@ -100,14 +105,39 @@
   Expected = ["8000000000000000000"]
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = [""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["\"index\": \"1\""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
+  Condition = "contains"
+  Expected = [ 'dpos:v3.7' ]
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unbond-all -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
-  Condition = "contains"
-  Expected = ["\"Value\": 12500", "{{index $.NodeBase64AddressList 1}}", "{{index $.NodeBase64AddressList 2}}"]
-
-  [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
-  Expected = ["2000000000000000000"]
+  Expected = [""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["\"index\": \"0\""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
+  Condition = "excludes"
+  Excluded = ["\"index\": \"1\""]
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-all-delegations"
+  Condition = "excludes"
+  Excluded = ["\"index\": \"1\""]
