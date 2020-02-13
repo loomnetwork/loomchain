@@ -743,7 +743,7 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 	}
 
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3", "UnbondAll", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOSv3 UnbondAll", "sender", sender, "request", req)
 
 	state, err := LoadState(ctx)
 	if err != nil {
@@ -761,19 +761,30 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 	}
 
 	for _, di := range delegationIndexes {
+
 		delegation, err := GetDelegation(ctx, di.Index, *di.Validator, *di.Delegator)
 		if err == contract.ErrNotFound {
 			return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", di.Validator, di.Delegator)), req.String())
 		} else if err != nil {
 			return errors.Wrap(err, "failed to load delegation")
 		}
+		// fmt.Printf(" delegation : %+v\n", delegation)
+
+		d := delegation
+		fmt.Println("--- Unbond all ---")
+		fmt.Println("delegator : ", d.Delegator.Local.String())
+		fmt.Println("validator : ", d.Validator.Local.String())
+		fmt.Println("amount : "+d.Amount.Value.String()+" update amount : ", d.UpdateAmount.Value.String())
+		fmt.Println("Index ", d.GetIndex())
+		fmt.Println("State : ", d.GetState())
 
 		if delegation.State != UNBONDING {
 			delegation.State = UNBONDING
 			// Unbonded full amount
-			delegation.UpdateAmount = delegation.Amount
+			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
 
 			if err := SetDelegation(ctx, delegation); err != nil {
+				fmt.Printf(" error in set delegation  %+v\n", err)
 				return err
 			}
 		}
@@ -1271,6 +1282,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	// Check if enough time has elapsed to start new validator election
+	fmt.Println("Elect 0")
 	if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
 		return nil
 	}
@@ -1279,6 +1291,7 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
+
 	ctx.Logger().Debug("DPOSv3 Elect", "delegationResults", len(delegationResults))
 
 	validatorCount := int(state.Params.ValidatorCount)
@@ -1348,6 +1361,7 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
+	fmt.Println("Elect 1")
 	ctx.Logger().Debug("DPOSv3 Elect", "Post-Elect State", state)
 	return emitElectionEvent(ctx)
 }
@@ -2055,7 +2069,10 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 			updatedAmount.Add(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 		} else if delegation.State == UNBONDING {
+			fmt.Println("delegation amount-->", delegation.Amount.Value.String())
+			fmt.Println("update     amount-->", delegation.UpdateAmount.Value.String())
 			updatedAmount.Sub(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
+			fmt.Println("Updated    amount-->", updatedAmount.String())
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 			coin, err := loadCoin(ctx)
 			if err != nil {
