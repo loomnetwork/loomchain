@@ -376,6 +376,7 @@ func newGetOraclesCommand() *cobra.Command {
 
 func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	var onlyRewards bool
+	var ethURI string
 	cmd := &cobra.Command{
 		Use:     "withdraw-funds <ethereum-uri>",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
@@ -393,11 +394,6 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			 * 7. Check account receipt
 			 * 8. Create unsigned transaction and print it. GG:)
 			 */
-
-			var ethereumUri = "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241"
-			if len(args) != 0 {
-				ethereumUri = args[0]
-			}
 
 			mainnetLoomAddress := "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
 			mainnetGatewayAddress := "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570"
@@ -442,7 +438,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			ethClient, err := ethclient.Dial(ethereumUri)
+			ethClient, err := ethclient.Dial(ethURI)
 			if err != nil {
 				return err
 			}
@@ -603,6 +599,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
+	cmdFlags.StringVar(&ethURI, "eth-uri", "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241", "Ethereum URI")
 	return cmd
 }
 
