@@ -383,7 +383,6 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 		Use:     "withdraw-funds",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
 		Example: withdrawFundsCmdExample,
-		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			/**
