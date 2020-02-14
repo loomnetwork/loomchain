@@ -66,7 +66,7 @@ const replaceOwnerCmdExample = `
 const withdrawFundsCmdExample = `
 ./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key path/to/loom_priv.key OR
 ./loom gateway withdraw-funds \
-	--eth-uri https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241 \
+	--eth-uri https://mainnet.infura.io/v3/<project_id> \
 	-u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
 `
 
