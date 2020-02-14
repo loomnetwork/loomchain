@@ -743,8 +743,6 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 	}
 
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 UnbondAll", "sender", sender, "request", req)
-
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
@@ -769,7 +767,7 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 			return errors.Wrap(err, "failed to load delegation")
 		}
 
-		if delegation.State != UNBONDING {
+		if delegation.State == BONDED {
 			delegation.State = UNBONDING
 			// Unbonded full amount
 			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
@@ -777,10 +775,10 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 			if err := SetDelegation(ctx, delegation); err != nil {
 				return err
 			}
-		}
 
-		if err = c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {
-			return err
+			if err = c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {
+				return err
+			}
 		}
 	}
 

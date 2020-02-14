@@ -757,7 +757,7 @@ func UnbondCmdV3() *cobra.Command {
 	return cmd
 }
 
-const unboundAllCmdExample = `
+const unbondAllCmdExample = `
 loom dpos3 unbond-all -k path/to/private_key
 `
 
@@ -766,7 +766,7 @@ func UnbondAllDelegationsCmdV3() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "unbond-all",
 		Short:   "unbond all delegations",
-		Example: unboundAllCmdExample,
+		Example: unbondAllCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cli.CallContractWithFlags(
 				&flags, DPOSV3ContractName, "UnbondAll",
