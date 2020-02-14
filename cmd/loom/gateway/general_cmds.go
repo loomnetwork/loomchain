@@ -64,8 +64,10 @@ const replaceOwnerCmdExample = `
 `
 
 const withdrawFundsCmdExample = `
-./loom gateway withdraw-funds <ethereum-uri> -u http://plasma.dappchains.com:80 --chain default --key path/to/loom_priv.key OR
-./loom gateway withdraw-funds <ethereum-uri> -u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key path/to/loom_priv.key OR
+./loom gateway withdraw-funds \
+	--eth-uri https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241 \
+	-u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
 `
 
 const setWithdrawFeeCmdExample = `
@@ -378,7 +380,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	var onlyRewards bool
 	var ethURI string
 	cmd := &cobra.Command{
-		Use:     "withdraw-funds <ethereum-uri>",
+		Use:     "withdraw-funds",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
 		Example: withdrawFundsCmdExample,
 		Args:    cobra.MinimumNArgs(0),
