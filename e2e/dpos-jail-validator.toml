@@ -8,6 +8,7 @@
   Condition = "contains"
   Expected = [ 'dpos:v3.2' ]
 
+
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
 
@@ -74,6 +75,9 @@
   Condition = "contains"
   Expected = ["name","address","P"]
 
+# [[TestCases]]
+#   RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+
 # wait for node 1 to catch up
 [[TestCases]]
   RunCmd = "wait_for_node_to_catch_up 1"
@@ -88,17 +92,28 @@
   Condition = "contains"
   Expected = ["name","address","P-1"]
 
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 50"
+
 # node 1 should be jailed as it is offline for 15s
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["jailed\": true"]
 
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+
 # check downtime periods before unjailing the validator
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["name","address","P","0"]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+  # Condition = "excludes"
+  # Excluded = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
@@ -110,8 +125,14 @@
   RunCmd = "wait_for_block_height_to_increase 0 2"
 
 [[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "excludes"
   Excluded = ["jailed\": true"]
 
+
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 200"
 

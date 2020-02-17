@@ -1246,17 +1246,11 @@ func Elect(ctx contract.Context) error {
 			// does not halt due to the error. 0-value delegations are best to
 			// exclude for efficiency, though tendermint would ignore 0-powered
 			// validators
-
 			var power big.Int
 			// making sure that the validator power can fit into a int64
 			power.Div(res.DelegationTotal.Int, powerCorrection)
 			validatorPower := power.Int64()
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
-			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
-			validators = append(validators, &Validator{
-				PubKey: candidate.PubKey,
-				Power:  validatorPower,
-			})
 
 			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
@@ -1268,7 +1262,6 @@ func Elect(ctx contract.Context) error {
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
-
 				if statistic.UpdateWhitelistAmount != nil {
 					statistic.WhitelistAmount = statistic.UpdateWhitelistAmount
 					statistic.LocktimeTier = statistic.UpdateLocktimeTier
@@ -1276,10 +1269,26 @@ func Elect(ctx contract.Context) error {
 				}
 			}
 
+			if statistic.Jailed {
+				validatorPower = 0
+			} else {
+				totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
+			}
+
+			validators = append(validators, &Validator{
+				PubKey: candidate.PubKey,
+				Power:  validatorPower,
+			})
+
 			if err = SetStatistic(ctx, statistic); err != nil {
 				return err
 			}
 		}
+	}
+	ctx.Logger().Debug("DPOSv3 Elect", "validator-count", validatorCount)
+	for _, v := range validators {
+		s := fmt.Sprintf("Candidate pubkey : %s, power : %v\n", string(v.PubKey), v.Power)
+		ctx.Logger().Debug("DPOSv3 Elect", "candidate", s)
 	}
 
 	// calling `applyPowerCap` ensure that no validator has >28% of the voting
@@ -1309,13 +1318,20 @@ func Elect(ctx contract.Context) error {
 func applyPowerCap(validators []*Validator) []*Validator {
 	// It is impossible to apply a powercap when the number of validators is
 	// less than 4
-	if len(validators) < 4 {
+
+	normalValidators, zeroPowerValidators := stripZeroPowerValidator(validators)
+	if len(normalValidators) < 4 {
 		return validators
+	}
+
+	fmt.Println("before apply power cap")
+	for i, v := range normalValidators {
+		fmt.Printf("--> validator No. %d, power-->%v\n", i, v.Power)
 	}
 
 	powerSum := int64(0)
 	max := int64(0)
-	for _, v := range validators {
+	for _, v := range normalValidators {
 		powerSum += v.Power
 		if v.Power > max {
 			max = v.Power
@@ -1328,7 +1344,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 	if max > maximumIndividualPower {
 		extraSum := int64(0)
 		underCount := 0
-		for _, v := range validators {
+		for _, v := range normalValidators {
 			if v.Power > maximumIndividualPower {
 				extraSum += v.Power - maximumIndividualPower
 				v.Power = maximumIndividualPower
@@ -1339,7 +1355,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 
 		underBoost := int64(float64(extraSum) / float64(underCount))
 
-		for _, v := range validators {
+		for _, v := range normalValidators {
 			if v.Power < maximumIndividualPower {
 				if v.Power+underBoost > maximumIndividualPower {
 					v.Power = maximumIndividualPower
@@ -1350,7 +1366,29 @@ func applyPowerCap(validators []*Validator) []*Validator {
 		}
 	}
 
+	for _, z := range zeroPowerValidators {
+		normalValidators = append(normalValidators, z)
+	}
+
+	fmt.Println("after apply power cap")
+	for i, v := range normalValidators {
+		fmt.Printf("___validator No. %d, power-->%v\n", i, v.Power)
+	}
+
 	return validators
+}
+
+func stripZeroPowerValidator(validators []*Validator) ([]*Validator, []*Validator) {
+	normalValidators := make([]*Validator, 0)
+	zeroPowerValidators := make([]*Validator, 0)
+	for _, v := range validators {
+		if v.Power == 0 {
+			zeroPowerValidators = append(zeroPowerValidators, v)
+		} else {
+			normalValidators = append(normalValidators, v)
+		}
+	}
+	return normalValidators, zeroPowerValidators
 }
 
 func (c *DPOS) TimeUntilElection(
