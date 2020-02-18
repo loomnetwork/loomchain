@@ -51,9 +51,10 @@ func MakeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventDa
 	return &dummy
 }
 
-func MockState(height uint64) loomchain.State {
+func MockState(height uint64, chainId string) loomchain.State {
 	header := abci.Header{}
 	header.Height = int64(height)
+	header.ChainID = chainId
 	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil, nil)
 }
 

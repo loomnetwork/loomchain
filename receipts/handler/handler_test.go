@@ -22,7 +22,7 @@ var (
 
 func TestReceiptsHandlerChain(t *testing.T) {
 	height := uint64(1)
-	state := common.MockState(height)
+	state := common.MockState(height, "")
 
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)

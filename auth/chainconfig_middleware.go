@@ -33,7 +33,7 @@ func NewChainConfigMiddleware(
 }
 
 // Filters out any auth.ChainConfig(s) that haven't been enabled by the majority of validators.
-func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[string]ChainConfig {
+func getEnabledChains(chains map[string]ChainConfig, state loomchain.ReadOnlyState) map[string]ChainConfig {
 	enabledChains := map[string]ChainConfig{}
 	for chainID, config := range chains {
 		if state.FeatureEnabled(features.AuthSigTxFeaturePrefix+chainID, false) {

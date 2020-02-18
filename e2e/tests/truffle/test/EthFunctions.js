@@ -8,6 +8,7 @@ const {
 const ethers = require('ethers').ethers
 const { getContractFuncInterface, getLatestBlock, getMappedAccount } = require('./helpers')
 const MyToken = artifacts.require('MyToken');
+const { waitForXBlocks } = require('./helpers');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
@@ -92,11 +93,10 @@ contract('MyToken', async (accounts) => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(102, { from: alice });
     const txObj = await web3js.eth.getTransaction(result.tx);
-
+    await waitForXBlocks(nodeAddr, 1)
+    const receipt = await web3js.eth.getTransactionReceipt(result.tx);
     assert.equal(txObj.to.toLowerCase(), tokenContract.address.toLowerCase(), "transaction object to address and contract address");
-    assert.equal(txObj.from.toLowerCase(), alice.toLowerCase(), "transaction object from address and caller");
-    // TODO: Need to fix GetTxObjectFromBlockResult so the caller address matches on the receipt & tx
-    //assert.equal(result.receipt.from.toLowerCase(), alice.toLowerCase(), "receipt from and caller");
+    assert.equal(txObj.from.toLowerCase(), receipt.from.toLowerCase(), "transaction object from address and caller");
   });
 
   it('eth_getCode', async () => {
@@ -109,7 +109,7 @@ contract('MyToken', async (accounts) => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(103, { from: alice });
     await tokenContract.mintToken(104, { from: alice });
-
+    await waitForXBlocks(nodeAddr, 1)
     const txObject = await web3js.eth.getTransaction(result.tx, true);
     const blockByHash = await web3js.eth.getBlock(txObject.blockHash, true);
 
@@ -117,8 +117,8 @@ contract('MyToken', async (accounts) => {
     assert.equal(txObject.blockNumber, blockByHash.number, "receipt block number and block object number");
 
     assert.equal(blockByHash.transactions.length, 1, "block transaction count");
-    // TODO: the from on the tx should be the local address, not the eth address, just like on the tx receipt
-    assert.equal(blockByHash.transactions[0].from.toLowerCase(), alice.toLowerCase(), "caller and block transaction from");
+    const txReceipt = await web3js.eth.getTransactionReceipt(result.tx);
+    assert.equal(blockByHash.transactions[0].from.toLowerCase(), txReceipt.from.toLowerCase(), "caller and block transaction from");
     assert.equal(blockByHash.transactions[0].to.toLowerCase(), tokenContract.address.toLowerCase(), "token address and block transaction to");
     assert.equal(txObject.blockNumber, blockByHash.transactions[0].blockNumber, "receipt block number and block transaction block bumber");
     assert.equal(txObject.hash.toLowerCase(), blockByHash.transactions[0].hash.toLowerCase(), "receipt tx hash and block transaction hash");
@@ -149,13 +149,13 @@ contract('MyToken', async (accounts) => {
   it('eth_getTransactionByBlockHashAndIndex', async () => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(107, { from: alice });
+    await waitForXBlocks(nodeAddr, 1)
     // Do second transaction to move to next block
     await tokenContract.mintToken(108, { from: alice });
     const tx1 = await web3js.eth.getTransaction(result.tx, true);
     const tx2 = await web3js.eth.getTransactionFromBlock(tx1.blockHash, 0);
-    
-    // TODO: the from on the tx should be the local address, not the eth address, just like on the tx receipt
-    assert.equal(tx2.from.toLowerCase(), alice.toLowerCase(), "caller and transaction object from");
+    const receipt = await web3js.eth.getTransactionReceipt(result.tx);
+    assert.equal(tx2.from.toLowerCase(), receipt.from.toLowerCase(), "caller and transaction object from");
     assert.equal(tx2.to.toLowerCase(), tokenContract.address.toLowerCase(), "contract address and transaction object to");
     assert.equal(tx1.blockNumber, tx2.blockNumber, "receipt block number and transaction object block number");
     assert.equal(tx1.hash.toLowerCase(), tx2.hash.toLowerCase(), "transaction hash and transaction object hash");

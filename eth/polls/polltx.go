@@ -4,8 +4,10 @@ package polls
 
 import (
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
@@ -30,12 +32,15 @@ func NewEthTxPoll(height uint64, evmAuxStore *evmaux.EvmAuxStore, blockStore sto
 }
 
 func (p *EthTxPoll) Poll(
-	state loomchain.ReadOnlyState, id string, readReceipt loomchain.ReadReceiptHandler,
+	state loomchain.State,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+	_ func(loomchain.State, loom.Address) (loom.Address, error),
 ) (EthPoll, interface{}, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
-	lastBlock, results, err := getTxHashes(state, p.lastBlockRead, readReceipt, p.evmAuxStore)
+	lastBlock, results, err := getTxHashes(state, p.lastBlockRead, readReceipts, p.evmAuxStore)
 	if err != nil {
 		return p, nil, nil
 	}
@@ -44,13 +49,16 @@ func (p *EthTxPoll) Poll(
 }
 
 func (p *EthTxPoll) AllLogs(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state loomchain.State,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+	_ func(loomchain.State, loom.Address) (loom.Address, error),
 ) (interface{}, error) {
 	_, results, err := getTxHashes(state, p.startBlock, readReceipts, p.evmAuxStore)
 	return eth.EncBytesArray(results), err
 }
 
-func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64,
+func getTxHashes(state loomchain.State, lastBlockRead uint64,
 	readReceipts loomchain.ReadReceiptHandler, evmAuxStore *evmaux.EvmAuxStore) (uint64, [][]byte, error) {
 	var txHashes [][]byte
 	for height := lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
@@ -68,7 +76,10 @@ func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64,
 }
 
 func (p *EthTxPoll) LegacyPoll(
-	state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler,
+	state loomchain.State,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+	_ func(loomchain.State, loom.Address) (loom.Address, error),
 ) (EthPoll, []byte, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil

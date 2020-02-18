@@ -14,18 +14,33 @@ import (
 func DeprecatedQueryChain(
 	_ string, _ store.BlockStore, _ loomchain.ReadOnlyState,
 	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore, _ uint64,
+	_ *auth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]byte, error) {
 	return nil, nil
 }
 
 func GetBlockByNumber(
-	_ store.BlockStore, _ loomchain.ReadOnlyState, _ int64, _ bool, _ *evmaux.EvmAuxStore,
-) (eth.JsonBlockObject, error) {
+	_ store.BlockStore,
+	_ loomchain.ReadOnlyState,
+	_ int64,
+	_ bool,
+	_ *evmaux.EvmAuxStore,
+	_ *lauth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
+) (resp eth.JsonBlockObject, err error) {
 	return eth.JsonBlockObject{}, nil
 }
 
 func GetTxObjectFromBlockResult(
-	_ *ctypes.ResultBlock, _ []byte, _ int64, _ *evmaux.EvmAuxStore,
+	_ *ctypes.ResultBlock,
+	_ []byte,
+	_ int64,
+	_ *evmaux.EvmAuxStore,
+	_ loomchain.State,
+	_ *lauth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
+
 ) (eth.JsonTxObject, *eth.Data, error) {
 	return eth.JsonTxObject{}, nil, nil
 }
@@ -69,6 +84,8 @@ func GetTxByBlockAndIndex(_ store.BlockStore, _, _ uint64, _ *evmaux.EvmAuxStore
 func QueryChain(
 	_ store.BlockStore, _ loomchain.ReadOnlyState, _ eth.EthFilter,
 	_ loomchain.ReadReceiptHandler, _ *evmaux.EvmAuxStore, _ uint64,
+	_ *auth.Config,
+	_ func(state loomchain.State) (contractpb.StaticContext, error),
 ) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }

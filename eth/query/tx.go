@@ -4,7 +4,6 @@ package query
 
 import (
 	"github.com/gogo/protobuf/proto"
-
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/go-loom"
@@ -21,19 +20,30 @@ func GetTxByHash(
 	txHash []byte,
 	readReceipts loomchain.ReadReceiptHandler,
 	evmAuxStore *evmaux.EvmAuxStore,
+	state loomchain.State,
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (eth.JsonTxObject, error) {
 	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
 		return eth.GetEmptyTxObject(), errors.Wrap(err, "reading receipt")
 	}
 	return GetTxByBlockAndIndex(
-		blockStore, uint64(txReceipt.BlockNumber),
-		uint64(txReceipt.TransactionIndex), evmAuxStore,
+		blockStore,
+		uint64(txReceipt.BlockNumber),
+		uint64(txReceipt.TransactionIndex),
+		evmAuxStore,
+		state,
+		resolveAccountToLocalAddr,
 	)
 }
 
 func GetTxByBlockAndIndex(
-	blockStore store.BlockStore, height, index uint64, evmAuxStore *evmaux.EvmAuxStore,
+	blockStore store.BlockStore,
+	height,
+	index uint64,
+	evmAuxStore *evmaux.EvmAuxStore,
+	state loomchain.State,
+	resolveAccountToLocalAddr func(loomchain.State, loom.Address) (loom.Address, error),
 ) (eth.JsonTxObject, error) {
 	iHeight := int64(height)
 
@@ -53,7 +63,14 @@ func GetTxByBlockAndIndex(
 			err, "failed to find result of tx %X", blockResult.Block.Data.Txs[index].Hash())
 	}
 
-	txObj, _, err := GetTxObjectFromBlockResult(blockResult, txResult.TxResult.Data, int64(index), evmAuxStore)
+	txObj, _, err := GetTxObjectFromBlockResult(
+		blockResult,
+		txResult.TxResult.Data,
+		int64(index),
+		evmAuxStore,
+		state,
+		resolveAccountToLocalAddr,
+	)
 	if err != nil {
 		return eth.GetEmptyTxObject(), err
 	}

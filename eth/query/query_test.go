@@ -11,25 +11,33 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ttypes "github.com/tendermint/tendermint/types"
+
 	"github.com/loomnetwork/loomchain"
+	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/features"
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/stretchr/testify/require"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	ttypes "github.com/tendermint/tendermint/types"
 )
 
 var (
-	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr1   = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2   = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	authCfg = &lauth.Config{}
 )
 
 func getFilter(fromBlock, toBlock string) string {
@@ -45,7 +53,7 @@ func TestQueryChain(t *testing.T) {
 	blockStore := store.NewMockBlockStore()
 
 	require.NoError(t, err)
-	state := common.MockState(0)
+	state := common.MockState(0, "")
 
 	state4 := common.MockStateAt(state, 4)
 	mockEvent1 := []*types.EventData{
@@ -90,7 +98,15 @@ func TestQueryChain(t *testing.T) {
 	blockStore.SetBlock(store.MockBlock(20, evmTxHash, [][]byte{tx}))
 
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := DeprecatedQueryChain(getFilter("1", "20"), blockStore, state30, receiptHandler, evmAuxStore, 100000)
+	result, err := DeprecatedQueryChain(
+		getFilter("1", "20"),
+		blockStore,
+		state30,
+		receiptHandler,
+		evmAuxStore,
+		100000,
+		resolveAccountToLocalAddr,
+	)
 	require.NoError(t, err, "error query chain, filter is %s", getFilter("1", "20"))
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
@@ -100,9 +116,25 @@ func TestQueryChain(t *testing.T) {
 	require.NoError(t, err)
 	ethFilter2, err := utils.UnmarshalEthFilter([]byte(getFilter("1", "10")))
 	require.NoError(t, err)
-	filterLogs1, err := QueryChain(blockStore, state30, ethFilter1, receiptHandler, evmAuxStore, 100000)
+	filterLogs1, err := QueryChain(
+		blockStore,
+		state30,
+		ethFilter1,
+		receiptHandler,
+		evmAuxStore,
+		100000,
+		resolveAccountToLocalAddr,
+	)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter1)
-	filterLogs2, err := QueryChain(blockStore, state30, ethFilter2, receiptHandler, evmAuxStore, 100000)
+	filterLogs2, err := QueryChain(
+		blockStore,
+		state30,
+		ethFilter1,
+		receiptHandler,
+		evmAuxStore,
+		100000,
+		resolveAccountToLocalAddr,
+	)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter2)
 	require.Equal(t, 2, len(filterLogs1)+len(filterLogs2), "wrong number of logs returned")
 
@@ -213,7 +245,7 @@ func TestGetLogs(t *testing.T) {
 		},
 	}
 
-	state := common.MockState(1)
+	state := common.MockState(1, "")
 	state32 := common.MockStateAt(state, 32)
 	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil, []byte{})
 	require.NoError(t, err)
@@ -241,6 +273,16 @@ func TestGetLogs(t *testing.T) {
 }
 
 func TestDupEvmTxHash(t *testing.T) {
+	authCfg := &lauth.Config{
+		Chains: map[string]lauth.ChainConfig{
+			"eth": lauth.ChainConfig{TxType: "eth", AccountType: 1},
+		},
+	}
+	resolveAccountToLocalAddr := func(state loomchain.State, addr loom.Address) (loom.Address, error) {
+		return lauth.ResolveAccountAddress(addr, state, authCfg, createAddressMapperCtx)
+	}
+	state := common.MockState(1, "default")
+	state.SetFeature(features.AuthSigTxFeaturePrefix+"eth", true)
 	blockTxHash := getRandomTxHash()
 	txHash1 := getRandomTxHash() // DeployEVMTx that has dup EVM Tx Hash
 	txHash2 := getRandomTxHash() // CallEVMTx that has dup EVM Tx Hash
@@ -299,24 +341,52 @@ func TestDupEvmTxHash(t *testing.T) {
 	txResultData4 := txHash4
 
 	// txhash1 is dup, so the returned hash must not be equal
-	txObj, _, err := GetTxObjectFromBlockResult(blockResultDeployTx, txResultData1, int64(0), evmAuxStore)
+	txObj, _, err := GetTxObjectFromBlockResult(
+		blockResultDeployTx,
+		txResultData1,
+		int64(0),
+		evmAuxStore,
+		state,
+		resolveAccountToLocalAddr,
+	)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash1)))
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(ttypes.Tx(signedDeployTxBytes).Hash())))
 
 	// txhash2 is dup, so the returned hash must not be equal
-	txObj, _, err = GetTxObjectFromBlockResult(blockResultCallTx, txResultData2, int64(0), evmAuxStore)
+	txObj, _, err = GetTxObjectFromBlockResult(
+		blockResultCallTx,
+		txResultData2,
+		int64(0),
+		evmAuxStore,
+		state,
+		resolveAccountToLocalAddr,
+	)
 	require.NoError(t, err)
 	require.NotEqual(t, string(txObj.Hash), string(eth.EncBytes(txHash2)))
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(ttypes.Tx(signedCallTxBytes).Hash())))
 
 	// txhash3 is unique, so the returned hash must be equal
-	txObj, _, err = GetTxObjectFromBlockResult(blockResultDeployTx, txResultData3, int64(0), evmAuxStore)
+	txObj, _, err = GetTxObjectFromBlockResult(
+		blockResultDeployTx,
+		txResultData3,
+		int64(0),
+		evmAuxStore,
+		state,
+		resolveAccountToLocalAddr,
+	)
 	require.NoError(t, err)
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash3)))
 
 	// txhash4 is unique, so the returned hash must be equal
-	txObj, _, err = GetTxObjectFromBlockResult(blockResultCallTx, txResultData4, int64(0), evmAuxStore)
+	txObj, _, err = GetTxObjectFromBlockResult(
+		blockResultCallTx,
+		txResultData4,
+		int64(0),
+		evmAuxStore,
+		state,
+		resolveAccountToLocalAddr,
+	)
 	require.NoError(t, err)
 	require.Equal(t, string(txObj.Hash), string(eth.EncBytes(txHash4)))
 }
@@ -360,6 +430,36 @@ func mockSignedTx(t *testing.T, id ltypes.TxID, to loom.Address, from loom.Addre
 	})
 
 	return signedTx
+}
+
+func resolveAccountToLocalAddr(state loomchain.State, addr loom.Address) (loom.Address, error) {
+	return lauth.ResolveAccountAddress(addr, state, authCfg, createAddressMapperCtx)
+}
+
+// Attempts to construct the context of the Address Mapper contract.
+func createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return createStaticContractCtx(state, "addressmapper")
+}
+
+func createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
+	ctx, err := plugin.NewInternalContractContext(
+		name,
+		plugin.NewPluginVM(
+			nil, //s.Loader,
+			state,
+			nil, //s.CreateRegistry(state),
+			nil, // event handler
+			log.Default,
+			nil, //s.NewABMFactory,
+			nil, // receipt writer
+			nil, // receipt reader
+		),
+		true,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create %s context", name)
+	}
+	return ctx, nil
 }
 
 func mockDeployResponse(txHash []byte) []byte {

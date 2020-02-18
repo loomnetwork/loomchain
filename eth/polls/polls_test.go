@@ -7,7 +7,12 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 
@@ -26,6 +31,7 @@ import (
 var (
 	addr1    = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	contract = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	authCfg  = &auth.Config{}
 )
 
 const (
@@ -55,7 +61,7 @@ func TestLogPoll(t *testing.T) {
 	require.NoError(t, err)
 
 	state5 := common.MockStateAt(state, uint64(5))
-	result, err := sub.LegacyPoll(state5, id, receiptHandler)
+	result, err := sub.LegacyPoll(state5, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	var envolope types.EthFilterEnvelope
 	var logs *types.EthFilterLogList
@@ -65,7 +71,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, 1, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 	state40 := common.MockStateAt(state, uint64(40))
-	result, err = sub.LegacyPoll(state40, id, receiptHandler)
+	result, err = sub.LegacyPoll(state40, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -76,7 +82,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.LegacyPoll(state50, id, receiptHandler)
+	result, err = sub.LegacyPoll(state50, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -84,7 +90,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	_, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 	evmAuxStore.ClearData()
@@ -110,7 +116,7 @@ func testLegacyTxPoll(t *testing.T) {
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.LegacyPoll(state27, id, receiptHandler)
+	result, err := sub.LegacyPoll(state27, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -119,7 +125,7 @@ func testLegacyTxPoll(t *testing.T) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.LegacyPoll(state50, id, receiptHandler)
+	result, err = sub.LegacyPoll(state50, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -129,7 +135,7 @@ func testLegacyTxPoll(t *testing.T) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	_, err = sub.LegacyPoll(state60, id, receiptHandler)
+	_, err = sub.LegacyPoll(state60, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -147,7 +153,7 @@ func testTxPoll(t *testing.T) {
 	id := sub.AddTxPoll(uint64(5))
 
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.Poll(state27, id, receiptHandler)
+	result, err := sub.Poll(state27, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok := result.([]eth.Data)
@@ -155,7 +161,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 2, len(data), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.Poll(state50, id, receiptHandler)
+	result, err = sub.Poll(state50, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -163,7 +169,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 1, len(data), "wrong number of logs returned")
 
 	state105 := common.MockStateAt(state, uint64(105))
-	result, err = sub.Poll(state105, id, receiptHandler)
+	result, err = sub.Poll(state105, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -171,7 +177,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 5, len(data), "wrong number of logs returned")
 
 	state115 := common.MockStateAt(state, uint64(115))
-	result, err = sub.Poll(state115, id, receiptHandler)
+	result, err = sub.Poll(state115, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -179,7 +185,7 @@ func testTxPoll(t *testing.T) {
 	require.Equal(t, 10, len(data), "wrong number of logs returned")
 
 	state140 := common.MockStateAt(state, uint64(140))
-	result, err = sub.Poll(state140, id, receiptHandler)
+	result, err = sub.Poll(state140, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
@@ -192,7 +198,7 @@ func testTxPoll(t *testing.T) {
 	wg.Add(2)
 	go func(s *EthSubscriptions) {
 		defer wg.Done()
-		result, err = s.Poll(state220, id, receiptHandler)
+		result, err = s.Poll(state220, id, receiptHandler, resolveAccountToLocalAddr)
 	}(sub)
 	go func(s *EthSubscriptions) {
 		defer wg.Done()
@@ -200,7 +206,7 @@ func testTxPoll(t *testing.T) {
 	}(sub)
 	wg.Wait()
 
-	result, err = sub.Poll(state220, id, receiptHandler)
+	result, err = sub.Poll(state220, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -228,7 +234,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state5 := common.MockStateAt(state, uint64(5))
 	_ = sub.AddTxPoll(uint64(5))
 
-	result, err := sub.LegacyPoll(state5, id, receiptHandler)
+	result, err := sub.LegacyPoll(state5, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -238,7 +244,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state12 := common.MockStateAt(state, uint64(12))
 	_ = sub.AddTxPoll(uint64(12))
 
-	result, err = sub.LegacyPoll(state12, id, receiptHandler)
+	result, err = sub.LegacyPoll(state12, id, receiptHandler, resolveAccountToLocalAddr)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -248,13 +254,13 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.LegacyPoll(state40, id, receiptHandler)
+	result, err = sub.LegacyPoll(state40, id, receiptHandler, resolveAccountToLocalAddr)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
 }
 
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler, blockStore *store.MockBlockStore) loomchain.State {
-	state := common.MockState(0)
+	state := common.MockState(0, "")
 
 	mockEvent4 := []*types.EventData{
 		{
@@ -409,4 +415,33 @@ func mockSignedTx(t *testing.T, id uint32, to loom.Address, from loom.Address, d
 	})
 
 	return signedTx
+}
+
+func resolveAccountToLocalAddr(state loomchain.State, addr loom.Address) (loom.Address, error) {
+	return auth.ResolveAccountAddress(addr, state, authCfg, createAddressMapperCtx)
+}
+
+func createAddressMapperCtx(state loomchain.State) (contractpb.StaticContext, error) {
+	return createStaticContractCtx(state, "addressmapper")
+}
+
+func createStaticContractCtx(state loomchain.State, name string) (contractpb.StaticContext, error) {
+	ctx, err := plugin.NewInternalContractContext(
+		name,
+		plugin.NewPluginVM(
+			nil, //s.Loader,
+			state,
+			nil, //s.CreateRegistry(state),
+			nil, // event handler
+			log.Default,
+			nil, //s.NewABMFactory,
+			nil, // receipt writer
+			nil, // receipt reader
+		),
+		true,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create %s context", name)
+	}
+	return ctx, nil
 }
