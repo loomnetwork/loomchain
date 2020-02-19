@@ -5,8 +5,7 @@
             "format": "plugin",
             "name": "coin",
             "location": "coin:1.0.0",
-            "init": {
-            }
+            "init": {}
         },
         {
             "vm": "plugin",
@@ -15,21 +14,26 @@
             "location": "chainconfig:1.0.0",
             "init": {
                 "owner": {
-                    "chainId":"default",
-                    "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
+                    "chainId": "default",
+                    "local": "1iDFloNUN+KiipnzQpOeXAmLQUk="
                 },
                 "params": {
-                    "voteThreshold":"0",
-                    "numBlockConfirmations":"0"
+                    "voteThreshold": "0",
+                    "numBlockConfirmations": "0"
                 },
                 "features": [
-                  {
-                    "name":"dpos:v3",
-                    "status":"WAITING"
-                  },{
-                      "name":"dpos:v3.5",
-                      "status":"WAITING"
-                  }
+                    {
+                        "name": "dpos:v3",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "dpos:v3.5",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name": "dpos:v3.7",
+                        "status": "WAITING"
+                    }
                 ]
             }
         },
