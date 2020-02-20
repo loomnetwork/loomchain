@@ -757,6 +757,27 @@ func UnbondCmdV3() *cobra.Command {
 	return cmd
 }
 
+const unbondAllCmdExample = `
+loom dpos3 unbond-all -k path/to/private_key
+`
+
+func UnbondAllDelegationsCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "unbond-all",
+		Short:   "unbond all delegations",
+		Example: unbondAllCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "UnbondAll",
+				&dposv3.UnbondAllRequest{}, nil,
+			)
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 const claimDelegatorRewardsCmdExample = `
 loom dpos3 claim-delegator-rewards --key path/to/private_key
 `
@@ -1382,6 +1403,7 @@ func NewDPOSV3Command() *cobra.Command {
 		CheckRewardsCmdV3(),
 		DowntimeRecordCmdV3(),
 		UnbondCmdV3(),
+		UnbondAllDelegationsCmdV3(),
 		RegisterReferrerCmdV3(),
 		SetDowntimePeriodCmdV3(),
 		SetElectionCycleCmdV3(),

@@ -85,6 +85,7 @@ type (
 	DelegationState                   = dtypes.Delegation_DelegationState
 	LocktimeTier                      = dtypes.LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
+	UnbondAllRequest                  = dtypes.UnbondAllRequest
 	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
 	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
@@ -734,6 +735,61 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	}
 
 	return c.emitDelegatorUnbondsEvent(ctx, delegation)
+}
+
+// UnbondAll unbonds the full amount on all currently bonded delegations.
+// This method can only be called by the DPOS oracle (admin).
+func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
+	if !ctx.FeatureEnabled(features.DPOSVersion3_7, false) {
+		return errors.New("DPOS v3.7 is not enabled")
+	}
+
+	sender := ctx.Message().Sender
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+
+	delegationIndexes, err := loadDelegationList(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to load delegations")
+	}
+
+	for _, di := range delegationIndexes {
+		delegation, err := GetDelegation(ctx, di.Index, *di.Validator, *di.Delegator)
+		if err == contract.ErrNotFound {
+			validator := loom.UnmarshalAddressPB(di.Validator)
+			delegator := loom.UnmarshalAddressPB(di.Delegator)
+			return fmt.Errorf("delegation not found for validator %v / delegator %v", validator, delegator)
+		} else if err != nil {
+			return errors.Wrap(err, "failed to load delegation")
+		}
+
+		if delegation.State == BONDED {
+			delegation.State = UNBONDING
+			// Unbond the full amount.
+			// NOTE: If the delegation earns rewards during the election during which it's unbonded
+			//       then the amount that actually ends up being unbonded doesn't include the rewards
+			//       earned during that election, thus the delegation amount is going to be non-zero
+			//       after the election.
+			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
+
+			if err := SetDelegation(ctx, delegation); err != nil {
+				return err
+			}
+
+			if err = c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
