@@ -47,6 +47,12 @@
   RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 3}} 100 -k {{index $.NodePrivKeyPathList 3}}"
 
 [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 4}}"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 4}} 100 -k {{index $.NodePrivKeyPathList 4}}"
+
+[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
@@ -64,6 +70,11 @@
   Condition = "contains"
   Expected = ["chainId\": \"default"]
 
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}"]
+
 # kill node 1 for 15s, it should be jailed after going offline for 15s
 [[TestCases]]
   RunCmd = "kill_and_restart_node 15 1"
@@ -74,11 +85,6 @@
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["name","address","P"]
-
-[[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
-  Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}"]
 
 # wait for node 1 to catch up
 [[TestCases]]
@@ -153,4 +159,4 @@
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 
-# slash amound test
+# slash amount test

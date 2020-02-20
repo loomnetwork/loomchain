@@ -1330,18 +1330,12 @@ func Elect(ctx contract.Context) error {
 			}
 
 			if ctx.FeatureEnabled(features.DPOSVersion3_8, false) {
-				if statistic.Jailed && statistic.Evicted {
+				if statistic.Jailed {
 					continue
-				} else if statistic.Jailed && !statistic.Evicted {
-					validatorPower = 0
-					statistic.Evicted = true
-				} else {
-					totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 				}
-			} else {
-				totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			}
 
+			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
@@ -1359,7 +1353,6 @@ func Elect(ctx contract.Context) error {
 		state.Validators = applyPowerCap(validators)
 		state.LastElectionTime = ctx.Now().Unix()
 		state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
-
 		if err = saveState(ctx, state); err != nil {
 			return err
 		}
