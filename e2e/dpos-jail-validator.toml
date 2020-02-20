@@ -6,7 +6,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
-  Expected = [ 'dpos:v3.2' ]
+  Expected = [ 'dpos:v3.2' ,'dpos:v3.8']
 
 
 [[TestCases]]
@@ -75,8 +75,10 @@
   Condition = "contains"
   Expected = ["name","address","P"]
 
-# [[TestCases]]
-#   RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}"]
 
 # wait for node 1 to catch up
 [[TestCases]]
@@ -93,7 +95,7 @@
   Expected = ["name","address","P-1"]
 
 [[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 10"
+  RunCmd = "wait_for_block_height_to_increase 0 3"
 
 # node 1 should be jailed as it is offline for 15s
 [[TestCases]]
@@ -101,8 +103,11 @@
   Condition = "contains"
   Expected = ["jailed\": true"]
 
-# [[TestCases]]
-#   RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+# node 1 should be kicked out from active validators set
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+  Condition = "excludes"
+  Excluded = ["{{index $.NodePubKeyList 1}}"]
 
 # check downtime periods before unjailing the validator
 [[TestCases]]
@@ -111,9 +116,7 @@
   Expected = ["name","address","P","0"]
 
 [[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
-  # Condition = "excludes"
-  # Excluded = ["{{index $.NodePubKeyList 1}}"]
+  RunCmd = "wait_for_block_height_to_increase 0 3"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
@@ -129,7 +132,25 @@
   Condition = "excludes"
   Excluded = ["jailed\": true"]
 
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 20"
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 1}}/rpc/validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}"]
 
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 2}}/rpc/validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}"]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 3}}/rpc/validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}"]
+
+
+# slash amound test

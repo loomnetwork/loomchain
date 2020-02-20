@@ -198,6 +198,10 @@ func GenerateConfig(
 		conf.NodePubKeyList = append(conf.NodePubKeyList, n.PubKey)
 		conf.NodePrivKeyPathList = append(conf.NodePrivKeyPathList, n.PrivKeyPath)
 		conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, n.ProxyAppAddress)
+		fmt.Println("NodeRPCAddressList count ", len(conf.NodeRPCAddressList))
+		fmt.Printf("NodeRPCAddressList %+v \n", conf.NodeRPCAddressList)
+		fmt.Println("NodeProxyAppAddressList count ", len(conf.NodeProxyAppAddressList))
+		fmt.Printf("NodeProxyAppAddressList %+v \n", conf.NodeProxyAppAddressList)
 	}
 	for _, account := range accounts {
 		conf.AccountAddressList = append(conf.AccountAddressList, account.Address)

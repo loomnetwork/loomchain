@@ -1091,7 +1091,7 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 
 	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
 	statistic.Jailed = false
-	if ctx.FeatureEnabled(features.DPOSVersion3_7, false) {
+	if ctx.FeatureEnabled(features.DPOSVersion3_8, false) {
 		statistic.Evicted = false
 	}
 
@@ -1303,7 +1303,7 @@ func Elect(ctx contract.Context) error {
 
 	validators := make([]*Validator, 0)
 	totalValidatorDelegations := common.BigZero()
-	for i, res := range delegationResults[:validatorCount] {
+	for _, res := range delegationResults[:validatorCount] {
 		candidate := GetCandidate(ctx, res.ValidatorAddress)
 		if candidate != nil && common.IsPositive(res.DelegationTotal) {
 			// checking that DelegationTotal is positive ensures ensures that if
@@ -1334,8 +1334,7 @@ func Elect(ctx contract.Context) error {
 				}
 			}
 
-			if ctx.FeatureEnabled(features.DPOSVersion3_7, false) {
-				fmt.Printf(" No. %d, stat-->%+v %+v %+v %+v\n", i, statistic.Jailed, statistic.Evicted, statistic.Address.Local.String(), validatorPower)
+			if ctx.FeatureEnabled(features.DPOSVersion3_8, false) {
 				if statistic.Jailed && statistic.Evicted {
 					continue
 				} else if statistic.Jailed && !statistic.Evicted {
@@ -2032,7 +2031,6 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
 			amount := calculateWeightedWhitelistAmount(*statistic)
 			newDelegationTotals[validatorKey] = &amount
-			fmt.Printf("before validator key : %s ,newDelegationTotals amount %v\n", validatorKey, amount)
 		}
 	}
 
@@ -2142,15 +2140,12 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 		// validator
 		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			newTotal := common.BigZero()
-			fmt.Println("delegation amount", delegation.Validator.Local.String(), delegation.Amount.Value.String())
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-			fmt.Println("weightedDelegation amount", delegation.Validator.Local.String(), weightedDelegation.String())
 			newTotal.Add(newTotal, &weightedDelegation)
 			if newDelegationTotals[validatorKey] != nil {
 				newTotal.Add(newTotal, newDelegationTotals[validatorKey])
 			}
 			newDelegationTotals[validatorKey] = newTotal
-			fmt.Printf("after validator key : %s ,newDelegationTotals amount %v\n", validatorKey, newTotal)
 		}
 	}
 
