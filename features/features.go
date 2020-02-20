@@ -55,6 +55,8 @@ const (
 	DPOSVersion3_6 = "dpos:v3.6"
 	// Enables UnbondAll contract method
 	DPOSVersion3_7 = "dpos:v3.7"
+	// Enbles set jailed validator's power to zero
+	DPOSVersion3_8 = "dpos:v3.8"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)

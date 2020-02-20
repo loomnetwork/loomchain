@@ -93,7 +93,7 @@
   Expected = ["name","address","P-1"]
 
 [[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 50"
+  RunCmd = "wait_for_block_height_to_increase 0 10"
 
 # node 1 should be jailed as it is offline for 15s
 [[TestCases]]
@@ -101,8 +101,8 @@
   Condition = "contains"
   Expected = ["jailed\": true"]
 
-[[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+# [[TestCases]]
+#   RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
 
 # check downtime periods before unjailing the validator
 [[TestCases]]
@@ -125,14 +125,11 @@
   RunCmd = "wait_for_block_height_to_increase 0 2"
 
 [[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
-
-[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "excludes"
   Excluded = ["jailed\": true"]
 
 
 [[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 200"
+  RunCmd = "wait_for_block_height_to_increase 0 20"
 

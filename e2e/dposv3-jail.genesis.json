@@ -1,63 +1,65 @@
 {
-    "contracts": [
-        {
-            "vm": "plugin",
-            "format": "plugin",
-            "name": "coin",
-            "location": "coin:1.0.0",
-            "init": {
-            }
+  "contracts": [
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "coin",
+      "location": "coin:1.0.0",
+      "init": {}
+    },
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "chainconfig",
+      "location": "chainconfig:1.0.0",
+      "init": {
+        "owner": {
+          "chainId": "default",
+          "local": "1iDFloNUN+KiipnzQpOeXAmLQUk="
         },
-        {
-            "vm": "plugin",
-            "format": "plugin",
-            "name": "chainconfig",
-            "location": "chainconfig:1.0.0",
-            "init": {
-                "owner": {
-                    "chainId":"default",
-                    "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
-                },
-                "params": {
-                    "voteThreshold":"0",
-                    "numBlockConfirmations":"0"
-                },
-                "features": [
-                  {
-                    "name":"dpos:v3",
-                    "status":"WAITING"
-                  },
-                  {
-                    "name":"dpos:v3.1",
-                    "status":"WAITING"
-                  },
-                  {
-                    "name":"dpos:v3.2",
-                    "status":"WAITING"
-                  },
-                  {
-                    "name":"dpos:v3.3",
-                    "status":"WAITING"
-                  },
-                  {
-                    "name": "dpos:v3.4",
-                    "status": "WAITING"
-                  }
-                  
-                ]
-            }
+        "params": {
+          "voteThreshold": "0",
+          "numBlockConfirmations": "0"
         },
-        {
-            "vm": "plugin",
-            "format": "plugin",
-            "name": "dposV3",
-            "location": "dposV3:3.0.0",
-            "init": {
-                "params": {
-                    "validatorCount": "21",
-                    "electionCycleLength": "0"
-                }
-            }
+        "features": [
+          {
+            "name": "dpos:v3",
+            "status": "WAITING"
+          },
+          {
+            "name": "dpos:v3.1",
+            "status": "WAITING"
+          },
+          {
+            "name": "dpos:v3.2",
+            "status": "WAITING"
+          },
+          {
+            "name": "dpos:v3.3",
+            "status": "WAITING"
+          },
+          {
+            "name": "dpos:v3.4",
+            "status": "WAITING"
+          },
+          {
+            "name": "dpos:v3.8",
+            "status": "WAITING"
+          }
+        ]
+      }
+    },
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "dposV3",
+      "location": "dposV3:3.0.0",
+      "init": {
+        "params": {
+          "validatorCount": "21",
+          "electionCycleLength": "0"
         }
-    ]
+      }
+    }
+  ]
 }

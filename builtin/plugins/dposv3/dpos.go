@@ -1083,12 +1083,20 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 		return errStatisticNotFound
 	}
 
+	fmt.Printf("Loaded Statistic : %+v\n", statistic)
+
 	if !statistic.Jailed {
 		return fmt.Errorf("%s is not jailed", candidateAddress.String())
 	}
 
 	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
 	statistic.Jailed = false
+	if ctx.FeatureEnabled(features.DPOSVersion3_7, false) {
+		statistic.Evicted = false
+	}
+
+	fmt.Printf("Save Statistic : %+v\n", statistic)
+
 	if err = SetStatistic(ctx, statistic); err != nil {
 		return err
 	}
@@ -1289,12 +1297,13 @@ func Elect(ctx contract.Context) error {
 
 	validatorCount := int(state.Params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
+		fmt.Printf("validator count %d - delegation result count %d\n", validatorCount, len(delegationResults))
 		validatorCount = len(delegationResults)
 	}
 
 	validators := make([]*Validator, 0)
 	totalValidatorDelegations := common.BigZero()
-	for _, res := range delegationResults[:validatorCount] {
+	for i, res := range delegationResults[:validatorCount] {
 		candidate := GetCandidate(ctx, res.ValidatorAddress)
 		if candidate != nil && common.IsPositive(res.DelegationTotal) {
 			// checking that DelegationTotal is positive ensures ensures that if
@@ -1325,8 +1334,16 @@ func Elect(ctx contract.Context) error {
 				}
 			}
 
-			if statistic.Jailed {
-				validatorPower = 0
+			if ctx.FeatureEnabled(features.DPOSVersion3_7, false) {
+				fmt.Printf(" No. %d, stat-->%+v %+v %+v %+v\n", i, statistic.Jailed, statistic.Evicted, statistic.Address.Local.String(), validatorPower)
+				if statistic.Jailed && statistic.Evicted {
+					continue
+				} else if statistic.Jailed && !statistic.Evicted {
+					validatorPower = 0
+					statistic.Evicted = true
+				} else {
+					totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
+				}
 			} else {
 				totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			}
@@ -1341,6 +1358,7 @@ func Elect(ctx contract.Context) error {
 			}
 		}
 	}
+
 	ctx.Logger().Debug("DPOSv3 Elect", "validator-count", validatorCount)
 	for _, v := range validators {
 		s := fmt.Sprintf("Candidate pubkey : %s, power : %v\n", string(v.PubKey), v.Power)
@@ -1350,7 +1368,11 @@ func Elect(ctx contract.Context) error {
 	// calling `applyPowerCap` ensure that no validator has >28% of the voting
 	// power
 	if common.IsPositive(*totalValidatorDelegations) {
-		state.Validators = applyPowerCap(validators)
+		c := applyPowerCap(validators)
+		for i, g := range c {
+			fmt.Printf("state__validator No. %d, power-->%v\n", i, g.Power)
+		}
+		state.Validators = c
 		state.LastElectionTime = ctx.Now().Unix()
 		state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
@@ -1374,20 +1396,13 @@ func Elect(ctx contract.Context) error {
 func applyPowerCap(validators []*Validator) []*Validator {
 	// It is impossible to apply a powercap when the number of validators is
 	// less than 4
-
-	normalValidators, zeroPowerValidators := stripZeroPowerValidator(validators)
-	if len(normalValidators) < 4 {
+	if len(validators) < 4 {
 		return validators
-	}
-
-	fmt.Println("before apply power cap")
-	for i, v := range normalValidators {
-		fmt.Printf("--> validator No. %d, power-->%v\n", i, v.Power)
 	}
 
 	powerSum := int64(0)
 	max := int64(0)
-	for _, v := range normalValidators {
+	for _, v := range validators {
 		powerSum += v.Power
 		if v.Power > max {
 			max = v.Power
@@ -1400,7 +1415,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 	if max > maximumIndividualPower {
 		extraSum := int64(0)
 		underCount := 0
-		for _, v := range normalValidators {
+		for _, v := range validators {
 			if v.Power > maximumIndividualPower {
 				extraSum += v.Power - maximumIndividualPower
 				v.Power = maximumIndividualPower
@@ -1411,7 +1426,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 
 		underBoost := int64(float64(extraSum) / float64(underCount))
 
-		for _, v := range normalValidators {
+		for _, v := range validators {
 			if v.Power < maximumIndividualPower {
 				if v.Power+underBoost > maximumIndividualPower {
 					v.Power = maximumIndividualPower
@@ -1421,30 +1436,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 			}
 		}
 	}
-
-	for _, z := range zeroPowerValidators {
-		normalValidators = append(normalValidators, z)
-	}
-
-	fmt.Println("after apply power cap")
-	for i, v := range normalValidators {
-		fmt.Printf("___validator No. %d, power-->%v\n", i, v.Power)
-	}
-
 	return validators
-}
-
-func stripZeroPowerValidator(validators []*Validator) ([]*Validator, []*Validator) {
-	normalValidators := make([]*Validator, 0)
-	zeroPowerValidators := make([]*Validator, 0)
-	for _, v := range validators {
-		if v.Power == 0 {
-			zeroPowerValidators = append(zeroPowerValidators, v)
-		} else {
-			normalValidators = append(normalValidators, v)
-		}
-	}
-	return normalValidators, zeroPowerValidators
 }
 
 func (c *DPOS) TimeUntilElection(
@@ -2040,6 +2032,7 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
 			amount := calculateWeightedWhitelistAmount(*statistic)
 			newDelegationTotals[validatorKey] = &amount
+			fmt.Printf("before validator key : %s ,newDelegationTotals amount %v\n", validatorKey, amount)
 		}
 	}
 
@@ -2149,12 +2142,15 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 		// validator
 		if loom.UnmarshalAddressPB(delegation.Validator).Compare(LimboValidatorAddress(ctx)) != 0 {
 			newTotal := common.BigZero()
+			fmt.Println("delegation amount", delegation.Validator.Local.String(), delegation.Amount.Value.String())
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+			fmt.Println("weightedDelegation amount", delegation.Validator.Local.String(), weightedDelegation.String())
 			newTotal.Add(newTotal, &weightedDelegation)
 			if newDelegationTotals[validatorKey] != nil {
 				newTotal.Add(newTotal, newDelegationTotals[validatorKey])
 			}
 			newDelegationTotals[validatorKey] = newTotal
+			fmt.Printf("after validator key : %s ,newDelegationTotals amount %v\n", validatorKey, newTotal)
 		}
 	}
 
