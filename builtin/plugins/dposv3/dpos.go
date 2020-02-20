@@ -1083,8 +1083,6 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 		return errStatisticNotFound
 	}
 
-	fmt.Printf("Loaded Statistic : %+v\n", statistic)
-
 	if !statistic.Jailed {
 		return fmt.Errorf("%s is not jailed", candidateAddress.String())
 	}
@@ -1094,8 +1092,6 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 	if ctx.FeatureEnabled(features.DPOSVersion3_8, false) {
 		statistic.Evicted = false
 	}
-
-	fmt.Printf("Save Statistic : %+v\n", statistic)
 
 	if err = SetStatistic(ctx, statistic); err != nil {
 		return err
@@ -1297,7 +1293,6 @@ func Elect(ctx contract.Context) error {
 
 	validatorCount := int(state.Params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
-		fmt.Printf("validator count %d - delegation result count %d\n", validatorCount, len(delegationResults))
 		validatorCount = len(delegationResults)
 	}
 
@@ -1358,20 +1353,10 @@ func Elect(ctx contract.Context) error {
 		}
 	}
 
-	ctx.Logger().Debug("DPOSv3 Elect", "validator-count", validatorCount)
-	for _, v := range validators {
-		s := fmt.Sprintf("Candidate pubkey : %s, power : %v\n", string(v.PubKey), v.Power)
-		ctx.Logger().Debug("DPOSv3 Elect", "candidate", s)
-	}
-
 	// calling `applyPowerCap` ensure that no validator has >28% of the voting
 	// power
 	if common.IsPositive(*totalValidatorDelegations) {
-		c := applyPowerCap(validators)
-		for i, g := range c {
-			fmt.Printf("state__validator No. %d, power-->%v\n", i, g.Power)
-		}
-		state.Validators = c
+		state.Validators = applyPowerCap(validators)
 		state.LastElectionTime = ctx.Now().Unix()
 		state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
