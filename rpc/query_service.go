@@ -64,6 +64,7 @@ type QueryService interface {
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
 	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
+	GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Data) (eth.Data, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -132,6 +133,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
 	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
 	routes["dpos_total_staked"] = rpcserver.NewRPCFunc(svc.DPOSTotalStaked, "")
+	routes["canonical_tx_hash"] = rpcserver.NewRPCFunc(svc.GetCanonicalTxHash, "block,txIndex,evmTxHash")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
