@@ -43,7 +43,7 @@
             "status": "WAITING"
           },
           {
-            "name": "dpos:v3.8",
+            "name": "chaincfg:v1.3",
             "status": "WAITING"
           }
         ]

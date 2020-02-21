@@ -6,7 +6,7 @@
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
   Condition = "contains"
-  Expected = [ 'dpos:v3.2' ,'dpos:v3.8']
+  Expected = [ 'dpos:v3.2']
 
 
 [[TestCases]]
@@ -47,12 +47,6 @@
   RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 3}} 100 -k {{index $.NodePrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 4}}"
-
-[[TestCases]]
-  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 4}} 100 -k {{index $.NodePrivKeyPathList 4}}"
-
-[[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
@@ -69,11 +63,6 @@
   RunCmd = "{{ $.LoomPath }} dpos3 check-all-delegations {{index $.NodeAddressList 2}}"
   Condition = "contains"
   Expected = ["chainId\": \"default"]
-
-[[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
-  Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}"]
 
 # kill node 1 for 15s, it should be jailed after going offline for 15s
 [[TestCases]]
@@ -109,12 +98,6 @@
   Condition = "contains"
   Expected = ["jailed\": true"]
 
-# node 1 should be kicked out from active validators set
-[[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
-  Condition = "excludes"
-  Excluded = ["{{index $.NodePubKeyList 1}}"]
-
 # check downtime periods before unjailing the validator
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
@@ -139,24 +122,88 @@
   Excluded = ["jailed\": true"]
 
 [[TestCases]]
+  Delay = 20000
+  RunCmd = "{{ $.LoomPath }} chain-cfg add-feature dpos:v3.8 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
+  Condition = "contains"
+  Expected = ['dpos:v3.8']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 4}}"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 4}} 100 -k {{index $.NodePrivKeyPathList 4}}"
+
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 3"
+  
+[[TestCases]]
   RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}"]
+  Expected = ["{{index $.NodePubKeyList 4}}"]
+
+# kill node 1 for 15s, it should be jailed after going offline for 15s
+[[TestCases]]
+  RunCmd = "kill_and_restart_node 15 1"
+
+# add some delay so that downtime periods of node 1 are cleared out
+[[TestCases]]
+  Delay = 15000
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
+  Condition = "contains"
+  Expected = ["name","address","P"]
+
+# wait for node 1 to catch up
+[[TestCases]]
+  RunCmd = "wait_for_node_to_catch_up 1"
+
+# wait for block height to increase at least 5 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 5"
+
+# check downtime periods, it should be cleared out after 5 blocks
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
+  Condition = "contains"
+  Expected = ["name","address","P-1"]
 
 [[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 1}}/rpc/validators"
+  RunCmd = "wait_for_block_height_to_increase 0 2"
+
+# node 1 should be jailed as it is offline for 15s
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}"]
+  Expected = ["jailed\": true"]
+
+# node 1 should have only 1 voting power
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}","{{index $.NodePubKeyList 1}}","\"voting_power\": \"1\""]
 
 [[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 2}}/rpc/validators"
-  Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}"]
+  RunCmd = "wait_for_block_height_to_increase 0 2"
 
 [[TestCases]]
-  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 3}}/rpc/validators"
+  RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}"]
+  Expected = [""]
 
+# wait for block height to increase at least 2 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 2"
 
-# slash amount test
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
+  Condition = "excludes"
+  Excluded = ["jailed\": true"]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -v {{index $.NodeProxyAppAddressList 0}}/rpc/validators"
+  Condition = "excludes"
+  Excluded = ["\"voting_power\": \"1\""]

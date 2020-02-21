@@ -1331,7 +1331,7 @@ func Elect(ctx contract.Context) error {
 
 			if ctx.FeatureEnabled(features.DPOSVersion3_8, false) {
 				if statistic.Jailed {
-					continue
+					validatorPower = int64(1)
 				}
 			}
 
