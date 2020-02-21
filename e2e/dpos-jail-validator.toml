@@ -89,9 +89,6 @@
   Condition = "contains"
   Expected = ["name","address","P-1"]
 
-[[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 3"
-
 # node 1 should be jailed as it is offline for 15s
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 list-candidates -u {{index $.NodeProxyAppAddressList 2}}"
@@ -103,9 +100,6 @@
   RunCmd = "{{ $.LoomPath }} dpos3 downtime-record {{index $.NodeAddressList 1}} -u {{index $.NodeProxyAppAddressList 2}}"
   Condition = "contains"
   Expected = ["name","address","P","0"]
-
-[[TestCases]]
-  RunCmd = "wait_for_block_height_to_increase 0 3"
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} dpos3 unjail-validator -k {{index $.NodePrivKeyPathList 1}} -u {{index $.NodeProxyAppAddressList 2}}"

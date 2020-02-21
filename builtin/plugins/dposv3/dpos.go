@@ -1089,9 +1089,6 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 
 	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
 	statistic.Jailed = false
-	if ctx.FeatureEnabled(features.DPOSVersion3_8, false) {
-		statistic.Evicted = false
-	}
 
 	if err = SetStatistic(ctx, statistic); err != nil {
 		return err
