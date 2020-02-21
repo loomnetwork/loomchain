@@ -275,6 +275,11 @@ func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	return nil, nil
 }
 
+func (m *MockQueryService) GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Data) (eth.Data, error) {
+	m.MethodsCalled = append([]string{"GetCanonicalTxHash"}, m.MethodsCalled...)
+	return "", nil
+}
+
 // deprecated function
 func (m *MockQueryService) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	m.mutex.Lock()

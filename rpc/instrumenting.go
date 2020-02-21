@@ -139,6 +139,17 @@ func (m InstrumentingMiddleware) DPOSTotalStaked() (resp *DPOSTotalStakedRespons
 	return
 }
 
+func (m InstrumentingMiddleware) GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Data) (resp eth.Data, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetCanonicalTxHash", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetCanonicalTxHash(block, txIndex, evmTxHash)
+	return resp, err
+}
+
 func (m InstrumentingMiddleware) GetEvmCode(contract string) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmCode", "error", fmt.Sprint(err != nil)}
