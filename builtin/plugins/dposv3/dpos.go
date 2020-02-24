@@ -1293,6 +1293,8 @@ func Elect(ctx contract.Context) error {
 		validatorCount = len(delegationResults)
 	}
 
+	stripPowerFromJailedValidators := ctx.FeatureEnabled(features.DPOSVersion3_8, false)
+
 	validators := make([]*Validator, 0)
 	totalValidatorDelegations := common.BigZero()
 	for _, res := range delegationResults[:validatorCount] {
@@ -1308,6 +1310,7 @@ func Elect(ctx contract.Context) error {
 			power.Div(res.DelegationTotal.Int, powerCorrection)
 			validatorPower := power.Int64()
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
+			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 
 			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
@@ -1326,13 +1329,18 @@ func Elect(ctx contract.Context) error {
 				}
 			}
 
-			if ctx.FeatureEnabled(features.DPOSVersion3_8, false) {
-				if statistic.Jailed {
-					validatorPower = int64(1)
-				}
+			if stripPowerFromJailedValidators && statistic.Jailed {
+				// Strip the validator of its voting power while it remains jailed, this has the effect
+				// of redistributing the voting power to the validators that aren't jailed. If a validator
+				// with a significant voting power is jailed the cluster has probably been taking longer
+				// than usual to reach consensus, redistributing the voting power prevents this slowdown
+				// from going on forever.
+				// NOTE: The voting power is set to one here rather than zero because of an implementation
+				// detail in Tendermint, it errors out if the voting power is zero for two consecutive
+				// elections.
+				validatorPower = int64(1)
 			}
 
-			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
