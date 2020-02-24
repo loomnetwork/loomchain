@@ -505,6 +505,8 @@ func TestUnbondAll(t *testing.T) {
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
 	}
 
+	valAddr1 := addr1
+
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -514,8 +516,8 @@ func TestUnbondAll(t *testing.T) {
 			makeAccount(delegatorAddress1, 1000000000000000000),
 			makeAccount(delegatorAddress2, 2000000000000000000),
 			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(addr1, 1000000000000000000),
-			makeAccount(addr2, 1000000000000000000),
+			makeAccount(valAddr1, 1000000000000000000),
+			makeAccount(valAddr2, 1000000000000000000),
 		},
 	})
 
@@ -540,17 +542,17 @@ func TestUnbondAll(t *testing.T) {
 	// register a candidate with the DPOS contract
 
 	whitelistAmount := big.NewInt(1000000000000)
-	err = dpos.WhitelistCandidate(pctx.WithSender(oracleAddr), addr1, whitelistAmount, 0)
+	err = dpos.WhitelistCandidate(pctx.WithSender(oracleAddr), valAddr1, whitelistAmount, 0)
 	require.NoError(t, err)
 
-	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	err = dpos.RegisterCandidate(pctx.WithSender(valAddr1), pubKey1, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	// make two self-delegations to the registered candidate
 
 	delegationAmount := big.NewInt(1e18)
 	err = coinContract.Approve(
-		contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
+		contractpb.WrapPluginContext(coinCtx.WithSender(valAddr1)),
 		&coin.ApproveRequest{
 			Spender: dpos.Address.MarshalPB(),
 			Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
@@ -558,11 +560,11 @@ func TestUnbondAll(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	err = dpos.Delegate(pctx.WithSender(valAddr1), &valAddr1, delegationAmount, nil, nil)
 	require.NoError(t, err)
 
 	err = coinContract.Approve(
-		contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
+		contractpb.WrapPluginContext(coinCtx.WithSender(valAddr1)),
 		&coin.ApproveRequest{
 			Spender: dpos.Address.MarshalPB(),
 			Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
@@ -570,7 +572,7 @@ func TestUnbondAll(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = dpos.Delegate(pctx.WithSender(addr1), &addr1, delegationAmount, nil, nil)
+	err = dpos.Delegate(pctx.WithSender(valAddr1), &valAddr1, delegationAmount, nil, nil)
 	require.NoError(t, err)
 
 	// get the candidate elected into the active validator set
@@ -586,7 +588,7 @@ func TestUnbondAll(t *testing.T) {
 	)
 	require.NoError(t, err)
 	tierThree := uint64(3)
-	err = dpos.Delegate(pctx.WithSender(delegatorAddress2), &addr1, delegationAmount, &tierThree, nil)
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress2), &valAddr1, delegationAmount, &tierThree, nil)
 	require.NoError(t, err)
 
 	err = coinContract.Approve(
@@ -598,7 +600,7 @@ func TestUnbondAll(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, &tierThree, nil)
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &valAddr1, delegationAmount, &tierThree, nil)
 	require.NoError(t, err)
 
 	// advance time by 60s and run another election, all delegations will remain locked since they're
@@ -607,7 +609,7 @@ func TestUnbondAll(t *testing.T) {
 	require.NoError(t, elect(pctx, dpos.Address))
 
 	// figure out how much everyone has delegated & their current LOOM balance
-	_, del1Amount, _, err := dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
+	_, del1Amount, _, err := dpos.CheckDelegation(pctx, &valAddr1, &delegatorAddress1)
 	require.NoError(t, err)
 	del1Balance, err := coinContract.BalanceOf(
 		contractpb.WrapPluginContext(coinCtx),
@@ -615,7 +617,7 @@ func TestUnbondAll(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, del2Amount, _, err := dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
+	_, del2Amount, _, err := dpos.CheckDelegation(pctx, &valAddr1, &delegatorAddress2)
 	require.NoError(t, err)
 	del2Balance, err := coinContract.BalanceOf(
 		contractpb.WrapPluginContext(coinCtx),
@@ -623,11 +625,11 @@ func TestUnbondAll(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, valAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &addr1)
+	_, valAmount, _, err := dpos.CheckDelegation(pctx, &valAddr1, &valAddr1)
 	require.NoError(t, err)
 	valBalance, err := coinContract.BalanceOf(
 		contractpb.WrapPluginContext(coinCtx),
-		&coin.BalanceOfRequest{Owner: addr1.MarshalPB()},
+		&coin.BalanceOfRequest{Owner: valAddr1.MarshalPB()},
 	)
 	require.NoError(t, err)
 
@@ -643,7 +645,7 @@ func TestUnbondAll(t *testing.T) {
 
 	// check that everyone's LOOM balance has increased by the previously obtained delegation amount
 	// as would be expected if the delegations were unbonded successfully
-	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &addr1, &delegatorAddress1)
+	_, delegatedAmount, _, err := dpos.CheckDelegation(pctx, &valAddr1, &delegatorAddress1)
 	balance, err := coinContract.BalanceOf(
 		contractpb.WrapPluginContext(coinCtx),
 		&coin.BalanceOfRequest{Owner: delegatorAddress1.MarshalPB()},
@@ -652,7 +654,7 @@ func TestUnbondAll(t *testing.T) {
 	assert.True(t, delegatedAmount.Cmp(del1Amount) < 0)
 	assert.Equal(t, new(big.Int).Sub(balance.GetBalance().Value.Int, del1Balance.GetBalance().Value.Int), del1Amount)
 
-	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &delegatorAddress2)
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &valAddr1, &delegatorAddress2)
 	require.NoError(t, err)
 	balance, err = coinContract.BalanceOf(
 		contractpb.WrapPluginContext(coinCtx),
@@ -662,7 +664,7 @@ func TestUnbondAll(t *testing.T) {
 	assert.True(t, delegatedAmount.Cmp(del2Amount) < 0)
 	assert.Equal(t, new(big.Int).Sub(balance.GetBalance().Value.Int, del2Balance.GetBalance().Value.Int), del2Amount)
 
-	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &addr1)
+	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &valAddr1, &valAddr1)
 	require.NoError(t, err)
 	balance, err = coinContract.BalanceOf(
 		contractpb.WrapPluginContext(coinCtx),
