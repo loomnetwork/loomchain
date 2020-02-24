@@ -506,7 +506,7 @@ func TestUnbondAll(t *testing.T) {
 	}
 
 	valAddr1 := addr1
-
+	valAddr2 := addr2
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -635,7 +635,9 @@ func TestUnbondAll(t *testing.T) {
 
 	err = dpos.Contract.UnbondAll(
 		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(oracleAddr)),
-		&UnbondAllRequest{},
+		&UnbondAllRequest{
+			ValidatorAddress: valAddr1.MarshalPB(),
+		},
 	)
 	require.NoError(t, err)
 

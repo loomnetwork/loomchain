@@ -744,6 +744,10 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 		return errors.New("DPOS v3.7 is not enabled")
 	}
 
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("UnbondAll called with req.ValidatorAddress == nil"), req.String())
+	}
+
 	sender := ctx.Message().Sender
 	state, err := LoadState(ctx)
 	if err != nil {
@@ -761,6 +765,9 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 	}
 
 	for _, di := range delegationIndexes {
+		if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(loom.UnmarshalAddressPB(di.Validator)) != 0 {
+			continue
+		}
 		delegation, err := GetDelegation(ctx, di.Index, *di.Validator, *di.Delegator)
 		if err == contract.ErrNotFound {
 			validator := loom.UnmarshalAddressPB(di.Validator)
