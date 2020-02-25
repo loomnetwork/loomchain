@@ -948,9 +948,9 @@ func (a *Application) height() int64 {
 func (a *Application) ReadOnlyState() State {
 	lastBlockHeader := (*abci.Header)(atomic.LoadPointer(&a.lastBlockHeader))
 	// When the node is started with no previous blockchain state (e.g. completely new chain) then
-	// there'll be a very brief period where lastBlockHeader will be nil (until EndBlock is called for the first time).
-	// While lastBlockHeader is nil the node won't be able to return useful responses to most queries, so we just
-	// make it panic here so the clients get an obvious error.
+	// there'll be a very brief period where lastBlockHeader will be nil (until Application.Commit is called for the
+	// first time). While lastBlockHeader is nil the node won't be able to return useful responses to most queries,
+	// so we just make it panic here so the clients get an obvious error.
 	// TODO: This is just quick hack, the proper way to deal with this scenario is to start the QueryServer only after
 	// the lastBlockHeader has been set.
 	if lastBlockHeader == nil {
