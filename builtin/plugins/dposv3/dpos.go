@@ -745,7 +745,7 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 	}
 
 	if req.ValidatorAddress == nil {
-		return logDposError(ctx, errors.New("UnbondAll called with req.ValidatorAddress == nil"), req.String())
+		return errors.New("validator address must be specified")
 	}
 
 	sender := ctx.Message().Sender
@@ -763,9 +763,9 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to load delegations")
 	}
-
+	validatorAddress := loom.UnmarshalAddressPB(req.ValidatorAddress)
 	for _, di := range delegationIndexes {
-		if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(loom.UnmarshalAddressPB(di.Validator)) != 0 {
+		if validatorAddress.Compare(loom.UnmarshalAddressPB(di.Validator)) != 0 {
 			continue
 		}
 		delegation, err := GetDelegation(ctx, di.Index, *di.Validator, *di.Delegator)
