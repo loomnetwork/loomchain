@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -954,7 +955,7 @@ func (a *Application) ReadOnlyState() State {
 	// TODO: This is just quick hack, the proper way to deal with this scenario is to start the QueryServer only after
 	// the lastBlockHeader has been set.
 	if lastBlockHeader == nil {
-		panic("unable to respond to query, app isn't ready yet")
+		panic(errors.New("unable to respond to query, app isn't ready yet"))
 	}
 
 	appStateSnapshot, err := a.Store.GetSnapshotAt(lastBlockHeader.Height)
