@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -142,6 +143,28 @@ func testNormal(t *testing.T) {
 		return false
 	})
 	diskDb.Close()
+}
+
+func TestLoadIAVLVersion(t *testing.T) {
+	flushInterval = int64(5)
+	memDB := db.NewMemDB()
+	store, err := NewIAVLStore(memDB, 0, 0, flushInterval)
+	require.NoError(t, err)
+	var lastVersion int64
+	var s string
+	for i := int64(1); i <= flushInterval; i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set([]byte("key"+s), []byte("value"+s))
+		_, lastVersion, err = store.tree.SaveVersion()
+		require.NoError(t, err)
+		require.Equal(t, i, lastVersion)
+	}
+	for i := lastVersion; i > 0; i-- {
+		it, err := store.tree.GetImmutable(i)
+		require.NoError(t, err)
+		require.NotNil(t, it)
+		t.Logf(it.String())
+	}
 }
 
 func testFlush(t *testing.T) {
