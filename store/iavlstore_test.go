@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -152,19 +153,34 @@ func TestLoadIAVLVersion(t *testing.T) {
 	require.NoError(t, err)
 	var lastVersion int64
 	var s string
-	for i := int64(1); i <= flushInterval; i++ {
-		s = strconv.FormatInt(i, 10)
-		store.Set([]byte("key"+s), []byte("value"+s))
-		_, lastVersion, err = store.tree.SaveVersion()
-		require.NoError(t, err)
-		require.Equal(t, i, lastVersion)
+	ch := make(chan int64)
+	go func() {
+		for i := int64(1); i <= flushInterval*10000; i++ {
+			s = strconv.FormatInt(i, 10)
+			store.Set([]byte("key"+s), []byte("value"+s))
+
+			// Broken Unpredictably
+			_, lastVersion, err = store.SaveVersion(nil)
+
+			// Works fine
+			// _, lastVersion, err = store.tree.SaveVersion()
+			ch <- lastVersion
+			require.NoError(t, err)
+			fmt.Printf("%d\n", lastVersion)
+			require.Equal(t, i, lastVersion)
+		}
+	}()
+
+	for {
+		select {
+		case lv := <-ch:
+			fmt.Println("lv ", lv)
+			it, err := store.tree.GetImmutable(lv)
+			require.NoError(t, err)
+			require.NotNil(t, it)
+		}
 	}
-	for i := lastVersion; i > 0; i-- {
-		it, err := store.tree.GetImmutable(i)
-		require.NoError(t, err)
-		require.NotNil(t, it)
-		t.Logf(it.String())
-	}
+
 }
 
 func testFlush(t *testing.T) {
