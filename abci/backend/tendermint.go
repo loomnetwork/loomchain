@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/viper"
 	abci_server "github.com/tendermint/tendermint/abci/server"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmn "github.com/tendermint/tendermint/libs/common"
@@ -109,6 +110,7 @@ type Backend interface {
 	// Returns the TCP or UNIX socket address the backend RPC server listens on
 	RPCAddress() (string, error)
 	EventBus() *types.EventBus // TODO: doesn't seem to be used, remove it
+	LoadBlockHeader(height int64) (*abci.Header, error)
 }
 
 type TendermintBackend struct {
@@ -473,4 +475,33 @@ func (b *TendermintBackend) RunForever() {
 			b.socketServer.Stop()
 		}
 	})
+}
+
+// LoadBlockHeader loads the block header for the given height.
+func (b *TendermintBackend) LoadBlockHeader(height int64) (*abci.Header, error) {
+	config, err := b.parseConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	blockDB := dbm.NewDB("blockstore", dbm.DBBackendType(config.DBBackend), config.DBDir())
+	defer blockDB.Close()
+
+	blockStore := blockchain.NewBlockStore(blockDB)
+	blockMeta := blockStore.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return nil, fmt.Errorf("block meta not found at height %v", height)
+	}
+	// Return just the data that blockHeaderFromAbciHeader() needs
+	return &abci.Header{
+		ChainID: blockMeta.Header.ChainID,
+		Height:  blockMeta.Header.Height,
+		Time:    blockMeta.Header.Time,
+		NumTxs:  blockMeta.Header.NumTxs,
+		LastBlockId: abci.BlockID{
+			Hash: blockMeta.Header.LastBlockID.Hash,
+		},
+		ValidatorsHash: blockMeta.Header.ValidatorsHash,
+		AppHash:        blockMeta.Header.AppHash,
+	}, nil
 }
