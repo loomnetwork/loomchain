@@ -622,10 +622,15 @@ func newCreateWithdrawalReceipt() *cobra.Command {
 				return errors.Wrap(err, "failed to load Ethereum private key")
 			}
 			amount, _ := big.NewInt(0).SetString(amountStr, 10)
-			hash := ssha.SoliditySHA3(
-				ssha.Uint256(amount),
-				ssha.Address(common.HexToAddress(mainnetTokenAddr)),
-			)
+			var hash []byte
+			if mainnetTokenAddr != "" {
+				hash = ssha.SoliditySHA3(
+					ssha.Uint256(amount),
+					ssha.Address(common.HexToAddress(mainnetTokenAddr)),
+				)
+			} else { // ETH withdrawals don't need a contract address
+				hash = ssha.SoliditySHA3(ssha.Uint256(amount))
+			}
 			hash = ssha.SoliditySHA3(
 				ssha.Address(common.HexToAddress(withdrawerAddr)),
 				ssha.Uint256(new(big.Int).SetUint64(uint64(nonce))),
