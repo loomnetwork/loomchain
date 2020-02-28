@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -125,6 +124,7 @@ func TestIavl(t *testing.T) {
 	t.Run("testFlush", testFlush)
 	t.Run("normal", testNormal)
 	t.Run("max versions", testMaxVersions)
+	t.Run("testGetTreeAfterFlush", testGetTreeAfterFlush)
 }
 
 func testNormal(t *testing.T) {
@@ -146,41 +146,107 @@ func testNormal(t *testing.T) {
 	diskDb.Close()
 }
 
-func TestLoadIAVLVersion(t *testing.T) {
-	flushInterval = int64(5)
-	memDB := db.NewMemDB()
-	store, err := NewIAVLStore(memDB, 0, 0, flushInterval)
+// func TestLoadIAVLVersion(t *testing.T) {
+// 	flushInterval = int64(5)
+// 	memDB := db.NewMemDB()
+// 	store, err := NewIAVLStore(memDB, 0, 0, flushInterval)
+// 	require.NoError(t, err)
+// 	var lastVersion int64
+// 	var s string
+// 	ch := make(chan int64)
+// 	go func() {
+// 		for i := int64(1); i <= flushInterval*1000; i++ {
+// 			s = strconv.FormatInt(i, 10)
+// 			store.Set([]byte("key"+s), []byte("value"+s))
+// 			// store.Set([]byte("key2"+s), []byte("value2"+s))
+// 			// Broken Unpredictably
+// 			// _, lastVersion, err = store.SaveVersion(nil)
+// 			if i%flushInterval == 0 {
+// 				// dbmem := store.tree.
+// 				_, lastVersion, err = store.tree.FlushMemVersionDisk()
+// 			} else {
+// 				_, lastVersion, err = store.tree.SaveVersionMem()
+// 			}
+
+// 			// Works fine
+// 			// _, lastVersion, err = store.tree.SaveVersion()
+// 			if lastVersion > 10 {
+// 				ch <- lastVersion
+// 			}
+// 			require.NoError(t, err)
+// 			require.Equal(t, i, lastVersion)
+
+// 			// _, err := store.tree.GetImmutable(lastVersion)
+// 			// require.NoError(t, err)
+// 			// time.Sleep(time.Second * 1)
+// 		}
+// 	}()
+
+// 	for {
+// 		select {
+// 		case lv := <-ch:
+// 			if lv%flushInterval == 0 {
+// 				for i := int64(0); i < flushInterval; i++ {
+// 					targetVersion := lv
+// 					targetVersion -= i
+// 					fmt.Println("GetImmutable version ", targetVersion)
+// 					store.tree.GetImmutable(targetVersion)
+// 					// require.NoError(t, err, "version", targetVersion)
+// 					// require.NotNil(t, im)
+// 					// require.Equal(t, targetVersion, im.Size())
+// 				}
+// 			}
+// 			// targetVersion := lv
+// 			// fmt.Println("GetImmutable version ", targetVersion)
+// 			// im, err := store.tree.GetImmutable(targetVersion)
+// 			// if err != nil {
+// 			// 	for i := int64(1); i < targetVersion; i++ {
+// 			// 		fmt.Println("ERROR -- > GetImmutable version ", targetVersion-i)
+// 			// 		im, err = store.tree.GetImmutable(targetVersion - i)
+// 			// 		store.tree.LoadVersion(targetVersion - 1)
+// 			// 	}
+// 			// }
+// 			// require.NoError(t, err, "version", targetVersion)
+// 			// require.NotNil(t, im)
+// 			// require.Equal(t, targetVersion, im.Size())
+// 		}
+// 	}
+// }
+
+func testGetTreeAfterFlush(t *testing.T) {
+	diskDb := getDiskDb(t, "testGetTreeAfterFlush")
+	store, err := NewIAVLStore(diskDb, 0, 0, flushInterval)
 	require.NoError(t, err)
-	var lastVersion int64
 	var s string
-	ch := make(chan int64)
-	go func() {
-		for i := int64(1); i <= flushInterval*10000; i++ {
-			s = strconv.FormatInt(i, 10)
-			store.Set([]byte("key"+s), []byte("value"+s))
+	var flushedVersion, latestVersion int64
+	for i := int64(1); i <= flushInterval; i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set([]byte("key"+s), []byte("value"+s))
 
-			// Broken Unpredictably
-			_, lastVersion, err = store.SaveVersion(nil)
+		_, latestVersion, err = store.SaveVersion(nil)
 
-			// Works fine
-			// _, lastVersion, err = store.tree.SaveVersion()
-			ch <- lastVersion
-			require.NoError(t, err)
-			fmt.Printf("%d\n", lastVersion)
-			require.Equal(t, i, lastVersion)
-		}
-	}()
+		require.NoError(t, err)
+		require.Equal(t, i, latestVersion)
 
-	for {
-		select {
-		case lv := <-ch:
-			fmt.Println("lv ", lv)
-			it, err := store.tree.GetImmutable(lv)
-			require.NoError(t, err)
-			require.NotNil(t, it)
-		}
 	}
+	flushedVersion = latestVersion
+	store.Set([]byte("k"), []byte("v"))
+	_, latestVersion, err = store.SaveVersion(nil)
+	require.NoError(t, err)
+	//
+	it, err := store.tree.GetImmutable(flushedVersion)
+	require.NoError(t, err)
+	require.Equal(t, flushedVersion, it.Size())
 
+	// Trying to retreive a tree on one version after flushed version.
+	it, err = store.tree.GetImmutable(latestVersion)
+	require.NoError(t, err)
+	require.Equal(t, latestVersion, it.Size())
+
+	// Trying to retreive a tree on one version before flushed version.
+	it, err = store.tree.GetImmutable(flushedVersion - 1)
+	require.EqualError(t, err, "version does not exist")
+	require.Nil(t, it)
 }
 
 func testFlush(t *testing.T) {
