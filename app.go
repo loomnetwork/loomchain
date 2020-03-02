@@ -390,8 +390,6 @@ type Application struct {
 	config          *cctypes.Config
 	childTxRefs     []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	committedTxs    []CommittedTx
-	preFlushedTree  store.Snapshot
-	preFlusedHeight int64
 }
 
 var _ abci.Application = &Application{}
@@ -876,16 +874,6 @@ func (a *Application) Commit() abci.ResponseCommit {
 		FlushInterval: int64(a.config.GetAppStore().GetIAVLFlushInterval()),
 	}
 
-	lastHeight := a.curBlockHeader.GetHeight() - 1
-	if lastHeight > 1 {
-		preFlushSnapshot, err := a.Store.GetSnapshotAt(lastHeight)
-		if err != nil {
-			panic(err)
-		}
-		a.preFlushedTree = preFlushSnapshot
-		a.preFlusedHeight = lastHeight
-	}
-
 	appHash, _, err := a.Store.SaveVersion(&storeOpts)
 	if err != nil {
 		panic(err)
@@ -960,8 +948,6 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-	var appStateSnapshot store.Snapshot
-	var err error
 	lastBlockHeader := (*abci.Header)(atomic.LoadPointer(&a.lastBlockHeader))
 
 	// When the node is started with no previous blockchain state (e.g. completely new chain) then
@@ -973,15 +959,10 @@ func (a *Application) ReadOnlyState() State {
 	if lastBlockHeader == nil {
 		panic(errors.New("unable to respond to query, app isn't ready yet"))
 	}
-	if lastBlockHeader.Height == a.preFlusedHeight {
-		fmt.Printf("PreflushedTree --> lastBlockHeight %d, preFlushHeight %d\n", lastBlockHeader.Height, a.preFlusedHeight)
-		appStateSnapshot = a.preFlushedTree
-	} else {
-		fmt.Printf("ReadOnlyState --> lastBlockHeight %d, preFlushHeight %d\n", lastBlockHeader.Height, a.preFlusedHeight)
-		appStateSnapshot, err = a.Store.GetSnapshotAt(lastBlockHeader.Height)
-		if err != nil {
-			panic(err)
-		}
+
+	appStateSnapshot, err := a.Store.GetSnapshotAt(lastBlockHeader.Height)
+	if err != nil {
+		panic(err)
 	}
 
 	var evmStateSnapshot *EVMState
