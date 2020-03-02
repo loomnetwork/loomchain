@@ -46,6 +46,7 @@ func init() {
 
 type IAVLStore struct {
 	tree          *iavl.MutableTree
+	previousTree  *iavl.ImmutableTree
 	maxVersions   int64 // maximum number of versions to keep when pruning
 	flushInterval int64 // how often we persist to disk
 }
@@ -161,6 +162,10 @@ func (s *IAVLStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int6
 	if flushInterval == 0 || ((oldVersion+1)%flushInterval == 0) {
 		if flushInterval != 0 {
 			log.Info("[IAVLStore] Flushing mem to disk", "version", oldVersion+1)
+			s.previousTree, err = s.tree.GetImmutable(oldVersion)
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to load previous tree version %d", oldVersion)
+			}
 			hash, version, err = s.tree.FlushMemVersionDisk()
 		} else {
 			hash, version, err = s.tree.SaveVersion()
