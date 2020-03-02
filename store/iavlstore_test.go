@@ -125,6 +125,7 @@ func TestIavl(t *testing.T) {
 	t.Run("normal", testNormal)
 	t.Run("max versions", testMaxVersions)
 	t.Run("testGetTreeAfterFlush", testGetTreeAfterFlush)
+	t.Run("testGetPreviousTree", testGetPreviousTree)
 }
 
 func testNormal(t *testing.T) {
@@ -180,6 +181,38 @@ func testGetTreeAfterFlush(t *testing.T) {
 	it, err = store.tree.GetImmutable(flushedVersion - 1)
 	require.EqualError(t, err, "version does not exist")
 	require.Nil(t, it)
+}
+
+func testGetPreviousTree(t *testing.T) {
+	diskDb := getDiskDb(t, "testGetPreviousTree")
+	store, err := NewIAVLStore(diskDb, 0, 0, flushInterval)
+	require.NoError(t, err)
+	var s string
+	var flushedVersion, latestVersion int64
+	for i := int64(1); i <= flushInterval; i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set([]byte("key"+s), []byte("value"+s))
+
+		_, latestVersion, err = store.SaveVersion(nil)
+
+		require.NoError(t, err)
+		require.Equal(t, i, latestVersion)
+	}
+	flushedVersion = latestVersion
+
+	_, latestVersion, err = store.SaveVersion(nil)
+	require.NoError(t, err)
+
+	_, latestVersion, err = store.SaveVersion(nil)
+	require.NoError(t, err)
+
+	it, err := store.tree.GetImmutable(flushedVersion)
+	require.NoError(t, err)
+	require.Equal(t, flushedVersion, it.Size())
+
+	require.Equal(t, flushedVersion-1, store.previousTree.Version())
+	require.Equal(t, flushedVersion-1, store.previousTree.Size())
+
 }
 
 func testFlush(t *testing.T) {
