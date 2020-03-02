@@ -161,6 +161,7 @@ func (s *IAVLStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int6
 	if flushInterval == 0 || ((oldVersion+1)%flushInterval == 0) {
 		if flushInterval != 0 {
 			log.Info("[IAVLStore] Flushing mem to disk", "version", oldVersion+1)
+
 			hash, version, err = s.tree.FlushMemVersionDisk()
 		} else {
 			hash, version, err = s.tree.SaveVersion()
@@ -202,7 +203,7 @@ func (s *IAVLStore) Prune() error {
 }
 
 func (s *IAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	panic("not implemented")
+	return &iavlStoreSnapshot{s}, nil
 }
 
 // NewIAVLStore creates a new IAVLStore.

@@ -385,6 +385,9 @@ type Application struct {
 	ReceiptsVersion             int32
 	EVMState                    *EVMState
 	committedTxs                []CommittedTx
+
+	preFlushedTree  store.Snapshot
+	preFlusedHeight int64
 }
 
 var _ abci.Application = &Application{}
@@ -860,6 +863,17 @@ func (a *Application) Commit() abci.ResponseCommit {
 	storeOpts := store.VersionedKVStoreSaveOptions{
 		FlushInterval: int64(a.config.GetAppStore().GetIAVLFlushInterval()),
 	}
+
+	lastHeight := a.curBlockHeader.GetHeight() - 1
+	if lastHeight > 1 {
+		preFlushSnapshot, err := a.Store.GetSnapshotAt(lastHeight)
+		if err != nil {
+			panic(err)
+		}
+		a.preFlushedTree = preFlushSnapshot
+		a.preFlusedHeight = lastHeight
+	}
+
 	appHash, _, err := a.Store.SaveVersion(&storeOpts)
 	if err != nil {
 		panic(err)
@@ -934,10 +948,18 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
+	var appStateSnapshot store.Snapshot
+	var err error
 	lastBlockHeader := (*abci.Header)(atomic.LoadPointer(&a.lastBlockHeader))
-	appStateSnapshot, err := a.Store.GetSnapshotAt(lastBlockHeader.Height)
-	if err != nil {
-		panic(err)
+	if lastBlockHeader.Height == a.preFlusedHeight {
+		fmt.Printf("PreflushedTree --> lastBlockHeight %d, preFlushHeight %d\n", lastBlockHeader.Height, a.preFlusedHeight)
+		appStateSnapshot = a.preFlushedTree
+	} else {
+		fmt.Printf("ReadOnlyState --> lastBlockHeight %d, preFlushHeight %d\n", lastBlockHeader.Height, a.preFlusedHeight)
+		appStateSnapshot, err = a.Store.GetSnapshotAt(lastBlockHeader.Height)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	var evmStateSnapshot *EVMState
