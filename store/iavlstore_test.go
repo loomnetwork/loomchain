@@ -172,12 +172,12 @@ func testGetTreeAfterFlush(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, flushedVersion, it.Size())
 
-	// Trying to retreive a tree on one version after flushed version.
+	// Trying to retrieve a tree on one version after flushed version.
 	it, err = store.tree.GetImmutable(latestVersion)
 	require.NoError(t, err)
 	require.Equal(t, latestVersion, it.Size())
 
-	// Trying to retreive a tree on one version before flushed version.
+	// Trying to retrieve a tree on one version before flushed version.
 	it, err = store.tree.GetImmutable(flushedVersion - 1)
 	require.EqualError(t, err, "version does not exist")
 	require.Nil(t, it)
@@ -200,10 +200,10 @@ func testGetPreviousTree(t *testing.T) {
 	}
 	flushedVersion = latestVersion
 
-	_, latestVersion, err = store.SaveVersion(nil)
+	_, _, err = store.SaveVersion(nil)
 	require.NoError(t, err)
 
-	_, latestVersion, err = store.SaveVersion(nil)
+	_, _, err = store.SaveVersion(nil)
 	require.NoError(t, err)
 
 	it, err := store.tree.GetImmutable(flushedVersion)
