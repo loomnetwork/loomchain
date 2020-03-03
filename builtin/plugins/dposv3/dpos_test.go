@@ -1433,6 +1433,7 @@ func TestRegisterCandidateWithoutWhitelist(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	// create a couple of delegations
 	tierOne := uint64(1)
 	err = dpos.Delegate(pctx.WithSender(delegatorAddress2), &addr1, delegationAmount, &tierOne, nil)
 	require.NoError(t, err)
@@ -1478,6 +1479,7 @@ func TestRegisterCandidateWithoutWhitelist(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(candidates))
 
+	// Make sure addr1 have enough LOOM to re-register.
 	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.TransferRequest{
 		To:     addr1.MarshalPB(),
 		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
@@ -1505,6 +1507,7 @@ func TestRegisterCandidateWithoutWhitelist(t *testing.T) {
 		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
 	}
 
+	// rewards2 and rewards3 should continue increasing.
 	rewards2, err = dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress2), &addr1)
 	require.Nil(t, err)
 	assert.Equal(t, 1, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1490000000000000)}))
