@@ -1333,6 +1333,7 @@ func TestZeroRewardsCap(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
+
 	tierThree := uint64(3)
 	err = dpos.Delegate(pctx.WithSender(delegatorAddress2), &addr1, delegationAmount, &tierThree, nil)
 	require.NoError(t, err)
