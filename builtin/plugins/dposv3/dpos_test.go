@@ -1288,19 +1288,8 @@ func TestZeroRewardsCap(t *testing.T) {
 		ValidatorCount:      1,
 		ElectionCycleLength: cycleLengthSeconds,
 		CoinContractAddress: coinAddr.MarshalPB(),
-		MaxYearlyReward:     &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+		MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
 		OracleAddress:       addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	dposCtx := pctx.WithAddress(dpos.Address)
-	dposCtx.SetFeature(features.DPOSVersion2_1, true)
-	require.True(t, dposCtx.FeatureEnabled(features.DPOSVersion2_1, false))
-
-	amount := big.NewInt(10000000)
-	amount.Mul(amount, big.NewInt(1e18))
-	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.TransferRequest{
-		To:     dpos.Address.MarshalPB(),
-		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
 	})
 	require.Nil(t, err)
 
@@ -1319,6 +1308,11 @@ func TestZeroRewardsCap(t *testing.T) {
 	assert.Equal(t, 1, len(candidates))
 
 	require.NoError(t, elect(pctx, dpos.Address))
+
+	err = dpos.Contract.SetMaxYearlyReward(contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(addr1)),
+		&SetMaxYearlyRewardRequest{
+			MaxYearlyReward: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		})
 
 	validators, err := dpos.ListValidators(pctx)
 	require.Nil(t, err)
@@ -1376,17 +1370,6 @@ func TestRegisterCandidateWithoutWhitelist(t *testing.T) {
 		OracleAddress:       addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	dposCtx := pctx.WithAddress(dpos.Address)
-	dposCtx.SetFeature(features.DPOSVersion2_1, true)
-	require.True(t, dposCtx.FeatureEnabled(features.DPOSVersion2_1, false))
-
-	amount := big.NewInt(10000000)
-	amount.Mul(amount, big.NewInt(1e18))
-	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.TransferRequest{
-		To:     dpos.Address.MarshalPB(),
-		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
-	})
-	require.Nil(t, err)
 
 	whitelistAmount := big.NewInt(1000000000000)
 
@@ -1397,7 +1380,7 @@ func TestRegisterCandidateWithoutWhitelist(t *testing.T) {
 	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr2, whitelistAmount, 1)
 	require.Nil(t, err)
 
-	// Register the 2 validators
+	// Register 2 validators
 	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 
@@ -1480,6 +1463,8 @@ func TestRegisterCandidateWithoutWhitelist(t *testing.T) {
 	assert.Equal(t, 1, len(candidates))
 
 	// Make sure addr1 have enough LOOM to re-register.
+	amount := big.NewInt(10000000)
+	amount.Mul(amount, big.NewInt(1e18))
 	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.TransferRequest{
 		To:     addr1.MarshalPB(),
 		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
