@@ -1299,7 +1299,7 @@ func TestZeroRewardsCap(t *testing.T) {
 	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
 	require.Nil(t, err)
 
-	// Register the a validator
+	// Register a validator
 	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
 	require.Nil(t, err)
 
