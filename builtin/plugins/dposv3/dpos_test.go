@@ -1353,6 +1353,169 @@ func TestZeroRewardsCap(t *testing.T) {
 	assert.Equal(t, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 0)
 }
 
+func TestRegisterCandidateWithoutWhitelist(t *testing.T) {
+	pctx := createCtx()
+	coinAddr := pctx.CreateContract(coin.Contract)
+
+	coinContract := &coin.Coin{}
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1e18),
+			makeAccount(delegatorAddress2, 2000000000000000000),
+			makeAccount(delegatorAddress3, 3000000000000000000),
+			makeAccount(addr2, 3000000000000000000),
+		},
+	})
+	cycleLengthSeconds := int64(100)
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      2,
+		ElectionCycleLength: cycleLengthSeconds,
+		CoinContractAddress: coinAddr.MarshalPB(),
+		MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
+		OracleAddress:       addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	dposCtx := pctx.WithAddress(dpos.Address)
+	dposCtx.SetFeature(features.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(features.DPOSVersion2_1, false))
+
+	amount := big.NewInt(10000000)
+	amount.Mul(amount, big.NewInt(1e18))
+	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.TransferRequest{
+		To:     dpos.Address.MarshalPB(),
+		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
+	})
+	require.Nil(t, err)
+
+	whitelistAmount := big.NewInt(1000000000000)
+
+	// Whitelist with locktime tier 0, which should use 5% of rewards
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr1, whitelistAmount, 0)
+	require.Nil(t, err)
+
+	err = dpos.WhitelistCandidate(pctx.WithSender(addr1), addr2, whitelistAmount, 1)
+	require.Nil(t, err)
+
+	// Register the 2 validators
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr2), pubKey2, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	candidates, err := dpos.ListCandidates(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(candidates))
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	validators, err := dpos.ListValidators(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(validators))
+
+	delegationAmount := big.NewInt(1e18)
+	err = coinContract.Approve(
+		contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress2)),
+		&coin.ApproveRequest{
+			Spender: dpos.Address.MarshalPB(),
+			Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+		},
+	)
+	require.NoError(t, err)
+
+	err = coinContract.Approve(
+		contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)),
+		&coin.ApproveRequest{
+			Spender: dpos.Address.MarshalPB(),
+			Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+		},
+	)
+	require.NoError(t, err)
+
+	tierOne := uint64(1)
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress2), &addr1, delegationAmount, &tierOne, nil)
+	require.NoError(t, err)
+
+	tierThree := uint64(3)
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress3), &addr1, delegationAmount, &tierThree, nil)
+	require.NoError(t, err)
+
+	// Do a bunch of elections that correspond to 1/100th of a year
+	for i := int64(0); i < yearSeconds/100; i = i + cycleLengthSeconds {
+		require.NoError(t, elect(pctx, dpos.Address))
+		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
+	}
+
+	rewards1, err := dpos.CheckRewardDelegation(pctx.WithSender(addr1), &addr1)
+	require.Nil(t, err)
+	assert.Equal(t, 1, rewards1.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(490000000)}))
+	assert.Equal(t, -1, rewards1.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(510000000)}))
+
+	rewards2, err := dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress2), &addr1)
+	require.Nil(t, err)
+	assert.Equal(t, 1, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(740000000000000)})) // 0.75% of delegation amount in tokenDecimal
+	assert.Equal(t, -1, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(760000000000000)}))
+
+	rewards3, err := dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress3), &addr1)
+	require.Nil(t, err)
+	assert.Equal(t, 1, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1990000000000000)})) // 2% of delegation amount in tokenDecimal
+	assert.Equal(t, -1, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(2010000000000000)}))
+
+	err = dpos.RemoveWhitelistedCandidate(pctx.WithSender(addr1), &addr1)
+	require.Nil(t, err)
+
+	candidates, err = dpos.ListCandidates(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(candidates))
+
+	err = dpos.UnregisterCandidate(pctx.WithSender(addr1))
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	candidates, err = dpos.ListCandidates(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(candidates))
+
+	err = coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.TransferRequest{
+		To:     addr1.MarshalPB(),
+		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
+	})
+	require.Nil(t, err)
+
+	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.Nil(t, err)
+
+	require.NoError(t, elect(pctx, dpos.Address))
+
+	candidates, err = dpos.ListCandidates(pctx)
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(candidates))
+
+	for i := int64(0); i < yearSeconds/100; i = i + cycleLengthSeconds {
+		require.NoError(t, elect(pctx, dpos.Address))
+		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
+	}
+
+	rewards2, err = dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress2), &addr1)
+	require.Nil(t, err)
+	assert.Equal(t, 1, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1490000000000000)}))
+	assert.Equal(t, -1, rewards2.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1510000000000000)}))
+
+	rewards3, err = dpos.CheckRewardDelegation(pctx.WithSender(delegatorAddress3), &addr1)
+	require.Nil(t, err)
+	assert.Equal(t, 1, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(3990000000000000)}))
+	assert.Equal(t, -1, rewards3.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(4010000000000000)}))
+}
+
 func TestConsolidateDelegations(t *testing.T) {
 	// Init the coin balances
 	pctx := createCtx()
