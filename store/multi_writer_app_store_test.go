@@ -70,6 +70,52 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 
 }
 
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtFlushInterval() {
+	require := m.Require()
+	// flush data to disk every 2 blocks
+	store, err := mockMultiWriterStore(2, 2)
+	require.NoError(err)
+
+	// the first version go to memory
+	store.Set([]byte("test1"), []byte("test1"))
+	store.Set([]byte("test2"), []byte("test2"))
+	_, version, err := store.SaveVersion(nil)
+	require.NoError(err)
+	require.Equal(int64(1), version)
+
+	store.Set([]byte("test1"), []byte("test1v2"))
+	store.Set([]byte("test2"), []byte("test2v2"))
+
+	// this snapshot is from memory
+	snapshotv1, err := store.GetSnapshotAt(0)
+	require.NoError(err)
+	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
+	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
+
+	// this flushes all data to disk
+	_, flushedVersion, err := store.SaveVersion(nil)
+	require.NoError(err)
+
+	// get snapshotv2
+	snapshotv2, err := store.GetSnapshotAt(0)
+	require.NoError(err)
+	require.Equal([]byte("test1v2"), snapshotv2.Get([]byte("test1")))
+	require.Equal([]byte("test2v2"), snapshotv2.Get([]byte("test2")))
+
+	// this snapshotv1 should still be accessible
+	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
+	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
+
+	flushedSn, err := store.GetSnapshotAt(flushedVersion)
+	require.NoError(err)
+	require.Equal(snapshotv2, flushedSn)
+
+	preflushedSn, err := store.GetSnapshotAt(flushedVersion - 1)
+	require.NoError(err)
+	require.Equal(snapshotv1, preflushedSn)
+
+}
+
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	require := m.Require()
 	store, err := mockMultiWriterStore(10, -1)
