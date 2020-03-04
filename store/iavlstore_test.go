@@ -210,8 +210,8 @@ func testGetPreviousTree(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, flushedVersion, it.Size())
 
-	require.Equal(t, flushedVersion-1, store.previousTree.Version())
-	require.Equal(t, flushedVersion-1, store.previousTree.Size())
+	require.Equal(t, flushedVersion-1, (*iavl.ImmutableTree)(store.previousTree).Version())
+	require.Equal(t, flushedVersion-1, (*iavl.ImmutableTree)(store.previousTree).Size())
 
 }
 

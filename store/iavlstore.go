@@ -2,7 +2,9 @@ package store
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -46,9 +48,9 @@ func init() {
 
 type IAVLStore struct {
 	tree          *iavl.MutableTree
-	previousTree  *iavl.ImmutableTree
-	maxVersions   int64 // maximum number of versions to keep when pruning
-	flushInterval int64 // how often we persist to disk
+	previousTree  unsafe.Pointer //*iavl.ImmutableTree
+	maxVersions   int64          // maximum number of versions to keep when pruning
+	flushInterval int64          // how often we persist to disk
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -162,9 +164,10 @@ func (s *IAVLStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int6
 	if flushInterval == 0 || ((oldVersion+1)%flushInterval == 0) {
 		if flushInterval != 0 {
 			log.Info("[IAVLStore] Flushing mem to disk", "version", oldVersion+1)
-			s.previousTree, err = s.tree.GetImmutable(oldVersion)
+
+			err = s.setPreviousTree(oldVersion)
 			if err != nil {
-				return nil, 0, errors.Wrapf(err, "failed to load previous tree version %d", oldVersion)
+				return nil, 0, err
 			}
 			hash, version, err = s.tree.FlushMemVersionDisk()
 		} else {
@@ -203,6 +206,23 @@ func (s *IAVLStore) Prune() error {
 			return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
 		}
 	}
+	return nil
+}
+
+func (s *IAVLStore) setPreviousTree(version int64) error {
+	var err error
+	var tree *iavl.ImmutableTree
+
+	if version == 0 {
+		tree = iavl.NewImmutableTree(nil, 0)
+	} else {
+		tree, err = s.tree.GetImmutable(version)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set preflushed tree of version %v", version)
+		}
+	}
+
+	atomic.StorePointer(&s.previousTree, unsafe.Pointer(tree))
 	return nil
 }
 
