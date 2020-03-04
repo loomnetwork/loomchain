@@ -48,7 +48,7 @@ func init() {
 
 type IAVLStore struct {
 	tree          *iavl.MutableTree
-	previousTree  unsafe.Pointer //*iavl.ImmutableTree
+	previousTree  unsafe.Pointer // *iavl.ImmutableTree
 	maxVersions   int64          // maximum number of versions to keep when pruning
 	flushInterval int64          // how often we persist to disk
 }
