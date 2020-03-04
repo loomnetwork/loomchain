@@ -206,12 +206,13 @@ func testGetPreviousTree(t *testing.T) {
 	_, _, err = store.SaveVersion(nil)
 	require.NoError(t, err)
 
-	it, err := store.tree.GetImmutable(flushedVersion)
+	// Load IAVLTree of flushed version.
+	flushedTree, err := store.tree.GetImmutable(flushedVersion)
 	require.NoError(t, err)
-	require.Equal(t, flushedVersion, it.Size())
+	require.Equal(t, flushedVersion, flushedTree.Version())
 
-	require.Equal(t, flushedVersion-1, (*iavl.ImmutableTree)(store.previousTree).Version())
-	require.Equal(t, flushedVersion-1, (*iavl.ImmutableTree)(store.previousTree).Size())
+	require.Equal(t, flushedTree.Version()-1, (*iavl.ImmutableTree)(store.previousTree).Version())
+	require.Equal(t, flushedTree.Size()-1, (*iavl.ImmutableTree)(store.previousTree).Size())
 
 }
 

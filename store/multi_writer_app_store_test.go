@@ -47,7 +47,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
 	// this flushes all data to disk
-	_, _, err = store.SaveVersion(nil)
+	_, flushedVersion, err := store.SaveVersion(nil)
 	require.NoError(err)
 
 	// get snapshotv2
@@ -59,6 +59,15 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	// this snapshotv1 should still be accessible
 	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
+
+	flushedSn, err := store.GetSnapshotAt(flushedVersion)
+	require.NoError(err)
+	require.Equal(snapshotv2, flushedSn)
+
+	preflushedSn, err := store.GetSnapshotAt(flushedVersion - 1)
+	require.NoError(err)
+	require.Equal(snapshotv1, preflushedSn)
+
 }
 
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
