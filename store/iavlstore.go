@@ -213,9 +213,7 @@ func (s *IAVLStore) setPreviousTree(version int64) error {
 	var err error
 	var tree *iavl.ImmutableTree
 
-	if version == 0 {
-		tree = iavl.NewImmutableTree(nil, 0)
-	} else {
+	if version > 0 {
 		tree, err = s.tree.GetImmutable(version)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set preflushed tree of version %v", version)

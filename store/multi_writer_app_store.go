@@ -237,15 +237,12 @@ func (s *MultiWriterAppStore) GetSnapshotAt(version int64) (Snapshot, error) {
 
 	var err error
 	var appStoreTree *iavl.ImmutableTree
+	previousTree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.appStore.previousTree))
 	if version == 0 {
 		appStoreTree = (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
-		fmt.Println("Get latest tree of version ", appStoreTree.Version())
-	} else if s.appStore.previousTree != nil &&
-		(*iavl.ImmutableTree)(s.appStore.previousTree).Version() == version {
-		fmt.Println("Get previous tree of version ", version)
-		appStoreTree = (*iavl.ImmutableTree)(s.appStore.previousTree)
+	} else if previousTree != nil && previousTree.Version() == version {
+		appStoreTree = previousTree
 	} else {
-		fmt.Println("Get tree of version ", version)
 		appStoreTree, err = s.appStore.tree.GetImmutable(version)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to load immutable tree for version %v", version)
