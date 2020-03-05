@@ -1,6 +1,7 @@
 package store
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -93,7 +94,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtFlush
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
 	// this flushes all data to disk
-	_, flushedVersion, err := store.SaveVersion(nil)
+	_, _, err = store.SaveVersion(nil)
 	require.NoError(err)
 
 	// get snapshotv2
@@ -105,15 +106,65 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtFlush
 	// this snapshotv1 should still be accessible
 	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
+}
 
-	flushedSn, err := store.GetSnapshotAt(flushedVersion)
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPreviousTree() {
+	require := m.Require()
+	var flushInterval int64 = 5
+	// flush data to disk every 5 blocks
+	store, err := mockMultiWriterStore(flushInterval, flushInterval)
 	require.NoError(err)
-	require.Equal(snapshotv2, flushedSn)
 
-	preflushedSn, err := store.GetSnapshotAt(flushedVersion - 1)
+	// the first version go to memory
+	var s string
+	var latestVersion int64
+	for i := int64(1); i <= flushInterval; i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set(vmPrefixKey(s), []byte("value"+s))
+		_, latestVersion, err = store.SaveVersion(nil)
+
+		require.NoError(err)
+		require.Equal(i, latestVersion)
+	}
+
+	require.NotNil(store.appStore.previousTree)
+	_, err = store.GetSnapshotAt(4)
 	require.NoError(err)
-	require.Equal(snapshotv1, preflushedSn)
 
+	snap, err := store.GetSnapshotAt(0)
+	require.NoError(err)
+	require.Equal(int64(5), int64(len(snap.Range(vmPrefix))))
+
+	for i := int64(6); i <= int64(9); i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set(vmPrefixKey(s), []byte("value"+s))
+		_, latestVersion, err = store.SaveVersion(nil)
+
+		require.NoError(err)
+		require.Equal(i, latestVersion)
+	}
+
+	_, err = store.GetSnapshotAt(4)
+	require.NoError(err)
+
+	// Call SaveVersion to flush to disk
+	store.Set(vmPrefixKey("ten"), []byte("value10"))
+	_, latestVersion, err = store.SaveVersion(nil)
+	require.NoError(err)
+	require.Equal(int64(10), latestVersion)
+
+	_, err = store.GetSnapshotAt(4)
+	require.Error(err)
+
+	snap, err = store.GetSnapshotAt(9)
+	require.NoError(err)
+	require.Equal(int64(9), int64(len(snap.Range(vmPrefix))))
+
+	snap, err = store.GetSnapshotAt(10)
+	require.NoError(err)
+
+	require.Equal([]byte("value10"), snap.Get(vmPrefixKey("ten")))
+	require.Equal(int64(10), int64(len(snap.Range(vmPrefix))))
 }
 
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
