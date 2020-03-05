@@ -165,6 +165,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 
 	require.Equal([]byte("value10"), snap.Get(vmPrefixKey("ten")))
 	require.Equal(int64(10), int64(len(snap.Range(vmPrefix))))
+
 }
 
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
