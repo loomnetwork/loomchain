@@ -187,6 +187,9 @@ func testGetPreviousTree(t *testing.T) {
 	diskDb := getDiskDb(t, "testGetPreviousTree")
 	store, err := NewIAVLStore(diskDb, 0, 0, flushInterval)
 	require.NoError(t, err)
+
+	require.Nil(t, (*iavl.ImmutableTree)(store.previousTree))
+
 	var s string
 	var flushedVersion, latestVersion int64
 	for i := int64(1); i <= flushInterval; i++ {
