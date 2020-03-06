@@ -181,6 +181,8 @@ func testGetTreeAfterFlush(t *testing.T) {
 	it, err = store.tree.GetImmutable(flushedVersion - 1)
 	require.EqualError(t, err, "version does not exist")
 	require.Nil(t, it)
+
+	diskDb.Close()
 }
 
 func testGetPreviousTree(t *testing.T) {
@@ -217,6 +219,7 @@ func testGetPreviousTree(t *testing.T) {
 	require.Equal(t, flushedTree.Version()-1, (*iavl.ImmutableTree)(store.previousTree).Version())
 	require.Equal(t, flushedTree.Size()-1, (*iavl.ImmutableTree)(store.previousTree).Size())
 
+	diskDb.Close()
 }
 
 func testFlush(t *testing.T) {
