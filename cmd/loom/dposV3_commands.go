@@ -758,19 +758,24 @@ func UnbondCmdV3() *cobra.Command {
 }
 
 const unbondAllCmdExample = `
-loom dpos3 unbond-all -k path/to/private_key
+loom dpos3 unbond-all 0x7262d4c97c7B93937E4810D289b7320e9dA82857 -k path/to/private_key
 `
 
 func UnbondAllDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:     "unbond-all",
-		Short:   "unbond all delegations",
+		Use:     "unbond-all [validator address]",
+		Short:   "unbond all delegations of a target validator",
 		Example: unbondAllCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
+			if err != nil {
+				return err
+			}
 			return cli.CallContractWithFlags(
 				&flags, DPOSV3ContractName, "UnbondAll",
-				&dposv3.UnbondAllRequest{}, nil,
+				&dposv3.UnbondAllRequest{ValidatorAddress: addr.MarshalPB()}, nil,
 			)
 		},
 	}
