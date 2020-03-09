@@ -69,7 +69,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtFlush
 	store, err := mockMultiWriterStore(2, 2)
 	require.NoError(err)
 
-	// the first version go to memory
+	// the first version will be in-memory only
 	store.Set([]byte("test1"), []byte("test1"))
 	store.Set([]byte("test2"), []byte("test2"))
 	_, version, err := store.SaveVersion(nil)
@@ -100,6 +100,8 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtFlush
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 }
 
+// This test checks that GetSnapshotAt() can be used to access the store version preceeding the
+// one that's flushed to disk.
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPreviousTree() {
 	require := m.Require()
 	var flushInterval int64 = 5
@@ -121,19 +123,16 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 		require.Equal(i, latestVersion)
 	}
 
-	// make sure previousTree has been set after flush store to disk.
-	require.NotNil((*IAVLStore)(store.appStore.previousTree))
-	_, err = store.GetSnapshotAt(4)
+	// The snapshot for the last in-mem-only version should still be available
+	_, err = store.GetSnapshotAt(latestVersion - 1)
 	require.NoError(err)
 
-	// Get a store snapshot of latest version
-	// Then check a number of the element in snapshot
-	// if it's equal to the version number or not.
+	// Check that the snapshot for the latest version contains all the previously written keys.
 	snap, err := store.GetSnapshotAt(0)
 	require.NoError(err)
 	require.Equal(latestVersion, int64(len(snap.Range(vmPrefix))))
 
-	// Set a key and value and save 4 more times.
+	// Set another 4 unique keys
 	for i := int64(6); i <= int64(9); i++ {
 		s = strconv.FormatInt(i, 10)
 		store.Set(vmPrefixKey(s), []byte("value"+s))
@@ -143,30 +142,30 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 		require.Equal(i, latestVersion)
 	}
 
-	// Since the store version is not meet flush interval yet.
-	// previousTree should still be a version 4.
+	// Since the last version that was flushed to disk is 5 the snapshot for version 4 should still
+	// be available
 	_, err = store.GetSnapshotAt(4)
 	require.NoError(err)
 
-	// Call SaveVersion to flush to disk
+	// Save another version and flush it to disk
 	store.Set(vmPrefixKey("ten"), []byte("value10"))
 	_, latestVersion, err = store.SaveVersion(nil)
 	require.NoError(err)
 	require.Equal(int64(10), latestVersion)
 
-	// After 2nd time of flushing,
-	// previousTree's version should change to version 9.
+	// Now that version 10 has been flushed to disk the snapshot for version 4 should no longer be
+	// available
 	_, err = store.GetSnapshotAt(4)
 	require.EqualError(err, "failed to load immutable tree for version 4: version does not exist")
 	require.Error(err)
 
-	snap, err = store.GetSnapshotAt(9)
+	// The snapshot for the last in-mem-only version should still be available
+	snap, err = store.GetSnapshotAt(latestVersion - 1)
 	require.NoError(err)
 	require.Equal(int64(9), int64(len(snap.Range(vmPrefix))))
 
-	snap, err = store.GetSnapshotAt(10)
+	snap, err = store.GetSnapshotAt(latestVersion)
 	require.NoError(err)
-
 	require.Equal([]byte("value10"), snap.Get(vmPrefixKey("ten")))
 	require.Equal(int64(10), int64(len(snap.Range(vmPrefix))))
 
