@@ -148,8 +148,9 @@ func testNormal(t *testing.T) {
 }
 
 func testGetTreeAfterFlush(t *testing.T) {
-	diskDb := getDiskDb(t, "testGetTreeAfterFlush")
-	store, err := NewIAVLStore(diskDb, 0, 0, flushInterval)
+	diskDB := getDiskDb(t, "testGetTreeAfterFlush")
+	defer diskDB.Close()
+	store, err := NewIAVLStore(diskDB, 0, 0, flushInterval)
 	require.NoError(t, err)
 	var s string
 	var flushedVersion, latestVersion int64
@@ -161,33 +162,35 @@ func testGetTreeAfterFlush(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, i, latestVersion)
-
 	}
+
 	flushedVersion = latestVersion
 	store.Set([]byte("k"), []byte("v"))
 	_, latestVersion, err = store.SaveVersion(nil)
 	require.NoError(t, err)
-	//
-	it, err := store.tree.GetImmutable(flushedVersion)
-	require.NoError(t, err)
-	require.Equal(t, flushedVersion, it.Size())
 
-	// Trying to retrieve a tree on one version after flushed version.
-	it, err = store.tree.GetImmutable(latestVersion)
+	// Since we set only one key-value on each SaveVersion,
+	// Tree's version should equal to numbers of the element.
+	immutableTree, err := store.tree.GetImmutable(flushedVersion)
 	require.NoError(t, err)
-	require.Equal(t, latestVersion, it.Size())
+	require.Equal(t, flushedVersion, immutableTree.Size())
+
+	// Trying to retrieve an immutableTree on one version after flushed version.
+	immutableTree, err = store.tree.GetImmutable(latestVersion)
+	require.NoError(t, err)
+	require.Equal(t, latestVersion, immutableTree.Size())
 
 	// Trying to retrieve a tree on one version before flushed version.
-	it, err = store.tree.GetImmutable(flushedVersion - 1)
+	// This version should be erased from memory right after we flush the tree to disk.
+	immutableTree, err = store.tree.GetImmutable(flushedVersion - 1)
 	require.EqualError(t, err, "version does not exist")
-	require.Nil(t, it)
+	require.Nil(t, immutableTree)
 
-	diskDb.Close()
 }
 
 func testGetPreviousTree(t *testing.T) {
-	diskDb := getDiskDb(t, "testGetPreviousTree")
-	store, err := NewIAVLStore(diskDb, 0, 0, flushInterval)
+	diskDB := getDiskDb(t, "testGetPreviousTree")
+	store, err := NewIAVLStore(diskDB, 0, 0, flushInterval)
 	require.NoError(t, err)
 
 	require.Nil(t, (*iavl.ImmutableTree)(store.previousTree))
@@ -219,7 +222,6 @@ func testGetPreviousTree(t *testing.T) {
 	require.Equal(t, flushedTree.Version()-1, (*iavl.ImmutableTree)(store.previousTree).Version())
 	require.Equal(t, flushedTree.Size()-1, (*iavl.ImmutableTree)(store.previousTree).Size())
 
-	diskDb.Close()
 }
 
 func testFlush(t *testing.T) {

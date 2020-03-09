@@ -126,9 +126,12 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 	_, err = store.GetSnapshotAt(4)
 	require.NoError(err)
 
+	// Get a store snapshot of latest version
+	// Then check a number of the element in snapshot
+	// if it's equal to the version number or not.
 	snap, err := store.GetSnapshotAt(0)
 	require.NoError(err)
-	require.Equal(int64(5), int64(len(snap.Range(vmPrefix))))
+	require.Equal(latestVersion, int64(len(snap.Range(vmPrefix))))
 
 	// Set a key and value and save 4 more times.
 	for i := int64(6); i <= int64(9); i++ {
@@ -140,7 +143,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 		require.Equal(i, latestVersion)
 	}
 
-	// Since this not reach flush interval yet.
+	// Since the store version is not meet flush interval yet.
 	// previousTree should still be a version 4.
 	_, err = store.GetSnapshotAt(4)
 	require.NoError(err)
@@ -151,8 +154,10 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 	require.NoError(err)
 	require.Equal(int64(10), latestVersion)
 
-	// previousTree should change to version 9.
+	// After 2nd time of flushing,
+	// previousTree's version should change to version 9.
 	_, err = store.GetSnapshotAt(4)
+	require.EqualError(err, "failed to load immutable tree for version 4: version does not exist")
 	require.Error(err)
 
 	snap, err = store.GetSnapshotAt(9)
