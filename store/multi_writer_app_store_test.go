@@ -48,7 +48,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
 	// this flushes all data to disk
-	_, flushedVersion, err := store.SaveVersion(nil)
+	_, _, err = store.SaveVersion(nil)
 	require.NoError(err)
 
 	// get snapshotv2
@@ -60,14 +60,6 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	// this snapshotv1 should still be accessible
 	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
-
-	flushedSn, err := store.GetSnapshotAt(flushedVersion)
-	require.NoError(err)
-	require.Equal(snapshotv2, flushedSn)
-
-	preflushedSn, err := store.GetSnapshotAt(flushedVersion - 1)
-	require.NoError(err)
-	require.Equal(snapshotv1, preflushedSn)
 
 }
 
@@ -115,7 +107,9 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 	store, err := mockMultiWriterStore(flushInterval, flushInterval)
 	require.NoError(err)
 
-	// the first version go to memory
+	require.Nil((*IAVLStore)(store.appStore.previousTree))
+
+	// Set a key and value and save for 5 versions
 	var s string
 	var latestVersion int64
 	for i := int64(1); i <= flushInterval; i++ {
@@ -127,7 +121,8 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 		require.Equal(i, latestVersion)
 	}
 
-	require.NotNil(store.appStore.previousTree)
+	// make sure previousTree has been set after flush store to disk.
+	require.NotNil((*IAVLStore)(store.appStore.previousTree))
 	_, err = store.GetSnapshotAt(4)
 	require.NoError(err)
 
@@ -135,6 +130,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 	require.NoError(err)
 	require.Equal(int64(5), int64(len(snap.Range(vmPrefix))))
 
+	// Set a key and value and save 4 more times.
 	for i := int64(6); i <= int64(9); i++ {
 		s = strconv.FormatInt(i, 10)
 		store.Set(vmPrefixKey(s), []byte("value"+s))
@@ -144,6 +140,8 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 		require.Equal(i, latestVersion)
 	}
 
+	// Since this not reach flush interval yet.
+	// previousTree should still be a version 4.
 	_, err = store.GetSnapshotAt(4)
 	require.NoError(err)
 
@@ -153,6 +151,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 	require.NoError(err)
 	require.Equal(int64(10), latestVersion)
 
+	// previousTree should change to version 9.
 	_, err = store.GetSnapshotAt(4)
 	require.Error(err)
 
