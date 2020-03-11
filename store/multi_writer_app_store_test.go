@@ -1,6 +1,7 @@
 package store
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -59,6 +60,178 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	// this snapshotv1 should still be accessible
 	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
+
+}
+
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtFlushInterval() {
+	require := m.Require()
+	// flush data to disk every 2 blocks
+	store, err := mockMultiWriterStore(2, 2)
+	require.NoError(err)
+
+	// the first version will be in-memory only
+	store.Set([]byte("test1"), []byte("test1"))
+	store.Set([]byte("test2"), []byte("test2"))
+	_, version, err := store.SaveVersion(nil)
+	require.NoError(err)
+	require.Equal(int64(1), version)
+
+	store.Set([]byte("test1"), []byte("test1v2"))
+	store.Set([]byte("test2"), []byte("test2v2"))
+
+	// this snapshot is from memory
+	snapshotv1, err := store.GetSnapshotAt(0)
+	require.NoError(err)
+	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
+	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
+
+	// this flushes all data to disk
+	_, _, err = store.SaveVersion(nil)
+	require.NoError(err)
+
+	// get snapshotv2
+	snapshotv2, err := store.GetSnapshotAt(0)
+	require.NoError(err)
+	require.Equal([]byte("test1v2"), snapshotv2.Get([]byte("test1")))
+	require.Equal([]byte("test2v2"), snapshotv2.Get([]byte("test2")))
+
+	// this snapshotv1 should still be accessible
+	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
+	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
+}
+
+// This test checks that GetSnapshotAt() can be used to access the store version preceeding the
+// one that's flushed to disk.
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPreviousTree() {
+	require := m.Require()
+	var flushInterval int64 = 5
+	// flush data to disk every 5 blocks
+	store, err := mockMultiWriterStore(flushInterval, flushInterval)
+	require.NoError(err)
+
+	require.Nil((*IAVLStore)(store.appStore.previousTree))
+
+	// Set a key and value and save for 5 versions
+	var s string
+	var latestVersion int64
+	for i := int64(1); i <= flushInterval; i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set(vmPrefixKey(s), []byte("value"+s))
+		_, latestVersion, err = store.SaveVersion(nil)
+
+		require.NoError(err)
+		require.Equal(i, latestVersion)
+	}
+
+	// The snapshot for the last in-mem-only version should still be available
+	_, err = store.GetSnapshotAt(latestVersion - 1)
+	require.NoError(err)
+
+	// Check that the snapshot for the latest version contains all the previously written keys.
+	snap, err := store.GetSnapshotAt(0)
+	require.NoError(err)
+	require.Equal(latestVersion, int64(len(snap.Range(vmPrefix))))
+
+	// Set another 4 unique keys
+	for i := int64(6); i <= int64(9); i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set(vmPrefixKey(s), []byte("value"+s))
+		_, latestVersion, err = store.SaveVersion(nil)
+
+		require.NoError(err)
+		require.Equal(i, latestVersion)
+	}
+
+	// Since the last version that was flushed to disk is 5 the snapshot for version 4 should still
+	// be available
+	_, err = store.GetSnapshotAt(4)
+	require.NoError(err)
+
+	// Save another version and flush it to disk
+	store.Set(vmPrefixKey("ten"), []byte("value10"))
+	_, latestVersion, err = store.SaveVersion(nil)
+	require.NoError(err)
+	require.Equal(int64(10), latestVersion)
+
+	// Now that version 10 has been flushed to disk the snapshot for version 4 should no longer be
+	// available
+	_, err = store.GetSnapshotAt(4)
+	require.EqualError(err, "failed to load immutable tree for version 4: version does not exist")
+	require.Error(err)
+
+	// The snapshot for the last in-mem-only version should still be available
+	snap, err = store.GetSnapshotAt(latestVersion - 1)
+	require.NoError(err)
+	require.Equal(int64(9), int64(len(snap.Range(vmPrefix))))
+
+	snap, err = store.GetSnapshotAt(latestVersion)
+	require.NoError(err)
+	require.Equal([]byte("value10"), snap.Get(vmPrefixKey("ten")))
+	require.Equal(int64(10), int64(len(snap.Range(vmPrefix))))
+
+}
+
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterEvmStoreGetSnapshot() {
+	require := m.Require()
+	var flushInterval int64 = 5
+	var numCachedRoots int = 5
+
+	memDb, _ := db.LoadMemDB()
+	iavlStore, err := NewIAVLStore(memDb, 0, 0, flushInterval)
+	require.NoError(err)
+
+	// flush data to disk every 5 block and set cache size to 5.
+	memDb, _ = db.LoadMemDB()
+	evmStore := NewEvmStore(memDb, numCachedRoots, flushInterval)
+	store, err := NewMultiWriterAppStore(iavlStore, evmStore)
+	require.NoError(err)
+
+	var latestVersion, version int64
+	var root []byte
+	for i := int64(1); i <= int64(20); i++ {
+		s := strconv.FormatInt(i, 10)
+		store.evmStore.SetCurrentRoot([]byte(s))
+		_, version, err := store.SaveVersion(nil)
+		require.NoError(err)
+		latestVersion = version
+	}
+
+	// All flushed version should be available.
+	var flushedVersion = []int64{5, 10, 15, 20}
+	for _, fv := range flushedVersion {
+		root, version = store.evmStore.GetRootAt(fv)
+		require.Equal(fv, version)
+		require.True(len(root) > 0)
+	}
+
+	// Try to get 2 version ahead of latest version.
+	// Should return latest version.
+	root, version = store.evmStore.GetRootAt(latestVersion + 2)
+	require.Equal(latestVersion, version)
+	require.True(len(root) > 0)
+
+	// Since we set numCachedRoots to 5
+	// 5 version before latest version(20) should  still be available
+	var recentFive = []int64{16, 17, 18, 19}
+	for _, r := range recentFive {
+		root, version = store.evmStore.GetRootAt(r)
+		require.Equal(r, version)
+		require.True(len(root) > 0)
+	}
+
+	// Try to load unavailable version.
+	// Should return most recent version that less than target version.
+	root, version = store.evmStore.GetRootAt(13)
+	require.Equal(int64(10), version)
+	require.True(len(root) > 0)
+
+	root, version = store.evmStore.GetRootAt(9)
+	require.Equal(int64(5), version)
+	require.True(len(root) > 0)
+
+	root, version = store.evmStore.GetRootAt(4)
+	require.Equal(int64(0), version)
+	require.Nil(root)
 }
 
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {

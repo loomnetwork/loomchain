@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -123,6 +124,8 @@ func TestIavl(t *testing.T) {
 	t.Run("testFlush", testFlush)
 	t.Run("normal", testNormal)
 	t.Run("max versions", testMaxVersions)
+	t.Run("testGetTreeAfterFlush", testGetTreeAfterFlush)
+	t.Run("testGetPreviousTree", testGetPreviousTree)
 }
 
 func testNormal(t *testing.T) {
@@ -142,6 +145,83 @@ func testNormal(t *testing.T) {
 		return false
 	})
 	diskDb.Close()
+}
+
+func testGetTreeAfterFlush(t *testing.T) {
+	diskDB := getDiskDb(t, "testGetTreeAfterFlush")
+	defer diskDB.Close()
+	store, err := NewIAVLStore(diskDB, 0, 0, flushInterval)
+	require.NoError(t, err)
+	var s string
+	var flushedVersion, latestVersion int64
+	for i := int64(1); i <= flushInterval; i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set([]byte("key"+s), []byte("value"+s))
+
+		_, latestVersion, err = store.SaveVersion(nil)
+
+		require.NoError(t, err)
+		require.Equal(t, i, latestVersion)
+	}
+
+	flushedVersion = latestVersion
+	store.Set([]byte("k"), []byte("v"))
+	_, latestVersion, err = store.SaveVersion(nil)
+	require.NoError(t, err)
+
+	// Since we set only one unique key for each version the number of leaves in the tree should
+	// match the number of keys set.
+	immutableTree, err := store.tree.GetImmutable(flushedVersion)
+	require.NoError(t, err)
+	require.Equal(t, flushedVersion, immutableTree.Size())
+
+	// The version after the one flushed to disk should be available in memmory
+	immutableTree, err = store.tree.GetImmutable(latestVersion)
+	require.NoError(t, err)
+	require.Equal(t, latestVersion, immutableTree.Size())
+
+	// The version before the one flushed to disk should not longer be available in memory, nor
+	// should it be on disk.
+	immutableTree, err = store.tree.GetImmutable(flushedVersion - 1)
+	require.EqualError(t, err, "version does not exist")
+	require.Nil(t, immutableTree)
+}
+
+// This test checks that IAVLStore.previousTree is set correctly after a version is flushed to disk.
+func testGetPreviousTree(t *testing.T) {
+	diskDB := getDiskDb(t, "testGetPreviousTree")
+	store, err := NewIAVLStore(diskDB, 0, 0, flushInterval)
+	require.NoError(t, err)
+
+	require.Nil(t, (*iavl.ImmutableTree)(store.previousTree))
+
+	var s string
+	var flushedVersion, latestVersion int64
+	for i := int64(1); i <= flushInterval; i++ {
+		s = strconv.FormatInt(i, 10)
+		store.Set([]byte("key"+s), []byte("value"+s))
+
+		_, latestVersion, err = store.SaveVersion(nil)
+
+		require.NoError(t, err)
+		require.Equal(t, i, latestVersion)
+	}
+	flushedVersion = latestVersion
+
+	_, _, err = store.SaveVersion(nil)
+	require.NoError(t, err)
+
+	_, _, err = store.SaveVersion(nil)
+	require.NoError(t, err)
+
+	// Load IAVLTree of flushed version
+	flushedTree, err := store.tree.GetImmutable(flushedVersion)
+	require.NoError(t, err)
+	require.Equal(t, flushedVersion, flushedTree.Version())
+	require.Equal(t, flushedTree.Version()-1, (*iavl.ImmutableTree)(store.previousTree).Version())
+	// The previous tree should have one less key than the flushed tree, which means that the flushed
+	// tree should have one more leaf node than the previous tree
+	require.Equal(t, flushedTree.Size()-1, (*iavl.ImmutableTree)(store.previousTree).Size())
 }
 
 func testFlush(t *testing.T) {
