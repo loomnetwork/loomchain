@@ -219,6 +219,8 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterEvmStoreGetSnapshot() {
 		require.True(len(root) > 0)
 	}
 
+	// Try to load unavailable version.
+	// Should return most recent version that less than target version.
 	root, version = store.evmStore.GetRootAt(13)
 	require.Equal(int64(10), version)
 	require.True(len(root) > 0)
@@ -267,10 +269,6 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	require.Equal([]byte("hello"), store.Get(vmPrefixKey("abcd")))
 	require.Equal([]byte("NewData"), store.Get([]byte("abcd")))
 	require.False(store.Has(vmPrefixKey("gg")))
-}
-
-func (m *MultiWriterAppStoreTestSuite) TestMultiWriterEvmStoreSaveVersion() {
-
 }
 
 func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
