@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -50,8 +49,6 @@ func (t *EvmStoreTestSuite) TestLoadVersionEvmStore() {
 
 	require.NoError(evmStore.LoadVersion(100))
 	root, version = evmStore.Version()
-	fmt.Println("version ", version)
-	fmt.Println("root hash,", root)
 	require.Equal(true, bytes.Equal(root, []byte{100}))
 	require.Equal(int64(100), version)
 }

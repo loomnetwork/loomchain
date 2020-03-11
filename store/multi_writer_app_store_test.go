@@ -171,6 +171,67 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreGetSnapshotAtPrevi
 
 }
 
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterEvmStoreGetSnapshot() {
+	require := m.Require()
+	var flushInterval int64 = 5
+	var numCachedRoots int = 5
+
+	memDb, _ := db.LoadMemDB()
+	iavlStore, err := NewIAVLStore(memDb, 0, 0, flushInterval)
+	require.NoError(err)
+
+	// flush data to disk every 5 block and set cache size to 5.
+	memDb, _ = db.LoadMemDB()
+	evmStore := NewEvmStore(memDb, numCachedRoots, flushInterval)
+	store, err := NewMultiWriterAppStore(iavlStore, evmStore)
+	require.NoError(err)
+
+	var latestVersion, version int64
+	var root []byte
+	for i := int64(1); i <= int64(20); i++ {
+		s := strconv.FormatInt(i, 10)
+		store.evmStore.SetCurrentRoot([]byte(s))
+		_, version, err := store.SaveVersion(nil)
+		require.NoError(err)
+		latestVersion = version
+	}
+
+	// All flushed version should be available.
+	var flushedVersion = []int64{5, 10, 15, 20}
+	for _, fv := range flushedVersion {
+		root, version = store.evmStore.GetRootAt(fv)
+		require.Equal(fv, version)
+		require.True(len(root) > 0)
+	}
+
+	// Try to get 2 version ahead of latest version.
+	// Should return latest version.
+	root, version = store.evmStore.GetRootAt(latestVersion + 2)
+	require.Equal(latestVersion, version)
+	require.True(len(root) > 0)
+
+	// Since we set numCachedRoots to 5
+	// 5 version before latest version(20) should  still be available
+	var recentFive = []int64{16, 17, 18, 19}
+	for _, r := range recentFive {
+		root, version = store.evmStore.GetRootAt(r)
+		require.Equal(r, version)
+		require.True(len(root) > 0)
+	}
+
+	root, version = store.evmStore.GetRootAt(13)
+	require.Equal(int64(10), version)
+	require.True(len(root) > 0)
+
+	root, version = store.evmStore.GetRootAt(9)
+	require.Equal(int64(5), version)
+	require.True(len(root) > 0)
+
+	root, version = store.evmStore.GetRootAt(4)
+	require.Equal(int64(0), version)
+	require.Nil(root)
+}
+
 func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	require := m.Require()
 	store, err := mockMultiWriterStore(10, -1)
@@ -206,6 +267,10 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	require.Equal([]byte("hello"), store.Get(vmPrefixKey("abcd")))
 	require.Equal([]byte("NewData"), store.Get([]byte("abcd")))
 	require.False(store.Has(vmPrefixKey("gg")))
+}
+
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterEvmStoreSaveVersion() {
+
 }
 
 func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
