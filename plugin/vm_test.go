@@ -19,7 +19,6 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	levm "github.com/loomnetwork/loomchain/evm"
@@ -123,15 +122,6 @@ func (c *VMTestContract) CheckQueryCaller(ctx contract.StaticContext, args *test
 	return &testdata.StaticCallResult{}, nil
 }
 
-func mockEVMState() *loomchain.EVMState {
-	memDb, _ := db.LoadMemDB()
-	evmState, err := loomchain.NewEVMState(store.NewEvmStore(memDb, 100, 0))
-	if err != nil {
-		panic(err)
-	}
-	return evmState
-}
-
 func TestPluginVMContractContextCaller(t *testing.T) {
 
 	fc1 := &VMTestContract{t: t, Name: "fakecontract1"}
@@ -147,7 +137,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    time.Unix(123456789, 0),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil).WithEVMState(mockEVMState())
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 

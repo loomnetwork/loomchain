@@ -22,30 +22,6 @@
           "numBlockConfirmations":"1"
         },
         "features": [
-          {
-            "name": "chaincfg:v1.1",
-            "status": "WAITING"
-          },
-          {
-            "name": "chaincfg:v1.2",
-            "status": "WAITING"
-          },
-          {
-            "name": "chaincfg:v1.3",
-            "status": "WAITING"
-          },
-          {
-            "name": "receipts:v3.4",
-            "status": "WAITING"
-          },
-          {
-            "name": "receipts:v3.1",
-            "status": "WAITING"
-          },
-          {
-            "name": "appstore:v3.1",
-            "status": "WAITING"
-          }
         ]
       }
     },

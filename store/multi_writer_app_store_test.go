@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -8,7 +9,6 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -24,16 +24,118 @@ func TestMultiWriterAppStoreTestSuite(t *testing.T) {
 	suite.Run(t, new(MultiWriterAppStoreTestSuite))
 }
 
-func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInterval() {
+func (m *MultiWriterAppStoreTestSuite) TestEnableDisableMultiWriterAppStore() {
+	require := m.Require()
+	store, err := mockMultiWriterStore(10)
+	require.NoError(err)
+
+	// vm keys should be written to both the IAVL & EVM store
+	store.Set(evmDBFeatureKey, []byte{})
+	store.Set(vmPrefixKey("abcd"), []byte("hello"))
+	store.Set(vmPrefixKey("abcde"), []byte("world"))
+	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
+	store.Set(vmPrefixKey("aaaa"), []byte("yes"))
+	store.Set([]byte("abcd"), []byte("NewData"))
+
+	rangeData := store.Range(vmPrefix)
+	require.Equal(4, len(rangeData))
+	require.True(store.Has([]byte("abcd")))
+
+	// vm keys should now only be written to the EVM store
+	store.Set(evmDBFeatureKey, []byte{1})
+	store.Set(vmPrefixKey("gg"), []byte("world"))
+	store.Set(vmPrefixKey("dd"), []byte("yes"))
+	store.Set(vmPrefixKey("vv"), []byte("yes"))
+	store.Set([]byte("dcba"), []byte("MoreData"))
+
+	rangeData = store.Range(vmPrefix)
+	require.Equal(7, len(rangeData))
+	require.True(store.Has([]byte("abcd")))
+	require.True(store.Has([]byte("dcba")))
+}
+
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreDelete() {
+	require := m.Require()
+	store, err := mockMultiWriterStore(10)
+	require.NoError(err)
+
+	// vm keys should be written to both the IAVL & EVM store
+	store.Set(evmDBFeatureKey, []byte{})
+	store.Set(vmPrefixKey("abcd"), []byte("hello"))
+	store.Set(vmPrefixKey("abcde"), []byte("world"))
+	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
+	store.Set(vmPrefixKey("aaaa"), []byte("yes"))
+	store.Set([]byte("vmroot"), []byte("SSSSSSSSSSSSS"))
+	store.Set([]byte("abcd"), []byte("NewData"))
+
+	store.Delete(vmPrefixKey("abcd"))
+	require.False(store.Has(vmPrefixKey("abcd")))
+
+	rangeData := store.Range(vmPrefix)
+	require.Equal(3, len(rangeData))
+	require.True(store.Has([]byte("vmroot")))
+	require.True(store.Has([]byte("abcd")))
+
+	// vm keys should be written to the EVM store
+	store.Set(evmDBFeatureKey, []byte{1})
+	rangeData = store.Range(vmPrefix)
+	require.Equal(3, len(rangeData))
+	require.Equal([]byte("SSSSSSSSSSSSS"), store.Get([]byte("vmroot")))
+
+	store.Set(vmPrefixKey("gg"), []byte("world"))
+	store.Set(vmPrefixKey("dd"), []byte("yes"))
+	store.Set(vmPrefixKey("vv"), []byte("yes"))
+	store.Delete(vmPrefixKey("vv"))
+	require.False(store.Has(vmPrefixKey("vv")))
+
+	rangeData = store.Range(vmPrefix)
+	require.Equal(5, len(rangeData))
+	require.True(store.Has([]byte("abcd")))
+}
+
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShot() {
+	require := m.Require()
+	store, err := mockMultiWriterStore(10)
+	require.NoError(err)
+
+	store.Set(evmDBFeatureKey, []byte{1})
+	store.Set(vmPrefixKey("abcd"), []byte("hello"))
+	store.Set(vmPrefixKey("abcde"), []byte("world"))
+	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
+	store.Set(vmPrefixKey("aaaa"), []byte("yes"))
+	store.Set([]byte("ssssvvv"), []byte("SSSSSSSSSSSSS"))
+	store.Set([]byte("abcd"), []byte("NewData"))
+	_, _, err = store.SaveVersion()
+	require.NoError(err)
+
+	store.Set(vmPrefixKey("abcd"), []byte("hellooooooo"))
+	store.Set(vmPrefixKey("abcde"), []byte("vvvvvvvvv"))
+	store.Set([]byte("abcd"), []byte("asdfasdf"))
+
+	snapshot := store.GetSnapshot()
+	require.Equal([]byte("hello"), snapshot.Get(vmPrefixKey("abcd")))
+	require.Equal([]byte("NewData"), snapshot.Get([]byte("abcd")))
+	require.Equal([]byte("world"), snapshot.Get(vmPrefixKey("abcde")))
+
+	_, _, err = store.SaveVersion()
+	require.NoError(err)
+
+	snapshot = store.GetSnapshot()
+	require.Equal([]byte("asdfasdf"), snapshot.Get([]byte("abcd")))
+	require.Equal([]byte("hellooooooo"), snapshot.Get(vmPrefixKey("abcd")))
+	require.Equal([]byte("vvvvvvvvv"), snapshot.Get(vmPrefixKey("abcde")))
+}
+
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotFlushInterval() {
 	require := m.Require()
 	// flush data to disk every 2 blocks
-	store, err := mockMultiWriterStore(2, 2)
+	store, err := mockMultiWriterStore(2)
 	require.NoError(err)
 
 	// the first version go to memory
 	store.Set([]byte("test1"), []byte("test1"))
 	store.Set([]byte("test2"), []byte("test2"))
-	_, version, err := store.SaveVersion(nil)
+	_, version, err := store.SaveVersion()
 	require.NoError(err)
 	require.Equal(int64(1), version)
 
@@ -41,18 +143,16 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	store.Set([]byte("test2"), []byte("test2v2"))
 
 	// this snapshot is from memory
-	snapshotv1, err := store.GetSnapshotAt(0)
-	require.NoError(err)
+	snapshotv1 := store.GetSnapshot()
 	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
 	// this flushes all data to disk
-	_, _, err = store.SaveVersion(nil)
+	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
 	// get snapshotv2
-	snapshotv2, err := store.GetSnapshotAt(0)
-	require.NoError(err)
+	snapshotv2 := store.GetSnapshot()
 	require.Equal([]byte("test1v2"), snapshotv2.Get([]byte("test1")))
 	require.Equal([]byte("test2v2"), snapshotv2.Get([]byte("test2")))
 
@@ -61,12 +161,67 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 }
 
-func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapShotRange() {
 	require := m.Require()
-	store, err := mockMultiWriterStore(10, -1)
+	store, err := mockMultiWriterStore(10)
 	require.NoError(err)
 
-	// all keys (including vm keys) should be written to the IAVL store
+	store.Set(evmDBFeatureKey, []byte{1})
+	store.Set(vmPrefixKey("abcd"), []byte("hello"))
+	store.Set(vmPrefixKey("abcde"), []byte("world"))
+	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
+	store.Set(vmPrefixKey("aaaa"), []byte("yes"))
+	store.Set([]byte("ssssvvv"), []byte("SSSSSSSSSSSSS"))
+	store.Set([]byte("abcd"), []byte("NewData"))
+	store.Set([]byte("uuuu"), []byte("SSSSSSSSSSSSS"))
+	store.Set([]byte("sssss"), []byte("NewData"))
+
+	snapshot := store.GetSnapshot()
+	rangeData := snapshot.Range(vmPrefix)
+	require.Equal(0, len(rangeData))
+	_, _, err = store.SaveVersion()
+	require.NoError(err)
+
+	snapshot = store.GetSnapshot()
+	rangeData = snapshot.Range(vmPrefix)
+	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("aaaa")), []byte("yes")))
+
+	// Modifications shouldn't be visible in the snapshot until the next SaveVersion()
+	store.Delete(vmPrefixKey("abcd"))
+	store.Delete([]byte("ssssvvv"))
+
+	snapshot = store.GetSnapshot()
+	rangeData = snapshot.Range(vmPrefix)
+	require.Equal(4+1, len(rangeData)) // +1 for evm root stored by EVM store
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcd")), []byte("hello")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("aaaa")), []byte("yes")))
+
+	_, _, err = store.SaveVersion()
+	require.NoError(err)
+
+	snapshot = store.GetSnapshot()
+	rangeData = snapshot.Range(vmPrefix)
+	require.Equal(3+1, len(rangeData))                       // +1 for evm root stored by EVM store
+	require.Equal(0, len(snapshot.Get(vmPrefixKey("abcd")))) // has been deleted
+	require.Equal(0, len(snapshot.Get([]byte("ssssvvv"))))   // has been deleted
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("abcde")), []byte("world")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("evmStore")), []byte("yes")))
+	require.Equal(0, bytes.Compare(snapshot.Get(vmPrefixKey("aaaa")), []byte("yes")))
+}
+
+func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
+	require := m.Require()
+	store, err := mockMultiWriterStore(10)
+	require.NoError(err)
+
+	// vm keys should be written to the EVM store
+	store.Set(evmDBFeatureKey, []byte{1})
 	store.Set(vmPrefixKey("abcd"), []byte("hello"))
 	store.Set(vmPrefixKey("abcde"), []byte("world"))
 	store.Set(vmPrefixKey("evmStore"), []byte("yes"))
@@ -77,7 +232,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	store.Set(vmPrefixKey("dd"), []byte("yes"))
 	store.Set(vmPrefixKey("vv"), []byte("yes"))
 
-	_, version, err := store.SaveVersion(nil)
+	_, version, err := store.SaveVersion()
 	require.Equal(int64(1), version)
 	require.NoError(err)
 
@@ -87,9 +242,9 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	store.Delete(vmPrefixKey("gg"))
 
 	dataRange := store.Range(vmPrefix)
-	require.Equal(6, len(dataRange))
+	require.Equal(6+1, len(dataRange)) // +1 is for the evm root that written by the EVM store itself
 
-	_, version, err = store.SaveVersion(nil)
+	_, version, err = store.SaveVersion()
 	require.Equal(int64(2), version)
 	require.NoError(err)
 
@@ -100,7 +255,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 
 func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	require := m.Require()
-	store, err := mockMultiWriterStore(10, 10)
+	store, err := mockMultiWriterStore(10)
 	require.NoError(err)
 
 	// write some vm keys to iavl store
@@ -112,14 +267,11 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	iavlStore.Set(vmPrefixKey("gg"), []byte("world"))
 	iavlStore.Set(vmPrefixKey("dd"), []byte("yes"))
 	iavlStore.Set(vmPrefixKey("vv"), []byte("yes"))
-	_, version, err := store.SaveVersion(nil)
-	require.NoError(err)
+	_, version, err := store.SaveVersion()
 	require.Equal(int64(1), version)
-	require.Equal(version, iavlStore.Version())
-	_, evmStoreVer := store.evmStore.Version()
-	require.Equal(version, evmStoreVer)
+	require.NoError(err)
 
-	newStore, err := NewMultiWriterAppStore(iavlStore, store.evmStore)
+	newStore, err := NewMultiWriterAppStore(iavlStore, store.evmStore, false)
 	require.NoError(err)
 
 	rangeData := iavlStore.Range([]byte("vm"))
@@ -134,7 +286,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 
 	// prune VM keys
 	// NOTE: only 3 vm keys will actually get pruned due to the quirkiness of RangeWithLimit
-	_, version, err = newStore.SaveVersion(nil)
+	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(2), version)
 	require.NoError(err)
 
@@ -144,7 +296,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 
 	// prune VM keys
 	// NOTE: once again only 3 vm keys will get pruned
-	_, version, err = newStore.SaveVersion(nil)
+	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(3), version)
 	require.NoError(err)
 
@@ -153,7 +305,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	require.Equal(1, len(rangeData))
 
 	// prune VM keys
-	_, version, err = newStore.SaveVersion(nil)
+	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(4), version)
 	require.NoError(err)
 
@@ -164,7 +316,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 
 func (m *MultiWriterAppStoreTestSuite) TestIAVLRangeWithlimit() {
 	require := m.Require()
-	store, err := mockMultiWriterStore(10, 10)
+	store, err := mockMultiWriterStore(10)
 	require.NoError(err)
 
 	// write some vm keys to iavl store
@@ -176,7 +328,7 @@ func (m *MultiWriterAppStoreTestSuite) TestIAVLRangeWithlimit() {
 	iavlStore.Set(vmPrefixKey("gg"), []byte("world"))
 	iavlStore.Set(vmPrefixKey("dd"), []byte("yes"))
 	iavlStore.Set(vmPrefixKey("vv"), []byte("yes"))
-	_, _, err = store.SaveVersion(nil)
+	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
 	// only 4 VM keys will be returned due to the quirkiness of RangeWithLimit
@@ -184,56 +336,15 @@ func (m *MultiWriterAppStoreTestSuite) TestIAVLRangeWithlimit() {
 	require.Equal(4, len(rangeData))
 }
 
-func (m *MultiWriterAppStoreTestSuite) TestStoreRange() {
-	require := m.Require()
-	mws, err := mockMultiWriterStore(0, 0)
-	require.NoError(err)
-	prefixes, entries := populateStore(mws)
-	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-	_, _, err = mws.SaveVersion(nil)
-	require.NoError(err)
-	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-}
-
-func (m *MultiWriterAppStoreTestSuite) TestSnapshotRange() {
-	require := m.Require()
-	mws, err := mockMultiWriterStore(0, 0)
-	require.NoError(err)
-	prefixes, entries := populateStore(mws)
-	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-	mws.SaveVersion(nil)
-
-	// snapshot should see all the data that was saved to disk
-	func() {
-		snap, err := mws.GetSnapshotAt(0)
-		require.NoError(err)
-		defer snap.Release()
-
-		verifyRange(require, "MultiWriterAppStoreSnapshot", snap, prefixes, entries)
-	}()
-}
-
-func (m *MultiWriterAppStoreTestSuite) TestConcurrentSnapshots() {
-	require := m.Require()
-	mws, err := mockMultiWriterStore(0, 0)
-	require.NoError(err)
-	verifyConcurrentSnapshots(require, mws)
-}
-
-func mockMultiWriterStore(appStoreFlushInterval, evmStoreFlushInterval int64) (*MultiWriterAppStore, error) {
-	// Using different flush intervals for the app & evm stores is not supported.
-	if appStoreFlushInterval > 0 && evmStoreFlushInterval > 0 && appStoreFlushInterval != evmStoreFlushInterval {
-		return nil, errors.New("positive flush intervals must be consistent")
-	}
-
+func mockMultiWriterStore(flushInterval int64) (*MultiWriterAppStore, error) {
 	memDb, _ := db.LoadMemDB()
-	iavlStore, err := NewIAVLStore(memDb, 0, 0, appStoreFlushInterval)
+	iavlStore, err := NewIAVLStore(memDb, 0, 0, flushInterval)
 	if err != nil {
 		return nil, err
 	}
 	memDb, _ = db.LoadMemDB()
-	evmStore := NewEvmStore(memDb, 100, evmStoreFlushInterval)
-	multiWriterStore, err := NewMultiWriterAppStore(iavlStore, evmStore)
+	evmStore := NewEvmStore(memDb, 100)
+	multiWriterStore, err := NewMultiWriterAppStore(iavlStore, evmStore, false)
 	if err != nil {
 		return nil, err
 	}

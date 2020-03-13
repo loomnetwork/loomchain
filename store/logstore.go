@@ -114,8 +114,8 @@ func (s *LogStore) Version() int64 {
 	return version
 }
 
-func (s *LogStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int64, error) {
-	vByte, vInt, err := s.store.SaveVersion(opts)
+func (s *LogStore) SaveVersion() ([]byte, int64, error) {
+	vByte, vInt, err := s.store.SaveVersion()
 	if s.params.LogSaveVersion {
 		s.logger.Println("SaveVersion", string(vByte), " int ", vInt, " err ", err)
 	}
@@ -126,6 +126,6 @@ func (s *LogStore) Prune() error {
 	return s.store.Prune()
 }
 
-func (s *LogStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	return s.store.GetSnapshotAt(version)
+func (s *LogStore) GetSnapshot() Snapshot {
+	return s.store.GetSnapshot()
 }

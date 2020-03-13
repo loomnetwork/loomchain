@@ -140,7 +140,7 @@ func (s *IAVLStore) Version() int64 {
 	return s.tree.Version()
 }
 
-func (s *IAVLStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int64, error) {
+func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	var err error
 	defer func(begin time.Time) {
 		iavlSaveVersionDuration.Observe(time.Since(begin).Seconds())
@@ -149,8 +149,16 @@ func (s *IAVLStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int6
 	oldVersion := s.Version()
 	flushInterval := s.flushInterval
 
-	if flushInterval == 0 && opts != nil {
-		flushInterval = opts.FlushInterval
+	// TODO: Rather than loading the on-chain config here the flush interval override should be passed
+	//       in as a parameter to SaveVersion().
+	if flushInterval == 0 {
+		cfg, err := LoadOnChainConfig(s)
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to load on-chain config")
+		}
+		if cfg.GetAppStore().GetIAVLFlushInterval() != 0 {
+			flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
+		}
 	} else if flushInterval == -1 {
 		flushInterval = 0
 	}
@@ -201,8 +209,11 @@ func (s *IAVLStore) Prune() error {
 	return nil
 }
 
-func (s *IAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	panic("not implemented")
+func (s *IAVLStore) GetSnapshot() Snapshot {
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &iavlStoreSnapshot{
+		IAVLStore: s,
+	}
 }
 
 // NewIAVLStore creates a new IAVLStore.

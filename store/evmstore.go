@@ -3,13 +3,13 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
+	"sort"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
@@ -19,8 +19,6 @@ import (
 var (
 	defaultRoot = []byte{1}
 	rootHashKey = util.PrefixKey(vmPrefix, rootKey)
-	// Prefix for versioned Patricia roots
-	evmRootPrefix = []byte("evmroot")
 
 	commitDuration metrics.Histogram
 )
@@ -55,36 +53,137 @@ func getVersionFromEvmRootKey(key []byte) (int64, error) {
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
 	evmDB         db.DBWrapper
+	cache         map[string]cacheItem
 	rootHash      []byte
 	lastSavedRoot []byte
 	rootCache     *lru.Cache
 	version       int64
-	trieDB        *trie.Database
-	flushInterval int64
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
-func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int, flushInterval int64) *EvmStore {
+func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int) *EvmStore {
 	rootCache, err := lru.New(numCachedRoots)
 	if err != nil {
 		panic(err)
 	}
 	evmStore := &EvmStore{
-		evmDB:         evmDB,
-		rootCache:     rootCache,
-		flushInterval: flushInterval,
+		evmDB:     evmDB,
+		cache:     make(map[string]cacheItem),
+		rootCache: rootCache,
 	}
-	ethDB := NewLoomEthDB(evmDB)
-	evmStore.trieDB = trie.NewDatabase(ethDB)
 	return evmStore
 }
 
-// Commit may persist the changes made to the store since the last commit to the underlying DB.
-// The specified version is associated with the current root, which is returned by this function.
-// Whether or not changes are actually flushed to the DB depends on the flush interval, which can
-// be specified when calling NewEvmStore(), and overriden via the flushIntervalOverride parameter
-// when calling Commit() iff the store was created with flushInterval == 0.
-func (s *EvmStore) Commit(version, flushIntervalOverride int64) []byte {
+func (s *EvmStore) setCache(key, val []byte, deleted bool) {
+	s.cache[string(key)] = cacheItem{
+		Value:   val,
+		Deleted: deleted,
+	}
+}
+
+// Range iterates in-order over the keys in the store prefixed by the given prefix.
+// TODO (VM): This needs a proper review, other than tests there is no code that really makes use of
+//            this function, only place it's called is from MultiWriterAppStore.Range but only when
+//            iterating over the "vm" prefix - which no code currently does.
+// NOTE: This version of EvmStore supports Range(nil)
+func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
+	rangeCacheKeys := []string{}
+	rangeCache := make(map[string][]byte)
+
+	// Add records from evm.db to range cache
+	iter := s.evmDB.Iterator(prefix, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		key := string(iter.Key())
+		value := iter.Value()
+		if util.HasPrefix([]byte(key), prefix) || len(prefix) == 0 {
+			rangeCache[key] = value
+			rangeCacheKeys = append(rangeCacheKeys, key)
+		}
+	}
+
+	// Update range cache with data in cache
+	for key, c := range s.cache {
+		if util.HasPrefix([]byte(key), prefix) || len(prefix) == 0 {
+			if c.Deleted {
+				rangeCacheKeys = remove(rangeCacheKeys, key)
+				rangeCache[key] = nil
+				continue
+			}
+			if _, ok := rangeCache[key]; !ok {
+				rangeCacheKeys = append(rangeCacheKeys, string(key))
+			}
+			rangeCache[key] = c.Value
+		}
+	}
+
+	// Make Range return root hash (vmvmroot) from EvmStore.rootHash
+	if _, exist := rangeCache[string(rootHashKey)]; exist {
+		rangeCache[string(rootHashKey)] = s.rootHash
+	}
+
+	ret := make(plugin.RangeData, 0)
+	// Sorting makes RangeData deterministic
+	sort.Strings(rangeCacheKeys)
+	for _, key := range rangeCacheKeys {
+		var unprefixedKey []byte
+		var err error
+		if len(prefix) > 0 {
+			unprefixedKey, err = util.UnprefixKey([]byte(key), prefix)
+			if err != nil {
+				continue
+			}
+		} else {
+			unprefixedKey = []byte(key)
+		}
+		re := &plugin.RangeEntry{
+			Key:   unprefixedKey,
+			Value: rangeCache[key],
+		}
+		ret = append(ret, re)
+	}
+	return ret
+}
+
+func (s *EvmStore) Has(key []byte) bool {
+	// EvmStore always has Patricia root
+	if bytes.Equal(key, rootHashKey) {
+		return true
+	}
+	if item, ok := s.cache[string(key)]; ok {
+		return !item.Deleted
+	}
+	return s.evmDB.Has(key)
+}
+
+func (s *EvmStore) Get(key []byte) []byte {
+	if bytes.Equal(key, rootHashKey) {
+		return s.rootHash
+	}
+
+	if item, ok := s.cache[string(key)]; ok {
+		return item.Value
+	}
+	return s.evmDB.Get(key)
+}
+
+func (s *EvmStore) Delete(key []byte) {
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = nil
+	} else {
+		s.setCache(key, nil, true)
+	}
+}
+
+func (s *EvmStore) Set(key, val []byte) {
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = val
+	} else {
+		s.setCache(key, val, false)
+	}
+}
+
+func (s *EvmStore) Commit(version int64) []byte {
 	defer func(begin time.Time) {
 		commitDuration.Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -95,41 +194,30 @@ func (s *EvmStore) Commit(version, flushIntervalOverride int64) []byte {
 	if bytes.Equal(currentRoot, []byte{}) {
 		currentRoot = defaultRoot
 	}
-
-	flushInterval := s.flushInterval
-	if flushInterval == 0 {
-		flushInterval = flushIntervalOverride
-	} else if flushInterval == -1 {
-		flushInterval = 0
-	}
-
-	// Only commit Patricia tree every N blocks
-	// TODO: What happens to all the roots that don't get committed? Are they just going to accumulate
-	//       in the trie.Database.nodes cache forever?
-	if flushInterval == 0 || version%flushInterval == 0 {
-		// If the root hasn't changed since the last call to Commit that means no new state changes
-		// occurred in the trie DB since then, so we can skip committing.
-		if !bytes.Equal(defaultRoot, currentRoot) && !bytes.Equal(currentRoot, s.lastSavedRoot) {
-			// trie.Database.Commit will call NewBatch (indirectly) to batch writes to evmDB
-			if err := s.trieDB.Commit(common.BytesToHash(currentRoot), false); err != nil {
-				panic(err)
-			}
-		}
-
-		// We don't commit empty root but we need to save default root ([]byte{1}) as a placeholder of empty root
-		// So the node won't get EVM root mismatch during the EVM root checking
-		if !bytes.Equal(currentRoot, s.lastSavedRoot) {
-			s.evmDB.Set(evmRootKey(version), currentRoot)
-			s.lastSavedRoot = currentRoot
-		}
+	// save Patricia root of EVM state only if it changes
+	if !bytes.Equal(currentRoot, s.lastSavedRoot) {
+		s.Set(evmRootKey(version), currentRoot)
 	}
 
 	s.rootCache.Add(version, currentRoot)
+
+	batch := s.evmDB.NewBatch()
+	for key, item := range s.cache {
+		if !item.Deleted {
+			batch.Set([]byte(key), item.Value)
+		} else {
+			batch.Delete([]byte(key))
+		}
+	}
+	batch.Write()
+	s.cache = make(map[string]cacheItem)
+	s.lastSavedRoot = currentRoot
 	s.version = version
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
+	s.cache = make(map[string]cacheItem)
 	// find the last saved root
 	root, version := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
@@ -152,20 +240,6 @@ func (s *EvmStore) Version() ([]byte, int64) {
 	return s.rootHash, s.version
 }
 
-func (s *EvmStore) TrieDB() *trie.Database {
-	return s.trieDB
-}
-
-// SetCurrentRoot sets the current EVM state root, this root must exist in the current trie DB.
-// NOTE: This function must be called prior to each call to Commit.
-// TODO: This is clunky, the root should just be passed into Commit!
-func (s *EvmStore) SetCurrentRoot(root []byte) {
-	s.rootHash = root
-}
-
-// getLastSavedRoot retrieves the EVM state root from disk that best matches the given version.
-// The roots are not written to disk for every version, they only get written out when they change
-// between versions, and even then depending on the flush interval some roots won't be written to disk.
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	start := util.PrefixKey(vmPrefix, evmRootPrefix)
 	end := prefixRangeEnd(evmRootKey(targetVersion))
@@ -183,20 +257,51 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	return nil, 0
 }
 
-// GetRootAt returns the EVM state root corresponding to the given version.
-// The second return value is version of the EVM state that corresponds to the returned root,
-// it may be less than the version requested due to the reasons mentioned in getLastSavedRoot.
-func (s *EvmStore) GetRootAt(version int64) ([]byte, int64) {
-	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance.
-	// There's an assumption here that the cache will almost always contain all the in-mem-only
-	// roots that haven't been flushed to disk yet, in the rare case where such a root is evicted
-	// from the cache the last root persisted to disk will be returned instead. This means it's
-	// possible (though highly unlikely) for queries to return stale state (since they rely on
-	// snapshots corresponding to specific versions). This could be fixed by storing the in-mem-only
-	// roots in another map instead of, or in addition to the cache.
+func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
+	var targetRoot []byte
+	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
 	val, exist := s.rootCache.Get(version)
 	if exist {
-		return val.([]byte), version
+		targetRoot = val.([]byte)
+	} else {
+		targetRoot, _ = s.getLastSavedRoot(version)
 	}
-	return s.getLastSavedRoot(version)
+	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
+}
+
+func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
+	return &EvmStoreSnapshot{
+		Snapshot: snapshot,
+		rootHash: rootHash,
+	}
+}
+
+type EvmStoreSnapshot struct {
+	db.Snapshot
+	rootHash []byte
+}
+
+func (s *EvmStoreSnapshot) Get(key []byte) []byte {
+	if bytes.Equal(key, rootHashKey) {
+		return s.rootHash
+	}
+	return s.Snapshot.Get(key)
+}
+
+func (s *EvmStoreSnapshot) Has(key []byte) bool {
+	// snapshot always has a root hash
+	// nil or empty root hash is considered valid root hash
+	if bytes.Equal(key, rootHashKey) {
+		return true
+	}
+	return s.Snapshot.Has(key)
+}
+
+func remove(keys []string, key string) []string {
+	for i, value := range keys {
+		if value == key {
+			return append(keys[:i], keys[i+1:]...)
+		}
+	}
+	return keys
 }

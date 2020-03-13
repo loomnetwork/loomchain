@@ -73,7 +73,6 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -405,10 +404,10 @@ func newRunCommand() *cobra.Command {
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
-				return errors.Wrap(err, "failed to initialize app")
+				return err
 			}
 			if err := backend.Start(app); err != nil {
-				return errors.Wrap(err, "failed to initialize backend")
+				return err
 			}
 
 			nodeSigner, err := backend.NodeSigner()
@@ -608,15 +607,12 @@ func destroyBlockIndexDB(cfg *config.Config) error {
 	return nil
 }
 
-func loadAppStore(
-	cfg *config.Config, logger *loom.Logger, targetVersion int64,
-) (store.VersionedKVStore, *store.EvmStore, error) {
+func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
 	db, err := cdb.LoadDB(
-		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
-		cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if cfg.AppStore.CompactOnLoad {
@@ -630,47 +626,60 @@ func loadAppStore(
 	}
 
 	var appStore store.VersionedKVStore
-	var evmStore *store.EvmStore
 	if cfg.AppStore.Version == 1 { // TODO: cleanup these hardcoded numbers
-		logger.Info("Loading IAVL Store")
-		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
-		if err != nil {
-			return nil, nil, err
+		if cfg.AppStore.PruneInterval > int64(0) {
+			logger.Info("Loading Pruning IAVL Store")
+			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
+				MaxVersions:   cfg.AppStore.MaxVersions,
+				BatchSize:     cfg.AppStore.PruneBatchSize,
+				Interval:      time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+				Logger:        logger,
+				FlushInterval: cfg.AppStore.IAVLFlushInterval,
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			logger.Info("Loading IAVL Store")
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
 		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		evmStore, err = loadEvmStore(cfg, iavlStore.Version())
+		evmStore, err := loadEvmStore(cfg, iavlStore.Version())
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore)
+		appStore, err = store.NewMultiWriterAppStore(iavlStore, evmStore, cfg.AppStore.SaveEVMStateToIAVL)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
-		return nil, nil, errors.New("Invalid AppStore.Version config setting")
+		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
 
 	if cfg.LogStateDB {
 		appStore, err = store.NewLogStore(appStore)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	if cfg.CachingStoreConfig.CachingEnabled {
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		logger.Info("VersionedCachingStore enabled")
 	}
 
-	return appStore, evmStore, nil
+	return appStore, nil
 }
 
 func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
@@ -701,12 +710,7 @@ func loadEvmStore(cfg *config.Config, targetVersion int64) (*store.EvmStore, err
 	if err != nil {
 		return nil, err
 	}
-	if cfg.AppStore.IAVLFlushInterval != evmStoreCfg.FlushInterval &&
-		cfg.AppStore.IAVLFlushInterval > 0 &&
-		evmStoreCfg.FlushInterval > 0 {
-		return nil, errors.New("invalid config, AppStore.IAVLFlushInterval doesn't match EvmStore.FlushInterval")
-	}
-	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots, evmStoreCfg.FlushInterval)
+	evmStore := store.NewEvmStore(db, evmStoreCfg.NumCachedRoots)
 	if err := evmStore.LoadVersion(targetVersion); err != nil {
 		return nil, err
 	}
@@ -722,7 +726,8 @@ func loadApp(
 ) (*loomchain.Application, error) {
 	logger := log.Root
 
-	appStore, evmStore, err := loadAppStore(cfg, log.Default, appHeight)
+	appStore, err := loadAppStore(cfg, log.Default, appHeight)
+
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +814,6 @@ func loadApp(
 		), nil
 	})
 
-	var evmState *loomchain.EVMState
 	if evm.EVMEnabled {
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
@@ -832,13 +836,8 @@ func loadApp(
 			}
 			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
 		})
-
-		evmState, err = loomchain.NewEVMState(evmStore)
-		if err != nil {
-			return nil, err
-		}
 	}
-	store.LogEthDBBatch = cfg.LogEthDbBatch
+	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager:                vmManager,
@@ -1117,15 +1116,7 @@ func loadApp(
 	// as it doesn't pass control to other middlewares after it.
 	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
-	var lastBlockHeader *abci.Header
-	if appStore.Version() > 0 {
-		lastBlockHeader, err = b.LoadBlockHeader(appStore.Version())
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return loomchain.NewApplication(loomchain.ApplicationParams{
+	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
@@ -1143,8 +1134,7 @@ func loadApp(
 		GetValidatorSet:             getValidatorSet,
 		EvmAuxStore:                 evmAuxStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
-		EVMState:                    evmState,
-	}, lastBlockHeader), nil
+	}, nil
 }
 
 func deployContract(

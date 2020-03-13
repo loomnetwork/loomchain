@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -184,6 +185,8 @@ type StoreTestSuite struct {
 	suite.Suite
 	store     VersionedKVStore
 	StoreName string
+	//nolint:unused,structcheck
+	supportsSnapshots bool
 }
 
 func populateStore(s KVWriter) ([][]byte, []*plugin.RangeEntry) {
@@ -217,9 +220,8 @@ func populateStore(s KVWriter) ([][]byte, []*plugin.RangeEntry) {
 	return prefixes, entries
 }
 
-func verifyRange(
-	require *require.Assertions, storeName string, s KVReader, prefixes [][]byte, entries []*plugin.RangeEntry,
-) {
+func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*plugin.RangeEntry) {
+	require := ts.Require()
 	// TODO: This passed before the last Tendermint upgrade, doesn't anymore, figure out why.
 	/*
 		expected := []*plugin.RangeEntry{
@@ -236,8 +238,8 @@ func verifyRange(
 		}
 	*/
 	require.Len(s.Range([]byte("abc123")), 1)
-	require.EqualValues([]byte{}, s.Range([]byte("abc123"))[0].Key, storeName)
-	require.EqualValues(entries[1].Value, s.Range([]byte("abc123"))[0].Value, storeName)
+	require.EqualValues([]byte{}, s.Range([]byte("abc123"))[0].Key, ts.StoreName)
+	require.EqualValues(entries[1].Value, s.Range([]byte("abc123"))[0].Value, ts.StoreName)
 
 	key2, err := util.UnprefixKey(entries[2].Key, prefixes[0])
 	require.NoError(err)
@@ -252,10 +254,10 @@ func verifyRange(
 		{key4, entries[4].Value},
 	}
 	actual := s.Range(prefixes[0])
-	require.Len(actual, len(expected), storeName)
-	if storeName != "MemStore" {
+	require.Len(actual, len(expected), ts.StoreName)
+	if ts.StoreName != "MemStore" {
 		for i := range expected {
-			require.EqualValues(expected[i], actual[i], storeName)
+			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
 	}
 
@@ -274,12 +276,12 @@ func verifyRange(
 		{key8, entries[8].Value},
 	}
 	actual = s.Range(prefixes[1])
-	require.Len(actual, len(expected), storeName)
+	require.Len(actual, len(expected), ts.StoreName)
 
 	// TODO: MemStore keys should be iterated in ascending order
-	if storeName != "MemStore" {
+	if ts.StoreName != "MemStore" {
 		for i := range expected {
-			require.EqualValues(expected[i], actual[i], storeName)
+			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
 	}
 
@@ -294,10 +296,10 @@ func verifyRange(
 		{key10, entries[10].Value},
 	}
 	actual = s.Range(prefixes[2])
-	require.Len(actual, len(expected), storeName)
-	if storeName != "MemStore" {
+	require.Len(actual, len(expected), ts.StoreName)
+	if ts.StoreName != "MemStore" {
 		for i := range expected {
-			require.EqualValues(expected[i], actual[i], storeName)
+			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
 	}
 }
@@ -305,13 +307,14 @@ func verifyRange(
 func (ts *StoreTestSuite) TestStoreRange() {
 	require := ts.Require()
 	prefixes, entries := populateStore(ts.store)
-	verifyRange(require, ts.StoreName, ts.store, prefixes, entries)
-	_, _, err := ts.store.SaveVersion(nil)
+	ts.VerifyRange(ts.store, prefixes, entries)
+	_, _, err := ts.store.SaveVersion()
 	require.NoError(err)
-	verifyRange(require, ts.StoreName, ts.store, prefixes, entries)
+	ts.VerifyRange(ts.store, prefixes, entries)
 }
 
-func verifyConcurrentSnapshots(require *require.Assertions, s VersionedKVStore) {
+func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
+	require := ts.Require()
 	// start one writer go-routine and a bunch of reader go-routines
 	var wg sync.WaitGroup
 	numOps := 10000
@@ -322,13 +325,13 @@ func verifyConcurrentSnapshots(require *require.Assertions, s VersionedKVStore) 
 		defer wg.Done()
 
 		for i := 0; i < numOps; i++ {
-			s.Set([]byte(fmt.Sprintf("key/%d", i)), []byte(fmt.Sprintf("value/%d", i)))
+			ts.store.Set([]byte(fmt.Sprintf("key/%d", i)), []byte(fmt.Sprintf("value/%d", i)))
 			if i%10 == 0 {
-				_, _, err := s.SaveVersion(nil)
+				_, _, err := ts.store.SaveVersion()
 				require.NoError(err)
 			}
 		}
-		_, _, err := s.SaveVersion(nil)
+		_, _, err := ts.store.SaveVersion()
 		require.NoError(err)
 	}()
 	wg.Wait()
@@ -345,9 +348,7 @@ func verifyConcurrentSnapshots(require *require.Assertions, s VersionedKVStore) 
 					if snap != nil {
 						snap.Release()
 					}
-					var err error
-					snap, err = s.GetSnapshotAt(0)
-					require.NoError(err)
+					snap = ts.store.GetSnapshot()
 				}
 				snap.Get([]byte(fmt.Sprintf("key/%d", i)))
 			}
@@ -374,6 +375,7 @@ type IAVLStoreTestSuite struct {
 
 func (ts *IAVLStoreTestSuite) SetupSuite() {
 	ts.StoreName = "IAVLStore"
+	ts.supportsSnapshots = true
 }
 
 // runs before each test in this suite
@@ -383,6 +385,35 @@ func (ts *IAVLStoreTestSuite) SetupTest() {
 	db := dbm.NewMemDB()
 	ts.store, err = NewIAVLStore(db, 0, 0, 0)
 	require.NoError(err)
+}
+
+func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
+	prefixes, entries := populateStore(ts.store)
+	ts.VerifyRange(ts.store, prefixes, entries)
+
+	// snapshot shouldn't see data that hasn't been saved to disk,
+	// but this store doesn't have real snapshots so the snapshot is expected to contain the same
+	// unsaved state as the store itself...
+	func() {
+		snap := ts.store.GetSnapshot()
+		defer snap.Release()
+
+		ts.VerifyRange(snap, prefixes, entries)
+	}()
+
+	ts.store.SaveVersion()
+
+	// snapshot should see all the data that was saved to disk
+	func() {
+		snap := ts.store.GetSnapshot()
+		defer snap.Release()
+
+		ts.VerifyRange(snap, prefixes, entries)
+	}()
+}
+
+func (ts *IAVLStoreTestSuite) TestConcurrentSnapshots() {
+	ts.VerifyConcurrentSnapshots()
 }
 
 //
@@ -404,6 +435,141 @@ func (ts *MemStoreTestSuite) SetupTest() {
 
 func (ts *MemStoreTestSuite) SetupSuite() {
 	ts.StoreName = "MemStore"
+	ts.supportsSnapshots = false
+}
+
+//
+// PruningIAVLStore
+//
+
+func TestPruningIAVLStoreBatching(t *testing.T) {
+	db := dbm.NewMemDB()
+	cfg := PruningIAVLStoreConfig{
+		MaxVersions: 5,
+		BatchSize:   5,
+		Interval:    1 * time.Second,
+	}
+	store, err := NewPruningIAVLStore(db, cfg)
+	require.NoError(t, err)
+
+	require.Equal(t, int64(0), store.oldestVer)
+
+	values := []struct {
+		key []byte
+		val []byte
+	}{
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+	} // 12 items
+
+	curVer := int64(1)
+	for _, kv := range values {
+		store.Set(kv.key, kv.val)
+		_, ver, err := store.SaveVersion()
+		require.NoError(t, err)
+		require.Equal(t, curVer, ver)
+		curVer++
+	}
+
+	time.Sleep(5 * time.Second)
+
+	require.True(t, store.Version() > cfg.MaxVersions)
+	require.Equal(t, store.Version(), store.oldestVer+cfg.MaxVersions-1, "correct number of versions has been kept")
+	require.Equal(t, uint64(2), store.batchCount, "correct number of batches has been pruned")
+
+	prevOldestVer := store.oldestVer
+
+	store, err = NewPruningIAVLStore(db, cfg)
+	require.NoError(t, err)
+
+	// the oldest version shouldn't change when the IAVL store is reloaded
+	require.Equal(t, prevOldestVer, store.oldestVer)
+}
+
+func TestPruningIAVLStoreKeepsAtLeastTwoVersions(t *testing.T) {
+	cfg := PruningIAVLStoreConfig{
+		MaxVersions: 1,
+		BatchSize:   5,
+		Interval:    1 * time.Second,
+	}
+	store, err := NewPruningIAVLStore(dbm.NewMemDB(), cfg)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), store.Version())
+
+	values := []struct {
+		key []byte
+		val []byte
+	}{
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+	}
+
+	for i, kv := range values {
+		if i == 2 {
+			break
+		}
+
+		store.Set(kv.key, kv.val)
+		_, _, err := store.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	require.Equal(t, int64(2), store.Version())
+	require.Equal(t, int64(1), store.oldestVer)
+	require.Equal(t, uint64(0), store.batchCount)
+}
+
+func TestPruningIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
+	cfg := PruningIAVLStoreConfig{
+		MaxVersions: 0,
+		BatchSize:   5,
+		Interval:    1 * time.Second,
+	}
+	store, err := NewPruningIAVLStore(dbm.NewMemDB(), cfg)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), store.Version())
+	require.Equal(t, int64(0), store.maxVersions)
+
+	values := []struct {
+		key []byte
+		val []byte
+	}{
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+	} // 12 items
+
+	for _, kv := range values {
+		store.Set(kv.key, kv.val)
+		_, _, err := store.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	time.Sleep(4 * time.Second)
+
+	require.Equal(t, int64(12), store.Version())
+	require.Equal(t, uint64(0), store.batchCount)
 }
 
 func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
@@ -432,9 +598,62 @@ func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 
 	for _, kv := range values {
 		store.Set(kv.key, kv.val)
-		_, _, err := store.SaveVersion(nil)
+		_, _, err := store.SaveVersion()
 		require.NoError(t, err)
 	}
 
 	require.Equal(t, int64(12), store.Version())
+}
+
+func TestSwitchFromIAVLStoreToPruningIAVLStore(t *testing.T) {
+	memDB := dbm.NewMemDB()
+	store1, err := NewIAVLStore(memDB, 0, 0, 0)
+	require.NoError(t, err)
+
+	values := []struct {
+		key []byte
+		val []byte
+	}{
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+	} // 12 items
+
+	for _, kv := range values {
+		store1.Set(kv.key, kv.val)
+		_, _, err := store1.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, int64(12), store1.Version())
+
+	store2, err := NewIAVLStore(memDB, 11, 0, 0)
+	require.NoError(t, err)
+	// force the store to prune an old version
+	store2.Set(key1, val1)
+	_, _, err = store2.SaveVersion()
+	require.NoError(t, err)
+
+	require.Equal(t, int64(13), store2.Version())
+
+	cfg := PruningIAVLStoreConfig{
+		MaxVersions: 5,
+		BatchSize:   5,
+		Interval:    1 * time.Second,
+	}
+	store3, err := NewPruningIAVLStore(memDB, cfg)
+	require.NoError(t, err)
+
+	time.Sleep(4 * time.Second)
+
+	require.Equal(t, (store3.Version()-cfg.MaxVersions)+1, store3.oldestVer)
 }

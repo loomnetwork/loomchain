@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/allegro/bigcache"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -360,38 +360,25 @@ func (c *versionedCachingStore) Set(key, val []byte) {
 	c.VersionedKVStore.Set(key, val)
 }
 
-func (c *versionedCachingStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int64, error) {
-	hash, version, err := c.VersionedKVStore.SaveVersion(opts)
+func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
+	hash, version, err := c.VersionedKVStore.SaveVersion()
 	if err == nil {
-		if err = c.cache.Set(rootKey, GetEVMRootFromAppStore(c.VersionedKVStore), version); err != nil {
-			// Only log error and dont error out
-			cacheErrors.With("cache_operation", "set").Add(1)
-			c.logger.Error("[VersionedCachingStore] error while caching EVM root", "err", err)
-		}
 		// Cache version is always 1 block ahead of KV store version, that way when
-		// GetSnapshotAt(0) is called it won't return the current unpersisted state of the cache,
+		// GetSnapshot() is called it won't return the current unpersisted state of the cache,
 		// but rather the last persisted version.
-		// GetSnapshotAt may be called concurrently so the version must be updated atomically.
-		atomic.StoreInt64(&c.version, version+1)
+		c.version = version + 1
 	}
 	return hash, version, err
 }
 
-func (c *versionedCachingStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	if version == 0 {
-		version = atomic.LoadInt64(&c.version) - 1
-	}
-
-	snapshot, err := c.VersionedKVStore.GetSnapshotAt(version)
-	if err != nil {
-		return nil, err
-	}
-	return newVersionedCachingStoreSnapshot(snapshot, c.cache, version, c.logger), nil
+func (c *versionedCachingStore) GetSnapshot() Snapshot {
+	return newVersionedCachingStoreSnapshot(
+		c.VersionedKVStore.GetSnapshot(),
+		c.cache, c.version-1, c.logger,
+	)
 }
 
-// versionedCachingStoreSnapshot is a read-only CachingStore with specified version.
-// NOTE: versionedCachingStoreSnapshot.Range is not implemented, so the underlying snapshot's Range
-//       implementation will be used instead.
+// CachingStoreSnapshot is a read-only CachingStore with specified version
 type versionedCachingStoreSnapshot struct {
 	Snapshot
 	cache   *versionedBigCache
@@ -399,15 +386,22 @@ type versionedCachingStoreSnapshot struct {
 	logger  *loom.Logger
 }
 
-func newVersionedCachingStoreSnapshot(
-	snapshot Snapshot, cache *versionedBigCache, version int64, logger *loom.Logger,
-) *versionedCachingStoreSnapshot {
+func newVersionedCachingStoreSnapshot(snapshot Snapshot, cache *versionedBigCache,
+	version int64, logger *loom.Logger) *versionedCachingStoreSnapshot {
 	return &versionedCachingStoreSnapshot{
 		Snapshot: snapshot,
 		cache:    cache,
 		version:  version,
 		logger:   logger,
 	}
+}
+
+func (c *versionedCachingStoreSnapshot) Delete(key []byte) {
+	panic("[versionedCachingStoreSnapshot] Delete() not implemented")
+}
+
+func (c *versionedCachingStoreSnapshot) Set(key, val []byte) {
+	panic("[versionedCachingStoreSnapshot] Set() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Has(key []byte) bool {
@@ -493,6 +487,14 @@ func (c *versionedCachingStoreSnapshot) Get(key []byte) []byte {
 	}
 
 	return data
+}
+
+func (c *versionedCachingStoreSnapshot) SaveVersion() ([]byte, int64, error) {
+	return nil, 0, errors.New("[VersionedCachingStoreSnapshot] SaveVersion() not implemented")
+}
+
+func (c *versionedCachingStoreSnapshot) Prune() error {
+	return errors.New("[VersionedCachingStoreSnapshot] Prune() not implemented")
 }
 
 func (c *versionedCachingStoreSnapshot) Release() {
