@@ -46,18 +46,11 @@ type Snapshot interface {
 	Release()
 }
 
-// VersionedKVStoreSaveOptions contains options that can be passed into VersionedKVStore.SaveVersion()
-type VersionedKVStoreSaveOptions struct {
-	// Overrides the interval at which versions are flushed to disk, not all stores may support this.
-	FlushInterval int64
-}
-
 type VersionedKVStore interface {
 	KVStore
 	Hash() []byte
 	Version() int64
-	// Saves changes made since the last version, the options may be nil
-	SaveVersion(options *VersionedKVStoreSaveOptions) ([]byte, int64, error)
+	SaveVersion() ([]byte, int64, error)
 	// Delete old version of the store
 	Prune() error
 	GetSnapshotAt(version int64) (Snapshot, error)

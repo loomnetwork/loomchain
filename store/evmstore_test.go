@@ -39,12 +39,12 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	dataRange := evmStore.Range(nil)
 	require.Equal(104, len(dataRange))
 	require.Equal(false, evmStore.Has([]byte("hello2")))
-	evmStore.Commit(1, 0)
+	evmStore.Commit(1)
 	evmStore.Set([]byte("SSSSS"), []byte("SSSSS"))
 	evmStore.Set([]byte("vvvvv"), []byte("vvv"))
 	dataRange = evmStore.Range(nil)
 	require.Equal(106+1, len(dataRange)) // +1 default evm root key
-	evmStore.Commit(2, 0)
+	evmStore.Commit(2)
 	evmStore.Set([]byte("SSSSS"), []byte("S1"))
 	ret := evmStore.Get([]byte("SSSSS"))
 	require.Equal(0, bytes.Compare(ret, []byte("S1")))
@@ -52,7 +52,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	evmStore.Delete([]byte("hello1"))
 	dataRange = evmStore.Range(nil)
 	require.Equal(104+1, len(dataRange)) // +1 default evm root key
-	evmStore.Commit(3, 0)
+	evmStore.Commit(3)
 	evmStore.Delete([]byte("SSSSS"))
 	evmStore.Delete([]byte("hello1"))
 	dataRange = evmStore.Range(nil)
@@ -120,14 +120,14 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangePrefix() {
 	dataRange = evmStore.Range([]byte("vv"))
 	require.Equal(101, len(dataRange))
 
-	evmStore.Commit(1, 0)
+	evmStore.Commit(1)
 	dataRange = evmStore.Range([]byte("Key"))
 	require.Equal(101, len(dataRange))
 
 	dataRange = evmStore.Range([]byte("vv"))
 	require.Equal(101, len(dataRange))
 
-	evmStore.Commit(2, 0)
+	evmStore.Commit(2)
 	evmStore.Delete(util.PrefixKey([]byte("vv"), []byte(fmt.Sprintf("%d", 10))))
 	dataRange = evmStore.Range([]byte("vv"))
 	require.Equal(100, len(dataRange))

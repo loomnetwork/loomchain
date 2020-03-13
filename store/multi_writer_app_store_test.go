@@ -102,7 +102,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	// the first version go to memory
 	store.Set([]byte("test1"), []byte("test1"))
 	store.Set([]byte("test2"), []byte("test2"))
-	_, version, err := store.SaveVersion(nil)
+	_, version, err := store.SaveVersion()
 	require.NoError(err)
 	require.Equal(int64(1), version)
 
@@ -116,7 +116,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
 	// this flushes all data to disk
-	_, _, err = store.SaveVersion(nil)
+	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
 	// get snapshotv2
@@ -147,7 +147,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	store.Set(vmPrefixKey("dd"), []byte("yes"))
 	store.Set(vmPrefixKey("vv"), []byte("yes"))
 
-	_, version, err := store.SaveVersion(nil)
+	_, version, err := store.SaveVersion()
 	require.Equal(int64(1), version)
 	require.NoError(err)
 
@@ -159,7 +159,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSaveVersion() {
 	dataRange := store.Range(vmPrefix)
 	require.Equal(6+1, len(dataRange)) // +1 is for the evm root that written by the EVM store itself
 
-	_, version, err = store.SaveVersion(nil)
+	_, version, err = store.SaveVersion()
 	require.Equal(int64(2), version)
 	require.NoError(err)
 
@@ -182,7 +182,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	iavlStore.Set(vmPrefixKey("gg"), []byte("world"))
 	iavlStore.Set(vmPrefixKey("dd"), []byte("yes"))
 	iavlStore.Set(vmPrefixKey("vv"), []byte("yes"))
-	_, version, err := store.SaveVersion(nil)
+	_, version, err := store.SaveVersion()
 	require.NoError(err)
 	require.Equal(int64(1), version)
 	require.Equal(version, iavlStore.Version())
@@ -204,7 +204,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 
 	// prune VM keys
 	// NOTE: only 3 vm keys will actually get pruned due to the quirkiness of RangeWithLimit
-	_, version, err = newStore.SaveVersion(nil)
+	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(2), version)
 	require.NoError(err)
 
@@ -214,7 +214,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 
 	// prune VM keys
 	// NOTE: once again only 3 vm keys will get pruned
-	_, version, err = newStore.SaveVersion(nil)
+	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(3), version)
 	require.NoError(err)
 
@@ -223,7 +223,7 @@ func (m *MultiWriterAppStoreTestSuite) TestPruningEvmKeys() {
 	require.Equal(1, len(rangeData))
 
 	// prune VM keys
-	_, version, err = newStore.SaveVersion(nil)
+	_, version, err = newStore.SaveVersion()
 	require.Equal(int64(4), version)
 	require.NoError(err)
 
@@ -246,7 +246,7 @@ func (m *MultiWriterAppStoreTestSuite) TestIAVLRangeWithlimit() {
 	iavlStore.Set(vmPrefixKey("gg"), []byte("world"))
 	iavlStore.Set(vmPrefixKey("dd"), []byte("yes"))
 	iavlStore.Set(vmPrefixKey("vv"), []byte("yes"))
-	_, _, err = store.SaveVersion(nil)
+	_, _, err = store.SaveVersion()
 	require.NoError(err)
 
 	// only 4 VM keys will be returned due to the quirkiness of RangeWithLimit
@@ -260,7 +260,7 @@ func (m *MultiWriterAppStoreTestSuite) TestStoreRange() {
 	require.NoError(err)
 	prefixes, entries := populateStore(mws)
 	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-	_, _, err = mws.SaveVersion(nil)
+	_, _, err = mws.SaveVersion()
 	require.NoError(err)
 	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
 }
@@ -271,7 +271,7 @@ func (m *MultiWriterAppStoreTestSuite) TestSnapshotRange() {
 	require.NoError(err)
 	prefixes, entries := populateStore(mws)
 	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-	mws.SaveVersion(nil)
+	mws.SaveVersion()
 
 	// snapshot should see all the data that was saved to disk
 	func() {

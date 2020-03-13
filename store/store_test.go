@@ -306,7 +306,7 @@ func (ts *StoreTestSuite) TestStoreRange() {
 	require := ts.Require()
 	prefixes, entries := populateStore(ts.store)
 	verifyRange(require, ts.StoreName, ts.store, prefixes, entries)
-	_, _, err := ts.store.SaveVersion(nil)
+	_, _, err := ts.store.SaveVersion()
 	require.NoError(err)
 	verifyRange(require, ts.StoreName, ts.store, prefixes, entries)
 }
@@ -324,11 +324,11 @@ func verifyConcurrentSnapshots(require *require.Assertions, s VersionedKVStore) 
 		for i := 0; i < numOps; i++ {
 			s.Set([]byte(fmt.Sprintf("key/%d", i)), []byte(fmt.Sprintf("value/%d", i)))
 			if i%10 == 0 {
-				_, _, err := s.SaveVersion(nil)
+				_, _, err := s.SaveVersion()
 				require.NoError(err)
 			}
 		}
-		_, _, err := s.SaveVersion(nil)
+		_, _, err := s.SaveVersion()
 		require.NoError(err)
 	}()
 	wg.Wait()
@@ -432,7 +432,7 @@ func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 
 	for _, kv := range values {
 		store.Set(kv.key, kv.val)
-		_, _, err := store.SaveVersion(nil)
+		_, _, err := store.SaveVersion()
 		require.NoError(t, err)
 	}
 

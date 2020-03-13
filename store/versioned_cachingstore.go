@@ -360,8 +360,8 @@ func (c *versionedCachingStore) Set(key, val []byte) {
 	c.VersionedKVStore.Set(key, val)
 }
 
-func (c *versionedCachingStore) SaveVersion(opts *VersionedKVStoreSaveOptions) ([]byte, int64, error) {
-	hash, version, err := c.VersionedKVStore.SaveVersion(opts)
+func (c *versionedCachingStore) SaveVersion() ([]byte, int64, error) {
+	hash, version, err := c.VersionedKVStore.SaveVersion()
 	if err == nil {
 		if err = c.cache.Set(rootKey, GetEVMRootFromAppStore(c.VersionedKVStore), version); err != nil {
 			// Only log error and dont error out
