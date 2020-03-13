@@ -24,7 +24,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	require := t.Require()
 	evmDb, err := db.LoadMemDB()
 	require.NoError(err)
-	evmStore := NewEvmStore(evmDb, 100, 0)
+	evmStore := NewEvmStore(evmDb, 100)
 	for i := 0; i <= 100; i++ {
 		key := []byte(fmt.Sprintf("Key%d", i))
 		evmStore.Set(key, key)
@@ -43,7 +43,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	evmStore.Set([]byte("SSSSS"), []byte("SSSSS"))
 	evmStore.Set([]byte("vvvvv"), []byte("vvv"))
 	dataRange = evmStore.Range(nil)
-	require.Equal(106+1, len(dataRange)) // +1 default evm root key
+	require.Equal(107, len(dataRange))
 	evmStore.Commit(2)
 	evmStore.Set([]byte("SSSSS"), []byte("S1"))
 	ret := evmStore.Get([]byte("SSSSS"))
@@ -51,12 +51,12 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangeAndCommit() {
 	evmStore.Delete([]byte("SSSSS"))
 	evmStore.Delete([]byte("hello1"))
 	dataRange = evmStore.Range(nil)
-	require.Equal(104+1, len(dataRange)) // +1 default evm root key
+	require.Equal(105, len(dataRange))
 	evmStore.Commit(3)
 	evmStore.Delete([]byte("SSSSS"))
 	evmStore.Delete([]byte("hello1"))
 	dataRange = evmStore.Range(nil)
-	require.Equal(104+1, len(dataRange)) // +1 default evm root key
+	require.Equal(105, len(dataRange))
 }
 
 func (t *EvmStoreTestSuite) TestEvmStoreBasicMethods() {
@@ -64,7 +64,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreBasicMethods() {
 	// Test Get|Set|Has|Delete methods
 	evmDb, err := db.LoadMemDB()
 	require.NoError(err)
-	evmStore := NewEvmStore(evmDb, 100, 0)
+	evmStore := NewEvmStore(evmDb, 100)
 	key1 := []byte("hello")
 	key2 := []byte("hello2")
 	value1 := []byte("world")
@@ -92,7 +92,7 @@ func (t *EvmStoreTestSuite) TestEvmStoreRangePrefix() {
 	// Test Range Prefix
 	evmDb, err := db.LoadMemDB()
 	require.NoError(err)
-	evmStore := NewEvmStore(evmDb, 100, 0)
+	evmStore := NewEvmStore(evmDb, 100)
 	for i := 0; i <= 100; i++ {
 		key := []byte(fmt.Sprintf("Key%d", i))
 		evmStore.Set(key, key)
@@ -143,7 +143,7 @@ func (t *EvmStoreTestSuite) TestLoadVersionEvmStore() {
 	evmDb.Set(evmRootKey(100), []byte{100})
 	evmDb.Set(evmRootKey(200), []byte{200})
 
-	evmStore := NewEvmStore(evmDb, 100, 0)
+	evmStore := NewEvmStore(evmDb, 100)
 	err = evmStore.LoadVersion(500)
 	require.NoError(err)
 	root, version := evmStore.Version()

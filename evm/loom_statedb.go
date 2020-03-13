@@ -16,7 +16,11 @@ type LoomStateDB struct {
 	abm *evmAccountBalanceManager
 }
 
-func newLoomStateDB(abm *evmAccountBalanceManager, sdb *state.StateDB) (*LoomStateDB, error) {
+func newLoomStateDB(abm *evmAccountBalanceManager, root common.Hash, db state.Database) (*LoomStateDB, error) {
+	sdb, err := state.New(root, db)
+	if err != nil {
+		return nil, err
+	}
 	return &LoomStateDB{
 		StateDB: sdb,
 		abm:     abm,

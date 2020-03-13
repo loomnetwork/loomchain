@@ -750,11 +750,6 @@ AppStore:
   # If true the app store will write EVM state to both IAVLStore and EvmStore
   # This config works with AppStore Version 3 (MultiWriterAppStore) only
   SaveEVMStateToIAVL: {{ .AppStore.SaveEVMStateToIAVL }}
-  # Specifies the number of IAVL tree versions that should be kept in memory before writing a new
-  # version to disk.
-  # If set to zero every version will be written to disk unless overridden via the on-chain config.
-  # If set to -1 every version will always be written to disk, regardless of the on-chain config.
-  IAVLFlushInterval: {{ .AppStore.IAVLFlushInterval }}
 {{if .EventStore -}}
 #
 # EventStore
@@ -778,12 +773,6 @@ EvmStore:
   CacheSizeMegs: {{.EvmStore.CacheSizeMegs}}
   # NumCachedRoots defines a number of in-memory cached EVM roots
   NumCachedRoots: {{.EvmStore.NumCachedRoots}}
-  # Specifies the number of Merkle tree versions that should be kept in memory before writing a
-  # new version to disk.
-  # If set to zero every version will be written to disk unless overridden via the on-chain config
-  # AppStore.IAVLFlushInterval setting.
-  # If set to -1 every version will always be written to disk, regardless of the on-chain config.
-  FlushInterval: {{.EvmStore.FlushInterval}}
 {{end}}
 
 {{if .Web3 -}}

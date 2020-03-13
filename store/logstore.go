@@ -129,7 +129,3 @@ func (s *LogStore) Prune() error {
 func (s *LogStore) GetSnapshot() Snapshot {
 	return s.store.GetSnapshot()
 }
-
-func (s *LogStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	return s.store.GetSnapshotAt(version)
-}

@@ -63,15 +63,12 @@ func (m *MockStore) GetSnapshot() Snapshot {
 	for k, v := range m.storage {
 		snapshotStore[k] = v
 	}
-	return &mockStoreSnapshot{
-		MockStore: &MockStore{
-			storage: snapshotStore,
-		},
+	mstore := &MockStore{
+		storage: snapshotStore,
 	}
-}
-
-func (m *MockStore) GetSnapshotAt(version int64) (Snapshot, error) {
-	panic("not implemented")
+	return &mockStoreSnapshot{
+		MockStore: mstore,
+	}
 }
 
 type mockStoreSnapshot struct {

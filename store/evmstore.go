@@ -6,8 +6,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	lru "github.com/hashicorp/golang-lru"
@@ -16,7 +14,6 @@ import (
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -56,32 +53,32 @@ func getVersionFromEvmRootKey(key []byte) (int64, error) {
 // EvmStore persists EVM state to a DB.
 type EvmStore struct {
 	evmDB         db.DBWrapper
+	cache         map[string]cacheItem
 	rootHash      []byte
 	lastSavedRoot []byte
 	rootCache     *lru.Cache
 	version       int64
-	trieDB        *trie.Database
-	flushInterval int64
 }
 
 // NewEvmStore returns a new instance of the store backed by the given DB.
-func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int, flushInterval int64) *EvmStore {
+func NewEvmStore(evmDB db.DBWrapper, numCachedRoots int) *EvmStore {
 	rootCache, err := lru.New(numCachedRoots)
 	if err != nil {
 		panic(err)
 	}
 	evmStore := &EvmStore{
-		evmDB:         evmDB,
-		rootCache:     rootCache,
-		flushInterval: flushInterval,
+		evmDB:     evmDB,
+		cache:     make(map[string]cacheItem),
+		rootCache: rootCache,
 	}
-	ethDB := NewLoomEthDB(evmStore)
-	evmStore.trieDB = trie.NewDatabase(ethDB)
 	return evmStore
 }
 
-func (s *EvmStore) NewBatch() dbm.Batch {
-	return s.evmDB.NewBatch()
+func (s *EvmStore) setCache(key, val []byte, deleted bool) {
+	s.cache[string(key)] = cacheItem{
+		Value:   val,
+		Deleted: deleted,
+	}
 }
 
 // Range iterates in-order over the keys in the store prefixed by the given prefix.
@@ -102,6 +99,21 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 		if util.HasPrefix([]byte(key), prefix) || len(prefix) == 0 {
 			rangeCache[key] = value
 			rangeCacheKeys = append(rangeCacheKeys, key)
+		}
+	}
+
+	// Update range cache with data in cache
+	for key, c := range s.cache {
+		if util.HasPrefix([]byte(key), prefix) || len(prefix) == 0 {
+			if c.Deleted {
+				rangeCacheKeys = remove(rangeCacheKeys, key)
+				rangeCache[key] = nil
+				continue
+			}
+			if _, ok := rangeCache[key]; !ok {
+				rangeCacheKeys = append(rangeCacheKeys, string(key))
+			}
+			rangeCache[key] = c.Value
 		}
 	}
 
@@ -133,22 +145,42 @@ func (s *EvmStore) Range(prefix []byte) plugin.RangeData {
 	return ret
 }
 
-// TODO: Range/Has/Get/Delete/Set are probably only called from the MultiWriterAppStore which
-//       doesn't need to do so anymore, remove these functions when MultiWriterAppStore is cleaned up.
 func (s *EvmStore) Has(key []byte) bool {
+	// EvmStore always has Patricia root
+	if bytes.Equal(key, rootHashKey) {
+		return true
+	}
+	if item, ok := s.cache[string(key)]; ok {
+		return !item.Deleted
+	}
 	return s.evmDB.Has(key)
 }
 
 func (s *EvmStore) Get(key []byte) []byte {
+	if bytes.Equal(key, rootHashKey) {
+		return s.rootHash
+	}
+
+	if item, ok := s.cache[string(key)]; ok {
+		return item.Value
+	}
 	return s.evmDB.Get(key)
 }
 
 func (s *EvmStore) Delete(key []byte) {
-	s.evmDB.Delete(key)
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = nil
+	} else {
+		s.setCache(key, nil, true)
+	}
 }
 
 func (s *EvmStore) Set(key, val []byte) {
-	s.evmDB.Set(key, val)
+	if bytes.Equal(key, rootHashKey) {
+		s.rootHash = val
+	} else {
+		s.setCache(key, val, false)
+	}
 }
 
 func (s *EvmStore) Commit(version int64) []byte {
@@ -162,50 +194,30 @@ func (s *EvmStore) Commit(version int64) []byte {
 	if bytes.Equal(currentRoot, []byte{}) {
 		currentRoot = defaultRoot
 	}
-
-	flushInterval := s.flushInterval
-
-	// TODO: Rather than loading the on-chain config here the flush interval override should be passed
-	//       in as a parameter to SaveVersion().
-	if flushInterval == 0 {
-		cfg, err := LoadOnChainConfig(s)
-		if err != nil {
-			panic(errors.Wrap(err, "failed to load on-chain config"))
-		}
-		if cfg.GetAppStore().GetIAVLFlushInterval() != 0 {
-			flushInterval = int64(cfg.GetAppStore().GetIAVLFlushInterval())
-		}
-	} else if flushInterval == -1 {
-		flushInterval = 0
-	}
-
-	// Only commit Patricia tree every N blocks
-	// TODO: What happens to all the roots that don't get committed? Are they just going to accumulate
-	//       in the trie.Database.nodes cache forever?
-	if flushInterval == 0 || version%flushInterval == 0 {
-		// If the root hasn't changed since the last call to Commit that means no new state changes
-		// occurred in the trie DB since then, so we can skip committing.
-		if !bytes.Equal(defaultRoot, currentRoot) && !bytes.Equal(currentRoot, s.lastSavedRoot) {
-			// trie.Database.Commit will call NewBatch (indirectly) to batch writes to evmDB
-			if err := s.trieDB.Commit(common.BytesToHash(currentRoot), false); err != nil {
-				panic(err)
-			}
-		}
-
-		// We don't commit empty root but we need to save default root ([]byte{1}) as a placeholder of empty root
-		// So the node won't get EVM root mismatch during the EVM root checking
-		if !bytes.Equal(currentRoot, s.lastSavedRoot) {
-			s.Set(evmRootKey(version), currentRoot)
-			s.lastSavedRoot = currentRoot
-		}
+	// save Patricia root of EVM state only if it changes
+	if !bytes.Equal(currentRoot, s.lastSavedRoot) {
+		s.Set(evmRootKey(version), currentRoot)
 	}
 
 	s.rootCache.Add(version, currentRoot)
+
+	batch := s.evmDB.NewBatch()
+	for key, item := range s.cache {
+		if !item.Deleted {
+			batch.Set([]byte(key), item.Value)
+		} else {
+			batch.Delete([]byte(key))
+		}
+	}
+	batch.Write()
+	s.cache = make(map[string]cacheItem)
+	s.lastSavedRoot = currentRoot
 	s.version = version
 	return currentRoot
 }
 
 func (s *EvmStore) LoadVersion(targetVersion int64) error {
+	s.cache = make(map[string]cacheItem)
 	// find the last saved root
 	root, version := s.getLastSavedRoot(targetVersion)
 	if bytes.Equal(root, defaultRoot) {
@@ -228,20 +240,6 @@ func (s *EvmStore) Version() ([]byte, int64) {
 	return s.rootHash, s.version
 }
 
-func (s *EvmStore) TrieDB() *trie.Database {
-	return s.trieDB
-}
-
-// SetCurrentRoot sets the current EVM state root, this root must exist in the current trie DB.
-// NOTE: This function must be called prior to each call to Commit.
-// TODO: This is clunky, the root should just be passed into Commit!
-func (s *EvmStore) SetCurrentRoot(root []byte) {
-	s.rootHash = root
-}
-
-// getLastSavedRoot retrieves the EVM state root from disk that best matches the given version.
-// The roots are not written to disk for every version, they only get written out when they change
-// between versions, and even then depending on the flush interval some roots won't be written to disk.
 func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	start := util.PrefixKey(vmPrefix, evmRootPrefix)
 	end := prefixRangeEnd(evmRootKey(targetVersion))
@@ -259,31 +257,18 @@ func (s *EvmStore) getLastSavedRoot(targetVersion int64) ([]byte, int64) {
 	return nil, 0
 }
 
-// GetRootAt returns the EVM state root corresponding to the given version.
-// The second return value is version of the EVM state that corresponds to the returned root,
-// it may be less than the version requested due to the reasons mentioned in getLastSavedRoot.
-func (s *EvmStore) GetRootAt(version int64) ([]byte, int64) {
-	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance.
-	// There's an assumption here that the cache will almost always contain all the in-mem-only
-	// roots that haven't been flushed to disk yet, in the rare case where such a root is evicted
-	// from the cache the last root persisted to disk will be returned instead. This means it's
-	// possible (though highly unlikely) for queries to return stale state (since they rely on
-	// snapshots corresponding to specific versions). This could be fixed by storing the in-mem-only
-	// roots in another map instead of, or in addition to the cache.
+func (s *EvmStore) GetSnapshot(version int64) db.Snapshot {
+	var targetRoot []byte
+	// Expect cache to be almost 100% hit since cache miss yields extremely poor performance
 	val, exist := s.rootCache.Get(version)
 	if exist {
-		return val.([]byte), version
+		targetRoot = val.([]byte)
+	} else {
+		targetRoot, _ = s.getLastSavedRoot(version)
 	}
-	return s.getLastSavedRoot(version)
+	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), targetRoot)
 }
 
-// TODO: Get rid of this function. EvmStore does not provide snapshot anymore but EVMState does.
-func (s *EvmStore) GetSnapshot(version int64) *EvmStoreSnapshot {
-	root, _ := s.GetRootAt(version)
-	return NewEvmStoreSnapshot(s.evmDB.GetSnapshot(), root)
-}
-
-// TODO: Get rid of EvmStoreSnapshot. EvmStore does not provide snapshot anymore but EVMState does.
 func NewEvmStoreSnapshot(snapshot db.Snapshot, rootHash []byte) *EvmStoreSnapshot {
 	return &EvmStoreSnapshot{
 		Snapshot: snapshot,

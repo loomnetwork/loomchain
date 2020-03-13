@@ -60,7 +60,7 @@ func mockMultiWriterStore(flushInterval int64) (*store.MultiWriterAppStore, erro
 		return nil, err
 	}
 	memDb, _ = db.LoadMemDB()
-	evmStore := store.NewEvmStore(memDb, 100, 0)
+	evmStore := store.NewEvmStore(memDb, 100)
 	multiWriterStore, err := store.NewMultiWriterAppStore(iavlStore, evmStore, false)
 	if err != nil {
 		return nil, err
