@@ -56,7 +56,7 @@ func init() {
 			Namespace:  "loomchain",
 			Subsystem:  "multi_writer_appstore",
 			Name:       "get_snapshot",
-			Help:       "How long MultiWriterAppStore.GetSnapshotAt() took to execute (in seconds)",
+			Help:       "How long MultiWriterAppStore.GetSnapshot() took to execute (in seconds)",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		}, []string{},
 	)
@@ -270,6 +270,14 @@ func (s *MultiWriterAppStore) setLastSavedTreeToVersion(version int64) error {
 
 func (s *MultiWriterAppStore) Prune() error {
 	return s.appStore.Prune()
+}
+
+func (s *MultiWriterAppStore) GetSnapshot() Snapshot {
+	snapshot, err := s.GetSnapshotAt(0)
+	if err != nil {
+		panic(err)
+	}
+	return snapshot
 }
 
 func (s *MultiWriterAppStore) GetSnapshotAt(version int64) (Snapshot, error) {

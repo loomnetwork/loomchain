@@ -110,8 +110,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	store.Set([]byte("test2"), []byte("test2v2"))
 
 	// this snapshot is from memory
-	snapshotv1, err := store.GetSnapshotAt(0)
-	require.NoError(err)
+	snapshotv1 := store.GetSnapshot()
 	require.Equal([]byte("test1"), snapshotv1.Get([]byte("test1")))
 	require.Equal([]byte("test2"), snapshotv1.Get([]byte("test2")))
 
@@ -120,8 +119,7 @@ func (m *MultiWriterAppStoreTestSuite) TestMultiWriterAppStoreSnapshotFlushInter
 	require.NoError(err)
 
 	// get snapshotv2
-	snapshotv2, err := store.GetSnapshotAt(0)
-	require.NoError(err)
+	snapshotv2 := store.GetSnapshot()
 	require.Equal([]byte("test1v2"), snapshotv2.Get([]byte("test1")))
 	require.Equal([]byte("test2v2"), snapshotv2.Get([]byte("test2")))
 
@@ -252,42 +250,6 @@ func (m *MultiWriterAppStoreTestSuite) TestIAVLRangeWithlimit() {
 	// only 4 VM keys will be returned due to the quirkiness of RangeWithLimit
 	rangeData := iavlStore.RangeWithLimit([]byte("vm"), 5)
 	require.Equal(4, len(rangeData))
-}
-
-func (m *MultiWriterAppStoreTestSuite) TestStoreRange() {
-	require := m.Require()
-	mws, err := mockMultiWriterStore(0, 0)
-	require.NoError(err)
-	prefixes, entries := populateStore(mws)
-	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-	_, _, err = mws.SaveVersion()
-	require.NoError(err)
-	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-}
-
-func (m *MultiWriterAppStoreTestSuite) TestSnapshotRange() {
-	require := m.Require()
-	mws, err := mockMultiWriterStore(0, 0)
-	require.NoError(err)
-	prefixes, entries := populateStore(mws)
-	verifyRange(require, "MultiWriterAppStore", mws, prefixes, entries)
-	mws.SaveVersion()
-
-	// snapshot should see all the data that was saved to disk
-	func() {
-		snap, err := mws.GetSnapshotAt(0)
-		require.NoError(err)
-		defer snap.Release()
-
-		verifyRange(require, "MultiWriterAppStoreSnapshot", snap, prefixes, entries)
-	}()
-}
-
-func (m *MultiWriterAppStoreTestSuite) TestConcurrentSnapshots() {
-	require := m.Require()
-	mws, err := mockMultiWriterStore(0, 0)
-	require.NoError(err)
-	verifyConcurrentSnapshots(require, mws)
 }
 
 func mockMultiWriterStore(appStoreFlushInterval, evmStoreFlushInterval int64) (*MultiWriterAppStore, error) {

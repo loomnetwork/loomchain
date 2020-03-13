@@ -209,6 +209,13 @@ func (s *IAVLStore) Prune() error {
 	return nil
 }
 
+func (s *IAVLStore) GetSnapshot() Snapshot {
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &iavlStoreSnapshot{
+		IAVLStore: s,
+	}
+}
+
 func (s *IAVLStore) GetSnapshotAt(version int64) (Snapshot, error) {
 	panic("not implemented")
 }
