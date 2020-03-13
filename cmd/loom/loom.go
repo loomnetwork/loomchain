@@ -73,7 +73,6 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -405,10 +404,10 @@ func newRunCommand() *cobra.Command {
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
-				return errors.Wrap(err, "failed to initialize app")
+				return err
 			}
 			if err := backend.Start(app); err != nil {
-				return errors.Wrap(err, "failed to initialize backend")
+				return err
 			}
 
 			nodeSigner, err := backend.NodeSigner()
@@ -1117,15 +1116,7 @@ func loadApp(
 	// as it doesn't pass control to other middlewares after it.
 	postCommitMiddlewares = append(postCommitMiddlewares, nonceTxHandler.PostCommitMiddleware())
 
-	var lastBlockHeader *abci.Header
-	if appStore.Version() > 0 {
-		lastBlockHeader, err = b.LoadBlockHeader(appStore.Version())
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return loomchain.NewApplication(loomchain.ApplicationParams{
+	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
@@ -1144,7 +1135,7 @@ func loadApp(
 		EvmAuxStore:                 evmAuxStore,
 		ReceiptsVersion:             cfg.ReceiptsVersion,
 		EVMState:                    evmState,
-	}, lastBlockHeader), nil
+	}, nil
 }
 
 func deployContract(

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -362,9 +361,12 @@ type CommittedTx struct {
 	txHash []byte
 }
 
-type ApplicationParams struct {
-	Store store.VersionedKVStore
-	Init  func(State) error
+type Application struct {
+	lastBlockHeader unsafe.Pointer // *abci.Header
+	curBlockHeader  abci.Header
+	curBlockHash    []byte
+	Store           store.VersionedKVStore
+	Init            func(State) error
 	TxHandler
 	QueryHandler
 	EventHandler
@@ -378,18 +380,11 @@ type ApplicationParams struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
+	config                      *cctypes.Config
+	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
 	ReceiptsVersion             int32
 	EVMState                    *EVMState
-}
-
-type Application struct {
-	ApplicationParams
-	lastBlockHeader unsafe.Pointer // *abci.Header
-	curBlockHeader  abci.Header
-	curBlockHash    []byte
-	config          *cctypes.Config
-	childTxRefs     []evmaux.ChildTxRef // links Tendermint txs to EVM txs
-	committedTxs    []CommittedTx
+	committedTxs                []CommittedTx
 }
 
 var _ abci.Application = &Application{}
@@ -465,14 +460,6 @@ func init() {
 		Help:       "Total duration of validator election in seconds.",
 		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 	}, []string{})
-}
-
-func NewApplication(params ApplicationParams, lastBlockHeader *abci.Header) *Application {
-	a := &Application{ApplicationParams: params}
-	if lastBlockHeader != nil {
-		atomic.StorePointer(&a.lastBlockHeader, unsafe.Pointer(&lastBlockHeader))
-	}
-	return a
 }
 
 func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
@@ -948,16 +935,6 @@ func (a *Application) height() int64 {
 
 func (a *Application) ReadOnlyState() State {
 	lastBlockHeader := (*abci.Header)(atomic.LoadPointer(&a.lastBlockHeader))
-	// When the node is started with no previous blockchain state (e.g. completely new chain) then
-	// there'll be a very brief period where lastBlockHeader will be nil (until Application.Commit is called for the
-	// first time). While lastBlockHeader is nil the node won't be able to return useful responses to most queries,
-	// so we just make it panic here so the clients get an obvious error.
-	// TODO: This is just quick hack, the proper way to deal with this scenario is to start the QueryServer only after
-	// the lastBlockHeader has been set.
-	if lastBlockHeader == nil {
-		panic(errors.New("unable to respond to query, app isn't ready yet"))
-	}
-
 	appStateSnapshot, err := a.Store.GetSnapshotAt(lastBlockHeader.Height)
 	if err != nil {
 		panic(err)
