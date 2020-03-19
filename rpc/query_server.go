@@ -689,7 +689,7 @@ func (s *QueryServer) GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Da
 type AccountsBalanceResponse struct {
 }
 
-func (s *QueryServer) GetAccountBalance(address string) (*AccountsBalanceResponse, error) {
+func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceResponse, error) {
 	return nil, errors.Errorf("GetAccountBalance Called")
 }
 

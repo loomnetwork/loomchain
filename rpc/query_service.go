@@ -65,7 +65,7 @@ type QueryService interface {
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
 	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
 	GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Data) (eth.Data, error)
-	GetAccountBalance(address string) (*AccountsBalanceResponse, error)
+	GetAccountBalances(contracts []string) (*AccountsBalanceResponse, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -227,7 +227,7 @@ func MakeUnsafeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.H
 	routes["unsafe_stop_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStopCPUProfiler, "")
 	routes["unsafe_write_heap_profile"] = rpcserver.NewRPCFunc(rpccore.UnsafeWriteHeapProfile, "filename")
 
-	routes["account_balances"] = rpcserver.NewRPCFunc(svc.GetAccountBalance, "contract_address")
+	routes["account_balances"] = rpcserver.NewRPCFunc(svc.GetAccountBalances, "contracts")
 
 	rpcserver.RegisterRPCFuncs(mux, routes, codec, logger)
 	return mux
