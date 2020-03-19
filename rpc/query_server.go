@@ -686,6 +686,13 @@ func (s *QueryServer) GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Da
 	return eth.EncBytes(blockResult.Block.Data.Txs[index].Hash()), nil
 }
 
+type AccountsBalanceResponse struct {
+}
+
+func (s *QueryServer) GetAccountBalance(address string) (*AccountsBalanceResponse, error) {
+	return nil, errors.Errorf("GetAccountBalance Called")
+}
+
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
 // Used to support eth_getLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs

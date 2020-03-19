@@ -94,7 +94,7 @@ func RPCServer(
 
 	if enableUnsafeRPC {
 		unsafeLogger := logger.With("interface", "unsafe")
-		unsafeHandler := MakeUnsafeQueryServiceHandler(unsafeLogger)
+		unsafeHandler := MakeUnsafeQueryServiceHandler(qsvc, unsafeLogger)
 		unsafeListener, err := rpcserver.Listen(
 			unsafeRPCBindAddress,
 			rpcserver.Config{MaxOpenConnections: 0},

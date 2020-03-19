@@ -150,6 +150,17 @@ func (m InstrumentingMiddleware) GetCanonicalTxHash(block, txIndex uint64, evmTx
 	return resp, err
 }
 
+func (m InstrumentingMiddleware) GetAccountBalance(address string) (resp *AccountsBalanceResponse, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetAccountBalance", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetAccountBalance(address)
+	return resp, err
+}
+
 func (m InstrumentingMiddleware) GetEvmCode(contract string) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmCode", "error", fmt.Sprint(err != nil)}
