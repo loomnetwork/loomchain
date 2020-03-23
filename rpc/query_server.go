@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
+	glcommon "github.com/loomnetwork/go-loom/common"
 	gtypes "github.com/loomnetwork/go-loom/types"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
 	"github.com/phonkee/go-pubsub"
@@ -27,6 +28,8 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	am "github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	loomcoin "github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/config"
@@ -46,6 +49,10 @@ import (
 	blockindex "github.com/loomnetwork/loomchain/store/block_index"
 	evmaux "github.com/loomnetwork/loomchain/store/evm_aux"
 	lvm "github.com/loomnetwork/loomchain/vm"
+
+	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	"github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway"
 )
 
 const (
@@ -687,10 +694,93 @@ func (s *QueryServer) GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Da
 }
 
 type AccountsBalanceResponse struct {
+	Accounts map[string]map[string]string
+}
+
+type AccountMappingBalance struct {
+	DAppAddress      loom.Address
+	ContractsBalance []struct {
+		Address loom.Address
+		Balance string
+	}
 }
 
 func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceResponse, error) {
-	return nil, errors.Errorf("GetAccountBalance Called")
+
+	fmt.Println(" --- GetAccountBalances called ---")
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	addrMapperCtx, err := s.createAddressMapperCtx(s.StateProvider.ReadOnlyState())
+	if err != nil {
+		return nil, err
+	}
+	var resp *amtypes.AddressMapperListMappingResponse
+	resp, err = am.ListMapping(addrMapperCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Mappings) == 0 {
+		return nil, errors.Errorf("Mappings Len == 0 : query %+v", contract)
+	}
+
+	mapArr := make(map[string]map[string]string, len(resp.Mappings))
+	for _, mp := range resp.Mappings {
+		var localAddr, foreignAddr loom.Address
+		if mp.From.ChainId == s.ChainID {
+			localAddr = loom.UnmarshalAddressPB(mp.From)
+			foreignAddr = loom.UnmarshalAddressPB(mp.To)
+		} else {
+			localAddr = loom.UnmarshalAddressPB(mp.To)
+			foreignAddr = loom.UnmarshalAddressPB(mp.From)
+		}
+		fmt.Println("local ,", localAddr.ChainID, localAddr.Local.String(), "<-> foreign ", foreignAddr.ChainID, foreignAddr.Local.String())
+		mapArr2 := make(map[string]string, 0)
+		for _, c := range contract {
+			fmt.Println("contract ", c)
+			switch c {
+			case "eth":
+				// ethcoinCtx, err := s.createStaticContractCtx(snapshot, "ethcoin")
+				// if err != nil {
+				// 	fmt.Println("ethcoinCtx err ", err)
+				// }
+				// ethBal, err := getEthBalance(ethcoinCtx, localAddr)
+				// if err != nil {
+				// 	fmt.Println("ethBal err ", err)
+				// }
+				// fmt.Println("eth bal", ethBal.String())
+				mapArr2[c] = "0"
+				// Attached to response
+			case "loom":
+				loomCoinCtx, err := s.createStaticContractCtx(snapshot, "coin")
+				if err != nil {
+					fmt.Println("loomCoinCtx err ", err)
+				}
+				loomBal, err := getLoomBalance(loomCoinCtx, localAddr)
+				if err != nil {
+					fmt.Println("loomBal err ", err)
+				}
+				fmt.Println("loombal", loomBal.Value.String())
+				mapArr2[c] = loomBal.Value.String()
+				// Attach bal to response struct
+			default:
+				// gatewayCtx, err := s.createStaticContractCtx(snapshot, "gateway")
+				// erc20Addr := loom.MustParseAddress(c)
+				// gwCtx := gateway.NewERC20StaticContext(gatewayCtx, erc20Addr)
+				// erc20Bal, err := gateway.BalanceOf(gwCtx, localAddr)
+				// if err != nil {
+				// 	return nil, err
+				// }
+				// fmt.Println("erc20 bal", erc20Bal.String())
+				mapArr2[c] = "2"
+			}
+		}
+		mapArr[foreignAddr.ChainID+foreignAddr.Local.String()] = mapArr2
+	}
+
+	return &AccountsBalanceResponse{Accounts: mapArr}, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
@@ -1248,6 +1338,42 @@ func (s *QueryServer) getEthAccount(state loomchain.State, address eth.Data) (lo
 		return loom.Address{}, errors.Wrap(err, "failed to resolve account address")
 	}
 	return ethAddr, nil
+}
+
+func getEthBalance(ctx contractpb.StaticContext, address loom.Address) (*glcommon.BigUInt, error) {
+	fmt.Println("getEthBalance called")
+	amount, err := ethcoin.BalanceOf(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	if amount == nil {
+		return glcommon.BigZero(), nil
+	}
+	fmt.Println("getEthBalance called amount = ", amount.String())
+	return amount, nil
+}
+
+func getLoomBalance(ctx contractpb.StaticContext, address loom.Address) (*gtypes.BigUInt, error) {
+	fmt.Println("getLoomBalance called")
+	amount, err := loomcoin.GetLoomBalance(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	if amount == nil {
+		return &gtypes.BigUInt{
+			Value: *glcommon.BigZero(),
+		}, nil
+	}
+	return &gtypes.BigUInt{Value: *amount}, nil
+}
+
+func getMappedContractAddress(ctx contractpb.StaticContext, address loom.Address) (*gtypes.Address, error) {
+	var resp *tgtypes.TransferGatewayGetContractMappingResponse
+	resp, err := gateway.GetContractMapping(ctx, &tgtypes.TransferGatewayGetContractMappingRequest{From: address.MarshalPB()})
+	if err != nil {
+		return nil, err
+	}
+	return resp.MappedAddress, nil
 }
 
 func getReceiptByTendermintHash(
