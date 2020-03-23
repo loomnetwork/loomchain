@@ -738,11 +738,23 @@ func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceRes
 		}
 		fmt.Println("local ,", localAddr.ChainID, localAddr.Local.String(), "<-> foreign ", foreignAddr.ChainID, foreignAddr.Local.String())
 		mapArr2 := make(map[string]string, 0)
-		for _, c := range contract {
-			fmt.Println("contract ", c)
-			switch c {
+		for _, contractAddr := range contract {
+			switch contractAddr {
 			case "eth":
-				mapArr2[c] = "0"
+				ethcoinCtx, err := s.createStaticContractCtx(snapshot, "ethcoin")
+				if err != nil {
+					if errors.Cause(err) == registry.ErrNotFound {
+						mapArr2[contractAddr] = "ethcoin contract not found"
+						continue
+					}
+					return nil, err
+				}
+				ethBal, err := getEthBalance(ethcoinCtx, localAddr)
+				if err != nil {
+					fmt.Println("ethBal err ", err)
+				}
+				fmt.Println("eth bal", ethBal.String())
+				mapArr2[contractAddr] = ethBal.String()
 
 			case "loom":
 				loomCoinCtx, err := s.createStaticContractCtx(snapshot, "coin")
@@ -753,14 +765,29 @@ func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceRes
 				if err != nil {
 					fmt.Println("loomBal err ", err)
 				}
-				fmt.Println("loombal", loomBal.Value.String())
-				mapArr2[c] = loomBal.Value.String()
-
+				mapArr2[contractAddr] = loomBal.Value.String()
 			default:
-				mapArr2[c] = "2"
+				gatewayCtx, err := s.createStaticContractCtx(snapshot, "gateway")
+				if err != nil {
+					if errors.Cause(err) == registry.ErrNotFound {
+						mapArr2[contractAddr] = "gateway contract not found"
+						continue
+					}
+					return nil, err
+				}
+				addr, err := getMappedContractAddress(gatewayCtx, loom.MustParseAddress(contractAddr))
+				if err != nil {
+					fmt.Println("getMappedContractAddress error", err)
+				}
+				gwCtx := gateway.NewERC20StaticContext(gatewayCtx, loom.UnmarshalAddressPB(addr))
+				erc20Bal2, err := gateway.BalanceOf(gwCtx, foreignAddr)
+				if err != nil {
+					return nil, err
+				}
+				mapArr2[contractAddr] = erc20Bal2.String()
 			}
 		}
-		mapArr[foreignAddr.ChainID+foreignAddr.Local.String()] = mapArr2
+		mapArr[foreignAddr.ChainID+":"+foreignAddr.Local.String()] = mapArr2
 	}
 
 	return &AccountsBalanceResponse{Accounts: mapArr}, nil
