@@ -1,6 +1,8 @@
 package ethcoin
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -417,6 +419,7 @@ func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, erro
 			Value: *loom.NewBigUIntFromInt(0),
 		},
 	}
+	fmt.Println("loadAccount with : ", owner.ChainID, owner.Local.String())
 	err := ctx.Get(accountKey(owner), acct)
 	if err != nil && err != contract.ErrNotFound {
 		return nil, err

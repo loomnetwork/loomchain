@@ -742,17 +742,8 @@ func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceRes
 			fmt.Println("contract ", c)
 			switch c {
 			case "eth":
-				// ethcoinCtx, err := s.createStaticContractCtx(snapshot, "ethcoin")
-				// if err != nil {
-				// 	fmt.Println("ethcoinCtx err ", err)
-				// }
-				// ethBal, err := getEthBalance(ethcoinCtx, localAddr)
-				// if err != nil {
-				// 	fmt.Println("ethBal err ", err)
-				// }
-				// fmt.Println("eth bal", ethBal.String())
 				mapArr2[c] = "0"
-				// Attached to response
+
 			case "loom":
 				loomCoinCtx, err := s.createStaticContractCtx(snapshot, "coin")
 				if err != nil {
@@ -764,16 +755,8 @@ func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceRes
 				}
 				fmt.Println("loombal", loomBal.Value.String())
 				mapArr2[c] = loomBal.Value.String()
-				// Attach bal to response struct
+
 			default:
-				// gatewayCtx, err := s.createStaticContractCtx(snapshot, "gateway")
-				// erc20Addr := loom.MustParseAddress(c)
-				// gwCtx := gateway.NewERC20StaticContext(gatewayCtx, erc20Addr)
-				// erc20Bal, err := gateway.BalanceOf(gwCtx, localAddr)
-				// if err != nil {
-				// 	return nil, err
-				// }
-				// fmt.Println("erc20 bal", erc20Bal.String())
 				mapArr2[c] = "2"
 			}
 		}
@@ -1341,7 +1324,6 @@ func (s *QueryServer) getEthAccount(state loomchain.State, address eth.Data) (lo
 }
 
 func getEthBalance(ctx contractpb.StaticContext, address loom.Address) (*glcommon.BigUInt, error) {
-	fmt.Println("getEthBalance called")
 	amount, err := ethcoin.BalanceOf(ctx, address)
 	if err != nil {
 		return nil, err
@@ -1354,8 +1336,7 @@ func getEthBalance(ctx contractpb.StaticContext, address loom.Address) (*glcommo
 }
 
 func getLoomBalance(ctx contractpb.StaticContext, address loom.Address) (*gtypes.BigUInt, error) {
-	fmt.Println("getLoomBalance called")
-	amount, err := loomcoin.GetLoomBalance(ctx, address)
+	amount, err := loomcoin.BalanceOf(ctx, address)
 	if err != nil {
 		return nil, err
 	}

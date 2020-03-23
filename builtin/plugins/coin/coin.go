@@ -423,6 +423,11 @@ func (c *Coin) transferFrom(ctx contract.Context, req *TransferFromRequest) erro
 	return emitTransferEvent(ctx, from, to, &amount)
 }
 
+func BalanceOf(ctx contract.StaticContext, owner loom.Address) (*loom.BigUInt, error) {
+	ac, err := loadAccount(ctx, owner)
+	return &ac.Balance.Value, err
+}
+
 func loadAccount(
 	ctx contract.StaticContext,
 	owner loom.Address,
