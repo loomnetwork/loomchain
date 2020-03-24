@@ -89,7 +89,7 @@ builders['linux'] = {
   }
 }
 
-builders['osx'] = {
+disabled['osx'] = {
   node('osx-any') {
     timestamps {
       def thisBuild = null
