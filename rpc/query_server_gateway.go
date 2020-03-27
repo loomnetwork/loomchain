@@ -3,7 +3,10 @@
 package rpc
 
 import (
+	"fmt"
+
 	"github.com/loomnetwork/go-loom"
+	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/pkg/errors"
@@ -13,7 +16,7 @@ import (
 	glcommon "github.com/loomnetwork/go-loom/common"
 	gtypes "github.com/loomnetwork/go-loom/types"
 	am "github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	loomcoin "github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway"
 )
 
@@ -26,7 +29,8 @@ func (s *QueryServer) GetAccountBalances(contracts []string) (*AccountsBalanceRe
 		return nil, err
 	}
 	var resp *amtypes.AddressMapperListMappingResponse
-	resp, err = am.ListMapping(addrMapperCtx)
+	mapper := &am.AddressMapper{}
+	resp, err = mapper.ListMapping(addrMapperCtx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -60,38 +64,36 @@ func (s *QueryServer) GetAccountBalances(contracts []string) (*AccountsBalanceRe
 			localAddr = loom.UnmarshalAddressPB(mp.To)
 			foreignAddr = loom.UnmarshalAddressPB(mp.From)
 		}
+		fmt.Println("from -> ", mp.From, " - ", mp.To)
 		account := make(map[string]string, len(resp.Mappings))
 		for _, contract := range contracts {
 			switch contract {
 			case "eth":
 				ethBal, err := getEthBalance(ethcoinCtx, localAddr)
 				if err != nil {
-					account[contract] = err.Error()
-					continue
+					return nil, err
 				}
 				account[contract] = ethBal.String()
 			case "loom":
 				loomBal, err := getLoomBalance(loomCoinCtx, localAddr)
 				if err != nil {
-					account[contract] = err.Error()
-					continue
+					return nil, err
 				}
-				account[contract] = loomBal.Value.String()
+				account[contract] = loomBal.String()
 			default:
 				erc20ContractAddr, err := getMappedContractAddress(gatewayCtx, loom.MustParseAddress(contract))
 				if err != nil {
-					continue
+					return nil, err
 				}
 				erc20Ctx := gateway.NewERC20StaticContext(gatewayCtx, loom.UnmarshalAddressPB(erc20ContractAddr))
 				erc20Bal, err := gateway.BalanceOf(erc20Ctx, localAddr)
 				if err != nil {
-					account[contract] = err.Error()
-					continue
+					return nil, err
 				}
 				account[contract] = erc20Bal.String()
 			}
 		}
-		accounts[foreignAddr.ChainID+":"+foreignAddr.Local.String()] = account
+		accounts[foreignAddr.String()] = account
 	}
 
 	return &AccountsBalanceResponse{Accounts: accounts}, nil
@@ -105,21 +107,19 @@ func getEthBalance(ctx contractpb.StaticContext, address loom.Address) (*glcommo
 	if amount == nil {
 		return glcommon.BigZero(), nil
 	}
-
 	return amount, nil
 }
 
-func getLoomBalance(ctx contractpb.StaticContext, address loom.Address) (*gtypes.BigUInt, error) {
-	amount, err := loomcoin.BalanceOf(ctx, address)
+func getLoomBalance(ctx contractpb.StaticContext, address loom.Address) (*glcommon.BigUInt, error) {
+	lc := &coin.Coin{}
+	amount, err := lc.BalanceOf(ctx, &ctypes.BalanceOfRequest{Owner: address.MarshalPB()})
 	if err != nil {
 		return nil, errors.Wrapf(err, "error getting balance of %s", address.Local.String())
 	}
 	if amount == nil {
-		return &gtypes.BigUInt{
-			Value: *glcommon.BigZero(),
-		}, nil
+		return glcommon.BigZero(), nil
 	}
-	return &gtypes.BigUInt{Value: *amount}, nil
+	return &amount.Balance.Value, nil
 }
 
 func getMappedContractAddress(ctx contractpb.StaticContext, address loom.Address) (*gtypes.Address, error) {
