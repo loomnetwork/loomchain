@@ -20,8 +20,7 @@ import (
 	"github.com/loomnetwork/transfer-gateway/builtin/plugins/gateway"
 )
 
-func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceResponse, error) {
-	fmt.Println(" --- GetAccountBalances called ---")
+func (s *QueryServer) GetAccountBalances(contracts []string) (*AccountsBalanceResponse, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -36,10 +35,50 @@ func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceRes
 	}
 
 	if len(resp.Mappings) == 0 {
-		return nil, errors.Errorf("Mappings Len == 0 : query %+v", contract)
+		return nil, errors.Errorf("Empty address mapping list")
 	}
 
-	mapArr := make(map[string]map[string]string, len(resp.Mappings))
+	ethcoinCtx, err := s.createStaticContractCtx(snapshot, "ethcoin")
+	if err != nil {
+		if errors.Cause(err) == registry.ErrNotFound {
+			account[contractAddr] = "ethcoin contract not found"
+			continue
+		}
+		return nil, err
+	}
+
+	loomCoinCtx, err := s.createStaticContractCtx(snapshot, "coin")
+	if err != nil {
+		if errors.Cause(err) == registry.ErrNotFound {
+			account[contractAddr] = "coin contract not found"
+			continue
+		}
+		return nil, err
+	}
+
+	gatewayCtx, err := s.createStaticContractCtx(snapshot, "gateway")
+	if err != nil {
+		if errors.Cause(err) == registry.ErrNotFound {
+			account[contractAddr] = "gateway contract not found"
+			continue
+		}
+		return nil, err
+	}
+
+	mapContractContext := make(map[string]contractpb.StaticContext, len(contractAddr))
+	for _, contract := range contracts {
+		if contract == "eth" || contract == "loom" {
+			continue
+		}
+		addr, _ := getMappedContractAddress(gatewayCtx, loom.MustParseAddress(contract))
+		if err != nil {
+			account[contract] = errors.Wrap(err, "Invalid contract address").Error()
+			continue
+		}
+		mapContractContext[contract] = gateway.NewERC20StaticContext(gatewayCtx, loom.UnmarshalAddressPB(addr))
+	}
+
+	accounts := make(map[string]map[string]string, len(resp.Mappings))
 	for _, mp := range resp.Mappings {
 		var localAddr, foreignAddr loom.Address
 		if mp.From.ChainId == s.ChainID {
@@ -49,67 +88,41 @@ func (s *QueryServer) GetAccountBalances(contract []string) (*AccountsBalanceRes
 			localAddr = loom.UnmarshalAddressPB(mp.To)
 			foreignAddr = loom.UnmarshalAddressPB(mp.From)
 		}
-		fmt.Println("local ,", localAddr.ChainID, localAddr.Local.String(), "<-> foreign ", foreignAddr.ChainID, foreignAddr.Local.String())
-		mapArr2 := make(map[string]string, 0)
-		for _, contractAddr := range contract {
-			switch contractAddr {
+		account := make(map[string]string, 0)
+		for _, contract := range contracts {
+			switch contract {
 			case "eth":
-				ethcoinCtx, err := s.createStaticContractCtx(snapshot, "ethcoin")
-				if err != nil {
-					if errors.Cause(err) == registry.ErrNotFound {
-						mapArr2[contractAddr] = "ethcoin contract not found"
-						continue
-					}
-					return nil, err
-				}
 				ethBal, err := getEthBalance(ethcoinCtx, localAddr)
 				if err != nil {
-					fmt.Println("ethBal err ", err)
+					account[contract] = errors.Wrapf(err, "error getting balance of %s", localAddr.Local.String())
+					continue
 				}
-				fmt.Println("eth bal", ethBal.String())
-				mapArr2[contractAddr] = ethBal.String()
-
+				account[contract] = ethBal.String()
 			case "loom":
-				loomCoinCtx, err := s.createStaticContractCtx(snapshot, "coin")
-				if err != nil {
-					fmt.Println("loomCoinCtx err ", err)
-				}
 				loomBal, err := getLoomBalance(loomCoinCtx, localAddr)
 				if err != nil {
-					fmt.Println("loomBal err ", err)
+					account[contract] = errors.Wrapf(err, "error getting balance of %s", localAddr.Local.String())
+					continue
 				}
-				mapArr2[contractAddr] = loomBal.Value.String()
+				account[contract] = loomBal.Value.String()
 			default:
-				gatewayCtx, err := s.createStaticContractCtx(snapshot, "gateway")
-				if err != nil {
-					if errors.Cause(err) == registry.ErrNotFound {
-						mapArr2[contractAddr] = "gateway contract not found"
-						continue
-					}
-					return nil, err
-				}
-				addr, err := getMappedContractAddress(gatewayCtx, loom.MustParseAddress(contractAddr))
-				if err != nil {
-					fmt.Println("getMappedContractAddress error", err)
-				}
-				gwCtx := gateway.NewERC20StaticContext(gatewayCtx, loom.UnmarshalAddressPB(addr))
-				erc20Bal2, err := gateway.BalanceOf(gwCtx, foreignAddr)
+				erc20Bal, err := gateway.BalanceOf(mapContractContext[contract], localAddr)
 				if err != nil {
 					return nil, err
 				}
-				mapArr2[contractAddr] = erc20Bal2.String()
+				account[contract] = erc20Bal.String()
 			}
 		}
-		mapArr[foreignAddr.ChainID+":"+foreignAddr.Local.String()] = mapArr2
+		accounts[foreignAddr.ChainID+":"+foreignAddr.Local.String()] = account
 	}
 
-	return &AccountsBalanceResponse{Accounts: mapArr}, nil
+	return &AccountsBalanceResponse{Accounts: accounts}, nil
 }
 
 func getEthBalance(ctx contractpb.StaticContext, address loom.Address) (*glcommon.BigUInt, error) {
 	amount, err := ethcoin.BalanceOf(ctx, address)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "error getting balance of %s", address.Local.String())
 	}
 	if amount == nil {
 		return glcommon.BigZero(), nil
@@ -121,7 +134,7 @@ func getEthBalance(ctx contractpb.StaticContext, address loom.Address) (*glcommo
 func getLoomBalance(ctx contractpb.StaticContext, address loom.Address) (*gtypes.BigUInt, error) {
 	amount, err := loomcoin.BalanceOf(ctx, address)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "error getting balance of %s", address.Local.String())
 	}
 	if amount == nil {
 		return &gtypes.BigUInt{
@@ -138,8 +151,4 @@ func getMappedContractAddress(ctx contractpb.StaticContext, address loom.Address
 		return nil, err
 	}
 	return resp.MappedAddress, nil
-}
-
-func GetTest() error {
-	return nil
 }
