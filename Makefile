@@ -22,6 +22,7 @@ HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
+PROMETHEUS_PROCFS_DIR=$(GOPATH)/src/github.com/prometheus/procfs
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
 
@@ -200,6 +201,19 @@ validators-tool: $(TRANSFER_GATEWAY_DIR)
 	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
+	# Temp workaround for https://github.com/prometheus/procfs/issues/221
+	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
+	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
+	# Lock down Prometheus golang client to v1.2.1 (newer versions use a different protobuf version)
+	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang
+	cd $(GOPATH)/src/github.com/prometheus/client_golang && git checkout master && git pull && git checkout v1.2.1
+	# prometheus/client_model is pulled by prometheus/client_golang so lock it down as well
+	git clone -q git@github.com:prometheus/client_model $(GOPATH)/src/github.com/prometheus/client_model
+	cd $(GOPATH)/src/github.com/prometheus/client_model && git checkout master && git pull && git checkout 14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016
+	# prometheus/common is pulled by prometheus/client_golang so lock it down as well
+	git clone -q git@github.com:prometheus/common $(GOPATH)/src/github.com/prometheus/common
+	cd $(GOPATH)/src/github.com/prometheus/common && git checkout master && git pull && git checkout v0.7.0
+	
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
