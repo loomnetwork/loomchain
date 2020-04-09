@@ -552,10 +552,12 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				return err
 			}
 
-			activeValidatorList := make(map[string]bool, len(rpcResult.Validators))
+			powerSum := int64(0)
+			activeValidatorList := make(map[string]int64, len(rpcResult.Validators))
 			for _, v := range rpcResult.Validators {
 				pubKey := [ed25519.PubKeyEd25519Size]byte(v.PubKey.(ed25519.PubKeyEd25519))
-				activeValidatorList[loom.LocalAddressFromPublicKey(pubKey[:]).String()] = true
+				activeValidatorList[loom.LocalAddressFromPublicKey(pubKey[:]).String()] = v.VotingPower
+				powerSum += v.VotingPower
 			}
 
 			type maxLength struct {
@@ -564,9 +566,10 @@ func ListValidatorsInfoCmd() *cobra.Command {
 				BuildNumber int
 				UpdateAt    int
 				Status      int
+				Power       int
 			}
 
-			ml := maxLength{Name: 20, Validator: 42, BuildNumber: 5, UpdateAt: 29, Status: 6}
+			ml := maxLength{Name: 20, Validator: 42, BuildNumber: 5, UpdateAt: 29, Status: 6, Power: 5}
 
 			sort.Slice(resp.Validators[:], func(i, j int) bool {
 				return resp.Validators[i].BuildNumber < resp.Validators[j].BuildNumber
@@ -582,25 +585,29 @@ func ListValidatorsInfoCmd() *cobra.Command {
 			}
 
 			fmt.Printf(
-				"%-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Validator, "validator",
-				ml.BuildNumber, "build", ml.Status, "active", ml.UpdateAt, "Last Update")
+				"%-*s | %-*s | %-*s | %-*s | %-*s | %-*s |\n", ml.Name, "name", ml.Validator, "validator",
+				ml.BuildNumber, "build", ml.Status, "active", ml.Power, "power", ml.UpdateAt, "Last Update")
 			fmt.Printf(
-				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.Status+ml.UpdateAt+14) + "\n")
+				strings.Repeat("-", ml.Name+ml.Validator+ml.BuildNumber+ml.Status+ml.Power+ml.UpdateAt+16) + "\n")
 			for _, v := range resp.Validators {
-				if !showAll && !activeValidatorList[v.Address.Local.String()] {
+				validatorAddr := v.Address.Local.String()
+				if !showAll && activeValidatorList[v.Address.Local.String()] == 0 {
 					continue
 				}
 				fmt.Printf(
-					"%-*s | %-*s | %-*d | %-*v | %-*s |\n",
-					ml.Name, nameList[v.Address.Local.String()], ml.Validator, v.Address.Local.String(),
-					ml.BuildNumber, v.BuildNumber, ml.Status, activeValidatorList[v.Address.Local.String()],
+					"%-*s | %-*s | %-*d | %-*v | %*.2f | %-*s |\n",
+					ml.Name, nameList[validatorAddr],
+					ml.Validator, validatorAddr,
+					ml.BuildNumber, v.BuildNumber,
+					ml.Status, activeValidatorList[validatorAddr] > 0,
+					ml.Power, float64(activeValidatorList[validatorAddr])/float64(powerSum)*float64(100),
 					ml.UpdateAt, time.Unix(int64(v.UpdatedAt), 0).UTC(),
 				)
 			}
 
 			counters := make(map[uint64]int)
 			for _, validator := range resp.Validators {
-				if !showAll && !activeValidatorList[validator.Address.Local.String()] {
+				if !showAll && activeValidatorList[validator.Address.Local.String()] == 0 {
 					continue
 				}
 				counters[validator.BuildNumber]++
