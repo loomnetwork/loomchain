@@ -102,7 +102,44 @@ func ApproveCmd() *cobra.Command {
 
 	cli.AddContractCallFlags(cmd.Flags(), &flags)
 	return cmd
+}
 
+func AllowanceCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "allowance [owner] [spender]",
+		Short: "Check the pre-approved amount that the spender can transfer from the owner account",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ownerAddr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
+			if err != nil {
+				return err
+			}
+
+			spenderAddr, err := cli.ResolveAddress(args[1], flags.ChainID, flags.URI)
+			if err != nil {
+				return err
+			}
+
+			var resp coin.AllowanceResponse
+			err = cli.StaticCallContractWithFlags(&flags, CoinContractName, "Allowance", &coin.AllowanceRequest{
+				Owner:   ownerAddr.MarshalPB(),
+				Spender: spenderAddr.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+
+	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	return cmd
 }
 
 func BalanceCmd() *cobra.Command {
@@ -143,6 +180,7 @@ func NewCoinCommand() *cobra.Command {
 
 	cmd.AddCommand(
 		ApproveCmd(),
+		AllowanceCmd(),
 		BalanceCmd(),
 		TransferCmd(),
 		TransferFromCmd(),
