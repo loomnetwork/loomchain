@@ -73,6 +73,7 @@ var (
 	errValidatorNotFound             = errors.New("Validator record not found.")
 	errDistributionNotFound          = errors.New("Distribution record not found.")
 	errOnlyOracle                    = errors.New("Function can only be called with oracle address.")
+	errDelegationLocked              = errors.New("Delegation currently locked.")
 )
 
 type (
@@ -127,6 +128,7 @@ type (
 	UnjailRequest                     = dtypes.UnjailRequest
 	SetMaxDowntimePercentageRequest   = dtypes.SetMaxDowntimePercentageRequest
 	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
+	IgnoreUnbondLocktimeRequest       = dtypes.IgnoreUnbondLocktimeRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -715,12 +717,16 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	if err != nil {
 		return err
 	}
+
 	instantUnlock := state.Params.ElectionCycleLength == 0 && delegation.LocktimeTier == TIER_ZERO
+	if !instantUnlock && ctx.FeatureEnabled(features.DPOSVersion3_9, false) {
+		instantUnlock = state.Params.IgnoreUnbondLocktime
+	}
 
 	if delegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Unbond amount exceeds delegation amount."), req.String())
 	} else if delegation.LockTime > uint64(ctx.Now().Unix()) && !instantUnlock {
-		return logDposError(ctx, errors.New("Delegation currently locked."), req.String())
+		return logDposError(ctx, errDelegationLocked, req.String())
 	} else if delegation.State != BONDED {
 		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
 	} else {
@@ -1560,6 +1566,27 @@ func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidator
 	}
 
 	state.Params.JailOfflineValidators = req.JailOfflineValidators
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) IgnoreUnbondLocktime(ctx contract.Context, req *IgnoreUnbondLocktimeRequest) error {
+	if !ctx.FeatureEnabled(features.DPOSVersion3_9, false) {
+		return errors.New("DPOS v3.9 is not enabled")
+	}
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+	if state.Params.IgnoreUnbondLocktime == req.Ignore {
+		return nil
+	}
+
+	state.Params.IgnoreUnbondLocktime = req.Ignore
 	return saveState(ctx, state)
 }
 
