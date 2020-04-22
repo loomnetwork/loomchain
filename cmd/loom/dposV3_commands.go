@@ -1378,6 +1378,35 @@ func SetMinCandidateFeeCmdV3() *cobra.Command {
 	return cmd
 }
 
+const ignoreUnbondLocktimeCmdExample = `
+loom dpos3 ignore-unbond-locktime true -k path/to/private_key
+`
+
+func IgnoreUnbondLocktimeCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "ignore-unbond-locktime [true|false]",
+		Example: ignoreUnbondLocktimeCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			status, err := strconv.ParseBool(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid boolean value")
+			}
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "IgnoreUnbondLocktime", &dposv3.IgnoreUnbondLocktimeRequest{
+					Ignore: status,
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 func NewDPOSV3Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dpos3 <command>",
@@ -1424,6 +1453,7 @@ func NewDPOSV3Command() *cobra.Command {
 		SetMinCandidateFeeCmdV3(),
 		UnjailValidatorCmdV3(),
 		EnableValidatorJailingCmd(),
+		IgnoreUnbondLocktimeCmd(),
 	)
 	return cmd
 }
