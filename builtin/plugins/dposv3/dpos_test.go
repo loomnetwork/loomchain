@@ -1002,10 +1002,12 @@ func TestRedelegate(t *testing.T) {
 		},
 	})
 
+	oracleAddr := addr4
 	registrationFee := loom.BigZeroPB()
 	dpos, err := deployDPOSContract(pctx, &Params{
 		ValidatorCount:          21,
 		RegistrationRequirement: registrationFee,
+		OracleAddress:           oracleAddr.MarshalPB(),
 	})
 	require.Nil(t, err)
 
@@ -1118,8 +1120,45 @@ func TestRedelegate(t *testing.T) {
 	require.NotNil(t, err)
 
 	// splitting delegator2's delegation to 2nd validator
-	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr2, smallDelegationAmount, 1, nil, nil)
-	require.Nil(t, err)
+	// Oracle should be able to redelegate on behalf of a delegator only when the corresponding
+	// feature flag is enabled
+	err = dpos.Contract.Redelegate(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(oracleAddr)),
+		&RedelegateRequest{
+			DelegatorAddress:       delegatorAddress2.MarshalPB(),
+			FormerValidatorAddress: addr1.MarshalPB(),
+			ValidatorAddress:       addr2.MarshalPB(),
+			Index:                  1,
+			Amount:                 &types.BigUInt{Value: *loom.NewBigUInt(smallDelegationAmount)},
+		},
+	)
+	require.Error(t, err)
+
+	pctx.SetFeature(features.DPOSVersion3_10, true)
+
+	err = dpos.Contract.Redelegate(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(delegatorAddress1)),
+		&RedelegateRequest{
+			DelegatorAddress:       delegatorAddress2.MarshalPB(),
+			FormerValidatorAddress: addr1.MarshalPB(),
+			ValidatorAddress:       addr2.MarshalPB(),
+			Index:                  1,
+			Amount:                 &types.BigUInt{Value: *loom.NewBigUInt(smallDelegationAmount)},
+		},
+	)
+	require.Error(t, errOnlyOracle)
+
+	err = dpos.Contract.Redelegate(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(oracleAddr)),
+		&RedelegateRequest{
+			DelegatorAddress:       delegatorAddress2.MarshalPB(),
+			FormerValidatorAddress: addr1.MarshalPB(),
+			ValidatorAddress:       addr2.MarshalPB(),
+			Index:                  1,
+			Amount:                 &types.BigUInt{Value: *loom.NewBigUInt(smallDelegationAmount)},
+		},
+	)
+	require.NoError(t, err)
 
 	// splitting delegator2's delegation to 3rd validator
 	// this also tests that redelegate is able to set a new tier
@@ -1913,7 +1952,7 @@ func TestClaimRewardsFromMultipleValidators(t *testing.T) {
 
 // This test supposed to check that ClaimRewardsFromAllValidators be able to claim
 // rewards from the former validator correctly.
-func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
+func TestClaimRewardsFromUnregisteredCandidate(t *testing.T) {
 	// Init the coin balances
 	pctx := createCtx()
 	coinAddr := pctx.CreateContract(coin.Contract)
@@ -2086,6 +2125,108 @@ func TestClaimRewardsFromUnregisterdCandidate(t *testing.T) {
 	delegations, _, _, err = dpos.CheckAllDelegations(pctx.WithSender(delegatorAddress1), &delegatorAddress1)
 	require.NoError(t, err)
 	assert.Equal(t, 5, len(delegations))
+}
+
+func TestUnregisterCandidate(t *testing.T) {
+	// Init the coin balances
+	pctx := createCtx()
+	coinAddr := pctx.CreateContract(coin.Contract)
+
+	coinContract := &coin.Coin{}
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 100000000),
+			makeAccount(addr1, 100000000),
+		},
+	})
+
+	oracleAddr := addr4
+	cycleLengthSeconds := int64(86400) // 1 day
+	dpos, err := deployDPOSContract(pctx, &Params{
+		ValidatorCount:      10,
+		ElectionCycleLength: cycleLengthSeconds,
+		CoinContractAddress: coinAddr.MarshalPB(),
+		OracleAddress:       oracleAddr.MarshalPB(),
+	})
+	require.NoError(t, err)
+
+	// transfer coins to reward fund
+	amount := big.NewInt(10)
+	amount.Exp(amount, big.NewInt(19), nil)
+	coinContract.Transfer(contractpb.WrapPluginContext(coinCtx), &coin.TransferRequest{
+		To:     dpos.Address.MarshalPB(),
+		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	})
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dpos.Address.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)},
+	})
+	require.NoError(t, err)
+
+	err = dpos.RegisterCandidate(pctx.WithSender(addr1), pubKey1, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Ensure they got registered correctly
+	require.NoError(t, elect(pctx, dpos.Address))
+	pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
+
+	validators, err := dpos.ListValidators(pctx)
+	require.NoError(t, err)
+	assert.Equal(t, len(validators), 1)
+
+	delegationAmount := big.NewInt(1e18)
+	tier := uint64(2)
+	err = coinContract.Approve(
+		contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)),
+		&coin.ApproveRequest{
+			Spender: dpos.Address.MarshalPB(),
+			Amount:  &types.BigUInt{Value: *loom.NewBigUInt(delegationAmount)},
+		},
+	)
+	require.NoError(t, err)
+
+	err = dpos.Delegate(pctx.WithSender(delegatorAddress1), &addr1, delegationAmount, &tier, nil)
+	require.NoError(t, err)
+
+	// Do a bunch of elections that correspond to 1/12th of a year
+	for i := int64(0); i < yearSeconds/12; i = i + cycleLengthSeconds {
+		require.NoError(t, elect(pctx, dpos.Address))
+		pctx.SetTime(pctx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
+	}
+
+	delegationsWithAddr1, _, _, err := dpos.CheckDelegation(
+		pctx.WithSender(delegatorAddress1), &addr1, &delegatorAddress1,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(delegationsWithAddr1))
+
+	err = dpos.Contract.UnregisterCandidate(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(oracleAddr)),
+		&UnregisterCandidateRequest{
+			Candidate: addr1.MarshalPB(),
+		},
+	)
+	require.Error(t, err, "oracle shouldn't be able to unregister a candidate when feature is disabled")
+
+	pctx.SetFeature(features.DPOSVersion3_10, true)
+
+	err = dpos.Contract.UnregisterCandidate(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(addr2)),
+		&UnregisterCandidateRequest{
+			Candidate: addr1.MarshalPB(),
+		},
+	)
+	require.Equal(t, errOnlyOracle, err, "only the oracle should be able to specify a candidate")
+
+	err = dpos.Contract.UnregisterCandidate(
+		contractpb.WrapPluginContext(pctx.WithAddress(dpos.Address).WithSender(oracleAddr)),
+		&UnregisterCandidateRequest{
+			Candidate: addr1.MarshalPB(),
+		},
+	)
+	require.NoError(t, err, "oracle should be able to unregister a candidate")
 }
 
 func TestValidatorRewards(t *testing.T) {

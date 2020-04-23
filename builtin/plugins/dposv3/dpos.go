@@ -342,7 +342,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	delegator := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 Redelegate", "delegator", delegator, "request", req)
 
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
@@ -374,9 +373,27 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
-			msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", candidate.MaxReferralPercentage, defaultReferrerFee.Uint64())
+			msg := fmt.Sprintf(
+				"Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d",
+				candidate.MaxReferralPercentage, defaultReferrerFee.Uint64(),
+			)
 			return logDposError(ctx, errors.New(msg), req.String())
 		}
+	}
+
+	// Allow oracle to specify the delegator
+	if req.DelegatorAddress != nil && ctx.FeatureEnabled(features.DPOSVersion3_10, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+
+		if state.Params.OracleAddress == nil ||
+			ctx.Message().Sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return errOnlyOracle
+		}
+
+		delegator = loom.UnmarshalAddressPB(req.DelegatorAddress)
 	}
 
 	priorDelegation, err := GetDelegation(ctx, req.Index, *req.FormerValidatorAddress, *delegator.MarshalPB())
@@ -1179,7 +1196,23 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress, "request", req)
+
+	// Allow oracle to specify the candidate
+	if req.Candidate != nil && ctx.FeatureEnabled(features.DPOSVersion3_10, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+
+		if state.Params.OracleAddress == nil ||
+			ctx.Message().Sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return errOnlyOracle
+		}
+
+		candidateAddress = loom.UnmarshalAddressPB(req.Candidate)
+	}
+
+	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress)
 
 	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
@@ -1252,8 +1285,6 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 }
 
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesRequest) (*ListCandidatesResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListCandidates", "request", req.String())
-
 	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())

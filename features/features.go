@@ -59,6 +59,8 @@ const (
 	DPOSVersion3_8 = "dpos:v3.8"
 	// Enables IgnoreUnbondLocktime contract method
 	DPOSVersion3_9 = "dpos:v3.9"
+	// Makes it possible for the oracle to call Redelegate & UnregisterCandidate
+	DPOSVersion3_10 = "dpos:v3.10"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
