@@ -22,6 +22,8 @@ import (
 
 var (
 	loomCmds = []string{"loom", "blueprint-cli"}
+
+	errAppHashNotFound = errors.New("app hash not found")
 )
 
 type engineCmd struct {
@@ -343,11 +345,18 @@ func getAppHash(node *node.Node, height string) (string, error) {
 				} `json:"header,omitempty"`
 			} `json:"signed_header,omitempty"`
 		} `json:"result"`
+		Error struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+			Data    string `json:"data"`
+		} `json:"error"`
 	}{}
 	err = json.NewDecoder(resp.Body).Decode(&info)
 	if err != nil {
-		fmt.Println("err", err)
-		return "", err
+		return "", errors.Wrapf(err, "failed to decode response from %s", req)
+	}
+	if info.Error.Data == "Height must be less than or equal to the current blockchain height" {
+		return "", errAppHashNotFound
 	}
 	return info.Result.SignedHeader.Header.AppHash, nil
 }
@@ -370,7 +379,17 @@ func checkAppHash(nodes map[string]*node.Node) error {
 	for index, v := range nodes {
 		currentAppHash, err := getAppHash(v, blockHeight)
 		if err != nil {
-			return err
+			if err != errAppHashNotFound {
+				return err
+			}
+			// Sometimes some nodes are slower than the first node in persisting data to disk in which
+			// case they may not have the app hash for the latest height just yet... so try one more
+			// time after a small delay.
+			time.Sleep(time.Second * 1)
+			currentAppHash, err = getAppHash(v, blockHeight)
+			if err != nil {
+				return err
+			}
 		}
 		fmt.Printf("--> Node: %s, AppHash: 0x%s, height %v\n", index, currentAppHash, blockHeight)
 		blockInfo = append(blockInfo, AppHash{
