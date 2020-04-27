@@ -804,7 +804,7 @@ func RedelegateAllDelegationsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "redelegate-all [validator address]",
-		Short:   "randomly redelegate all delegations from one validator to other validators",
+		Short:   "Randomly redelegate all delegations from one validator to other validators",
 		Example: redelegateAllCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -949,6 +949,11 @@ func RedelegateAllDelegationsCmd() *cobra.Command {
 					}, nil,
 				)
 				if err != nil {
+					out, marshalErr := json.MarshalIndent(summary, "", "  ")
+					if marshalErr != nil {
+						return err
+					}
+					fmt.Println(string(out))
 					return errors.Wrapf(
 						err, "failed to redelegate delegation at index %d to %s",
 						d.Index, destValidatorAddr.String(),
