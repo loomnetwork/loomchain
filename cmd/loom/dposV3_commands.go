@@ -28,17 +28,27 @@ var (
 
 const unregisterCandidateCmdExample = ` 
 loom dpos3 unregister-candidate --key path/to/private_key
+loom dpos3 unregister-candidate <candidate address> --key path/to/oracle_private_key
 `
 
 func UnregisterCandidateCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "unregister-candidate",
-		Short:   "Unregisters the candidate (only called if previously registered)",
+		Short:   "Unregister a previously registered candidate",
 		Example: unregisterCandidateCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var candidateAddrPB *types.Address
+			if len(args) == 1 {
+				addr, err := cli.ParseAddress(args[0], flags.ChainID)
+				if err != nil {
+					return err
+				}
+				candidateAddrPB = addr.MarshalPB()
+			}
 			return cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "UnregisterCandidate", &dposv3.UnregisterCandidateRequest{}, nil,
+				&flags, DPOSV3ContractName, "UnregisterCandidate",
+				&dposv3.UnregisterCandidateRequest{Candidate: candidateAddrPB}, nil,
 			)
 		},
 	}
