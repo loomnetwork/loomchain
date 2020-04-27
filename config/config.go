@@ -161,8 +161,8 @@ type GethConfig struct {
 
 func DefaultGethConfig() *GethConfig {
 	return &GethConfig{
-		EnableStateObjectDirtyStorageKeysSorting: true,
-		EnableTrieDatabasePreimageKeysSorting:    true,
+		EnableStateObjectDirtyStorageKeysSorting: false,
+		EnableTrieDatabasePreimageKeysSorting:    false,
 	}
 }
 
