@@ -45,7 +45,7 @@ Basechain is an interoperable DPoS blockchain that is live in production, EVM-co
   echo $GOPATH
   ```
 
-  If th `GOPATH` environment variable is defined, the output should look like this:
+  If the `GOPATH` environment variable is defined, the output should look like this:
 
   ```shell
   /Users/andrei/go
