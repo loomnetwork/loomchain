@@ -4,7 +4,7 @@ GOLint = \
 PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
-# Allow location of transfer-gateway package to be overriden via env var
+# You can use the `PKG_TRANSFER_GATEWAY` environment variable to override the location of the  transfer-gateway package.
 PKG_TRANSFER_GATEWAY?=github.com/loomnetwork/transfer-gateway
 PKG_BINANCE_TGORACLE=github.com/loomnetwork/binance-tgoracle
 
@@ -27,9 +27,8 @@ PROMETHEUS_PROCFS_DIR=$(GOPATH)/src/github.com/prometheus/procfs
 TRANSFER_GATEWAY_DIR=$(GOPATH)/src/$(PKG_TRANSFER_GATEWAY)
 BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
 
-# NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
-#       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
-#       specific commit.
+# NOTE: To build on Jenkins using a custom `go-loom` branch, you must update the `deps` target below to checkout that branch.
+# If you wish to lock the build to a specific commit, then you only need to update the `GO_LOOM_GIT_REV` environment variable
 GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
 TG_GIT_REV = HEAD
@@ -39,9 +38,7 @@ ETHEREUM_GIT_REV = 6128fa1a8c767035d3da6ef0c27ebb7778ce3713
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
 BTCD_GIT_REV = 7d2daa5bfef28c5e282571bc06416516936115ee
-# This is locked down to this particular revision because this is the last revision before the
-# google.golang.org/genproto was recompiled with a new version of protoc, which produces pb.go files
-# that don't appear to be compatible with the gogo protobuf & protoc versions we use.
+# This is locked down to the last revision before `google.golang.org/genproto` was recompiled with a new version of protoc, which produces pb.go files that don't appear to be compatible with the gogo protobuf & protoc versions we use.
 # google.golang.org/genproto seems to be pulled in by the grpc package.
 GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 # Specifies the loomnetwork/binance-tgoracle branch/revision to use.
@@ -202,19 +199,19 @@ validators-tool: $(TRANSFER_GATEWAY_DIR)
 	go build -tags gateway -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
-	# Temp workaround for https://github.com/prometheus/procfs/issues/221
+	# Temporary workaround for https://github.com/prometheus/procfs/issues/221
 	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
 	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
-	# Lock down Prometheus golang client to v1.2.1 (newer versions use a different protobuf version)
+	# Lock down Prometheus golang client version to v1.2.1 (newer versions use a different protobuf version)
 	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang
 	cd $(GOPATH)/src/github.com/prometheus/client_golang && git checkout master && git pull && git checkout v1.2.1
-	# prometheus/client_model is pulled by prometheus/client_golang so lock it down as well
+	# prometheus/client_model is pulled by prometheus/client_golang so we lock it down as well
 	git clone -q git@github.com:prometheus/client_model $(GOPATH)/src/github.com/prometheus/client_model
 	cd $(GOPATH)/src/github.com/prometheus/client_model && git checkout master && git pull && git checkout 14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016
-	# prometheus/common is pulled by prometheus/client_golang so lock it down as well
+	# prometheus/common is pulled by prometheus/client_golang so we lock it down as well
 	git clone -q git@github.com:prometheus/common $(GOPATH)/src/github.com/prometheus/common
 	cd $(GOPATH)/src/github.com/prometheus/common && git checkout master && git pull && git checkout v0.7.0
-	
+
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -238,7 +235,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/posener/wstest \
 		github.com/btcsuite/btcd
 
-	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
+	# When you want to reference a different branch of go-loom change the `GO_LOOM_GIT_REV` environment variable above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
@@ -247,14 +244,14 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# go-testing-interface is a dependency of hashicorp/go-plugin,
-	# latest version of go-testing-interface only supports Go 1.14+ so use an older version
+	# The latest version of go-testing-interface only supports Go 1.14+, so we use an older version
 	cd $(GO_TESTING_INTERFACE_DIR) && git checkout v1.0.0
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
 
-#TODO we should turn back vet on, it broke when we upgraded go versions
+# TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
 	go test  -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(GOFLAGS) $(PKG)/...
 
