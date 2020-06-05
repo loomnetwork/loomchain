@@ -4,7 +4,7 @@ set -ex
 
 PKG=github.com/loomnetwork/loomchain
 
-# setup temp GOPATH
+# Set up a temporary `GOPATH` environment variable
 export GOPATH=/tmp/gopath-$BUILD_TAG
 export
 export PATH=$GOPATH:$PATH:/var/lib/jenkins/workspace/commongopath/bin:$GOPATH/bin
@@ -25,34 +25,35 @@ cd $LOOM_SRC
 make clean
 make get_lint
 make deps
-make  # on OSX we don't need any C precompiles like cleveldb
+make  # On macOS, we don't need any C precompiles like cleveldb
 make validators-tool
 
-# build the oracles
+# Build the oracles
 cd $TG_DIR
 PKG=$PKG_TRANSFER_GATEWAY make tgoracle
 PKG=$PKG_TRANSFER_GATEWAY make tron_tgoracle
 PKG=$PKG_TRANSFER_GATEWAY make loomcoin_tgoracle
 PKG=$PKG_TRANSFER_GATEWAY make dposv2_oracle
-# move them to the loomchain dir to make post-build steps simpler
+# To simplify post-build steps, we move the oracles to the loomchain directory
 mv tgoracle $LOOM_SRC/tgoracle
 mv tron_tgoracle $LOOM_SRC/tron_tgoracle
 mv loomcoin_tgoracle $LOOM_SRC/loomcoin_tgoracle
-# don't care about dpos oracle, don't need to move it
+# We do not need to to move the about DPoS oracle
 
-# build the various loom node variants
+# Build the various loom node variants
 cd $LOOM_SRC
 make basechain
-# copy the generic loom binary so it can be published later, the loom binary will be replaced by the
-# gateway variant when make loom-gateway executes
+# Copy the generic loom binary so we can publish it later.
 cp loom loom-generic
+# Build the `loom-gateway` variant
 make loom-gateway
+# Replace the generic loom binary with the `loom-gateway` variant
 cp loom loom-gateway
 
 make loom-cleveldb
 make basechain-cleveldb
 
-# lint after building everything
+# Lint after we've built everything
 make lint || true
 make linterrors
 
