@@ -1,28 +1,13 @@
 # [Basechain](https://loomx.io)
 
-Basechain is an interoperable DPoS blockchain that is live in production, EVM-compatible, audited, and battle-tested.
+Loom Protocol powers Basechain, an interoperable DPoS blockchain that is live in production, EVM-compatible, audited, and battle-tested.
 
 
 ## Prerequisites
 
 * A running Linux or macOS system.
-* Go 1.9+
-  You can enter the following command to check that Go is installed on your system:
-
-  ```shell
-  go version
-  ```
-
-  If Go is installed, the output looks like this:
-
-  ```
-  go version go1.13.8 darwin/amd64
-  ```
-
-  If Go is not installed or you're running an older version, you can refer to the [Getting Started](https://golang.org/doc/install) page of the Go documentation for more details about how you can install or upgrade Go.
-
+* Go 1.9+.
 * Dep. For details about installing Dep, see the [Dep](https://github.com/golang/dep) page.
-
 * (OPTIONAL) LevelDB.
 
   If you're running macOS, you can enter the following command to install LevelDB:
@@ -38,20 +23,6 @@ Basechain is an interoperable DPoS blockchain that is live in production, EVM-co
   ```
 
 * The `GOPATH` environment variable is defined.
-
-  Use the following command to check that the `GOPATH` environment variable is defined:
-
-  ```shell
-  echo $GOPATH
-  ```
-
-  If the `GOPATH` environment variable is defined, the output should look like this:
-
-  ```shell
-  /Users/andrei/go
-  ```
-
-  See the [GOPATH](https://github.com/golang/go/wiki/GOPATH) page of the Go documentation for more details about the `GOPATH` environment variable.
 
 
 ## Build the binary
@@ -95,40 +66,43 @@ Basechain is an interoperable DPoS blockchain that is live in production, EVM-co
   ./loom run
   ```
 
-<!--
 ## Generate keys
-Use the genkey command. It will create two files with the given names.
+
+Use the `loom genkey` command. It will create two files with the given names.
+
 ```shell
 ./loom genkey -a publicKeyFilename -k privateKeyFilename
 ```
 
 ## Ethereum smart contracts
 
-Deploy smart contract with `deploy`
-```shell
-./loom deploy -a pubkeyFile -k prikeyFile -b contractBytecode.bin
-New contract deployed with address:  default:0xB448D7db27192d54FeBdA458B81e7383F8641c8A
-Runtime bytecode:  [96 96 96 64 82 96 .... ]
-```
-Make a call to an already deployed contract with `call`
+1. Deploy smart contract by entering the `loom deploy` command:
+
+  ```shell
+  ./loom deploy -a pubkeyFile -k prikeyFile -b contractBytecode.bin
+  New contract deployed with address:  default:0xB448D7db27192d54FeBdA458B81e7383F8641c8A
+  Runtime bytecode:  [96 96 96 64 82 96 .... ]
+  ```
+
+2. Make a call to an already deployed contract with the `loom cal call` command:
 ```
 ./loom call  -a pubkeyFile -k prikeyFile -i inputDataFile -c 0xB448D7db27192d54FeBdA458B81e7383F8641c8A
 Call response:  [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]
 ```
+
 Details of encoding contract input data can be found in the [Solidity ABI documentation](https://solidity.readthedocs.io/en/develop/abi-spec.html).
 You can use `static-call` similarly to run a read only method.
--->
 
 ## Update Protobuf Messages
 
-Enter the following command to update  protobuf messages:
+Enter the following command to update protobuf messages:
 
 ```shell
 # build the Go plugin for protoc
 make proto
 ```
 
-> See the [Go Generated Code](https://developers.google.com/protocol-buffers/docs/reference/go-generated to understand how) of the Google Developer Documentaton for more details about how you can use the generated protobuf messages.
+> See the [Go Generated Code](https://developers.google.com/protocol-buffers/docs/reference/go-generated) page for more details about how you can use the generated protobuf messages.
 
 ## Useful Links
 
