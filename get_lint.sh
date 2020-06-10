@@ -9,7 +9,7 @@ set -e
 
 ## check if GOPATH is set
 if [ -z ${GOPATH+x} ]; then
-	echo "The GOPATH environment variable is not set. Please refer to the https://github.com/golang/go/wiki/SettingGOPATH page for details about how you can set the GOPATH environment variable."
+	echo "The GOPATH environment variable is not set. Please refer to the https://github.com/golang/go/wiki/SettingGOPATH page for more details."
 	exit 1
 fi
 
