@@ -38,7 +38,7 @@ PKG=$PKG_TRANSFER_GATEWAY make dposv2_oracle
 mv tgoracle $LOOM_SRC/tgoracle
 mv tron_tgoracle $LOOM_SRC/tron_tgoracle
 mv loomcoin_tgoracle $LOOM_SRC/loomcoin_tgoracle
-# We do not need to to move the about DPoS oracle
+# We do not need to move the DPoS oracle
 
 # Build the various loom node variants
 cd $LOOM_SRC
