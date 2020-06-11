@@ -1,4 +1,4 @@
-# [Basechain](https://loomx.io)
+# [Loom Protocol](https://loomx.io)
 
 Loom Protocol powers Basechain, an interoperable DPoS blockchain that is live in production, EVM-compatible, audited, and battle-tested.
 
