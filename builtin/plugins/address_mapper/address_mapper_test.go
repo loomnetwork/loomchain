@@ -300,7 +300,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From: s.validEthAddr.MarshalPB(),
 		To:   s.validDAppAddr.MarshalPB(),
-	}), "Should error if not signature provided")
+	}), "Should error if no signature is provided")
 
 	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.invalidEthKey, sigType)
 	r.NoError(err)
