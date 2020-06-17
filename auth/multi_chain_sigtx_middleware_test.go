@@ -194,7 +194,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
-	// Normal local transaction without address mapping
+	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
@@ -263,7 +263,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
-	// Normal local transaction without address mapping
+	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
@@ -340,7 +340,7 @@ func TestChainIdVerification(t *testing.T) {
 		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
-	// Normal local transaction without address mapping
+	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
