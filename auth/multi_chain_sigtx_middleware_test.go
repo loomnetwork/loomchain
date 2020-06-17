@@ -194,7 +194,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
-	// Normal transaction without address mapping
+	// Normal local transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
@@ -205,19 +205,19 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	am := address_mapper.AddressMapper{}
 	require.NoError(t, am.Init(amCtx, &address_mapper.InitRequest{}))
 
-	// Gnerate an Ethereum key
+	// Generate ETH key
 	ethKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
 	require.NoError(t, err)
 	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
 
-	// Transaction using address mapping from an Ethereum account. It should error out.
+	// Transaction using address mapping from an ETH account. Gives error.
 	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{PrivateKey: ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
-	// Set up address mapping between an Ethereum and a local account
+	// Set up address mapping between ETH and local accounts
 	sig, err := address_mapper.SignIdentityMapping(addr1, ethPublicAddr, ethKey, evmcompat.SignatureType_EIP712)
 	require.NoError(t, err)
 	mapping := amtypes.AddressMapperAddIdentityMappingRequest{
@@ -227,7 +227,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	}
 	require.NoError(t, am.AddIdentityMapping(amCtx, &mapping))
 
-	// Transaction using address mapping from an Ethereum account. It should not error out, as the mapped local account is found.
+	// Transaction using address mapping from an ETH account. No error this time as the mapped local account is found.
 	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
@@ -239,7 +239,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
 	state.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	// FIXME: Having to set feature flags twice is less than optimal... need to fix this state/ctx stuff.
+	// FIXME: Having to set feature flags twice is pretty stupid... need to fix this state/ctx mess.
 	fakeCtx.SetFeature(features.AddressMapperVersion1_1, true)
 	state.SetFeature(features.MultiChainSigTxMiddlewareVersion1_1, true)
 	fakeCtx.SetFeature(features.AuthSigTxFeaturePrefix+"binance", true)
@@ -263,7 +263,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
-	// Normal transaction without address mapping
+	// Normal local transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
@@ -280,12 +280,12 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 	require.NoError(t, err)
 	foreignPublicAddr := loom.Address{ChainID: "binance", Local: foreignLocalAddr}
 
-	// Transaction using address mapping from a Binance account. It should error out.
+	// Transaction using address mapping from a Binance account. Gives error.
 	txSigned = mockBinanceSignedTx(t, "binance", signer)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
-	// Set up address mapping between a Binance and a local account
+	// Set up address mapping between Binance and local accounts
 	sig, err := address_mapper.SignIdentityMapping(addr1, foreignPublicAddr, privKey, evmcompat.SignatureType_BINANCE)
 	require.NoError(t, err)
 	mapping := amtypes.AddressMapperAddIdentityMappingRequest{
@@ -295,7 +295,7 @@ func TestBinanceAddressMappingVerification(t *testing.T) {
 	}
 	require.NoError(t, am.AddIdentityMapping(amCtx, &mapping))
 
-	// Transaction using address mapping from a Binance account. It doesn't error out, as the mapped local account is found.
+	// Transaction using address mapping from a Binance account. No error this time as the mapped local account is found.
 	txSigned = mockBinanceSignedTx(t, "binance", signer)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
@@ -340,7 +340,7 @@ func TestChainIdVerification(t *testing.T) {
 		func(state loomchain.State) (contractpb.StaticContext, error) { return amCtx, nil },
 	)
 
-	// Normal transaction without address mapping
+	// Normal local transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
@@ -351,17 +351,21 @@ func TestChainIdVerification(t *testing.T) {
 	am := address_mapper.AddressMapper{}
 	require.NoError(t, am.Init(amCtx, &address_mapper.InitRequest{}))
 
-	// Generate an Ethereum key
+	// Generate ETH key
 	ethKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	// Transaction signed with an Ethereum key, address mapping disabled, the caller address passed through to contracts will be eth:xxxxxx, i.e. the eth account is passed through without being mapped to a local account.
+	// Transaction signed with an Ethereum key, address mapping disabled, the caller address passed through
+	// to contracts will be eth:xxxxxx, i.e. the ETH account is passed through without being mapped
+	// to a local account.
 	// Don't try this in production.
 	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{PrivateKey: ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
-	// Transaction signed with a Tron key, address mapping disabled, the caller address passed through to contracts will be tron:xxxxxx, i.e. the Tron account is passed through without being mapped to a local account.
+	// Transaction signed with a Tron key, address mapping disabled, the caller address passed through
+	// to contracts will be tron:xxxxxx, i.e. the Tron account is passed through without being mapped
+	// to a local account.
 	// Don't try this in production.
 	txSigned = mockSignedTx(t, "tron", &auth.TronSigner{PrivateKey: ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
