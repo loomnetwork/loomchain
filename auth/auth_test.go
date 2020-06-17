@@ -127,7 +127,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 	ctx4 := context.WithValue(nil, ContextKeyOrigin, origin)
 	kvStore4 := store.NewMemStore()
 	state4 := loomchain.NewStoreState(ctx4, kvStore4, abci.Header{Height: 28}, nil, nil).WithOnChainConfig(cfg)
-	//If we get to tx with incrementing sequence numbers we should be fine in the same block
+	//If we get two txs with incrementing sequence numbers in the same block, we should be fine.
 	_, err = nonceTxHandler.Nonce(state4, kvStore4, nonceTxBytes,
 		func(state4 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
