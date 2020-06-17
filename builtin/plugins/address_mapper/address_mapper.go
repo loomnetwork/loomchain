@@ -37,14 +37,11 @@ type (
 )
 
 var (
-	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
-	// the permission to execute that method.
+	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have the permission to execute that method.
 	ErrNotAuthorized = errors.New("[Address Mapper] not authorized")
-	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
-	// request message, e.g. missing or invalid fields.
+	// ErrInvalidRequest is a generic error that's returned when something is wrong with the request message, e.g. missing or invalid fields.
 	ErrInvalidRequest = errors.New("[Address Mapper] invalid request")
-	// ErrAlreadyRegistered indicates that from and/or to are already registered in
-	// address mapper contract.
+	// ErrAlreadyRegistered indicates that the `from` and/or `to` addresses are already registered in the address mapper contract.
 	ErrAlreadyRegistered = errors.New("[Address Mapper] identity mapping already exists")
 
 	AddressPrefix = "addr"
@@ -68,8 +65,7 @@ func (am *AddressMapper) Init(ctx contract.Context, req *InitRequest) error {
 	return nil
 }
 
-// AddIdentityMapping adds a mapping between a DAppChain account and a Mainnet account.
-// The caller must provide proof of ownership of the Mainnet account.
+// AddIdentityMapping adds a mapping between a local account and a foreign account. The caller must provide proof of ownership of the foreign account.
 func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) error {
 	if req.From == nil || req.To == nil || req.Signature == nil {
 		return ErrInvalidRequest
@@ -225,9 +221,9 @@ func verifySig(from, to loom.Address, chainID string, sig []byte, allowedSigType
 	}
 
 	if (chainID == from.ChainID) && (bytes.Compare(signerAddr.Bytes(), from.Local) != 0) {
-		return fmt.Errorf("signer address doesn't match, %s != %s", signerAddr.Hex(), from.Local.String())
+		return fmt.Errorf("Signer address doesn't match, %s != %s", signerAddr.Hex(), from.Local.String())
 	} else if (chainID == to.ChainID) && (bytes.Compare(signerAddr.Bytes(), to.Local) != 0) {
-		return fmt.Errorf("signer address doesn't match, %s != %s", signerAddr.Hex(), to.Local.String())
+		return fmt.Errorf("Signer address doesn't match, %s != %s", signerAddr.Hex(), to.Local.String())
 	}
 	return nil
 }
