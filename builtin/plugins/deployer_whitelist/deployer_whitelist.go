@@ -27,11 +27,11 @@ type (
 )
 
 const (
-	// AllowEVMDeployFlag indicates that a deployer is permitted to deploy EVM contract.
+	// AllowEVMDeployFlag indicates that a deployer is allowed to deploy EVM contracts.
 	AllowEVMDeployFlag = dwtypes.Flags_EVM
-	// AllowGoDeployFlag indicates that a deployer is permitted to deploy GO contract.
+	// AllowGoDeployFlag indicates that a deployer is allowed to deploy GO contracts.
 	AllowGoDeployFlag = dwtypes.Flags_GO
-	// AllowMigrationFlag indicates that a deployer is permitted to migrate GO contract.
+	// AllowMigrationFlag indicates that a deployer is allowed to migrate GO contracts.
 	AllowMigrationFlag = dwtypes.Flags_MIGRATION
 )
 
@@ -42,11 +42,11 @@ var (
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
 	// request message, e.g. missing or invalid fields.
 	ErrInvalidRequest = errors.New("[DeployerWhitelist] invalid request")
-	// ErrOwnerNotSpecified returned if init request does not have owner address
+	// ErrOwnerNotSpecified is returned if the init request does not have the owner address
 	ErrOwnerNotSpecified = errors.New("[DeployerWhitelist] owner not specified")
-	// ErrFeatureFound returned if an owner try to set an existing feature
+	// ErrFeatureFound is returned if an owner tries to set an existing feature
 	ErrDeployerAlreadyExists = errors.New("[DeployerWhitelist] deployer already exists")
-	// ErrDeployerDoesNotExist returned if an owner try to to remove a deployer that does not exist
+	// ErrDeployerDoesNotExist is returned if an owner tries to remove a deployer that does not exist
 	ErrDeployerDoesNotExist = errors.New("[DeployerWhitelist] deployer does not exist")
 )
 
@@ -103,7 +103,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 func (dw *DeployerWhitelist) AddUserDeployer(ctx contract.Context, req *AddUserDeployerRequest) error {
 	userWhitelistContract, err := ctx.Resolve("user-deployer-whitelist")
 	if err != nil {
-		return errors.Wrap(err, "unable to resolve user_deployer_whitelist contract")
+		return errors.Wrap(err, "unable to resolve the user_deployer_whitelist contract")
 	}
 
 	if ctx.Message().Sender.Compare(userWhitelistContract) != 0 {
@@ -136,7 +136,7 @@ func (dw *DeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *Remov
 	//check if authorized
 	userWhitelistContract, err := ctx.Resolve("user-deployer-whitelist")
 	if err != nil {
-		return errors.Wrap(err, "unable to resolve user_deployer_whitelist contract")
+		return errors.Wrap(err, "unable to resolve the user_deployer_whitelist contract")
 	}
 
 	if ctx.Message().Sender.Compare(userWhitelistContract) != 0 {
