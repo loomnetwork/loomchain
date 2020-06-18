@@ -91,7 +91,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	})
 	require.NoError(err)
 
-	//setup chainconfig contract
+	//Set up chainconfig contract
 	chainconfigContract := &ChainConfig{}
 	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
@@ -243,7 +243,7 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	})
 	require.NoError(err)
 
-	//setup chainconfig contract
+	//Set up chainconfig contract
 	chainconfigContract := &ChainConfig{}
 	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
@@ -469,7 +469,7 @@ func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {
 	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
 	chainID := "default"
 	addr1 := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
-	//setup dposv2 fake contract
+	//Set up dposv2 fake contract
 	pctx := plugin.CreateFakeContext(addr1, addr1).WithBlock(loom.BlockHeader{
 		ChainID: chainID,
 		Time:    time.Now().Unix(),
@@ -503,7 +503,7 @@ func (c *ChainConfigTestSuite) TestUnsupportedFeatureEnabled() {
 	})
 	require.NoError(err)
 
-	//setup chainconfig contract
+	//Set up chainconfig contract
 	chainconfigContract := &ChainConfig{}
 	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
@@ -659,7 +659,7 @@ func (c *ChainConfigTestSuite) TestCfgSettingFourValidators() {
 	// Set setting to store state config
 	pctx.SetConfigSetting(listCfgResp.Actions[0].Name, listCfgResp.Actions[0].Value)
 
-	// ChainConfig return the config which is derived from cfg settings
+	// ChainConfig returns the config which is derived from cfg settings
 	configResp, err := chainconfigContract.ChainConfig(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &ChainConfigRequest{})
 	require.NoError(err)
 	require.Equal(uint64(777), configResp.Config.AppStore.NumEvmKeysToPrune)
