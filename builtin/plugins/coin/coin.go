@@ -164,9 +164,9 @@ func burn(ctx contract.Context, from loom.Address, amount *loom.BigUInt) error {
 	bal := account.Balance.Value
 	supply := econ.TotalSupply.Value
 
-	// Being extra cautious wont hurt.
+	// Being extra cautious won't hurt.
 	if bal.Cmp(amount) < 0 || supply.Cmp(amount) < 0 {
-		return fmt.Errorf("cant burn coins more than available balance: %s", bal.String())
+		return fmt.Errorf("can't burn more coins than the available balance: %s", bal.String())
 	}
 
 	bal.Sub(&bal, amount)
