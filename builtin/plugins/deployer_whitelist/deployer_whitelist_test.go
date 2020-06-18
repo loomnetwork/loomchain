@@ -50,7 +50,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	})
 	ctx := contractpb.WrapPluginContext(pctx)
 
-	//setup deployer whitelist contract
+	//Set up the deployer whitelist contract
 	deployerContract := &DeployerWhitelist{}
 	err := deployerContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
@@ -117,7 +117,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.Equal(addr3.Local.String(), gotAddr.Local.String())
 	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
 
-	// get a deployer that does not exists
+	// get a deployer that does not exist
 	get, err = deployerContract.GetDeployer(ctx, &GetDeployerRequest{
 		DeployerAddr: addr4.MarshalPB(),
 	})
@@ -139,7 +139,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	})
 	require.Equal(ErrDeployerDoesNotExist, err)
 
-	// list must have only owner left
+	// the list must have only the owner left
 	list, err = deployerContract.ListDeployers(ctx, &ListDeployersRequest{})
 	require.NoError(err)
 	require.Equal(2, len(list.Deployers))
@@ -154,7 +154,7 @@ func (dw *DeployerWhitelistTestSuite) TestPermission() {
 	})
 	ctx := contractpb.WrapPluginContext(pctx)
 
-	//setup deployer whitelist contract
+	// Set up the deployer whitelist contract
 	deployerContract := &DeployerWhitelist{}
 	err := deployerContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
