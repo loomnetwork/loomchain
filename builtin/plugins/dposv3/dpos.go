@@ -480,7 +480,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 ConsolidateDelegations", "delegator", delegator, "request", req)
 
-	// Unless considation is for the limbo validator, check that the new
+	// Unless the consolidation is for the limbo validator, check that the new
 	// validator address corresponds to one of the registered candidates
 	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(LimboValidatorAddress(ctx)) != 0 {
 		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
@@ -499,7 +499,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 }
 
 // returns the number of delegations which were not consolidated in the event there is no error
-// NOTE: Consolidate delegations is supposed to clear referrer field. If
+// NOTE: Consolidate delegations is supposed to clear the referrer field. If
 // a delegator redelegates (to increase locktime reward, for example), this
 // redelegation will likely be done via a wallet and thus a wallet can still
 // insert its referrer id into the referrer field during redelegation.
@@ -533,7 +533,7 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 		return nil, nil, -1, err
 	}
 
-	// create new conolidated delegation
+	// create new consolidated delegation
 	delegation := &Delegation{
 		Validator:    validator,
 		Delegator:    delegator,
@@ -777,7 +777,7 @@ func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return errOnlyOracle
 	}
@@ -891,7 +891,7 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -908,7 +908,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 	}
 
 	if err == contract.ErrNotFound {
-		// Creating a ValidatorStatistic entry for candidate with the appropriate
+		// Creating a ValidatorStatistic entry for the candidate with the appropriate
 		// lockup period and amount
 		SetStatistic(ctx, &ValidatorStatistic{
 			Address:         req.CandidateAddress,
@@ -937,7 +937,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -963,7 +963,7 @@ func (c *DPOS) ChangeWhitelistInfo(ctx contract.Context, req *ChangeWhitelistInf
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -1013,7 +1013,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return logDposError(ctx, err, req.String())
 	}
 
-	// validate the maximum referral fee candidate is willing to accept
+	// validate the maximum referral fee the candidate is willing to accept
 	if err = validateFee(req.MaxReferralPercentage); err != nil {
 		return logDposError(ctx, err, req.String())
 	}
@@ -1028,7 +1028,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) && common.IsPositive(state.Params.RegistrationRequirement.Value) {
-		// A currently unregistered candidate must make a loom token deposit
+		// A currently unregistered candidate must make a LOOM token deposit
 		// = 'registrationRequirement' in order to run for validator.
 		coin, err := loadCoin(ctx)
 		if err != nil {
@@ -1173,7 +1173,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 		return errCandidateNotFound
 	}
 
-	// validate the maximum referral fee candidate is willing to accept
+	// validate the maximum referral fee the candidate is willing to accept
 	if err = validateFee(req.MaxReferralPercentage); err != nil {
 		return logDposError(ctx, err, req.String())
 	}
@@ -1197,7 +1197,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 
-	// Allow oracle to specify the candidate
+	// Allow the oracle to specify the candidate
 	if req.Candidate != nil && ctx.FeatureEnabled(features.DPOSVersion3_10, false) {
 		state, err := LoadState(ctx)
 		if err != nil {
@@ -1321,7 +1321,7 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	// Check if enough time has elapsed to start new validator election
+	// Check if enough time has elapsed to start a new validator election
 	if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
 		return nil
 	}
@@ -1344,13 +1344,13 @@ func Elect(ctx contract.Context) error {
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := GetCandidate(ctx, res.ValidatorAddress)
 		if candidate != nil && common.IsPositive(res.DelegationTotal) {
-			// checking that DelegationTotal is positive ensures ensures that if
+			// checking that DelegationTotal is positive ensures that if
 			// by accident a negative delegation total is calculated, the chain
 			// does not halt due to the error. 0-value delegations are best to
 			// exclude for efficiency, though tendermint would ignore 0-powered
 			// validators
 			var power big.Int
-			// making sure that the validator power can fit into a int64
+			// make sure that the validator power can fit into an int64
 			power.Div(res.DelegationTotal.Int, powerCorrection)
 			validatorPower := power.Int64()
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
@@ -1699,7 +1699,7 @@ func UpdateDowntimeRecord(ctx contract.Context, downtimePeriod uint64, jailingEn
 		"down-blocks", statistic.RecentlyMissedBlocks&0xFFFF,
 	)
 
-	// if DPOSv3.3 enabled, jail a valdiator that have been offline for last 4 periods
+	// if DPOSv3.3 is enabled, jail a validator that has been offline for the last 4 periods
 	jailOfflineValidator := false
 	if ctx.FeatureEnabled(features.DPOSVersion3_3, false) {
 		jailOfflineValidator = true
@@ -1825,7 +1825,7 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 }
 
 // rewards & slashes are calculated along with former delegation totals
-// rewards are distributed to validators based on fee
+// rewards are distributed to validators based on the fee
 // rewards distribution amounts are prepared for delegators
 func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, state *State) ([]*DelegationResult, error) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
@@ -1900,7 +1900,7 @@ func rewardAndSlash(ctx contract.Context, cachedDelegations *CachedDposStorage, 
 						referrerReward = CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, referrerReward)
 						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
 
-						// referrer fees are delegater to limbo validator
+						// referrer fees are delegated to the limbo validator
 						distributedRewards.Add(distributedRewards, &referrerReward)
 						cachedDelegations.IncreaseRewardDelegation(ctx, LimboValidatorAddress(ctx).MarshalPB(), referrerAddress, referrerReward)
 
@@ -1977,7 +1977,7 @@ func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidat
 	cycleSeconds := params.ElectionCycleLength
 	reward := CalculateFraction(blockRewardPercentage, delegationTotal)
 
-	// If totalValidator Delegations are high enough to make simple reward
+	// If totalValidator Delegations are high enough to make a simple reward
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
 	// scale the rewards appropriately
 	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
@@ -2200,7 +2200,7 @@ func distributeDelegatorRewards(ctx contract.Context, cachedDelegations *CachedD
 	return newDelegationTotals, nil
 }
 
-// Reset a delegation's tier to 0 if it's locktime has expired
+// Reset a delegation's tier to 0 if its locktime has expired
 func resetDelegationIfExpired(ctx contract.Context, delegation *Delegation) {
 	now := uint64(ctx.Now().Unix())
 	if delegation.LocktimeTier != TIER_ZERO && delegation.LockTime < now {
@@ -2298,7 +2298,7 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2330,7 +2330,7 @@ func isRequestAlreadySeen(meta *BatchRequestMeta, currentTally *RequestBatchTall
 }
 
 func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) error {
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
@@ -2395,7 +2395,7 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2416,7 +2416,7 @@ func (c *DPOS) SetDowntimePeriod(ctx contract.Context, req *SetDowntimePeriodReq
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2435,7 +2435,7 @@ func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardR
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2454,7 +2454,7 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2473,7 +2473,7 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2492,7 +2492,7 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2517,7 +2517,7 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 		return err
 	}
 
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
@@ -2572,7 +2572,7 @@ func (c *DPOS) SetMinCandidateFee(ctx contract.Context, req *SetMinCandidateFeeR
 	}
 
 	//TODO: this will be replaced with voting system next week
-	// ensure that function is only executed when called by oracle
+	// ensure that this function is only executed when called by an oracle
 	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
