@@ -509,7 +509,7 @@ func TestBurnAccess(t *testing.T) {
 				Value: *loom.NewBigUIntFromInt(10),
 			},
 		},
-	), "cant burn coins more than available balance: 0", "only burn coin owned by you")
+	), "can't burn more coins than the available balance: 0", "only burn coin owned by you")
 
 	require.EqualError(t, contract.Burn(
 		contractpb.WrapPluginContext(pctx.WithSender(binanceTGAddress)),
