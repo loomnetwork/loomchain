@@ -452,7 +452,7 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	// checking a non-existent delegation should result in an empty (amount = 0)
-	// delegaiton being returned
+	// delegation being returned
 	_, delegatedAmount, _, err = dpos.CheckDelegation(pctx, &addr1, &addr2)
 	require.Nil(t, err)
 	assert.True(t, delegatedAmount.Cmp(big.NewInt(0)) == 0)
@@ -1111,11 +1111,11 @@ func TestRedelegate(t *testing.T) {
 	assert.Equal(t, len(validators), 1)
 	assert.True(t, validators[0].Address.Local.Compare(addr1.Local) == 0)
 
-	// Checking that redelegaiton of a negative amount is rejected
+	// Checking that redelegation of a negative amount is rejected
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr2, big.NewInt(-1000), 1, nil, nil)
 	require.NotNil(t, err)
 
-	// Checking that redelegaiton of an amount greater than the total delegation is rejected
+	// Checking that redelegation of an amount greater than the total delegation is rejected
 	err = dpos.Redelegate(pctx.WithSender(delegatorAddress2), &addr1, &addr2, big.NewInt(100000000), 1, nil, nil)
 	require.NotNil(t, err)
 
@@ -1467,7 +1467,7 @@ func TestElect(t *testing.T) {
 		require.NoError(t, elect(pctx, dpos.Address))
 		delegations, amount, _, err := dpos.CheckDelegation(pctx.WithSender(addr1), &addr1, &addr1)
 		require.NoError(t, err)
-		// get rewards delegaiton which is always at index 0
+		// get rewards delegation which is always at index 0
 		delegation := delegations[REWARD_DELEGATION_INDEX]
 		assert.True(t, delegation.Amount.Value.Int.Cmp(oldRewardsValue) == 1)
 		oldRewardsValue = amount
@@ -1950,7 +1950,7 @@ func TestClaimRewardsFromMultipleValidators(t *testing.T) {
 	assert.True(t, amt.Cmp(big.NewInt(1e18*0.5/1000*3.01)) < 0)
 }
 
-// This test supposed to check that ClaimRewardsFromAllValidators be able to claim
+// This test checks that ClaimRewardsFromAllValidators is able to claim
 // rewards from the former validator correctly.
 func TestClaimRewardsFromUnregisteredCandidate(t *testing.T) {
 	// Init the coin balances
@@ -3075,7 +3075,7 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegator3Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
-	// verifiying that claim is smaller than what was given when delegations
+	// verifying that claim is smaller than what was given when delegations
 	// were smaller and below max yearly reward cap.
 	// delegator3Claim should be ~2/3 of delegator2Claim
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
@@ -3370,7 +3370,7 @@ func TestDowntimeFunctions(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(candidates))
 
-	// DPOSV3 feature not enable , enable jail offline set to false
+	// DPOSV3 feature not enabled, enableJailOffline set to false
 	enableJailOffline := false
 	for i := int64(0); i < int64(periodLength*4); i++ {
 		err = UpdateDowntimeRecord(contractpb.WrapPluginContext(dposCtx), periodLength, enableJailOffline, addr1)
