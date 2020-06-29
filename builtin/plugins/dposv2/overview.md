@@ -1,6 +1,6 @@
 # delegated Proof of Stake Contract (v2)
 
-dPoS layers economic incentives on top of an updated PBFT-style consensus
+The DPoS protocol layers economic incentives on top of an updated PBFT-style consensus
 engine underlying Tendermint. Nodes register as validator candidates.
 
 ## Staking
