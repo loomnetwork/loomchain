@@ -59,7 +59,7 @@ func TestContractActivation(t *testing.T) {
 	karmaContract := &Karma{}
 	require.NoError(t, karmaContract.Init(ctx, &karmaInit))
 
-	// Mock Evm deploy Transaction
+	// Mock EVM deploy Transaction
 	evmContract := fakeCtx.CreateContract(nil)
 	require.NoError(t, AddOwnedContract(ctx, addr1, evmContract))
 
