@@ -5,22 +5,22 @@ type EthClientSerializableConfig struct {
 	EthereumURI string
 	// Plasma contract address on Ethereum
 	PlasmaHexAddress string
-	// Path of Private key that should be used to sign txs sent to Ethereum
+	// Path of the private key that should be used to sign txs sent to Ethereum
 	PrivateKeyPath string
 	// Override default gas computation when sending txs to Ethereum
 	OverrideGas bool
 	// How often Ethereum should be polled for mined txs
 	TxPollInterval int64
-	// Maximum amount of time to way for a tx to be mined by Ethereum
+	// Maximum amount of time to wait for a tx to be mined by Ethereum
 	TxTimeout int64
 }
 
 type DAppChainSerializableConfig struct {
 	WriteURI string
 	ReadURI  string
-	// Used to sign txs sent to Loom DAppChain
+	// Used to sign txs sent to Loom Protocol
 	PrivateKeyPath string
-	// Plasma cash contract on d app chain
+	// Plasma cash contract on Loom Protocol
 	ContractName string
 }
 
@@ -39,9 +39,9 @@ type PlasmaCashSerializableConfig struct {
 }
 
 func DefaultConfig() *PlasmaCashSerializableConfig {
-	// Default config disables oracle, so
-	// no need to populate oracle config
-	// with default vaule.
+	// Default config disables the oracle, so
+	// we do not need to populate the oracle config
+	// with the default value.
 	return &PlasmaCashSerializableConfig{
 		OracleEnabled:   false,
 		ContractEnabled: false,
