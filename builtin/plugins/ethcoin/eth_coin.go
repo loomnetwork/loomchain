@@ -60,7 +60,7 @@ func allowanceKey(owner, spender loom.Address) []byte {
 	return util.PrefixKey(allowanceKeyPrefix, owner.Bytes(), spender.Bytes())
 }
 
-// ETHCoin is an ERC20-like contract that's used to store & transfer ETH on the DAppChain.
+// ETHCoin is an ERC20-like contract that's used to store & transfer ETH on the Loom protocol.
 // Its initial total supply is zero, and the Gateway contract is the only entity that's allowed
 // to mint new ETH.
 type ETHCoin struct {
