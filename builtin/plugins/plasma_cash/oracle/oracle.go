@@ -71,11 +71,11 @@ type PlasmaBlockWorkerStatus struct {
 	LastSeenDAppChainPlasmaBlockNum *big.Int
 	LastSeenEthPlasmaBlockNum       *big.Int
 
-	// Just to avoid hassle of looking into yaml file
+	// Just to avoid hassle of looking into the YAML file
 	PlasmaBlockInterval uint32
 }
 
-// PlasmaBlockWorker sends non-deposit Plasma block from the DAppChain to Ethereum.
+// PlasmaBlockWorker sends non-deposit Plasma block from Loom Protocol to Ethereum.
 type PlasmaBlockWorker struct {
 	ethPlasmaClient     eth.EthPlasmaClient
 	dappPlasmaClient    DAppChainPlasmaClient
@@ -116,7 +116,7 @@ func (w *PlasmaBlockWorker) Run() {
 	})
 }
 
-// DAppChain -> Plasma Blocks -> Ethereum
+// Loom Protocol -> Plasma Blocks -> Ethereum
 func (w *PlasmaBlockWorker) sendPlasmaBlocksToEthereum() error {
 	pendingTxs, err := w.dappPlasmaClient.GetPendingTxs()
 	if err != nil {
@@ -137,7 +137,7 @@ func (w *PlasmaBlockWorker) sendPlasmaBlocksToEthereum() error {
 
 }
 
-// Send any finalized but unsubmitted plasma blocks from the DAppChain to Ethereum.
+// Send any finalized but unsubmitted plasma blocks from Loom Protocol to Ethereum.
 func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 	curEthPlasmaBlockNum, err := w.ethPlasmaClient.CurrentPlasmaBlockNum()
 	if err != nil {
@@ -157,7 +157,7 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 	w.statusRwMutex.Unlock()
 
 	if curLoomPlasmaBlockNum.Cmp(curEthPlasmaBlockNum) == 0 {
-		// DAppChain and Ethereum both have all the finalized Plasma blocks
+		// Loom Protocol and Ethereum both have all the finalized Plasma blocks
 		return nil
 	}
 
@@ -165,7 +165,7 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 	unsubmittedPlasmaBlockNum := nextPlasmaBlockNum(curEthPlasmaBlockNum, plasmaBlockInterval)
 
 	if unsubmittedPlasmaBlockNum.Cmp(curLoomPlasmaBlockNum) > 0 {
-		// All the finalized plasma blocks in the DAppChain have been submitted to Ethereum
+		// All the finalized plasma blocks in Loom Protocol have been submitted to Ethereum
 		return nil
 	}
 
@@ -181,7 +181,7 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 	return nil
 }
 
-// Submits a Plasma block (or rather its merkle root) to the Plasma Solidity contract on Ethereum.
+// Submits a Plasma block (or rather its Merkle root) to the Plasma Solidity contract on Ethereum.
 // This function will block until the tx is confirmed, or times out.
 func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int, merkleRoot []byte) error {
 	curEthPlasmaBlockNum, err := w.ethPlasmaClient.CurrentPlasmaBlockNum()
@@ -214,7 +214,7 @@ type PlasmaCoinWorkerStatus struct {
 	LastReportedRequestBatchTally *pctypes.PlasmaCashRequestBatchTally
 }
 
-// PlasmaCoinWorker sends Plasma deposits from Ethereum to the DAppChain.
+// PlasmaCoinWorker sends Plasma deposits from Ethereum to Loom Protocol.
 type PlasmaCoinWorker struct {
 	ethPlasmaClient  eth.EthPlasmaClient
 	dappPlasmaClient DAppChainPlasmaClient
@@ -258,8 +258,8 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrapf(err, "failed to fetch current request batch tally from dappchain")
 	}
 
-	// If HasSeenAnyRequest is false means we havent seen any
-	// block, so set startEthBlock to zero only, otherwise
+	// If HasSeenAnyRequest is false means we haven't seen any
+	// blocks, so set startEthBlock to zero, otherwise
 	// set it to lastSeen + 1
 	var startEthBlock uint64 = 0
 	if tally.LastSeenBlockNumber != 0 {
@@ -283,7 +283,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	}
 
 	// We need to retrieve all events first, and then apply them in correct order
-	// to make sure, we apply events in proper order to dappchain
+	// to make sure, we apply events in proper order to Loom Protocol
 
 	depositEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
 	if err != nil {
@@ -360,7 +360,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	requestBatch := sortableRequests{requests: requests}.PrepareRequestBatch()
 	err = w.dappPlasmaClient.ProcessRequestBatch(requestBatch)
 	if err != nil {
-		return errors.Wrapf(err, "unable to send request batch to dappchain")
+		return errors.Wrapf(err, "unable to send request batch to Loom Protocol")
 	}
 
 	w.statusRwMutex.Lock()
