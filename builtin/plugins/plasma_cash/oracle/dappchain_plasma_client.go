@@ -17,9 +17,9 @@ type DAppChainPlasmaClientConfig struct {
 	ChainID  string
 	WriteURI string
 	ReadURI  string
-	// Used to sign txs sent to Loom DAppChain
+	// Used to sign txs sent to Loom Protocol
 	Signer auth.Signer
-	// name of plasma cash contract on DAppChain
+	// name of plasma cash contract on Protocol
 	ContractName string
 }
 
@@ -78,10 +78,10 @@ func (c *DAppChainPlasmaClientImpl) PlasmaBlockAt(blockNum *big.Int) (*pctypes.P
 	}
 	resp := &pctypes.GetBlockResponse{}
 	if _, err := c.plasmaContract.StaticCall("GetBlockRequest", req, c.caller, resp); err != nil {
-		return nil, errors.Wrap(err, "failed to obtain plasma block from DAppChain")
+		return nil, errors.Wrap(err, "failed to obtain plasma block from Loom Protocol")
 	}
 	if resp.Block == nil {
-		return nil, errors.New("DAppChain returned empty plasma block")
+		return nil, errors.New("Loom Protocol returned an empty plasma block")
 	}
 	return resp.Block, nil
 }
