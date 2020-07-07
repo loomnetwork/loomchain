@@ -62,11 +62,11 @@ func LoadSerializableConfig(chainID string, serializableConfig *PlasmaCashSerial
 	}
 
 	if serializableConfig.OracleConfig.DAppChainCfg == nil {
-		return nil, fmt.Errorf("plasma cash oracle's DAppchain config is missing")
+		return nil, fmt.Errorf("plasma cash oracle's Loom Protocol config is missing")
 	}
 
 	if serializableConfig.OracleConfig.EthClientCfg == nil {
-		return nil, fmt.Errorf("plasma cash oracle's etherum config is missing")
+		return nil, fmt.Errorf("plasma cash oracle's Ethereum config is missing")
 	}
 
 	dAppChainPrivateKey, err := loadDAppChainPrivateKey(serializableConfig.OracleConfig.DAppChainCfg.PrivateKeyPath)
