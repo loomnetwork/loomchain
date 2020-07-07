@@ -143,8 +143,8 @@ func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTx
 	pending := &PendingTxs{}
 
 	if err := ctx.Get(pendingTXsKey, pending); err != nil {
-		// If this key does not exists, that means contract hasnt executed
-		// any submit block request. We should return empty object in that
+		// If this key does not exists, that means contract hasn't executed
+		// any submit block request. We should return an empty object in that
 		// case.
 		if err == contract.ErrNotFound {
 			return pending, nil
@@ -165,7 +165,7 @@ func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Addres
 		return fmt.Errorf("oracle address cannot be empty")
 	}
 
-	// Revoke/Grant all permission as it is single oracle atm
+	// Revoke/Grant all permission as it is a single oracle atm
 	if currentOracle != nil {
 		ctx.RevokePermissionFrom(*currentOracle, ChangeOraclePermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, SubmitEventsPermission, oracleRole)
@@ -272,7 +272,7 @@ func (c *PlasmaCash) emitDepositConfirmedEvent(ctx contract.Context, coin *Coin,
 }
 
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) (*SubmitBlockToMainnetResponse, error) {
-	//TODO prevent this being called to oftern
+	//TODO prevent this being called to often
 
 	//if we have a half open block we should flush it
 	//Raise blockheight
@@ -384,12 +384,12 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		},
 	)
 	if err != nil {
-		return errors.Wrapf(err, "unable to recover sender address from plasmatx signature")
+		return errors.Wrapf(err, "unable to recover the sender address from plasmatx signature")
 	}
 
 	addressMapper, err := ctx.Resolve(addressMapperContractName)
 	if err != nil {
-		return errors.Wrapf(err, "error while resolving address mapper contract address")
+		return errors.Wrapf(err, "error while resolving the address mapper contract address")
 	}
 
 	addressMapperResponse := &amtypes.AddressMapperGetMappingResponse{}
@@ -397,7 +397,7 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 	if err := contract.StaticCallMethod(ctx, addressMapper, "GetMapping", &amtypes.AddressMapperGetMappingRequest{
 		From: ctx.Message().Sender.MarshalPB(),
 	}, addressMapperResponse); err != nil {
-		return errors.Wrapf(err, "error while getting mapping from address mapper contract.")
+		return errors.Wrapf(err, "error while getting the mapping from the address mapper contract.")
 	}
 
 	if bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), claimedSender.Local) != 0 ||
@@ -465,7 +465,7 @@ func (c *PlasmaCash) depositRequest(ctx contract.Context, req *DepositRequest) e
 		Uid:          req.DepositBlock,
 	}
 	//TODO what if the number scheme is not aligned with our internal!!!!
-	//lets add some tests around this
+	//let's add some tests around this
 	err := ctx.Set(blockKey(req.DepositBlock.Value), pb)
 	if err != nil {
 		return err
@@ -592,7 +592,7 @@ func (c *PlasmaCash) withdrawCoin(ctx contract.Context, req *WithdrawCoinRequest
 		if slot == coin.Slot {
 			// NOTE: We don't require the coin to be in EXITED state to process the withdrawal
 			// because the owner is free (in theory) to initiate an exit without involving the
-			// DAppChain.
+			// Loom Protocol.
 			account.Slots[i] = account.Slots[len(account.Slots)-1]
 			account.Slots = account.Slots[:len(account.Slots)-1]
 
@@ -656,7 +656,7 @@ func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlas
 	tx := &PlasmaTx{}
 
 	for _, v := range pb.Transactions {
-		// Merklize tx set
+		// Merkelize tx set
 		leaves[v.Slot] = v.MerkleHash
 		// Save the tx matched
 		if v.Slot == req.Slot {
