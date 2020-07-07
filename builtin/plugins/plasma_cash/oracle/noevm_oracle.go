@@ -7,7 +7,7 @@ import "errors"
 type OracleConfig struct {
 }
 
-// Not implemented in non-evm build
+// Not implemented in non-EVM build
 type PlasmaBlockWorker struct {
 }
 
@@ -23,7 +23,7 @@ func (w *PlasmaBlockWorker) Run() {
 
 }
 
-// PlasmaCoinWorker sends Plasma deposits from Ethereum to the DAppChain.
+// PlasmaCoinWorker sends Plasma deposits from Ethereum to Loom Protocol.
 type PlasmaCoinWorker struct {
 }
 
