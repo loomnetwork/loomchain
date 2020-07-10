@@ -33,7 +33,7 @@ var (
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-//TODO add test to verify idempodency
+//TODO add test to verify idempotency
 
 func TestRound(t *testing.T) {
 	//TODO change to bigint
@@ -115,9 +115,9 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, loom.UnmarshalAddressPB(transferConfirmed.From).String(), generatedSender.String())
 	assert.Equal(t, loom.UnmarshalAddressPB(transferConfirmed.To).String(), addr3.String())
-	//	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
+	//	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect Merkle hash")
 
-	//Ok lets get the same block back
+	//OK let's get the same block back
 	reqBlock := &GetBlockRequest{
 		BlockHeight: &types.BigUInt{
 			Value: *loom.NewBigUIntFromInt(1000),
@@ -458,7 +458,7 @@ func TestPlasmaCashTxAuth(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// request wont go through as mapping wont be found
+	// the request won't go through as the mapping won't be found
 	err = plasmaContract.PlasmaTxRequest(ctx, req)
 	require.Equal(t, err, ErrNotAuthorized)
 }
@@ -846,7 +846,7 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 	contractAddr := loom.RootAddress("eth")
 
 	// Make the block have 2 transactions
-	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
+	// (if there's only 1 tx in a block, we are in the best-case scenario where we get 8 0's)
 	require.Nil(t, saveCoin(ctx, &Coin{
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
@@ -927,15 +927,15 @@ func TestOracleChange(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// Only oracle can appoint new oracle
+	// Only an oracle can appoint a new oracle
 	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
 		NewOracle: newOracleAddress.MarshalPB(),
 	})
 	require.Nil(t, err)
 
-	// Now, previous oracle wont work
+	// Now, the previous oracle won't work
 
-	// Only current oracle can call DepositRequest
+	// Only the current oracle can call DepositRequest
 	err = plasmaContract.ProcessRequestBatch(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)), &pctypes.PlasmaCashRequestBatch{
 		Requests: []*pctypes.PlasmaCashRequest{
 			&pctypes.PlasmaCashRequest{
@@ -957,14 +957,14 @@ func TestOracleChange(t *testing.T) {
 
 	require.Equal(t, err, ErrNotAuthorized)
 
-	// Only current oracle can appoint new oracle
+	// Only the current oracle can appoint a new oracle
 	err = plasmaContract.UpdateOracle(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)),
 		&UpdateOracleRequest{
 			NewOracle: addr3.MarshalPB(),
 		})
 	require.Equal(t, err, ErrNotAuthorized)
 
-	// New oracle should work
+	// The new oracle should work
 	err = plasmaContract.ProcessRequestBatch(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)), &pctypes.PlasmaCashRequestBatch{
 		Requests: []*pctypes.PlasmaCashRequest{
 			&pctypes.PlasmaCashRequest{
@@ -985,7 +985,7 @@ func TestOracleChange(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// New Oracle should able to appoint another oracle
+	// The new Oracle should able to appoint another oracle
 	err = plasmaContract.UpdateOracle(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)),
 		&UpdateOracleRequest{
 			NewOracle: addr2.MarshalPB(),
@@ -1012,7 +1012,7 @@ func TestOracleAuth(t *testing.T) {
 		&types.BigUInt{Value: *loom.NewBigUIntFromInt(127)},
 	}
 
-	// Non oracle sender wont be able to call this method
+	// A non-oracle sender won't be able to call this method
 	err = plasmaContract.ProcessRequestBatch(notAuthorizedCtx, &pctypes.PlasmaCashRequestBatch{
 		Requests: []*pctypes.PlasmaCashRequest{
 			&pctypes.PlasmaCashRequest{
@@ -1034,7 +1034,7 @@ func TestOracleAuth(t *testing.T) {
 
 	require.Equal(t, err, ErrNotAuthorized)
 
-	// Non oracle cant update oracle
+	// A non-oracle can't update an oracle
 	err = plasmaContract.UpdateOracle(notAuthorizedCtx, &UpdateOracleRequest{
 		NewOracle: addr1.MarshalPB(),
 	})
