@@ -45,31 +45,31 @@ var (
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
 	// request message, e.g. missing or invalid fields.
 	ErrInvalidRequest = errors.New("[UserDeployerWhitelist] invalid request")
-	// ErrOwnerNotSpecified returned if init request does not have owner address
+	// ErrOwnerNotSpecified is returned if the init request does not have the owner's address
 	ErrOwnerNotSpecified = errors.New("[UserDeployerWhitelist] owner not specified")
-	// ErrDeployerAlreadyExists returned if an owner try to set an existing feature
+	// ErrDeployerAlreadyExists is returned if an owner tries to set an existing feature
 	ErrDeployerAlreadyExists = errors.New("[UserDeployerWhitelist] deployer already exists")
-	// ErrDeployerDoesNotExist returned if an owner try to to remove a deployer that does not exist
+	// ErrDeployerDoesNotExist is returned if an owner tries to remove a deployer that does not exist
 	ErrDeployerDoesNotExist = errors.New("[UserDeployerWhitelist] deployer does not exist")
-	// ErrInsufficientBalance returned if loom balance is unsufficient for whitelisting
+	// ErrInsufficientBalance is returned if the LOOM balance is insufficient for whitelisting
 	ErrInsufficientBalance = errors.New("[UserDeployerWhitelist] Insufficient Loom Balance for whitelisting")
-	// ErrInvalidTier returned if Tier provided is invalid
+	// ErrInvalidTier is returned if the Tier provided is invalid
 	ErrInvalidTier = errors.New("[UserDeployerWhitelist] Invalid Tier")
-	// ErrMissingTierInfo is returned if init doesnt get atleast one tier
+	// ErrMissingTierInfo is returned if init doesn't get at least one tier
 	ErrMissingTierInfo = errors.New("[UserDeployerWhitelist] no tiers provided")
-	// ErrInvalidWhitelistingFee indicates the specified fee is invalid
+	// ErrInvalidWhitelistingFee indicates that the specified fee is invalid
 	ErrInvalidWhitelistingFee = errors.New("[UserDeployerWhitelist] fee must be greater than zero")
-	// ErrInvalidBlockRange indicates the specified block range is invalid
+	// ErrInvalidBlockRange indicates that the specified block range is invalid
 	ErrInvalidBlockRange = errors.New("[UserDeployerWhitelist] block range must be greater than zero")
-	// ErrInvalidMaxTxs indicates the specified max txs count is invalid
+	// ErrInvalidMaxTxs indicates that the specified max txs count is invalid
 	ErrInvalidMaxTxs = errors.New("[UserDeployerWhitelist] max txs must be greater than zero")
 )
 
 const (
 	ownerRole = "owner"
-	//This state stores deployer contract mapping
+	//This state stores the deployer contract mapping
 	deployerStatePrefix = "ds"
-	//This state stores deployers corresponding to the user
+	//This state stores the deployers corresponding to the user
 	userStatePrefix = "us"
 	tierKeyPrefix   = "ti"
 )
@@ -146,10 +146,10 @@ func (uw *UserDeployerWhitelist) Init(ctx contract.Context, req *InitRequest) er
 	return nil
 }
 
-// AddUserDeployer should be called by a third-party dev to authorize an account to deploy EVM contracts
-// on their behalf. In order to authorize an account the caller must approve the contract to withdraw
-// the fee for whitelisting (charged in LOOM coin) before calling this method, the fee will be
-// deducted from the caller if the requested account is successfuly authorized.
+// AddUserDeployer should be called by a third-party devs to authorize an account to deploy EVM contracts
+// on their behalf. To authorize an account the caller must approve the contract to withdraw
+// the fee for whitelisting (charged in LOOM coin) before calling this method. The fee will be
+// deducted from the caller's LOOM balance, if the requested account is successfully authorized.
 func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *WhitelistUserDeployerRequest) error {
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
@@ -162,7 +162,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	if err != nil {
 		return errors.Wrap(err, "unable to get address of coin contract")
 	}
-	// Check the deployer account is not already whitelisted
+	// Check if the deployer account is not already whitelisted
 	if ctx.Has(deployerStateKey(loom.UnmarshalAddressPB(req.DeployerAddr))) {
 		return ErrDeployerAlreadyExists
 	}
@@ -173,7 +173,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 	var whitelistingFees *types.BigUInt
 	whitelistingFees = &types.BigUInt{Value: tierInfo.Fee.Value}
 	userAddr := ctx.Message().Sender
-	// Debit the whitelisting fee the caller's LOOM balance
+	// Debit the whitelisting fee from the caller's LOOM balance
 	coinReq := &coin.TransferFromRequest{
 		To:     ctx.ContractAddress().MarshalPB(),
 		From:   userAddr.MarshalPB(),
@@ -194,7 +194,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 
 	var userState UserState
 	if err := ctx.Get(userStateKey(userAddr), &userState); err != nil {
-		// This is taking care of boundary case also that user is whitelisting deployers for first time
+		// This is taking care of the boundary case in which the user is also whitelisting deployers for the first time
 		if err != contract.ErrNotFound {
 			return errors.Wrap(err, "[UserDeployerWhitelist] Failed to load User State")
 		}
@@ -214,7 +214,7 @@ func (uw *UserDeployerWhitelist) AddUserDeployer(ctx contract.Context, req *Whit
 
 }
 
-// RemoveUserDeployer to remove a deployerAddr from whitelisted deployers
+// RemoveUserDeployer removes a deployerAddr from whitelisted deployers
 func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *udwtypes.RemoveUserDeployerRequest) error {
 	if req.DeployerAddr == nil {
 		return ErrInvalidRequest
@@ -224,7 +224,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 		return errors.Wrap(err, "unable to get address of deployer_whitelist")
 	}
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
-	// check if sender is the user who whitelisted the DeployerAddr, if so remove from userState
+	// check if the sender is the user who whitelisted the DeployerAddr. If so, remove the deployer address from userState
 	userAddr := ctx.Message().Sender
 	var userState UserState
 	if err := ctx.Get(userStateKey(userAddr), &userState); err != nil {
@@ -253,7 +253,7 @@ func (uw *UserDeployerWhitelist) RemoveUserDeployer(ctx contract.Context, req *u
 	if err := ctx.Set(userStateKey(userAddr), &userState); err != nil {
 		return errors.Wrap(err, "failed to Save Deployers mapping in user state")
 	}
-	// remove from deployerwhitelist contract
+	// remove deployer from the deployerwhitelist contract
 	removeUserDeployerRequest := &RemoveUserDeployerRequest{
 		DeployerAddr: req.DeployerAddr,
 	}
@@ -332,8 +332,8 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	}, nil
 }
 
-// SwapUserDeployer allows a user to swap one of their deployer accounts for another (essentially
-// rotating deployment keys), this operation removes one deployer account and adds another one,
+// SwapUserDeployer allows users to swap one of their deployer accounts for another (essentially
+// rotating deployment keys). This operation removes one deployer account and adds another one,
 // but doesn't require the user to pay the whitelisting fee again. The deployer account that's
 // swapped out will become inactive which means that it will no longer be possible to send call txs
 // to any contracts deployed by that account when the per-contract tx limiter is enabled.
@@ -462,7 +462,7 @@ func (uw *UserDeployerWhitelist) SetTierInfo(ctx contract.Context, req *SetTierI
 func RecordEVMContractDeployment(ctx contract.Context, deployerAddress, contractAddr loom.Address) error {
 	var userDeployer UserDeployerState
 	err := ctx.Get(deployerStateKey(deployerAddress), &userDeployer)
-	// If key is not part of whitelisted keys then error will be logged
+	// If the key is not part of whitelisted keys, then an error will be logged
 	if err != nil {
 		if err == contract.ErrNotFound {
 			return nil
