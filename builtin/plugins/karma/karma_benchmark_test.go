@@ -123,7 +123,7 @@ func readKarma(state loomchain.State) {
 	protoAmount := state.Get(userKarmaKey(user))
 	dummyKarma, err = strconv.ParseInt(string(protoAmount), 10, 64)
 	if err != nil {
-		panic("pasring karma int64")
+		panic("parsing karma int64")
 	}
 }
 
