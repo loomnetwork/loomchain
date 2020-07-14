@@ -80,14 +80,14 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 		TierInfo: tierList,
 	})
 
-	require.EqualError(t, ErrOwnerNotSpecified, err.Error(), "Owner Not specified at the time of Initialization")
+	require.EqualError(t, ErrOwnerNotSpecified, err.Error(), "Owner is not specified at the time of initialization")
 
 	err = deployerContract.Init(contractpb.WrapPluginContext(deployerCtx), &InitRequest{
 		Owner:    addr4.MarshalPB(),
 		TierInfo: nil,
 	})
 
-	require.EqualError(t, ErrMissingTierInfo, err.Error(), "Tier Info Not specified at the time of Initialization")
+	require.EqualError(t, ErrMissingTierInfo, err.Error(), "Tier info is not specified at the time of initialization")
 
 	err = deployerContract.Init(contractpb.WrapPluginContext(deployerCtx), &InitRequest{
 		Owner:    addr4.MarshalPB(),
@@ -96,7 +96,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
-	//Get initial balance of user
+	//Get the initial balance for the user
 	resp1, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
 		&coin.BalanceOfRequest{
 			Owner: addr3.MarshalPB(),
@@ -111,7 +111,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
-	// When no deployer attached to user then should return 0 deployers instead of error
+	// When no deployer is attached to the user, then it should return 0 deployers instead of an error
 	getUserDeployersResponse, err := deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
@@ -125,32 +125,32 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
-	// checking balance after deployment of addr1
+	// checking the balance after addr1 gets deployed
 	resp2, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)),
 		&coin.BalanceOfRequest{
 			Owner: addr3.MarshalPB(),
 		})
 
 	require.Nil(t, err)
-	//Whitelisted fees is debited and final balance of user's loom coin is initial balance - whitelisting fees
+	//Whitelisting fees are debited, and the final LOOM balance of the user is initial balance - whitelisting fees
 	assert.Equal(t, whitelistingfees.Uint64(), resp1.Balance.Value.Uint64()-resp2.Balance.Value.Uint64())
 
 	//Error Cases
-	//Trying to Add Duplicate Deployer
+	//Trying to add a duplicate deployer
 	err = deployerContract.AddUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&WhitelistUserDeployerRequest{
 			DeployerAddr: addr1.MarshalPB(),
 			TierID:       0,
 		})
 
-	require.EqualError(t, ErrDeployerAlreadyExists, err.Error(), "Trying to Add Deployer which Already Exists for User")
+	require.EqualError(t, ErrDeployerAlreadyExists, err.Error(), "Trying to add a deployer which already exists for user")
 
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getUserDeployersResponse.Deployers))
 
-	// When no contracts attached should return 0 contracts instead of error
+	// When no contracts are attached, it should return 0 contracts instead of an error
 	getDeployedContractsResponse, err := deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
 		DeployerAddr: addr1.MarshalPB(),
@@ -169,7 +169,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(getDeployedContractsResponse.ContractAddresses))
 
-	//Modify Tier Info
+	//Modify tier info
 	err = deployerContract.SetTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr4)),
 		&SetTierInfoRequest{
 			Name:   "Tier2",
@@ -183,7 +183,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.NoError(t, err)
 
-	//Error Test case Modify Tier Info with UnAuthorized User
+	//Error test case: modify tier info for an unauthorized user
 	err = deployerContract.SetTierInfo(contractpb.WrapPluginContext(deployerCtx.WithSender(addr5)),
 		&SetTierInfoRequest{
 			Name:   "Tier2",
@@ -195,7 +195,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 			MaxTxs:     20,
 		})
 
-	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be Modified Only by Owner")
+	require.EqualError(t, ErrNotAuthorized, err.Error(), "Can be modified only by the owner")
 
 	//Get Tier Info
 	resp, err := deployerContract.GetTierInfo(contractpb.WrapPluginContext(deployerCtx),
@@ -206,7 +206,7 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, fees, &resp.Tier.Fee.Value)
 	require.Equal(t, "Tier2", resp.Tier.Name)
-	// when deployer is not in ctx, still return don't return error but empty list of contracts
+	// when the deployer is not in ctx it should not return an error, but an empty list of contracts
 	getDeployedContractsResponse, err = deployerContract.GetDeployedContracts(contractpb.WrapPluginContext(
 		deployerCtx.WithSender(addr3)), &GetDeployedContractsRequest{
 		DeployerAddr: addr3.MarshalPB(),
@@ -223,26 +223,26 @@ func TestUserDeployerWhitelistContract(t *testing.T) {
 
 	require.Nil(t, err)
 
-	// remove the deployer addr6 by add1 should show error :ErrDeployerDoesNotExist
+	// removing the deployer addr6 by add1 should error with :ErrDeployerDoesNotExist
 	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr1)),
 		&udwtypes.RemoveUserDeployerRequest{
 			DeployerAddr: addr6.MarshalPB(),
 		})
 
 	require.EqualError(t, ErrDeployerDoesNotExist, err.Error(), "Deployer Does not exist corresponding to the user")
-	// as above deployer is not removed so get should return 2
+	// as the above deployer is not removed, GetUserDeployers should return 2
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(getUserDeployersResponse.Deployers))
-	// remove the deployer addr6 by addr3 should execute without error
+	// removing the deployer addr6 by addr3 should not error
 	err = deployerContract.RemoveUserDeployer(contractpb.WrapPluginContext(deployerCtx.WithSender(addr3)),
 		&udwtypes.RemoveUserDeployerRequest{
 			DeployerAddr: addr6.MarshalPB(),
 		})
 
 	require.Nil(t, err)
-	// as above deployer is removed so get should return 1
+	// as the above deployer is removed, GetUserDeployers should return 1
 	getUserDeployersResponse, err = deployerContract.GetUserDeployers(contractpb.WrapPluginContext(
 		deployerCtx), &GetUserDeployersRequest{UserAddr: addr3.MarshalPB()})
 	require.NoError(t, err)
