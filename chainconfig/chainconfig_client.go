@@ -23,12 +23,12 @@ type (
 )
 
 const (
-	// FeaturePending status indicates a feature hasn't been enabled by majority of validators yet.
+	// FeaturePending status indicates that a feature hasn't been enabled by the majority of validators yet.
 	FeaturePending = cctypes.Feature_PENDING
-	// FeatureWaiting status indicates a feature has been enabled by majority of validators, but
+	// FeatureWaiting status indicates a feature that has been enabled by the majority of validators, but
 	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
 	FeatureWaiting = cctypes.Feature_WAITING
-	// FeatureEnabled status indicates a feature has been enabled by majority of validators, and
+	// FeatureEnabled status indicates a feature that has been enabled by the majority of validators, and
 	// has been activated on the chain.
 	FeatureEnabled = cctypes.Feature_ENABLED
 	// FeatureDisabled is not currently used.
@@ -44,7 +44,7 @@ type ChainConfigClient struct {
 	signer   auth.Signer
 }
 
-// NewChainConfigClient returns ChainConfigClient instance
+// NewChainConfigClient returns a ChainConfigClient instance
 func NewChainConfigClient(
 	loomClient *client.DAppChainRPCClient,
 	caller goloom.Address,
@@ -140,7 +140,7 @@ func (cc *ChainConfigClient) GetValidatorInfo() (*GetValidatorInfoResponse, erro
 		cc.caller,
 		&resp,
 	); err != nil {
-		cc.logger.Error("Failed to Get Validator information in ChainConfig contract", "err", err)
+		cc.logger.Error("Failed to get validator information in ChainConfig contract", "err", err)
 		return nil, err
 	}
 	return &resp, nil
