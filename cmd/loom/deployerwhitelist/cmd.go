@@ -43,7 +43,7 @@ func addDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "add <deployer address> <permission (go|evm|migration|all)>",
-		Short:   "Add deployer with permision to deployer list",
+		Short:   "Add a deployer with permission to the deployer list",
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,7 +65,7 @@ func addDeployerCmd() *cobra.Command {
 					uint32(dw.AllowMigrationFlag),
 				)
 			} else {
-				return fmt.Errorf("Please specify deploy permission (go|evm|any)")
+				return fmt.Errorf("Please specify permissions (go|evm|any) for the new deployer")
 			}
 
 			cmd.SilenceUsage = true
@@ -120,7 +120,7 @@ func getDeployerCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "get <deployer address>",
-		Short:   "Show current permissions of a deployer",
+		Short:   "Show current permissions for a deployer",
 		Example: getDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAccountAddress(args[0], &flags)
