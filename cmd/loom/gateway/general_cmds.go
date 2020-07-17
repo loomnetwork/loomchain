@@ -87,7 +87,7 @@ const updateMainnetAddressCmdExample = `
 func newReplaceOwnerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replace-owner <new-owner> <gateway-name>",
-		Short:   "Replaces gateway owner. Only callable by current gateway owner",
+		Short:   "Replaces the owner of the gateway. Only callable by the current owner of the gateway",
 		Example: replaceOwnerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -101,7 +101,7 @@ func newReplaceOwnerCommand() *cobra.Command {
 
 			newOwner, err := hexToLoomAddress(args[0])
 			if err != nil {
-				return errors.Wrap(err, "failed to add new owner")
+				return errors.Wrap(err, "failed to add a new owner")
 			}
 
 			var name string
@@ -116,7 +116,7 @@ func newReplaceOwnerCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -134,7 +134,7 @@ func newReplaceOwnerCommand() *cobra.Command {
 func newRemoveOracleCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "remove-oracle <oracle-address> <gateway-name>",
-		Short:   "Removes an oracle. Only callable by current gateway owner",
+		Short:   "Removes an oracle. Only callable by the current gateway owner",
 		Example: removeOracleCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -148,7 +148,7 @@ func newRemoveOracleCommand() *cobra.Command {
 
 			oracleAddress, err := hexToLoomAddress(args[0])
 			if err != nil {
-				return errors.Wrap(err, "failed to add new owner")
+				return errors.Wrap(err, "failed to add a new owner")
 			}
 
 			var name string
@@ -163,7 +163,7 @@ func newRemoveOracleCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -232,7 +232,7 @@ func newUpdateTrustedValidatorsCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -259,7 +259,7 @@ func newUpdateTrustedValidatorsCommand() *cobra.Command {
 func newAddOracleCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "add-oracle <oracle-address> <gateway-name>",
-		Short:   "Adds an oracle. Only callable by current gateway owner",
+		Short:   "Adds an oracle. Only callable by the current gateway owner",
 		Example: addOracleCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -273,7 +273,7 @@ func newAddOracleCommand() *cobra.Command {
 
 			oracleAddress, err := hexToLoomAddress(args[0])
 			if err != nil {
-				return errors.Wrap(err, "failed to add new owner")
+				return errors.Wrap(err, "failed to add a new owner")
 			}
 
 			var name string
@@ -288,7 +288,7 @@ func newAddOracleCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -326,7 +326,7 @@ func newGetStateCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -359,7 +359,7 @@ func newGetOraclesCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -381,7 +381,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	var ethURI string
 	cmd := &cobra.Command{
 		Use:     "withdraw-funds",
-		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
+		Short:   "Withdraw your rewards to Ethereum. Process: First, it claims any unclaimed rewards of the user, then it deposits the user's funds to the Loom Protocol gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
 		Example: withdrawFundsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -521,7 +521,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 
 			gatewayAddr, err := rpcClient.Resolve("loomcoin-gateway")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protoco Gateway address")
 			}
 
 			receipt, err := gateway.WithdrawalReceipt(id)
@@ -536,14 +536,14 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				} else {
 					amount = balanceAfter
 				}
-				fmt.Println("No pending withdrwal found...")
+				fmt.Println("No pending withdrawal found...")
 				// Approve
 				err = loomcoin.Approve(id, gatewayAddr, amount)
 				if err != nil {
 					return err
 				}
 
-				fmt.Println("Approved deposit on dappchain for ...", amount)
+				fmt.Println("Approved deposit on Loom Protocol for ...", amount)
 
 				// Get the loom tokens to the gateway
 				err = gateway.WithdrawLoom(id, amount, common.HexToAddress(mainnetLoomAddress))
@@ -579,7 +579,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			fmt.Println("Token Contract:", receipt.TokenContract.Local.String())
 			fmt.Println("Token Kind:", receipt.TokenKind)
 			fmt.Println("Token Amount:", receipt.TokenAmount.Value.Int)
-			fmt.Println("Oracle Sig", hex.EncodeToString(receipt.OracleSignature))
+			fmt.Println("Oracle Signature:", hex.EncodeToString(receipt.OracleSignature))
 
 			sig := receipt.OracleSignature
 
@@ -588,18 +588,18 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("\nPlease go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
+			fmt.Println("\nPlease go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values displayed below:")
 			fmt.Println("To Address:", tx.To().String())
 			fmt.Println("Data:", hex.EncodeToString(tx.Data()))
 			fmt.Println("Gas Limit:", tx.Gas())
-			fmt.Println("Sign it with the account", ethAddr.Local.String(), "and it will authorize a LOOM token withdrawal to you.")
+			fmt.Println("Sign it with the account", ethAddr.Local.String(), " and it will authorize a LOOM token withdrawal.")
 
 			return nil
 
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
+	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "If false (the default value), it tries to claim the rewards and then withdraw the whole user balance. If true, it withdraws only the rewards from the gateway to Ethereum.")
 	cmdFlags.StringVar(&ethURI, "eth-uri", "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241", "Ethereum URI")
 	return cmd
 }
@@ -632,7 +632,7 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 			if strings.Compare(args[1], BinanceGatewayName) == 0 {
 				name = BinanceGatewayName
 			} else {
-				return errors.New("only Binance gateway has withdrawal fees.")
+				return errors.New("only the Binance gateway has withdrawal fees.")
 			}
 
 			var transferFee *types.BigUInt
@@ -650,7 +650,7 @@ func newSetWithdrawFeeCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -672,7 +672,7 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 	var totalLimit, accountLimit, decimals uint64
 	cmd := &cobra.Command{
 		Use:     "set-withdrawal-limit <gateway>",
-		Short:   "Sets maximum ETH or LOOM amount the gateway should allow users to withdraw per day",
+		Short:   "Sets the maximum ETH or LOOM amount the gateway should allow users to withdraw per day",
 		Example: setWithdrawLimitCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loomKeyPath := gatewayCmdFlags.PrivKeyPath
@@ -701,7 +701,7 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -709,7 +709,7 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 			stateReq := &tgtypes.TransferGatewayStateRequest{}
 			stateResp := &tgtypes.TransferGatewayStateResponse{}
 			if _, err := gateway.StaticCall("GetState", stateReq, gatewayAddr, stateResp); err != nil {
-				return errors.Wrap(err, "failed to fetch current withdrawal limits")
+				return errors.Wrap(err, "failed to fetch the current withdrawal limits")
 			}
 
 			req := &tgtypes.TransferGatewaySetMaxWithdrawalLimitRequest{
@@ -750,7 +750,7 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update-mainnet-address <mainnet-address> <gateway-name>",
-		Short:   "Update mainnet gateway address. Only callable by current gateway owner",
+		Short:   "Update the mainnet gateway address. Only callable by the current gateway owner",
 		Example: updateMainnetAddressCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -799,7 +799,7 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -817,7 +817,7 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 func newUpdateMainnetHotWalletAddressCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update-hot-wallet-address <hot-wallet-address> <gateway-name>",
-		Short:   "Update mainnet hot wallet address. Only callable by current gateway owner",
+		Short:   "Update the foreign chain hot wallet address. Only callable by current gateway owner",
 		Example: updateMainnetAddressCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -866,7 +866,7 @@ func newUpdateMainnetHotWalletAddressCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
