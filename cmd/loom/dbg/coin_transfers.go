@@ -71,7 +71,8 @@ func findCoinTransfers(
 	for h := startHeight; h <= endHeight; h++ {
 		block := blockStore.LoadBlock(h)
 		if block == nil {
-			return fmt.Errorf("missing block at height %v", h)
+			fmt.Printf("missing block at height %v\n", h)
+			continue
 		}
 		if len(block.Data.Txs) > 0 {
 			for _, tx := range block.Data.Txs {
