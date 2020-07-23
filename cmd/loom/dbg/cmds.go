@@ -280,16 +280,16 @@ func newFindCoinTransfersCommand() *cobra.Command {
 				}
 			}
 
-			var recipientAdrr loom.Address
-			var err error
+			var recipientAddr *loom.Address
 			if recipient != "" {
-				recipientAdrr, err = loom.ParseAddress(recipient)
+				addr, err := loom.ParseAddress(recipient)
 				if err != nil {
 					return errors.Wrap(err, "failed to parse recipient address")
 				}
+				recipientAddr = &addr
 			}
 
-			return findCoinTransfers(coinContracts, dataPath, int64(startHeight), int64(endHeight), &recipientAdrr)
+			return findCoinTransfers(coinContracts, dataPath, int64(startHeight), int64(endHeight), recipientAddr)
 		},
 	}
 	cmdFlags := cmd.Flags()
