@@ -42,7 +42,7 @@ func newMapContractsCommand() *cobra.Command {
 	var gatewayType string
 	cmd := &cobra.Command{
 		Use:     "map-contracts <local-contract-addr> <foreign-contract-addr>",
-		Short:   "Links a DAppChain token contract to an Ethereum token contract via the Transfer Gateway.",
+		Short:   "Links a Loom Protocol token contract to an Ethereum token contract via the Transfer Gateway.",
 		Example: mapContractsCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,7 +68,7 @@ func newMapContractsCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -87,7 +87,7 @@ func newMapContractsCommand() *cobra.Command {
 
 			creatorKey, err := crypto.LoadECDSA(ethKeyPath)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator Ethereum key")
+				return errors.Wrap(err, "failed to load creator's Ethereum key")
 			}
 
 			hash := ssha.SoliditySHA3(
@@ -101,12 +101,12 @@ func newMapContractsCommand() *cobra.Command {
 				hash = evmcompat.PrefixHeader(hash, evmcompat.SignatureType_TRON)
 				sig, err = evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_TRON)
 				if err != nil {
-					return errors.Wrap(err, "failed to generate creator signature")
+					return errors.Wrap(err, "failed to generate creator's signature")
 				}
 			} else {
 				sig, err = evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_EIP712)
 				if err != nil {
-					return errors.Wrap(err, "failed to generate creator signature")
+					return errors.Wrap(err, "failed to generate creator's signature")
 				}
 			}
 
@@ -156,7 +156,7 @@ func newMapBinanceContractsCommand() *cobra.Command {
 	var gatewayType = "binance-gateway"
 	cmd := &cobra.Command{
 		Use:     "map-binance-contracts <local-contract-addr> <token-name>",
-		Short:   "Links a DAppChain token contract to an Binance token via the Transfer Gateway.",
+		Short:   "Links a Loom Protocol token contract to a Binance token via the Transfer Gateway.",
 		Example: mapBinanceContractsCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -180,7 +180,7 @@ func newMapBinanceContractsCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -199,7 +199,7 @@ func newMapBinanceContractsCommand() *cobra.Command {
 
 			creatorKey, err := crypto.LoadECDSA(ethKeyPath)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator Ethereum key")
+				return errors.Wrap(err, "failed to load creator's Ethereum key")
 			}
 
 			hash := ssha.SoliditySHA3(
@@ -209,7 +209,7 @@ func newMapBinanceContractsCommand() *cobra.Command {
 			)
 			sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_BINANCE)
 			if err != nil {
-				return errors.Wrap(err, "failed to generate creator signature")
+				return errors.Wrap(err, "failed to generate creator's signature")
 			}
 
 			// no ForeignContractTxHash for binance
@@ -248,7 +248,7 @@ func newMapAccountsCommand() *cobra.Command {
 	var silent, interactive bool
 	cmd := &cobra.Command{
 		Use:     "map-accounts",
-		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway.",
+		Short:   "Links a Loom Protocol account to an Ethereum account via the Transfer Gateway.",
 		Example: mapAccountsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			loomKeyPath := gatewayCmdFlags.PrivKeyPath
@@ -268,7 +268,7 @@ func newMapAccountsCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			mapperAddr, err := rpcClient.Resolve("addressmapper")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Address Mapper address")
+				return errors.Wrap(err, "failed to resolve the address of the address mapper contract")
 			}
 			mapper := client.NewContract(rpcClient, mapperAddr.Local)
 			mappedAccount, err := getMappedAccount(mapper, localOwnerAddr)
@@ -282,7 +282,7 @@ func newMapAccountsCommand() *cobra.Command {
 				// get it from the key
 				ethOwnerKey, err := crypto.LoadECDSA(ethKeyPath)
 				if err != nil {
-					return errors.Wrap(err, "failed to load owner Ethereum key")
+					return errors.Wrap(err, "failed to load owner's Ethereum key")
 				}
 
 				foreignOwnerAddr = loom.Address{
@@ -298,7 +298,7 @@ func newMapAccountsCommand() *cobra.Command {
 
 				sign, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
 				if err != nil {
-					return errors.Wrap(err, "failed to generate foreign owner signature")
+					return errors.Wrap(err, "failed to generate foreign owner's signature")
 				}
 
 				req = &amtypes.AddressMapperAddIdentityMappingRequest{
@@ -368,7 +368,7 @@ func newMapAccountsCommand() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
+	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of the owner")
 	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
 	cmdFlags.BoolVar(&interactive, "interactive", false, "Make the mapping of an account interactive by requiring the signature to be provided by the user instead of signing inside the client.")
 	return cmd
@@ -393,7 +393,7 @@ func newListContractMappingsCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 			req := &tgtypes.TransferGatewayListContractMappingRequest{}
@@ -513,7 +513,7 @@ func newGetContractMappingCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayType)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve Loom Protocol Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 			req := &tgtypes.TransferGatewayGetContractMappingRequest{
@@ -573,7 +573,7 @@ func getSignatureInteractive(hash []byte, sigType evmcompat.SignatureType) ([pre
 		return [66]byte{}, errors.New("invalid signature")
 	}
 
-	// todo: check if prefixed with 0x
+	// todo: check if it's prefixed with 0x
 	sigStripped, err := hex.DecodeString(sig[2:])
 	if err != nil {
 		return [66]byte{}, errors.New("please paste the signature prefixed with 0x")
