@@ -20,7 +20,9 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/blockchain"
 	dbm "github.com/tendermint/tendermint/libs/db"
-	"github.com/tendermint/tendermint/state/txindex/kv"
+
+	//"github.com/tendermint/tendermint/state/txindex/kv"
+	sm "github.com/tendermint/tendermint/state"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
@@ -39,16 +41,28 @@ func findCoinTransfers(
 	}
 	defer blockStoreDB.Close()
 
-	txIndexDB, err := dbm.NewGoLevelDBWithOpts(
-		"tx_index", path.Join(chaindataPath, "data"),
+	stateDB, err := dbm.NewGoLevelDBWithOpts(
+		"state", path.Join(chaindataPath, "data"),
 		&opt.Options{
 			ReadOnly: true,
 		},
 	)
 	if err != nil {
-		return errors.New("failed to load tx index store")
+		return errors.New("failed to load state store")
 	}
-	defer txIndexDB.Close()
+	defer stateDB.Close()
+	/*
+		txIndexDB, err := dbm.NewGoLevelDBWithOpts(
+			"tx_index", path.Join(chaindataPath, "data"),
+			&opt.Options{
+				ReadOnly: true,
+			},
+		)
+		if err != nil {
+			return errors.New("failed to load tx index store")
+		}
+		defer txIndexDB.Close()
+	*/
 
 	blockStore := blockchain.NewBlockStore(blockStoreDB)
 	if startHeight == 0 {
@@ -58,7 +72,7 @@ func findCoinTransfers(
 		endHeight = blockchain.LoadBlockStoreStateJSON(blockStoreDB).Height
 	}
 
-	txIndexer := kv.NewTxIndex(txIndexDB)
+	//txIndexer := kv.NewTxIndex(txIndexDB)
 
 	fmt.Printf("Searching from block %v to block %v...\n", startHeight, endHeight)
 
@@ -75,26 +89,34 @@ func findCoinTransfers(
 			continue
 		}
 		if len(block.Data.Txs) > 0 {
+			blockResults, err := sm.LoadABCIResponses(stateDB, h)
+			if err != nil {
+				fmt.Println("failed to load block results, err:", err)
+				continue
+			}
 			for ti, tx := range block.Data.Txs {
-				txr, err := txIndexer.Get(tx.Hash())
-				if err != nil {
-					return err
-				}
+				/*
+					txr, err := txIndexer.Get(tx.Hash())
+					if err != nil {
+						return err
+					}
+				*/
+				txr := blockResults.DeliverTx[ti]
 				if txr != nil { // means no result was found
 					// Skip failed txs since they don't modify state, only look at calls to Go contracts
-					if txr.Result.Code != abci.CodeTypeOK {
+					if txr.Code != abci.CodeTypeOK {
 						continue
 					}
-					if txr.Result.Info != utils.CallPlugin {
-						if txr.Result.Info != "" {
+					if txr.Info != utils.CallPlugin {
+						if txr.Info != "" {
 							continue
 						} else {
 							fmt.Printf("warning: unknown tx type at height %v, index %v\n", h, ti)
 						}
 					}
 				} else {
-					fmt.Printf("missing tx result at height %v, index %v\n", h, ti)
-					continue
+					// probably means the tx was successful, but no other output was saved for it
+					fmt.Printf("warning: missing tx result at height %v, index %v\n", h, ti)
 				}
 				if info, err := decodeCoinTransferTx(tx, coinContracts); err == nil {
 					if recipient != nil && info.Recipient != recipientAddr {
