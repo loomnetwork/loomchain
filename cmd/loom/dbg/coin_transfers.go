@@ -75,19 +75,29 @@ func findCoinTransfers(
 			continue
 		}
 		if len(block.Data.Txs) > 0 {
-			for _, tx := range block.Data.Txs {
+			for ti, tx := range block.Data.Txs {
 				txr, err := txIndexer.Get(tx.Hash())
 				if err != nil {
 					return err
 				}
 				if txr != nil { // means no result was found
 					// Skip failed txs since they don't modify state, only look at calls to Go contracts
-					if txr.Result.Code != abci.CodeTypeOK || txr.Result.Info != utils.CallPlugin {
+					if txr.Result.Code != abci.CodeTypeOK {
 						continue
 					}
+					if txr.Result.Info != utils.CallPlugin {
+						if txr.Result.Info != "" {
+							continue
+						} else {
+							fmt.Printf("warning: unknown tx type at height %v, index %v\n", h, ti)
+						}
+					}
+				} else {
+					fmt.Printf("missing tx result at height %v, index %v\n", h, ti)
+					continue
 				}
 				if info, err := decodeCoinTransferTx(tx, coinContracts); err == nil {
-					if recipient != nil && info.Sender != recipientAddr {
+					if recipient != nil && info.Recipient != recipientAddr {
 						continue
 					}
 					info.Time = block.Header.Time
@@ -109,13 +119,14 @@ func findCoinTransfers(
 }
 
 type coinTxInfo struct {
-	Time     time.Time
-	Height   int64
-	TxHash   string
-	Sender   string
-	Amount   string
-	Contract string
-	Method   string
+	Time      time.Time
+	Height    int64
+	TxHash    string
+	Sender    string
+	Recipient string
+	Amount    string
+	Contract  string
+	Method    string
 }
 
 func decodeCoinTransferTx(tx tmtypes.Tx, coinContracts []loom.Address) (coinTxInfo, error) {
@@ -193,11 +204,12 @@ func decodeCoinTransferTx(tx tmtypes.Tx, coinContracts []loom.Address) (coinTxIn
 		}
 
 		return coinTxInfo{
-			TxHash:   fmt.Sprintf("%X", tx.Hash()),
-			Sender:   loom.UnmarshalAddressPB(args.To).String(),
-			Amount:   amount.String(),
-			Contract: coinAddr.String(),
-			Method:   "Transfer",
+			TxHash:    fmt.Sprintf("%X", tx.Hash()),
+			Sender:    loom.UnmarshalAddressPB(msgTx.From).String(),
+			Recipient: loom.UnmarshalAddressPB(args.To).String(),
+			Amount:    amount.String(),
+			Contract:  coinAddr.String(),
+			Method:    "Transfer",
 		}, nil
 	} else if methodCall.Method == "TransferFrom" {
 		var args ctypes.TransferFromRequest
@@ -214,11 +226,12 @@ func decodeCoinTransferTx(tx tmtypes.Tx, coinContracts []loom.Address) (coinTxIn
 		}
 
 		return coinTxInfo{
-			TxHash:   fmt.Sprintf("%X", tx.Hash()),
-			Sender:   loom.UnmarshalAddressPB(args.To).String(),
-			Amount:   amount.String(),
-			Contract: coinAddr.String(),
-			Method:   "TransferFrom",
+			TxHash:    fmt.Sprintf("%X", tx.Hash()),
+			Sender:    loom.UnmarshalAddressPB(args.From).String(),
+			Recipient: loom.UnmarshalAddressPB(args.To).String(),
+			Amount:    amount.String(),
+			Contract:  coinAddr.String(),
+			Method:    "TransferFrom",
 		}, nil
 	}
 	return def, errors.New("not a coin transfer")
