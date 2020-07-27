@@ -27,7 +27,7 @@ type UserdeployerInfo struct {
 func NewUserDeployCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dev <command>",
-		Short: "User Deployer Whitelist CLI",
+		Short: "User deployer whitelist CLI",
 	}
 	cmd.AddCommand(
 		addUserDeployerCmd(),
@@ -42,7 +42,7 @@ func NewUserDeployCommand() *cobra.Command {
 }
 
 const addUserDeployerCmdExample = `
-loom dev add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --tier 0 
+loom dev add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --tier 0
 `
 
 func addUserDeployerCmd() *cobra.Command {
@@ -106,7 +106,7 @@ func swapUserDeployerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "swap-deployer <old-deployer address> <new-deployer address>",
 		// nolint:lll
-		Short:   "Swap an account from the list of accounts authorized to deploy contracts on behalf of a user to new account (the caller)",
+		Short:   "Swap an account from the list of accounts authorized to deploy contracts on behalf of a user with a new account (the caller)",
 		Example: swapUserDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -130,7 +130,7 @@ func swapUserDeployerCmd() *cobra.Command {
 }
 
 const getUserDeployersCmdExample = `
-loom dev list-deployers 0x7262d4c97c7B93937E4810D289b7320e9dA82856 
+loom dev list-deployers 0x7262d4c97c7B93937E4810D289b7320e9dA82856
 `
 
 func getUserDeployersCmd() *cobra.Command {
@@ -249,7 +249,7 @@ func getTierInfoCmd() *cobra.Command {
 }
 
 const setTierCmdExample = `
-loom dev set-tier 0 --fee 100 --name Tier1 --block-range 10 --max-txs 2 
+loom dev set-tier 0 --fee 100 --name Tier1 --block-range 10 --max-txs 2
 `
 
 func setTierInfoCmd() *cobra.Command {
@@ -270,7 +270,7 @@ func setTierInfoCmd() *cobra.Command {
 			rpcClient := getDAppChainClient(&flags)
 			udwAddress, err := rpcClient.Resolve("user-deployer-whitelist")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve user-deployer-whitelist address")
+				return errors.Wrap(err, "failed to resolve the address of the user-deployer-whitelist contract")
 			}
 			udwContract := client.NewContract(rpcClient, udwAddress.Local)
 			getTierInfoReq := &udwtypes.GetTierInfoRequest{
