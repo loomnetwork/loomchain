@@ -33,17 +33,17 @@ type accountInfo struct {
 }
 
 const queryAccountCmdExample = `
-# Get info about a DAppChain account
+# Retrieve information about a Loom Protocol account
 ./loom gateway account 0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2
 
-# Get info about an Ethereum account
+# Retrieve information about an Ethereum account
 ./loom gateway account eth:0x5d1ddf5223a412d24901c32d14ef56cb706c0f64
 `
 
 func newQueryAccountCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "account <account-addr>",
-		Short:   "Displays information about a DAppChain or Ethereum account known to the Transfer Gateway.",
+		Short:   "Displays information about a Loom Protocol or Ethereum account known to the transfer gateway.",
 		Example: queryAccountCmdExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,7 +65,7 @@ func newQueryAccountCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			mapperAddr, err := rpcClient.Resolve("addressmapper")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Address Mapper address")
+				return errors.Wrap(err, "failed to resolve the address of the `addressmapper` contract")
 			}
 			mapper := client.NewContract(rpcClient, mapperAddr.Local)
 			mappedAccount, err := getMappedAccount(mapper, addr)
@@ -149,10 +149,10 @@ func formatTokenAmount(amount *big.Int) string {
 
 //nolint:gosec
 const queryUnclaimedTokensCmdExample = `
-# Show unclaimed LOOM in the DAppChain Gateway deposited by an Ethereum account
+# Show unclaimed LOOM tokens in the Loom Protocol gateway deposited by an Ethereum account
 ./loom gateway unclaimed-tokens loomcoin-gateway 0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2
 
-# Show unclaimed tokens in the DAppChain Gateway deposited by an Ethereum account
+# Show unclaimed tokens in the Loom Protocol gateway deposited by an Ethereum account
 ./loom gateway unclaimed-tokens eth:0x5d1ddf5223a412d24901c32d14ef56cb706c0f64
 `
 
@@ -160,7 +160,7 @@ func newQueryUnclaimedTokensCommand() *cobra.Command {
 	var gatewayName string
 	cmd := &cobra.Command{
 		Use:     "unclaimed-tokens <account-addr> [gateway-name]",
-		Short:   "Shows unclaimed tokens in the Transfer Gateway deposited by an Ethereum account",
+		Short:   "Shows unclaimed tokens in the transfer gateway deposited by an Ethereum account",
 		Example: queryUnclaimedTokensCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -195,7 +195,7 @@ func newQueryUnclaimedTokensCommand() *cobra.Command {
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(gatewayName)
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+				return errors.Wrap(err, "failed to resolve the address of the transfer gateway contract")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
@@ -205,7 +205,7 @@ func newQueryUnclaimedTokensCommand() *cobra.Command {
 			resp := &tgtypes.TransferGatewayGetUnclaimedTokensResponse{}
 			_, err = gateway.StaticCall("GetUnclaimedTokens", req, addr, resp)
 			if err != nil {
-				return errors.Wrap(err, "failed to call GetUnclaimedTokens on Gateway contract")
+				return errors.Wrap(err, "failed to call GetUnclaimedTokens on the gateway contract")
 			}
 			output, err := json.MarshalIndent(resp.UnclaimedTokens, "", "  ")
 			if err != nil {
@@ -217,16 +217,16 @@ func newQueryUnclaimedTokensCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(
 		&gatewayName, "gateway", "g", GatewayName,
-		"Which Gateway contract to query, gateway or loomcoin-gateway",
+		"Which gateway contract to query, gateway or loomcoin-gateway",
 	)
 	return cmd
 }
 
 const getWithdrawalReceiptExample = `
-# Get the withdrawal receipt using a Ethereum address
+# Retrieve the withdrawal receipt using an Ethereum address
 loom gateway withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863 loomcoin-gateway
 
-Get the withdrawal receipt using a DappChain Address
+Retrieve the withdrawal receipt using a Loom Protocol address
 loom gateway withdrawal-receipt 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7 gateway
 `
 
@@ -234,7 +234,7 @@ func newWithdrawalReceiptCommand() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "withdrawal-receipt <owner hex address> <gateway name>",
-		Short:   "Get the withdrawal receipt for an account",
+		Short:   "Retrieve the withdrawal receipt for an account",
 		Example: getWithdrawalReceiptExample,
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -286,7 +286,7 @@ type Loom struct {
 }
 
 const queryGatewaySupplyCmdExample = `
-# Show holdings of DAppChain & Ethereum Gateways
+# Show holdings of Loom Protocol & Ethereum gateways
 ./loom gateway supply \
    --eth-uri https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241 \
    --eth-gateway-addr 0x223CA78df868367D214b444d561B9123c018963A \
@@ -301,7 +301,7 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 	var raw bool
 	cmd := &cobra.Command{
 		Use:     "supply",
-		Short:   "Displays holdings of DAppChain & Ethereum Gateways",
+		Short:   "Displays holdings of Loom Protocol & Ethereum gateways",
 		Example: queryGatewaySupplyCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -331,7 +331,7 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 
 			ethCoinAddr, err := rpcClient.Resolve("ethcoin")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve ethCoin address")
+				return errors.Wrap(err, "failed to resolve the address of the ethCoin contract")
 			}
 			ethcoinContract := client.NewContract(rpcClient, ethCoinAddr.Local)
 			tsreq1 := ethcoin.TotalSupplyRequest{}
@@ -369,7 +369,7 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 
 			gatewayAddr1, err := rpcClient.Resolve("gateway")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve Gateway address")
+				return errors.Wrap(err, "failed to resolve the address of the gateway contract")
 			}
 
 			gBalanceRequest := &ctypes.BalanceOfRequest{
@@ -403,7 +403,7 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 
 			gatewayAddr, err := rpcClient.Resolve("loomcoin-gateway")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve loomcoin Gateway address")
+				return errors.Wrap(err, "failed to resolve the address of the loomcoin gateway contract")
 			}
 			gatewayContract := client.NewContract(rpcClient, gatewayAddr.Local)
 			ethLocalAddr, err := loom.LocalAddressFromHexString(loomCoinAddressEth)
@@ -435,7 +435,7 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 
 			coinAddr, err := rpcClient.Resolve("coin")
 			if err != nil {
-				return errors.Wrap(err, "failed to resolve coin address")
+				return errors.Wrap(err, "failed to resolve the address of the coin contract")
 			}
 
 			coinContract := client.NewContract(rpcClient, coinAddr.Local)
