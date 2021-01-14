@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
@@ -172,6 +175,43 @@ func BalanceCmd() *cobra.Command {
 	return cmd
 }
 
+func BalancesCmd() *cobra.Command {
+	var staticflags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "balances",
+		Short: "Fetch the balances of all coin accounts",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp coin.BalancesResponse
+			if err := cli.StaticCallContractWithFlags(
+				&staticflags, CoinContractName, "Balances", &coin.BalancesRequest{}, &resp,
+			); err != nil {
+				return err
+			}
+			type accountBalance struct {
+				Owner   string `json:"owner"`
+				Balance string `json:"balance"`
+			}
+			balances := []accountBalance{}
+			for _, a := range resp.Accounts {
+				addr := loom.UnmarshalAddressPB(a.Owner)
+				balance := a.Balance.Value.Int.String()
+				balances = append(balances, accountBalance{
+					Owner:   addr.String(),
+					Balance: balance,
+				})
+			}
+			prettyJSON, err := json.MarshalIndent(balances, "", "    ")
+			if err != nil {
+				return errors.Wrap(err, "failed to generate json output")
+			}
+			fmt.Println(string(prettyJSON))
+			return nil
+		},
+	}
+	cli.AddContractStaticCallFlags(cmd.Flags(), &staticflags)
+	return cmd
+}
+
 func NewCoinCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "coin <command>",
@@ -184,6 +224,7 @@ func NewCoinCommand() *cobra.Command {
 		BalanceCmd(),
 		TransferCmd(),
 		TransferFromCmd(),
+		BalancesCmd(),
 	)
 	return cmd
 }

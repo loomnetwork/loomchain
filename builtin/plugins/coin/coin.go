@@ -40,8 +40,9 @@ type (
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
-
-	BurnRequest = ctypes.BurnRequest
+	BurnRequest          = ctypes.BurnRequest
+	BalancesRequest      = ctypes.BalancesRequest
+	BalancesResponse     = ctypes.BalancesResponse
 )
 
 var (
@@ -254,6 +255,24 @@ func (c *Coin) BalanceOf(
 	}
 	return &BalanceOfResponse{
 		Balance: acct.Balance,
+	}, nil
+}
+
+func (c *Coin) Balances(
+	ctx contract.StaticContext,
+	req *BalancesRequest,
+) (*BalancesResponse, error) {
+	accountRange := ctx.Range([]byte("account"))
+	accounts := []*Account{}
+	for _, m := range accountRange {
+		var account Account
+		if err := proto.Unmarshal(m.Value, &account); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal account %x", m.Key)
+		}
+		accounts = append(accounts, &account)
+	}
+	return &BalancesResponse{
+		Accounts: accounts,
 	}, nil
 }
 
