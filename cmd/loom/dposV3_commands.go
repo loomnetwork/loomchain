@@ -1145,11 +1145,12 @@ func TimeUntilElectionCmdV3() *cobra.Command {
 }
 
 const listDelegationsCmdExample = `
-loom dpos3 list-delegations 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom dpos3 list-delegations 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --concise
 `
 
 func ListDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
+	var conciseMode bool
 	cmd := &cobra.Command{
 		Use:     "list-delegations <candidate address>",
 		Short:   "list a candidate's delegations & delegation total",
@@ -1169,15 +1170,54 @@ func ListDelegationsCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
+
+			if conciseMode {
+				type delegationInfo struct {
+					Delegator    string              `json:"delegator"`
+					Validator    string              `json:"validator"`
+					Index        uint64              `json:"index"`
+					Amount       string              `json:"amount"`
+					LocktimeTier dposv3.LocktimeTier `json:"locktimeTier"`
+					LockTime     uint64              `json:"lockTime"`
+					State        string              `json:"state"`
+				}
+				type outputInfo struct {
+					Delegations     []*delegationInfo `json:"delegations"`
+					DelegationTotal string            `json:"delegationTotal"`
+				}
+				delegations := []*delegationInfo{}
+				for _, d := range resp.Delegations {
+					delegations = append(delegations, &delegationInfo{
+						Delegator:    loom.UnmarshalAddressPB(d.Delegator).Local.String(),
+						Validator:    loom.UnmarshalAddressPB(d.Validator).Local.String(),
+						Index:        d.Index,
+						Amount:       d.Amount.Value.Int.String(),
+						LocktimeTier: d.LocktimeTier,
+						LockTime:     d.LockTime,
+						State:        d.State.String(),
+					})
+				}
+				output := outputInfo{
+					Delegations:     delegations,
+					DelegationTotal: resp.DelegationTotal.Value.Int.String(),
+				}
+				prettyJSON, err := json.MarshalIndent(output, "", "  ")
+				if err != nil {
+					return errors.Wrap(err, "failed to generate json output")
+				}
+				fmt.Println(string(prettyJSON))
+			} else {
+				out, err := formatJSON(&resp)
+				if err != nil {
+					return err
+				}
+				fmt.Println(out)
 			}
-			fmt.Println(out)
 			return nil
 		},
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cmd.Flags().BoolVar(&conciseMode, "concise", false, "Omit less relevant details")
 	return cmd
 }
 
