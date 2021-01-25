@@ -61,6 +61,9 @@ const (
 	DPOSVersion3_9 = "dpos:v3.9"
 	// Makes it possible for the oracle to call Redelegate & UnregisterCandidate
 	DPOSVersion3_10 = "dpos:v3.10"
+	// Make it possible to put the DPOS contract into migration mode, where
+	// delegation/redelegation/consolidation and validator registration is disabled
+	DPOSVersion3_11 = "dpos:v3.11"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
 	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)

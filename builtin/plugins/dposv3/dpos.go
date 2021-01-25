@@ -74,6 +74,7 @@ var (
 	errDistributionNotFound          = errors.New("Distribution record not found.")
 	errOnlyOracle                    = errors.New("Function can only be called with oracle address.")
 	errDelegationLocked              = errors.New("Delegation currently locked.")
+	errMigrationModeEnabled          = errors.New("Migration mode enabled.")
 )
 
 type (
@@ -129,6 +130,7 @@ type (
 	SetMaxDowntimePercentageRequest   = dtypes.SetMaxDowntimePercentageRequest
 	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
 	IgnoreUnbondLocktimeRequest       = dtypes.IgnoreUnbondLocktimeRequest
+	ToggleMigrationModeRequest        = dtypes.ToggleMigrationModeRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -258,6 +260,16 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 Delegate", "delegator", delegator, "request", req)
 
+	if ctx.FeatureEnabled(features.DPOSVersion3_11, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.Params.MigrationModeEnabled {
+			return errMigrationModeEnabled
+		}
+	}
+
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Delegate called with req.ValidatorAddress == nil"), req.String())
 	}
@@ -341,6 +353,16 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
+	if ctx.FeatureEnabled(features.DPOSVersion3_11, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.Params.MigrationModeEnabled {
+			return errMigrationModeEnabled
+		}
+	}
+
 	delegator := ctx.Message().Sender
 
 	if req.ValidatorAddress == nil {
@@ -480,6 +502,16 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 ConsolidateDelegations", "delegator", delegator, "request", req)
 
+	if ctx.FeatureEnabled(features.DPOSVersion3_11, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.Params.MigrationModeEnabled {
+			return errMigrationModeEnabled
+		}
+	}
+
 	// Unless considation is for the limbo validator, check that the new
 	// validator address corresponds to one of the registered candidates
 	if loom.UnmarshalAddressPB(req.ValidatorAddress).Compare(LimboValidatorAddress(ctx)) != 0 {
@@ -591,6 +623,16 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 /// a delegator has delegated to, and returns the total amount which will be transferred to the
 /// delegator's account after the next election.
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
+	if ctx.FeatureEnabled(features.DPOSVersion3_11, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if state.Params.MigrationModeEnabled {
+			return nil, errMigrationModeEnabled
+		}
+	}
+
 	if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
 		return c.claimRewardsFromAllValidators2(ctx, req)
 	}
@@ -716,6 +758,16 @@ func (c *DPOS) claimRewardsFromAllValidators2(
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 Unbond", "delegator", delegator, "request", req)
+
+	if ctx.FeatureEnabled(features.DPOSVersion3_11, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.Params.MigrationModeEnabled {
+			return errMigrationModeEnabled
+		}
+	}
 
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Unbond called with req.ValidatorAddress == nil"), req.String())
@@ -1027,6 +1079,10 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
+	if ctx.FeatureEnabled(features.DPOSVersion3_11, false) && state.Params.MigrationModeEnabled {
+		return errMigrationModeEnabled
+	}
+
 	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) && common.IsPositive(state.Params.RegistrationRequirement.Value) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
@@ -1195,6 +1251,16 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 // Leaving the validator set mid-election period results in a loss of rewards
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
+	if ctx.FeatureEnabled(features.DPOSVersion3_11, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+		if state.Params.MigrationModeEnabled {
+			return errMigrationModeEnabled
+		}
+	}
+
 	candidateAddress := ctx.Message().Sender
 
 	// Allow oracle to specify the candidate
@@ -1618,6 +1684,24 @@ func (c *DPOS) IgnoreUnbondLocktime(ctx contract.Context, req *IgnoreUnbondLockt
 	}
 
 	state.Params.IgnoreUnbondLocktime = req.Ignore
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) ToggleMigrationMode(ctx contract.Context, req *ToggleMigrationModeRequest) error {
+	if !ctx.FeatureEnabled(features.DPOSVersion3_11, false) {
+		return errors.New("DPOS v3.11 is not enabled")
+	}
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+
+	state.Params.MigrationModeEnabled = !state.Params.MigrationModeEnabled
 	return saveState(ctx, state)
 }
 
