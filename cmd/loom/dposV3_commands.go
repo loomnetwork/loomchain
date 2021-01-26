@@ -1636,6 +1636,28 @@ func IgnoreUnbondLocktimeCmd() *cobra.Command {
 	return cmd
 }
 
+const toggleMigrationModeCmdExample = `
+loom dpos3 toggle-migration-mode -k path/to/private_key
+`
+
+func ToggleMigrationModeCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "toggle-migration-mode",
+		Example: toggleMigrationModeCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "ToggleMigrationMode", &dposv3.ToggleMigrationModeRequest{}, nil,
+			); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 func NewDPOSV3Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dpos3 <command>",
@@ -1684,6 +1706,7 @@ func NewDPOSV3Command() *cobra.Command {
 		UnjailValidatorCmdV3(),
 		EnableValidatorJailingCmd(),
 		IgnoreUnbondLocktimeCmd(),
+		ToggleMigrationModeCmd(),
 	)
 	return cmd
 }
