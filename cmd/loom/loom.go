@@ -861,6 +861,8 @@ func loadApp(
 			1: migrations.DPOSv3Migration,
 			2: migrations.GatewayMigration,
 			3: migrations.GatewayMigration,
+			4: migrations.GatewayMigration,
+			5: migrations.GatewayMigration,
 		},
 	}
 
