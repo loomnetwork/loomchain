@@ -124,7 +124,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	///--------------increase block height should kill cache
 	//State is reset on every run
-	ctx4 := context.WithValue(nil, ContextKeyOrigin, origin)
+	ctx4 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	kvStore4 := store.NewMemStore()
 	state4 := loomchain.NewStoreState(ctx4, kvStore4, abci.Header{Height: 28}, nil, nil).WithOnChainConfig(cfg)
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
