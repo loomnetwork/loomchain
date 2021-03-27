@@ -88,7 +88,7 @@ func NewStoreState(
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
 	if ctx == nil {
-		ctx = = context.Background()
+		ctx = context.Background()
 	}
 	return &StoreState{
 		ctx:             ctx,
