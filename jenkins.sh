@@ -4,6 +4,8 @@ set -ex
 
 PKG=github.com/loomnetwork/loomchain
 
+# disable modules for now
+export GO111MODULE=off
 # setup temp GOPATH
 export GOPATH=/tmp/gopath-$BUILD_TAG
 export
@@ -24,7 +26,7 @@ fi
 cd $LOOM_SRC
 make clean
 make get_lint
-make deps
+GO111MODULE=off make deps
 make  # on OSX we don't need any C precompiles like cleveldb
 make validators-tool
 
