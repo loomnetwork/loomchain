@@ -64,7 +64,11 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+	ctmp := state.Context()
+	if ctmp == nil {
+		ctmp = context.Background()
+	}
+	ctx := context.WithValue(ctmp, ContextKeyOrigin, origin)
 	return next(state.WithContext(ctx), tx.Inner, isCheckTx)
 })
 
