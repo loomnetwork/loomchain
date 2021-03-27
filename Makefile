@@ -203,21 +203,21 @@ validators-tool: $(TRANSFER_GATEWAY_DIR)
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# Temp workaround for https://github.com/prometheus/procfs/issues/221
-	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
+	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)  ; true
 	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
 	# Lock down Prometheus golang client to v1.2.1 (newer versions use a different protobuf version)
-	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang
+	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang ; true
 	cd $(GOPATH)/src/github.com/prometheus/client_golang && git checkout master && git pull && git checkout v1.2.1
 	# prometheus/client_model is pulled by prometheus/client_golang so lock it down as well
-	git clone -q git@github.com:prometheus/client_model $(GOPATH)/src/github.com/prometheus/client_model
+	git clone -q git@github.com:prometheus/client_model $(GOPATH)/src/github.com/prometheus/client_model ; true
 	cd $(GOPATH)/src/github.com/prometheus/client_model && git checkout master && git pull && git checkout 14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016
 	# prometheus/common is pulled by prometheus/client_golang so lock it down as well
-	git clone -q git@github.com:prometheus/common $(GOPATH)/src/github.com/prometheus/common
-	cd $(GOPATH)/src/github.com/prometheus/common && git checkout master && git pull && git checkout v0.7.0
-	
+	git clone -q git@github.com:prometheus/common $(GOPATH)/src/github.com/prometheus/common ; true
+	cd $(GOPATH)/src/github.com/prometheus/common && git checkout main && git pull && git checkout v0.7.0
+
+#		google.golang.org/grpc \	
 	go get \
 		golang.org/x/crypto/ed25519 \
-		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
 		github.com/gogo/protobuf/proto \
 		github.com/hashicorp/go-plugin \
@@ -240,8 +240,11 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
+	git clone -q git@github.com:golang/protobuf.git $(GOPATH)/src/github.com/golang/protobuf ; true
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
+	git clone -q git@github.com:gogo/protobuf.git $(GOGO_PROTOBUF_DIR); true
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
+	git clone -q git@github.com:grpc/grpc-go.git $(GRPC_DIR); true
 	cd $(GRPC_DIR) && git checkout v1.20.1
 	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
