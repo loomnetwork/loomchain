@@ -136,6 +136,8 @@ const (
 	CoinVersion1_2Feature = "coin:v1.2"
 	// Enables minting & burning via Binance Gateway
 	CoinVersion1_3Feature = "coin:v1.3"
+	// Enables minting & burning via Binance Smartchain Gateway
+	CoinVersion1_4Feature = "coin:v1.4"
 
 	// Force ReceiptHandler to write BloomFilter and EVM TxHash only to receipts_db, otherwise it'll
 	// write BloomFilter and EVM TxHash to both receipts_db & app.db.

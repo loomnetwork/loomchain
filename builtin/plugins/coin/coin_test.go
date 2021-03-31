@@ -461,6 +461,7 @@ func TestBurnAccess(t *testing.T) {
 
 	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
 	mockBinanceGatewayContract := contractpb.MakePluginContract(&mockBinanceGateway{})
+	mockBinanceSmartchainGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
@@ -468,6 +469,8 @@ func TestBurnAccess(t *testing.T) {
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 	binanceTGAddress := pctx.CreateContract(mockBinanceGatewayContract)
 	pctx.RegisterContract("binance-gateway", binanceTGAddress, binanceTGAddress)
+	binanceSmartchainTGAddress := pctx.CreateContract(mockBinanceSmartchainGatewayContract)
+	pctx.RegisterContract("binance-smartchain-gateway", binanceSmartchainTGAddress, binanceSmartchainTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 
@@ -533,6 +536,13 @@ func TestBurnAccess(t *testing.T) {
 			},
 		},
 	), "Binance gateway should be allowed to call MintToGateway")
+
+	//TODO test a mint / burn on binance
+
+	//TODO test mint / burn, on binance then eth
+
+	//TODO test mint / burn, on eth then binance
+
 }
 
 func TestMintToGatewayAccess(t *testing.T) {

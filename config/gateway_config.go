@@ -172,6 +172,11 @@ BinanceTransferGateway:
   # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
   ContractEnabled: {{ .BinanceTransferGateway.ContractEnabled }}
 
+BinanceSmartchainTransferGateway:
+  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+  ContractEnabled: {{ .BinanceSmartchainTransferGateway.ContractEnabled }}
+
+
 #
 # Oracle serializable 
 #

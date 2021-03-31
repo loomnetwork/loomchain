@@ -196,6 +196,16 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		)
 	}
 
+	if cfg.BinanceSmartchainTransferGateway.ContractEnabled {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "binance-smartchain-gateway",
+				Location:   "binance-smartchain-gateway:0.1.0",
+			})
+	}
+
 	if cfg.ChainConfig.ContractEnabled {
 		chainConfigInitRequest := cctypes.InitRequest{
 			Owner: contractOwner,
