@@ -146,7 +146,7 @@ func validateMinter(ctx contract.StaticContext, minter loom.Address) error {
 	}
 
 	if ctx.FeatureEnabled(features.CoinVersion1_4Feature, false) {
-		gatewayAddr, err = ctx.Resolve("binance-smartchain-gateway")
+		gatewayAddr, err = ctx.Resolve("bsc-gateway")
 		if err == nil && minter.Compare(gatewayAddr) == 0 {
 			return nil
 		}

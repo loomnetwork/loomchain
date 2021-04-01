@@ -470,7 +470,7 @@ func TestBurnAccess(t *testing.T) {
 	binanceTGAddress := pctx.CreateContract(mockBinanceGatewayContract)
 	pctx.RegisterContract("binance-gateway", binanceTGAddress, binanceTGAddress)
 	binanceSmartchainTGAddress := pctx.CreateContract(mockBinanceSmartchainGatewayContract)
-	pctx.RegisterContract("binance-smartchain-gateway", binanceSmartchainTGAddress, binanceSmartchainTGAddress)
+	pctx.RegisterContract("bsc-gateway", binanceSmartchainTGAddress, binanceSmartchainTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 

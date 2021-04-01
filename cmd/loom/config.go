@@ -201,8 +201,8 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
-				Name:       "binance-smartchain-gateway",
-				Location:   "binance-smartchain-gateway:0.1.0",
+				Name:       "bsc-gateway",
+				Location:   "bsc-gateway:0.1.0",
 			})
 	}
 
