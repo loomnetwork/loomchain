@@ -196,7 +196,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		)
 	}
 
-	if cfg.BinanceSmartchainTransferGateway.ContractEnabled {
+	if cfg.BscTransferGateway.ContractEnabled {
 		contracts = append(contracts,
 			config.ContractConfig{
 				VMTypeName: "plugin",

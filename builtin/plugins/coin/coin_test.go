@@ -461,7 +461,7 @@ func TestBurnAccess(t *testing.T) {
 
 	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
 	mockBinanceGatewayContract := contractpb.MakePluginContract(&mockBinanceGateway{})
-	mockBinanceSmartchainGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+	mockBscGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
@@ -469,8 +469,8 @@ func TestBurnAccess(t *testing.T) {
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 	binanceTGAddress := pctx.CreateContract(mockBinanceGatewayContract)
 	pctx.RegisterContract("binance-gateway", binanceTGAddress, binanceTGAddress)
-	binanceSmartchainTGAddress := pctx.CreateContract(mockBinanceSmartchainGatewayContract)
-	pctx.RegisterContract("bsc-gateway", binanceSmartchainTGAddress, binanceSmartchainTGAddress)
+	bscTGAddress := pctx.CreateContract(mockBscGatewayContract)
+	pctx.RegisterContract("bsc-gateway", bscTGAddress, bscTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 

@@ -95,11 +95,11 @@ type Config struct {
 	UserDeployerWhitelist *UserDeployerWhitelistConfig
 
 	// Transfer gateway
-	TransferGateway                  *TransferGatewayConfig
-	LoomCoinTransferGateway          *TransferGatewayConfig
-	TronTransferGateway              *TransferGatewayConfig
-	BinanceTransferGateway           *TransferGatewayConfig
-	BinanceSmartchainTransferGateway *TransferGatewayConfig
+	TransferGateway         *TransferGatewayConfig
+	LoomCoinTransferGateway *TransferGatewayConfig
+	TronTransferGateway     *TransferGatewayConfig
+	BinanceTransferGateway  *TransferGatewayConfig
+	BscTransferGateway      *TransferGatewayConfig
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
@@ -447,7 +447,7 @@ func DefaultConfig() *Config {
 	cfg.TronTransferGateway = DefaultTronTGConfig(cfg.RPCProxyPort)
 	cfg.BinanceTransferGateway = DefaultBinanceTGConfig()
 	//In theory binance smart chain should have no unique logic
-	cfg.BinanceSmartchainTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
+	cfg.BscTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
