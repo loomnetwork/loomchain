@@ -693,6 +693,8 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 				name = LoomGatewayName
 			} else if strings.EqualFold(args[0], BinanceGatewayName) {
 				name = BinanceGatewayName
+			} else if strings.EqualFold(args[0], BscGatewayName) {
+				name = BscGatewayName
 			} else {
 				return fmt.Errorf("withdrawal limits not supported by %s", name)
 			}
