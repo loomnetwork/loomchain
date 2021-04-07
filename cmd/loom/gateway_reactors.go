@@ -19,6 +19,7 @@ const (
 	LoomGatewayName    = "loomcoin-gateway"
 	BinanceGatewayName = "binance-gateway"
 	TronGatewayName    = "tron-gateway"
+	BscGatewayName     = "bsc-gateway"
 )
 
 func startGatewayReactors(

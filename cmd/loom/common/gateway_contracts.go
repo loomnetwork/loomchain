@@ -43,5 +43,12 @@ func loadGatewayContracts(cfg *config.Config) []goloomplugin.Contract {
 		}
 	}
 
+	if cfg.BscTransferGateway.ContractEnabled {
+		if cfg.BscTransferGateway.Unsafe {
+			contracts = append(contracts, gateway.UnsafeBscContract)
+		} else {
+			contracts = append(contracts, gateway.BscContract)
+		}
+	}
 	return contracts
 }

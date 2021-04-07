@@ -196,6 +196,16 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		)
 	}
 
+	if cfg.BscTransferGateway.ContractEnabled {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "bsc-gateway",
+				Location:   "bsc-gateway:0.1.0",
+			})
+	}
+
 	if cfg.ChainConfig.ContractEnabled {
 		chainConfigInitRequest := cctypes.InitRequest{
 			Owner: contractOwner,

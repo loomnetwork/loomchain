@@ -41,6 +41,7 @@ const (
 	LoomGatewayName    = "loomcoin-gateway"
 	BinanceGatewayName = "binance-gateway"
 	TronGatewayName    = "tron-gateway"
+	BscGatewayName     = "bsc-gateway"
 )
 
 const getOraclesCmdExample = `
@@ -319,6 +320,8 @@ func newGetStateCommand() *cobra.Command {
 				name = BinanceGatewayName
 			} else if strings.Compare(args[0], TronGatewayName) == 0 {
 				name = TronGatewayName
+			} else if strings.Compare(args[0], BscGatewayName) == 0 {
+				name = BscGatewayName
 			} else {
 				return errors.New("Invalid gateway name")
 			}
@@ -690,6 +693,8 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 				name = LoomGatewayName
 			} else if strings.EqualFold(args[0], BinanceGatewayName) {
 				name = BinanceGatewayName
+			} else if strings.EqualFold(args[0], BscGatewayName) {
+				name = BscGatewayName
 			} else {
 				return fmt.Errorf("withdrawal limits not supported by %s", name)
 			}
@@ -778,6 +783,9 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 			} else if strings.EqualFold(args[1], TronGatewayName) {
 				name = TronGatewayName
 				foreignChainId = "tron"
+			} else if strings.EqualFold(args[1], BscGatewayName) {
+				name = BscGatewayName
+				foreignChainId = "eth"
 			} else {
 				return errors.New("invalid gateway name")
 			}

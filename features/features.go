@@ -27,6 +27,8 @@ const (
 	TGVersion1_5 = "tg:v1.5"
 	// Disable checking TokenContract address for LOOM withdrawals via Binance Gateway contract
 	TGVersion1_6 = "tg:v1.6"
+	// Enables minting & burning via Binance Smartchain Gateway
+	TGVersion1_7 = "tg:v1.7"
 
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"

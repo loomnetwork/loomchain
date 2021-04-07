@@ -79,7 +79,7 @@ WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH
 
 E2E_TESTS_TIMEOUT = 37m
 
-.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle basechain-cleveldb loom-cleveldb lint
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle bsc_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle basechain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
@@ -104,6 +104,9 @@ tgoracle: $(TRANSFER_GATEWAY_DIR)
 
 loomcoin_tgoracle: $(TRANSFER_GATEWAY_DIR)
 	cd $(TRANSFER_GATEWAY_DIR) && make loomcoin_tgoracle
+
+bsc_tgoracle: $(TRANSFER_GATEWAY_DIR)
+	cd $(TRANSFER_GATEWAY_DIR) && make bsc_tgoracle
 
 tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
 	cd $(TRANSFER_GATEWAY_DIR) && make tron_tgoracle

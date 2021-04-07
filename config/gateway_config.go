@@ -28,6 +28,10 @@ func DefaultBinanceTGConfig() *TransferGatewayConfig {
 	}
 }
 
+func DefaultBscLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return gateway.DefaultLoomCoinTGConfig(rpcProxyPort)
+}
+
 func DefaultDPOS2OracleConfig() *OracleSerializableConfig {
 	return &OracleSerializableConfig{}
 }
@@ -171,6 +175,11 @@ TronTransferGateway:
 BinanceTransferGateway:
   # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
   ContractEnabled: {{ .BinanceTransferGateway.ContractEnabled }}
+
+BscTransferGateway:
+  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+  ContractEnabled: {{ .BscTransferGateway.ContractEnabled }}
+
 
 #
 # Oracle serializable 
