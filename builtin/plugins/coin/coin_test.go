@@ -48,6 +48,20 @@ func (m *mockBinanceGateway) DummyMethod(ctx contractpb.Context, req *MintToGate
 	return nil
 }
 
+type mockBscGateway struct {
+}
+
+func (m *mockBscGateway) Meta() (plugin.Meta, error) {
+	return plugin.Meta{
+		Name:    "bsc-gateway",
+		Version: "0.1.0",
+	}, nil
+}
+
+func (m *mockBscGateway) DummyMethod(ctx contractpb.Context, req *MintToGatewayRequest) error {
+	return nil
+}
+
 func TestTransfer(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr2)
 	ctx := contractpb.WrapPluginContext(pctx)
@@ -461,7 +475,7 @@ func TestBurnAccess(t *testing.T) {
 
 	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
 	mockBinanceGatewayContract := contractpb.MakePluginContract(&mockBinanceGateway{})
-	mockBscGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+	mockBscGatewayContract := contractpb.MakePluginContract(&mockBscGateway{})
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
