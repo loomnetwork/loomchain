@@ -783,6 +783,9 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 			} else if strings.EqualFold(args[1], TronGatewayName) {
 				name = TronGatewayName
 				foreignChainId = "tron"
+			} else if strings.EqualFold(args[1], BscGatewayName) {
+				name = BscGatewayName
+				foreignChainId = "eth"
 			} else {
 				return errors.New("invalid gateway name")
 			}

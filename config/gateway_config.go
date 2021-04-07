@@ -28,6 +28,10 @@ func DefaultBinanceTGConfig() *TransferGatewayConfig {
 	}
 }
 
+func DefaultBscLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return gateway.DefaultLoomCoinTGConfig(rpcProxyPort)
+}
+
 func DefaultDPOS2OracleConfig() *OracleSerializableConfig {
 	return &OracleSerializableConfig{}
 }
