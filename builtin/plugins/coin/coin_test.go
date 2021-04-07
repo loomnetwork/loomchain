@@ -469,8 +469,10 @@ func TestBurnAccess(t *testing.T) {
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 	binanceTGAddress := pctx.CreateContract(mockBinanceGatewayContract)
 	pctx.RegisterContract("binance-gateway", binanceTGAddress, binanceTGAddress)
-	bscTGAddress := pctx.CreateContract(mockBscGatewayContract)
-	pctx.RegisterContract("bsc-gateway", bscTGAddress, bscTGAddress)
+
+	//TODO reeanble bsc gateway later
+	//bscTGAddress := pctx.CreateContract(mockBscGatewayContract)
+	//pctx.RegisterContract("bsc-gateway", bscTGAddress, bscTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 
