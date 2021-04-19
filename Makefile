@@ -83,7 +83,7 @@ E2E_TESTS_TIMEOUT = 37m
 
 all: loom builtin
 
-oracles: tgoracle pcoracle
+oracles: tgoracle pcoracle bsc_tgoracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
