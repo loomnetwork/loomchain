@@ -238,8 +238,10 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap \
-		github.com/posener/wstest 
-		
+		github.com/posener/wstest \
+		github.com/hashicorp/go-hclog \
+		github.com/hashicorp/yamux
+
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
 	git clone -q git@github.com:golang/protobuf.git $(GOPATH)/src/github.com/golang/protobuf ; true
