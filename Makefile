@@ -240,7 +240,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/inconshreveable/mousetrap \
 		github.com/posener/wstest \
 		github.com/hashicorp/go-hclog \
-		github.com/hashicorp/yamux
+		github.com/hashicorp/yamux \
+		github.com/oklog/run
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
