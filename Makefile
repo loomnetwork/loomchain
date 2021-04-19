@@ -253,6 +253,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# go-testing-interface is a dependency of hashicorp/go-plugin,
 	# latest version of go-testing-interface only supports Go 1.14+ so use an older version
+	git clone -q git@github.com:mitchellh/go-testing-interface.git $(GO_TESTING_INTERFACE_DIR); true
 	cd $(GO_TESTING_INTERFACE_DIR) && git checkout v1.0.0
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
