@@ -217,6 +217,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# prometheus/common is pulled by prometheus/client_golang so lock it down as well
 	git clone -q git@github.com:prometheus/common $(GOPATH)/src/github.com/prometheus/common ; true
 	cd $(GOPATH)/src/github.com/prometheus/common && git checkout main && git pull && git checkout v0.7.0
+	git clone -q git@github.com:googleapis/go-genproto.git $(GENPROTO_DIR); true
+	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 
 #		google.golang.org/grpc \	
 	go get \
@@ -228,8 +230,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/spf13/pflag \
 		github.com/go-kit/kit/log \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
-		github.com/prometheus/client_golang/prometheus \
-		github.com/go-kit/kit/log \
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
@@ -249,7 +249,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	git clone -q git@github.com:grpc/grpc-go.git $(GRPC_DIR); true
 	cd $(GRPC_DIR) && git checkout v1.20.1
-	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# go-testing-interface is a dependency of hashicorp/go-plugin,
