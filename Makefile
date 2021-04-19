@@ -220,6 +220,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	git clone -q git@github.com:googleapis/go-genproto.git $(GENPROTO_DIR); true
 	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 
+	export GO111MODULE=off
 #		google.golang.org/grpc \	
 	go get \
 		golang.org/x/crypto/ed25519 \
