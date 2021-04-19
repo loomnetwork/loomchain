@@ -238,9 +238,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap \
-		github.com/posener/wstest \
-		github.com/btcsuite/btcd
-
+		github.com/posener/wstest 
+		
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
 	git clone -q git@github.com:golang/protobuf.git $(GOPATH)/src/github.com/golang/protobuf ; true
@@ -256,6 +255,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# latest version of go-testing-interface only supports Go 1.14+ so use an older version
 	git clone -q git@github.com:mitchellh/go-testing-interface.git $(GO_TESTING_INTERFACE_DIR); true
 	cd $(GO_TESTING_INTERFACE_DIR) && git checkout v1.0.0
+	git clone -q git@github.com:btcsuite/btcd.git $(BTCD_DIR); true
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
 	# fetch vendored packages
