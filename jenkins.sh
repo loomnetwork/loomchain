@@ -36,10 +36,12 @@ PKG=$PKG_TRANSFER_GATEWAY make tgoracle
 PKG=$PKG_TRANSFER_GATEWAY make tron_tgoracle
 PKG=$PKG_TRANSFER_GATEWAY make loomcoin_tgoracle
 PKG=$PKG_TRANSFER_GATEWAY make dposv2_oracle
+PKG=$PKG_TRANSFER_GATEWAY make bsc_tgoracle
 # move them to the loomchain dir to make post-build steps simpler
 mv tgoracle $LOOM_SRC/tgoracle
 mv tron_tgoracle $LOOM_SRC/tron_tgoracle
 mv loomcoin_tgoracle $LOOM_SRC/loomcoin_tgoracle
+mv bsc_tgoracle $LOOM_SRC/bsc_tgoracle
 # don't care about dpos oracle, don't need to move it
 
 # build the various loom node variants
