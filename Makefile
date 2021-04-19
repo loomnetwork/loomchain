@@ -225,7 +225,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		golang.org/x/crypto/ed25519 \
 		github.com/gogo/protobuf/gogoproto \
 		github.com/gogo/protobuf/proto \
-		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
 		github.com/go-kit/kit/log \
@@ -250,6 +249,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	git clone -q git@github.com:grpc/grpc-go.git $(GRPC_DIR); true
 	cd $(GRPC_DIR) && git checkout v1.20.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
+	git clone -q git@github.com:hashicorp/go-plugin .git $(HASHICORP_DIR); true
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# go-testing-interface is a dependency of hashicorp/go-plugin,
 	# latest version of go-testing-interface only supports Go 1.14+ so use an older version
