@@ -83,7 +83,7 @@ E2E_TESTS_TIMEOUT = 37m
 
 all: loom builtin
 
-oracles: tgoracle pcoracle
+oracles: tgoracle pcoracle bsc_tgoracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
@@ -220,12 +220,12 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	git clone -q git@github.com:googleapis/go-genproto.git $(GENPROTO_DIR); true
 	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 
+	export GO111MODULE=off
 #		google.golang.org/grpc \	
 	go get \
 		golang.org/x/crypto/ed25519 \
 		github.com/gogo/protobuf/gogoproto \
 		github.com/gogo/protobuf/proto \
-		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
 		github.com/go-kit/kit/log \
@@ -239,7 +239,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap \
 		github.com/posener/wstest \
-		github.com/btcsuite/btcd
+		github.com/hashicorp/go-hclog \
+		github.com/hashicorp/yamux \
+		github.com/oklog/run
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
@@ -250,10 +252,13 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	git clone -q git@github.com:grpc/grpc-go.git $(GRPC_DIR); true
 	cd $(GRPC_DIR) && git checkout v1.20.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
+	git clone -q git@github.com:hashicorp/go-plugin.git $(HASHICORP_DIR); true
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# go-testing-interface is a dependency of hashicorp/go-plugin,
 	# latest version of go-testing-interface only supports Go 1.14+ so use an older version
+	git clone -q git@github.com:mitchellh/go-testing-interface.git $(GO_TESTING_INTERFACE_DIR); true
 	cd $(GO_TESTING_INTERFACE_DIR) && git checkout v1.0.0
+	git clone -q git@github.com:btcsuite/btcd.git $(BTCD_DIR); true
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
 	# fetch vendored packages

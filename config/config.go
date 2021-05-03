@@ -446,7 +446,6 @@ func DefaultConfig() *Config {
 	cfg.LoomCoinTransferGateway = DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.TronTransferGateway = DefaultTronTGConfig(cfg.RPCProxyPort)
 	cfg.BinanceTransferGateway = DefaultBinanceTGConfig()
-	//In theory binance smart chain should have no unique logic
 	cfg.BscTransferGateway = DefaultBscLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
