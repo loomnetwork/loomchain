@@ -251,7 +251,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	git clone -q git@github.com:grpc/grpc-go.git $(GRPC_DIR); true
 	cd $(GRPC_DIR) && git checkout v1.20.1
-	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
+	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV) && rm -rf crypto/bn256 && git checkout master crypto/bn256
 	git clone -q git@github.com:hashicorp/go-plugin.git $(HASHICORP_DIR); true
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# go-testing-interface is a dependency of hashicorp/go-plugin,
