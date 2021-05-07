@@ -20,6 +20,7 @@ func NewDBCommand() *cobra.Command {
 		newGetEvmHeightCommand(),
 		newGetAppHeightCommand(),
 		newAnalyzeCommand(),
+		newExtractCurrentStateCommand(),
 	)
 	return cmd
 }

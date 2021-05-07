@@ -99,30 +99,28 @@ type contractPrefix struct {
 	Prefix  []byte
 }
 
-func contractAddressToPrefix(contractAddr string) []byte {
-	addr, err := loom.LocalAddressFromHexString(contractAddr)
-	if err != nil {
-		panic(err)
-	}
-	return util.PrefixKey([]byte("contract"), []byte(addr))
-}
-
-func newAnalyzeCommand() *cobra.Command {
-	var logLevel int64
-	prefixes := [][]byte{
-		[]byte("nonce"),
+var (
+	oldStandardPrefixes = [][]byte{
 		[]byte("vm"),
 		[]byte("receipt"),
 		[]byte("txHash"),
 		[]byte("bloomFilter"),
+	}
+	curStandardPrefixes = [][]byte{
+		[]byte("nonce"),
 		[]byte("feature"),
-		[]byte("config"),
 		[]byte("registry"),
 		[]byte("reg_caddr"),
 		[]byte("reg_crec"),
+		[]byte("migrationId"),
+	}
+	curStandardKeys = [][]byte{
+		[]byte("config"),
+		[]byte("minbuild"),
+		[]byte("vmroot"),
 	}
 	// Native contracts deployed to Basechain
-	contracts := []contractPrefix{
+	contracts = []contractPrefix{
 		{Name: "address-mapper", Prefix: contractAddressToPrefix("0xb9fA0896573A89cF4065c43563C069b3B3C15c37")},
 		{Name: "coin", Prefix: contractAddressToPrefix("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")},
 		{Name: "ethcoin", Prefix: contractAddressToPrefix("0xde28fb974f31dFbe759cFcB3d1D44C2eeFDFaDd1")},
@@ -138,11 +136,25 @@ func newAnalyzeCommand() *cobra.Command {
 		{Name: "user-deployer-whitelist", Prefix: contractAddressToPrefix("0x278A1C914c046E2d085a84Ee373091a4FB6e19F4")},
 		{Name: "chain-config", Prefix: contractAddressToPrefix("0x938312E21AC551251Bd9fCC5dFaa7A5278302339")},
 	}
+)
+
+func contractAddressToPrefix(contractAddr string) []byte {
+	addr, err := loom.LocalAddressFromHexString(contractAddr)
+	if err != nil {
+		panic(err)
+	}
+	return util.PrefixKey([]byte("contract"), []byte(addr))
+}
+
+func newAnalyzeCommand() *cobra.Command {
+	var logLevel int64
 	cmd := &cobra.Command{
 		Use:   "analyze <path/to/app.db>",
 		Short: "Analyze how much space is taken up by data under the standard key prefixes",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			prefixes := append([][]byte{}, oldStandardPrefixes...)
+			prefixes = append(prefixes, curStandardPrefixes...)
 			for _, contract := range contracts {
 				prefixes = append(prefixes, contract.Prefix)
 			}
@@ -207,6 +219,9 @@ func newAnalyzeCommand() *cobra.Command {
 					miscStat.NumKeys++
 					miscStat.TotalKeySize += len(key)
 					miscStat.TotalValueSize += len(value)
+					if !util.HasPrefix(key, []byte("contract")) {
+						fmt.Printf("Unprefixed key %x\n", key)
+					}
 				}
 
 				keyCount++
@@ -240,6 +255,7 @@ func newAnalyzeCommand() *cobra.Command {
 				}
 			}
 
+			// sort by prefix
 			sort.Strings(sortedPrefixes)
 			sortedPrefixes = append(sortedPrefixes, "misc")
 			stats["misc"] = &miscStat
@@ -252,6 +268,7 @@ func newAnalyzeCommand() *cobra.Command {
 				}
 			}
 
+			// pretty print
 			ml := struct {
 				Prefix   int
 				Keys     int
@@ -306,5 +323,243 @@ func newAnalyzeCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&logLevel, "log", 0, "How often progress output should be printed. 1 - every 10%, 2 - every 1%, 3 - every 0.1%.")
+	return cmd
+}
+
+// Returns the bytes that mark the end of the key range for the given prefix.
+func prefixRangeEnd(prefix []byte) []byte {
+	if prefix == nil {
+		return nil
+	}
+
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+
+	for {
+		if end[len(end)-1] != byte(255) {
+			end[len(end)-1]++
+			break
+		} else if len(end) == 1 {
+			end = nil
+			break
+		}
+		end = end[:len(end)-1]
+	}
+	return end
+}
+
+func newExtractCurrentStateCommand() *cobra.Command {
+	var batchSize uint64
+	cmd := &cobra.Command{
+		Use:   "extract-current-state <path/to/src_app.db> <path/to/dest_app.db>",
+		Short: "Copy all the keys & values that belong to the current state into a new DB",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dbPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(dbPath), ".db")
+			dbDir := path.Dir(dbPath)
+			srcDB, err := dbm.NewGoLevelDBWithOpts(dbName, dbDir, &opt.Options{
+				ReadOnly: true,
+			})
+			if err != nil {
+				return err
+			}
+			defer srcDB.Close()
+
+			dbPath, err = filepath.Abs(args[1])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[1])
+			}
+			dbName = strings.TrimSuffix(path.Base(dbPath), ".db")
+			dbDir = path.Dir(dbPath)
+			destDB, err := dbm.NewGoLevelDB(dbName, dbDir)
+			if err != nil {
+				return errors.Wrapf(err, "failed to open %v", dbPath)
+			}
+			defer destDB.Close()
+
+			mutableTree := iavl.NewMutableTree(srcDB, 0)
+			treeVersion, err := mutableTree.Load()
+			if err != nil {
+				return errors.Wrap(err, "failed to load mutable tree")
+			}
+
+			immutableTree, err := mutableTree.GetImmutable(treeVersion)
+			if err != nil {
+				return errors.Wrapf(err, "failed to load immutable tree for version %v", treeVersion)
+			}
+
+			newMutableTree := iavl.NewMutableTree(destDB, 0)
+
+			fmt.Printf("IAVL tree height %v with %v keys\n", immutableTree.Height(), immutableTree.Size())
+
+			prefixes := append([][]byte{}, curStandardPrefixes...)
+			for _, contract := range contracts {
+				prefixes = append(prefixes, contract.Prefix)
+			}
+
+			numKeys := uint64(0)
+			rawStats := map[string]*prefixStat{}
+			startTime := time.Now()
+
+			// copy out all the keys under the prefixes that are still in use
+			for _, prefix := range prefixes {
+				var itError *error
+				immutableTree.IterateRange(
+					prefix,
+					prefixRangeEnd(prefix),
+					true,
+					func(key, value []byte) bool {
+						// This is just a sanity check, should never actually happen!
+						if !util.HasPrefix(key, prefix) {
+							err := errors.Errorf(
+								"key does not have prefix, skipped key: %x prefix: %x",
+								key, prefix,
+							)
+							fmt.Println(err)
+							// investigating why this gets hit...
+							//itError = &err
+							//return true
+							return false
+						}
+
+						newMutableTree.Set(key, value)
+						stat := rawStats[string(prefix)]
+						if stat == nil {
+							stat = &prefixStat{}
+							rawStats[string(prefix)] = stat
+						}
+
+						stat.NumKeys++
+						stat.TotalKeySize += len(key)
+						stat.TotalValueSize += len(value)
+						numKeys++
+
+						if (numKeys > 0) && (batchSize > 0) && (numKeys%batchSize == 0) {
+							hash, version, err := newMutableTree.SaveVersion()
+							if err != nil {
+								err := errors.Wrap(err, "failed to save new tree version")
+								itError = &err
+								return true
+							}
+							fmt.Printf(
+								"%d keys processed in %v mins, saved version %d, hash %x\n",
+								numKeys, time.Since(startTime).Minutes(), version, hash,
+							)
+						}
+						return false
+					},
+				)
+				if itError != nil {
+					return *itError
+				}
+			}
+
+			// copy out the misc keys
+			var miscStat prefixStat
+			for _, key := range curStandardKeys {
+				if immutableTree.Has(key) {
+					_, value := immutableTree.Get(key)
+					newMutableTree.Set(key, value)
+
+					miscStat.NumKeys++
+					miscStat.TotalKeySize += len(key)
+					miscStat.TotalValueSize += len(value)
+					numKeys++
+				}
+			}
+
+			// write the remaining keys to disk
+			if numKeys > 0 {
+				hash, version, err := newMutableTree.SaveVersion()
+				if err != nil {
+					return errors.Wrap(err, "failed to save new tree version")
+				}
+				fmt.Printf(
+					"%d keys processed in %v mins, saved version %d, hash %x\n",
+					numKeys, time.Since(startTime).Minutes(), version, hash,
+				)
+			}
+
+			fmt.Printf("Copy complete, %d keys processed in total\n", numKeys)
+
+			stats := map[string]*prefixStat{}
+			sortedPrefixes := []string{}
+			for prefix, stat := range rawStats {
+				if util.HasPrefix([]byte(prefix), []byte("contract")) {
+					for _, c := range contracts {
+						if bytes.Compare(c.Prefix, []byte(prefix)) == 0 {
+							stats[c.Name] = stat
+							sortedPrefixes = append(sortedPrefixes, c.Name)
+							break
+						}
+					}
+				} else {
+					stats[string(prefix)] = stat
+					sortedPrefixes = append(sortedPrefixes, string(prefix))
+				}
+			}
+
+			sort.Strings(sortedPrefixes)
+			sortedPrefixes = append(sortedPrefixes, "misc")
+			stats["misc"] = &miscStat
+
+			var totalKeySize, totalValueSize int
+			for _, prefix := range sortedPrefixes {
+				if stat := stats[prefix]; stat != nil {
+					totalKeySize += stat.TotalKeySize
+					totalValueSize += stat.TotalValueSize
+				}
+			}
+
+			ml := struct {
+				Prefix int
+				Keys   int
+				KSize  int
+				VSize  int
+			}{
+				Prefix: 20,
+				Keys:   20,
+				KSize:  20,
+				VSize:  20,
+			}
+
+			// ensure the longest prefix fits the first column
+			for _, prefix := range sortedPrefixes {
+				if len(prefix) > ml.Prefix {
+					ml.Prefix = len(prefix)
+				}
+			}
+
+			fmt.Printf(
+				"%-*s | %-*s | %-*s | %-*s\n",
+				ml.Prefix, "Prefix",
+				ml.Keys, "Keys",
+				ml.KSize, "K Size",
+				ml.VSize, "V Size",
+			)
+			fmt.Printf(strings.Repeat("-", ml.Prefix+ml.Keys+ml.KSize+ml.VSize+16) + "\n")
+
+			for _, prefix := range sortedPrefixes {
+				if stat := stats[prefix]; stat != nil {
+					fmt.Printf(
+						"%-*s | %-*d | %-*d | %-*d\n",
+						ml.Prefix, prefix,
+						ml.Keys, stat.NumKeys,
+						ml.KSize, stat.TotalKeySize,
+						ml.VSize, stat.TotalValueSize,
+					)
+				}
+			}
+
+			fmt.Printf("New IAVL tree height %v with %v keys\n", newMutableTree.Height(), newMutableTree.Size())
+
+			return nil
+		},
+	}
+	cmd.Flags().Uint64Var(&batchSize, "batch-size", 100000, "Number of keys to write to disk in each batch.")
 	return cmd
 }
