@@ -566,5 +566,205 @@ func newExtractCurrentStateCommand() *cobra.Command {
 	cmd.Flags().Uint64Var(&batchSize, "batch-size", 0, "Number of keys to write to disk in each batch, by default no batching is done.")
 	return cmd
 }
+
+func newCompareCurrentStateCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "compare-current-state <path/to/src_app.db> <path/to/dest_app.db>",
+		Short: "Compare all the keys & values that belong to the current state between two DBs.",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dbPath, err := filepath.Abs(args[0])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
+			}
+			dbName := strings.TrimSuffix(path.Base(dbPath), ".db")
+			dbDir := path.Dir(dbPath)
+			srcDB, err := dbm.NewGoLevelDBWithOpts(dbName, dbDir, &opt.Options{
+				ReadOnly: true,
+			})
+			if err != nil {
+				return err
+			}
+			defer srcDB.Close()
+
+			dbPath, err = filepath.Abs(args[1])
+			if err != nil {
+				return fmt.Errorf("Failed to resolve app.db path '%s'", args[1])
+			}
+			dbName = strings.TrimSuffix(path.Base(dbPath), ".db")
+			dbDir = path.Dir(dbPath)
+			destDB, err := dbm.NewGoLevelDBWithOpts(dbName, dbDir, &opt.Options{
+				ReadOnly: true,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "failed to open %v", dbPath)
+			}
+			defer destDB.Close()
+
+			mutableTree := iavl.NewMutableTree(srcDB, 0)
+			srcTreeVersion, err := mutableTree.Load()
+			if err != nil {
+				return errors.Wrap(err, "failed to load mutable tree")
+			}
+
+			srcImmutableTree, err := mutableTree.GetImmutable(srcTreeVersion)
+			if err != nil {
+				return errors.Wrapf(
+					err, "failed to load immutable tree for version %v (from %s)", srcTreeVersion, args[0],
+				)
+			}
+
+			mutableTree = iavl.NewMutableTree(destDB, 0)
+			destTreeVersion, err := mutableTree.Load()
+			if err != nil {
+				return errors.Wrap(err, "failed to load mutable tree")
+			}
+
+			destImmutableTree, err := mutableTree.GetImmutable(destTreeVersion)
+			if err != nil {
+				return errors.Wrapf(
+					err, "failed to load immutable tree for version %v (from %s)", destTreeVersion, args[1],
+				)
+			}
+
+			if srcTreeVersion != destTreeVersion {
+				fmt.Printf(
+					"WARNING: Tree version mismatch (original tree is at version %d, new tree is at version %d\n",
+					srcTreeVersion, destTreeVersion,
+				)
+			}
+
+			fmt.Printf(
+				"Original IAVL tree height %v with %v keys (version %d)\n",
+				srcImmutableTree.Height(), srcImmutableTree.Size(), srcTreeVersion,
+			)
+			fmt.Printf(
+				"New IAVL tree height %v with %v keys (version %d)\n",
+				destImmutableTree.Height(), destImmutableTree.Size(), destTreeVersion,
+			)
+
+			prefixes := append([][]byte{}, curStandardPrefixes...)
+			for _, contract := range contracts {
+				prefixes = append(prefixes, contract.Prefix)
+			}
+
+			numKeys := uint64(0)
+			rawStats := map[string]*prefixStat{}
+			startTime := time.Now()
+
+			// compare all the keys under the prefixes that are still in use
+			for _, prefix := range prefixes {
+				var itError *error
+				srcImmutableTree.IterateRange(
+					prefix,
+					prefixRangeEnd(prefix),
+					true,
+					func(key, value []byte) bool {
+						// This is just a sanity check, should never actually happen!
+						if !util.HasPrefix(key, prefix) {
+							err := errors.Errorf(
+								"key does not have prefix, skipped key: %x prefix: %x",
+								key, prefix,
+							)
+							itError = &err
+							return true
+						}
+
+						_, v := destImmutableTree.Get(key)
+						if bytes.Compare(value, v) != 0 {
+							fmt.Printf("Value mismatch for key %x (prefix %x)\n", key, prefix)
+						}
+						stat := rawStats[string(prefix)]
+						if stat == nil {
+							stat = &prefixStat{}
+							rawStats[string(prefix)] = stat
+						}
+
+						stat.NumKeys++
+						numKeys++
+
+						return false
+					},
+				)
+				if itError != nil {
+					return *itError
+				}
+			}
+
+			// copy out the misc keys
+			var miscStat prefixStat
+			for _, key := range curStandardKeys {
+				if srcImmutableTree.Has(key) {
+					_, srcValue := srcImmutableTree.Get(key)
+					_, destValue := destImmutableTree.Get(key)
+
+					if bytes.Compare(srcValue, destValue) != 0 {
+						fmt.Printf("Value mismatch for key %x\n", key)
+					}
+					miscStat.NumKeys++
+					numKeys++
+				}
+			}
+
+			fmt.Printf(
+				"Comparison complete, %d keys processed in total in %v mins\n",
+				numKeys, time.Since(startTime).Minutes(),
+			)
+
+			stats := map[string]*prefixStat{}
+			sortedPrefixes := []string{}
+			for prefix, stat := range rawStats {
+				if util.HasPrefix([]byte(prefix), []byte("contract")) {
+					for _, c := range contracts {
+						if bytes.Compare(c.Prefix, []byte(prefix)) == 0 {
+							stats[c.Name] = stat
+							sortedPrefixes = append(sortedPrefixes, c.Name)
+							break
+						}
+					}
+				} else {
+					stats[string(prefix)] = stat
+					sortedPrefixes = append(sortedPrefixes, string(prefix))
+				}
+			}
+
+			sort.Strings(sortedPrefixes)
+			sortedPrefixes = append(sortedPrefixes, "misc")
+			stats["misc"] = &miscStat
+
+			ml := struct {
+				Prefix int
+				Keys   int
+			}{
+				Prefix: 20,
+				Keys:   20,
+			}
+
+			// ensure the longest prefix fits the first column
+			for _, prefix := range sortedPrefixes {
+				if len(prefix) > ml.Prefix {
+					ml.Prefix = len(prefix)
+				}
+			}
+
+			fmt.Printf(
+				"%-*s | %-*s\n",
+				ml.Prefix, "Prefix",
+				ml.Keys, "Keys",
+			)
+			fmt.Printf(strings.Repeat("-", ml.Prefix+ml.Keys+16) + "\n")
+
+			for _, prefix := range sortedPrefixes {
+				if stat := stats[prefix]; stat != nil {
+					fmt.Printf(
+						"%-*s | %-*d\n",
+						ml.Prefix, prefix,
+						ml.Keys, stat.NumKeys)
+				}
+			}
+
+			return nil
+		},
+	}
 	return cmd
 }
