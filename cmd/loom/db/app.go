@@ -349,6 +349,8 @@ func prefixRangeEnd(prefix []byte) []byte {
 }
 
 func newExtractCurrentStateCommand() *cobra.Command {
+	// TODO: batching currently creates new tree versions, which is undesirable if we want to
+	//       retain the tree version == block number correspondance
 	var batchSize uint64
 	cmd := &cobra.Command{
 		Use:   "extract-current-state <path/to/src_app.db> <path/to/dest_app.db>",
@@ -392,7 +394,10 @@ func newExtractCurrentStateCommand() *cobra.Command {
 				return errors.Wrapf(err, "failed to load immutable tree for version %v", treeVersion)
 			}
 
-			newMutableTree := iavl.NewMutableTree(destDB, 0)
+			// The version of the new tree will be incremented by one before it's saved to disk, so
+			// to retain the same version number as the original tree when the new tree is saved to
+			// disk we have to initialize the new tree with a lower version than the original.
+			newMutableTree := iavl.NewMutableTreeWithVersion(destDB, 0, treeVersion-1)
 
 			fmt.Printf("IAVL tree height %v with %v keys\n", immutableTree.Height(), immutableTree.Size())
 
@@ -420,10 +425,8 @@ func newExtractCurrentStateCommand() *cobra.Command {
 								key, prefix,
 							)
 							fmt.Println(err)
-							// investigating why this gets hit...
-							//itError = &err
-							//return true
-							return false
+							itError = &err
+							return true
 						}
 
 						newMutableTree.Set(key, value)
@@ -560,6 +563,8 @@ func newExtractCurrentStateCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Uint64Var(&batchSize, "batch-size", 100000, "Number of keys to write to disk in each batch.")
+	cmd.Flags().Uint64Var(&batchSize, "batch-size", 0, "Number of keys to write to disk in each batch, by default no batching is done.")
+	return cmd
+}
 	return cmd
 }
