@@ -1,0 +1,42 @@
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+# Doesn't work because the validators haven't registered themselves with chain-cfg at this point
+#[[TestCases]]
+#  Delay = 5000
+#  RunCmd = "{{ $.LoomPath }} chain-cfg list-validators"
+#  Condition = "excludes"
+#  Excluded = ["Error"]
+
+# This just creates a pending action... that never seems to get applied for some reason
+#[[TestCases]]
+#  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.CloneStateAtHeight --value 20 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+#  Condition = "excludes"
+#  Excluded = ["Error", "RPC error"]
+
+#[[TestCases]]
+#  RunCmd = "{{ $.LoomPath }} chain-cfg list-pending-actions"
+#  Condition = "excludes"
+#  Excluded = ["Error", "RPC error"]
+
+
+# wait for block height to increase by at least 2 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 2"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg config"
+  Condition = "excludes"
+  Excluded = ["Error", "RPC error"]
+
+# wait 310s (~5m) for 2 new blocks to be generated
+[[TestCases]]
+  Delay = 310000
+  RunCmd = "wait_for_block_height_to_increase 0 2"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record"
+  Condition = "excludes"
+  Excluded = ["Error", "RPC error"]

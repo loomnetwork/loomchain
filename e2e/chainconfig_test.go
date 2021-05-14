@@ -18,32 +18,42 @@ type Test struct {
 }
 
 func TestContractChainConfig(t *testing.T) {
-	test1 := Test{
-		"chainconfig",
-		"chainconfig.toml",
-		4,
-		4,
-		"chainconfig.genesis.json",
-		"chainconfig-loom.yaml",
+	tests := []Test{
+		/*
+			{
+				"chainconfig",
+				"chainconfig.toml",
+				4,
+				4,
+				"chainconfig.genesis.json",
+				"chainconfig-loom.yaml",
+			},
+			{
+				"enable-receipts-v2-feature",
+				"enable-receipts-v2-feature.toml",
+				1,
+				1,
+				"enable-receipts-v2-feature-genesis.json",
+				"enable-receipts-v2-feature-loom.yaml",
+			},
+			{
+				"chainconfig-routine",
+				"chainconfig-routine.toml",
+				4,
+				4,
+				"chainconfig.genesis.json",
+				"chainconfig-routine-loom.yaml",
+			},
+		*/
+		{
+			"app-db-switchover",
+			"app-db-switchover.toml",
+			4,
+			4,
+			"app-db-switchover.genesis.json",
+			"app-db-switchover.yaml",
+		},
 	}
-	test2 := Test{
-		"enable-receipts-v2-feature",
-		"enable-receipts-v2-feature.toml",
-		1,
-		1,
-		"enable-receipts-v2-feature-genesis.json",
-		"enable-receipts-v2-feature-loom.yaml",
-	}
-	test3 := Test{
-		"chainconfig-routine",
-		"chainconfig-routine.toml",
-		4,
-		4,
-		"chainconfig.genesis.json",
-		"chainconfig-routine-loom.yaml",
-	}
-	tests := make([]Test, 0)
-	tests = append(tests, test1, test2, test3)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0, false)
