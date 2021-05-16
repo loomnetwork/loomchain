@@ -771,7 +771,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	case "pending":
 		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r, s.EvmAuxStore)
 	default:
-		height, err := strconv.ParseInt(number, 10, 64)
+		height, err := strconv.ParseInt(number, 0, 64) // this can be a hex number like "0x12"
 		if err != nil {
 			return nil, err
 		}
