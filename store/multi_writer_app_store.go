@@ -207,9 +207,20 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 			return nil, 0, err
 		}
 	}
+
 	hash, version, err := s.appStore.SaveVersion()
-	s.setLastSavedTreeToVersion(version)
-	return hash, version, err
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if err := s.setLastSavedTreeToVersion(version); err != nil {
+		// TODO: Should return the error, which would force the app to panic, but since the
+		//       original implementation didn't even check for an error here fixing this properly
+		//       will require putting the fix behind a new feature flag.
+		log.Error("[MultiWriterAppStore] Failed set last saved tree", "err", err)
+	}
+
+	return hash, version, nil
 }
 
 func (s *MultiWriterAppStore) pruneOldEVMKeys() error {
