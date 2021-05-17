@@ -276,6 +276,12 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 				time.Sleep(dur)
 				cmd = exec.CommandContext(ctx, n.LoomPath, "run", "--persistent-peers", n.PersistentPeers)
 				cmd.Dir = n.Dir
+				cmd.Env = append(os.Environ(),
+					"CONTRACT_LOG_DESTINATION=file://contract.log",
+					"CONTRACT_LOG_LEVEL=debug",
+				)
+				cmd.Stderr = os.Stderr
+				cmd.Stdout = os.Stdout
 				go func() {
 					fmt.Printf("starting node %d after %v\n", n.ID, dur)
 					errC <- cmd.Run()
