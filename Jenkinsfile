@@ -139,7 +139,7 @@ builders['linux-arm'] = {
             gsutil cp tron_tgoracle gs://downloads.loomx.io/loom/linux-aarch64/latest/tron_tgoracle
             gsutil cp bsc_tgoracle gs://downloads.loomx.io/loom/linux-aarch64/latest/bsc_tgoracle
             gsutil cp install.sh gs://downloads.loomx.io/install.sh
-            docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom-arm:latest .
+            docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -f Dockerfile-aarch64 -t loomnetwork/loom-arm:latest .
             docker tag loomnetwork/loom-arm:latest loomnetwork/loom-arm:${BUILD_NUMBER}
             docker push loomnetwork/loom-arm:latest
             docker push loomnetwork/loom-arm:${BUILD_NUMBER}
