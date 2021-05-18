@@ -105,6 +105,18 @@ make proto
 
 > See the [Go Generated Code](https://developers.google.com/protocol-buffers/docs/reference/go-generated) page for more details about how you can use the generated protobuf messages.
 
+## Update vendored Go dependencies
+
+Some of the Go dependencies are vendored using [Dep](https://golang.github.io/dep/). Most common
+operation when dealing with the vendored dependencies is to update the Tendermint or IAVL
+branch/revision. This can be done by updating the branch/revision in `Gopkg.toml` and then running
+`dep ensure -update`.
+
+For example:
+```shell
+dep ensure -v -update github.com/tendermint/iavl
+```
+
 ## Useful Links
 
 * [Developer Documentation](https://loomx.io/developers/)
