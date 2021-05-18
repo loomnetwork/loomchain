@@ -114,7 +114,7 @@ builders['linux-arm'] = {
           ]
         }
 
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux-arm");
 
         stage ('Build - Linux - ARM') {
           nodejs('v10.16.3 (LTS)') {
