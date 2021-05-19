@@ -2,14 +2,19 @@ package store
 
 import (
 	"bytes"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/config"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/tendermint/iavl"
+
 	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/stretchr/testify/suite"
 )
 
 type MultiWriterAppStoreTestSuite struct {
@@ -354,3 +359,94 @@ func mockMultiWriterStore(flushInterval int64) (*MultiWriterAppStore, error) {
 func vmPrefixKey(key string) []byte {
 	return util.PrefixKey([]byte("vm"), []byte(key))
 }
+
+func TestMultiWriterSnapshots(t *testing.T) {
+	numBlocks = 25
+	blockSize = 5
+	flushInterval := int64(10)
+	numReaders := 100
+	prefix := []byte("test")
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "dual-iavlstore")
+
+	blocks = nil
+	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, append(prefix, byte(0)))
+
+	controlStore, err := mockMultiWriterStore(flushInterval)
+	var controlHashes [][]byte
+	require.NoError(t, err)
+	for _, block := range blocks {
+		require.NoError(t, block.Execute(controlStore.appStore.tree))
+		hash, _, err := controlStore.SaveVersion()
+		controlHashes = append(controlHashes, hash)
+		require.NoError(t, err)
+	}
+
+	testStore, err := mockMultiWriterStore(flushInterval)
+	require.NoError(t, err)
+	var testHashes [][]byte
+
+	quits := make([]chan bool, numReaders)
+	for i := range quits {
+		quits[i] = make(chan bool)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(numReaders + 1)
+
+	go func(s *MultiWriterAppStore) {
+		defer wg.Done()
+		for _, block := range blocks {
+			require.NoError(t, block.Execute(s.appStore.tree))
+			hash, _, err := s.SaveVersion()
+			require.NoError(t, err)
+			testHashes = append(testHashes, hash)
+			time.Sleep(5 * time.Millisecond)
+		}
+		for i := range quits {
+			quits[i] <- true
+		}
+	}(testStore)
+
+	for i := 0; i < numReaders; i++ {
+		go func(s *MultiWriterAppStore, index int) []byte {
+			defer wg.Done()
+			var temp []byte
+			for {
+				select {
+				case <-quits[index]:
+					return temp
+				default:
+					{
+						snapshot := s.GetSnapshot()
+						for _, data := range snapshot.Range(prefix) {
+							temp = data.Key
+							temp = data.Value
+						}
+						time.Sleep(time.Millisecond)
+						snapshot.Release()
+					}
+				}
+			}
+
+		}(testStore, i)
+	}
+
+	wg.Wait()
+
+	for _, data := range testStore.Range(prefix) {
+		value := controlStore.Get(util.PrefixKey(prefix, data.Key))
+		require.Equal(t, 0, bytes.Compare(value, data.Value))
+	}
+	for _, data := range controlStore.Range(prefix) {
+		value := testStore.Get(util.PrefixKey(prefix, data.Key))
+		require.Equal(t, 0, bytes.Compare(value, data.Value))
+	}
+	require.Equal(t, len(controlHashes), numBlocks)
+	require.Equal(t, len(controlHashes), len(testHashes))
+	for i := range controlHashes {
+		require.Equal(t, 0, bytes.Compare(controlHashes[i], testHashes[i]))
+	}
+}
+
+/**/

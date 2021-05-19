@@ -18,10 +18,9 @@ var (
 
 	maxVersions   = 2
 	flushInterval = int64(4)
-	diskDbType    = "memdb"
-	//diskDbType       = "goleveldb"
-	blocks []*iavl.Program
-	tree   *iavl.MutableTree
+	diskDbType    = "memdb" // or "goleveldb"
+	blocks        []*iavl.Program
+	tree          *iavl.MutableTree
 )
 
 func TestOrphans(t *testing.T) {
@@ -114,7 +113,7 @@ func TestIavl(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 
 	blocks = nil
-	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize)
+	blocks = iavl.GenerateBlocksHashKeys(numBlocks, blockSize, nil)
 	tree = iavl.NewMutableTree(db.NewMemDB(), 0)
 	for _, program := range blocks {
 		require.NoError(t, program.Execute(tree))
