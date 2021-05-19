@@ -264,12 +264,12 @@ var (
 		[]byte("minbuild"),
 		[]byte("vmroot"),
 	}
-	// Native contracts deployed to Basechain
+	// names of native contracts that can be resolved to an address via the contract registry
 	nativeContractNames = []string{
-		"address-mapper",
+		"addressmapper",
 		"coin",
 		"ethcoin",
-		"dposV1",
+		"dpos",
 		"dposV2",
 		"dposV3",
 		"gateway",
@@ -277,9 +277,11 @@ var (
 		"tron-gateway",
 		"binance-gateway",
 		"bsc-gateway",
-		"deployer-whitelist",
+		"deployerwhitelist",
 		"user-deployer-whitelist",
-		"chain-config",
+		"chainconfig",
+		"karma",
+		"plasmacash",
 	}
 )
 
