@@ -608,25 +608,15 @@ func destroyBlockIndexDB(cfg *config.Config) error {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := cdb.LoadDB(
-		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if cfg.AppStore.CompactOnLoad {
-		logger.Info("Compacting app store...")
-		if err := db.Compact(); err != nil {
-			// compaction erroring out may indicate larger issues with the db,
-			// but for now let's try loading the app store anyway...
-			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
-		}
-		logger.Info("Finished compacting app store")
-	}
-
 	var appStore store.VersionedKVStore
 	if cfg.AppStore.Version == 1 { // TODO: cleanup these hardcoded numbers
+		db, err := cdb.LoadDB(
+			cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
+			cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+		)
+		if err != nil {
+			return nil, err
+		}
 		if cfg.AppStore.PruneInterval > int64(0) {
 			logger.Info("Loading Pruning IAVL Store")
 			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
@@ -648,7 +638,29 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 3 {
 		logger.Info("Loading Multi-Writer App Store")
-		iavlStore, err := store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval)
+		clonedDBName := cfg.DBName + "_v2"
+		if err := store.SwitchToLatestAppStoreDB(
+			cfg.DBBackend, cfg.DBName, clonedDBName, cfg.RootPath(),
+		); err != nil {
+			return nil, err
+		}
+		originalDB, err := cdb.LoadDB(
+			cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
+			cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+		)
+		if err != nil {
+			return nil, err
+		}
+		clonedDB, err := cdb.LoadDB(
+			cfg.DBBackend, clonedDBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
+			cfg.DBBackendConfig.WriteBufferMegs, cfg.Metrics.Database,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load cloned AppStore DB")
+		}
+		iavlStore, err := store.NewIAVLStoreWithDualDBs(
+			originalDB, clonedDB, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.IAVLFlushInterval,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -665,6 +677,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	if cfg.LogStateDB {
+		var err error
 		appStore, err = store.NewLogStore(appStore)
 		if err != nil {
 			return nil, err
@@ -672,6 +685,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	if cfg.CachingStoreConfig.CachingEnabled {
+		var err error
 		appStore, err = store.NewVersionedCachingStore(appStore, cfg.CachingStoreConfig, appStore.Version())
 		if err != nil {
 			return nil, err
