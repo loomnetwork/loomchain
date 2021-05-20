@@ -217,7 +217,7 @@ func (s *MultiWriterAppStore) SaveVersion() ([]byte, int64, error) {
 		// TODO: Should return the error, which would force the app to panic, but since the
 		//       original implementation didn't even check for an error here fixing this properly
 		//       will require putting the fix behind a new feature flag.
-		log.Error("[MultiWriterAppStore] Failed set last saved tree", "err", err)
+		log.Error("[MultiWriterAppStore] Failed to set last saved tree", "err", err)
 	}
 
 	return hash, version, nil

@@ -199,18 +199,18 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 		// - The destination DB isn't set, which means that the cloning & switchover has already
 		//   happened, and shouldn't be done again because cloning to a DB that isn't empty is
 		//   probably a bad idea.
-		if !flushToDisk || (s.clonedDB == nil) {
+		if flushToDisk && (s.clonedDB != nil) {
+			hash, version, err = s.cloneStateToDB()
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to clone tree version %d", version)
+			}
+		} else {
 			log.Warn(
 				"[IAVLStore] Skipping cloning state",
 				"version", version,
 				"flushed", flushToDisk,
 				"dbSet", s.clonedDB != nil,
 			)
-			return hash, version, nil
-		}
-		hash, version, err = s.cloneStateToDB()
-		if err != nil {
-			return nil, 0, errors.Wrapf(err, "failed to clone tree version %d", version)
 		}
 	}
 

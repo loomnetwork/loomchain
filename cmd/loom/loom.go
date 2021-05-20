@@ -387,7 +387,6 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			// TODO: Move this to loadAppStore?
 			// Load app height from app.db
 			appDB, err := cdb.LoadDB(
 				cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs,
