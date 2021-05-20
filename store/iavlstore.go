@@ -337,6 +337,7 @@ func (s *IAVLStore) cloneStateToDB() ([]byte, int64, error) {
 	// copy out all the keys under the prefixes that are still in use
 	for _, prefix := range prefixes {
 		var itError *error
+		numKeysInRange := uint64(0)
 		oldTree.IterateRange(
 			prefix,
 			prefixRangeEnd(prefix),
@@ -353,13 +354,19 @@ func (s *IAVLStore) cloneStateToDB() ([]byte, int64, error) {
 				}
 
 				newTree.Set(key, value)
-				numKeys++
+				numKeysInRange++
 				return false
 			},
 		)
 		if itError != nil {
 			return nil, 0, *itError
 		}
+		numKeys += numKeysInRange
+		log.Debug(
+			"[IAVLStore] cloneStateToDB processed store prefix",
+			"prefix", fmt.Sprintf("%x", prefix),
+			"numKeys", numKeysInRange,
+		)
 	}
 
 	// copy out the misc keys
@@ -368,6 +375,10 @@ func (s *IAVLStore) cloneStateToDB() ([]byte, int64, error) {
 			_, value := oldTree.Get(key)
 			newTree.Set(key, value)
 			numKeys++
+			log.Debug(
+				"[IAVLStore] cloneStateToDB processed store key",
+				"key", fmt.Sprintf("%x", key),
+			)
 		}
 	}
 
