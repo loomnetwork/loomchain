@@ -77,7 +77,7 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
-E2E_TESTS_TIMEOUT = 37m
+E2E_TESTS_TIMEOUT = 39m
 
 .PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle bsc_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle basechain-cleveldb loom-cleveldb lint
 

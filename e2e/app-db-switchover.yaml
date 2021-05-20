@@ -3,8 +3,6 @@ DPOSVersion: 3
 CreateEmptyBlocks: false
 ChainConfig: 
   ContractEnabled: true
-  EnableFeatureStartupDelay: 5
-  EnableFeatureInterval: 5
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
 AppStore:

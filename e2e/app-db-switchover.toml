@@ -3,21 +3,16 @@
   Condition = "excludes"
   Excluded = ["Error"]
 
-# This just creates a pending action... that never seems to get applied for some reason
-#[[TestCases]]
-#  RunCmd = "{{ $.LoomPath }} chain-cfg set-setting AppStore.CloneStateAtHeight --value 20 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
-#  Condition = "excludes"
-#  Excluded = ["Error", "RPC error"]
-
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} chain-cfg config"
   Condition = "excludes"
   Excluded = ["Error", "RPC error"]
 
-# wait 310s (~5m) for 2 new blocks to be generated (310000ms)
+# app.db cloning will take place at block 10, so wait until that happens...
 [[TestCases]]
-  RunCmd = "wait_for_block_height_to_reach 0 17"
+  RunCmd = "wait_for_block_height_to_reach 0 12"
 
+# kill node 1 for 1s, it will swap out the app.db on restart
 [[TestCases]]
   RunCmd = "kill_and_restart_node 1 1"
 
@@ -25,8 +20,33 @@
 [[TestCases]]
   RunCmd = "wait_for_node_to_catch_up 1"
 
+# send through a tx, doesn't matter what it does, just need to change app state
 [[TestCases]]
-  Delay = 10000
-  RunCmd = "{{ $.LoomPath }} dpos3 downtime-record"
+  RunCmd = "{{ $.LoomPath }} dpos3 change-fee 2000 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Excluded = ["Error", "RPC error"]
+
+# make sure node 1 keeps up over the next 2 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 1 2"
+
+# kill node 1 again for 1s, it will not swap out the app.db this time
+[[TestCases]]
+  RunCmd = "kill_and_restart_node 1 1"
+
+# wait for node 1 to catch up
+[[TestCases]]
+  RunCmd = "wait_for_node_to_catch_up 1"
+
+# send through another tx to change app state
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 change-fee 3000 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error", "RPC error"]
+
+# make sure node 1 keeps up over the next 2 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 1 2"
+
+[[TestCases]]
+  RunCmd = "checkapphash"

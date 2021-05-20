@@ -27,6 +27,14 @@
                         "status":"WAITING"
                     },
                     {
+                        "name":"chaincfg:v1.1",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.2",
+                        "status":"WAITING"
+                    },
+                    {
                         "name":"chaincfg:v1.3",
                         "status":"WAITING"
                     }
@@ -67,7 +75,7 @@
     ],
     "config": {
         "app_store": {
-            "clone_state_at_height": 15
+            "clone_state_at_height": 10
         }
     }
 }

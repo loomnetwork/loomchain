@@ -19,32 +19,30 @@ type Test struct {
 
 func TestContractChainConfig(t *testing.T) {
 	tests := []Test{
-		/*
-			{
-				"chainconfig",
-				"chainconfig.toml",
-				4,
-				4,
-				"chainconfig.genesis.json",
-				"chainconfig-loom.yaml",
-			},
-			{
-				"enable-receipts-v2-feature",
-				"enable-receipts-v2-feature.toml",
-				1,
-				1,
-				"enable-receipts-v2-feature-genesis.json",
-				"enable-receipts-v2-feature-loom.yaml",
-			},
-			{
-				"chainconfig-routine",
-				"chainconfig-routine.toml",
-				4,
-				4,
-				"chainconfig.genesis.json",
-				"chainconfig-routine-loom.yaml",
-			},
-		*/
+		{
+			"chainconfig",
+			"chainconfig.toml",
+			4,
+			4,
+			"chainconfig.genesis.json",
+			"chainconfig-loom.yaml",
+		},
+		{
+			"enable-receipts-v2-feature",
+			"enable-receipts-v2-feature.toml",
+			1,
+			1,
+			"enable-receipts-v2-feature-genesis.json",
+			"enable-receipts-v2-feature-loom.yaml",
+		},
+		{
+			"chainconfig-routine",
+			"chainconfig-routine.toml",
+			4,
+			4,
+			"chainconfig.genesis.json",
+			"chainconfig-routine-loom.yaml",
+		},
 		{
 			"app-db-switchover",
 			"app-db-switchover.toml",
