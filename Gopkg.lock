@@ -300,12 +300,12 @@
   version = "v0.14.0"
 
 [[projects]]
-  branch = "mutable-tree-with-version"
+  branch = "loomchain2"
   digest = "1:616d73fa55bb6f54da4bfcf804a813f14c9d63a2bdfbb5d0966e5011f46f42ac"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "6500a2aad8cd0f02c9818e879292045c052f2576"
+  revision = "f3e6af2bc85a1fff128df95122a09bc5f521e322"
   source = "https://github.com/loomnetwork/iavl.git"
 
 [[projects]]
