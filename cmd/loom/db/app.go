@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/store"
@@ -119,31 +121,39 @@ var (
 		[]byte("minbuild"),
 		[]byte("vmroot"),
 	}
-	// Native contracts deployed to Basechain
-	contracts = []contractPrefix{
-		{Name: "address-mapper", Prefix: contractAddressToPrefix("0xb9fA0896573A89cF4065c43563C069b3B3C15c37")},
-		{Name: "coin", Prefix: contractAddressToPrefix("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")},
-		{Name: "ethcoin", Prefix: contractAddressToPrefix("0xde28fb974f31dFbe759cFcB3d1D44C2eeFDFaDd1")},
-		{Name: "dposV1", Prefix: contractAddressToPrefix("0x01D10029c253fA02D76188b84b5846ab3D19510D")},
-		{Name: "dposV2", Prefix: contractAddressToPrefix("0x35754161AC4Bfa2A20eacf0EfB0f26CBdC418112")},
-		{Name: "dposV3", Prefix: contractAddressToPrefix("0xC72783049049c3D887A85dF8061f3141E2C931Cc")},
-		{Name: "gateway", Prefix: contractAddressToPrefix("0xC5d1847a03dA59407F27f8FE7981D240bff2dfD3")},
-		{Name: "loomcoin-gateway", Prefix: contractAddressToPrefix("0xbC968be1656396E568736D5a8E364ac8Ca430B43")},
-		{Name: "tron-gateway", Prefix: contractAddressToPrefix("0x4Dc5C9Cee0827630039Db5E59dfB18e5c679201c")},
-		{Name: "binance-gateway", Prefix: contractAddressToPrefix("0x7E0DF5C9fF8898F0e1B4Af4D133Ef557A0641AA8")},
-		{Name: "bsc-gateway", Prefix: contractAddressToPrefix("0x3125ca7E54f096A7898A8E14471b281581231724")},
-		{Name: "deployer-whitelist", Prefix: contractAddressToPrefix("0xe06AbE129e3fE698bbAB7E3185C798fa2b1a7A50")},
-		{Name: "user-deployer-whitelist", Prefix: contractAddressToPrefix("0x278A1C914c046E2d085a84Ee373091a4FB6e19F4")},
-		{Name: "chain-config", Prefix: contractAddressToPrefix("0x938312E21AC551251Bd9fCC5dFaa7A5278302339")},
+	// names of native contracts that can be resolved to an address via the contract registry
+	nativeContractNames = []string{
+		"addressmapper",
+		"coin",
+		"ethcoin",
+		"dpos",
+		"dposV2",
+		"dposV3",
+		"gateway",
+		"loomcoin-gateway",
+		"tron-gateway",
+		"binance-gateway",
+		"bsc-gateway",
+		"deployerwhitelist",
+		"user-deployer-whitelist",
+		"chainconfig",
+		"karma",
+		"plasmacash",
 	}
 )
 
-func contractAddressToPrefix(contractAddr string) []byte {
-	addr, err := loom.LocalAddressFromHexString(contractAddr)
-	if err != nil {
-		panic(err)
+func getContractStorePrefix(tree *iavl.ImmutableTree, contractName string) ([]byte, error) {
+	contractAddrKeyPrefix := []byte("reg_caddr") // registry v2
+	_, data := tree.Get(util.PrefixKey(contractAddrKeyPrefix, []byte(contractName)))
+	if len(data) == 0 {
+		return nil, nil // contract is probably not deployed on this chain
 	}
-	return util.PrefixKey([]byte("contract"), []byte(addr))
+	var contractAddrPB types.Address
+	if err := proto.Unmarshal(data, &contractAddrPB); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal contract address")
+	}
+	contractAddr := loom.UnmarshalAddressPB(&contractAddrPB)
+	return util.PrefixKey([]byte("contract"), []byte(contractAddr.Local)), nil
 }
 
 func newAnalyzeCommand() *cobra.Command {
@@ -153,12 +163,6 @@ func newAnalyzeCommand() *cobra.Command {
 		Short: "Analyze how much space is taken up by data under the standard key prefixes",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			prefixes := append([][]byte{}, oldStandardPrefixes...)
-			prefixes = append(prefixes, curStandardPrefixes...)
-			for _, contract := range contracts {
-				prefixes = append(prefixes, contract.Prefix)
-			}
-
 			srcDBPath, err := filepath.Abs(args[0])
 			if err != nil {
 				return fmt.Errorf("Failed to resolve app.db path '%s'", args[0])
@@ -192,6 +196,21 @@ func newAnalyzeCommand() *cobra.Command {
 			}
 
 			fmt.Printf("IAVL tree height %v with %v keys\n", immutableTree.Height(), immutableTree.Size())
+
+			prefixes := append([][]byte{}, oldStandardPrefixes...)
+			prefixes = append(prefixes, curStandardPrefixes...)
+			// each native contract has its own prefix in the store
+			contractPrefixToNameMap := map[string]string{}
+			for _, contractName := range nativeContractNames {
+				prefix, err := getContractStorePrefix(immutableTree, contractName)
+				if err != nil {
+					return err
+				}
+				if prefix != nil {
+					contractPrefixToNameMap[string(prefix)] = contractName
+					prefixes = append(prefixes, prefix)
+				}
+			}
 
 			rawStats := map[string]*prefixStat{}
 			var miscStat prefixStat
@@ -242,16 +261,16 @@ func newAnalyzeCommand() *cobra.Command {
 			sortedPrefixes := []string{}
 			for prefix, stat := range rawStats {
 				if util.HasPrefix([]byte(prefix), []byte("contract")) {
-					for _, c := range contracts {
-						if bytes.Compare(c.Prefix, []byte(prefix)) == 0 {
-							stats[c.Name] = stat
-							sortedPrefixes = append(sortedPrefixes, c.Name)
-							break
-						}
+					contractName := contractPrefixToNameMap[prefix]
+					if contractName != "" {
+						stats[contractName] = stat
+						sortedPrefixes = append(sortedPrefixes, contractName)
+					} else {
+						fmt.Printf("Unknown contract prefix %x\n", []byte(prefix))
 					}
 				} else {
-					stats[string(prefix)] = stat
-					sortedPrefixes = append(sortedPrefixes, string(prefix))
+					stats[prefix] = stat
+					sortedPrefixes = append(sortedPrefixes, prefix)
 				}
 			}
 
@@ -402,8 +421,16 @@ func newExtractCurrentStateCommand() *cobra.Command {
 			fmt.Printf("IAVL tree height %v with %v keys\n", immutableTree.Height(), immutableTree.Size())
 
 			prefixes := append([][]byte{}, curStandardPrefixes...)
-			for _, contract := range contracts {
-				prefixes = append(prefixes, contract.Prefix)
+			contractPrefixToNameMap := map[string]string{}
+			for _, contractName := range nativeContractNames {
+				prefix, err := getContractStorePrefix(immutableTree, contractName)
+				if err != nil {
+					return err
+				}
+				if prefix != nil {
+					contractPrefixToNameMap[string(prefix)] = contractName
+					prefixes = append(prefixes, prefix)
+				}
 			}
 
 			numKeys := uint64(0)
@@ -493,12 +520,12 @@ func newExtractCurrentStateCommand() *cobra.Command {
 			sortedPrefixes := []string{}
 			for prefix, stat := range rawStats {
 				if util.HasPrefix([]byte(prefix), []byte("contract")) {
-					for _, c := range contracts {
-						if bytes.Compare(c.Prefix, []byte(prefix)) == 0 {
-							stats[c.Name] = stat
-							sortedPrefixes = append(sortedPrefixes, c.Name)
-							break
-						}
+					contractName := contractPrefixToNameMap[prefix]
+					if contractName != "" {
+						stats[contractName] = stat
+						sortedPrefixes = append(sortedPrefixes, contractName)
+					} else {
+						fmt.Printf("Unknown contract prefix %x\n", []byte(prefix))
 					}
 				} else {
 					stats[string(prefix)] = stat
@@ -644,8 +671,16 @@ func newCompareCurrentStateCommand() *cobra.Command {
 			)
 
 			prefixes := append([][]byte{}, curStandardPrefixes...)
-			for _, contract := range contracts {
-				prefixes = append(prefixes, contract.Prefix)
+			contractPrefixToNameMap := map[string]string{}
+			for _, contractName := range nativeContractNames {
+				prefix, err := getContractStorePrefix(srcImmutableTree, contractName)
+				if err != nil {
+					return err
+				}
+				if prefix != nil {
+					contractPrefixToNameMap[string(prefix)] = contractName
+					prefixes = append(prefixes, prefix)
+				}
 			}
 
 			numKeys := uint64(0)
@@ -715,12 +750,12 @@ func newCompareCurrentStateCommand() *cobra.Command {
 			sortedPrefixes := []string{}
 			for prefix, stat := range rawStats {
 				if util.HasPrefix([]byte(prefix), []byte("contract")) {
-					for _, c := range contracts {
-						if bytes.Compare(c.Prefix, []byte(prefix)) == 0 {
-							stats[c.Name] = stat
-							sortedPrefixes = append(sortedPrefixes, c.Name)
-							break
-						}
+					contractName := contractPrefixToNameMap[prefix]
+					if contractName != "" {
+						stats[contractName] = stat
+						sortedPrefixes = append(sortedPrefixes, contractName)
+					} else {
+						fmt.Printf("Unknown contract prefix %x\n", []byte(prefix))
 					}
 				} else {
 					stats[string(prefix)] = stat
