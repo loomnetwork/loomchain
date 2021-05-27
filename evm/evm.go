@@ -264,6 +264,10 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 	return result.Bytes(), nil
 }
 
+func (e Evm) SelfDestruct(addr loom.Address) bool {
+	return e.sdb.Suicide(common.BytesToAddress(addr.Local))
+}
+
 // TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin

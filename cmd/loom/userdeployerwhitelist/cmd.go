@@ -37,6 +37,7 @@ func NewUserDeployCommand() *cobra.Command {
 		getDeployedContractsCmd(),
 		getTierInfoCmd(),
 		setTierInfoCmd(),
+		destroyDeployedContractCmd(),
 	)
 	return cmd
 }
@@ -123,6 +124,34 @@ func swapUserDeployerCmd() *cobra.Command {
 				NewDeployerAddr: newDeployerAddr.MarshalPB(),
 			}
 			return cli.CallContractWithFlags(&flags, dwContractName, "SwapUserDeployer", req, nil)
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const destroyDeployedContractCmdExample = `
+loom dev destroy-contract 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+`
+
+func destroyDeployedContractCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use: "destroy-contract <contract address>",
+		// nolint:lll
+		Short:   "Destroy a deployed contract by contract address",
+		Example: destroyDeployedContractCmdExample,
+		Args:    cobra.RangeArgs(1, 1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contractAddr, err := cli.ResolveAccountAddress(args[0], &flags)
+			if err != nil {
+				return err
+			}
+			fmt.Println("contractAddress", contractAddr.String())
+			req := &udwtypes.DestroyDeployedContractsRequest{
+				ContractAddress: contractAddr.MarshalPB(),
+			}
+			return cli.CallContractWithFlags(&flags, dwContractName, "DestroyDeployedContract", req, nil)
 		},
 	}
 	cli.AddContractCallFlags(cmd.Flags(), &flags)

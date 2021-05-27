@@ -18,24 +18,25 @@ import (
 )
 
 type (
-	GetUserDeployersRequest      = udwtypes.GetUserDeployersRequest
-	GetUserDeployersResponse     = udwtypes.GetUserDeployersResponse
-	GetDeployedContractsRequest  = udwtypes.GetDeployedContractsRequest
-	GetDeployedContractsResponse = udwtypes.GetDeployedContractsResponse
-	GetDeployerResponse          = dwtypes.GetDeployerResponse
-	GetDeployerRequest           = dwtypes.GetDeployerRequest
-	GetTierInfoRequest           = udwtypes.GetTierInfoRequest
-	GetTierInfoResponse          = udwtypes.GetTierInfoResponse
-	SetTierInfoRequest           = udwtypes.SetTierInfoRequest
-	Deployer                     = dwtypes.Deployer
-	UserDeployerState            = udwtypes.UserDeployerState
-	AddUserDeployerRequest       = dwtypes.AddUserDeployerRequest
-	WhitelistUserDeployerRequest = udwtypes.WhitelistUserDeployerRequest
-	UserState                    = udwtypes.UserState
-	InitRequest                  = udwtypes.InitRequest
-	Tier                         = udwtypes.Tier
-	TierID                       = udwtypes.TierID
-	RemoveUserDeployerRequest    = udwtypes.RemoveUserDeployerRequest
+	GetUserDeployersRequest        = udwtypes.GetUserDeployersRequest
+	GetUserDeployersResponse       = udwtypes.GetUserDeployersResponse
+	GetDeployedContractsRequest    = udwtypes.GetDeployedContractsRequest
+	GetDeployedContractsResponse   = udwtypes.GetDeployedContractsResponse
+	DestroyDeployedContractRequest = udwtypes.DestroyDeployedContractsRequest
+	GetDeployerResponse            = dwtypes.GetDeployerResponse
+	GetDeployerRequest             = dwtypes.GetDeployerRequest
+	GetTierInfoRequest             = udwtypes.GetTierInfoRequest
+	GetTierInfoResponse            = udwtypes.GetTierInfoResponse
+	SetTierInfoRequest             = udwtypes.SetTierInfoRequest
+	Deployer                       = dwtypes.Deployer
+	UserDeployerState              = udwtypes.UserDeployerState
+	AddUserDeployerRequest         = dwtypes.AddUserDeployerRequest
+	WhitelistUserDeployerRequest   = udwtypes.WhitelistUserDeployerRequest
+	UserState                      = udwtypes.UserState
+	InitRequest                    = udwtypes.InitRequest
+	Tier                           = udwtypes.Tier
+	TierID                         = udwtypes.TierID
+	RemoveUserDeployerRequest      = udwtypes.RemoveUserDeployerRequest
 )
 
 var (
@@ -330,6 +331,54 @@ func (uw *UserDeployerWhitelist) GetDeployedContracts(
 	return &GetDeployedContractsResponse{
 		ContractAddresses: userDeployer.Contracts,
 	}, nil
+}
+
+// DestroyDeployedContract destroys a deployed contract
+func (uw *UserDeployerWhitelist) DestroyDeployedContract(
+	ctx contract.Context, req *DestroyDeployedContractRequest,
+) error {
+	if req.ContractAddress == nil {
+		return ErrInvalidRequest
+	}
+	contractAddress := loom.UnmarshalAddressPB(req.ContractAddress)
+	isContractOwner, _ := ctx.HasPermission(modifyPerm, []string{ownerRole})
+	// user deployer whitelist contract owner can destroy every contract
+	if isContractOwner {
+		return ctx.DestroyEVMContract(contractAddress)
+	}
+
+	senderAddr := ctx.Message().Sender
+	var userDeployer UserDeployerState
+	// load user deployer state
+	err := ctx.Get(deployerStateKey(senderAddr), &userDeployer)
+	if err != nil {
+		return errors.Wrap(err, "Failed to load whitelisted deployers state")
+	}
+	authorized := false
+	contracts := []*udwtypes.DeployerContract{}
+	for _, contract := range userDeployer.Contracts {
+		contractAddr := loom.UnmarshalAddressPB(contract.ContractAddress)
+		if contractAddr.Compare(contractAddress) == 0 {
+			authorized = true
+		} else {
+			contracts = append(contracts, contract)
+		}
+	}
+	if !authorized {
+		return ErrNotAuthorized
+	}
+
+	if err := ctx.DestroyEVMContract(contractAddress); err != nil {
+		return err
+	}
+
+	// update deployed contracts list
+	userDeployer.Contracts = contracts
+	if err := ctx.Set(deployerStateKey(senderAddr), &userDeployer); err != nil {
+		return errors.Wrap(err, "Failed to save deployer state")
+	}
+
+	return nil
 }
 
 // SwapUserDeployer allows a user to swap one of their deployer accounts for another (essentially
