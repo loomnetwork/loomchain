@@ -640,6 +640,52 @@ func (s *QueryServer) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	}, nil
 }
 
+// GetCanonicalTxHash returns the hash of the Tendermint tx payload within a block.
+// If the block number is specified (non-zero) then the tx payload will be found by block number & tx
+// index. Otherwise the EVM tx hash will be used to lookup the receipt for the tx and the block
+// number & tx index will be obtained from the receipt.
+//
+// Txs that call the EVM currently end up with two different hashes, one is the hash of the
+// Tendermint tx payload stored in the Tendermint blocks, the other is the hash of the tx receipt.
+// The former is the canonical hash, the latter is an abomination.
+func (s *QueryServer) GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Data) (eth.Data, error) {
+	if block == 0 && evmTxHash == "" {
+		return "", errors.New("neither block number nor EVM tx hash was specfied")
+	}
+
+	height := int64(block)
+	index := int(txIndex)
+
+	if block == 0 {
+		txHash, err := eth.DecDataToBytes(evmTxHash)
+		if err != nil {
+			return "", err
+		}
+
+		txReceipt, err := s.ReceiptHandlerProvider.Reader().GetReceipt(txHash)
+		if err != nil {
+			return "", err
+		}
+
+		height = txReceipt.BlockNumber
+		index = int(txReceipt.TransactionIndex)
+	}
+
+	blockResult, err := s.BlockStore.GetBlockByHeight(&height)
+	if err != nil {
+		return "", err
+	}
+	if blockResult == nil || blockResult.Block == nil {
+		return "", errors.Errorf("no block results found at height %v", height)
+	}
+	if len(blockResult.Block.Data.Txs) <= index {
+		return "", errors.Errorf(
+			"tx index out of bounds (%v >= %v) at height %v", index, len(blockResult.Block.Data.Txs), height,
+		)
+	}
+	return eth.EncBytes(blockResult.Block.Data.Txs[index].Hash()), nil
+}
+
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
 // Used to support eth_getLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
@@ -725,7 +771,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	case "pending":
 		return query.DeprecatedGetBlockByNumber(s.BlockStore, snapshot, snapshot.Block().Height, full, r, s.EvmAuxStore)
 	default:
-		height, err := strconv.ParseInt(number, 10, 64)
+		height, err := strconv.ParseInt(number, 0, 64) // this can be a hex number like "0x12"
 		if err != nil {
 			return nil, err
 		}

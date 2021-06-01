@@ -2,16 +2,19 @@ package main
 
 import (
 	"encoding/base64"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -25,17 +28,27 @@ var (
 
 const unregisterCandidateCmdExample = ` 
 loom dpos3 unregister-candidate --key path/to/private_key
+loom dpos3 unregister-candidate <candidate address> --key path/to/oracle_private_key
 `
 
 func UnregisterCandidateCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "unregister-candidate",
-		Short:   "Unregisters the candidate (only called if previously registered)",
+		Short:   "Unregister a previously registered candidate",
 		Example: unregisterCandidateCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var candidateAddrPB *types.Address
+			if len(args) == 1 {
+				addr, err := cli.ParseAddress(args[0], flags.ChainID)
+				if err != nil {
+					return err
+				}
+				candidateAddrPB = addr.MarshalPB()
+			}
 			return cli.CallContractWithFlags(
-				&flags, DPOSV3ContractName, "UnregisterCandidate", &dposv3.UnregisterCandidateRequest{}, nil,
+				&flags, DPOSV3ContractName, "UnregisterCandidate",
+				&dposv3.UnregisterCandidateRequest{Candidate: candidateAddrPB}, nil,
 			)
 		},
 	}
@@ -757,6 +770,208 @@ func UnbondCmdV3() *cobra.Command {
 	return cmd
 }
 
+const unbondAllCmdExample = `
+loom dpos3 unbond-all 0x7262d4c97c7B93937E4810D289b7320e9dA82857 -k path/to/private_key
+`
+
+func UnbondAllDelegationsCmdV3() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "unbond-all [validator address]",
+		Short:   "unbond all delegations of a target validator",
+		Example: unbondAllCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAccountAddress(args[0], &flags)
+			if err != nil {
+				return err
+			}
+			return cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "UnbondAll",
+				&dposv3.UnbondAllRequest{ValidatorAddress: addr.MarshalPB()}, nil,
+			)
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
+const redelegateAllCmdExample = `
+loom dpos3 redelegate-all 0x7262d4c97c7B93937E4810D289b7320e9dA82857 -k path/to/private_key
+`
+
+func RedelegateAllDelegationsCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "redelegate-all [validator address]",
+		Short:   "Randomly redelegate all delegations from one validator to other validators",
+		Example: redelegateAllCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcValidatorAddr, err := cli.ParseAddress(args[0], flags.ChainID)
+			if err != nil {
+				return err
+			}
+
+			// check the key matches the oracle
+			signer, err := cli.GetSigner(flags.PrivFile, flags.HsmConfigFile, flags.Algo)
+			if err != nil {
+				return err
+			}
+			signerAddr := loom.LocalAddressFromPublicKey(signer.PublicKey())
+
+			var stateResp dposv3.GetStateResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "GetState", &dposv3.GetStateRequest{}, &stateResp,
+			)
+			if err != nil {
+				return errors.Wrap(err, "failed to fetch DPOS contract state")
+			}
+
+			if stateResp.State.Params.OracleAddress.Local.Compare(signerAddr) != 0 {
+				return errors.New("private key doesn't match oracle")
+			}
+
+			if len(stateResp.State.Validators) < 2 {
+				return errors.New("insufficient number of validators")
+			}
+
+			var candidatesResp dposv3.ListCandidatesResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "ListCandidates",
+				&dposv3.ListCandidatesRequest{}, &candidatesResp,
+			)
+			if err != nil {
+				return errors.Wrap(err, "failed to fetch candidates")
+			}
+
+			type redelegationInfo struct {
+				Delegator   string
+				FromIndex   uint64
+				ToValidator string
+				Amount      string
+			}
+			type validatorInfo struct {
+				Name    string
+				Address string
+			}
+			summary := struct {
+				FromValidator string
+				ToValidators  []validatorInfo
+				Redelegations []redelegationInfo
+			}{
+				FromValidator: srcValidatorAddr.String(),
+			}
+
+			// if the validator is no longer a candidate there's no way to figure out what their
+			// fee was so just assume it was 100%
+			currentFee := uint64(10000)
+			for _, c := range candidatesResp.Candidates {
+				if srcValidatorAddr.Compare(loom.UnmarshalAddressPB(c.Candidate.Address)) == 0 {
+					currentFee = c.Candidate.Fee
+					break
+				}
+			}
+
+			// make a list of all the other validators we'll be redelegating to
+			validators := make([]loom.Address, 0, len(stateResp.State.Validators))
+			for _, v := range stateResp.State.Validators {
+				validatorAddr := loom.Address{
+					ChainID: flags.ChainID,
+					Local:   loom.LocalAddressFromPublicKey(v.PubKey),
+				}
+				if validatorAddr.Compare(srcValidatorAddr) == 0 {
+					continue
+				}
+				// only redelegate to validators with the same or lower fee as the original validator
+				for _, c := range candidatesResp.Candidates {
+					if validatorAddr.Compare(loom.UnmarshalAddressPB(c.Candidate.Address)) == 0 {
+						if !c.Statistic.Jailed && (c.Candidate.Fee <= currentFee) {
+							validators = append(validators, validatorAddr)
+							summary.ToValidators = append(summary.ToValidators, validatorInfo{
+								Name:    c.Candidate.Name,
+								Address: validatorAddr.String(),
+							})
+						}
+						break
+					}
+				}
+			}
+
+			var delegationsResp dposv3.ListDelegationsResponse
+			err = cli.StaticCallContractWithFlags(
+				&flags, DPOSV3ContractName, "ListDelegations",
+				&dposv3.ListDelegationsRequest{Candidate: srcValidatorAddr.MarshalPB()}, &delegationsResp,
+			)
+			if err != nil {
+				return errors.Wrap(err, "failed to fetch delegations")
+			}
+
+			destValidatorPerDelegator := map[string]loom.Address{}
+
+			// randomly redelegate all the validator's delegations
+			rand.Seed(time.Now().UTC().UnixNano())
+			for _, d := range delegationsResp.Delegations {
+				// don't bother redelegating worthless delegations
+				if d.State != dposv3.Delegation_BONDED || d.Amount == nil || d.Amount.Value.Int.Sign() <= 0 {
+					continue
+				}
+				delegatorAddr := loom.UnmarshalAddressPB(d.Delegator)
+				// don't redelegate the validator rewards delegation
+				if d.Index == 0 && delegatorAddr.Compare(srcValidatorAddr) == 0 {
+					continue
+				}
+
+				// if a delegator has multiple delegations to the original validator move them all to
+				// a single validator instead of dispersing them across all the other validators,
+				// this will allow the delegator to easily consolidate them all later if they want
+				var destValidatorAddr loom.Address
+				var exists bool
+				if destValidatorAddr, exists = destValidatorPerDelegator[delegatorAddr.String()]; !exists {
+					destValidatorAddr = validators[rand.Intn(len(validators))]
+					destValidatorPerDelegator[delegatorAddr.String()] = destValidatorAddr
+				}
+
+				summary.Redelegations = append(summary.Redelegations, redelegationInfo{
+					Delegator:   delegatorAddr.String(),
+					FromIndex:   d.Index,
+					ToValidator: destValidatorAddr.String(),
+					Amount:      d.Amount.Value.Int.String(),
+				})
+
+				err = cli.CallContractWithFlags(
+					&flags, DPOSV3ContractName, "Redelegate",
+					&dposv3.RedelegateRequest{
+						DelegatorAddress:       d.Delegator,
+						Index:                  d.Index,
+						ValidatorAddress:       destValidatorAddr.MarshalPB(),
+						FormerValidatorAddress: srcValidatorAddr.MarshalPB(),
+					}, nil,
+				)
+				if err != nil {
+					out, marshalErr := json.MarshalIndent(summary, "", "  ")
+					if marshalErr != nil {
+						return err
+					}
+					fmt.Println(string(out))
+					return errors.Wrapf(
+						err, "failed to redelegate delegation at index %d to %s",
+						d.Index, destValidatorAddr.String(),
+					)
+				}
+			}
+			out, err := json.MarshalIndent(summary, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(out))
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 const claimDelegatorRewardsCmdExample = `
 loom dpos3 claim-delegator-rewards --key path/to/private_key
 `
@@ -930,11 +1145,12 @@ func TimeUntilElectionCmdV3() *cobra.Command {
 }
 
 const listDelegationsCmdExample = `
-loom dpos3 list-delegations 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom dpos3 list-delegations 0x7262d4c97c7B93937E4810D289b7320e9dA82857 --concise
 `
 
 func ListDelegationsCmdV3() *cobra.Command {
 	var flags cli.ContractCallFlags
+	var conciseMode bool
 	cmd := &cobra.Command{
 		Use:     "list-delegations <candidate address>",
 		Short:   "list a candidate's delegations & delegation total",
@@ -954,15 +1170,54 @@ func ListDelegationsCmdV3() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
+
+			if conciseMode {
+				type delegationInfo struct {
+					Delegator    string              `json:"delegator"`
+					Validator    string              `json:"validator"`
+					Index        uint64              `json:"index"`
+					Amount       string              `json:"amount"`
+					LocktimeTier dposv3.LocktimeTier `json:"locktimeTier"`
+					LockTime     uint64              `json:"lockTime"`
+					State        string              `json:"state"`
+				}
+				type outputInfo struct {
+					Delegations     []*delegationInfo `json:"delegations"`
+					DelegationTotal string            `json:"delegationTotal"`
+				}
+				delegations := []*delegationInfo{}
+				for _, d := range resp.Delegations {
+					delegations = append(delegations, &delegationInfo{
+						Delegator:    loom.UnmarshalAddressPB(d.Delegator).Local.String(),
+						Validator:    loom.UnmarshalAddressPB(d.Validator).Local.String(),
+						Index:        d.Index,
+						Amount:       d.Amount.Value.Int.String(),
+						LocktimeTier: d.LocktimeTier,
+						LockTime:     d.LockTime,
+						State:        d.State.String(),
+					})
+				}
+				output := outputInfo{
+					Delegations:     delegations,
+					DelegationTotal: resp.DelegationTotal.Value.Int.String(),
+				}
+				prettyJSON, err := json.MarshalIndent(output, "", "  ")
+				if err != nil {
+					return errors.Wrap(err, "failed to generate json output")
+				}
+				fmt.Println(string(prettyJSON))
+			} else {
+				out, err := formatJSON(&resp)
+				if err != nil {
+					return err
+				}
+				fmt.Println(out)
 			}
-			fmt.Println(out)
 			return nil
 		},
 	}
 	cli.AddContractStaticCallFlags(cmd.Flags(), &flags)
+	cmd.Flags().BoolVar(&conciseMode, "concise", false, "Omit less relevant details")
 	return cmd
 }
 
@@ -1352,6 +1607,35 @@ func SetMinCandidateFeeCmdV3() *cobra.Command {
 	return cmd
 }
 
+const ignoreUnbondLocktimeCmdExample = `
+loom dpos3 ignore-unbond-locktime true -k path/to/private_key
+`
+
+func IgnoreUnbondLocktimeCmd() *cobra.Command {
+	var flags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:     "ignore-unbond-locktime [true|false]",
+		Example: ignoreUnbondLocktimeCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			status, err := strconv.ParseBool(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid boolean value")
+			}
+			err = cli.CallContractWithFlags(
+				&flags, DPOSV3ContractName, "IgnoreUnbondLocktime", &dposv3.IgnoreUnbondLocktimeRequest{
+					Ignore: status,
+				}, nil)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cli.AddContractCallFlags(cmd.Flags(), &flags)
+	return cmd
+}
+
 func NewDPOSV3Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dpos3 <command>",
@@ -1382,6 +1666,8 @@ func NewDPOSV3Command() *cobra.Command {
 		CheckRewardsCmdV3(),
 		DowntimeRecordCmdV3(),
 		UnbondCmdV3(),
+		UnbondAllDelegationsCmdV3(),
+		RedelegateAllDelegationsCmd(),
 		RegisterReferrerCmdV3(),
 		SetDowntimePeriodCmdV3(),
 		SetElectionCycleCmdV3(),
@@ -1397,6 +1683,7 @@ func NewDPOSV3Command() *cobra.Command {
 		SetMinCandidateFeeCmdV3(),
 		UnjailValidatorCmdV3(),
 		EnableValidatorJailingCmd(),
+		IgnoreUnbondLocktimeCmd(),
 	)
 	return cmd
 }

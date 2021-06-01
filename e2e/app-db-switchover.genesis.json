@@ -1,0 +1,81 @@
+{
+    "contracts": [
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "coin",
+            "location": "coin:1.0.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "chainconfig",
+            "location": "chainconfig:1.0.0",
+            "init": {
+                "owner": {
+                    "chainId":"default",
+                    "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
+                },
+                "params": {
+                    "voteThreshold":"100",
+                    "numBlockConfirmations":"1"
+                },
+                "features": [
+                    {
+                        "name":"dposv3",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.1",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.2",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.3",
+                        "status":"WAITING"
+                    }
+                ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dposV3",
+            "location": "dposV3:3.0.0",
+            "init": {
+                "params": {
+                    "validatorCount": "4",
+                    "electionCycleLength": "0"
+                },
+                "validators": [
+                    {
+                        "pubKey": "XvkW4a0U6o8x/SYtDx5RFTWcATdf9212+OodZWFR0mc=",
+                        "power": "10"
+                    },
+                    {
+                        "pubKey": "YOVrdKhgPrRp0oy2NCHkJv0MQBdVWbbsnwH2FUkOPng=",
+                        "power": "10"
+                    },
+                    {
+                        "pubKey": "tlO6quUK0AKU3wAIs0llQzunJtl+6jMRn+hWkC6VlZk=",
+                        "power": "10"
+                    },
+                    {
+                        "pubKey": "d0tPCyhVkSDMmxqquEj+/rA1cVZDZrK3suMn/gPLWd0=",
+                        "power": "10"
+                    }
+                ],
+                "initCandidates": true
+            }
+        }
+    ],
+    "config": {
+        "app_store": {
+            "clone_state_at_height": 10
+        }
+    }
+}

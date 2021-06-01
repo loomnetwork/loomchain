@@ -41,6 +41,7 @@ const (
 	LoomGatewayName    = "loomcoin-gateway"
 	BinanceGatewayName = "binance-gateway"
 	TronGatewayName    = "tron-gateway"
+	BscGatewayName     = "bsc-gateway"
 )
 
 const getOraclesCmdExample = `
@@ -65,7 +66,9 @@ const replaceOwnerCmdExample = `
 
 const withdrawFundsCmdExample = `
 ./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key path/to/loom_priv.key OR
-./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
+./loom gateway withdraw-funds \
+	--eth-uri https://mainnet.infura.io/v3/<project_id> \
+	-u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
 `
 
 const setWithdrawFeeCmdExample = `
@@ -315,6 +318,10 @@ func newGetStateCommand() *cobra.Command {
 				name = LoomGatewayName
 			} else if strings.Compare(args[0], BinanceGatewayName) == 0 {
 				name = BinanceGatewayName
+			} else if strings.Compare(args[0], TronGatewayName) == 0 {
+				name = TronGatewayName
+			} else if strings.Compare(args[0], BscGatewayName) == 0 {
+				name = BscGatewayName
 			} else {
 				return errors.New("Invalid gateway name")
 			}
@@ -374,6 +381,7 @@ func newGetOraclesCommand() *cobra.Command {
 
 func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	var onlyRewards bool
+	var ethURI string
 	cmd := &cobra.Command{
 		Use:     "withdraw-funds",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
@@ -393,7 +401,6 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 
 			mainnetLoomAddress := "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
 			mainnetGatewayAddress := "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570"
-			ethereumUri := "https://mainnet.infura.io/"
 			privateKeyPath := gatewayCmdFlags.PrivKeyPath
 			hsmPath := gatewayCmdFlags.HSMConfigPath
 			algo := gatewayCmdFlags.Algo
@@ -435,7 +442,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			ethClient, err := ethclient.Dial(ethereumUri)
+			ethClient, err := ethclient.Dial(ethURI)
 			if err != nil {
 				return err
 			}
@@ -596,6 +603,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
+	cmdFlags.StringVar(&ethURI, "eth-uri", "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241", "Ethereum URI")
 	return cmd
 }
 
@@ -685,6 +693,8 @@ func newSetWithdrawLimitCommand() *cobra.Command {
 				name = LoomGatewayName
 			} else if strings.EqualFold(args[0], BinanceGatewayName) {
 				name = BinanceGatewayName
+			} else if strings.EqualFold(args[0], BscGatewayName) {
+				name = BscGatewayName
 			} else {
 				return fmt.Errorf("withdrawal limits not supported by %s", name)
 			}
@@ -773,6 +783,9 @@ func newUpdateMainnetGatewayAddressCommand() *cobra.Command {
 			} else if strings.EqualFold(args[1], TronGatewayName) {
 				name = TronGatewayName
 				foreignChainId = "tron"
+			} else if strings.EqualFold(args[1], BscGatewayName) {
+				name = BscGatewayName
+				foreignChainId = "eth"
 			} else {
 				return errors.New("invalid gateway name")
 			}

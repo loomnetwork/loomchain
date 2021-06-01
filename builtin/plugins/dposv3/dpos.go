@@ -73,6 +73,7 @@ var (
 	errValidatorNotFound             = errors.New("Validator record not found.")
 	errDistributionNotFound          = errors.New("Distribution record not found.")
 	errOnlyOracle                    = errors.New("Function can only be called with oracle address.")
+	errDelegationLocked              = errors.New("Delegation currently locked.")
 )
 
 type (
@@ -85,6 +86,7 @@ type (
 	DelegationState                   = dtypes.Delegation_DelegationState
 	LocktimeTier                      = dtypes.LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
+	UnbondAllRequest                  = dtypes.UnbondAllRequest
 	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
 	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
@@ -126,6 +128,7 @@ type (
 	UnjailRequest                     = dtypes.UnjailRequest
 	SetMaxDowntimePercentageRequest   = dtypes.SetMaxDowntimePercentageRequest
 	EnableValidatorJailingRequest     = dtypes.EnableValidatorJailingRequest
+	IgnoreUnbondLocktimeRequest       = dtypes.IgnoreUnbondLocktimeRequest
 	Candidate                         = dtypes.Candidate
 	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
@@ -339,7 +342,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	delegator := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 Redelegate", "delegator", delegator, "request", req)
 
 	if req.ValidatorAddress == nil {
 		return logDposError(ctx, errors.New("Redelegate called with req.ValidatorAddress == nil"), req.String())
@@ -371,9 +373,27 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
-			msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d", candidate.MaxReferralPercentage, defaultReferrerFee.Uint64())
+			msg := fmt.Sprintf(
+				"Candidate does not accept delegations with referral fees as high. Max: %d, Fee: %d",
+				candidate.MaxReferralPercentage, defaultReferrerFee.Uint64(),
+			)
 			return logDposError(ctx, errors.New(msg), req.String())
 		}
+	}
+
+	// Allow oracle to specify the delegator
+	if req.DelegatorAddress != nil && ctx.FeatureEnabled(features.DPOSVersion3_10, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+
+		if state.Params.OracleAddress == nil ||
+			ctx.Message().Sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return errOnlyOracle
+		}
+
+		delegator = loom.UnmarshalAddressPB(req.DelegatorAddress)
 	}
 
 	priorDelegation, err := GetDelegation(ctx, req.Index, *req.FormerValidatorAddress, *delegator.MarshalPB())
@@ -527,7 +547,6 @@ func consolidateDelegations(ctx contract.Context, validator, delegator *types.Ad
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return nil, nil, -1, err
 	}
-
 	return delegation, consolidatedDelegations, unconsolidatedDelegationsCount, nil
 }
 
@@ -537,25 +556,28 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 	if req.Delegator == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckRewardsFromAllValidators called with req.Delegator == nil"), req.String())
 	}
-	delegator := req.Delegator
-	validators, err := ValidatorList(ctx)
+
+	delegator := loom.UnmarshalAddressPB(req.Delegator)
+	delegations, err := loadDelegationList(ctx)
 	if err != nil {
-		return nil, logStaticDposError(ctx, err, req.String())
+		return nil, errors.Wrap(err, "failed to load delegations")
 	}
 
 	total := big.NewInt(0)
-	chainID := ctx.Block().ChainID
-	for _, v := range validators {
-		valAddress := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(v.PubKey)}
-		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator)
-		if err == contract.ErrNotFound {
-			// Skip reward delegations that were not found.
+	for _, d := range delegations {
+		if d.Index != REWARD_DELEGATION_INDEX ||
+			loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
 			continue
-		} else if err != nil {
-			return nil, err
 		}
 
-		// Add to the sum
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			ctx.Logger().Error("DPOS CheckRewardsFromAllValidators", "error", err, "delegator", delegator)
+			continue
+		} else if err != nil {
+			return nil, errors.Wrap(err, "failed to load delegation")
+		}
+
 		total.Add(total, delegation.Amount.Value.Int)
 	}
 
@@ -565,9 +587,14 @@ func (c *DPOS) CheckRewardsFromAllValidators(ctx contract.StaticContext, req *Ch
 	}, nil
 }
 
-/// This unbonds the full amount of the rewards delegation from all validators
-/// and returns the total amount which will be available to the
+/// ClaimRewardsFromAllValidators unbonds the full amount of the rewards delegation from all validators
+/// a delegator has delegated to, and returns the total amount which will be transferred to the
+/// delegator's account after the next election.
 func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDelegatorRewardsRequest) (*ClaimDelegatorRewardsResponse, error) {
+	if ctx.FeatureEnabled(features.DPOSVersion3_6, false) {
+		return c.claimRewardsFromAllValidators2(ctx, req)
+	}
+
 	delegator := ctx.Message().Sender
 	validators, err := ValidatorList(ctx)
 	if err != nil {
@@ -583,9 +610,10 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 		delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *valAddress.MarshalPB(), *delegator.MarshalPB())
 		if err == contract.ErrNotFound {
 			// Skip reward delegations that were not found.
+			ctx.Logger().Error("DPOS ClaimRewardsFromAllValidators", "error", err, "delegator", delegator)
 			continue
 		} else if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to load delegation")
 		}
 
 		claimedFromValidators = append(claimedFromValidators, valAddress.MarshalPB())
@@ -596,7 +624,7 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 		delegation.UpdateAmount = delegation.Amount
 
 		if err := SetDelegation(ctx, delegation); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to update delegation")
 		}
 
 		err = c.emitDelegatorUnbondsEvent(ctx, delegation)
@@ -620,6 +648,71 @@ func (c *DPOS) ClaimRewardsFromAllValidators(ctx contract.Context, req *ClaimDel
 	}, nil
 }
 
+func (c *DPOS) claimRewardsFromAllValidators2(
+	ctx contract.Context, req *ClaimDelegatorRewardsRequest,
+) (*ClaimDelegatorRewardsResponse, error) {
+	delegator := ctx.Message().Sender
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load delegations")
+	}
+	total := big.NewInt(0)
+	var claimedFromValidators []*types.Address
+	var amounts []*types.BigUInt
+	for _, d := range delegations {
+		if d.Index != REWARD_DELEGATION_INDEX || loom.UnmarshalAddressPB(d.Delegator).Compare(delegator) != 0 {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *delegator.MarshalPB())
+		if err == contract.ErrNotFound {
+			ctx.Logger().Error("DPOS ClaimRewardsFromAllValidators", "error", err, "delegator", delegator)
+			continue
+		} else if err != nil {
+			return nil, errors.Wrap(err, "failed to load delegation")
+		}
+
+		// There's no point unbonding the same delegation more than once during the same election
+		// cycle unless the delegator alters the amount they wish to unbond.
+		if (delegation.State == UNBONDING && delegation.UpdateAmount.Value.Cmp(&delegation.Amount.Value) == 0) ||
+			delegation.Amount.Value.Sign() == 0 {
+			continue
+		}
+
+		claimedFromValidators = append(claimedFromValidators, d.Validator)
+		amounts = append(amounts, delegation.Amount)
+
+		// Set to UNBONDING and UpdateAmount == Amount, to fully unbond it.
+		delegation.State = UNBONDING
+		delegation.UpdateAmount = delegation.Amount
+
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return nil, errors.Wrap(err, "failed to update delegation")
+		}
+
+		if err := c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {
+			return nil, err
+		}
+
+		// Add to the sum
+		total.Add(total, delegation.Amount.Value.Int)
+	}
+
+	amount := &types.BigUInt{Value: *loom.NewBigUInt(total)}
+
+	// Don't bother emitting an event if the delegator won't get any rewards.
+	if total.Sign() != 0 {
+		err = c.emitDelegatorClaimsRewardsEvent(ctx, delegator.MarshalPB(), claimedFromValidators, amounts, amount)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ClaimDelegatorRewardsResponse{
+		Amount: amount,
+	}, nil
+}
+
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOSv3 Unbond", "delegator", delegator, "request", req)
@@ -634,19 +727,23 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
 	} else if err != nil {
-		return err
+		return errors.Wrap(err, "failed to load delegation")
 	}
 
 	state, err := LoadState(ctx)
 	if err != nil {
 		return err
 	}
+
 	instantUnlock := state.Params.ElectionCycleLength == 0 && delegation.LocktimeTier == TIER_ZERO
+	if !instantUnlock && ctx.FeatureEnabled(features.DPOSVersion3_9, false) {
+		instantUnlock = state.Params.IgnoreUnbondLocktime
+	}
 
 	if delegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Unbond amount exceeds delegation amount."), req.String())
 	} else if delegation.LockTime > uint64(ctx.Now().Unix()) && !instantUnlock {
-		return logDposError(ctx, errors.New("Delegation currently locked."), req.String())
+		return logDposError(ctx, errDelegationLocked, req.String())
 	} else if delegation.State != BONDED {
 		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
 	} else {
@@ -661,6 +758,68 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	}
 
 	return c.emitDelegatorUnbondsEvent(ctx, delegation)
+}
+
+// UnbondAll unbonds the full amount on all currently bonded delegations.
+// This method can only be called by the DPOS oracle (admin).
+func (c *DPOS) UnbondAll(ctx contract.Context, req *UnbondAllRequest) error {
+	if !ctx.FeatureEnabled(features.DPOSVersion3_7, false) {
+		return errors.New("DPOS v3.7 is not enabled")
+	}
+
+	if req.ValidatorAddress == nil {
+		return errors.New("validator address must be specified")
+	}
+
+	sender := ctx.Message().Sender
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+
+	delegationIndexes, err := loadDelegationList(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to load delegations")
+	}
+	validatorAddress := loom.UnmarshalAddressPB(req.ValidatorAddress)
+	for _, di := range delegationIndexes {
+		if validatorAddress.Compare(loom.UnmarshalAddressPB(di.Validator)) != 0 {
+			continue
+		}
+		delegation, err := GetDelegation(ctx, di.Index, *di.Validator, *di.Delegator)
+		if err == contract.ErrNotFound {
+			validator := loom.UnmarshalAddressPB(di.Validator)
+			delegator := loom.UnmarshalAddressPB(di.Delegator)
+			return fmt.Errorf("delegation not found for validator %v / delegator %v", validator, delegator)
+		} else if err != nil {
+			return errors.Wrap(err, "failed to load delegation")
+		}
+
+		if delegation.State == BONDED {
+			delegation.State = UNBONDING
+			// Unbond the full amount.
+			// NOTE: If the delegation earns rewards during the election during which it's unbonded
+			//       then the amount that actually ends up being unbonded doesn't include the rewards
+			//       earned during that election, thus the delegation amount is going to be non-zero
+			//       after the election.
+			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
+
+			if err := SetDelegation(ctx, delegation); err != nil {
+				return err
+			}
+
+			if err = c.emitDelegatorUnbondsEvent(ctx, delegation); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
@@ -960,6 +1119,7 @@ func (c *DPOS) Unjail(ctx contract.Context, req *UnjailRequest) error {
 
 	ctx.Logger().Info("DPOSv3 Unjail", "request", req)
 	statistic.Jailed = false
+
 	if err = SetStatistic(ctx, statistic); err != nil {
 		return err
 	}
@@ -1036,7 +1196,23 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress, "request", req)
+
+	// Allow oracle to specify the candidate
+	if req.Candidate != nil && ctx.FeatureEnabled(features.DPOSVersion3_10, false) {
+		state, err := LoadState(ctx)
+		if err != nil {
+			return err
+		}
+
+		if state.Params.OracleAddress == nil ||
+			ctx.Message().Sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+			return errOnlyOracle
+		}
+
+		candidateAddress = loom.UnmarshalAddressPB(req.Candidate)
+	}
+
+	ctx.Logger().Info("DPOSv3 UnregisterCandidate", "candidateAddress", candidateAddress)
 
 	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
@@ -1109,8 +1285,6 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 }
 
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesRequest) (*ListCandidatesResponse, error) {
-	ctx.Logger().Debug("DPOSv3 ListCandidates", "request", req.String())
-
 	candidates, err := LoadCandidateList(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
@@ -1163,6 +1337,8 @@ func Elect(ctx contract.Context) error {
 		validatorCount = len(delegationResults)
 	}
 
+	stripPowerFromJailedValidators := ctx.FeatureEnabled(features.DPOSVersion3_8, false)
+
 	validators := make([]*Validator, 0)
 	totalValidatorDelegations := common.BigZero()
 	for _, res := range delegationResults[:validatorCount] {
@@ -1173,17 +1349,12 @@ func Elect(ctx contract.Context) error {
 			// does not halt due to the error. 0-value delegations are best to
 			// exclude for efficiency, though tendermint would ignore 0-powered
 			// validators
-
 			var power big.Int
 			// making sure that the validator power can fit into a int64
 			power.Div(res.DelegationTotal.Int, powerCorrection)
 			validatorPower := power.Int64()
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
 			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
-			validators = append(validators, &Validator{
-				PubKey: candidate.PubKey,
-				Power:  validatorPower,
-			})
 
 			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
@@ -1195,13 +1366,29 @@ func Elect(ctx contract.Context) error {
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
-
 				if statistic.UpdateWhitelistAmount != nil {
 					statistic.WhitelistAmount = statistic.UpdateWhitelistAmount
 					statistic.LocktimeTier = statistic.UpdateLocktimeTier
 					statistic.UpdateWhitelistAmount = nil
 				}
 			}
+
+			if stripPowerFromJailedValidators && statistic.Jailed {
+				// Strip the validator of its voting power while it remains jailed, this has the effect
+				// of redistributing the voting power to the validators that aren't jailed. If a validator
+				// with a significant voting power is jailed the cluster has probably been taking longer
+				// than usual to reach consensus, redistributing the voting power prevents this slowdown
+				// from going on forever.
+				// NOTE: The voting power is set to one here rather than zero because of an implementation
+				// detail in Tendermint, it errors out if the voting power is zero for two consecutive
+				// elections.
+				validatorPower = int64(1)
+			}
+
+			validators = append(validators, &Validator{
+				PubKey: candidate.PubKey,
+				Power:  validatorPower,
+			})
 
 			if err = SetStatistic(ctx, statistic); err != nil {
 				return err
@@ -1215,7 +1402,6 @@ func Elect(ctx contract.Context) error {
 		state.Validators = applyPowerCap(validators)
 		state.LastElectionTime = ctx.Now().Unix()
 		state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
-
 		if err = saveState(ctx, state); err != nil {
 			return err
 		}
@@ -1276,7 +1462,6 @@ func applyPowerCap(validators []*Validator) []*Validator {
 			}
 		}
 	}
-
 	return validators
 }
 
@@ -1412,6 +1597,27 @@ func (c *DPOS) EnableValidatorJailing(ctx contract.Context, req *EnableValidator
 	}
 
 	state.Params.JailOfflineValidators = req.JailOfflineValidators
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) IgnoreUnbondLocktime(ctx contract.Context, req *IgnoreUnbondLocktimeRequest) error {
+	if !ctx.FeatureEnabled(features.DPOSVersion3_9, false) {
+		return errors.New("DPOS v3.9 is not enabled")
+	}
+
+	state, err := LoadState(ctx)
+	if err != nil {
+		return err
+	}
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Compare(loom.UnmarshalAddressPB(state.Params.OracleAddress)) != 0 {
+		return errOnlyOracle
+	}
+	if state.Params.IgnoreUnbondLocktime == req.Ignore {
+		return nil
+	}
+
+	state.Params.IgnoreUnbondLocktime = req.Ignore
 	return saveState(ctx, state)
 }
 
@@ -2685,7 +2891,10 @@ func TotalStaked(ctx contract.StaticContext, bootstrapNodes map[string]bool) (*t
 		return nil, err
 	}
 	for _, candidate := range candidates {
-		candidateList[candidate.Address.String()] = true
+		candidateAddr := loom.UnmarshalAddressPB(candidate.Address)
+		if _, ok := bootstrapNodes[strings.ToLower(candidateAddr.String())]; !ok {
+			candidateList[candidate.Address.String()] = true
+		}
 	}
 
 	delegationList, err := loadDelegationList(ctx)

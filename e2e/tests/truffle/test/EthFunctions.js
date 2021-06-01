@@ -7,15 +7,17 @@ const {
 } = require('loom-js')
 const ethers = require('ethers').ethers
 const { getContractFuncInterface, getLatestBlock, getMappedAccount, waitForXBlocks } = require('./helpers')
+const rp = require('request-promise')
+
 const MyToken = artifacts.require('MyToken');
 const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
 const MyCoin = artifacts.require('MyCoin');
 const StoreContract = artifacts.require('StoreTestContract');
 
 // web3 functions called using truffle objects use the loomProvider
-// web3 functions called uisng we3js access the loom QueryInterface directly
+// web3 functions called using we3js access the loom QueryInterface directly
 contract('MyToken', async (accounts) => {
-  let web3js, nodeAddr, alice, aliceLoomAddr, bob, bobLoomAddr; 
+  let web3js, nodeAddr, alice, aliceLoomAddr, bob, bobLoomAddr
 
   beforeEach(async () => {
     if (!process.env.CLUSTER_DIR) {
@@ -305,4 +307,111 @@ contract('MyToken', async (accounts) => {
     assert.equal(result.status, true, 'tx submitted successfully');
   });
 
+  it('canonical_tx_hash', async () => {
+    if (process.env.TRUFFLE_PROVIDER !== 'hdwallet') {
+      return
+    }
+    const nodeAddr = fs.readFileSync(path.join(process.env.CLUSTER_DIR, '0', 'node_rpc_addr'), 'utf-8');
+    const ethAccount = await newWeb3Account(nodeAddr, web3js)
+    const tokenContract = await MyToken.deployed();
+    const mintTokenInterface = getContractFuncInterface(
+      new web3js.eth.Contract(MyToken._json.abi, tokenContract.address), 'mintToken'
+    )
+    const txCount = await web3js.eth.getTransactionCount(ethAccount.address)
+    const txParams = {
+      nonce: ethers.utils.hexlify(txCount),
+      gasPrice: '0x0', // gas price is always 0
+      gasLimit: '0xFFFFFFFFFFFFFFFF', // gas limit right now is max.Uint64
+      to: tokenContract.address,
+      value: '0x0',
+      data: web3js.eth.abi.encodeFunctionCall(mintTokenInterface, ['200']) // mintToken(200)
+    }
+        
+    const payload = await web3js.eth.accounts.signTransaction(txParams, ethAccount.privateKey);
+    const result = await web3js.eth.sendSignedTransaction(payload.rawTransaction);
+    assert.equal(result.status, true, 'tx submitted successfully');
+    let canonicalTxHash = await getCanonicalTxHashByBlockTxIndex(
+      `http://${nodeAddr}/query`, result.blockNumber, result.transactionIndex
+    )
+    assert.equal(canonicalTxHash, result.transactionHash)
+
+    const logs = await web3js.eth.getPastLogs({
+      address: tokenContract.address,
+      fromBlock: result.blockNumber,
+      toBlock: 'latest',
+    });
+    for (let i = 0 ; i < logs.length ; i++) {
+      const log = logs[i]
+      // Logs currently contain the non-canonical EVM tx hash
+      assert.notEqual(log.transactionHash, result.transactionHash)
+      canonicalTxHash = await getCanonicalTxHashByBlockTxIndex(
+        `http://${nodeAddr}/query`, log.blockNumber, log.transactionIndex
+      )
+      assert.equal(canonicalTxHash, result.transactionHash)
+      // Lookup the canonical tx hash using the EVM tx hash
+      canonicalTxHash = await getCanonicalTxHashByEvmTxHash(
+        `http://${nodeAddr}/query`, log.transactionHash
+      )
+      assert.equal(canonicalTxHash, result.transactionHash)
+    }
+  });
 });
+
+async function newWeb3Account(nodeAddr, web3js) {
+  const client = new Client('default', `ws://${nodeAddr}/websocket`, `ws://${nodeAddr}/queryws`);
+  client.on('error', msg => {
+      console.error('Error on connect to client', msg);
+      console.warn('Please verify if loom cluster is running');
+  });
+  const privKey = CryptoUtils.generatePrivateKey();
+  const pubKey = CryptoUtils.publicKeyFromPrivateKey(privKey);
+  client.txMiddleware = createDefaultTxMiddleware(client, privKey);
+  // Create a mapping between a new DAppChain account & Ethereum account, this is necessary in
+  // order to match the signer address that will be recovered from the Ethereum tx to a DAppChain
+  // account, without this mapping the Ethereum tx will be rejected.
+  const loomAddr = new Address(client.chainId, LocalAddress.fromPublicKey(pubKey));
+  const addressMapper = await Contracts.AddressMapper.createAsync(client, loomAddr);
+  const ethAccount = web3js.eth.accounts.create();
+  const ethWallet = new ethers.Wallet(ethAccount.privateKey);
+  const ethAddr = await ethWallet.getAddress();
+  await addressMapper.addIdentityMappingAsync(
+    loomAddr,
+    new Address('eth', LocalAddress.fromHexString(ethAddr)),
+    new EthersSigner(ethWallet)
+  );
+  client.disconnect();
+
+  return ethAccount
+}
+
+async function getCanonicalTxHashByBlockTxIndex(uri, blockNumber, txIndex) {
+  var options = {
+    method: 'POST',
+    uri: uri,
+    body: {
+      jsonrpc: '2.0',
+      method: 'canonical_tx_hash',
+      params: [blockNumber.toString(), txIndex.toString(), '0x0'],
+      id: 83,
+    },
+    json: true
+  };
+  const res = await rp(options)
+  return res.result
+}
+
+async function getCanonicalTxHashByEvmTxHash(uri, evmTxHash) {
+  var options = {
+    method: 'POST',
+    uri: uri,
+    body: {
+      jsonrpc: '2.0',
+      method: 'canonical_tx_hash',
+      params: ['0', '0', evmTxHash],
+      id: 83,
+    },
+    json: true
+  };
+  const res = await rp(options)
+  return res.result
+}

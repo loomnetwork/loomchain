@@ -19,6 +19,7 @@ GRPC_DIR = $(GOPATH)/src/google.golang.org/grpc
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
+GO_TESTING_INTERFACE_DIR = $(GOPATH)/src/github.com/mitchellh/go-testing-interface
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 BTCD_DIR = $(GOPATH)/src/github.com/btcsuite/btcd
@@ -33,7 +34,7 @@ GO_LOOM_GIT_REV = HEAD
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
 TG_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
-ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
+ETHEREUM_GIT_REV = 6128fa1a8c767035d3da6ef0c27ebb7778ce3713
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
@@ -76,13 +77,13 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
-E2E_TESTS_TIMEOUT = 37m
+E2E_TESTS_TIMEOUT = 39m
 
-.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle basechain-cleveldb loom-cleveldb lint
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle bsc_tgoracle tron_tgoracle binance_tgoracle pcoracle dposv2_oracle basechain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
-oracles: tgoracle pcoracle
+oracles: tgoracle pcoracle bsc_tgoracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
@@ -103,6 +104,9 @@ tgoracle: $(TRANSFER_GATEWAY_DIR)
 
 loomcoin_tgoracle: $(TRANSFER_GATEWAY_DIR)
 	cd $(TRANSFER_GATEWAY_DIR) && make loomcoin_tgoracle
+
+bsc_tgoracle: $(TRANSFER_GATEWAY_DIR)
+	cd $(TRANSFER_GATEWAY_DIR) && make bsc_tgoracle
 
 tron_tgoracle: $(TRANSFER_GATEWAY_DIR)
 	cd $(TRANSFER_GATEWAY_DIR) && make tron_tgoracle
@@ -202,21 +206,30 @@ validators-tool: $(TRANSFER_GATEWAY_DIR)
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	# Temp workaround for https://github.com/prometheus/procfs/issues/221
-	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)
+	git clone -q git@github.com:prometheus/procfs $(PROMETHEUS_PROCFS_DIR)  ; true
 	cd $(PROMETHEUS_PROCFS_DIR) && git checkout master && git pull && git checkout d3b299e382e6acf1baa852560d862eca4ff643c8
+	# Lock down Prometheus golang client to v1.2.1 (newer versions use a different protobuf version)
+	git clone -q git@github.com:prometheus/client_golang $(GOPATH)/src/github.com/prometheus/client_golang ; true
+	cd $(GOPATH)/src/github.com/prometheus/client_golang && git checkout master && git pull && git checkout v1.2.1
+	# prometheus/client_model is pulled by prometheus/client_golang so lock it down as well
+	git clone -q git@github.com:prometheus/client_model $(GOPATH)/src/github.com/prometheus/client_model ; true
+	cd $(GOPATH)/src/github.com/prometheus/client_model && git checkout master && git pull && git checkout 14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016
+	# prometheus/common is pulled by prometheus/client_golang so lock it down as well
+	git clone -q git@github.com:prometheus/common $(GOPATH)/src/github.com/prometheus/common ; true
+	cd $(GOPATH)/src/github.com/prometheus/common && git checkout main && git pull && git checkout v0.7.0
+	git clone -q git@github.com:googleapis/go-genproto.git $(GENPROTO_DIR); true
+	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 
+	export GO111MODULE=off
+#		google.golang.org/grpc \	
 	go get \
 		golang.org/x/crypto/ed25519 \
-		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
 		github.com/gogo/protobuf/proto \
-		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
 		github.com/go-kit/kit/log \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
-		github.com/prometheus/client_golang/prometheus \
-		github.com/go-kit/kit/log \
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
@@ -226,16 +239,26 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap \
 		github.com/posener/wstest \
-		github.com/btcsuite/btcd
+		github.com/hashicorp/go-hclog \
+		github.com/hashicorp/yamux \
+		github.com/oklog/run
 
 	# When you want to reference a different branch of go-loom change GO_LOOM_GIT_REV above
 	cd $(PLUGIN_DIR) && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
+	git clone -q git@github.com:golang/protobuf.git $(GOPATH)/src/github.com/golang/protobuf ; true
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
+	git clone -q git@github.com:gogo/protobuf.git $(GOGO_PROTOBUF_DIR); true
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
+	git clone -q git@github.com:grpc/grpc-go.git $(GRPC_DIR); true
 	cd $(GRPC_DIR) && git checkout v1.20.1
-	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
-	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
+	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV) && rm -rf crypto/bn256 && git checkout master crypto/bn256
+	git clone -q git@github.com:hashicorp/go-plugin.git $(HASHICORP_DIR); true
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
+	# go-testing-interface is a dependency of hashicorp/go-plugin,
+	# latest version of go-testing-interface only supports Go 1.14+ so use an older version
+	git clone -q git@github.com:mitchellh/go-testing-interface.git $(GO_TESTING_INTERFACE_DIR); true
+	cd $(GO_TESTING_INTERFACE_DIR) && git checkout v1.0.0
+	git clone -q git@github.com:btcsuite/btcd.git $(BTCD_DIR); true
 	cd $(BTCD_DIR) && git checkout $(BTCD_GIT_REV)
 	cd $(YUBIHSM_DIR) && git checkout master && git pull && git checkout $(YUBIHSM_REV)
 	# fetch vendored packages

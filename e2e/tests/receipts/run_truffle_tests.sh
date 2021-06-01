@@ -13,12 +13,7 @@ bash ../cluster.sh --init --dir $TEST_DIR --start
 
 cd ../truffle
 # Wait for all built-in contracts to be deployed to the test cluster.
-if [[ "$OSTYPE" == "darwin"* ]] && [[ "$NODE_NAME" == "osx"* ]]; then
-    # Jenkins OSX machine is slugish so give it more time to spin up the test cluster.
-    sleep 5
-else
-    sleep 1
-fi
+sleep 5
 
 # Run solidity linter
 yarn lint

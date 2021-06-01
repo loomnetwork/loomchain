@@ -117,7 +117,7 @@ var LogTxMiddleware = TxMiddlewareFunc(func(
 	next TxHandlerFunc,
 	isCheckTx bool,
 ) (TxHandlerResult, error) {
-	// TODO: set some tx specific logging info
+	// TODO: We should set some transaction specific logging information
 	return next(state, txBytes, isCheckTx)
 })
 
@@ -142,7 +142,7 @@ var _ TxMiddleware = &InstrumentingTxMiddleware{}
 
 // NewInstrumentingTxMiddleware initializes the metrics and maintains the handler func
 func NewInstrumentingTxMiddleware() TxMiddleware {
-	// initialize metrcis
+	// initialize metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
@@ -164,7 +164,7 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 	}
 }
 
-// ProcessTx capture metrics and implements TxMiddleware
+// ProcessTx captures metrics and implements TxMiddleware
 func (m InstrumentingTxMiddleware) ProcessTx(
 	state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool,
 ) (r TxHandlerResult, err error) {

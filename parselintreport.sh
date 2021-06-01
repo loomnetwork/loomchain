@@ -1,11 +1,11 @@
 #!/bin/bash
 count=`grep ".go" lintreport | wc -l`
-echo "Number of errors $count"
-if [ $count -le 54 ] #Set this to one higher then current number of lints, lower this number over time
+echo "The number of errors is $count"
+if [ $count -le 54 ] #Set this to a value higher than the current number of linter errors. We should lower this number over time
 then
-  echo "Errors within threshold"
+  echo "The number of errors is within the threshold."
   exit 0
 else
-  echo "Errors have exceeded threshold limit" >&2
+  echo "The number of errors exceeds the threshold." >&2
   exit 1
 fi

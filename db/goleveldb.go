@@ -52,3 +52,14 @@ func LoadGoLevelDB(name, dir string, cacheSizeMeg int, bufferSizeMeg int, collec
 	}
 	return &GoLevelDB{GoLevelDB: db}, nil
 }
+
+func LoadReadOnlyGoLevelDB(name, dir string) (*GoLevelDB, error) {
+	db, err := dbm.NewGoLevelDBWithOpts(name, dir, &opt.Options{
+		ReadOnly: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &GoLevelDB{GoLevelDB: db}, nil
+}

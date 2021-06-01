@@ -40,8 +40,9 @@ type (
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
-
-	BurnRequest = ctypes.BurnRequest
+	BurnRequest          = ctypes.BurnRequest
+	BalancesRequest      = ctypes.BalancesRequest
+	BalancesResponse     = ctypes.BalancesResponse
 )
 
 var (
@@ -144,6 +145,13 @@ func validateMinter(ctx contract.StaticContext, minter loom.Address) error {
 		}
 	}
 
+	if ctx.FeatureEnabled(features.TGVersion1_7, false) {
+		gatewayAddr, err = ctx.Resolve("bsc-gateway")
+		if err == nil && minter.Compare(gatewayAddr) == 0 {
+			return nil
+		}
+	}
+
 	return errors.New("not authorized")
 }
 
@@ -164,9 +172,9 @@ func burn(ctx contract.Context, from loom.Address, amount *loom.BigUInt) error {
 	bal := account.Balance.Value
 	supply := econ.TotalSupply.Value
 
-	// Being extra cautious wont hurt.
+	// Being extra cautious won't hurt.
 	if bal.Cmp(amount) < 0 || supply.Cmp(amount) < 0 {
-		return fmt.Errorf("cant burn coins more than available balance: %s", bal.String())
+		return fmt.Errorf("can't burn more coins than the available balance: %s", bal.String())
 	}
 
 	bal.Sub(&bal, amount)
@@ -254,6 +262,24 @@ func (c *Coin) BalanceOf(
 	}
 	return &BalanceOfResponse{
 		Balance: acct.Balance,
+	}, nil
+}
+
+func (c *Coin) Balances(
+	ctx contract.StaticContext,
+	req *BalancesRequest,
+) (*BalancesResponse, error) {
+	accountRange := ctx.Range([]byte("account"))
+	accounts := []*Account{}
+	for _, m := range accountRange {
+		var account Account
+		if err := proto.Unmarshal(m.Value, &account); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal account %x", m.Key)
+		}
+		accounts = append(accounts, &account)
+	}
+	return &BalancesResponse{
+		Accounts: accounts,
 	}, nil
 }
 

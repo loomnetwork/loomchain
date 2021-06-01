@@ -48,6 +48,20 @@ func (m *mockBinanceGateway) DummyMethod(ctx contractpb.Context, req *MintToGate
 	return nil
 }
 
+type mockBscGateway struct {
+}
+
+func (m *mockBscGateway) Meta() (plugin.Meta, error) {
+	return plugin.Meta{
+		Name:    "bsc-gateway",
+		Version: "0.1.0",
+	}, nil
+}
+
+func (m *mockBscGateway) DummyMethod(ctx contractpb.Context, req *MintToGatewayRequest) error {
+	return nil
+}
+
 func TestTransfer(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr2)
 	ctx := contractpb.WrapPluginContext(pctx)
@@ -461,6 +475,7 @@ func TestBurnAccess(t *testing.T) {
 
 	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
 	mockBinanceGatewayContract := contractpb.MakePluginContract(&mockBinanceGateway{})
+	mockBscGatewayContract := contractpb.MakePluginContract(&mockBscGateway{})
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
@@ -468,6 +483,8 @@ func TestBurnAccess(t *testing.T) {
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 	binanceTGAddress := pctx.CreateContract(mockBinanceGatewayContract)
 	pctx.RegisterContract("binance-gateway", binanceTGAddress, binanceTGAddress)
+	bscTGAddress := pctx.CreateContract(mockBscGatewayContract)
+	pctx.RegisterContract("bsc-gateway", bscTGAddress, bscTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 
@@ -509,7 +526,7 @@ func TestBurnAccess(t *testing.T) {
 				Value: *loom.NewBigUIntFromInt(10),
 			},
 		},
-	), "cant burn coins more than available balance: 0", "only burn coin owned by you")
+	), "can't burn more coins than the available balance: 0", "only burn coin owned by you")
 
 	require.EqualError(t, contract.Burn(
 		contractpb.WrapPluginContext(pctx.WithSender(binanceTGAddress)),
@@ -533,6 +550,13 @@ func TestBurnAccess(t *testing.T) {
 			},
 		},
 	), "Binance gateway should be allowed to call MintToGateway")
+
+	//TODO test a mint / burn on binance
+
+	//TODO test mint / burn, on binance then eth
+
+	//TODO test mint / burn, on eth then binance
+
 }
 
 func TestMintToGatewayAccess(t *testing.T) {

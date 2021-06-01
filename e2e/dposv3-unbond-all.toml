@@ -1,0 +1,156 @@
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 2}}"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin transfer dposV3 5000000 -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = ""
+
+# candidate metadata strings are joined with underscores due to how RunCmd is
+# parsed in e2e/engine
+# Note: Node1 registers with a 10% maximum referral fee
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 1}} 100 0 1000 --name numero-uno --website one.com --description the-number-one-validator-in-the-world -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 register-candidate {{index $.NodePubKeyList 2}} 50 0 600 --name numero-dos -k {{index $.NodePrivKeyPathList 2}}"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-candidates"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "1000", "600"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 20 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+# NodeAddr 2 delegate to Node Addr1 20
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 1}} 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 200000 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+# Account 0 delegate to Node Addr2 20000
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 delegate {{index $.NodeAddressList 2}} 200000 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["1250020", "{{index $.NodePubKeyList 1}}"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["2000000000000000000"]
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 2}} {{index $.AccountAddressList 0}}"
+  Condition = "contains"
+  Expected = ["20000000000000000000000"]
+
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-validators"
+  Condition = "contains"
+  Expected = ["\"Value\": 12500", "{{index $.NodeBase64AddressList 1}}", "{{index $.NodeBase64AddressList 2}}"]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["8000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = [""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["\"index\": \"1\""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
+  Condition = "contains"
+  Expected = [ 'dpos:v3.7' ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 unbond-all {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 unbond-all {{index $.NodeAddressList 1}} -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 check-delegation {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = [""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["\"index\": \"0\""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 1}}"
+  Condition = "excludes"
+  Excluded = ["\"index\": \"1\""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["\"index\": \"0\""]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-delegations {{index $.NodeAddressList 2}}"
+  Condition = "excludes"
+  Excluded = ["\"index\": \"1\""]
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} dpos3 list-all-delegations"
+  Condition = "excludes"
+  Excluded = ["\"index\": \"1\""]

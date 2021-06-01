@@ -125,7 +125,7 @@ type CachingStoreConfig struct {
 
 func DefaultCachingStoreConfig() *CachingStoreConfig {
 	return &CachingStoreConfig{
-		CachingEnabled:            true,
+		CachingEnabled:            false,
 		Shards:                    1024,
 		EvictionTimeInSeconds:     60 * 60,       // 1 hour
 		CleaningIntervalInSeconds: 10,            // Cleaning per 10 second

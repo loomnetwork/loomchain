@@ -68,8 +68,8 @@ func (am *AddressMapper) Init(ctx contract.Context, req *InitRequest) error {
 	return nil
 }
 
-// AddIdentityMapping adds a mapping between a DAppChain account and a Mainnet account.
-// The caller must provide proof of ownership of the Mainnet account.
+// AddIdentityMapping adds a mapping between a local account and a foreign account.
+// The caller must provide proof of ownership of the foreign account.
 func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) error {
 	if req.From == nil || req.To == nil || req.Signature == nil {
 		return ErrInvalidRequest
