@@ -15,9 +15,6 @@ cd ../truffle
 # Wait for all built-in contracts to be deployed to the test cluster.
 sleep 5
 
-# Run solidity linter
-yarn lint
-
 # Run Truffle tests using Truffle HDWallet provider & /eth endpoint
 CLUSTER_DIR=$TEST_DIR/cluster yarn run map-accounts
 CLUSTER_DIR=$TEST_DIR/cluster \
