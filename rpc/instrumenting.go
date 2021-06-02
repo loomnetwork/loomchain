@@ -538,7 +538,9 @@ func (m InstrumentingMiddleware) EthGetStorageAt(address eth.Data, position stri
 	return
 }
 
-func (m InstrumentingMiddleware) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Quantity, err error) {
+func (m InstrumentingMiddleware) EthEstimateGas(
+	query eth.JsonTxCallObject, block eth.BlockHeight,
+) (resp eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthEstimateGas", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

@@ -221,7 +221,9 @@ func (vm *PluginVM) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) 
 	return []byte{}, nil
 }
 
-func (vm *PluginVM) EstimateGas(caller, addr loom.Address, input []byte, value *loom.BigUInt) (uint64, error) {
+func (vm *PluginVM) EstimateGas(
+	caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64,
+) (uint64, error) {
 	return uint64(0), nil
 }
 

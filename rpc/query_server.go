@@ -289,9 +289,9 @@ func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight)
 
 	var caller loom.Address
 	if len(query.From) > 0 {
-		caller, err = s.getEthAccount(snapshot, query.From)
+		caller, err = s.resolveEthAccountLoomAddress(snapshot, query.From)
 		if err != nil {
-			return resp, err
+			return resp, errors.Wrap(err, "[eth_call] invalid from address")
 		}
 	} else {
 		caller = loom.RootAddress(s.ChainID)
@@ -299,11 +299,11 @@ func (s *QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight)
 
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
-		return resp, err
+		return resp, errors.Wrap(err, "[eth_call] invalid to address")
 	}
 	data, err := eth.DecDataToBytes(query.Data)
 	if err != nil {
-		return resp, err
+		return resp, errors.Wrap(err, "[eth_call] invalid data")
 	}
 	bytes, err := s.queryEvm(snapshot, caller, contract, data)
 	return eth.EncBytes(bytes), err
@@ -1107,7 +1107,7 @@ func (s *QueryServer) EthGetTransactionCount(address eth.Data, block eth.BlockHe
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	resolvedAddr, err := s.getEthAccount(snapshot, address)
+	resolvedAddr, err := s.resolveEthAccountLoomAddress(snapshot, address)
 	if err != nil {
 		return eth.ZeroedQuantity, err
 	}
@@ -1197,16 +1197,17 @@ func (s *QueryServer) EthGetStorageAt(local eth.Data, position string, block eth
 	return eth.EncBytes(storage), nil
 }
 
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_estimateGas
-func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Quantity, err error) {
+// EthEstimateGas handles the eth_estimateGas endpoint (https://eth.wiki/json-rpc/API#eth_estimategas)
+func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
 	var caller loom.Address
+	var err error
 	if len(query.From) > 0 {
-		caller, err = s.getEthAccount(snapshot, query.From)
+		caller, err = s.resolveEthAccountLoomAddress(snapshot, query.From)
 		if err != nil {
-			caller = loom.RootAddress(s.ChainID)
+			return "", errors.Wrap(err, "[eth_estimateGas] invalid from address")
 		}
 	} else {
 		caller = loom.RootAddress(s.ChainID)
@@ -1214,14 +1215,26 @@ func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.Block
 
 	// Target address can be empty on contract deploy transaction
 	var contract loom.Address
-	contract, err = eth.DecDataToAddress(s.ChainID, query.To)
-	if err != nil {
+	if len(query.To) > 0 {
+		contract, err = eth.DecDataToAddress(s.ChainID, query.To)
+		if err != nil {
+			return "", errors.Wrap(err, "[eth_estimateGas] invalid to address")
+		}
+	} else {
 		contract = loom.RootAddress(s.ChainID)
 	}
 
 	data, err := eth.DecDataToBytes(query.Data)
 	if err != nil {
-		return resp, err
+		return "", errors.Wrap(err, "[eth_estimateGas] invalid data")
+	}
+
+	var gasLimit uint64
+	if len(query.Gas) > 0 {
+		gasLimit, err = eth.DecQuantityToUint(query.Gas)
+		if err != nil {
+			return "", errors.Wrap(err, "[eth_estimateGas] invalid gas amount")
+		}
 	}
 
 	var createABM levm.AccountBalanceManagerFactoryFunc
@@ -1238,13 +1251,13 @@ func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject, block eth.Block
 		)
 		createABM, err = s.NewABMFactory(pvm)
 		if err != nil {
-			return resp, err
+			return "", err
 		}
 	}
 	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false)
-	gasUsed, err := vm.EstimateGas(caller, contract, data, nil)
+	gasUsed, err := vm.EstimateGas(caller, contract, data, nil, gasLimit)
 	if err != nil {
-		return resp, errors.Wrapf(err, "failed to call eth_estimateGas")
+		return "", errors.Wrapf(err, "[eth_estimateGas]")
 	}
 	return eth.EncUint(gasUsed), nil
 }
@@ -1275,7 +1288,8 @@ func (s *QueryServer) getBlockHeightFromHash(hash []byte) (uint64, error) {
 	}
 }
 
-func (s *QueryServer) getEthAccount(state loomchain.State, address eth.Data) (loom.Address, error) {
+// Resolves an Ethereum address to a Loom address via the address mapper contract.
+func (s *QueryServer) resolveEthAccountLoomAddress(state loomchain.State, address eth.Data) (loom.Address, error) {
 	addrBytes, err := eth.DecDataToBytes(address)
 	if err != nil {
 		return loom.Address{}, err

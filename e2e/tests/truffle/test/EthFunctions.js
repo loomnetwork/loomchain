@@ -14,8 +14,14 @@ const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
 const MyCoin = artifacts.require('MyCoin');
 const StoreContract = artifacts.require('StoreTestContract');
 
-// web3 functions called using truffle objects use the loomProvider
-// web3 functions called using we3js access the loom QueryInterface directly
+/*
+  Truffle objects route calls either through LoomTruffleProvider (which uses a LoomProvider that's
+  connected to the /rpc and /query endpoints), or through HDWalletProvider (connected to the /eth endpoint),
+  TRUFFLE_PROVIDER env var will be set to `hdwallet` in the latter case.
+
+  Calls made through the the web3js object are routed directly to the /eth endpoint, neither 
+  LoomTruffleProvider nor LoomProvider are involved in that case.
+*/
 contract('MyToken', async (accounts) => {
   let web3js, nodeAddr, alice, aliceLoomAddr, bob, bobLoomAddr
 
@@ -179,87 +185,63 @@ contract('MyToken', async (accounts) => {
     assert.equal(ethOwner.toLowerCase(), web3js.utils.padLeft(owner, 64).toLowerCase(), "result using tokenContract and eth.call");
   });
 
-  it('GasEstimateTestContract eth_estimateGas', async () => {
-    const setAttemp = {
-     "first" : 500 ,
-     "second": 1000 ,
+  it('eth_estimateGas', async () => {
+    // This endpoint expects the from address (when specified) to be an Ethereum address, so this
+    // test doesn't work with LoomTruffleProvider (which generates Loom addresses).
+    if (process.env.TRUFFLE_PROVIDER !== 'hdwallet') {
+      return
     }
-    const gasContract = await GasEstimateTestContract.deployed(); 
-    await gasContract.set(setAttemp.first,{from:alice})
 
-    contract = new web3js.eth.Contract(GasEstimateTestContract._json.abi, gasContract.address, {alice});
-    let actual = await contract.methods.get().call();
-    assert.equal(actual,setAttemp.first,"[GasEstimateTestContract] ....")
-    const gasEst = await contract.methods.set(setAttemp.second).estimateGas();
-    assert.equal(gasEst,6487, "[GasEstimateTestContract] pass transaction gas estimate");
+    const setAttemp = [500, 1000];
+    const truffleContract = await GasEstimateTestContract.deployed(); 
+    await truffleContract.set(setAttemp[0], { from: alice });
 
-    await waitForXBlocks(nodeAddr, 2)
-    actual = await contract.methods.get().call();
-    assert.equal(actual,setAttemp.first,"[GasEstimateTestContract] state must not change on estimateGas call")
-  
-    await gasContract.set(setAttemp.second,{from:bob})
-    actual = await contract.methods.get().call();
-    assert.equal(actual,setAttemp.second);
-  });
-
-  it('MyCoin Contract eth_estimateGas', async ()=>{
-    const mycoinContract = await MyCoin.deployed();
-    contract = new web3js.eth.Contract(MyCoin._json.abi,mycoinContract.address,{alice});
-    let actual = await contract.methods.balanceOf(mycoinContract.address).call();
-    assert.equal(actual,0,"balance not correct")
-    actual = await contract.methods.balanceOf(alice).call();
-    assert.equal(actual,0,"balance not correct")
-    actual = await contract.methods.totalSupply().call();
-    assert.equal(actual,10**27,"totalsupply not correct")
+    const w3Contract = new web3js.eth.Contract(
+      GasEstimateTestContract._json.abi, truffleContract.address, { from: alice }
+    );
     
-    await mycoinContract.easyTransferTo(alice,10000);
-    actual = await contract.methods.balanceOf(alice).call();
-    assert.equal(actual,10000,"alice balance not correct")
-    actual = await contract.methods.balanceOf(bob).call();
-    assert.equal(actual,0,"bob balance not correct")
+    let actual = await w3Contract.methods.get().call({ from: alice });
+    assert.equal(actual, setAttemp[0], "Initial value should be set correctly");
+    const gasEst = await w3Contract.methods.set(setAttemp[1]).estimateGas();
+    assert.notEqual(gasEst, 0, "Gas estimate should be non-zero");
+    await waitForXBlocks(nodeAddr, 2);
+    actual = await w3Contract.methods.get().call();
+    assert.equal(actual, setAttemp[0], "Value should not change after gas estimation");
   
-    await mycoinContract.approveForTransfer(alice,10000)
-    let estGas = await contract.methods.transferFrom(alice,bob,5000).estimateGas();
-    assert.equal(estGas,28353, "[MyCoinContract] transferFrom gas estimate");
-    await mycoinContract.transferFrom(alice,bob,5000);
-    actual = await contract.methods.balanceOf(alice).call();
-    assert.equal(actual,5000,"alice balance not correct")
-    actual = await contract.methods.balanceOf(bob).call();
-    assert.equal(actual,5000,"bob balance not correct")
+    await truffleContract.set(setAttemp[1], { from: bob });
+    actual = await w3Contract.methods.get().call();
+    assert.equal(actual, setAttemp[1], "Value should change");
 
-    await mycoinContract.approveForTransfer(bob,6000)
-
-    estGas = await contract.methods.transferFrom(bob,alice,5000).estimateGas();
-    assert.equal(estGas,13353, "[MyCoinContract] transferFrom gas estimate");
-    await mycoinContract.transferFrom(bob,alice,5000);
-  
-    actual = await contract.methods.balanceOf(alice).call();
-    assert.equal(actual,10000,"alice balance not correct")
-    actual = await contract.methods.balanceOf(bob).call();
-    assert.equal(actual,0,"bob balance not correct")
-
-    let result = await contract.methods.getUint().call();
-    assert.equal(result,0,"Global uint incorrect")
-    estGas = await contract.methods.payToSet(100).estimateGas({from:alice,value:"100"});
-    assert.equal(estGas,21532, "[MyCoinContract] payToSet gas estimate");
-    result = await contract.methods.getUint().call();
-    assert.equal(result,0,"Global uint incorrect")
-    
-    await mycoinContract.payToSet(100,{from:alice,value:"0"})
-    result = await contract.methods.getUint().call();
-    assert.equal(result,100,"Global uint incorrect")
-  
-    let deployGas = await web3js.eth.estimateGas({
+    // estimate contract deployment gas usage, without specifying a limit
+    let gasEstimate = await web3js.eth.estimateGas({
       from: bob,
       data: MyToken._json.bytecode
-    })
-    assert.equal(deployGas,1921891,"Invalid Gas for deploy contract gas estimation")
+    });
+    assert.notEqual(gasEstimate, 0, "invalid gas estimate for contract deployment");
+    // estimate again using less gas (~50%) than previous estimate, this should fail
+    try {
+      await web3js.eth.estimateGas({
+        from: bob,
+        data: MyToken._json.bytecode,
+        gas: Math.floor(gasEstimate / 2)
+      });
+      assert.fail("Expected gas estimation to fail");
+    } catch (error) {
+      const errMsg = "contract creation code storage out of gas";
+      assert(error.message.search(errMsg) >= 0, `Expected error "${errMsg}", got "${error}" instead`);
+    }
 
-    deployGas = await web3js.eth.estimateGas({
-    from: bob,
-    data: MyToken._json.bytecode
-    })
-    assert.equal(deployGas,1921891,"Invalid Gas for deploy contract gas estimation")
+    // estimate contract call gas usage, without specifying a limit
+    gasEstimate = await w3Contract.methods.set(555).estimateGas({ from: bob });
+    assert.notEqual(gasEstimate, 0, "invalid gas estimate for contract call");
+    // estimate again using less gas (~50%) than previous estimate, this should fail
+    try {
+      await w3Contract.methods.set(555).estimateGas({ from: bob, gas: Math.floor(gasEstimate / 2) });
+      assert.fail("Expected gas estimation to fail");
+    } catch (error) {
+      const errMsg = "out of gas";
+      assert(error.message.search(errMsg) >= 0, `Expected error "${errMsg}", got "${error}" instead`);
+    }
   });
 
   it('eth_sendRawTransaction', async () => {
