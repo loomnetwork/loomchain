@@ -202,7 +202,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 	} else {
 		val = value.Int
 		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
-			return nil, loom.Address{}, errors.Errorf("value %v must be positive", value)
+			return nil, loom.Address{}, errors.Errorf("value %v must be non negative", value)
 		}
 	}
 
