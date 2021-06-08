@@ -6,14 +6,24 @@ const {
   createDefaultTxMiddleware, Client, Address, LocalAddress, CryptoUtils, Contracts, EthersSigner
 } = require('loom-js')
 const ethers = require('ethers').ethers
-const { getContractFuncInterface, getLatestBlock, getMappedAccount } = require('./helpers')
-const MyToken = artifacts.require('MyToken');
+const { getContractFuncInterface, getLatestBlock, getMappedAccount, waitForXBlocks } = require('./helpers')
 const rp = require('request-promise')
 
-// web3 functions called using truffle objects use the loomProvider
-// web3 functions called using we3js access the loom QueryInterface directly
+const MyToken = artifacts.require('MyToken');
+const GasEstimateTestContract = artifacts.require('GasEstimateTestContract');
+const MyCoin = artifacts.require('MyCoin');
+const StoreContract = artifacts.require('StoreTestContract');
+
+/*
+  Truffle objects route calls either through LoomTruffleProvider (which uses a LoomProvider that's
+  connected to the /rpc and /query endpoints), or through HDWalletProvider (connected to the /eth endpoint),
+  TRUFFLE_PROVIDER env var will be set to `hdwallet` in the latter case.
+
+  Calls made through the the web3js object are routed directly to the /eth endpoint, neither 
+  LoomTruffleProvider nor LoomProvider are involved in that case.
+*/
 contract('MyToken', async (accounts) => {
-  let web3js, nodeAddr, alice, aliceLoomAddr, bob
+  let web3js, nodeAddr, alice, aliceLoomAddr, bob, bobLoomAddr
 
   beforeEach(async () => {
     if (!process.env.CLUSTER_DIR) {
@@ -173,6 +183,65 @@ contract('MyToken', async (accounts) => {
       data: "0x6352211e0000000000000000000000000000000000000000000000000000000000000070" // abi for ownerOf(12)
     },"latest");
     assert.equal(ethOwner.toLowerCase(), web3js.utils.padLeft(owner, 64).toLowerCase(), "result using tokenContract and eth.call");
+  });
+
+  it('eth_estimateGas', async () => {
+    // This endpoint expects the from address (when specified) to be an Ethereum address, so this
+    // test doesn't work with LoomTruffleProvider (which generates Loom addresses).
+    if (process.env.TRUFFLE_PROVIDER !== 'hdwallet') {
+      return
+    }
+
+    const setAttemp = [500, 1000];
+    const truffleContract = await GasEstimateTestContract.deployed(); 
+    await truffleContract.set(setAttemp[0], { from: alice });
+
+    const w3Contract = new web3js.eth.Contract(
+      GasEstimateTestContract._json.abi, truffleContract.address, { from: alice }
+    );
+    
+    let actual = await w3Contract.methods.get().call({ from: alice });
+    assert.equal(actual, setAttemp[0], "Initial value should be set correctly");
+    const gasEst = await w3Contract.methods.set(setAttemp[1]).estimateGas();
+    assert.notEqual(gasEst, 0, "Gas estimate should be non-zero");
+    await waitForXBlocks(nodeAddr, 2);
+    actual = await w3Contract.methods.get().call();
+    assert.equal(actual, setAttemp[0], "Value should not change after gas estimation");
+  
+    await truffleContract.set(setAttemp[1], { from: bob });
+    actual = await w3Contract.methods.get().call();
+    assert.equal(actual, setAttemp[1], "Value should change");
+
+    // estimate contract deployment gas usage, without specifying a limit
+    let gasEstimate = await web3js.eth.estimateGas({
+      from: bob,
+      data: MyToken._json.bytecode
+    });
+    assert.notEqual(gasEstimate, 0, "invalid gas estimate for contract deployment");
+    // estimate again using less gas (~50%) than previous estimate, this should fail
+    try {
+      await web3js.eth.estimateGas({
+        from: bob,
+        data: MyToken._json.bytecode,
+        gas: Math.floor(gasEstimate / 2)
+      });
+      assert.fail("Expected gas estimation to fail");
+    } catch (error) {
+      const errMsg = "contract creation code storage out of gas";
+      assert(error.message.search(errMsg) >= 0, `Expected error "${errMsg}", got "${error}" instead`);
+    }
+
+    // estimate contract call gas usage, without specifying a limit
+    gasEstimate = await w3Contract.methods.set(555).estimateGas({ from: bob });
+    assert.notEqual(gasEstimate, 0, "invalid gas estimate for contract call");
+    // estimate again using less gas (~50%) than previous estimate, this should fail
+    try {
+      await w3Contract.methods.set(555).estimateGas({ from: bob, gas: Math.floor(gasEstimate / 2) });
+      assert.fail("Expected gas estimation to fail");
+    } catch (error) {
+      const errMsg = "out of gas";
+      assert(error.message.search(errMsg) >= 0, `Expected error "${errMsg}", got "${error}" instead`);
+    }
   });
 
   it('eth_sendRawTransaction', async () => {

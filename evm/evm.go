@@ -264,6 +264,45 @@ func (e Evm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 	return result.Bytes(), nil
 }
 
+// EstimateGas returns an estimate of the gas that will be used to deploy or call a contract.
+// Caller may specify the max amount of gas they're willing to pay for, however, the max gas that
+// can be used is capped to Evm.gasLimit (and that's the limit that will be used in the event
+// the caller does specify a gas amount, i.e. gas == 0).
+func (e Evm) EstimateGas(caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64) (uint64, error) {
+	origin := common.BytesToAddress(caller.Local)
+	vmenv := e.NewEnv(origin)
+
+	var val *big.Int
+	if value == nil || value.Int == nil {
+		val = common.Big0
+	} else {
+		val = value.Int
+		if val.Cmp(common.Big0) < 0 {
+			return 0, errors.Errorf("value %v must be positive", value)
+		}
+	}
+
+	gasLimit := gas
+	if gasLimit == 0 || gasLimit > e.gasLimit {
+		gasLimit = e.gasLimit
+	}
+
+	var leftOverGas uint64
+	var err error
+	// Assume that trasaction with empty To field is contract deploy transaction.
+	if addr.Compare(loom.RootAddress(addr.ChainID)) == 0 {
+		_, _, leftOverGas, err = vmenv.Create(vm.AccountRef(origin), input, gasLimit, val)
+
+	} else {
+		contract := common.BytesToAddress(addr.Local)
+		_, leftOverGas, err = vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, val)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return e.gasLimit - leftOverGas, nil
+}
+
 // TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin

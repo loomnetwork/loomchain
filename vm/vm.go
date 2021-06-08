@@ -13,6 +13,7 @@ type VM interface {
 	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	GetCode(addr loom.Address) ([]byte, error)
 	GetStorageAt(addr loom.Address, hash []byte) ([]byte, error)
+	EstimateGas(caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64) (uint64, error)
 }
 
 type Factory func(loomchain.State) (VM, error)

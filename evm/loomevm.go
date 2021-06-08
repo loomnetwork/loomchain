@@ -285,6 +285,16 @@ func (lvm LoomVm) GetStorageAt(addr loom.Address, key []byte) ([]byte, error) {
 	return levm.GetStorageAt(addr, key)
 }
 
+func (lvm LoomVm) EstimateGas(
+	caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64,
+) (uint64, error) {
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug)
+	if err != nil {
+		return uint64(0), err
+	}
+	return levm.EstimateGas(caller, addr, input, value, gas)
+}
+
 func getLoomEvmTxHash(ethTxHash []byte, from loom.LocalAddress) []byte {
 	h := sha3.NewKeccak256()
 	h.Write(append(ethTxHash, from...))

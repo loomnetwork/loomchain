@@ -221,7 +221,7 @@ func (m *MockQueryService) EthGetBalance(address eth.Data, block eth.BlockHeight
 	return "", nil
 }
 
-func (m *MockQueryService) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
+func (m *MockQueryService) EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Quantity, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.MethodsCalled = append([]string{"EthEstimateGas"}, m.MethodsCalled...)
