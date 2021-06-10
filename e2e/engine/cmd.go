@@ -15,6 +15,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/PaesslerAG/gval"
+	"github.com/tidwall/gjson"
+
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
 	"github.com/pkg/errors"
@@ -454,6 +457,74 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
 			}
 		}
+
+		//check by evaluation
+		if n.ExpectedJSON != nil {
+			var keys, signs, values []string
+			for i, expectedJSON := range n.ExpectedJSON {
+				t, err := template.New("expectedjson").Parse(expectedJSON)
+				if err != nil {
+					return err
+				}
+				buf := new(bytes.Buffer)
+				err = t.Execute(buf, e.conf)
+				if err != nil {
+					return err
+				}
+				switch i % 3 {
+				case 0:
+					keys = append(keys, buf.String())
+				case 1:
+					signs = append(signs, buf.String())
+				case 2:
+					values = append(values, buf.String())
+				}
+			}
+
+			for i := range keys {
+				var contain bool
+				actual := gjson.Get(string(out), keys[i])
+				if !actual.Exists() {
+					return fmt.Errorf("Results are empty while searching with key %s", keys[i])
+				}
+				for _, value := range actual.Array() {
+					var result interface{}
+					var err error
+					if signs[i] == "==" || signs[i] == "!=" {
+						result, err = gval.Evaluate(`left`+signs[i]+`right`, map[string]interface{}{
+							"left":  value.String(),
+							"right": values[i],
+						})
+					} else {
+						left, err := strconv.ParseInt(value.String(), 10, 64)
+						if err != nil {
+							return err
+						}
+						right, err := strconv.ParseInt(values[i], 10, 64)
+						if err != nil {
+							return err
+						}
+						result, err = gval.Evaluate(`left`+signs[i]+`right`, map[string]interface{}{
+							"left":  left,
+							"right": right,
+						})
+					}
+					if err != nil || result == nil {
+						return fmt.Errorf("Unable evaluate  %s %s %s", value, signs[i], values[i])
+					} else {
+						fmt.Printf("Evaluate  %s %s %s \n ", value, signs[i], values[i])
+						fmt.Printf("Which is : %+v \n", result)
+						fmt.Printf("Which type is : %+v \n", value.Type)
+					}
+					if result.(bool) == true {
+						contain = true
+					}
+				}
+				if !contain {
+					return fmt.Errorf("\nexpected to '%s' '%s' \nbut got '%s'", signs[i], values[i], actual)
+				}
+			}
+		}
 	case "excludes":
 		var excludes []string
 		for _, excluded := range n.Excluded {
@@ -474,9 +545,41 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 				return fmt.Errorf("❌ expect output to exclude '%s' got '%s'", excluded, string(out))
 			}
 		}
+
+		if n.ExcludedJSON != nil {
+			var excludedKeys []string
+			var excludedValues []string
+			for i, excludedJSON := range n.ExcludedJSON {
+				t, err := template.New("excludedjson").Parse(excludedJSON)
+				if err != nil {
+					return err
+				}
+				buf := new(bytes.Buffer)
+				err = t.Execute(buf, e.conf)
+				if err != nil {
+					return err
+				}
+				if i%2 == 0 {
+					excludedKeys = append(excludedKeys, buf.String())
+				} else {
+					excludedValues = append(excludedValues, buf.String())
+				}
+			}
+			for i := range excludedKeys {
+				actual := gjson.Get(string(out), excludedKeys[i])
+				if !actual.Exists() {
+					return fmt.Errorf("Results are empty while searching with key '%s'", excludedKeys[i])
+				}
+				for _, value := range actual.Array() {
+					if excludedValues[i] == value.String() {
+						return fmt.Errorf("expected to exclude '%s' \nbut got '%s'", excludedValues[i], actual)
+					}
+				}
+			}
+		}
 	case "":
 	default:
-		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+		return fmt.Errorf("Unrecognized test condition %s", n.Condition)
 	}
 	return nil
 }
