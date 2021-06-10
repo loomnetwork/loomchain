@@ -154,4 +154,7 @@ const (
 
 	// Enables Constantinople hard fork in EVM interpreter
 	EvmConstantinopleFeature = "evm:constantinople"
+
+	// Enables Loom's Solidity API
+	LoomNativeApi = "loom-api:1"
 )

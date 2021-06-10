@@ -4,6 +4,7 @@ package evm
 
 import (
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/evm/precompiles"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
@@ -19,6 +20,7 @@ func NewLoomVm(
 	eventHandler loomchain.EventHandler,
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
+	loomPrecompilerHandler precompiles.EvmPrecompilerHandler,
 	debug bool,
 ) lvm.VM {
 	return nil

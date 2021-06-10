@@ -14,26 +14,22 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/loomnetwork/go-loom"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
-	BlockHeight        = int64(34)
-	numLoomPreCompiles = 2
+	BlockHeight = int64(34)
 )
 
 var (
-	PrecompiledRunOutput = ""
-	PrecompiledGasOutput = 0
-	blockTime            = time.Unix(123456789, 0)
+	blockTime = time.Unix(123456789, 0)
 )
 
 func mockState() loomchain.State {
@@ -65,92 +61,6 @@ func TestProcessDeployTx(t *testing.T) {
 	// committed to the state.
 	// The state carries over to be used to create the VM for the next transaction.
 	testCryptoZombiesUpdateState(t, mockState(), caller)
-}
-
-// Test that if we add a new precompile, we can call it using the solidity call function.
-func TestPrecompiles(t *testing.T) {
-	caller := loom.Address{
-		ChainID: "myChainID",
-		Local:   []byte("myCaller"),
-	}
-
-	manager := lvm.NewManager()
-	manager.Register(lvm.VMType_EVM, LoomVmFactory)
-	state := mockState()
-	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
-	abiPc, pcAddr := deploySolContract(t, caller, "CallPrecompiles", vm)
-
-	index := len(ethvm.PrecompiledContractsByzantium) + 1
-	ethvm.PrecompiledContractsByzantium[common.BytesToAddress([]byte{byte(index)})] = &TestPrecompiledFunction{t: t}
-
-	input, err := abiPc.Pack("callPF", uint32(index), []byte("TestInput"))
-	require.NoError(t, err, "packing parameters")
-	PrecompiledGasOutput = 0
-	PrecompiledRunOutput = ""
-	ret, err := vm.StaticCall(caller, pcAddr, input)
-	require.Equal(t, 32, len(ret))
-	require.Equal(t, byte(1), ret[31], "callPF did not return success")
-
-	require.NoError(t, err, "callPF method on CallPrecompiles")
-	require.Equal(t, PrecompiledGasOutput, 123)
-	require.Equal(t, PrecompiledRunOutput, "TestPrecompiledFunction")
-
-}
-
-type TestPrecompiledFunction struct {
-	t *testing.T
-}
-
-func (p TestPrecompiledFunction) RequiredGas(input []byte) uint64 {
-	expected := []byte("TestInput")
-	require.True(p.t, 0 == bytes.Compare(expected, input[:len(expected)]), "wrong input to required gas")
-	PrecompiledGasOutput = 123
-	return uint64(0)
-}
-
-func (p TestPrecompiledFunction) Run(input []byte) ([]byte, error) {
-	expected := []byte("TestInput")
-	require.True(p.t, 0 == bytes.Compare(expected, input[:len(expected)]), "wrong input to run")
-	PrecompiledRunOutput = "TestPrecompiledFunction"
-	return []byte("TestPrecompiledFunction"), nil
-}
-
-// Test that we can access the loom precompiles using solidity assembly block
-// and return an output value.
-func TestPrecompilesAssembly(t *testing.T) {
-	caller := loom.Address{
-		ChainID: "myChainID",
-		Local:   []byte("myCaller"),
-	}
-
-	manager := lvm.NewManager()
-	manager.Register(lvm.VMType_EVM, LoomVmFactory)
-	state := mockState()
-	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
-	abiPc, pcAddr := deploySolContract(t, caller, "CallPrecompiles", vm)
-
-	numEthPreCompiles := len(ethvm.PrecompiledContractsByzantium)
-	AddLoomPrecompiles()
-	require.Equal(t, numEthPreCompiles+numLoomPreCompiles, len(ethvm.PrecompiledContractsByzantium))
-
-	msg := []byte("TestInput")
-	input, err := abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+1), &msg)
-	require.NoError(t, err, "packing parameters")
-	ret, err := vm.StaticCall(caller, pcAddr, input)
-	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
-	expected := []byte("TransferWithBlockchain")
-	require.True(t, len(expected) <= len(ret))
-	actual := ret[:len(expected)]
-	require.Equal(t, 0, bytes.Compare(expected, actual))
-
-	input, err = abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+2), &msg)
-	require.NoError(t, err, "packing parameters")
-	ret, err = vm.StaticCall(caller, pcAddr, input)
-	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
-	expected = []byte("TransferPlasmaToken")
-	require.True(t, len(expected) <= len(ret))
-	actual = ret[:len(expected)]
-	require.Equal(t, 0, bytes.Compare(expected, actual))
 }
 
 func TestValue(t *testing.T) {

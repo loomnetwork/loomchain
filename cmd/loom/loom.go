@@ -36,6 +36,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/evm/precompiles"
+	"github.com/loomnetwork/loomchain/evm/precompiles/loomprecompiles"
 	"github.com/loomnetwork/loomchain/features"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/prometheus/client_golang/prometheus"
@@ -848,7 +850,19 @@ func loadApp(
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptHandlerProvider.Writer(), createABM, cfg.EVMDebugEnabled), nil
+
+			var precompilerHandler precompiles.EvmPrecompilerHandler
+			if state.FeatureEnabled(features.LoomNativeApi, false) {
+				precompilerHandler = loomprecompiles.NewLoomPrecompileHandler(getContractStaticCtx("addressmapper", vmManager))
+			}
+			return evm.NewLoomVm(
+				state,
+				eventHandler,
+				receiptHandlerProvider.Writer(),
+				createABM,
+				precompilerHandler,
+				cfg.EVMDebugEnabled,
+			), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -895,7 +909,6 @@ func loadApp(
 		state.Set(configKey, configBytes)
 
 		registry := createRegistry(state)
-		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
 			err := deployContract(
 				state,
