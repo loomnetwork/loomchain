@@ -141,7 +141,7 @@ func (n *NonceHandler) Nonce(
 		return r, err
 	}
 
-	//TODO nonce cache is temporary until we have a separate atomic state for the entire checktx flow
+	//TODO nonce cache is temporary until we have a separate atomic state for the entire CheckTx flow
 	cacheSeq := n.nonceCache[origin.String()]
 	// The client may speculatively increment nonces without waiting for previous txs to be committed,
 	// so it's possible for a single account to submit multiple transactions in a single block.
@@ -154,7 +154,7 @@ func (n *NonceHandler) Nonce(
 				n.nonceCache[origin.String()] = seq
 			} else {
 				// In DeliverTx we update the cache unconditionally, because even if the tx fails the
-				// nonce change will be persisted. We do this here because post commit middleware doesn't
+				// nonce change will be persisted. We do this here because the post-commit middleware doesn't
 				// run for failed txs, so IncNonce can't be relied upon.
 				n.nonceCache[origin.String()] = seq + 1
 			}
@@ -184,7 +184,7 @@ func (n *NonceHandler) IncNonce(
 	}
 
 	// We only increment the nonce if the transaction is successful
-	// There are situations in checktx where we may not have committed the transaction to the statestore yet
+	// There are situations in CheckTx where we may not have committed the transaction to the statestore yet
 	if state.Config().GetNonceHandler().GetIncNonceOnFailedTx() {
 		if isCheckTx {
 			n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
