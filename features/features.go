@@ -30,6 +30,9 @@ const (
 	// Enables minting & burning via Binance Smartchain Gateway
 	TGVersion1_7 = "tg:v1.7"
 
+	// Enable
+	TGSortMutliSigFeature = "tg:sortsigs"
+
 	// Enables support for mapping DAppChain accounts to Binance accounts
 	AddressMapperVersion1_1 = "addrmapper:v1.1"
 
