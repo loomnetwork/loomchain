@@ -50,12 +50,12 @@ type (
 )
 
 const (
-	// FeaturePending status indicates a feature hasn't been enabled by majority of validators yet.
+	// FeaturePending status indicates that a feature hasn't been enabled by the majority of validators yet.
 	FeaturePending = cctypes.Feature_PENDING
-	// FeatureWaiting status indicates a feature has been enabled by majority of validators, but
+	// FeatureWaiting status indicates that a feature has been enabled the by majority of validators, but
 	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
 	FeatureWaiting = cctypes.Feature_WAITING
-	// FeatureEnabled status indicates a feature has been enabled by majority of validators, and
+	// FeatureEnabled status indicates that a feature has been enabled by the majority of validators, and
 	// has been activated on the chain.
 	FeatureEnabled = cctypes.Feature_ENABLED
 	// FeatureDisabled is not currently used.
@@ -69,25 +69,25 @@ var (
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
 	// request message, e.g. missing or invalid fields.
 	ErrInvalidRequest = errors.New("[ChainConfig] invalid request")
-	// ErrOwnerNotSpecified returned if init request does not have owner address
+	// ErrOwnerNotSpecified is returned if an init request does not have owner address
 	ErrOwnerNotSpecified = errors.New("[ChainConfig] owner not specified")
-	// ErrFeatureAlreadyExists returned if an owner try to set an existing feature
+	// ErrFeatureAlreadyExists is returned if an owner tries to set an existing feature
 	ErrFeatureAlreadyExists = errors.New("[ChainConfig] feature already exists")
-	// ErrInvalidParams returned if parameters are invalid
+	// ErrInvalidParams is returned if parameters are invalid
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
 	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
 	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
-	// ErrEmptyValidatorsList is returned if ctx.Validators() return empty validators list.
+	// ErrEmptyValidatorsList is returned if ctx.Validators() returns an empty list.
 	ErrEmptyValidatorsList = errors.New("[ChainConfig] empty validators list")
-	// ErrFeatureNotSupported inidicates that an enabled feature is not supported in the current build
+	// ErrFeatureNotSupported indicates that an enabled feature is not supported in the current build
 	ErrFeatureNotSupported = errors.New("[ChainConfig] feature is not supported in the current build")
 	// ErrFeatureNotFound indicates that a feature does not exist
 	ErrFeatureNotFound = errors.New("[ChainConfig] feature not found")
-	// ErrFeatureNotEnabled indacates that a feature has not been enabled
-	// by majority of validators, and has not been activated on the chain.
+	// ErrFeatureNotEnabled indicates that a feature has not been enabled
+	// by the majority of validators, and has not been activated on the chain.
 	ErrFeatureNotEnabled = errors.New("[ChainConfig] feature not enabled")
 
-	// ErrConfigChangeNotSupported indicates that config change is not supported in the current build
+	// ErrConfigChangeNotSupported indicates that a config change is not supported in the current build
 	ErrConfigChangeNotSupported = errors.New("[ChainConfig] config change is not supported in the current build")
 )
 
@@ -366,7 +366,7 @@ func EnableFeatures(ctx contract.Context, blockHeight, buildNumber uint64) ([]*F
 	return enabledFeatures, nil
 }
 
-// HarvestPendingActions returns a list of actions that are supported by majority of validators
+// HarvestPendingActions returns a list of actions that are supported by the majority of validators
 func HarvestPendingActions(ctx contract.Context, buildNumber uint64) ([]*Action, error) {
 	params, err := getParams(ctx)
 	if err != nil {
@@ -424,7 +424,7 @@ func (c *ChainConfig) ListPendingActions(ctx contract.StaticContext, req *ListPe
 	}, nil
 }
 
-// SetSetting should be called by a contract owner to set a new action to change config setting
+// SetSetting should be called by a contract owner to set a new action to change a config setting
 func (c *ChainConfig) SetSetting(ctx contract.Context, req *SetSettingRequest) error {
 	if req.Name == "" || req.Value == "" {
 		return ErrInvalidRequest
@@ -541,7 +541,7 @@ func getFeature(ctx contract.StaticContext, name string, curValidators []loom.Ad
 		return &feature, nil
 	}
 
-	// Calculate percentage of validators that enabled this pending feature so far
+	// Calculate the percentage of validators that have enabled this pending feature so far
 	enabledValidatorsCount := 0
 	validatorsHashMap := map[string]bool{}
 
@@ -593,7 +593,7 @@ func enableFeature(ctx contract.Context, name string) error {
 		return ErrInvalidRequest
 	}
 
-	// check if this is a called from validator
+	// check if this is called by a validator
 	curValidators, err := getCurrentValidators(ctx)
 	if err != nil {
 		return err
@@ -726,7 +726,7 @@ func (c *ChainConfig) GetValidatorInfo(ctx contract.StaticContext, req *GetValid
 	}, nil
 }
 
-// ListValidatorsInfo returns the build number for each validators
+// ListValidatorsInfo returns the build number for each validator
 func (c *ChainConfig) ListValidatorsInfo(ctx contract.StaticContext, req *ListValidatorsInfoRequest) (*ListValidatorsInfoResponse, error) {
 	validators, err := listValidatorsInfo(ctx)
 	if err != nil {
