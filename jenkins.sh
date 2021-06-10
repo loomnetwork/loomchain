@@ -67,6 +67,9 @@ export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
 
+# Set file descriptor limit
+ulimit -n 100000 100000
+
 # export LOOMEXE_PATH="../loom"
 # export LOOMEXE_ALTPATH="../loom2"
 # export CHECK_APP_HASH="true"

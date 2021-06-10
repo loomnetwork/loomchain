@@ -147,6 +147,9 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
+
+	// Minimum number of file descriptor limit
+	MinOpenFilesLimit uint64
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
 
@@ -440,6 +443,7 @@ func DefaultConfig() *Config {
 		CallEnabled:            true,
 		DPOSVersion:            3,
 		AllowNamedEvmContracts: false,
+		MinOpenFilesLimit:      100000,
 		SkipMinBuildCheck:      false,
 	}
 	cfg.TransferGateway = DefaultTGConfig(cfg.RPCProxyPort)
@@ -853,6 +857,7 @@ DPOS:
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
+MinOpenFilesLimit: {{ .MinOpenFilesLimit }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
 
