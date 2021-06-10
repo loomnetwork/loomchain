@@ -349,7 +349,7 @@ func SetValidatorInfoCmd() *cobra.Command {
 	buildNumber := uint64(0)
 	cmd := &cobra.Command{
 		Use:     "set-validator-info",
-		Short:   "Set validator informations",
+		Short:   "Set validator information",
 		Example: setValidatorInfoCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			request := &cctype.SetValidatorInfoRequest{
@@ -376,7 +376,7 @@ func GetValidatorInfoCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "get-validator-info",
-		Short:   "Get validator informations",
+		Short:   "Get validator information",
 		Example: getValidatorInfoCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -412,7 +412,7 @@ func ListPendingActionsCmd() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:     "list-pending-actions",
-		Short:   "show all pending actions to change setting",
+		Short:   "Show all pending actions to change settings",
 		Example: listPendingActionsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp cctype.ListPendingActionsResponse
@@ -513,7 +513,7 @@ func SetSettingCmd() *cobra.Command {
 }
 
 const listValidatorsInfoCmdExample = `
-loom chain-cfg list-validators 
+loom chain-cfg list-validators
 `
 
 func ListValidatorsInfoCmd() *cobra.Command {
