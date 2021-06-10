@@ -169,8 +169,15 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 		BlockNumber: big.NewInt(lstate.Block().Height),
 		Time:        big.NewInt(lstate.Block().Time),
 		Difficulty:  new(big.Int),
-		GasLimit:    p.gasLimit,
-		GasPrice:    big.NewInt(0),
+		// FIXME: This is supposed to be the block gas limit, not per-tx limit.
+		// NOTE: This value is only read by the GASLIMIT opcode, the EVM doesn't use it for gas
+		//       usage computation.
+		GasLimit: p.gasLimit,
+		// FIXME: In our case gas is payable in LOOM (outside the EVM), so this value should probably
+		//        be set to reflect the "price" of LOOM rather than always being zero.
+		// NOTE: This value is only read by the GASPRICE opcode, the EVM doesn't use it for gas
+		//       usage computation.
+		GasPrice: big.NewInt(0),
 	}
 	if abm != nil {
 		p.context.CanTransfer = func(db vm.StateDB, addr common.Address, amount *big.Int) bool {
@@ -183,6 +190,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	return p
 }
 
+// TODO: allow caller to override gas limit (but cap it)
 func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	var err error
 	var usedGas uint64
@@ -212,9 +220,11 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 		ChainID: caller.ChainID,
 		Local:   address.Bytes(),
 	}
+	// TODO: return gas used
 	return runCode, loomAddress, err
 }
 
+// TODO: allow caller to override gas limit (but cap it)
 func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	var err error
 	var usedGas uint64
@@ -244,6 +254,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 	}
 	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
 	usedGas = e.gasLimit - leftOverGas
+	// TODO: return gas used
 	return ret, err
 }
 

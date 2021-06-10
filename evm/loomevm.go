@@ -157,6 +157,8 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	}
 	bytecode, addr, err := levm.Create(caller, code, value)
 	if err == nil {
+		// TODO: deduct the gas used * gas price from the caller's LOOM balance
+		// TODO: refund the gas amount in levm.sdb.GetRefund()
 		_, err = levm.Commit()
 	}
 
@@ -220,6 +222,8 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	}
 	_, err = levm.Call(caller, addr, input, value)
 	if err == nil {
+		// TODO: deduct the gas used * gas price from the caller's LOOM balance
+		// TODO: refund the gas amount in levm.sdb.GetRefund()
 		_, err = levm.Commit()
 	}
 

@@ -68,6 +68,14 @@ func (h *EthTxHandler) ProcessTx(
 
 	// Only do basic validation in CheckTx, don't execute the actual EVM deploy/call
 	if isCheckTx {
+		// TODO: Require caller to specify a gas price.
+		// TODO: Ensure gas price specified by the caller matches the price set via the on-chain config.
+		//       Later on the minimal price should be set via loom.yml, and the check here should
+		//       simply ensure the caller price is not less than that (this will allow validators to
+		//       adjust the price by consensus).
+		// TODO: If the caller specified a gas limit check that they have enough LOOM to cover the
+		//       the max gas they're willing to pay for at the current price (which they must set
+		//       in the tx).
 		return r, nil
 	}
 
@@ -77,6 +85,7 @@ func (h *EthTxHandler) ProcessTx(
 	}
 
 	if ethTx.To() == nil { // deploy
+		// TODO: pass through the gas limit override
 		retCreate, addr, err := vmInstance.Create(origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()))
 		if err != nil {
 			return r, errors.Wrap(err, "failed to create contract")
@@ -100,6 +109,7 @@ func (h *EthTxHandler) ProcessTx(
 		}
 	} else { // call
 		to := loom.UnmarshalAddressPB(msg.To)
+		// TODO: pass through the gas limit override
 		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()))
 		if err != nil {
 			return r, errors.Wrap(err, "contract call failed")
