@@ -27,8 +27,8 @@ func AddIdentityMappingCmd() *cobra.Command {
 	var chainId string
 	var callFlags cli.ContractCallFlags
 	cmd := &cobra.Command{
-		Use:   "add-identity-mapping <loom-addr> <eth-key-file>",
-		Short: "Adds a mapping between a DAppChain account and a Mainnet account.",
+		Use:   "add-identity-mapping <loom-addr> <foreign-chain-key-file>",
+		Short: "Adds a mapping between a Loom Protocol account and a foreign chain account.",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var mapping address_mapper.AddIdentityMappingRequest
@@ -46,31 +46,31 @@ func AddIdentityMappingCmd() *cobra.Command {
 			case "eth":
 				privkey, err = crypto.LoadECDSA(args[1])
 				if err != nil {
-					return errors.Wrapf(err, "read ethereum private key from file %v", args[1])
+					return errors.Wrapf(err, "read the Ethereum private key from file %v", args[1])
 				}
 				foreignLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privkey.PublicKey).Hex())
 				if err != nil {
-					return errors.Wrapf(err, "bad ethereum private key from file %v", args[1])
+					return errors.Wrapf(err, "can't load the Ethereum private key from %v", args[1])
 				}
 			case "tron":
 				privkey, err = lcrypto.LoadBtecSecp256k1PrivKey(args[1])
 				if err != nil {
-					return errors.Wrapf(err, "read tron private key from file %v", args[1])
+					return errors.Wrapf(err, "read the Tron private key from file %v", args[1])
 				}
 				foreignLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privkey.PublicKey).Hex())
 				if err != nil {
-					return errors.Wrapf(err, "bad tron private key from file% v", args[1])
+					return errors.Wrapf(err, "can't load the Tron private key from % v", args[1])
 				}
 				sigType = evmcompat.SignatureType_TRON
 			case "binance":
 				privkey, err = crypto.LoadECDSA(args[1])
 				if err != nil {
-					return errors.Wrapf(err, "read binance private key from file %v", args[1])
+					return errors.Wrapf(err, "read the Binance private key from file %v", args[1])
 				}
 				signer := auth.NewBinanceSigner(crypto.FromECDSA(privkey))
 				foreignLocalAddr, err = loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(signer.PublicKey()).Hex())
 				if err != nil {
-					return errors.Wrapf(err, "bad binance private key from file %v", args[1])
+					return errors.Wrapf(err, "can't load the Binance private key from file %v", args[1])
 				}
 				sigType = evmcompat.SignatureType_BINANCE
 			}
@@ -79,7 +79,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 			mapping.To = foreignAddr.MarshalPB()
 			mapping.Signature, err = address_mapper.SignIdentityMapping(user, foreignAddr, privkey, sigType)
 			if err != nil {
-				return errors.Wrapf(err, "sigining mapping with %s key", chainId)
+				return errors.Wrapf(err, "signing mapping with %s key", chainId)
 			}
 
 			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "AddIdentityMapping", &mapping, nil)
@@ -91,12 +91,12 @@ func AddIdentityMappingCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmd.Flags().StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "Loom Protocol base URI")
 	cmd.Flags().StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
 	cmd.Flags().StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
 	cmd.Flags().StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
-	cmd.Flags().StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
-	cmd.Flags().StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
+	cmd.Flags().StringVar(&callFlags.HsmConfigFile, "hsm", "", "HSM configuration file")
+	cmd.Flags().StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algorithm: ed25519, secp256k1, tron")
 	cmd.Flags().StringVarP(&chainId, "mapped-chain-id", "c", "eth", "ethereum chain id")
 	return cmd
 }
@@ -105,7 +105,7 @@ func GetMapping() *cobra.Command {
 	var flags cli.ContractCallFlags
 	cmd := &cobra.Command{
 		Use:   "get-mapping",
-		Short: "Get mapping address",
+		Short: "Get mapped address",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp amtypes.AddressMapperGetMappingResponse
