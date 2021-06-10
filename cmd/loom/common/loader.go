@@ -19,7 +19,7 @@ import (
 
 func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{}
-	//For a quick way for other chains to just build new contracts into loom, like gamechain
+	//For a quick way for other chains to just build new contracts into Loom Protocol, like gamechain
 	contracts = append(contracts, builtinContracts...)
 
 	if cfg.DPOSVersion == 3 {
