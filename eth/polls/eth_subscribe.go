@@ -31,19 +31,21 @@ type EthSubscriptions struct {
 	timestamps map[uint64][]string
 	mutex      sync.RWMutex // locks the 3 maps above
 
-	lastPrune   uint64
-	evmAuxStore *evmaux.EvmAuxStore
-	blockStore  store.BlockStore
+	lastPrune     uint64
+	evmAuxStore   *evmaux.EvmAuxStore
+	blockStore    store.BlockStore
+	maxBlockRange uint64
 }
 
-func NewEthSubscriptions(evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore) *EthSubscriptions {
+func NewEthSubscriptions(evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore, maxBlockRange uint64) *EthSubscriptions {
 	p := &EthSubscriptions{
 		polls:      make(map[string]EthPoll),
 		lastPoll:   make(map[string]uint64),
 		timestamps: make(map[uint64][]string),
 
-		evmAuxStore: evmAuxStore,
-		blockStore:  blockStore,
+		evmAuxStore:   evmAuxStore,
+		blockStore:    blockStore,
+		maxBlockRange: maxBlockRange,
 	}
 	return p
 }
@@ -91,11 +93,12 @@ func (s *EthSubscriptions) AddLogPoll(filter eth.EthFilter, height uint64) (stri
 		lastBlockRead: uint64(0),
 		blockStore:    s.blockStore,
 		evmAuxStore:   s.evmAuxStore,
+		maxBlockRange: s.maxBlockRange,
 	}, height), nil
 }
 
 func (s *EthSubscriptions) LegacyAddLogPoll(filter string, height uint64) (string, error) {
-	newPoll, err := NewEthLogPoll(filter, s.evmAuxStore, s.blockStore)
+	newPoll, err := NewEthLogPoll(filter, s.evmAuxStore, s.blockStore, s.maxBlockRange)
 	if err != nil {
 		return "", err
 	}
@@ -103,11 +106,11 @@ func (s *EthSubscriptions) LegacyAddLogPoll(filter string, height uint64) (strin
 }
 
 func (s *EthSubscriptions) AddBlockPoll(height uint64) string {
-	return s.Add(NewEthBlockPoll(height, s.evmAuxStore, s.blockStore), height)
+	return s.Add(NewEthBlockPoll(height, s.evmAuxStore, s.blockStore, s.maxBlockRange), height)
 }
 
 func (s *EthSubscriptions) AddTxPoll(height uint64) string {
-	return s.Add(NewEthTxPoll(height, s.evmAuxStore, s.blockStore), height)
+	return s.Add(NewEthTxPoll(height, s.evmAuxStore, s.blockStore, s.maxBlockRange), height)
 }
 
 func (s *EthSubscriptions) AllLogs(

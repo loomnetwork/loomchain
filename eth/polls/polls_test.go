@@ -41,7 +41,7 @@ func TestLogPoll(t *testing.T) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
-	sub := NewEthSubscriptions(evmAuxStore, blockStore)
+	sub := NewEthSubscriptions(evmAuxStore, blockStore, 1000)
 	allFilter := eth.JsonFilter{
 		FromBlock: "earliest",
 		ToBlock:   "pending",
@@ -103,7 +103,7 @@ func testLegacyTxPoll(t *testing.T) {
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
-	sub := NewEthSubscriptions(evmAuxStore, blockStore)
+	sub := NewEthSubscriptions(evmAuxStore, blockStore, 1000)
 	state := makeMockState(t, receiptHandler, blockStore)
 	id := sub.AddTxPoll(uint64(5))
 
@@ -142,7 +142,7 @@ func testTxPoll(t *testing.T) {
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
-	sub := NewEthSubscriptions(evmAuxStore, blockStore)
+	sub := NewEthSubscriptions(evmAuxStore, blockStore, 1000)
 	state := makeMockState(t, receiptHandler, blockStore)
 	id := sub.AddTxPoll(uint64(5))
 
@@ -168,7 +168,7 @@ func testTxPoll(t *testing.T) {
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
 	require.True(t, ok)
-	require.Equal(t, 5, len(data), "wrong number of logs returned")
+	require.Equal(t, 6, len(data), "wrong number of logs returned")
 
 	state115 := common.MockStateAt(state, uint64(115))
 	result, err = sub.Poll(state115, id, receiptHandler)
@@ -184,7 +184,7 @@ func testTxPoll(t *testing.T) {
 	require.NotEqual(t, nil, result)
 	data, ok = result.([]eth.Data)
 	require.True(t, ok)
-	require.Equal(t, 5, len(data), "wrong number of logs returned")
+	require.Equal(t, 4, len(data), "wrong number of logs returned")
 
 	state220 := common.MockStateAt(state, uint64(220))
 
@@ -218,7 +218,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	receiptHandler := handler.NewReceiptHandler(eventHandler, handler.DefaultMaxReceipts, evmAuxStore)
 
 	BlockTimeout = 10
-	sub := NewEthSubscriptions(evmAuxStore, blockStore)
+	sub := NewEthSubscriptions(evmAuxStore, blockStore, 1000)
 	state := makeMockState(t, receiptHandler, blockStore)
 
 	var envolope types.EthFilterEnvelope
@@ -351,7 +351,7 @@ func TestAddRemove(t *testing.T) {
 	evmAuxStore, err := common.NewMockEvmAuxStore()
 	require.NoError(t, err)
 	blockStore := store.NewMockBlockStore()
-	s := NewEthSubscriptions(evmAuxStore, blockStore)
+	s := NewEthSubscriptions(evmAuxStore, blockStore, 1000)
 
 	jsonFilter := eth.JsonFilter{
 		FromBlock: "0x0",

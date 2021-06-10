@@ -49,6 +49,6 @@ func (s EthSubscriptions) AddLogPoll(_ eth.EthFilter, _ uint64) (string, error) 
 	return "", nil
 }
 
-func NewEthSubscriptions(_ *evmaux.EvmAuxStore, _ store.BlockStore) *EthSubscriptions {
+func NewEthSubscriptions(_ *evmaux.EvmAuxStore, _ store.BlockStore, _ uint64) *EthSubscriptions {
 	return &EthSubscriptions{}
 }

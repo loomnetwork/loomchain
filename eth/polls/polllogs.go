@@ -23,9 +23,10 @@ type EthLogPoll struct {
 	lastBlockRead uint64
 	evmAuxStore   *evmaux.EvmAuxStore
 	blockStore    store.BlockStore
+	maxBlockRange uint64
 }
 
-func NewEthLogPoll(filter string, evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore) (*EthLogPoll, error) {
+func NewEthLogPoll(filter string, evmAuxStore *evmaux.EvmAuxStore, blockStore store.BlockStore, maxBlockRange uint64) (*EthLogPoll, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(filter))
 	if err != nil {
 		return nil, err
@@ -33,8 +34,8 @@ func NewEthLogPoll(filter string, evmAuxStore *evmaux.EvmAuxStore, blockStore st
 	p := &EthLogPoll{
 		filter:        ethFilter,
 		lastBlockRead: uint64(0),
-		evmAuxStore:   evmAuxStore,
 		blockStore:    blockStore,
+		maxBlockRange: maxBlockRange,
 	}
 	return p, nil
 }
@@ -62,6 +63,10 @@ func (p *EthLogPoll) Poll(
 		}
 	}
 
+	if end-start > p.maxBlockRange {
+		return p, nil, fmt.Errorf("max allowed block range (%d) exceeded", p.maxBlockRange)
+	}
+
 	eventLogs, err := query.GetBlockLogRange(
 		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
 	)
@@ -71,6 +76,9 @@ func (p *EthLogPoll) Poll(
 	newLogPoll := &EthLogPoll{
 		filter:        p.filter,
 		lastBlockRead: end,
+		evmAuxStore:   p.evmAuxStore,
+		blockStore:    p.blockStore,
+		maxBlockRange: p.maxBlockRange,
 	}
 	return newLogPoll, eth.EncLogs(eventLogs), nil
 }
@@ -87,6 +95,10 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState,
 	}
 	if start > end {
 		return nil, errors.New("Filter FromBlock is greater than ToBlock")
+	}
+
+	if end-start > p.maxBlockRange {
+		start = end - p.maxBlockRange
 	}
 
 	eventLogs, err := query.GetBlockLogRange(
@@ -116,6 +128,11 @@ func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
 			return p, nil, fmt.Errorf("filter start after filter end")
 		}
 	}
+
+	if end-start > p.maxBlockRange {
+		return p, nil, fmt.Errorf("max allowed block range (%d) exceeded", p.maxBlockRange)
+	}
+
 	eventLogs, err := query.GetBlockLogRange(
 		p.blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts, p.evmAuxStore,
 	)
@@ -127,6 +144,7 @@ func (p *EthLogPoll) LegacyPoll(state loomchain.ReadOnlyState,
 		lastBlockRead: end,
 		evmAuxStore:   p.evmAuxStore,
 		blockStore:    p.blockStore,
+		maxBlockRange: p.maxBlockRange,
 	}
 
 	blocksMsg := types.EthFilterEnvelope_EthFilterLogList{
