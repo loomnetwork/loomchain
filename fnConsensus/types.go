@@ -52,11 +52,17 @@ type ReactorState struct {
 	PreviousMajVoteSets      map[string]*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
 	Messages                 map[string]Message
+	RandomNumberWithSigs     RandomNumberWithSigs
 }
 
 type Message struct {
 	Payload []byte
 	Hash    []byte
+}
+
+type RandomNumberWithSigs struct {
+	seed uint64
+	sig  []byte
 }
 
 func NewReactorState() *ReactorState {
