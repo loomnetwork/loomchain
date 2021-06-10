@@ -88,7 +88,7 @@ func CreateEventLogs(
 func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	txReceiptProto, err := lr.evmAuxStore.DB().Get(txHash, nil)
 	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err, "get receipt for %s", string(txHash))
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "get receipt for %x", txHash)
 	}
 	txReceipt := types.EvmTxReceiptListItem{}
 	err = proto.Unmarshal(txReceiptProto, &txReceipt)

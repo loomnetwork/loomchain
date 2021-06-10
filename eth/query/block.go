@@ -118,6 +118,26 @@ func GetBlockByNumber(
 	return blockInfo, nil
 }
 
+func GetTxHashList(blockStore store.BlockStore,
+	state loomchain.ReadOnlyState,
+	height int64,
+	evmAuxStore *evmaux.EvmAuxStore) ([][]byte, error) {
+	txObject, err := GetBlockByNumber(blockStore, state, height, false, evmAuxStore)
+	if err != nil {
+		return nil, err
+	}
+
+	var txHashList [][]byte
+	for _, txHashData := range txObject.Transactions {
+		txHash, err := eth.DecDataToBytes(txHashData.(eth.Data))
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to decode txhash %x", txHashData)
+		}
+		txHashList = append(txHashList, txHash)
+	}
+	return txHashList, nil
+}
+
 func GetTxObjectFromBlockResult(
 	blockResult *ctypes.ResultBlock, txResultData []byte, txIndex int64, evmAuxStore *evmaux.EvmAuxStore,
 ) (eth.JsonTxObject, *eth.Data, error) {
@@ -319,7 +339,7 @@ func DeprecatedGetBlockByNumber(
 		LogsBloom:  evmAuxStore.GetBloomFilter(uint64(height)),
 	}
 
-	txHashList, err := evmAuxStore.GetTxHashList(uint64(height))
+	txHashList, err := GetTxHashList(blockStore, state, height, evmAuxStore)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx hash")
 	}

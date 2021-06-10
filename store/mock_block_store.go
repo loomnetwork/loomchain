@@ -13,6 +13,10 @@ import (
 
 var _ BlockStore = &MockBlockStore{}
 
+var (
+	maxHeight = 2000
+)
+
 type MockBlockStore struct {
 	blocks       map[int64]*ctypes.ResultBlock
 	blockResults map[int64]*ctypes.ResultBlockResults
@@ -27,7 +31,7 @@ func NewMockBlockStore() *MockBlockStore {
 
 func (s *MockBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
 	//Taken as max blockchain height
-	h := int64(50)
+	h := int64(maxHeight)
 	//Get Height added to emulate error handling and nil height case covered in tendermint blockstore
 	h, err := getHeight(h, height)
 	if err != nil {
@@ -82,7 +86,7 @@ func (s *MockBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*cty
 }
 
 func (s *MockBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
-	h := int64(50)
+	h := int64(maxHeight)
 	h, err := getHeight(h, height)
 	if err != nil {
 		return nil, err
