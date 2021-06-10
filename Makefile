@@ -30,9 +30,9 @@ BINANCE_TGORACLE_DIR=$(GOPATH)/src/$(PKG_BINANCE_TGORACLE)
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
-GO_LOOM_GIT_REV = HEAD
+GO_LOOM_GIT_REV = multichain-token-adjusting-decimals
 # Specifies the loomnetwork/transfer-gateway branch/revision to use.
-TG_GIT_REV = HEAD
+TG_GIT_REV = bep2-precision-adjustment
 # loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 6128fa1a8c767035d3da6ef0c27ebb7778ce3713
 # use go-plugin we get 'timeout waiting for connection info' error

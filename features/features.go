@@ -12,6 +12,8 @@ const (
 	TGFixERC721Feature = "tg:fix-erc721"
 	// Enables support for Binance contract mappings in the Binance Gateway contract
 	TGBinanceContractMappingFeature = "tg:binance-cm"
+	// Enables support for withdrawal precision adjustment in the Gateway contract
+	TGPrecisionAdjustmentFeature = "tg:pa"
 	// Enables daily limiting of withdrawal amount
 	TGWithdrawalLimitFeature = "tg:withdrawal-limit"
 	// Store Mainnet Gateway address in Gateway Go contract
