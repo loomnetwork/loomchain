@@ -746,6 +746,8 @@ func loadApp(
 		return nil, err
 	}
 
+	evm.GasUsageTrackerEnabled = cfg.GasUsageTrackerEnabled
+
 	if !cfg.SkipMinBuildCheck {
 		if buildBytes := appStore.Get([]byte(loomchain.MinBuildKey)); len(buildBytes) > 0 {
 			minimumBuild := binary.BigEndian.Uint64(buildBytes)

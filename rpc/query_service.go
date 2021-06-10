@@ -63,6 +63,7 @@ type QueryService interface {
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
+	GetGasUsage(addr string) (uint64, error)
 	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
 	GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Data) (eth.Data, error)
 
@@ -132,6 +133,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
 	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
+	routes["gasusage"] = rpcserver.NewRPCFunc(svc.GetGasUsage, "address")
 	routes["dpos_total_staked"] = rpcserver.NewRPCFunc(svc.DPOSTotalStaked, "")
 	routes["canonical_tx_hash"] = rpcserver.NewRPCFunc(svc.GetCanonicalTxHash, "block,txIndex,evmTxHash")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)

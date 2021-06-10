@@ -270,6 +270,13 @@ func (m *MockQueryService) GetContractRecord(addr string) (*types.ContractRecord
 	return nil, nil
 }
 
+func (m *MockQueryService) GetGasUsage(address string) (uint64, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.MethodsCalled = append([]string{"GasUsage"}, m.MethodsCalled...)
+	return 0, nil
+}
+
 func (m *MockQueryService) DPOSTotalStaked() (*DPOSTotalStakedResponse, error) {
 	m.MethodsCalled = append([]string{"DposTotalStaked"}, m.MethodsCalled...)
 	return nil, nil

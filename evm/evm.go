@@ -32,10 +32,27 @@ const (
 
 //Metrics
 var (
-	txLatency metrics.Histogram
-	txGas     metrics.Histogram
-	txCount   metrics.Counter
+	txLatency              metrics.Histogram
+	txGas                  metrics.Histogram
+	txCount                metrics.Counter
+	gasUsageRecords        = map[string]uint64{}
+	GasUsageTrackerEnabled = false
 )
+
+func addGasUsage(addr string, gasUsed uint64) {
+	if _, ok := gasUsageRecords[addr]; ok {
+		gasUsageRecords[addr] += gasUsed
+	} else {
+		gasUsageRecords[addr] = gasUsed
+	}
+}
+
+func GetGasUsage(addr string) uint64 {
+	if gasUsed, ok := gasUsageRecords[addr]; ok {
+		return gasUsed
+	}
+	return 0
+}
 
 func init() {
 	fieldKeys := []string{"method", "error"}
@@ -212,6 +229,9 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 		ChainID: caller.ChainID,
 		Local:   address.Bytes(),
 	}
+	if GasUsageTrackerEnabled {
+		addGasUsage(caller.String(), usedGas)
+	}
 	return runCode, loomAddress, err
 }
 
@@ -244,6 +264,10 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 	}
 	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
 	usedGas = e.gasLimit - leftOverGas
+	if GasUsageTrackerEnabled {
+		addGasUsage(caller.String(), usedGas)
+		addGasUsage(addr.String(), usedGas)
+	}
 	return ret, err
 }
 
