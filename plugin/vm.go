@@ -319,12 +319,11 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 		return
 	}
 	data := types.EventData{
-		Topics:          topics,
-		Caller:          c.caller.MarshalPB(),
-		Address:         c.address.MarshalPB(),
-		PluginName:      c.pluginName,
-		EncodedBody:     event,
-		OriginalRequest: c.req.Body,
+		Topics:      topics,
+		Caller:      c.caller.MarshalPB(),
+		Address:     c.address.MarshalPB(),
+		PluginName:  c.pluginName,
+		EncodedBody: event,
 	}
 	height := uint64(c.State.Block().Height)
 	c.eventHandler.Post(height, &data)
