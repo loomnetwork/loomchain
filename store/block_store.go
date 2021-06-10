@@ -44,14 +44,22 @@ func NewTendermintBlockStore() BlockStore {
 
 type BlockStoreConfig struct {
 	// Valid values: None | LRU | 2Q
-	CacheAlgorithm string
-	CacheSize      int64
+	CacheAlgorithm    string
+	CacheSize         int64
+	PruneOnStartup    bool
+	NumBlocksToRetain int64
+	PruneGraceFactor  int64
+	BatchSize         int64
 }
 
 func DefaultBlockStoreConfig() *BlockStoreConfig {
 	return &BlockStoreConfig{
-		CacheAlgorithm: "None",
-		CacheSize:      10000, //Size should be more because of blockrangebyheight API
+		CacheAlgorithm:    "None",
+		CacheSize:         10000, // Size should be more because of blockrangebyheight API
+		PruneOnStartup:    false, // Prune blockstore.db at the beginning of process
+		NumBlocksToRetain: 10000, // Number of most recent blocks to retain when pruning
+		PruneGraceFactor:  10,    // Skip pruning if less than 10% of NumBlocksToRetain will be pruned
+		BatchSize:         10000, // Number of blocks to write in each batch.
 	}
 }
 

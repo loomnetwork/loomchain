@@ -673,6 +673,15 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
+  # Prune blockstore.db at the beginning of process
+  PruneOnStartup:   {{ .BlockStore.PruneOnStartup }}
+  # Number of most recent blocks to retain when pruning
+  NumBlocksToRetain: {{ .BlockStore.NumBlocksToRetain }}
+  # Skip pruning if less than PruneGraceFactor percentage of NumBlocksToRetain will be pruned
+  PruneGraceFactor: {{ .BlockStore.PruneGraceFactor }}
+  # Number of blocks to write in each batch.
+  BatchSize: {{ .BlockStore.BatchSize }}
+
 BlockIndexStore:  
   Enabled: {{ .BlockIndexStore.Enabled }}
   # goleveldb | cleveldb | memdb

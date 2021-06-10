@@ -343,7 +343,10 @@ func newRunCommand() *cobra.Command {
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			logger := log.Default
+
+			// Tweak some go-ethereum internals
 			configureGeth(cfg.Geth)
+
 			if cfg.PrometheusPushGateway.Enabled {
 				host, err := os.Hostname()
 				if err != nil {
@@ -352,10 +355,12 @@ func newRunCommand() *cobra.Command {
 				}
 				go startPushGatewayMonitoring(cfg.PrometheusPushGateway, logger, host)
 			}
+
 			var fnRegistry fnConsensus.FnRegistry
 			if cfg.FnConsensus.Enabled {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
+
 			var loaders []plugin.Loader
 			for _, loader := range cfg.ContractLoaders {
 				if strings.EqualFold("static", loader) {
@@ -406,6 +411,15 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			if cfg.BlockStore.PruneOnStartup {
+				if err = store.PruneBlockStore(
+					path.Join(cfg.RootPath(), "chaindata", "data"), cfg.BlockStore, app.Store.Version(),
+				); err != nil {
+					return errors.Wrap(err, "failed to prune blockstore.db")
+				}
+			}
+
 			if err := backend.Start(app); err != nil {
 				return err
 			}
