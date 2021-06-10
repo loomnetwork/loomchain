@@ -259,6 +259,49 @@ func newDeleteAppHeightCommand() *cobra.Command {
 	return cmd
 }
 
+func newFindCoinTransfersCommand() *cobra.Command {
+	var contracts []string
+	var startHeight, endHeight int
+	var recipient, dataPath string
+	cmd := &cobra.Command{
+		Use:     "find-coin-transfers",
+		Short:   "Searches the block store for confirmed coin transfer txs",
+		Example: "find-coin-transfers --data path/to/chaindata --contract default:0xbeef --recipient default:0xfeed",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(contracts) == 0 {
+				return errors.New("At least one coin contract address must be specified")
+			}
+			coinContracts := make([]loom.Address, len(contracts))
+			for i := range contracts {
+				var err error
+				coinContracts[i], err = loom.ParseAddress(contracts[i])
+				if err != nil {
+					return errors.Wrap(err, "failed to parse coin contract address")
+				}
+			}
+
+			var recipientAddr *loom.Address
+			if recipient != "" {
+				addr, err := loom.ParseAddress(recipient)
+				if err != nil {
+					return errors.Wrap(err, "failed to parse recipient address")
+				}
+				recipientAddr = &addr
+			}
+
+			return findCoinTransfers(coinContracts, dataPath, int64(startHeight), int64(endHeight), recipientAddr)
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&dataPath, "data", "", "Path to chaindata directory where txs should be read from")
+	cmdFlags.StringSliceVar(&contracts, "contract", []string{}, "Comma separated list of coin contract addresses")
+	cmdFlags.IntVar(&startHeight, "start-height", 1, "Block height to start searching from")
+	cmdFlags.IntVar(&endHeight, "end-height", 0, "Block height to stop searching at (defaults to latest block)")
+	cmdFlags.StringVar(&recipient, "recipient", "", "Only match transfers to a specific account (optional)")
+	cmd.MarkFlagRequired("contract")
+	return cmd
+}
+
 // NewDebugCommand creates a new instance of the top-level debug command
 func NewDebugCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -272,6 +315,7 @@ func NewDebugCommand() *cobra.Command {
 		newSetAppHeightCommand(),
 		newGetAppHeightCommand(),
 		newDeleteAppHeightCommand(),
+		newFindCoinTransfersCommand(),
 	)
 	return cmd
 }
