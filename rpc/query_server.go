@@ -1385,3 +1385,15 @@ func getTxByTendermintHash(
 	)
 	return txObj, err
 }
+
+type AccountsBalanceResponse struct {
+	Accounts map[string]map[string]string
+}
+
+type AccountMappingBalance struct {
+	DAppAddress      loom.Address
+	ContractsBalance []struct {
+		Address loom.Address
+		Balance string
+	}
+}

@@ -65,6 +65,7 @@ type QueryService interface {
 	GetContractRecord(contractAddr string) (*types.ContractRecordResponse, error)
 	DPOSTotalStaked() (*DPOSTotalStakedResponse, error)
 	GetCanonicalTxHash(block, txIndex uint64, evmTxHash eth.Data) (eth.Data, error)
+	GetAccountBalances(contracts []string) (*AccountsBalanceResponse, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -213,7 +214,7 @@ func MakeEthQueryServiceHandler(logger log.TMLogger, hub *Hub, routes map[string
 }
 
 // MakeUnsafeQueryServiceHandler returns a http handler for unsafe RPC routes
-func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
+func MakeUnsafeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
 	codec := amino.NewCodec()
 	mux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
@@ -225,6 +226,8 @@ func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
 	routes["unsafe_start_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStartCPUProfiler, "filename")
 	routes["unsafe_stop_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStopCPUProfiler, "")
 	routes["unsafe_write_heap_profile"] = rpcserver.NewRPCFunc(rpccore.UnsafeWriteHeapProfile, "filename")
+
+	routes["account_balances"] = rpcserver.NewRPCFunc(svc.GetAccountBalances, "contracts")
 
 	rpcserver.RegisterRPCFuncs(mux, routes, codec, logger)
 	return mux
