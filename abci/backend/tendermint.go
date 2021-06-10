@@ -67,7 +67,7 @@ func CreateFnConsensusReactor(
 }
 
 func CreateNewCachedDBProvider(config *cfg.Config) (node.DBProvider, error) {
-	// Let's not intefere with other db's creation, unless required
+	// Let's not interfere with other DB's creation, unless required
 	dbsNeedToCache := []string{
 		"state",
 		"fnConsensus",
@@ -130,7 +130,7 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 	v.AutomaticEnv()
 
 	v.SetEnvPrefix("TM")
-	v.SetConfigName("config")               // name of config file (without extension)
+	v.SetConfigName("config")               // name of the config file (without extension)
 	v.AddConfigPath(b.RootPath + "/config") // search root directory
 	v.ReadInConfig()
 	conf := cfg.DefaultConfig()
