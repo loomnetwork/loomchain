@@ -14,8 +14,11 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/fnConsensus"
+	"github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
@@ -25,10 +28,6 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-
-	"github.com/loomnetwork/loomchain/db"
-
-	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 type (
@@ -150,9 +149,10 @@ type Config struct {
 	// Set to true to disable minimum required build number check on node startup
 	SkipMinBuildCheck bool
 
-	Web3 *eth.Web3Config
-	Geth *GethConfig
-	DPOS *DPOSConfig
+	Web3               *eth.Web3Config
+	Geth               *GethConfig
+	DPOS               *DPOSConfig
+	OverrideValidators *OverrideValidatorsConfig
 }
 
 type GethConfig struct {
@@ -259,6 +259,16 @@ type UserDeployerWhitelistConfig struct {
 	ContractEnabled bool
 }
 
+// OverrideValidatorsConfig allows the Tendermint validator set to be overriden at a specific height.
+// This config only applies when the DPOS contract is not deployed.
+type OverrideValidatorsConfig struct {
+	// Height at which the validators override should be applied.
+	// If this is zero the override will never be applied.
+	Height int64
+	// Validator powers to override.
+	Validators []plugin.OverrideValidator
+}
+
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
 		CacheSizeMegs:   1042, //1 Gigabyte
@@ -316,6 +326,10 @@ func DefaultUserDeployerWhitelistConfig() *UserDeployerWhitelistConfig {
 	return &UserDeployerWhitelistConfig{
 		ContractEnabled: true,
 	}
+}
+
+func DefaultOverrideValidatorsConfig() *OverrideValidatorsConfig {
+	return &OverrideValidatorsConfig{}
 }
 
 //Structure for LOOM ENV
@@ -470,10 +484,9 @@ func DefaultConfig() *Config {
 	cfg.Web3 = eth.DefaultWeb3Config()
 	cfg.Geth = DefaultGethConfig()
 	cfg.DPOS = DefaultDPOSConfig()
-
 	cfg.FnConsensus = DefaultFnConsensusConfig()
-
 	cfg.Auth = auth.DefaultConfig()
+	cfg.OverrideValidators = DefaultOverrideValidatorsConfig()
 	return cfg
 }
 
@@ -855,6 +868,19 @@ EVMDebugEnabled: {{ .EVMDebugEnabled }}
 AllowNamedEvmContracts: {{ .AllowNamedEvmContracts }}
 # Set to true to disable minimum required build number check on node startup
 SkipMinBuildCheck: {{ .SkipMinBuildCheck }}
+{{- if .OverrideValidators }}
+# Override the Tendermint validator set at a specific height.
+# Only applies if DPOS contract is not deployed.
+OverrideValidators:
+  Height: {{ .OverrideValidators.Height }}
+  {{- if .OverrideValidators.Validators }}
+  Validators:
+    {{- range $i, $v := .OverrideValidators.Validators }}
+    - PubKey: "{{ $v.PubKey }}"
+      Power: {{ $v.Power }}
+    {{- end }}
+  {{- end }}
+{{- end }}
 
 {{if .Geth -}}
 #

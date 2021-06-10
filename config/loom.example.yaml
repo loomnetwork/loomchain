@@ -90,3 +90,10 @@ EventStore:
   DBName: "event"
   DBBackend: "goleveldb"
 
+OverrideValidators:
+  Height: 350000
+  Validators:
+    - PubKey: "ad1a67e16fd178476bc5ec1cb6d2069de7b3d77bdd998b7176dc06964cca9f7b"
+      Power: 100
+    - PubKey: "e536f18f57a188ea74ed4eab2a5828f78a258e0fadfc09c960974e4f28fbeac6"
+      Power: 200
