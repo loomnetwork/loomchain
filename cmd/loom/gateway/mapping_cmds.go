@@ -605,6 +605,18 @@ func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Addre
 	return loom.UnmarshalAddressPB(resp.To), nil
 }
 
+func getNonce(mapper *client.Contract, account loom.Address) (uint64, error) {
+	req := &amtypes.AddressMapperGetNonceRequest{
+		Address: account.MarshalPB(),
+	}
+	resp := &amtypes.AddressMapperGetNonceResponse{}
+	_, err := mapper.StaticCall("GetNonce", req, account, resp)
+	if err != nil {
+		return 0, err
+	}
+	return resp.Nonce, nil
+}
+
 func getDAppChainClient() *client.DAppChainRPCClient {
 	writeURI := gatewayCmdFlags.URI + "/rpc"
 	readURI := gatewayCmdFlags.URI + "/query"

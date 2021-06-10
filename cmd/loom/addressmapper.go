@@ -79,7 +79,94 @@ func AddIdentityMappingCmd() *cobra.Command {
 			mapping.To = foreignAddr.MarshalPB()
 			mapping.Signature, err = address_mapper.SignIdentityMapping(user, foreignAddr, privkey, sigType)
 			if err != nil {
-				return errors.Wrapf(err, "sigining mapping with %s key", chainId)
+				return errors.Wrapf(err, "signing mapping with %s key", chainId)
+			}
+
+			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "AddIdentityMapping", &mapping, nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			} else {
+				fmt.Println("mapping successful")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmd.Flags().StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
+	cmd.Flags().StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
+	cmd.Flags().StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
+	cmd.Flags().StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
+	cmd.Flags().StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
+	cmd.Flags().StringVarP(&chainId, "mapped-chain-id", "c", "eth", "ethereum chain id")
+	return cmd
+}
+
+func MultiChainAddIdentityMappingCmd() *cobra.Command {
+	var chainId string
+	var callFlags cli.ContractCallFlags
+	cmd := &cobra.Command{
+		Use:   "multichain-add-identity-mapping <loom-addr> <eth-key-file>",
+		Short: "Adds multichain mapping between a DAppChain account and a Mainnet account.",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var mapping address_mapper.AddIdentityMappingRequest
+			user, err := cli.ParseAddress(args[0], callFlags.ChainID)
+			if err != nil {
+				return errors.Wrapf(err, "failed to parse address %v", args[0])
+			}
+			mapping.From = user.MarshalPB()
+
+			var privkey *ecdsa.PrivateKey
+			var foreignLocalAddr loom.LocalAddress
+			var sigType = evmcompat.SignatureType_EIP712
+
+			switch strings.TrimSpace(chainId) {
+			case "eth":
+				privkey, err = crypto.LoadECDSA(args[1])
+				if err != nil {
+					return errors.Wrapf(err, "read ethereum private key from file %v", args[1])
+				}
+				foreignLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privkey.PublicKey).Hex())
+				if err != nil {
+					return errors.Wrapf(err, "bad ethereum private key from file %v", args[1])
+				}
+			case "tron":
+				privkey, err = lcrypto.LoadBtecSecp256k1PrivKey(args[1])
+				if err != nil {
+					return errors.Wrapf(err, "read tron private key from file %v", args[1])
+				}
+				foreignLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privkey.PublicKey).Hex())
+				if err != nil {
+					return errors.Wrapf(err, "bad tron private key from file% v", args[1])
+				}
+				sigType = evmcompat.SignatureType_TRON
+			case "binance":
+				privkey, err = crypto.LoadECDSA(args[1])
+				if err != nil {
+					return errors.Wrapf(err, "read binance private key from file %v", args[1])
+				}
+				signer := auth.NewBinanceSigner(crypto.FromECDSA(privkey))
+				foreignLocalAddr, err = loom.LocalAddressFromHexString(evmcompat.BitcoinAddress(signer.PublicKey()).Hex())
+				if err != nil {
+					return errors.Wrapf(err, "bad binance private key from file %v", args[1])
+				}
+				sigType = evmcompat.SignatureType_BINANCE
+			}
+
+			var resp amtypes.AddressMapperGetNonceResponse
+			err = cli.StaticCallContractWithFlags(&callFlags, AddressMapperName, "GetNonce",
+				&amtypes.AddressMapperGetNonceRequest{
+					Address: user.MarshalPB(),
+				}, &resp)
+			if err != nil {
+				return err
+			}
+
+			foreignAddr := loom.Address{ChainID: chainId, Local: foreignLocalAddr}
+			mapping.To = foreignAddr.MarshalPB()
+			mapping.Signature, err = address_mapper.MultiChainSignIdentityMapping(user, foreignAddr, privkey, sigType, resp.Nonce)
+			if err != nil {
+				return errors.Wrapf(err, "signing mapping with %s key", chainId)
 			}
 
 			err = cli.CallContractWithFlags(&callFlags, AddressMapperName, "AddIdentityMapping", &mapping, nil)
@@ -172,6 +259,7 @@ func NewAddressMapperCommand() *cobra.Command {
 		AddIdentityMappingCmd(),
 		GetMapping(),
 		ListMappingCmd(),
+		MultiChainAddIdentityMappingCmd(),
 	)
 	return cmd
 }

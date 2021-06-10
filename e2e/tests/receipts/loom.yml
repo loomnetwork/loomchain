@@ -4,3 +4,4 @@ CreateEmptyBlocks: true
 DPOSVersion: 3
 EVMPersistentTxReceiptsMax: 5000
 SampleGoContractEnabled: true
+SkipMinBuildCheck: true

@@ -257,7 +257,7 @@ func ChangeFeeCmdV3() *cobra.Command {
 }
 
 const registerCandidateCmdExample = `
-loom dpos3 register-candidate 0x7262d4c97c7B93937E4810D289b7320e9dA82857 100 3 --name candidate_name
+loom dpos3 register-candidate 253KKhBtt2jQx3hkftA2UE9S0rPoY5wiPXW6setBWmA= 100 3 --name candidate_name
 `
 
 func RegisterCandidateCmdV3() *cobra.Command {

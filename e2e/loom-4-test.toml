@@ -134,3 +134,60 @@
   Condition = "contains"
   Expected = [ "Call response: ", "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]" ]
   Datafiles = [ { Filename = "inputGet.bin", Contents = "6d4ce63c" } ]
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg add-feature addrmapper:v1.2 --build 0 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ['Error']
+
+[[TestCases]]
+  RunCmd = "{{ $.LoomPath }} chain-cfg enable-feature addrmapper:v1.2 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ['Error']
+
+  # wait for block height to increase at least 1 blocks
+[[TestCases]]
+  RunCmd = "wait_for_block_height_to_increase 0 3"
+
+  [[TestCases]]
+   Delay = 1000
+   RunCmd = "{{ $.LoomPath }} chain-cfg list-features"
+   Condition = "contains"
+   Expected = ["addrmapper:v1.2"]
+
+  # Multichain mapping
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} addressmapper multichain-add-identity-mapping default:{{index $.AccountAddressList 2}} {{index $.EthAccountPrivKeyPathList 3}} -c binance -k {{index $.AccountPrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = [ "mapping successful" ]
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings"
+  Condition = "contains"
+  Expected = ["default" , "binance" ]
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} addressmapper multichain-add-identity-mapping default:{{index $.AccountAddressList 2}} {{index $.EthAccountPrivKeyPathList 4}} -c tron -k {{index $.AccountPrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = [ "mapping successful" ]
+
+    [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} addressmapper multichain-add-identity-mapping default:{{index $.AccountAddressList 2}} {{index $.EthAccountPrivKeyPathList 5}} -c eth -k {{index $.AccountPrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = [ "mapping successful" ]
+  
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings"
+  Condition = "contains"
+  Expected = ["default" , "binance", "tron", "eth" ]
+
+   # Expect Duplicate But Got successful
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} addressmapper multichain-add-identity-mapping default:{{index $.AccountAddressList 2}} {{index $.EthAccountPrivKeyPathList 3}} -c binance -k {{index $.AccountPrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = [ "mapping successful" ]
+
+  [[TestCases]]
+  RunCmd = "{{ $.LoomPath }} addressmapper list-mappings"
+  Condition = "contains"
+  Expected = ["default" , "binance", "tron", "eth" ]
