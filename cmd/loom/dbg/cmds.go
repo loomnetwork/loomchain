@@ -84,7 +84,7 @@ func newDumpMempoolCommand() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "Loom Protocol base URI")
 	cmdFlags.IntVarP(&limit, "limit", "l", 100, "Max number of txs to display")
 	cmdFlags.BoolVarP(&showExtraInfo, "ext", "e", false, "Show extra info for each tx")
 	return cmd
@@ -127,7 +127,7 @@ func newDumpBlockTxsCommand() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "Loom Protocol base URI")
 	cmdFlags.IntVar(&height, "height", 1, "Block height for which txs should be displayed")
 	return cmd
 }
