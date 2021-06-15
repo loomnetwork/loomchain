@@ -19,6 +19,7 @@ type DeployTxHandler struct {
 	*Manager
 	CreateRegistry         registry.RegistryFactoryFunc
 	AllowNamedEVMContracts bool
+	CreateGasTracker       GasTrackerFactoryFunc
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -64,7 +65,12 @@ func (h *DeployTxHandler) ProcessTx(
 		value = &tx.Value.Value
 	}
 
-	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value)
+	gasTracker, err := h.CreateGasTracker()
+	if err != nil {
+		return r, err
+	}
+
+	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value, gasTracker)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
@@ -100,6 +106,7 @@ func (h *DeployTxHandler) ProcessTx(
 
 type CallTxHandler struct {
 	*Manager
+	CreateGasTracker GasTrackerFactoryFunc
 }
 
 func (h *CallTxHandler) ProcessTx(
@@ -141,7 +148,13 @@ func (h *CallTxHandler) ProcessTx(
 	} else {
 		value = &tx.Value.Value
 	}
-	r.Data, err = vm.Call(origin, addr, tx.Input, value)
+
+	gasTracker, err := h.CreateGasTracker()
+	if err != nil {
+		return r, err
+	}
+
+	r.Data, err = vm.Call(origin, addr, tx.Input, value, gasTracker)
 	if err != nil {
 		return r, err
 	}

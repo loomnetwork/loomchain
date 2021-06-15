@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"os/signal"
 	"path"
@@ -866,6 +867,38 @@ func loadApp(
 	ethTxHandler := &tx_handler.EthTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
+		CreateGasTracker: func(state loomchain.State) (vm.GasTracker, error) {
+			var gv uint32
+
+			txHandlerCfg := state.Config().GetTxHandler()
+			gv = txHandlerCfg.GetGasTrackerVersion()
+
+			maxGas := state.Config().GetEvm().GetGasLimit()
+
+			switch gv {
+			case 0:
+				return &vm.LegacyGasTracker{}, nil
+			case 1:
+				// TODO: pass in state.WithoutCache() instead of the state directly
+				// Should enforce the precondition that nothing has written to the same keys this
+				// coin context will be used to modify.
+				coinCtx, err := getContractCtx("coin", vmManager)(state)
+				if err != nil {
+					return nil, err
+				}
+				var feeCollector loom.Address
+				if txHandlerCfg.GetFeeCollector() != nil {
+					feeCollector = loom.UnmarshalAddressPB(txHandlerCfg.GetFeeCollector())
+				}
+				var minPrice *big.Int
+				if txHandlerCfg.GetMinGasPrice() != nil {
+					minPrice = txHandlerCfg.GetMinGasPrice().Value.Int
+				}
+				return vm.NewLoomCoinGasTracker(coinCtx, feeCollector, maxGas, minPrice), nil
+			default:
+				return nil, errors.New("invalid gas tracker version")
+			}
+		},
 	}
 
 	migrationTxHandler := &tx_handler.MigrationTxHandler{

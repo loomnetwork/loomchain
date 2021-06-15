@@ -145,6 +145,7 @@ func (r *ReceiptHandler) CommitBlock(height int64) error {
 // TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(
 	state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error, txHash []byte,
+	gasUsed uint64,
 ) ([]byte, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -173,6 +174,8 @@ func (r *ReceiptHandler) CacheReceipt(
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")
 	}
+	receipt.GasUsed = int32(gasUsed)
+	//receipt.CumulativeGasUsed = ? // what should this be?
 	r.currentReceipt = &receipt
 	return r.currentReceipt.TxHash, err
 }

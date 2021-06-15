@@ -190,8 +190,10 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 	return p
 }
 
-// TODO: allow caller to override gas limit (but cap it)
-func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+// Create will create a new EVM contract with the provided bytecode and return the address of the
+// new contract along with the amount of gas used to create it. If an error occurs this function
+// will still return the exact amount of gas used.
+func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt, gas uint64) ([]byte, loom.Address, uint64, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -210,22 +212,22 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 	} else {
 		val = value.Int
 		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
-			return nil, loom.Address{}, errors.Errorf("value %v must be non negative", value)
+			return nil, loom.Address{}, 0, errors.Errorf("value %v must be non negative", value)
 		}
 	}
 
-	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, e.gasLimit, val)
-	usedGas = e.gasLimit - leftOverGas
+	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gas, val)
+	usedGas = gas - leftOverGas
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,
 		Local:   address.Bytes(),
 	}
-	// TODO: return gas used
-	return runCode, loomAddress, err
+	return runCode, loomAddress, usedGas, err
 }
 
-// TODO: allow caller to override gas limit (but cap it)
-func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+// Call will execute a mutable EVM contract method. If an error occurs this function will still
+// return the exact amount of gas used.
+func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64) ([]byte, uint64, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -249,19 +251,19 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 			val = common.Big0
 		}
 		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
-			return nil, errors.Errorf("value %v must be non negative", value)
+			return nil, 0, errors.Errorf("value %v must be non negative", value)
 		}
 	}
-	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, e.gasLimit, val)
-	usedGas = e.gasLimit - leftOverGas
-	// TODO: return gas used
-	return ret, err
+	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gas, val)
+	usedGas = gas - leftOverGas
+	return ret, usedGas, err
 }
 
 func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
+	// TODO: can a user specify gas for static calls?
 	ret, _, err := vmenv.StaticCall(vm.AccountRef(origin), contract, input, e.gasLimit)
 	return ret, err
 }

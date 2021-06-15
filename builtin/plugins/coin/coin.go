@@ -256,13 +256,21 @@ func (c *Coin) BalanceOf(
 		return nil, ErrInvalidRequest
 	}
 	owner := loom.UnmarshalAddressPB(req.Owner)
-	acct, err := loadAccount(ctx, owner)
+	balance, err := BalanceOf(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
 	return &BalanceOfResponse{
-		Balance: acct.Balance,
+		Balance: &types.BigUInt{Value: *balance},
 	}, nil
+}
+
+func BalanceOf(ctx contract.StaticContext, owner loom.Address) (*loom.BigUInt, error) {
+	acct, err := loadAccount(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+	return &acct.Balance.Value, nil
 }
 
 func (c *Coin) Balances(
@@ -288,26 +296,31 @@ func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
 		return ErrInvalidRequest
 	}
 	if ctx.FeatureEnabled(features.CoinVersion1_1Feature, false) {
-		return c.transfer(ctx, req)
+		from := ctx.Message().Sender
+		to := loom.UnmarshalAddressPB(req.To)
+		amount := req.Amount.Value
+		return transfer(ctx, from, to, &amount)
 	}
 	return c.legacyTransfer(ctx, req)
 }
 
-func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
-	from := ctx.Message().Sender
+// Transfer is used for internal transfers (e.g. charging gas fees in tx handlers).
+func Transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
+	return transfer(ctx, from, to, amount)
+}
 
+func transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
 	fromAccount, err := loadAccount(ctx, from)
 	if err != nil {
 		return err
 	}
-	amount := req.Amount.Value
-	fromBalance := fromAccount.Balance.Value
 
-	if fromBalance.Cmp(&amount) < 0 {
+	fromBalance := fromAccount.Balance.Value
+	if fromBalance.Cmp(amount) < 0 {
 		return ErrSenderBalanceTooLow
 	}
 
-	fromBalance.Sub(&fromBalance, &amount)
+	fromBalance.Sub(&fromBalance, amount)
 	fromAccount.Balance.Value = fromBalance
 
 	err = saveAccount(ctx, fromAccount)
@@ -315,14 +328,13 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 		return err
 	}
 
-	to := loom.UnmarshalAddressPB(req.To)
 	toAccount, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
 	}
 
 	toBalance := toAccount.Balance.Value
-	toBalance.Add(&toBalance, &amount)
+	toBalance.Add(&toBalance, amount)
 	toAccount.Balance.Value = toBalance
 
 	err = saveAccount(ctx, toAccount)
@@ -330,7 +342,7 @@ func (c *Coin) transfer(ctx contract.Context, req *TransferRequest) error {
 		return err
 	}
 
-	return emitTransferEvent(ctx, from, to, &amount)
+	return emitTransferEvent(ctx, from, to, amount)
 }
 
 func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {

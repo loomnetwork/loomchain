@@ -22,7 +22,8 @@ import (
 // EthTxHandler handles signed Ethereum txs that are wrapped inside SignedTx
 type EthTxHandler struct {
 	*vm.Manager
-	CreateRegistry factory.RegistryFactoryFunc
+	CreateRegistry   factory.RegistryFactoryFunc
+	CreateGasTracker vm.GasTrackerFactoryFunc
 }
 
 func (h *EthTxHandler) ProcessTx(
@@ -66,27 +67,32 @@ func (h *EthTxHandler) ProcessTx(
 		return r, errors.New("tx value can't be negative")
 	}
 
+	gasTracker, err := h.CreateGasTracker()
+	if err != nil {
+		return r, err
+	}
+
+	if err := gasTracker.ApproveGasPurchase(origin, ethTx.Gas(), ethTx.GasPrice()); err != nil {
+		return r, err
+	}
+
 	// Only do basic validation in CheckTx, don't execute the actual EVM deploy/call
 	if isCheckTx {
-		// TODO: Require caller to specify a gas price.
-		// TODO: Ensure gas price specified by the caller matches the price set via the on-chain config.
-		//       Later on the minimal price should be set via loom.yml, and the check here should
-		//       simply ensure the caller price is not less than that (this will allow validators to
-		//       adjust the price by consensus).
-		// TODO: If the caller specified a gas limit check that they have enough LOOM to cover the
-		//       the max gas they're willing to pay for at the current price (which they must set
-		//       in the tx).
 		return r, nil
 	}
 
+	gasTracker.BuyGas(origin, ethTx.Gas(), ethTx.GasPrice())
+	defer gasTracker.RefundGas(origin)
+
+	// TODO: create an atomic tx wrapper of state and pass that to InitVM, that way if the tx fails
+	// the state changes made in it are all reverted, but the gas fee deduction is not.
 	vmInstance, err := h.Manager.InitVM(vm.VMType_EVM, state)
 	if err != nil {
 		return r, err
 	}
 
 	if ethTx.To() == nil { // deploy
-		// TODO: pass through the gas limit override
-		retCreate, addr, err := vmInstance.Create(origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()))
+		retCreate, addr, err := vmInstance.Create(origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasTracker)
 		if err != nil {
 			return r, errors.Wrap(err, "failed to create contract")
 		}
@@ -109,8 +115,7 @@ func (h *EthTxHandler) ProcessTx(
 		}
 	} else { // call
 		to := loom.UnmarshalAddressPB(msg.To)
-		// TODO: pass through the gas limit override
-		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()))
+		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasTracker)
 		if err != nil {
 			return r, errors.Wrap(err, "contract call failed")
 		}

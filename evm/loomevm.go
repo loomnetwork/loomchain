@@ -145,7 +145,9 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 	return lvm.createABM(readOnly)
 }
 
-func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+func (lvm LoomVm) Create(
+	caller loom.Address, code []byte, value *loom.BigUInt, gasTracker vm.GasTracker,
+) ([]byte, loom.Address, error) {
 	logContext := &ethdbLogContext{
 		blockHeight:  lvm.state.Block().Height,
 		contractAddr: loom.Address{},
@@ -155,9 +157,13 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
-	bytecode, addr, err := levm.Create(caller, code, value)
+
+	bytecode, addr, usedGas, err := levm.Create(caller, code, value, gasTracker.RemainingGas())
+	// gas is used up regardless of whether or not the deployment actually succeeds
+	if gasErr := gasTracker.UseGas(usedGas); gasErr != nil {
+		panic(gasErr) // EVM should never use more gas than it was given
+	}
 	if err == nil {
-		// TODO: deduct the gas used * gas price from the caller's LOOM balance
 		// TODO: refund the gas amount in levm.sdb.GetRefund()
 		_, err = levm.Commit()
 	}
@@ -190,7 +196,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		}
 
 		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash, usedGas)
 		if errSaveReceipt != nil {
 			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}
@@ -210,7 +216,9 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	return response, addr, err
 }
 
-func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+func (lvm LoomVm) Call(
+	caller, addr loom.Address, input []byte, value *loom.BigUInt, gasTracker vm.GasTracker,
+) ([]byte, error) {
 	logContext := &ethdbLogContext{
 		blockHeight:  lvm.state.Block().Height,
 		contractAddr: addr,
@@ -220,9 +228,12 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err != nil {
 		return nil, err
 	}
-	_, err = levm.Call(caller, addr, input, value)
+	_, usedGas, err := levm.Call(caller, addr, input, value, gasTracker.RemainingGas())
+	// gas is used up regardless of whether or not the call actually succeeds
+	if gasErr := gasTracker.UseGas(usedGas); gasErr != nil {
+		panic(gasErr) // EVM should never use more gas than it was given
+	}
 	if err == nil {
-		// TODO: deduct the gas used * gas price from the caller's LOOM balance
 		// TODO: refund the gas amount in levm.sdb.GetRefund()
 		_, err = levm.Commit()
 	}
@@ -256,7 +267,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		}
 
 		var errSaveReceipt error
-		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash)
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err, txHash, usedGas)
 		if errSaveReceipt != nil {
 			err = errors.Wrapf(err, "failed to create tx receipt: %v", errSaveReceipt)
 		}
