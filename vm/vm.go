@@ -8,8 +8,8 @@ import (
 )
 
 type VM interface {
-	Create(caller loom.Address, code []byte, value *loom.BigUInt, gasTracker GasTracker) ([]byte, loom.Address, error)
-	Call(caller, addr loom.Address, input []byte, value *loom.BigUInt, gasTracker GasTracker) ([]byte, error)
+	Create(caller loom.Address, code []byte, value *loom.BigUInt, gasConsumer loomchain.GasConsumer) ([]byte, loom.Address, error)
+	Call(caller, addr loom.Address, input []byte, value *loom.BigUInt, gasConsumer loomchain.GasConsumer) ([]byte, error)
 	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	GetCode(addr loom.Address) ([]byte, error)
 	GetStorageAt(addr loom.Address, hash []byte) ([]byte, error)

@@ -19,7 +19,7 @@ type DeployTxHandler struct {
 	*Manager
 	CreateRegistry         registry.RegistryFactoryFunc
 	AllowNamedEVMContracts bool
-	CreateGasTracker       GasTrackerFactoryFunc
+	GasConsumer            func() loomchain.GasConsumer
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -65,12 +65,8 @@ func (h *DeployTxHandler) ProcessTx(
 		value = &tx.Value.Value
 	}
 
-	gasTracker, err := h.CreateGasTracker()
-	if err != nil {
-		return r, err
-	}
-
-	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value, gasTracker)
+	gasConsumer := h.GasConsumer()
+	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value, gasConsumer)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
@@ -106,7 +102,7 @@ func (h *DeployTxHandler) ProcessTx(
 
 type CallTxHandler struct {
 	*Manager
-	CreateGasTracker GasTrackerFactoryFunc
+	GasConsumer func() loomchain.GasConsumer
 }
 
 func (h *CallTxHandler) ProcessTx(
@@ -149,12 +145,8 @@ func (h *CallTxHandler) ProcessTx(
 		value = &tx.Value.Value
 	}
 
-	gasTracker, err := h.CreateGasTracker()
-	if err != nil {
-		return r, err
-	}
-
-	r.Data, err = vm.Call(origin, addr, tx.Input, value, gasTracker)
+	gasConsumer := h.GasConsumer()
+	r.Data, err = vm.Call(origin, addr, tx.Input, value, gasConsumer)
 	if err != nil {
 		return r, err
 	}

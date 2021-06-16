@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	levm "github.com/loomnetwork/loomchain/evm"
+	lvm "github.com/loomnetwork/loomchain/vm"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -104,7 +105,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 		createABM = c.AccountBalanceManager
 	}
 	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
-	return vm.Call(c.ContractAddress(), addr, input, value)
+	return vm.Call(c.ContractAddress(), addr, input, value, &lvm.LegacyGasTracker{})
 }
 
 func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {

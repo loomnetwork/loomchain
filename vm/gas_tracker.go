@@ -13,17 +13,6 @@ var (
 	ErrGasTrackerOutOfGas = errors.New("[GasTracker] out of gas")
 )
 
-// GasTracker handles gas purchase, use, and refund for a single tx.
-type GasTracker interface {
-	ApproveGasPurchase(caller loom.Address, gas uint64, price *big.Int) error
-	BuyGas(caller loom.Address, gas uint64, price *big.Int) error
-	UseGas(gas uint64) error
-	RemainingGas() uint64
-	RefundGas(caller loom.Address)
-}
-
-type GasTrackerFactoryFunc func() (GasTracker, error)
-
 // LegacyGasTracker doesn't charge anything for gas, and always allocates a fixed amount of gas
 // (the max per-tx limit, regardless of how much is actually requested).
 type LegacyGasTracker struct {
@@ -34,7 +23,7 @@ func (gt *LegacyGasTracker) ApproveGasPurchase(_ loom.Address, _ uint64, _ *big.
 	return nil
 }
 
-func (gt *LegacyGasTracker) BuyGas(caller loom.Address, _ uint64, _ *big.Int) error {
+func (gt *LegacyGasTracker) BuyGas(_ loom.Address, _ uint64, _ *big.Int) error {
 	gt.gas = 0 // TODO: set this from the on-chain config
 	return nil
 }
@@ -51,7 +40,7 @@ func (gt *LegacyGasTracker) RemainingGas() uint64 {
 	return gt.gas
 }
 
-func (gt *LegacyGasTracker) RefundGas(caller loom.Address) {
+func (gt *LegacyGasTracker) RefundGas() {
 	// didn't actually buy the gas, so nothing to refund
 }
 
@@ -61,6 +50,7 @@ type LoomCoinGasTracker struct {
 	feeCollector loom.Address
 	maxGas       uint64
 	minPrice     *big.Int
+	buyer        loom.Address
 	gas          uint64   // amount of gas remaining
 	price        *big.Int // price the gas was purchased at
 }
@@ -113,6 +103,7 @@ func (gt *LoomCoinGasTracker) BuyGas(caller loom.Address, gas uint64, price *big
 		return errors.Wrap(err, "[GasTracker] failed to transfer fee from caller")
 	}
 
+	gt.buyer = caller
 	gt.gas = gas
 	gt.price = price
 	return nil
@@ -130,7 +121,7 @@ func (gt *LoomCoinGasTracker) RemainingGas() uint64 {
 	return gt.gas
 }
 
-func (gt *LoomCoinGasTracker) RefundGas(caller loom.Address) {
+func (gt *LoomCoinGasTracker) RefundGas() {
 	// TODO: handle error
-	coin.Transfer(gt.coinCtx, gt.feeCollector, caller, loom.NewBigUInt(new(big.Int).SetUint64(gt.gas)))
+	coin.Transfer(gt.coinCtx, gt.feeCollector, gt.buyer, loom.NewBigUInt(new(big.Int).SetUint64(gt.gas)))
 }

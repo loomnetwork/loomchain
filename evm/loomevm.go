@@ -146,7 +146,7 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 }
 
 func (lvm LoomVm) Create(
-	caller loom.Address, code []byte, value *loom.BigUInt, gasTracker vm.GasTracker,
+	caller loom.Address, code []byte, value *loom.BigUInt, gasConsumer loomchain.GasConsumer,
 ) ([]byte, loom.Address, error) {
 	logContext := &ethdbLogContext{
 		blockHeight:  lvm.state.Block().Height,
@@ -158,9 +158,9 @@ func (lvm LoomVm) Create(
 		return nil, loom.Address{}, err
 	}
 
-	bytecode, addr, usedGas, err := levm.Create(caller, code, value, gasTracker.RemainingGas())
+	bytecode, addr, usedGas, err := levm.Create(caller, code, value, gasConsumer.RemainingGas())
 	// gas is used up regardless of whether or not the deployment actually succeeds
-	if gasErr := gasTracker.UseGas(usedGas); gasErr != nil {
+	if gasErr := gasConsumer.UseGas(usedGas); gasErr != nil {
 		panic(gasErr) // EVM should never use more gas than it was given
 	}
 	if err == nil {
@@ -217,7 +217,7 @@ func (lvm LoomVm) Create(
 }
 
 func (lvm LoomVm) Call(
-	caller, addr loom.Address, input []byte, value *loom.BigUInt, gasTracker vm.GasTracker,
+	caller, addr loom.Address, input []byte, value *loom.BigUInt, gasConsumer loomchain.GasConsumer,
 ) ([]byte, error) {
 	logContext := &ethdbLogContext{
 		blockHeight:  lvm.state.Block().Height,
@@ -228,9 +228,9 @@ func (lvm LoomVm) Call(
 	if err != nil {
 		return nil, err
 	}
-	_, usedGas, err := levm.Call(caller, addr, input, value, gasTracker.RemainingGas())
+	_, usedGas, err := levm.Call(caller, addr, input, value, gasConsumer.RemainingGas())
 	// gas is used up regardless of whether or not the call actually succeeds
-	if gasErr := gasTracker.UseGas(usedGas); gasErr != nil {
+	if gasErr := gasConsumer.UseGas(usedGas); gasErr != nil {
 		panic(gasErr) // EVM should never use more gas than it was given
 	}
 	if err == nil {

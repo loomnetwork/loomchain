@@ -22,8 +22,8 @@ import (
 // EthTxHandler handles signed Ethereum txs that are wrapped inside SignedTx
 type EthTxHandler struct {
 	*vm.Manager
-	CreateRegistry   factory.RegistryFactoryFunc
-	CreateGasTracker vm.GasTrackerFactoryFunc
+	CreateRegistry factory.RegistryFactoryFunc
+	GasConsumer    func() loomchain.GasConsumer
 }
 
 func (h *EthTxHandler) ProcessTx(
@@ -67,12 +67,8 @@ func (h *EthTxHandler) ProcessTx(
 		return r, errors.New("tx value can't be negative")
 	}
 
-	gasTracker, err := h.CreateGasTracker()
-	if err != nil {
-		return r, err
-	}
-
-	if err := gasTracker.ApproveGasPurchase(origin, ethTx.Gas(), ethTx.GasPrice()); err != nil {
+	gasConsumer := h.GasConsumer()
+	if err := gasConsumer.ApproveGasPurchase(origin, ethTx.Gas(), ethTx.GasPrice()); err != nil {
 		return r, err
 	}
 
@@ -81,8 +77,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, nil
 	}
 
-	gasTracker.BuyGas(origin, ethTx.Gas(), ethTx.GasPrice())
-	defer gasTracker.RefundGas(origin)
+	gasConsumer.BuyGas(origin, ethTx.Gas(), ethTx.GasPrice())
 
 	// TODO: create an atomic tx wrapper of state and pass that to InitVM, that way if the tx fails
 	// the state changes made in it are all reverted, but the gas fee deduction is not.
@@ -92,7 +87,7 @@ func (h *EthTxHandler) ProcessTx(
 	}
 
 	if ethTx.To() == nil { // deploy
-		retCreate, addr, err := vmInstance.Create(origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasTracker)
+		retCreate, addr, err := vmInstance.Create(origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasConsumer)
 		if err != nil {
 			return r, errors.Wrap(err, "failed to create contract")
 		}
@@ -115,7 +110,7 @@ func (h *EthTxHandler) ProcessTx(
 		}
 	} else { // call
 		to := loom.UnmarshalAddressPB(msg.To)
-		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasTracker)
+		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasConsumer)
 		if err != nil {
 			return r, errors.Wrap(err, "contract call failed")
 		}

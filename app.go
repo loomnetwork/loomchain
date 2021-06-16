@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/loomnetwork/go-loom/config"
@@ -338,6 +339,24 @@ type ChainConfigManager interface {
 	UpdateConfig() (int, error)
 }
 
+type GasConsumer interface {
+	BuyGas(caller loom.Address, gas uint64, price *big.Int) error
+	ApproveGasPurchase(caller loom.Address, gas uint64, price *big.Int) error
+	UseGas(gas uint64) error
+	RemainingGas() uint64
+}
+
+// GasTracker handles gas purchase, use, and refund for a single tx.
+type GasTracker interface {
+	GasConsumer
+	RefundGas()
+}
+
+type GasTrackerProvider interface {
+	CreateTracker(state State) (GasTracker, error)
+	GetTracker() GasTracker
+}
+
 type GetValidatorSet func(state State) (loom.ValidatorSet, error)
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -368,10 +387,11 @@ type Application struct {
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
-	config                      *cctypes.Config
-	childTxRefs                 []evmaux.ChildTxRef // links Tendermint txs to EVM txs
-	ReceiptsVersion             int32
-	committedTxs                []CommittedTx
+	GasTrackerProvider
+	config          *cctypes.Config
+	childTxRefs     []evmaux.ChildTxRef // links Tendermint txs to EVM txs
+	ReceiptsVersion int32
+	committedTxs    []CommittedTx
 }
 
 var _ abci.Application = &Application{}
@@ -660,6 +680,12 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
 
+	_, err = a.GasTrackerProvider.CreateTracker(state)
+	if err != nil {
+		log.Error("CheckTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+	}
+
 	// Receipts & events generated in CheckTx must be discarded since the app state changes they
 	// reflect aren't persisted.
 	defer a.ReceiptHandlerProvider.Store().DiscardCurrentReceipt()
@@ -686,16 +712,32 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	defer storeTx.Rollback()
-
 	state := NewStoreState(
 		context.Background(),
-		storeTx,
+		a.Store,
 		a.curBlockHeader,
 		a.curBlockHash,
 		a.GetValidatorSet,
 	).WithOnChainConfig(a.config)
+
+	// NOTE: The gas tracker will modify LOOM balances in the store directly with immediate effect,
+	// bypassing the storeTx so that that gas is paid for even if the tx errors out below (causing
+	// storeTx to rollback).
+	gasTracker, err := a.GasTrackerProvider.CreateTracker(state)
+	if err != nil {
+		txFailed = true
+		log.Error("DeliverTx", "tx", hex.EncodeToString(ttypes.Tx(txBytes).Hash()), "err", err)
+		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
+	}
+	// Gas is charged even if the tx fails, so any unused gas must also be refunded regardless of
+	// whether or not the tx succeeds. The refund must happen after storeTx is commited/rolled back
+	// because the gas tracker writes directly to the store (thus bypassing the storeTx cache),
+	// so any state changes must be flushed from the storeTx cache to the store (or discarded entirely)
+	// to ensure coin balances are up to date before the gas tracker transfers back LOOM for unused gas.
+	defer gasTracker.RefundGas()
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
 
 	var r abci.ResponseDeliverTx
 
