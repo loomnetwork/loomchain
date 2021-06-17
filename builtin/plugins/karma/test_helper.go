@@ -75,7 +75,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 			return nil, nil, nil, err
 		}
 		callerAddr := plugin.CreateAddress(loom.RootAddress("chain"), uint64(0))
-		_, karmaAddr, err := pluginVm.Create(callerAddr, karmaInitCode, loom.NewBigUIntFromInt(0))
+		_, karmaAddr, _, err := pluginVm.Create(callerAddr, karmaInitCode, loom.NewBigUIntFromInt(0), 0)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -95,7 +95,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 			return nil, nil, nil, err
 		}
 		callerAddr := plugin.CreateAddress(loom.RootAddress("chain"), uint64(1))
-		_, coinAddr, err := pluginVm.Create(callerAddr, coinInitCode, loom.NewBigUIntFromInt(0))
+		_, coinAddr, _, err := pluginVm.Create(callerAddr, coinInitCode, loom.NewBigUIntFromInt(0), 0)
 		if err != nil {
 			return nil, nil, nil, err
 		}

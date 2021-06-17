@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/signal"
 	"path"
@@ -1191,7 +1192,11 @@ func deployContract(
 	}
 
 	callerAddr := plugin.CreateAddress(rootAddr, uint64(index))
-	_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
+	gas := state.Config().GetEvm().GetGasLimit()
+	if gas == 0 {
+		gas = math.MaxUint64
+	}
+	_, addr, _, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0), gas)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ package evm
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 	"testing"
@@ -132,7 +133,7 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 }
 
 func deployContract(t *testing.T, vm lvm.VM, caller loom.Address, code string, runCode string) loom.Address {
-	res, addr, err := vm.Create(caller, common.Hex2Bytes(code), loom.NewBigUIntFromInt(0), &lvm.LegacyGasTracker{})
+	res, addr, _, err := vm.Create(caller, common.Hex2Bytes(code), loom.NewBigUIntFromInt(0), math.MaxUint64)
 	require.NoError(t, err, "calling vm.Create")
 
 	output := lvm.DeployResponseData{}
@@ -188,7 +189,7 @@ func makeZombie(
 	}
 	inParams, err := abiZFactory.Pack("createRandomZombie", name)
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0), &lvm.LegacyGasTracker{})
+	res, _, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0), math.MaxUint64)
 	if err != nil {
 		t.Error("Error on making zombie")
 	}
@@ -230,7 +231,7 @@ func zombieFeed(
 	}
 	inParams, err := abiZFeeding.Pack("feedOnKitty", big.NewInt(int64(zombieId)), big.NewInt(int64(kittyId)))
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0), &lvm.LegacyGasTracker{})
+	res, _, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0), math.MaxUint64)
 	require.Nil(t, err)
 	return res
 }
@@ -245,7 +246,7 @@ func setKittyAddress(
 	}
 	inParams, err := abiZFeeding.Pack("setKittyContractAddress", common.BytesToAddress(kittyAddr.Local))
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0), &lvm.LegacyGasTracker{})
+	res, _, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0), math.MaxUint64)
 	if err != nil {
 		t.Error("Error on setting kitty address")
 	}

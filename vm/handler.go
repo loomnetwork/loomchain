@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
@@ -65,8 +66,12 @@ func (h *DeployTxHandler) ProcessTx(
 		value = &tx.Value.Value
 	}
 
-	gasConsumer := h.GasConsumer()
-	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value, gasConsumer)
+	// TODO: get the gas amount from the DeployTx
+	gas := state.Config().GetEvm().GetGasLimit()
+	if gas == 0 {
+		gas = math.MaxUint64
+	}
+	retCreate, addr, _, errCreate := vm.Create(origin, tx.Code, value, gas)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
@@ -145,8 +150,12 @@ func (h *CallTxHandler) ProcessTx(
 		value = &tx.Value.Value
 	}
 
-	gasConsumer := h.GasConsumer()
-	r.Data, err = vm.Call(origin, addr, tx.Input, value, gasConsumer)
+	// TODO: get the gas amount from the CallTx
+	gas := state.Config().GetEvm().GetGasLimit()
+	if gas == 0 {
+		gas = math.MaxUint64
+	}
+	r.Data, _, err = vm.Call(origin, addr, tx.Input, value, gas)
 	if err != nil {
 		return r, err
 	}

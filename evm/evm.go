@@ -191,9 +191,10 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManage
 }
 
 // Create will create a new EVM contract with the provided bytecode and return the address of the
-// new contract along with the amount of gas used to create it. If an error occurs this function
-// will still return the exact amount of gas used.
-func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt, gas uint64) ([]byte, loom.Address, uint64, error) {
+// new contract along with the amount of gas remaining.
+func (e Evm) Create(
+	caller loom.Address, code []byte, value *loom.BigUInt, gas uint64,
+) ([]byte, loom.Address, uint64, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -212,7 +213,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt, gas u
 	} else {
 		val = value.Int
 		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
-			return nil, loom.Address{}, 0, errors.Errorf("value %v must be non negative", value)
+			return nil, loom.Address{}, gas, errors.Errorf("value %v must be non negative", value)
 		}
 	}
 
@@ -222,12 +223,14 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt, gas u
 		ChainID: caller.ChainID,
 		Local:   address.Bytes(),
 	}
-	return runCode, loomAddress, usedGas, err
+	return runCode, loomAddress, leftOverGas, err
 }
 
-// Call will execute a mutable EVM contract method. If an error occurs this function will still
-// return the exact amount of gas used.
-func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64) ([]byte, uint64, error) {
+// Call will execute an EVM contract method, and return some result (which is generally discarded),
+// along with the amount of gas remaining.
+func (e Evm) Call(
+	caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64,
+) ([]byte, uint64, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -247,16 +250,15 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt, 
 	} else {
 		val = value.Int
 		if val == nil {
-			//there seems like there are serialization issues where we can get bad data here
 			val = common.Big0
 		}
 		if e.validateTxValue && val.Cmp(common.Big0) < 0 {
-			return nil, 0, errors.Errorf("value %v must be non negative", value)
+			return nil, gas, errors.Errorf("value %v must be non negative", value)
 		}
 	}
 	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gas, val)
 	usedGas = gas - leftOverGas
-	return ret, usedGas, err
+	return ret, leftOverGas, err
 }
 
 func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {

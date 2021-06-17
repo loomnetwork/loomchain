@@ -67,6 +67,7 @@ func (h *EthTxHandler) ProcessTx(
 		return r, errors.New("tx value can't be negative")
 	}
 
+	// TODO: buy intrinsic gas (i.e. minimal fixed fee for processing the tx)
 	gasConsumer := h.GasConsumer()
 	if err := gasConsumer.ApproveGasPurchase(origin, ethTx.Gas(), ethTx.GasPrice()); err != nil {
 		return r, err
@@ -78,16 +79,21 @@ func (h *EthTxHandler) ProcessTx(
 	}
 
 	gasConsumer.BuyGas(origin, ethTx.Gas(), ethTx.GasPrice())
+	gas := gasConsumer.RemainingGas()
 
-	// TODO: create an atomic tx wrapper of state and pass that to InitVM, that way if the tx fails
-	// the state changes made in it are all reverted, but the gas fee deduction is not.
 	vmInstance, err := h.Manager.InitVM(vm.VMType_EVM, state)
 	if err != nil {
 		return r, err
 	}
 
 	if ethTx.To() == nil { // deploy
-		retCreate, addr, err := vmInstance.Create(origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasConsumer)
+		retCreate, addr, gasRemaining, err := vmInstance.Create(
+			origin, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gas,
+		)
+		// gas is used up regardless of whether or not the call actually succeeds
+		if gasErr := gasConsumer.UseGas(gas - gasRemaining); gasErr != nil {
+			panic(gasErr) // EVM should never use more gas than it was given
+		}
 		if err != nil {
 			return r, errors.Wrap(err, "failed to create contract")
 		}
@@ -110,7 +116,14 @@ func (h *EthTxHandler) ProcessTx(
 		}
 	} else { // call
 		to := loom.UnmarshalAddressPB(msg.To)
-		r.Data, err = vmInstance.Call(origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gasConsumer)
+		var gasRemaining uint64
+		r.Data, gasRemaining, err = vmInstance.Call(
+			origin, to, ethTx.Data(), loom.NewBigUInt(ethTx.Value()), gas,
+		)
+		// gas is used up regardless of whether or not the call actually succeeds
+		if gasErr := gasConsumer.UseGas(gas - gasRemaining); gasErr != nil {
+			panic(gasErr) // EVM should never use more gas than it was given
+		}
 		if err != nil {
 			return r, errors.Wrap(err, "contract call failed")
 		}

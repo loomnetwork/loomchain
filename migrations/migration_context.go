@@ -66,7 +66,7 @@ func (mc *MigrationContext) DeployContract(contractCfg *genesiscfg.ContractConfi
 	if err != nil {
 		return loom.Address{}, err
 	}
-	_, addr, err := vm.Create(mc.caller, initCode, loom.NewBigUIntFromInt(0))
+	_, addr, _, err := vm.Create(mc.caller, initCode, loom.NewBigUIntFromInt(0), 0)
 	if err != nil {
 		return loom.Address{}, err
 	}

@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -158,25 +159,30 @@ func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	}
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+func (vm *PluginVM) Create(
+	caller loom.Address, code []byte, value *loom.BigUInt, gas uint64,
+) ([]byte, loom.Address, uint64, error) {
 	nonce := auth.Nonce(vm.State, caller)
 	contractAddr := CreateAddress(caller, nonce)
 
 	ret, err := vm.run(caller, contractAddr, code, nil, false)
 	if err != nil {
-		return nil, contractAddr, err
+		return nil, contractAddr, gas, err
 	}
 
 	vm.State.Set(loom.TextKey(contractAddr), ret)
-	return ret, contractAddr, nil
+	return ret, contractAddr, gas, nil
 }
 
-func (vm *PluginVM) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+func (vm *PluginVM) Call(
+	caller, addr loom.Address, input []byte, value *loom.BigUInt, gas uint64,
+) ([]byte, uint64, error) {
 	if len(input) == 0 {
-		return nil, errors.New("input is empty")
+		return nil, gas, errors.New("input is empty")
 	}
 	code := vm.State.Get(loom.TextKey(addr))
-	return vm.run(caller, addr, code, input, false)
+	ret, err := vm.run(caller, addr, code, input, false)
+	return ret, gas, err
 }
 
 func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -196,8 +202,15 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
+	// PluginVM.CallEVM is used by built-in Go contracts to call EVM contracts, for the time being
+	// those calls will be free, but capped to the on-chain per-tx gas limit.
+	gas := vm.State.Config().GetEvm().GetGasLimit()
+	if gas == 0 {
+		gas = math.MaxUint64
+	}
 	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
-	return evm.Call(caller, addr, input, value)
+	ret, _, err := evm.Call(caller, addr, input, value, gas)
+	return ret, err
 }
 
 func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -244,7 +257,10 @@ type contractContext struct {
 var _ lp.Context = &contractContext{}
 
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.address, addr, input, loom.NewBigUIntFromInt(0))
+	// NOTE: built-in Go contracts don't currently consume gas (even if they call into the EVM),
+	// so zero gas is provided here.
+	ret, _, err := c.VM.Call(c.address, addr, input, loom.NewBigUIntFromInt(0), 0)
+	return ret, err
 }
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {

@@ -174,8 +174,13 @@ func (r *ReceiptHandler) CacheReceipt(
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")
 	}
+	// NOTE: The gas fields are set here instead of in leveldb.WriteReceipt() so that the receipt
+	// hash generated in WriteReceipt() doesn't change between different builds.
 	receipt.GasUsed = int32(gasUsed)
-	//receipt.CumulativeGasUsed = ? // what should this be?
+	// TODO: CumulativeGasUsed is supposed to be set to the sum of the gas used by the prior txs
+	//       in this block, so need to figure out how to retrieve the receipt for the previous tx in
+	//       this block.
+	//receipt.CumulativeGasUsed = prevTxReceipt.CumulativeGasUsed + receipt.GasUsed
 	r.currentReceipt = &receipt
 	return r.currentReceipt.TxHash, err
 }
