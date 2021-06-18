@@ -1273,6 +1273,14 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 	return versionBigInt.String(), nil
 }
 
+func (s *QueryServer) EthChainId() (eth.Quantity, error) {
+	hash := sha3.SoliditySHA3(sha3.String(s.ChainID))
+	versionBigInt := new(big.Int)
+	versionBigInt.SetString(hex.EncodeToString(hash)[0:13], 16)
+	log.Info("[QueryServer.EthChainId]", "isInt64", versionBigInt.IsInt64(), "int64", versionBigInt.Int64())
+	return eth.EncBigInt(*versionBigInt), nil
+}
+
 func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
 	return []eth.Data{}, nil
 }

@@ -58,6 +58,7 @@ type QueryService interface {
 	EthEstimateGas(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Quantity, error)
 	EthGasPrice() (eth.Quantity, error)
 	EthNetVersion() (string, error)
+	EthChainId() (eth.Quantity, error)
 	EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error)
 	EthAccounts() ([]eth.Data, error)
 
@@ -189,6 +190,7 @@ func createDefaultEthRoutes(svc QueryService, chainID string) map[string]eth.RPC
 	routes["eth_estimateGas"] = eth.NewRPCFunc(svc.EthEstimateGas, "query,block")
 	routes["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
 	routes["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
+	routes["eth_chainId"] = eth.NewRPCFunc(svc.EthChainId, "")
 	routes["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
 	routes["eth_sendRawTransaction"] = NewSendRawTransactionRPCFunc(chainID, rpccore.BroadcastTxSync)
 	return routes
