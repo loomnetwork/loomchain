@@ -29,9 +29,17 @@ module.exports = {
         const mnemonic = fs.readFileSync(path.join(__dirname, 'eth_mnemonic'), 'utf-8').trim()
         // NOTE: This provider uses Eth accounts, so a mapping to a Loom account must already for
         // any account used with this provider.
-        return new HDWalletProvider(mnemonic, `http://${nodeAddr}/eth`, 0, 6)
+        return new HDWalletProvider({
+          mnemonic,
+          // ws is more reliable than http on my machine, http is prone to ECONNRESET errors...
+          // maybe due to the local open file limit being exhausted by the HTTP polling requests
+          providerOrUrl: `ws://${nodeAddr}/eth`,
+          addressIndex: 0,
+          numberOfAddresses: 6
+        })
       },
       network_id: '*',
+      networkCheckTimeout: 10000,
       skipDryRun: true,
     }
   }
