@@ -19,12 +19,17 @@ type LegacyGasTracker struct {
 	gas uint64
 }
 
+func NewLegacyGasTracker(maxGas uint64) *LegacyGasTracker {
+	return &LegacyGasTracker{
+		gas: maxGas,
+	}
+}
+
 func (gt *LegacyGasTracker) ApproveGasPurchase(_ loom.Address, _ uint64, _ *big.Int) error {
 	return nil
 }
 
 func (gt *LegacyGasTracker) BuyGas(_ loom.Address, _ uint64, _ *big.Int) error {
-	gt.gas = 0 // TODO: set this from the on-chain config
 	return nil
 }
 

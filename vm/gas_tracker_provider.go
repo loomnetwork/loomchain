@@ -2,6 +2,7 @@ package vm
 
 import (
 	"errors"
+	"math"
 	"math/big"
 
 	"github.com/loomnetwork/go-loom"
@@ -26,10 +27,13 @@ func (p *GasTrackerProvider) CreateTracker(state loomchain.State) (loomchain.Gas
 	gv = txHandlerCfg.GetGasTrackerVersion()
 
 	maxGas := state.Config().GetEvm().GetGasLimit()
+	if maxGas == 0 {
+		maxGas = math.MaxUint64
+	}
 
 	switch gv {
 	case 0:
-		p.tracker = &LegacyGasTracker{}
+		p.tracker = NewLegacyGasTracker(maxGas)
 	case 1:
 		coinCtx, err := p.createCoinCtx(state)
 		if err != nil {
